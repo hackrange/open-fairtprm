@@ -1184,9 +1184,91 @@ try {
         const emailEnabled = <?php echo $emailEnabled ? 'true' : 'false'; ?>;
         const csrfToken = <?php echo json_encode($csrfToken); ?>;
 
+        // --- Email Modal State ---
+        var emailModalState = { uuid: '', vendorName: '', recipients: [] };
+
         function emailLink(uuid, vendorName, vendorEmail) {
+            emailModalState.uuid = uuid;
+            emailModalState.vendorName = vendorName;
+            emailModalState.recipients = vendorEmail ? [vendorEmail] : [];
+
+            document.getElementById('emailModalVendorName').textContent = vendorName;
+            document.getElementById('emailModalNewAddr').value = '';
+            document.getElementById('emailModalStatus').textContent = '';
+            document.getElementById('emailModalStatus').style.display = 'none';
+            document.getElementById('emailModalSendBtn').disabled = false;
+            document.getElementById('emailModalSendBtn').textContent = 'Send';
+            renderRecipientTags();
+            document.getElementById('emailModal').style.display = 'flex';
+        }
+
+        function closeEmailModal() {
+            document.getElementById('emailModal').style.display = 'none';
+        }
+
+        function renderRecipientTags() {
+            var container = document.getElementById('emailModalTags');
+            container.innerHTML = '';
+            emailModalState.recipients.forEach(function(email, idx) {
+                var tag = document.createElement('span');
+                tag.className = 'email-recipient-tag';
+                tag.innerHTML = '<span>' + escapeHtml(email) + '</span>' +
+                    '<button type="button" class="email-tag-remove" data-idx="' + idx + '" title="Remove">&times;</button>';
+                container.appendChild(tag);
+            });
+            // Attach remove handlers
+            container.querySelectorAll('.email-tag-remove').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var i = parseInt(this.getAttribute('data-idx'), 10);
+                    emailModalState.recipients.splice(i, 1);
+                    renderRecipientTags();
+                });
+            });
+            // Toggle send button
+            document.getElementById('emailModalSendBtn').disabled = emailModalState.recipients.length === 0;
+        }
+
+        function escapeHtml(str) {
+            var d = document.createElement('div');
+            d.appendChild(document.createTextNode(str));
+            return d.innerHTML;
+        }
+
+        function addEmailRecipient() {
+            var input = document.getElementById('emailModalNewAddr');
+            var raw = input.value.trim();
+            if (!raw) return;
+
+            // Split on commas, semicolons, or spaces to allow pasting multiple addresses
+            var addresses = raw.split(/[,;\s]+/).filter(function(a) { return a.length > 0; });
+            var invalid = [];
+            addresses.forEach(function(addr) {
+                if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) {
+                    if (emailModalState.recipients.indexOf(addr) === -1) {
+                        emailModalState.recipients.push(addr);
+                    }
+                } else {
+                    invalid.push(addr);
+                }
+            });
+            input.value = invalid.length ? invalid.join(', ') : '';
+            renderRecipientTags();
+            if (invalid.length) {
+                input.focus();
+            }
+        }
+
+        function sendEmailModal() {
+            var recipients = emailModalState.recipients.slice();
+            if (recipients.length === 0) return;
+
+            var uuid = emailModalState.uuid;
+            var vendorName = emailModalState.vendorName;
+            var statusEl = document.getElementById('emailModalStatus');
+            var sendBtn = document.getElementById('emailModalSendBtn');
+
             if (!emailEnabled) {
-                // Fall back to mailto: link when email is not configured
+                // Fall back to mailto: with all recipients
                 var url = <?php echo json_encode(baseUrl('')); ?> + 'vendor-assessment.php?token=' + uuid;
                 var subject = encodeURIComponent('Security Assessment Request - ' + vendorName);
                 var body = encodeURIComponent(
@@ -1198,43 +1280,61 @@ try {
                     'Thank you,\n' +
                     'Third Party Risk Management Team'
                 );
-                window.location.href = 'mailto:' + vendorEmail + '?subject=' + subject + '&body=' + body;
+                window.location.href = 'mailto:' + recipients.join(',') + '?subject=' + subject + '&body=' + body;
+                closeEmailModal();
                 return;
             }
 
-            // Send via server SMTP -- find the button by its data attributes
-            var btn = document.querySelector('[data-action="emailLink"][data-args*="' + uuid + '"]');
-            if (btn) {
-                btn.disabled = true;
-                btn.textContent = 'Sending...';
-            }
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+            statusEl.style.display = 'block';
+            statusEl.style.color = '#666';
+            statusEl.textContent = 'Sending to ' + recipients.length + ' recipient(s)...';
 
-            fetch('api/send-assessment-email.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    csrf_token: csrfToken,
-                    uuid: uuid,
-                    vendor_name: vendorName,
-                    vendor_email: vendorEmail
+            var successes = [];
+            var failures = [];
+            var pending = recipients.length;
+
+            recipients.forEach(function(email) {
+                fetch('api/send-assessment-email.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        csrf_token: csrfToken,
+                        uuid: uuid,
+                        vendor_name: vendorName,
+                        vendor_email: email
+                    })
                 })
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.success) {
-                    alert('Email sent successfully to ' + vendorEmail);
-                } else {
-                    alert('Failed to send email: ' + (data.message || 'Unknown error'));
-                }
-            })
-            .catch(function() {
-                alert('Failed to send email. Please try again.');
-            })
-            .finally(function() {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.textContent = 'Email';
-                }
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        successes.push(email);
+                    } else {
+                        failures.push(email + ': ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(function() {
+                    failures.push(email + ': Network error');
+                })
+                .finally(function() {
+                    pending--;
+                    if (pending === 0) {
+                        sendBtn.disabled = false;
+                        sendBtn.textContent = 'Send';
+                        if (failures.length === 0) {
+                            statusEl.style.color = '#10b981';
+                            statusEl.textContent = 'Email sent successfully to ' + successes.join(', ');
+                            setTimeout(closeEmailModal, 1500);
+                        } else {
+                            var msg = '';
+                            if (successes.length) msg += 'Sent to: ' + successes.join(', ') + '. ';
+                            msg += 'Failed: ' + failures.join('; ');
+                            statusEl.style.color = '#ef4444';
+                            statusEl.textContent = msg;
+                        }
+                    }
+                });
             });
         }
 
@@ -1242,9 +1342,68 @@ try {
             if (event.target.classList.contains('modal')) {
                 event.target.style.display = 'none';
             }
+            if (event.target.id === 'emailModal') {
+                closeEmailModal();
+            }
         }
 
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('emailModal').style.display === 'flex') {
+                closeEmailModal();
+            }
+        });
+
     </script>
+
+    <!-- Email Recipients Modal -->
+    <div id="emailModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:30px; border-radius:8px; max-width:520px; width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0; color:#333; font-size:18px;">Send Assessment Email</h3>
+                <button type="button" onclick="closeEmailModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1;">&times;</button>
+            </div>
+            <p style="margin:0 0 6px; color:#666; font-size:14px;">Vendor: <strong id="emailModalVendorName"></strong></p>
+            <label style="display:block; margin:12px 0 6px; font-weight:600; color:#333; font-size:14px;">Recipients</label>
+            <div id="emailModalTags" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; min-height:10px;"></div>
+            <div style="display:flex; gap:6px;">
+                <input type="email" id="emailModalNewAddr" placeholder="Add email address" style="flex:1; padding:8px 10px; border:1px solid #d1d5db; border-radius:4px; font-size:14px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEmailRecipient();}">
+                <button type="button" onclick="addEmailRecipient()" class="btn btn-sm" style="background:#3b82f6; color:white; padding:8px 14px; white-space:nowrap;">Add</button>
+            </div>
+            <p style="margin:4px 0 0; color:#999; font-size:12px;">Separate multiple addresses with commas, semicolons, or spaces.</p>
+            <div id="emailModalStatus" style="display:none; margin-top:12px; padding:8px 10px; background:#f9fafb; border-radius:4px; font-size:13px;"></div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button type="button" onclick="closeEmailModal()" class="btn btn-sm btn-secondary" style="padding:8px 18px;">Cancel</button>
+                <button type="button" id="emailModalSendBtn" onclick="sendEmailModal()" class="btn btn-sm" style="background:#10b981; color:white; padding:8px 18px;">Send</button>
+            </div>
+        </div>
+    </div>
+    <style>
+        .email-recipient-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .email-tag-remove {
+            background: none;
+            border: none;
+            color: #0369a1;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            padding: 0 2px;
+            opacity: 0.7;
+        }
+        .email-tag-remove:hover {
+            opacity: 1;
+            color: #dc2626;
+        }
+    </style>
 
     <footer class="section footer-modern bg-gray-13">
         <div class="footer-modern-body">
