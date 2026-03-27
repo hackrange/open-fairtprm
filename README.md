@@ -14,7 +14,10 @@ PHP 8.5, Apache 2.4, MariaDB, ClamAV, and ModSecurity (WAF).
 1. [What Is This?](#what-is-this)
 2. [Features](#features)
 3. [Architecture](#architecture)
-4. [Option A — Docker Deployment (Recommended)](#option-a--docker-deployment-recommended)
+4. [Getting the Code](#getting-the-code)
+   - [Install Git](#install-git)
+   - [Clone the Repository](#clone-the-repository)
+5. [Option A — Docker Deployment (Recommended)](#option-a--docker-deployment-recommended)
    - [What You Need](#what-you-need-docker)
    - [Quick Start](#quick-start)
    - [What Happens on First Start](#what-happens-on-first-start)
@@ -22,7 +25,7 @@ PHP 8.5, Apache 2.4, MariaDB, ClamAV, and ModSecurity (WAF).
    - [Build and Run Options](#build-and-run-options)
    - [Volumes and Persistence](#volumes-and-persistence)
    - [Stopping, Restarting, and Upgrading](#stopping-restarting-and-upgrading)
-5. [Option B — Manual Installation on Ubuntu 22.04](#option-b--manual-installation-on-ubuntu-2204)
+6. [Option B — Manual Installation on Ubuntu 22.04](#option-b--manual-installation-on-ubuntu-2204)
    - [What You Need](#what-you-need-manual)
    - [Step 1 — Install System Packages](#step-1--install-system-packages)
    - [Step 2 — Add the PHP 8.5 Repository](#step-2--add-the-php-85-repository)
@@ -42,13 +45,13 @@ PHP 8.5, Apache 2.4, MariaDB, ClamAV, and ModSecurity (WAF).
    - [Step 16 — Enable and Start Services](#step-16--enable-and-start-services)
    - [Step 17 — (Optional) Set Up a Reverse Proxy with Nginx + TLS](#step-17--optional-set-up-a-reverse-proxy-with-nginx--tls)
    - [Step 18 — Log In for the First Time](#step-18--log-in-for-the-first-time)
-6. [Directory Structure](#directory-structure)
-7. [How the Docker Entrypoint Works](#how-the-docker-entrypoint-works)
-8. [SQL Migrations](#sql-migrations)
-9. [Cron Jobs Reference](#cron-jobs-reference)
-10. [Integrations](#integrations)
-11. [Security Notes](#security-notes)
-12. [Troubleshooting](#troubleshooting)
+7. [Directory Structure](#directory-structure)
+8. [How the Docker Entrypoint Works](#how-the-docker-entrypoint-works)
+9. [SQL Migrations](#sql-migrations)
+10. [Cron Jobs Reference](#cron-jobs-reference)
+11. [Integrations](#integrations)
+12. [Security Notes](#security-notes)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -138,6 +141,77 @@ full control and is better for production servers you want to manage yourself.
 
 ---
 
+## Getting the Code
+
+Before you can deploy the application (via Docker or manually), you need to
+download the source code to your machine. The easiest way is with **Git**.
+
+### Install Git
+
+If you don't already have Git installed, run:
+
+**Ubuntu / Debian:**
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git
+```
+
+**macOS (with Homebrew):**
+
+```bash
+brew install git
+```
+
+**Windows:**
+
+Download and install from [git-scm.com](https://git-scm.com/download/win),
+or if you have [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/):
+
+```powershell
+winget install Git.Git
+```
+
+Verify Git is installed:
+
+```bash
+git --version
+# Expected output: git version 2.x.x
+```
+
+### Clone the Repository
+
+Now download the project files to your machine:
+
+```bash
+# Navigate to where you want to store the project (e.g., your home directory)
+cd ~
+
+# Clone the repository
+git clone https://git.hackrange.com/trice/open-fairtprm.git
+
+# Move into the project directory
+cd open-fairtprm
+```
+
+> **What does `git clone` do?** It downloads a complete copy of the project
+> files from the server to your computer. You only need to do this once.
+> To get updates later, run `git pull` from inside the project directory.
+
+You should now see files like `Dockerfile`, `docker-compose.yml`, `README.md`,
+and the `web/` and `docker/` directories:
+
+```bash
+ls -la
+```
+
+You are now ready to deploy. Choose one of the two options below:
+
+- **Option A (Docker)** — Fastest, fully automated, recommended for most users
+- **Option B (Manual)** — Full control, better for production servers you manage yourself
+
+---
+
 ## Option A — Docker Deployment (Recommended)
 
 This is the **easiest way to get started**. One command builds everything and
@@ -147,19 +221,48 @@ auto-configures the database, credentials, and WAF.
 
 | Requirement | Minimum |
 |-------------|---------|
+| **Git** | Any recent version ([install instructions above](#install-git)) |
 | **Docker Engine** | Version 20.10 or newer |
 | **Docker Compose** | v2 (comes bundled with Docker Desktop; on Linux install `docker-compose-plugin`) |
 | **RAM** | 2 GB (ClamAV loads ~1 GB of virus definitions into memory) |
 | **Disk** | 5 GB (for the Docker image + database + virus definitions) |
 
-> **Don't have Docker installed?** Follow the official guide:
-> [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
+> **Don't have Docker installed?** On Ubuntu 22.04, run these commands:
+>
+> ```bash
+> # Remove any old Docker packages
+> sudo apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+>
+> # Install prerequisites
+> sudo apt-get update
+> sudo apt-get install -y ca-certificates curl gnupg
+>
+> # Add Docker's official GPG key and repository
+> sudo install -m 0755 -d /etc/apt/keyrings
+> curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+> sudo chmod a+r /etc/apt/keyrings/docker.gpg
+> echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+>     | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+>
+> # Install Docker Engine and Compose
+> sudo apt-get update
+> sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+>
+> # (Optional) Let your user run Docker without sudo
+> sudo usermod -aG docker $USER
+> # Log out and back in for this to take effect
+> ```
+>
+> Verify with: `docker --version` and `docker compose version`
 
 ### Quick Start
 
+If you haven't already, [clone the repository](#clone-the-repository) first.
+Then:
+
 ```bash
 # 1. Navigate to the project directory
-cd /path/to/docker_refactor_2.5.8
+cd ~/open-fairtprm
 
 # 2. Build and start the container (runs in the background)
 docker compose up -d --build
@@ -329,6 +432,14 @@ Every step that the Docker image performs automatically is covered here for
 manual execution.
 
 > **Estimated time:** 20–30 minutes if you follow the steps in order.
+
+> **Before you begin:** Make sure you have already [cloned the repository](#clone-the-repository)
+> to your server. If you haven't, run:
+> ```bash
+> sudo apt-get update && sudo apt-get install -y git
+> git clone https://git.hackrange.com/trice/open-fairtprm.git
+> cd open-fairtprm
+> ```
 
 Throughout this guide, the application root is `/var/www/html`. All commands
 assume you are logged in as **root** or using **sudo**.
