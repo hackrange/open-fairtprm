@@ -307,6 +307,30 @@ install_docker() {
         apt-get install -y -qq docker-ce docker-ce-cli containerd.io </dev/null >/dev/null 2>&1
         systemctl enable --now docker
         log "Docker CE installed: $(docker --version)"
+    else
+        # Even if Docker is already installed, ensure containerd.io (which
+        # includes runc) is up to date from Docker's official repo.
+        # Old runc versions crash with "open sysctl net.ipv4.ip_unprivileged_port_start:
+        # permission denied" on newer kernels and LXC/VPS hosts.
+        local RUNC_VER=""
+        RUNC_VER=$(runc --version 2>/dev/null | head -1 | grep -oP '[\d.]+' | head -1) || true
+        if [ -n "$RUNC_VER" ]; then
+            local RUNC_MAJOR RUNC_MINOR RUNC_PATCH
+            RUNC_MAJOR=$(echo "$RUNC_VER" | cut -d. -f1)
+            RUNC_MINOR=$(echo "$RUNC_VER" | cut -d. -f2)
+            RUNC_PATCH=$(echo "$RUNC_VER" | cut -d. -f3)
+            # Need runc >= 1.1.5 for the sysctl fix
+            if [ "$RUNC_MAJOR" -le 1 ] && [ "$RUNC_MINOR" -le 1 ] && [ "${RUNC_PATCH:-0}" -lt 5 ]; then
+                warn "runc $RUNC_VER is outdated and has a known sysctl bug. Updating..."
+                apt-get install -y -qq containerd.io </dev/null >/dev/null 2>&1 || true
+                log "Updated runc: $(runc --version 2>/dev/null | head -1)"
+            else
+                log "runc version $RUNC_VER is OK"
+            fi
+        else
+            info "Updating containerd.io (includes runc)..."
+            apt-get install -y -qq containerd.io </dev/null >/dev/null 2>&1 || true
+        fi
     fi
 
     if [ "$NEED_COMPOSE" = true ]; then
