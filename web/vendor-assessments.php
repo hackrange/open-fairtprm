@@ -988,6 +988,56 @@ try {
     </div>
     <?php endif; ?>
 
+    <!-- Email Recipients Modal -->
+    <div id="emailModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:30px; border-radius:8px; max-width:520px; width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0; color:#333; font-size:18px;">Send Assessment Email</h3>
+                <button type="button" id="emailModalCloseX" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1;">&times;</button>
+            </div>
+            <p style="margin:0 0 6px; color:#666; font-size:14px;">Vendor: <strong id="emailModalVendorName"></strong></p>
+            <label style="display:block; margin:12px 0 6px; font-weight:600; color:#333; font-size:14px;">Recipients</label>
+            <div id="emailModalTags" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; min-height:10px;"></div>
+            <div style="display:flex; gap:6px;">
+                <input type="email" id="emailModalNewAddr" placeholder="Add email address" style="flex:1; padding:8px 10px; border:1px solid #d1d5db; border-radius:4px; font-size:14px;">
+                <button type="button" id="emailModalAddBtn" class="btn btn-sm" style="background:#3b82f6; color:white; padding:8px 14px; white-space:nowrap;">Add</button>
+            </div>
+            <p style="margin:4px 0 0; color:#999; font-size:12px;">Separate multiple addresses with commas, semicolons, or spaces.</p>
+            <div id="emailModalStatus" style="display:none; margin-top:12px; padding:8px 10px; background:#f9fafb; border-radius:4px; font-size:13px;"></div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button type="button" id="emailModalCancelBtn" class="btn btn-sm btn-secondary" style="padding:8px 18px;">Cancel</button>
+                <button type="button" id="emailModalSendBtn" class="btn btn-sm" style="background:#10b981; color:white; padding:8px 18px;">Send</button>
+            </div>
+        </div>
+    </div>
+    <style>
+        .email-recipient-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .email-tag-remove {
+            background: none;
+            border: none;
+            color: #0369a1;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            padding: 0 2px;
+            opacity: 0.7;
+        }
+        .email-tag-remove:hover {
+            opacity: 1;
+            color: #dc2626;
+        }
+    </style>
+
     <script src="app/js/vendor-search.js?v=2.5.5b"></script>
     <script nonce="<?php echo cspNonce(); ?>">
         // Vendor data for typeahead
@@ -1353,57 +1403,19 @@ try {
             }
         });
 
-    </script>
+        // Attach modal button listeners (CSP blocks inline onclick)
+        document.getElementById('emailModalCloseX').addEventListener('click', closeEmailModal);
+        document.getElementById('emailModalCancelBtn').addEventListener('click', closeEmailModal);
+        document.getElementById('emailModalSendBtn').addEventListener('click', sendEmailModal);
+        document.getElementById('emailModalAddBtn').addEventListener('click', addEmailRecipient);
+        document.getElementById('emailModalNewAddr').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addEmailRecipient();
+            }
+        });
 
-    <!-- Email Recipients Modal -->
-    <div id="emailModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
-        <div style="background:white; padding:30px; border-radius:8px; max-width:520px; width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h3 style="margin:0; color:#333; font-size:18px;">Send Assessment Email</h3>
-                <button type="button" onclick="closeEmailModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1;">&times;</button>
-            </div>
-            <p style="margin:0 0 6px; color:#666; font-size:14px;">Vendor: <strong id="emailModalVendorName"></strong></p>
-            <label style="display:block; margin:12px 0 6px; font-weight:600; color:#333; font-size:14px;">Recipients</label>
-            <div id="emailModalTags" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; min-height:10px;"></div>
-            <div style="display:flex; gap:6px;">
-                <input type="email" id="emailModalNewAddr" placeholder="Add email address" style="flex:1; padding:8px 10px; border:1px solid #d1d5db; border-radius:4px; font-size:14px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEmailRecipient();}">
-                <button type="button" onclick="addEmailRecipient()" class="btn btn-sm" style="background:#3b82f6; color:white; padding:8px 14px; white-space:nowrap;">Add</button>
-            </div>
-            <p style="margin:4px 0 0; color:#999; font-size:12px;">Separate multiple addresses with commas, semicolons, or spaces.</p>
-            <div id="emailModalStatus" style="display:none; margin-top:12px; padding:8px 10px; background:#f9fafb; border-radius:4px; font-size:13px;"></div>
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-                <button type="button" onclick="closeEmailModal()" class="btn btn-sm btn-secondary" style="padding:8px 18px;">Cancel</button>
-                <button type="button" id="emailModalSendBtn" onclick="sendEmailModal()" class="btn btn-sm" style="background:#10b981; color:white; padding:8px 18px;">Send</button>
-            </div>
-        </div>
-    </div>
-    <style>
-        .email-recipient-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            background: #e0f2fe;
-            color: #0369a1;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 13px;
-            line-height: 1.4;
-        }
-        .email-tag-remove {
-            background: none;
-            border: none;
-            color: #0369a1;
-            cursor: pointer;
-            font-size: 16px;
-            line-height: 1;
-            padding: 0 2px;
-            opacity: 0.7;
-        }
-        .email-tag-remove:hover {
-            opacity: 1;
-            color: #dc2626;
-        }
-    </style>
+    </script>
 
     <footer class="section footer-modern bg-gray-13">
         <div class="footer-modern-body">
