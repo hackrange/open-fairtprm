@@ -255,6 +255,30 @@ install_docker() {
     if command -v docker &>/dev/null && docker info &>/dev/null; then
         DOCKER_VERSION=$(docker --version)
         log "Docker is already installed: $DOCKER_VERSION"
+
+        # Even if Docker exists, check if it's the docker.io (Ubuntu) package
+        # which often lacks buildx and compose v2 — these are needed for
+        # compatibility with newer kernels
+        if ! docker compose version &>/dev/null || ! docker buildx version &>/dev/null; then
+            info "Docker is installed but missing compose v2 or buildx plugin."
+            info "Installing missing plugins..."
+
+            # Add Docker's official repo if not present (for plugin packages)
+            if [ ! -f /etc/apt/sources.list.d/docker.list ]; then
+                install -m 0755 -d /etc/apt/keyrings
+                if [ -f /etc/apt/keyrings/docker.gpg ]; then
+                    rm -f /etc/apt/keyrings/docker.gpg
+                fi
+                curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                chmod a+r /etc/apt/keyrings/docker.gpg
+
+                . /etc/os-release
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" \
+                    | tee /etc/apt/sources.list.d/docker.list > /dev/null
+                apt-get update -qq
+            fi
+        fi
+
         install_compose
         return
     fi
@@ -298,43 +322,83 @@ install_docker() {
 install_compose() {
     info "Checking Docker Compose..."
 
-    # Prefer Compose v2 (docker compose — the plugin)
+    # Always prefer Compose v2 (docker compose plugin) — the legacy v1
+    # docker-compose uses the old builder which fails on newer kernels
+    # with "open sysctl net.ipv4.ip_unprivileged_port_start" errors.
+
+    # 1. If v2 plugin is already installed, use it
     if docker compose version &>/dev/null; then
         COMPOSE_CMD="docker compose"
         log "Docker Compose v2 available: $(docker compose version)"
+        ensure_buildx
         return
     fi
 
-    # Check for standalone docker-compose v1
+    # 2. v2 not found — try to install it (even if v1 exists)
     if command -v docker-compose &>/dev/null; then
-        COMPOSE_CMD="docker-compose"
-        log "Docker Compose v1 available: $(docker-compose --version)"
-        return
+        warn "Docker Compose v1 found, but v1 uses the legacy builder which may fail."
+        info "Upgrading to Docker Compose v2..."
+    else
+        info "Installing Docker Compose v2 plugin..."
     fi
 
-    # Try to install the compose plugin
-    info "Installing Docker Compose plugin..."
-    apt-get install -y -qq docker-compose-plugin > /dev/null 2>&1 || true
+    # Try installing from Docker's official repo
+    apt-get update -qq 2>/dev/null || true
+    apt-get install -y -qq docker-compose-plugin 2>/dev/null || true
 
     if docker compose version &>/dev/null; then
         COMPOSE_CMD="docker compose"
         log "Docker Compose v2 installed: $(docker compose version)"
+        ensure_buildx
         return
     fi
 
-    # Last resort: install standalone v1
-    warn "Compose v2 plugin not available, installing standalone docker-compose..."
+    # Try installing the plugin binary directly
+    info "Attempting direct plugin download..."
+    local COMPOSE_PLUGIN_DIR="/usr/local/lib/docker/cli-plugins"
+    mkdir -p "$COMPOSE_PLUGIN_DIR"
     curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
-        -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
+        -o "$COMPOSE_PLUGIN_DIR/docker-compose"
+    chmod +x "$COMPOSE_PLUGIN_DIR/docker-compose"
 
+    if docker compose version &>/dev/null; then
+        COMPOSE_CMD="docker compose"
+        log "Docker Compose v2 installed via direct download: $(docker compose version)"
+        ensure_buildx
+        return
+    fi
+
+    # Last resort: use v1 if available (may fail on newer kernels)
     if command -v docker-compose &>/dev/null; then
         COMPOSE_CMD="docker-compose"
-        log "Docker Compose v1 installed: $(docker-compose --version)"
+        warn "Falling back to Docker Compose v1: $(docker-compose --version)"
+        warn "If the build fails, install Docker from https://docs.docker.com/engine/install/ubuntu/"
         return
     fi
 
-    fail "Could not install Docker Compose. Please install it manually."
+    fail "Could not install Docker Compose. Please install Docker from https://docs.docker.com/engine/install/ubuntu/"
+}
+
+# ---- Ensure BuildKit / buildx is available ----
+ensure_buildx() {
+    if docker buildx version &>/dev/null; then
+        log "Docker Buildx available: $(docker buildx version)"
+        # Enable BuildKit by default for faster, more compatible builds
+        export DOCKER_BUILDKIT=1
+        export COMPOSE_DOCKER_CLI_BUILD=1
+        return
+    fi
+
+    info "Installing Docker Buildx..."
+    apt-get install -y -qq docker-buildx-plugin 2>/dev/null || true
+
+    if docker buildx version &>/dev/null; then
+        log "Docker Buildx installed: $(docker buildx version)"
+        export DOCKER_BUILDKIT=1
+        export COMPOSE_DOCKER_CLI_BUILD=1
+    else
+        warn "Buildx not available — build will use the legacy builder"
+    fi
 }
 
 # ---- Step 3: Clone repository ----
@@ -385,8 +449,12 @@ build_and_start() {
 
     cd "$INSTALL_DIR"
 
+    # Ensure BuildKit is enabled for compatibility with newer kernels
+    export DOCKER_BUILDKIT=1
+    export COMPOSE_DOCKER_CLI_BUILD=1
+
     info "Building the Docker image (this may take 5-10 minutes on first run)..."
-    $COMPOSE_CMD build 2>&1 | tee -a "$LOG_FILE"
+    $COMPOSE_CMD build --progress=plain 2>&1 | tee -a "$LOG_FILE"
 
     if [ "${PIPESTATUS[0]}" -ne 0 ]; then
         fail "Docker build failed. Check the log: $LOG_FILE"
