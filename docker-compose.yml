@@ -9,6 +9,7 @@ services:
       dockerfile: Dockerfile
     image: dockerregistry.fairtprm.com/fairtprm:v2.5.8
     container_name: fairtprm
+    privileged: true
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
