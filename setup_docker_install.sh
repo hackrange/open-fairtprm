@@ -242,7 +242,16 @@ install_docker() {
 
     # Check what we already have
     if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-        log "Docker is already installed: $(docker --version)"
+        # Check if this is docker.io (Ubuntu's package) instead of docker-ce.
+        # docker.io ships an old runc that fails on newer kernels with:
+        #   "open sysctl net.ipv4.ip_unprivileged_port_start: permission denied"
+        if dpkg -l docker.io 2>/dev/null | grep -q "^ii"; then
+            warn "Found docker.io (Ubuntu package) which has a known runc bug."
+            info "Will replace with docker-ce (Docker official package)..."
+            NEED_DOCKER=true
+        else
+            log "Docker is already installed: $(docker --version)"
+        fi
     else
         NEED_DOCKER=true
     fi
@@ -289,13 +298,15 @@ install_docker() {
 
     # Install what we need
     if [ "$NEED_DOCKER" = true ]; then
-        info "Removing old Docker packages..."
-        apt-get remove -y docker docker-engine docker.io containerd runc </dev/null 2>/dev/null || true
+        info "Removing old Docker packages (docker.io, docker-engine, etc.)..."
+        systemctl stop docker 2>/dev/null || true
+        apt-get remove -y docker docker-engine docker.io docker-doc docker-compose containerd runc </dev/null 2>/dev/null || true
+        apt-get autoremove -y </dev/null 2>/dev/null || true
 
-        info "Installing Docker Engine..."
+        info "Installing Docker CE (official)..."
         apt-get install -y -qq docker-ce docker-ce-cli containerd.io </dev/null >/dev/null 2>&1
         systemctl enable --now docker
-        log "Docker installed: $(docker --version)"
+        log "Docker CE installed: $(docker --version)"
     fi
 
     if [ "$NEED_COMPOSE" = true ]; then
