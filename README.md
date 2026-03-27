@@ -12,12 +12,13 @@ PHP 8.5, Apache 2.4, MariaDB, ClamAV, and ModSecurity (WAF).
 ## Table of Contents
 
 1. [What Is This?](#what-is-this)
-2. [Features](#features)
-3. [Architecture](#architecture)
-4. [Getting the Code](#getting-the-code)
+2. [One-Command Setup (Fastest)](#one-command-setup-fastest)
+3. [Features](#features)
+4. [Architecture](#architecture)
+5. [Getting the Code](#getting-the-code)
    - [Install Git](#install-git)
    - [Clone the Repository](#clone-the-repository)
-5. [Option A — Docker Deployment (Recommended)](#option-a--docker-deployment-recommended)
+6. [Option A — Docker Deployment (Recommended)](#option-a--docker-deployment-recommended)
    - [What You Need](#what-you-need-docker)
    - [Quick Start](#quick-start)
    - [What Happens on First Start](#what-happens-on-first-start)
@@ -25,7 +26,7 @@ PHP 8.5, Apache 2.4, MariaDB, ClamAV, and ModSecurity (WAF).
    - [Build and Run Options](#build-and-run-options)
    - [Volumes and Persistence](#volumes-and-persistence)
    - [Stopping, Restarting, and Upgrading](#stopping-restarting-and-upgrading)
-6. [Option B — Manual Installation on Ubuntu 22.04](#option-b--manual-installation-on-ubuntu-2204)
+7. [Option B — Manual Installation on Ubuntu 22.04](#option-b--manual-installation-on-ubuntu-2204)
    - [What You Need](#what-you-need-manual)
    - [Step 1 — Install System Packages](#step-1--install-system-packages)
    - [Step 2 — Add the PHP 8.5 Repository](#step-2--add-the-php-85-repository)
@@ -45,13 +46,13 @@ PHP 8.5, Apache 2.4, MariaDB, ClamAV, and ModSecurity (WAF).
    - [Step 16 — Enable and Start Services](#step-16--enable-and-start-services)
    - [Step 17 — (Optional) Set Up a Reverse Proxy with Nginx + TLS](#step-17--optional-set-up-a-reverse-proxy-with-nginx--tls)
    - [Step 18 — Log In for the First Time](#step-18--log-in-for-the-first-time)
-7. [Directory Structure](#directory-structure)
-8. [How the Docker Entrypoint Works](#how-the-docker-entrypoint-works)
-9. [SQL Migrations](#sql-migrations)
-10. [Cron Jobs Reference](#cron-jobs-reference)
-11. [Integrations](#integrations)
-12. [Security Notes](#security-notes)
-13. [Troubleshooting](#troubleshooting)
+8. [Directory Structure](#directory-structure)
+9. [How the Docker Entrypoint Works](#how-the-docker-entrypoint-works)
+10. [SQL Migrations](#sql-migrations)
+11. [Cron Jobs Reference](#cron-jobs-reference)
+12. [Integrations](#integrations)
+13. [Security Notes](#security-notes)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -74,6 +75,41 @@ The **Docker deployment** is the fastest way to get started. It packages
 everything (Apache, PHP, MariaDB, ClamAV, ModSecurity) into one container that
 auto-configures itself on first launch. The **manual installation** gives you
 full control and is better for production servers you want to manage yourself.
+
+---
+
+## One-Command Setup (Fastest)
+
+If you have a fresh **Ubuntu 22.04** or **24.04** server and just want to get
+up and running as fast as possible, run this single command. It installs
+everything (Git, Docker, Docker Compose), clones the repository to
+`/data/docker/fairtprm`, builds the Docker image, and starts the application:
+
+```bash
+curl -fsSL https://git.hackrange.com/trice/open-fairtprm/-/raw/master/setup_docker_install.sh | sudo bash
+```
+
+Or if you already have the repository cloned:
+
+```bash
+sudo ./setup_docker_install.sh
+```
+
+The script will:
+
+1. Verify you're on a supported Ubuntu version with enough RAM and disk
+2. Install Git (if not already installed)
+3. Install Docker Engine and Docker Compose v2 (or fall back to v1)
+4. Clone the repository to `/data/docker/fairtprm`
+5. Build the Docker image and start the container
+6. Wait for the health check to pass and display your login credentials
+
+When it finishes, your application will be running at
+**http://your-server-ip:8080**. The setup script prints your auto-generated
+admin credentials on screen.
+
+> **Prefer to do it step by step?** Skip to [Getting the Code](#getting-the-code)
+> for the manual walkthrough.
 
 ---
 
@@ -256,6 +292,9 @@ auto-configures the database, credentials, and WAF.
 > Verify with: `docker --version` and `docker compose version`
 
 ### Quick Start
+
+> **Want to skip all the manual steps?** The [setup_docker_install.sh](#one-command-setup-fastest)
+> script does everything below automatically with a single command.
 
 If you haven't already, [clone the repository](#clone-the-repository) first.
 Then:
@@ -1058,6 +1097,7 @@ sudo certbot --nginx -d tprm.example.com
 
 ```
 docker_refactor_2.5.8/
+├── setup_docker_install.sh           # One-command setup script (Ubuntu 22.04/24.04)
 ├── Dockerfile                        # Docker image build instructions
 ├── docker-compose.yml                # Docker Compose orchestration
 ├── .dockerignore                     # Build context exclusions
