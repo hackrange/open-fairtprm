@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Fair TPRM & GRC Platform — Automated Docker Setup for Ubuntu 22.04 / 24.04
+# Fair TPRM & GRC Platform - Automated Docker Setup for Ubuntu 22.04 / 24.04
 # =============================================================================
 #
 # This script:
@@ -22,6 +22,14 @@ set -euo pipefail
 INSTALL_DIR="/data/docker/fairtprm"
 REPO_URL="https://git.hackrange.com/trice/open-fairtprm.git"
 LOG_FILE="/tmp/fairtprm-setup-$(date +%Y%m%d-%H%M%S).log"
+
+# Detect if we're running from a pipe (curl | bash) - stdin is not a terminal.
+# In pipe mode, skip interactive prompts and use safe defaults.
+if [ -t 0 ]; then
+    INTERACTIVE=true
+else
+    INTERACTIVE=false
+fi
 
 # ---- Colors for output ----
 RED='\033[0;31m'
@@ -63,14 +71,14 @@ show_credentials() {
         ENC_KEY=$(echo "$CREDS" | grep "^ENCRYPTION_KEY=" | cut -d'=' -f2-)
 
         echo ""
-        echo -e "  ${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "  ${GREEN}║                  ADMIN LOGIN CREDENTIALS                  ║${NC}"
-        echo -e "  ${GREEN}╠════════════════════════════════════════════════════════════╣${NC}"
-        echo -e "  ${GREEN}║${NC}                                                            ${GREEN}║${NC}"
-        printf "  ${GREEN}║${NC}   Username:  ${YELLOW}%-43s${NC}${GREEN}║${NC}\n" "${ADMIN_USER:-admin}"
-        printf "  ${GREEN}║${NC}   Password:  ${YELLOW}%-43s${NC}${GREEN}║${NC}\n" "${ADMIN_PASS:-<not yet generated>}"
-        echo -e "  ${GREEN}║${NC}                                                            ${GREEN}║${NC}"
-        echo -e "  ${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
+        echo -e "  ${GREEN}+------------------------------------------------------------+${NC}"
+        echo -e "  ${GREEN}|              ADMIN LOGIN CREDENTIALS                       |${NC}"
+        echo -e "  ${GREEN}+------------------------------------------------------------+${NC}"
+        echo -e "  ${GREEN}|${NC}                                                            ${GREEN}|${NC}"
+        printf "  ${GREEN}|${NC}   Username:  ${YELLOW}%-43s${NC}${GREEN}|${NC}\n" "${ADMIN_USER:-admin}"
+        printf "  ${GREEN}|${NC}   Password:  ${YELLOW}%-43s${NC}${GREEN}|${NC}\n" "${ADMIN_PASS:-<not yet generated>}"
+        echo -e "  ${GREEN}|${NC}                                                            ${GREEN}|${NC}"
+        echo -e "  ${GREEN}+------------------------------------------------------------+${NC}"
         echo ""
         echo -e "  ${BLUE}Database Credentials (for advanced users):${NC}"
         echo -e "    MySQL Root Password:     ${DB_ROOT_PASS:-<not available>}"
@@ -99,7 +107,7 @@ show_existing_install() {
 
     echo ""
     echo -e "${GREEN}============================================================${NC}"
-    echo -e "${GREEN}  Fair TPRM & GRC Platform — Already Installed & Running!${NC}"
+    echo -e "${GREEN}  Fair TPRM & GRC Platform - Already Installed & Running!${NC}"
     echo -e "${GREEN}============================================================${NC}"
     echo ""
     echo -e "  The application is ${GREEN}already set up${NC} and ${GREEN}running${NC}."
@@ -197,44 +205,49 @@ preflight() {
             fi
         fi
 
-        # Installed but not running — offer to reinstall or start
+        # Installed but not running
         warn "Directory $INSTALL_DIR exists but the container is not running."
-        echo ""
-        echo "  What would you like to do?"
-        echo ""
-        echo "    1) Start the existing container"
-        echo "    2) Reinstall from scratch"
-        echo "    3) Exit"
-        echo ""
-        read -r -p "  Choose [1/2/3]: " CHOICE
-        case "$CHOICE" in
-            1)
-                info "Starting existing container..."
-                cd "$INSTALL_DIR"
-                COMPOSE_CMD="$EXISTING_COMPOSE"
-                if [ -z "$COMPOSE_CMD" ]; then
-                    COMPOSE_CMD="docker compose"
-                fi
-                $COMPOSE_CMD up -d
-                wait_and_show
-                exit 0
-                ;;
-            2)
-                info "Stopping any existing containers..."
-                (cd "$INSTALL_DIR" && docker compose down 2>/dev/null) || true
-                (cd "$INSTALL_DIR" && docker-compose down 2>/dev/null) || true
-                ;;
-            *)
-                info "Exiting."
-                exit 0
-                ;;
-        esac
+
+        if [ "$INTERACTIVE" = true ]; then
+            echo ""
+            echo "  What would you like to do?"
+            echo ""
+            echo "    1) Start the existing container"
+            echo "    2) Reinstall from scratch"
+            echo "    3) Exit"
+            echo ""
+            read -r -p "  Choose [1/2/3]: " CHOICE </dev/tty
+            case "$CHOICE" in
+                1)
+                    info "Starting existing container..."
+                    cd "$INSTALL_DIR"
+                    COMPOSE_CMD="${EXISTING_COMPOSE:-docker compose}"
+                    $COMPOSE_CMD up -d
+                    wait_and_show
+                    exit 0
+                    ;;
+                2)
+                    info "Stopping any existing containers..."
+                    (cd "$INSTALL_DIR" && docker compose down 2>/dev/null) || true
+                    (cd "$INSTALL_DIR" && docker-compose down 2>/dev/null) || true
+                    ;;
+                *)
+                    info "Exiting."
+                    exit 0
+                    ;;
+            esac
+        else
+            # Non-interactive (piped) - default to rebuilding
+            info "Non-interactive mode: rebuilding automatically..."
+            (cd "$INSTALL_DIR" && docker compose down 2>/dev/null) || true
+            (cd "$INSTALL_DIR" && docker-compose down 2>/dev/null) || true
+        fi
     fi
 }
 
 # ---- Step 1: Install Git ----
 install_git() {
-    header "Step 1/5 — Installing Git"
+    header "Step 1/5 - Installing Git"
 
     if command -v git &>/dev/null; then
         log "Git is already installed: $(git --version)"
@@ -249,7 +262,7 @@ install_git() {
 
 # ---- Step 2: Install Docker ----
 install_docker() {
-    header "Step 2/5 — Installing Docker Engine"
+    header "Step 2/5 - Installing Docker Engine"
 
     # Check if Docker is already installed and working
     if command -v docker &>/dev/null && docker info &>/dev/null; then
@@ -257,7 +270,7 @@ install_docker() {
         log "Docker is already installed: $DOCKER_VERSION"
 
         # Even if Docker exists, check if it's the docker.io (Ubuntu) package
-        # which often lacks buildx and compose v2 — these are needed for
+        # which often lacks buildx and compose v2 - these are needed for
         # compatibility with newer kernels
         if ! docker compose version &>/dev/null || ! docker buildx version &>/dev/null; then
             info "Docker is installed but missing compose v2 or buildx plugin."
@@ -322,7 +335,7 @@ install_docker() {
 install_compose() {
     info "Checking Docker Compose..."
 
-    # Always prefer Compose v2 (docker compose plugin) — the legacy v1
+    # Always prefer Compose v2 (docker compose plugin) - the legacy v1
     # docker-compose uses the old builder which fails on newer kernels
     # with "open sysctl net.ipv4.ip_unprivileged_port_start" errors.
 
@@ -334,7 +347,7 @@ install_compose() {
         return
     fi
 
-    # 2. v2 not found — try to install it (even if v1 exists)
+    # 2. v2 not found - try to install it (even if v1 exists)
     if command -v docker-compose &>/dev/null; then
         warn "Docker Compose v1 found, but v1 uses the legacy builder which may fail."
         info "Upgrading to Docker Compose v2..."
@@ -397,13 +410,13 @@ ensure_buildx() {
         export DOCKER_BUILDKIT=1
         export COMPOSE_DOCKER_CLI_BUILD=1
     else
-        warn "Buildx not available — build will use the legacy builder"
+        warn "Buildx not available - build will use the legacy builder"
     fi
 }
 
 # ---- Step 3: Clone repository ----
 clone_repo() {
-    header "Step 3/5 — Cloning Repository"
+    header "Step 3/5 - Cloning Repository"
 
     # Create parent directories
     mkdir -p "$(dirname "$INSTALL_DIR")"
@@ -445,7 +458,7 @@ clone_repo() {
 
 # ---- Step 4: Build and start ----
 build_and_start() {
-    header "Step 4/5 — Building and Starting the Application"
+    header "Step 4/5 - Building and Starting the Application"
 
     cd "$INSTALL_DIR"
 
@@ -469,7 +482,7 @@ build_and_start() {
 
 # ---- Step 5: Wait for healthy and show credentials ----
 wait_and_show() {
-    header "Step 5/5 — Waiting for Application to Start"
+    header "Step 5/5 - Waiting for Application to Start"
 
     cd "$INSTALL_DIR"
 
@@ -522,7 +535,7 @@ wait_and_show() {
 
     echo ""
     echo -e "${GREEN}============================================================${NC}"
-    echo -e "${GREEN}  Fair TPRM & GRC Platform — Setup Complete!${NC}"
+    echo -e "${GREEN}  Fair TPRM & GRC Platform - Setup Complete!${NC}"
     echo -e "${GREEN}============================================================${NC}"
     echo ""
     echo -e "  ${BLUE}Access the application at:${NC}"
@@ -551,7 +564,7 @@ wait_and_show() {
 main() {
     echo ""
     echo -e "${GREEN}============================================================${NC}"
-    echo -e "${GREEN}  Fair TPRM & GRC Platform — Docker Setup Script${NC}"
+    echo -e "${GREEN}  Fair TPRM & GRC Platform - Docker Setup Script${NC}"
     echo -e "${GREEN}============================================================${NC}"
     echo ""
     info "Log file: $LOG_FILE"
