@@ -1,0 +1,331 @@
+/** @section Counter */
+
+//
+// Counter
+//
+.counter-main {
+	> * {
+		display: inline;
+		vertical-align: top;
+	}
+}
+
+.counter-number {
+	font-weight: 400;
+	letter-spacing: normal;
+	@include gradient-horizontal();
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	line-height: 1;
+}
+
+.ie-10,.ie-11{
+	.counter-number{
+		background: none;
+		color: $primary;
+	}
+}
+
+
+.counter-postfix {
+	text-transform: uppercase;
+	line-height: 1;
+	background: linear-gradient($primary, $secondary);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+
+.ie-10,.ie-11{
+	.counter-number,.counter-postfix{
+		background: none;
+		color: $secondary;
+	}
+}
+
+// Offset
+* + .counter-text { margin-top: 10px; }
+
+// Media
+@include media-breakpoint-up(md) {
+
+
+
+	* + .counter-text { margin-top: 10px; }
+}
+
+
+
+@include media-breakpoint-up(xxl) {
+
+	.counter-number,.counter-postfix {
+		font-size: 115px;
+
+	}
+}
+
+// Context styling
+.ie-10,
+.ie-11,
+.ie-edge {
+	.counter-postfix {
+		color: $primary;
+		background: none;
+	}
+}
+
+
+
+
+//
+// Counter classic
+//
+
+.counter-classic-wrap {
+
+	.counter-classic:nth-child(odd) {
+		&::before {
+			position: absolute;
+			content: '';
+			top: 0;
+			bottom: 0;
+			left: -36%;
+			width: 150vw;
+			background-image: linear-gradient( 90deg, $gray-700 0%, rgb(47,47,47) 40%);
+			z-index: -1;
+		}
+	}
+}
+
+.counter-classic {
+	position: relative;
+	padding: 30px 0;
+	z-index: 0;
+}
+
+.counter-classic-main {
+	min-width: 90px;
+	padding-right: 20px;
+	border-right: 1px solid $gray-2;
+
+	> * {
+		display: inline;
+		vertical-align: top;
+	}
+}
+
+.counter-classic-number {
+	font-weight: 300;
+	letter-spacing: .025em;
+}
+
+.counter-classic-postfix {
+	margin-left: 4px;
+	color: $primary;
+	text-transform: uppercase;
+}
+
+.counter-classic-icon {
+	text-align: center;
+	width: 50px;
+	height: 50px;
+	font-size: 30px;
+	line-height: 46px;
+	border: 2px solid;
+	border-radius: 50%;
+	color: $white;
+}
+
+// Offset
+* + .counter-classic-text { margin-top: 10px; }
+
+// Media
+@include media-breakpoint-up(sm) {
+	.counter-classic-main {
+		min-width: 100px;
+	}
+}
+
+@include media-breakpoint-up(md) {
+
+	.counter-classic-wrap {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.counter-classic {
+		display: flex;
+		align-items: center;
+		flex-grow: 1;
+	}
+
+	.counter-classic-main {
+		min-width: 130px;
+	}
+
+	.counter-classic-postfix {
+		margin-left: 10px;
+		line-height: 1.7;
+	}
+
+	* + .counter-classic-text { margin-top: 20px; }
+}
+
+@include media-breakpoint-up(lg) {
+
+	.counter-classic-main {
+		min-width: 145px;
+	}
+
+	.counter-classic-icon {
+		width: 66px;
+		height: 66px;
+		font-size: 36px;
+		line-height: 62px;
+	}
+}
+
+@include media-breakpoint-up(xl) {
+
+	.counter-classic-main {
+		min-width: 170px;
+	}
+
+	.counter-classic-postfix {
+		line-height: 2;
+	}
+}
+
+@include media-breakpoint-up(xxl) {
+
+	.counter-classic-number {
+		font-size: 115px;
+	}
+}
+
+// Context styling
+%context-dark {
+
+	.counter-classic-postfix {
+		color: $primary;
+	}
+
+	.counter-classic-main {
+		border-right-color: rgba($white, .36);
+	}
+}
+
+
+
+
+//
+// Counter minimal
+//
+
+.counter-minimal {
+	text-align: left;
+}
+
+.counter-minimal-main {
+	> * {
+		display: inline;
+		vertical-align: baseline;
+	}
+}
+
+.counter-minimal-number {
+	font-weight: 100;
+	letter-spacing: 0;
+}
+
+.counter-minimal-postfix {
+	font-weight: 300;
+	letter-spacing: 0;
+	text-transform: uppercase;
+}
+
+.counter-minimal-title {
+	font-size: 15px;
+	font-weight: 500;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: rgba($gray-800, .7);
+}
+
+.counter-minimal-wrap {
+	display: flex;
+	flex-wrap: wrap;
+	@include group(30px, 10px)
+}
+
+// Offset
+* + .counter-minimal-wrap { margin-top: 30px; }
+* + .counter-minimal-title { margin-top: 6px; }
+
+// Media
+@include media-breakpoint-up(lg) {
+
+	* + .counter-minimal-wrap { margin-top: 44px; }
+}
+
+@include media-breakpoint-up(xl) {
+
+	.counter-minimal-number {
+		font-size: 60px;
+	}
+}
+
+
+
+//
+// Counter nikki
+//
+
+.counter-nikki {
+	text-align: center;
+}
+
+.counter-nikki-main {
+	> * {
+		display: inline;
+		vertical-align: baseline;
+	}
+}
+
+.counter-nikki-number {
+	font-weight: 100;
+	letter-spacing: 0;
+	color: $primary;
+}
+
+.counter-nikki-postfix {
+	font-weight: 300;
+	letter-spacing: 0;
+	text-transform: uppercase;
+}
+
+.counter-nikki-title {
+	font-weight: 500;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: rgba($gray-800, .6);
+}
+
+.counter-nikki-wrap {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	.counter-nikki {
+		padding: 20px 15px;
+	}
+}
+
+// Offset
+* + .counter-nikki-title { margin-top: 6px; }
+
+@include media-breakpoint-up(xl) {
+
+	.counter-nikki-number {
+		font-size: 100px;
+	}
+}

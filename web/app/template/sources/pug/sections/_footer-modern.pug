@@ -1,0 +1,56 @@
+footer.section.footer-modern.bg-gray-13
+	.footer-modern-body.section-lg
+		.container.wow.fadeInUp: .row.row-30.row-md-50.justify-content-md-between
+			.col-md-6.col-lg-4
+				.footer-modern-brand: +logo
+				p.footer-caption Brightcycle bike shop offers a wide variety of motorbikes by recognized manufacturers as well as replacement parts and accessories for bike riders.
+				.footer-modern-list-social
+					ul.list-social.list-social-3.list-inline.list-inline-xl
+						li: a.icon.mdi.mdi-instagram( href='#' )
+						li: a.icon.mdi.mdi-facebook( href='#' )
+						li: a.icon.mdi.mdi-youtube-play( href='#' )
+						li: a.icon.mdi.mdi-twitter( href='#' )
+				+rights
+			.col-md-5.col-lg-4.col-xl-3
+				.heading-5.footer-modern-title Opening hours
+				ul.footer-modern-schedule
+					li
+						span Mon-Thu
+						span 7 am - 9 pm
+					li
+						span Friday
+						span 7 am - 7 pm
+					li
+						span Saturday
+						span 7 am - 5 pm
+					li
+						span Sunday
+						span Closed
+
+			.col-lg-3
+				.heading-5.footer-modern-title Motivation
+				.owl-carousel.owl-style-6.owl-dots-1( data-items='1', data-dots='true', data-autoplay='true', data-margin='30' )
+					+quote-navy({
+						text: 'Thanks to your wonderful team, this shop has become my #1 place for motorbike shopping.',
+						title: 'Amelia Smith'
+					})
+					+quote-navy({
+						text: 'Your choice of bike helmets is really awesome! I’ve found what I wanted in just a few minutes.',
+						title: 'Peter Williams'
+					})
+					+quote-navy({
+						text: 'This is one of the best motorcycle shops I have ever been to! Thank you for your service!',
+						title: 'Sam McMillan'
+					})
+
+	.footer-modern-panel.bg-gray-7
+		.container.wow.fadeInUp
+			.row.justify-content-center
+				.col-xl-11
+					ul.footer-modern-nav.list-inline
+						li: a( href='index.html') Home
+						li: a( href='about-us.html' ) About
+						li: a( href='shop.html' ) Shop
+						li: a( href="#" ) Elements
+						li: a( href="blog.html" ) Blog
+						li: a( href='contact-us.html' ) Contacts

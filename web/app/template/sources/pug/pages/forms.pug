@@ -1,0 +1,153 @@
+extends ../_skeleton
+
+include ../components/_quote
+block variables
+	- pageName = 'Forms'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Forms
+	section.section.section-lg.bg-default
+		.container: .row.row-30.justify-content-xl-between
+			.col-md-6.col-xl-5
+				h2 Login form
+				p.title-2 Use your social account
+				ul.list-inline.list-social-2
+					li: a.icon.mdi.mdi-facebook( href='#' )
+					li: a.icon.mdi.mdi-google( href='#' )
+					li: a.icon.mdi.mdi-twitter( href='#' )
+
+				//RD Mailform
+				form.rd-form.rd-mailform.rd-form-centered
+					.form-wrap
+						input#login-email.form-input( type='email', name='email', data-constraints='@Email @Required' )
+						label.form-label( for='login-email' ) Email
+
+					.form-wrap
+						input#login-password.form-input( type='password', name='password', data-constraints='@Required' )
+						label.form-label( for='login-password' ) Password
+
+					.form-wrap
+						label.checkbox-inline
+							input( name='input-checkbox-1' value='checkbox-1' type='checkbox')
+							| Remember me
+
+					.form-button.group-md
+						button.button.button-gray-5( type='submit' ) Sign in
+						a.button.button-default-outline-2( href='#' ) Create an account
+
+			.col-md-6.col-xl-5
+				h2 Registration form
+				p.title-2 Use your social account
+				ul.list-inline.list-social-2
+					li: a.icon.mdi.mdi-facebook( href='#' )
+					li: a.icon.mdi.mdi-google( href='#' )
+					li: a.icon.mdi.mdi-twitter( href='#' )
+
+				//RD Mailform
+				form.rd-form.rd-mailform.rd-form-centered
+					.form-wrap
+						input#register-name.form-input( type='text', name='name', data-constraints='@Required' )
+						label.form-label( for='register-name' ) Name
+
+					.form-wrap
+						input#register-email.form-input( type='email', name='email', data-constraints='@Email @Required' )
+						label.form-label( for='register-email' ) Email
+
+					.form-wrap
+						input#register-password.form-input( type='password', name='password', data-constraints='@Required' )
+						label.form-label( for='register-password' ) Password
+
+					.form-button
+						button.button.button-gray-5( type='submit' ) Sign up
+
+	section.section.section-xl.bg-gray-100.text-center
+		.container: .row.justify-content-md-center: .col-md-11.col-lg-9.col-xl-8
+			h2 Subscribe to Us
+			p.big.offset-top-1 Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo
+
+			form.rd-form.form-lg.form-style-1.rd-mailform.text-center.subscribe-form-1( data-form-output="form-output-global", data-form-type='subscribe', method='post', action='bat/rd-mailform.php' )
+				.form-wrap
+					input.form-input( id='subscribe-form-email-2' type='email', name='email', data-constraints='@Email @Required' )
+					label.form-label( for='subscribe-form-email-2')
+						span.icon.mdi.mdi-email-outline
+						span Enter your email
+
+				.form-button: button.button.button-gray-5( type='submit' ) Subscribe
+
+	//Contact us
+	section.section.section-lg.bg-default
+		.container: .row: .col-md-11.col-lg-9.col-xl-7
+			h2 Contact us
+			include ../includes/_contact-form
+
+	//Contact Us
+	section.section.section-lg.bg-gray-100
+		.container: .row: .col-md-11.col-lg-9.col-xl-7
+			h2 Contact Us (with reCAPTCHA)
+			//RD Mailform
+			form.rd-form.rd-mailform( data-form-output='form-output-global', data-form-type='contact', method='post', action='bat/rd-mailform.php' )
+				.row.row-20.gutter-20
+					.col-sm-6
+						.form-wrap
+							input#contact-2-name.form-input( type='text', name='name', data-constraints='@Required' )
+							label.form-label( for='contact-2-name' ) Your Name
+
+					.col-sm-6
+						.form-wrap
+							input#contact-2-surname.form-input( type='text', name='name', data-constraints='@Required' )
+							label.form-label( for='contact-2-surname' ) Your Surname
+
+					.col-sm-6
+						.form-wrap
+							input#contact-2-phone.form-input( type='text', name='phone', data-constraints='@Numeric' )
+							label.form-label( for='contact-2-phone' ) Phone
+
+					.col-sm-6
+						.form-wrap
+							input#contact-2-email.form-input( type='email', name='email', data-constraints='@Email @Required' )
+							label.form-label( for='contact-2-email' ) E-mail
+
+					.col-12
+						.form-wrap
+							label.form-label( for='contact-2-message') Your Message
+							textarea#contact-2-message.form-input( name='message', data-constraints='@Required' )
+
+					.col-sm-6
+						.form-wrap.form-validation-left
+							//Google captcha
+							.recaptcha#captcha1( data-sitekey='6LfZlSETAAAAAC5VW4R4tQP8Am_to4bM3dddxkEt', data-auto-size='' )
+
+					.col-sm-6.align-self-center
+						button.button.button-block.button-gray-5( type='submit' ) Send Message
+
+	section.section.section-md.bg-default
+		.container: .row: .col-md-11.col-lg-9.col-xl-7
+			h2 MailChimp
+			p.big Sign up to our newsletter and be the first to know about the latest news, special offers, events, and discounts.
+
+			//Mailchimp
+			form.rd-form.mailchimp-mailform.rd-form-inline.group-sm.subscribe-form-1( data-form-output='form-output-global' action='https://templatemonster.us15.list-manage.com/subscribe/post?u=ba5bb362073a413f48e4a7b90&id=8dc95d9dec' method='post')
+				.form-wrap
+					label.form-label( for='mailchimp-email' ) Enter your e-mail
+					input#mailchimp-email.form-input( type='email', name='email', data-constraints='@Email @Required' )
+				.form-button
+					button.button.button-gray-5( type='submit' ) Subscribe
+
+	section.section.section-md.bg-gray-100
+		.container: .row: .col-md-11.col-lg-9.col-xl-7
+			h2 Campaign Monitor
+			p.big Sign up to our newsletter and be the first to know about the latest news, special offers, events, and discounts.
+
+			//Campaign Monitor
+			form.rd-form.campaign-mailform.rd-form-inline.group-sm.subscribe-form-1( data-form-output='form-output-global' action='https://templatermonster.createsend.com/t/j/s/zjjikd/' method='post')
+				.form-wrap
+					label.form-label( for='campaign-email' ) Enter your e-mail
+					input#campaign-email.form-input( type='email', name='cm-zjjikd-zjjikd', data-constraints='@Email @Required' )
+				.form-button
+					button.button.button-gray-5( type='submit' ) Subscribe
+
+	include ../sections/_footer-modern

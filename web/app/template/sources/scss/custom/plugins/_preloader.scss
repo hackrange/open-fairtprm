@@ -1,0 +1,82 @@
+/** @section Preloader */
+
+
+.preloader {
+	position: fixed;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	right: 0;
+	z-index: 10000;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 20px;
+	background: $white;
+	transition: .3s all ease;
+
+	&.loaded {
+		opacity: 0;
+		visibility: hidden;
+	}
+}
+
+$circle-color-1: $primary;
+$circle-color-2: $secondary;
+$circle-color-3: $yellow-2;
+
+$circle-color: $circle-color-1, $circle-color-1, $circle-color-1, $circle-color-2, $circle-color-2, $circle-color-2, $circle-color-3, $circle-color-3, $circle-color-3;
+
+.cssload-container {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	height: 100%;
+}
+
+.load-circle-item {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	position: absolute;
+	width: 100px;
+	height: 100px;
+}
+
+.load-circle {
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+}
+
+@mixin anim($i){
+	$deg: ($i + 1) * 125;
+
+	@keyframes right-#{$i} {
+		10% {
+			transform: rotate(#{$deg}deg) translate(0, 0px);
+		}
+		50%, 65% {
+			transform: rotate(#{$deg}deg) translateX(-100px);
+		}
+
+		100% {
+			transform: rotate(#{$deg}deg) translate(0, 0px);
+		}
+	}
+}
+
+@for $i from 1 through 9 {
+	$deg: $i * 36;
+
+	.load-circle-item:nth-child(#{$i}) {
+		@include anim($i);
+		animation: right-#{$i} 4s infinite cubic-bezier(0, 0, 0.49, 1.02);
+		animation-delay: 100ms * $i;
+
+		> * {
+			background: nth($circle-color, $i);
+		}
+	}
+}

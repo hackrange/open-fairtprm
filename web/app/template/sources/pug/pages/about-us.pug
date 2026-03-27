@@ -1,0 +1,108 @@
+extends ../_skeleton
+
+include ../components/_video
+include ../components/_quote
+include ../components/_counter
+include ../components/_team
+include ../components/_boxes
+
+block variables
+	- pageName = 'About'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Our Mission
+	section.section.section-xl.bg-default
+		.container: .row.row-30.row-lg-50
+			.col-lg-6
+				+video-2({
+					img: 'video-bg-1-584x385',
+					link: 'https://www.youtube.com/watch?v=1UWpbtUupQQ'
+				})
+			.col-lg-6: .inset-xl-left-70
+				h2 Our Mission
+				+quote-minimal({
+					text: 'We aim to offer the best motorbikes, gears, apparel, and accessories.'
+				})
+				p.big Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Adipiscing commodo elit at imperdiet dui. Mauris ultrices eros in cursus turpis massa tincidunt dui. Eget dolor morbi non arcu risus quis varius quam quisque.
+
+	//Counters
+	section.section.section-lg.bg-gray-700.text-center.bg-img-2
+		.container
+			.row.row-30.justify-content-center
+				.col-sm-6.col-md-4
+					+counter({
+						value: 450,
+						postfix: 'k',
+						text: 'Motorcycle Models'
+					}).block-sm
+				.col-sm-6.col-md-4
+					+counter({
+						value: 78,
+						text: 'Awards'
+					}).block-sm
+				.col-sm-6.col-md-4
+					+counter({
+						value: 600,
+						postfix: '+',
+						text: 'Satisfied Customers'
+					}).block-sm
+
+	//Coaches 1
+	section.section.section-xl.bg-default.text-center
+		.container
+			h2 Our team
+			include ../includes/_our-team-default
+
+	section.section.bg-gray-13
+		.row.no-gutters.bordered-1
+			.col-sm-6.col-xl-3
+				+box-classic-1({
+					icon: 'mdi mdi-reply',
+					title: 'Reasonable prices',
+					text: 'If you didn’t like your bike, you can always return it during the first 2 weeks of its usage.'
+				}).box-classic-1.wow.fadeInUp
+			.col-sm-6.col-xl-3
+				+box-classic-1({
+					icon: 'mdi mdi-account-star-variant',
+					title: 'Professional Team',
+					text: 'Our sales managers and consultants are always glad to help you choose a bike.'
+				}).box-classic-1.wow.fadeInUp( data-wow-delay='.05s' )
+			.col-sm-6.col-xl-3
+				+box-classic-1({
+					icon: 'mdi mdi-truck',
+					title: 'Free Delivery',
+					text: 'Our delivery service guarantees quick and secure delivery of your favorite motorcycle.'
+				}).box-classic-1.wow.fadeInUp( data-wow-delay='.1s' )
+			.col-sm-6.col-xl-3
+				+box-classic-1({
+					icon: 'mdi mdi-cash-usd',
+					title: 'payment Methods',
+					text: 'We offer a variety of payment methods including cash, credit cards, and cheques.'
+				}).box-classic-1.wow.fadeInUp( data-wow-delay='.15s' )
+
+
+
+
+	// Our partners
+	section.section.section-xl.bg-default.text-center
+		.container
+			h2 Our partners
+			p.big Ultrices mi tempus imperdiet nulla malesuada pellentesque elit eget. Enim lobortis scelerisque fermentum
+				=' '
+				br.d-none.d-xl-block
+				| dui faucibus. A lacus vestibulum sed arcu non. Eu tincidunt tortor aliquam nulla facilisi.
+			.row.row-xl.row-30
+				.col-sm-4.col-lg-3: a.client-classic( href='#' ): +img('client-1-270x145.png')
+				.col-sm-4.col-lg-3: a.client-classic( href='#' ): +img('client-2-270x145.png')
+				.col-sm-4.col-lg-3: a.client-classic( href='#' ): +img('client-3-270x145.png')
+				.col-sm-4.col-lg-3: a.client-classic( href='#' ): +img('client-4-270x145.png')
+				.col-sm-4.col-lg-3: a.client-classic( href='#' ): +img('client-5-270x145.png')
+				.col-sm-4.col-lg-3: a.client-classic( href='#' ): +img('client-6-270x145.png')
+				.col-sm-4.col-lg-3: a.client-classic( href='#' ): +img('client-7-270x145.png')
+				.col-sm-4.col-lg-3: a.client-classic( href='#' ): +img('client-8-270x145.png')
+
+	include ../sections/_footer-modern

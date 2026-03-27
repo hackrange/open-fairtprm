@@ -1,0 +1,5 @@
+RewriteEngine On
+
+# Route all API v2 requests to the router
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ router.php [L,QSA]

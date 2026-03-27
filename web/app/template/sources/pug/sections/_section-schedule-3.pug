@@ -1,0 +1,176 @@
+include ../components/_schedule
+include ../components/_thumbnails
+
+// CTA
++parallax({
+	img: 'parallax-6',
+	innerClass: 'section-xxl'
+}).bg-gray-13.text-center
+	.container
+		.heading-7.title-15.wow.fadeInUp Schedule
+		p.big.wow.fadeInUp I am always available to help you with achieving your fitness goals but before we start it is
+			=' '
+			br.d-none.d-lg-block
+			| recommended to select a desirable course and the most appropriate time of training below.
+		//Bootstrap tabs
+		.tabs-custom.tabs-classic.tabs-classic-2.tabs-classic-3
+			//Nav tabs
+			ul.nav.nav-tabs.wow.fadeInUp
+				li.nav-item( role='presentation' ): a.nav-link.active( href='#tabs-schedule-1-1', data-toggle='tab' ) Monday
+				li.nav-item( role='presentation' ): a.nav-link( href='#tabs-schedule-1-2', data-toggle='tab' ) Tuesday
+				li.nav-item( role='presentation' ): a.nav-link( href='#tabs-schedule-1-3', data-toggle='tab' ) Wednesday
+				li.nav-item( role='presentation' ): a.nav-link( href='#tabs-schedule-1-4', data-toggle='tab' ) Thursday
+				li.nav-item( role='presentation' ): a.nav-link( href='#tabs-schedule-1-5', data-toggle='tab' ) Friday
+				li.nav-item( role='presentation' ): a.nav-link( href='#tabs-schedule-1-6', data-toggle='tab' ) Saturday
+
+			//Tab panes
+			.tab-content
+				#tabs-schedule-1-1.tab-pane.fade.show.active
+					//Bootstrap collapse
+					#accordion1( role='tablist', aria-multiselectable='false' )
+						+card-schedule({
+							show: true,
+							parentId: 'accordion1',
+							days: 'Stretching',
+							time: '9:00 am - 10:00 am'
+						}).wow.fadeInUp
+							+gallery-tab-pane-1
+
+						+card-schedule({
+							parentId: 'accordion1',
+							days: 'CrossFit',
+							time: '11:00 am - 12:30 pm'
+						}).wow.fadeInUp
+							+gallery-tab-pane-3
+
+						+card-schedule({
+							parentId: 'accordion1',
+							days: 'Running & Cardio',
+							time: '12:30 pm - 1:00 pm'
+						}).wow.fadeInUp
+							+gallery-tab-pane-4
+
+				#tabs-schedule-1-2.tab-pane.fade
+					//Bootstrap collapse
+					#accordion2( role='tablist', aria-multiselectable='false' )
+						+card-schedule({
+							show: true,
+							parentId: 'accordion2',
+							days: 'Yoga',
+							time: '9:00 am - 10:00 am'
+						})
+							+gallery-tab-pane-2
+
+						+card-schedule({
+							parentId: 'accordion2',
+							days: 'CrossFit',
+							time: '09:15 am - 10:15 pm'
+						})
+							+gallery-tab-pane-3
+
+						+card-schedule({
+							parentId: 'accordion2',
+							days: 'Running & Cardio',
+							time: '11:00 am - 12:30 pm'
+						})
+							+gallery-tab-pane-4
+
+				#tabs-schedule-1-3.tab-pane.fade
+					//Bootstrap collapse
+					#accordion3( role='tablist', aria-multiselectable='false' )
+						+card-schedule({
+							show: true,
+							parentId: 'accordion3',
+							days: 'CrossFit',
+							time: '9:00 am - 10:00 am'
+						})
+							+gallery-tab-pane-3
+
+						+card-schedule({
+							parentId: 'accordion3',
+							days: 'Running & Cardio',
+							time: '09:15 am - 10:15 pm'
+						})
+							+gallery-tab-pane-4
+
+						+card-schedule({
+							parentId: 'accordion3',
+							days: 'Stretching',
+							time: '11:00 am - 12:30 pm'
+						})
+							+gallery-tab-pane-1
+
+				#tabs-schedule-1-4.tab-pane.fade
+					//Bootstrap collapse
+					#accordion4( role='tablist', aria-multiselectable='false' )
+						+card-schedule({
+							show: true,
+							parentId: 'accordion4',
+							days: 'Running & Cardio',
+							time: '9:00 am - 10:00 am'
+						})
+							+gallery-tab-pane-4
+
+						+card-schedule({
+							parentId: 'accordion4',
+							days: 'Stretching',
+							time: '09:15 am - 10:15 pm'
+						})
+							+gallery-tab-pane-1
+
+						+card-schedule({
+							parentId: 'accordion4',
+							days: 'Yoga',
+							time: '11:00 am - 12:30 pm'
+						})
+							+gallery-tab-pane-2
+
+				#tabs-schedule-1-5.tab-pane.fade
+					//Bootstrap collapse
+					#accordion5( role='tablist', aria-multiselectable='false' )
+						+card-schedule({
+							show: true,
+							parentId: 'accordion5',
+							days: 'Stretching',
+							time: '9:00 am - 10:00 am'
+						})
+							+gallery-tab-pane-1
+
+						+card-schedule({
+							parentId: 'accordion5',
+							days: 'Yoga',
+							time: '09:15 am - 10:15 pm'
+						})
+							+gallery-tab-pane-2
+
+						+card-schedule({
+							parentId: 'accordion5',
+							days: 'CrossFit',
+							time: '11:00 am - 12:30 pm'
+						})
+							+gallery-tab-pane-3
+
+				#tabs-schedule-1-6.tab-pane.fade
+					//Bootstrap collapse
+					#accordion6( role='tablist', aria-multiselectable='false' )
+						+card-schedule({
+							show: true,
+							parentId: 'accordion6',
+							days: 'Yoga',
+							time: '9:00 am - 10:00 am'
+						})
+							+gallery-tab-pane-2
+
+						+card-schedule({
+							parentId: 'accordion6',
+							days: 'CrossFit',
+							time: '09:15 am - 10:15 pm'
+						})
+							+gallery-tab-pane-3
+
+						+card-schedule({
+							parentId: 'accordion6',
+							days: 'Running & Cardio',
+							time: '11:00 am - 12:30 pm'
+						})
+							+gallery-tab-pane-4

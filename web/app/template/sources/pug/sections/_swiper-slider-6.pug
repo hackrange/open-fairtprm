@@ -1,0 +1,91 @@
+include ../components/_events
+
+//Swiper
+section.section.swiper-container.swiper-slider.swiper-slider-6( data-autoplay='5000', data-slide-effect='fade', data-simulate-touch='false' )
+	.swiper-wrapper
+		.swiper-slide( data-slide-bg='images/swiper-6-slide-1.jpg' ): .swiper-slide-custom
+		.swiper-slide( data-slide-bg='images/swiper-6-slide-2.jpg' ): .swiper-slide-custom
+		.swiper-slide( data-slide-bg='images/swiper-6-slide-3.jpg' ): .swiper-slide-custom
+	.swiper-content.context-dark: .container.container-style-2.position-relative
+		.swiper-box
+			// Owl Carousel
+			.owl-carousel( data-items='1', data-dots='true', data-mouse-drag='false', data-margin='30', data-pagination-class='#owl-dots-1', data-smart-speed='500' )
+				div
+					h1.swiper-title
+						span Welcome to
+						br
+						span Our Gym
+					p.big We offer a variety of services for you
+						br
+						| to stay healthy and fit.
+				div
+					h1.swiper-title
+						span Top-notch
+						br
+						span Equipment
+					p.big YGYM has the best equipment and
+						br
+						| tools for your training.
+				div
+					h1.swiper-title
+						span Experienced
+						br
+						span coaches
+					p.big Get fit with the help of our talented
+						br
+						| and professional coaches.
+			.group-xl.group-middle.flex-md-row-reverse
+				#owl-dots-1.owl-dots-2
+				a.button.button-lg.button-gray-22( href='#' ) Join us
+
+			article.video-minimal
+				a.video-minimal-link( href='https://www.youtube.com/watch?v=1UWpbtUupQQ', data-lightgallery='item' ): span.icon.mdi.mdi-play
+
+		.event-lucy-wrap
+			.event-lucy-scroll
+				+event-lucy({
+					title: 'CrossFit',
+					days: 'Sun',
+					time: '09:00 am - 10:00 am'
+				})
+				+event-lucy({
+					title: 'Powerlifting',
+					days: 'Mon',
+					time: '05:30 pm - 06:30 pm'
+				})
+				+event-lucy({
+					title: 'TRX',
+					days: 'Fri',
+					time: '07:00 pm - 08:00 pm'
+				})
+				+event-lucy({
+					title: 'Stretching',
+					days: 'Tue',
+					time: '10:00 am - 10:45 am'
+				})
+				+event-lucy({
+					title: 'Bodybuilding',
+					days: 'Thu',
+					time: '06:30 pm - 07:30 pm'
+				})
+				+event-lucy({
+					title: 'Endurance',
+					days: 'Wed',
+					time: '04:00 pm - 05:00 pm'
+				})
+				+event-lucy({
+					title: 'TRX',
+					days: 'Fri',
+					time: '07:00 pm - 08:00 pm'
+				})
+
+		.contacts-creative.contacts-creative-2
+			.unit.unit-spacing-lg.align-items-center.align-items-lg-start.flex-lg-row-reverse.text-lg-right
+				.unit-left: span.icon.linearicons-compass2
+				.unit-body: a( href='#' ) 652 Main Road, Apt 12 New York, USA 10033
+
+		ul.list-social
+			li: a.icon.mdi.mdi-facebook( href='#' )
+			li: a.icon.mdi.mdi-instagram( href='#' )
+			li: a.icon.mdi.mdi-youtube-play( href='#' )
+			li: a.icon.mdi.mdi-twitter( href='#' )

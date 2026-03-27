@@ -1,0 +1,114 @@
+/** @section Simple filter */
+
+
+[data-category] {
+	transition: .3s ease-in-out;
+
+	&.hidden {
+		opacity: 0;
+		visibility: hidden;
+	}
+}
+
+.filters-list {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: stretch;
+	justify-content: center;
+	@include group(10px, 5px);
+}
+
+.filter {
+	position: relative;
+	padding: 5px 20px;
+	font-size: 13px;
+	line-height: 1.6;
+	font-weight: 700;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: rgba($gray-800, .5);
+	background: transparent;
+	border: none;
+	border-radius: 50px;
+	transition: .3s ease-in-out;
+	cursor: pointer;
+	z-index: 1;
+
+	&::before {
+		position: absolute;
+		content: '';
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		border-radius: inherit;
+		opacity: 0;
+		background-size: 200% auto;
+		background-position: 0 50%;
+		background-image: linear-gradient( 84deg, $primary 0%, $secondary 50%, $primary 100%);
+		transition: inherit;
+		z-index: -1;
+	}
+
+	&:hover,
+	&.active {
+		color: $white;
+		background: transparent;
+
+		&::before {
+			opacity: 1;
+		}
+	}
+
+	&.active {
+		cursor: default;
+		
+		&::before {
+			background-position-x: 100%;
+		}
+	}
+
+	@include media-breakpoint-up(md) {
+		padding: 8px 30px;
+		font-size: 15px;
+	}
+}
+
+.filters-list-1 {
+
+	.filter {
+		color: $primary;
+
+		&::before {
+			opacity: 1;
+			background: transparent;
+			border: 2px solid $primary;
+		}
+
+		&:hover,
+		&.active {
+			color: $white;
+			
+			&::before {
+				background: $primary;
+			}
+		}
+	}
+}
+
+// Offsets
+* + .filters-list { margin-top: 30px; }
+
+// Media
+@include media-breakpoint-up(md) {
+	* + .filters-list { margin-top: 50px; }
+}
+
+@include media-breakpoint-up(lg) {
+	* + .filters-list { margin-top: 60px; }
+	.filters-list + .table-custom-responsive { margin-top: 60px; }
+}
+
+@include media-breakpoint-up(xl) {
+	.filters-list + .table-custom-responsive { margin-top: 75px; }
+}

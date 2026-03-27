@@ -1,0 +1,40 @@
+extends ../_skeleton
+
+include ../components/_quote
+block variables
+	- pageName = 'Contact us'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Contact us
+	section.section.section-xl.bg-default
+		.container: .row.row-30.row-md-50
+			.col-lg-4.col-xl-5: .inset-xl-right-70
+				h3 Have Any Questions?
+				h5.title-6 Feel free to contact us using the form on the right.
+				ul.list-contacts
+					li
+						span.icon.mdi.mdi-phone
+						a.big( href='tel:#' ) +1 800 123 1234
+					li
+						span.icon.mdi.mdi-map-marker
+						a.big( href='#' ) 652 Main Road, Apt 12 New York, USA
+					li
+						span.icon.mdi.mdi-email-outline
+						a.big( href='mailto:#' ) info@demolink.org
+				ul.list-social.list-inline.list-inline-md
+					li: a.icon.mdi.mdi-facebook( href='#' )
+					li: a.icon.mdi.mdi-google( href='#' )
+					li: a.icon.mdi.mdi-twitter( href='#' )
+					li: a.icon.mdi.mdi-pinterest( href='#' )
+
+			.col-lg-8.col-xl-7: include ../includes/_contact-form
+
+	//Google Map
+	section.section
+		include ../includes/_google-map
+
+	include ../sections/_footer-modern

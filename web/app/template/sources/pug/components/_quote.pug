@@ -1,0 +1,110 @@
+//- Quote
+	@param {object} data
+	@param {string} data.title
+	@param {number} data.value
+mixin quote( obj )
+	// Quote
+	article.quote&attributes( attributes )
+		.quote-body
+			.heading-4.quote-text: p.q= obj.text
+
+mixin quote-minimal( obj )
+	// Quote minimal
+	article.quote-minimal&attributes( attributes )
+		.heading-4.quote-minimal-text: p.q= obj.text
+
+mixin quote-classic( obj )
+	// Quote classic
+	article.quote-classic&attributes( attributes )
+		.unit.unit-spacing-3.flex-column.flex-sm-row
+			.unit-left: +img( obj.img ).quote-classic-image
+			.unit-body
+				.quote-classic-content
+					.heading-2.quote-classic-author.title-7: span= obj.author
+					.heading-3.quote-classic-text: p.q= obj.text
+					.heading-5.quote-classic-position= obj.position
+
+mixin quote-modern( obj )
+	// Quote modern
+	article.quote-modern&attributes( attributes )
+		.big.quote-modern-text: p.q= obj.text
+		.heading-5.quote-modern-title= obj.title
+		.quote-modern-subtitle= obj.subtitle
+
+mixin quote-navy( obj )
+	// Quote navy
+	article.quote-navy&attributes( attributes )
+		.quote-navy-text: p.q= obj.text
+		.quote-navy-title= obj.title
+
+mixin quote-megan( obj )
+	// Quote megan
+	article.quote-megan&attributes( attributes )
+		.quote-megan-text: p.q= obj.text
+		.quote-megan-title= obj.title
+
+mixin quote-june( obj )
+	// Quote june
+	article.quote-june.big&attributes( attributes )
+		.quote-june-text: p.q= obj.text
+		.quote-june-title= obj.title
+
+mixin quote-jerry( obj )
+	// Quote jerry
+	article.quote-jerry&attributes( attributes )
+		+img( obj.img ).quote-jerry-image
+		.quote-jerry-content
+			.quote-jerry-text: p.q= obj.text
+			.quote-jerry-title= obj.title
+		.quote-jerry-dummy
+
+mixin quote-beryl( obj )
+	// Quote beryl
+	article.quote-beryl&attributes( attributes )
+		.quote-beryl-body
+			.quote-beryl-text.big: p.q= obj.text
+
+		.quote-beryl-info
+			+img( obj.img ).quote-beryl-image
+			.quote-beryl-author.big= obj.author
+			.quote-beryl-position= obj.position
+
+mixin quote-karen( obj )
+	// Quote karen
+	article.quote-karen&attributes( attributes )
+		.unit.unit-spacing-xl.flex-column.flex-sm-row
+			.unit-left: +img( obj.img ).quote-karen-image
+			.unit-body
+				.quote-karen-content
+					.heading-5.quote-karen-author: span= obj.author
+					.quote-karen-position= obj.position
+					.big.quote-karen-text: p.q= obj.text
+
+mixin quote( obj )
+	// Quote
+	article.quote&attributes( attributes )
+		.quote-body
+			.heading-4.quote-text: p.q= obj.text
+
+mixin quote-debbie( obj )
+	// Quote debbie
+	article.quote-debbie&attributes( attributes )
+		.quote-debbie-left
+			+img( obj.img )
+			.quote-debbie-author= obj.author
+		.quote-debbie-body
+			.heading-4.quote-debbie-text: p.q!= obj.text
+
+mixin quote-jenny( obj )
+	// Quote jenny
+	article.quote-jenny&attributes( attributes )
+		.quote-jenny-group
+			.heading-5.quote-jenny-author= obj.author
+			.quote-jenny-age= obj.age
+		.big.quote-jenny-text: p.q= obj.text
+		.heading-4.quote-jenny-result
+			if obj.plus === true
+				span.quote-jenny-plus
+			else if obj.minus === true
+				span.quote-jenny-minus
+			span= obj.result

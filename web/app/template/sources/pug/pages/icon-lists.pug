@@ -1,0 +1,139 @@
+extends ../_skeleton
+
+include ../components/_boxes
+include ../components/_quote
+block variables
+	- pageName = 'Icon Lists'
+
+block page 
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	section.section.section-xl.bg-default.text-center
+		.container
+			h2 #1
+			.row.row-xl.no-gutters.bordered-2.ordered-1
+				.col-sm-6.col-lg-4
+					+box-minimal({
+						icon: 'linearicons-mouse-both',
+						title: 'Click & Collect'
+					})
+				.col-sm-6.col-lg-4
+					+box-minimal({
+						icon: 'linearicons-trophy2',
+						title: '10+ Years Online'
+					})
+				.col-sm-6.col-lg-4
+					+box-minimal({
+						icon: 'linearicons-star',
+						title: '10+ Years Online'
+					})
+				.col-sm-6.col-lg-4
+					+box-minimal({
+						icon: 'linearicons-sync',
+						title: '365 Day Returns'
+					})
+				.col-sm-6.col-lg-4
+					+box-minimal({
+						icon: 'linearicons-bag-dollar',
+						title: 'Easy Purchase'
+					})
+				.col-sm-6.col-lg-4
+					+box-minimal({
+						icon: 'linearicons-undo2',
+						title: 'Free Returns'
+					})
+
+	.section-xs.bg-default.text-center: h2 #2
+	section.section.bg-gray-13
+		.row.no-gutters.bordered-1
+			.col-sm-6.col-xl-3
+				+box-classic-1({
+					icon: 'mdi mdi-reply',
+					title: 'Reasonable prices',
+					text: 'If you didn’t like your bike, you can always return it during the first 2 weeks of its usage.'
+				}).box-classic-1.wow.fadeInUp
+			.col-sm-6.col-xl-3
+				+box-classic-1({
+					icon: 'mdi mdi-account-star-variant',
+					title: 'Professional Team',
+					text: 'Our sales managers and consultants are always glad to help you choose a bike.'
+				}).box-classic-1.wow.fadeInUp( data-wow-delay='.05s' )
+			.col-sm-6.col-xl-3
+				+box-classic-1({
+					icon: 'mdi mdi-truck',
+					title: 'Free Delivery',
+					text: 'Our delivery service guarantees quick and secure delivery of your favorite motorcycle.'
+				}).box-classic-1.wow.fadeInUp( data-wow-delay='.1s' )
+			.col-sm-6.col-xl-3
+				+box-classic-1({
+					icon: 'mdi mdi-cash-usd',
+					title: 'payment Methods',
+					text: 'We offer a variety of payment methods including cash, credit cards, and cheques.'
+				}).box-classic-1.wow.fadeInUp( data-wow-delay='.15s' )
+
+
+	section.section.section-xl.bg-default.text-center
+		.container
+			h2 #3
+			.row.row-xl.no-gutters.bordered-3
+				.col-sm-6
+					+box-creative({
+						unit: 'flex-column flex-md-row align-items-center align-items-sm-start',
+						icon: 'linearicons-trophy2',
+						title: 'Over 20 Awards',
+						text: 'Cur rumor studere? Cum lapsus manducare, omnes hydraes teres mensaes.'
+					}).box-creative-1.box-creative-gradient.text-center.text-sm-left
+				.col-sm-6
+					+box-creative({
+						unit: 'flex-column flex-md-row align-items-center align-items-sm-start',
+						icon: 'linearicons-bag-dollar',
+						title: 'Easy Purchase',
+						text: 'Sunt historiaes imperium lotus, nobilis fortises. Adgiums sunt finiss.'
+					}).box-creative-1.box-creative-gradient.text-center.text-sm-left
+				.col-sm-6
+					+box-creative({
+						unit: 'flex-column flex-md-row align-items-center align-items-sm-start',
+						icon: ' linearicons-star',
+						title: '10+ Years Online',
+						text: 'Vae, vortex! Cum genetrix observare, omnes capioes imitari emeritis.'
+					}).box-creative-1.box-creative-gradient.text-center.text-sm-left
+				.col-sm-6
+					+box-creative({
+						unit: 'flex-column flex-md-row align-items-center align-items-sm-start',
+						icon: 'linearicons-undo2',
+						title: 'Perfect Location',
+						text: 'Bi-color planetas ducunt ad devatio. Brabeutas sunt accolas de.'
+					}).box-creative-1.box-creative-gradient.text-center.text-sm-left
+
+	section.section.section-xl.bg-default.text-center
+		.container
+			h2 #4
+			.row.row-xl.no-gutters.bordered-1
+				.col-sm-6.col-lg-3
+					+box-modern({
+						icon: 'mdi mdi-arrange-bring-to-front',
+						title: 'Click & Collect',
+						text: 'Mensas tolerare, tanquam magnum particula.'
+					}).box-modern-2
+				.col-sm-6.col-lg-3
+					+box-modern({
+						icon: 'mdi mdi-replay',
+						title: '365 Day Returns',
+						text: 'Audax, fortis vigils absolute tractare.'
+					}).box-modern-2
+				.col-sm-6.col-lg-3
+					+box-modern({
+						icon: 'mdi mdi-trophy',
+						title: 'Over 20 Awards',
+						text: 'Cum secula trabem, omnes caculaes magicae.'
+					}).box-modern-2
+				.col-sm-6.col-lg-3
+					+box-modern({
+						icon: 'mdi mdi-web',
+						title: '10+ Years Online',
+						text: 'Brevis, lotus habitios superbe perdere.'
+					}).box-modern-2
+
+	include ../sections/_footer-modern

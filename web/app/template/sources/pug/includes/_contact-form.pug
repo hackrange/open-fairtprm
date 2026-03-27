@@ -1,0 +1,33 @@
+//RD Mailform
+form.rd-form.rd-mailform( data-form-output='form-output-global', data-form-type='contact', method='post', action='bat/rd-mailform.php' )
+	.row.row-20.gutter-20
+		.col-sm-6
+			.form-wrap
+				input#contact-name.form-input( type='text', name='name', data-constraints='@Required' )
+				label.form-label( for='contact-name' ) Your Name
+
+		.col-sm-6
+			.form-wrap
+				input#contact-surname.form-input( type='text', name='name', data-constraints='@Required' )
+				label.form-label( for='contact-surname' ) Your Surname
+
+		.col-sm-6
+			.form-wrap
+				input#contact-phone.form-input( type='text', name='phone', data-constraints='@Numeric' )
+				label.form-label( for='contact-phone' ) Phone
+
+		.col-sm-6
+			.form-wrap
+				input#contact-email.form-input( type='email', name='email', data-constraints='@Email @Required' )
+				label.form-label( for='contact-email' ) E-mail
+
+		.col-12
+			.form-wrap
+				label.form-label( for='contact-message') Message
+				textarea#contact-message.form-input( name='message', data-constraints='@Required' )
+
+	.group-lg.group-custom-1
+		div.group-custom-ie: .unit.unit-spacing-md.form-text
+			.unit-left: span.icon.mdi.mdi-information-outline
+			.unit-body: p Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut elit tellus, luctus nec ullamcorper mattis
+		div: button.button.button-gray-5( type='submit' ) Send Message

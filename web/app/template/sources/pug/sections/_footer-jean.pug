@@ -1,0 +1,43 @@
+footer.section.footer-jean.bg-gray-21.bg-image( style='background-image: url(images/bg-image-6.jpg);' )
+	.footer-jean-body.section-xxl.section-inset-10
+		.container.container-style-4.wow.fadeInUp: .row.row-30.row-md-50.justify-content-xl-between
+			.col-lg-4.col-xl-4
+				.footer-jean-brand: +logo
+				ul.contacts-classic.list-inline.list-inline-xxl
+					li
+						= 'T. '
+						a( href='tel:#' ) +61 3 8376 6284
+						br
+						= 'E. '
+						a( href='mailto:#' ) info@demolink.org
+					li 652 Main Road, Apt 12
+						br
+						| New York, USA 10033
+				.group-1.group-middle
+					.footer-jean-list-social
+						ul.list-social.list-inline.list-inline-md
+							li: a.icon.mdi.mdi-facebook( href='#' )
+							li: a.icon.mdi.mdi-instagram( href='#' )
+							li: a.icon.mdi.mdi-youtube-play( href='#' )
+							li: a.icon.mdi.mdi-twitter( href='#' )
+					+rights
+			.col-md-6.col-lg-5.col-xl-4.col-xxl-3
+				.heading-6.footer-jean-title Newsletter
+				form.rd-form.rd-mailform.rd-form-inline.rd-form-inline-2.form-style-4( data-form-output='form-output-global', data-form-type='subscribe' method='post' action='bat/rd-mailform.php' )
+					.form-wrap
+						input.form-input#subscribe-form-email( type='email', name='email', data-constraints='@Email @Required' )
+						label.form-label( for='subscribe-form-email' )
+							span.icon.mdi.mdi-email-outline
+							span Enter your email
+					.form-button
+						button.button.button-primary( type='submit' ) Go
+
+			.col-md-6.col-lg-3.col-xxl-4: .inset-xxl-left-1
+				.heading-6.footer-jean-title Quick links
+				ul.footer-jean-nav.big
+					li: a( href='classes.html' ) Classes
+					li: a( href= links.news ) News & Events
+					li: a( href='about-us.html' ) Who We Are
+					li: a( href='pricing-tables.html' ) Pricing
+					li: a( href='#' ) Careers
+					li: a( href='contact-us.html' ) Contacts

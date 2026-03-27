@@ -1,0 +1,26 @@
+.select2-selection--single {
+	display: block;
+	height: map-get( $select2, input-height ) - 20;
+	box-sizing: border-box;
+	cursor: pointer;
+	user-select: none;
+
+	@include media-breakpoint-up(md) {
+		height: map-get( $select2, input-height ) - 10;
+	}
+
+	@include media-breakpoint-up(lg) {
+		height: map-get( $select2, input-height );
+	}
+
+	.select2-selection__rendered {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.select2-selection__clear {
+		position: relative;
+	}
+}

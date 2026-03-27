@@ -1,0 +1,170 @@
+/** @section Groups */
+
+html {
+	.group {
+		@include group(20px, 15px);
+	}
+
+	.group-xs {
+		@include group(10px);
+	}
+
+	.group-sm {
+		@include group(15px, 10px);
+	}
+
+	.group-md {
+		@include group(25px, 20px);
+	}
+
+	.group-lg {
+		@include group(30px, 20px);
+	}
+
+	.group-xl {
+		@include group(40px, 20px);
+	}
+
+	.group-1 {
+		@include group(60px, 30px);
+	}
+
+	.group-custom {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-wrap: wrap;
+		max-width: 100%;
+
+		> * {
+			flex: 0 1 100%;
+			padding-left: 20px;
+			padding-right: 20px;
+		}
+
+		@include media-breakpoint-up(sm) {
+			flex-wrap: nowrap;
+
+			> * {
+				flex: 1 1 auto;
+			}
+		}
+	}
+}
+
+.group-middle {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.group-justify {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+}
+
+.group-inline {
+	> * {
+		display: inline-block;
+	}
+}
+
+.group-custom-1 {
+	display: flex;
+	flex-wrap: wrap;
+
+	.button {
+		flex-shrink: 0;
+	}
+
+	@include media-breakpoint-up(sm) {
+		flex-wrap: nowrap;
+	}
+}
+
+.group-custom-2 {
+	display: flex;
+	flex-wrap: wrap;
+
+	.button {
+		flex-shrink: 0;
+	}
+}
+
+.group-custom-3 {
+
+	@include media-breakpoint-up(sm) {
+		position: relative;
+		display: flex;
+		align-items: flex-end;
+
+		img {
+			position: absolute;
+			width: 74.8%;
+			left: 0;
+		}
+
+		.form-style-5 {
+			margin-left: auto;
+			flex-shrink: 0;
+		}
+	}
+
+	@include media-breakpoint-up(xl) {
+		margin-left: 30px;
+	}
+}
+
+.group-custom-4 {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+
+	.button {
+		flex-grow: 1;
+		flex-shrink: 0;
+	}
+
+	@include media-breakpoint-up(sm) {
+		flex-wrap: nowrap;
+	}
+}
+
+.group-custom-5 {
+	padding: 1px 0;
+	
+	@include media-breakpoint-up(sm) {
+		display: flex;
+		justify-content: space-between;
+	}
+}
+
+* + .group-middle,
+* + .group-inline,
+* + .group-custom-1,
+* + .group-custom-2 { margin-top: 30px; }
+
+@include media-breakpoint-up(lg) {
+
+	* + .group-middle,
+	* + .group-custom-1,
+	* + .group-custom-2 { margin-top: 40px; }
+}
+
+// Context styling
+.ie-10,
+.ie-11,
+.ie-edge {
+
+	.group-custom-ie {
+		flex-basis: 100%;
+	}
+
+	@include media-breakpoint-up(sm) {
+		.group-custom-3 {
+			align-items: flex-start;
+		}
+	}
+}

@@ -1,0 +1,17 @@
+/** @section Context Styles */
+
+%context-dark {
+	color: rgba($white, .8);
+
+	#{headings()} {
+		color: $white;
+	}
+}
+
+%context-light {
+	color: $body-color;
+
+	#{headings()} {
+		color: $headings-color;
+	}
+}

@@ -1,0 +1,29 @@
+//- Pricing Tables
+
+mixin pricing( obj )
+	// Pricing
+	article.pricing&attributes( attributes )
+		.pricing-header
+			.heading-4.pricing-title= obj.title
+			.pricing-subtitle= obj.subtitle
+		.pricing-body
+			div
+				.heading-3.pricing-price= '$' + obj.price + '.00'
+				a.button( href='#' class= obj.buttonClass ? obj.buttonClass : 'button-default-outline-2' ) Choose
+				ul.pricing-list.big
+					each itemList in obj.list
+						li= itemList.text
+			block
+
+mixin pricing-classic( obj )
+	// Pricing classic
+	article.pricing-classic&attributes( attributes )
+		.heading-4.pricing-classic-title= obj.title
+		.pricing-classic-subtitle= obj.subtitle
+		.heading-2.pricing-classic-price= '$' + obj.price
+		ul.pricing-classic-list
+			each itemList in obj.list
+				li= itemList.text
+		a.button( href='#' class= obj.buttonClass ? obj.buttonClass : 'button-gray-11' ) Buy now
+		if obj.label
+			.pricing-classic-label= obj.label

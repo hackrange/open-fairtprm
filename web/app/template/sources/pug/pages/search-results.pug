@@ -1,0 +1,28 @@
+extends ../_skeleton
+
+include ../components/_quote
+
+block variables
+	- pageName = 'Search Results'
+
+block page 
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Search results
+	section.section-md
+		.container
+			.row.justify-content-center
+				.col-lg-9
+					//RD Search
+					form.rd-form.rd-search.rd-form-inline.group-sm(action='search-results.html' method='GET')
+						.form-wrap
+							label.form-label( for='rd-search-form-input') Enter your search request
+							input.form-input( id='rd-search-form-input' type='text', name='s' autocomplete='off')
+						.form-button
+							button.button.button-gradient( type='submit' ) Search
+
+					.rd-search-results
+
+	include ../sections/_footer-modern

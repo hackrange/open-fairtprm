@@ -1,0 +1,30 @@
+//- Products
+mixin product( obj )
+	// Products
+	article.product&attributes( attributes )
+		.product-body
+			.product-info
+				.product-category= obj.category
+				.heading-5.product-title= obj.title
+				.product-figure: +img( obj.img + '.png' )
+			.product-description
+				.product-rating
+					span.icon.mdi.mdi-star-outline
+					span.icon.mdi.mdi-star-outline
+					span.icon.mdi.mdi-star-outline
+					span.icon.mdi.mdi-star-outline
+					span.icon.mdi.mdi-star-outline
+				if(obj.caption)
+					p=obj.caption
+				else
+					p.product-text Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+				a.button.button-gray-800( href='cart-page.html' ) Add to cart
+				.product-link: a( href= links.singleProduct ) View details
+		.product-panel
+			.big.product-price= '$' +  obj.price + '.00'
+			.product-share
+				.product-share-button.linearicons( data-custom-toggle='', data-custom-toggle-disable-on-blur='true' )
+				ul.product-share-list.list-inline
+					li: a.icon.mdi.mdi-facebook( href='#' )
+					li: a.icon.mdi.mdi-google( href='#' )
+					li: a.icon.mdi.mdi-twitter( href='#' )

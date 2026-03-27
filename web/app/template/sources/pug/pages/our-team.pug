@@ -1,0 +1,50 @@
+extends ../_skeleton
+
+include ../components/_team
+include ../components/_quote
+
+block variables
+	- pageName = 'Our Team'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Coaches 1
+	section.section.section-xl.bg-default.text-center
+		.container
+			h2 Team #1
+			include ../includes/_our-team-default
+
+	//Coaches 2
+	section.section.section-xl.bg-default.text-center
+		.container
+			h2 Team #2
+			.row.row-xl.row-30.gutter-6
+				.col-sm-6.col-lg-3
+					+team-modern({
+						img: 'team-7-290x339',
+						name: 'John Mitchell',
+						position: 'Apprentice Technician'
+					}).block-1
+				.col-sm-6.col-lg-3
+					+team-modern({
+						img: 'team-8-290x339',
+						name: 'George Garcia',
+						position: 'Customer Care Manager'
+					}).block-1
+				.col-sm-6.col-lg-3
+					+team-modern({
+						img: 'team-9-290x339',
+						name: 'Shawn Gray',
+						position: 'managing Director'
+					}).block-1
+				.col-sm-6.col-lg-3
+					+team-modern({
+						img: 'team-10-290x339',
+						name: 'pamela Lewis',
+						position: 'marketing manager'
+					}).block-1
+
+	include ../sections/_footer-modern

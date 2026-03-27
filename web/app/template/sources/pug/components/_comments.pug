@@ -1,0 +1,20 @@
+//- Comments
+
+mixin comment-classic( obj )
+	.comment-classic
+		.unit.unit-spacing-lg.flex-column.flex-sm-row
+			.unit-left: +img( obj.img ).comment-classic-image
+			.unit-body
+				.group-sm.group-justify.align-items-center
+					.heading-6.comment-classic-author= obj.author
+					.comment-classic-time= obj.time
+				p.comment-classic-text= obj.text
+				ul.comment-classic-panel.list-inline.list-inline-md
+					li.comment-classic-link
+						span.icon.mdi.mdi-thumb-up-outline
+						a( href='#' ) 32
+					li.comment-classic-link
+						span.icon.mdi.mdi-comment-outline
+						a( href='#' ) Reply
+
+		block

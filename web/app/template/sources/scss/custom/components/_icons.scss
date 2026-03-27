@@ -1,0 +1,38 @@
+/** @section Icons */
+
+// Base styles
+.icon {
+	display: inline-block;
+	font-size: 16px;
+	line-height: 1;
+
+	&::before {
+		position: relative;
+		display: inline-block;
+		font-weight: 400;
+		font-style: normal;
+		speak: none;
+		text-transform: none;
+	}
+}
+
+// Alternate icons
+.icon-default {}
+
+.icon-primary {}
+
+// Icon Shapes
+.icon-circle {
+	border-radius: 50%;
+}
+
+// Icon Sizes
+.icon-xs {}
+
+.icon-sm {}
+
+.icon-lg {}
+
+.icon-80 {
+	font-size: 80px;
+}

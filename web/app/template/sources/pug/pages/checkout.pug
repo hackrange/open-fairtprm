@@ -1,0 +1,80 @@
+extends  ../_skeleton
+
+//- Includes
+include ../components/_form-checkout
+include ../components/_quote
+block variables
+	- var activeCategory = 'shop'
+	- var pageName = 'Checkout'
+
+block page 
+	// Page Header
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	// Section checkout form
+	section.section.section-lg.bg-default
+		.container
+			.row.row-50.justify-content-center
+				.col-md-10.col-lg-6
+					h4 Billing Address
+					+form-checkout({ customUnique: '1' })
+				.col-md-10.col-lg-6
+					h4 Delivery Address
+					+form-checkout({ customUnique: '2'})
+
+	// Shopping Cart
+	section.section.section-lg.bg-default
+		.container
+			h4 Your shopping cart
+			include ../includes/_shopping-cart
+	="\n"
+
+	// Section Payment
+	section.section.section-lg.bg-default
+		.container
+			.row.row-30.justify-content-center
+				.col-md-6
+					h4 Payment methods
+					.box-radio
+						.radio-panel
+							label.radio-inline.active
+								input( name="input-group-radio", value="checkbox-1", type="radio", checked)
+								| Direct Bank Transfer
+							.radio-panel-content
+								p Make your payment directly into our bank account. Please use your Order ID as the payment reference.
+
+						.radio-panel
+							label.radio-inline
+								input( name="input-group-radio", value="checkbox-1", type="radio")
+								| PayPal
+							.radio-panel-content
+								p Pay via PayPal; you can pay with your credit card if you don’t have a PayPal account.
+
+						.radio-panel
+							label.radio-inline
+								input( name="input-group-radio", value="checkbox-1", type="radio")
+								| Cheque Payment
+							.radio-panel-content
+								p Please send a check to Store Name, Store Street, Store Town, Store State / County, Store Postcode.
+
+				.col-md-6
+					h4 Cart total
+					.table-custom-responsive
+						table.table-custom.table-checkout
+							tbody
+								tr
+									td Cart Subtotal
+									td $540
+								tr
+									td Shipping
+									td Free
+								tr
+									td Total
+									td $540
+
+			.text-right.offset-top-5: button.button.button-lg.button-gradient( type='button' ) Checkout
+	="\n"
+
+	include ../sections/_footer-modern

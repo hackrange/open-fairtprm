@@ -1,0 +1,238 @@
+/**
+ * Interactive CSS Classes
+ *
+ * Replaces inline onmouseover/onmouseout/onfocus/onblur event handlers
+ * with proper CSS :hover and :focus pseudo-classes. This allows the
+ * Content Security Policy to drop 'unsafe-inline' from script-src.
+ */
+
+/* =========================================================================
+   Hover: Background highlight for dropdown/list/search-result items
+   ========================================================================= */
+
+.hover-bg-gray:hover {
+    background: #f3f4f6 !important;
+}
+
+.hover-bg-light:hover {
+    background: #f9fafb !important;
+}
+
+.hover-bg-blue:hover {
+    background: #f0f4ff !important;
+}
+
+/* =========================================================================
+   Hover: Filter brightness for theme-colored buttons
+   ========================================================================= */
+
+.hover-brightness:hover {
+    filter: brightness(1.1);
+}
+
+/* =========================================================================
+   Hover: Opacity decrease for submit buttons
+   ========================================================================= */
+
+.hover-opacity:hover {
+    opacity: 0.9;
+}
+
+/* =========================================================================
+   Hover: Text decoration underline for links
+   ========================================================================= */
+
+.hover-underline:hover {
+    text-decoration: underline;
+}
+
+/* =========================================================================
+   Hover: Card border + shadow effects (dashboard stat cards)
+   ========================================================================= */
+
+.hover-card:hover {
+    border-color: var(--theme-header-color) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+.hover-card-amber:hover {
+    border-color: #f59e0b !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+.hover-card-green:hover {
+    border-color: #28a745 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+/* =========================================================================
+   Hover: Background color change for action buttons/links
+   ========================================================================= */
+
+.hover-bg-amber:hover {
+    background: #d97706 !important;
+}
+
+/* =========================================================================
+   Focus: Input border + box-shadow ring
+   ========================================================================= */
+
+.focus-ring:focus {
+    border-color: var(--theme-header-color) !important;
+    box-shadow: 0 0 0 3px rgba(255, 101, 67, 0.1) !important;
+}
+
+.focus-ring:not(:focus) {
+    box-shadow: none;
+}
+
+.focus-ring-blue:focus {
+    border-color: var(--theme-header-color, #2563eb) !important;
+}
+
+/* =========================================================================
+   Collapsible Sidebar Sections (native <details>/<summary>)
+   ========================================================================= */
+
+.sidebar-section-title {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sidebar-section-title::-webkit-details-marker {
+    display: none;
+}
+
+.sidebar-section-title::after {
+    content: '\25BC';
+    font-size: 8px;
+    opacity: 0.5;
+    transition: transform 0.2s ease;
+    margin-right: 2px;
+}
+
+.sidebar-section:not([open]) .sidebar-section-title::after {
+    transform: rotate(-90deg);
+}
+
+/* =========================================================================
+   Collapsible Module Wrappers (TPRM Module / GRC Module)
+   ========================================================================= */
+
+.sidebar-module {
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin-top: 4px;
+}
+
+.sidebar-module:first-of-type {
+    margin-top: 0;
+    border-top: none;
+}
+
+.sidebar-module > summary.sidebar-module-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px 8px;
+    cursor: pointer;
+    list-style: none;
+    list-style-type: none;
+    user-select: none;
+}
+
+.sidebar-module > summary.sidebar-module-header::-webkit-details-marker {
+    display: none;
+}
+
+.sidebar-module > summary.sidebar-module-header::marker {
+    display: none;
+    content: none;
+    font-size: 0;
+}
+
+.sidebar-module > summary.sidebar-module-header::before,
+.sidebar-module > summary.sidebar-module-header::after {
+    content: none;
+    display: none;
+}
+
+.sidebar-module-header .module-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--theme-button-color, #ff6543);
+    opacity: 1;
+    transition: opacity 0.2s;
+}
+
+.sidebar-module-header:hover .module-label {
+    opacity: 0.8;
+}
+
+.sidebar-module-body {
+    padding-top: 0;
+    padding-bottom: 4px;
+    position: relative;
+}
+
+.sidebar-module-body::before {
+    content: '';
+    display: block;
+    height: 2px;
+    background: var(--theme-button-color, #ff6543);
+    margin: 0 20px 8px;
+    opacity: 0.5;
+    border-radius: 1px;
+}
+
+/* Slightly smaller nav font inside modules */
+.sidebar-module .sidebar-nav li a {
+    font-size: 12px;
+    padding-top: 9px;
+    padding-bottom: 9px;
+}
+
+.sidebar-module .sidebar-section {
+    margin-bottom: 16px;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.sidebar-module .sidebar-section:first-child {
+    margin-top: 4px;
+}
+
+.sidebar-module .sidebar-section-title {
+    font-size: 9px;
+}
+
+/* Badge variant for danger (monitors failing) */
+.sidebar-nav li a .badge-danger {
+    background: #dc3545;
+    color: #fff;
+}
+
+/* =========================================================================
+   SVG Icon Color Matching
+   Icons loaded as <img> cannot inherit CSS color via currentColor.
+   Use CSS mask-image so background-color shows through the SVG shape,
+   allowing icons to match any surrounding text color (theme-aware).
+   ========================================================================= */
+
+/* Sidebar nav icons: color inherited via inline SVG (see sidebar_nav.php script) */
+.sidebar .icon svg {
+    color: var(--nav-font-color, #ffffff);
+}
+
+/* Buttons with white text */
+.btn img,
+.btn-primary img,
+.btn-secondary img,
+.btn-danger img,
+.hover-brightness img,
+.quick-action-btn img {
+    filter: brightness(0) invert(1);
+}

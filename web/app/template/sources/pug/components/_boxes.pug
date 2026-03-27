@@ -1,0 +1,76 @@
+//- Boxes
+
+mixin box-minimal( obj )
+	// Box minimal
+	article.box-minimal&attributes( attributes )
+		.unit.align-items-center
+			.unit-left: .box-minimal-icon( class= obj.icon )
+			.unit-body: .heading-4.box-minimal-title= obj.title
+		.heading-5.box-minimal-number.ordered-item
+
+mixin box-classic( obj )
+	// Box classic
+	article.box-classic&attributes( attributes )
+		.box-classic-icon( class= obj.icon )
+		.heading-3.box-classic-title= obj.title
+		.big.box-classic-text= obj.text
+
+mixin box-classic-1( obj )
+	// Box classic
+	article.box-classic.box-advantages&attributes( attributes )
+		.box-classic-icon( class= obj.icon )
+		.heading-4.box-classic-title= obj.title
+		.big.box-classic-text= obj.text
+
+mixin box-creative( obj )
+	// Box creative
+	article.box-creative&attributes( attributes )
+		.unit.unit-spacing-1( class= obj.unit )
+			.unit-left: .box-creative-icon( class= obj.icon )
+			.unit-body
+				.heading-5.box-creative-title= obj.title
+				.big.box-creative-text= obj.text
+
+mixin box-creative-2( obj )
+	// Box creative
+	article.box-creative&attributes( attributes )
+		.unit.unit-spacing-1( class= obj.unit )
+			.unit-left: .box-creative-icon( class= obj.icon )
+			.unit-body
+				.heading-4.box-creative-title= obj.title
+				.big.box-creative-text= obj.text
+
+mixin box-modern( obj )
+	// Box modern
+	article.box-modern&attributes( attributes )
+		.box-modern-icon( class= obj.icon )
+		.heading-5.box-modern-title= obj.title
+		.box-modern-text= obj.text
+
+mixin box-abby( obj )
+	// Box abby
+	article.box-abby(class=obj.bg)&attributes( attributes )
+		if(obj.media)
+			.box-abby__media
+				+img(obj.media)
+		.heading-6.box-abby-subtitle= obj.subtitle
+		.heading-2.box-abby-title= obj.title
+		if(obj.text)
+			p.box-abby__caption=obj.text
+		block
+
+mixin box-molly( obj )
+	// Box molly
+	article.box-molly&attributes( attributes )
+		.box-molly-icon( class= obj.icon )
+		.heading-4.box-molly-title= obj.title
+		.big.box-molly-text= obj.text
+
+mixin box-leah( obj )
+	// Box leah
+	article.box-leah&attributes( attributes )
+		+img( obj.img )
+		.box-leah-body
+			.heading-5.box-leah-title: a( href='#' )= obj.title
+			.big.box-leah-square= obj.square
+			.box-leah-text!= obj.text

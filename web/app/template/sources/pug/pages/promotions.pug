@@ -1,0 +1,88 @@
+extends ../_skeleton
+
+include ../components/_services
+include ../components/_quote
+block variables
+	- pageName = 'Promotions'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Classes
+	section.section.section-xl.bg-gray-100
+		.container
+			.row.row-30.row-narrow-80.row-xl.row-xl-80
+				.col-lg-6
+					a(href="shop.html").box-offer
+						.box-offer__header
+							.box-offer__media
+								+img('home-img-1-290x331')
+							h2.box-offer__title
+								span 2019
+								span year
+								span models
+							.box-offer__sale
+								.big 20
+								.sale-group
+									span.percent %
+									span off
+						.box-offer__footer
+							h4 Kawasaki, Honda, and Yamaha
+							span available while stocks last
+				.col-lg-6
+					a(href="shop.html").box-offer.reverse
+						.box-offer__header
+							.box-offer__media
+								+img('home-img-2-181x335.png')
+							h2.box-offer__title
+								span Grab
+								span Your
+								span Honda
+							.box-offer__sale
+								.sale-group
+									span $
+									.big 200
+									span off
+						.box-offer__footer
+							h4 Honda CBR1000RR
+							span on sale until June 15
+
+
+
+				.col-lg-6
+					a(href="shop.html").box-offer.reverse
+						.box-offer__header
+							.box-offer__media
+								+img('offer-1-274x350.png')
+							h2.box-offer__title
+								span ARM
+								span special
+								span offer
+							.box-offer__sale
+								.sale-group
+									span $
+									.big 159
+						.box-offer__footer
+							h4 ARM Jacket Sale
+							span get any ARM jacket at an affordable price
+				.col-lg-6
+					a(href="shop.html").box-offer
+						.box-offer__header
+							.box-offer__media
+								+img('offer-2-259x326.png')
+							h2.box-offer__title
+								span 2019
+								span year
+								span models
+							.box-offer__sale
+								.big 10
+								.sale-group
+									span.percent %
+									span off
+						.box-offer__footer
+							h4 Helmet Sale
+							span get your helmet until June 23
+
+	include ../sections/_footer-modern

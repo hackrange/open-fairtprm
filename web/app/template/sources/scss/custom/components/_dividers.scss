@@ -1,0 +1,144 @@
+/** @section Dividers */
+
+hr {
+	margin-top: 0;
+	margin-bottom: 0;
+	border-top: $hr-border-width solid $hr-border-color;
+}
+
+.divider {
+	font-size: 0;
+	line-height: 0;
+
+	&::after {
+		display: inline-block;
+		content: '';
+		width: 60px;
+		height: 0;
+		border-top: 2px solid $primary;
+		animation: moreLoop 2.5s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+	}
+}
+
+* + .divider { margin-top: 20px; }
+.divider + * { margin-top: 20px; }
+
+@include media-breakpoint-up(md) {
+	.divider + h3 { margin-top: 30px; }
+	.divider + h4 { margin-top: 30px; }
+}
+
+@include media-breakpoint-up(xl) {
+	.divider + h4 { margin-top: 45px; }
+}
+
+.hr-24 {
+	margin: 24px 0;
+}
+
+.hr-30 {
+	margin: 30px 0;
+}
+
+
+
+
+// Text decor
+
+.text-line-left {
+	&::before {
+		display: inline-block;
+		vertical-align: middle;
+		content: '';
+		width: 60px;
+		height: 0;
+		margin-right: 20px;
+		border-top: 1px solid $gray-3;
+		animation: moreLoop 2.5s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+	}
+}
+
+.text-line-right {
+	&::after {
+		display: inline-block;
+		vertical-align: middle;
+		content: '';
+		width: 60px;
+		height: 0;
+		margin-left: 20px;
+		border-top: 1px solid $gray-3;
+		animation: moreLoop 2.5s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+	}
+}
+
+@include media-breakpoint-up(lg) {
+	.text-line-left {
+		&::before {
+			width: 80px;
+			margin-right: 30px;
+		}
+	}
+
+	.text-line-right {
+		&::after {
+			width: 80px;
+			margin-left: 30px;
+		}
+	}
+}
+
+@include media-breakpoint-up(xl) {
+
+	.text-line-left {
+		&::before {
+			width: 100px;
+			margin-right: 35px;
+		}
+	}
+
+	.text-line-right {
+		&::after {
+			width: 100px;
+			margin-left: 35px;
+		}
+	}
+
+	.text-line-big {
+		&::before {
+			width: 130px;
+		}
+	}
+} 
+
+// Context styling
+%context-dark {
+	.text-line-right::before { border-top-color: rgba($white, .5) }
+	.text-line-right::after { border-top-color: rgba($white, .5) }
+}
+
+// Animation
+@keyframes moreLoop {
+	0% {
+		transform: scale(0, 1);
+		transform-origin: left;
+	}
+	47% {
+		transform: scale(1, 1);
+		transform-origin: left;
+	}
+	48% {
+		transform: scale(1, 1);
+		transform-origin: right;
+	}
+	95% {
+		transform: scale(0, 1);
+		transform-origin: right;
+	}
+	96% {
+		transform: scale(0, 1);
+		transform-origin: left;
+	}
+	100% {
+		transform: scale(0, 1);
+	}
+}

@@ -1,0 +1,157 @@
+extends ../_skeleton
+
+include ../components/_quote
+include ../components/_posts
+include ../components/_comments
+
+block variables
+	- pageName = 'Blog post'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Blog Post
+	section.section.section-lg.bg-default
+		.container: .row.row-50.row-lg-70
+			.col-lg-8: .row.row-50.row-lg-80.row-xl-100
+				.col-12
+					.post-big
+						h3.post-big-title Motorcycle Security and Anti-theft: Ways to Save Your Bike
+						ul.post-big-info.list-inline.list-inline-lg
+							li: a.post-tag.post-tag-gradient( href='#' ) News
+							li: time.post-big-time( datetime='2019-05-29' ) May 29, 2019
+							li
+								.post-big-author
+									span='by '
+									a( href='#' ) Alex Smith
+						p Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh eui   smod tincidunt ut laoreet dolore magna aliquam erat volutpat. Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel
+						+img('single-post-1-770x403')
+						p Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi. Nam liber tempor cum soluta nobis eleifend option congue nihil imperdiet doming id quod mazim placerat facer possim assum.
+						+quote({
+							text: 'There are a few different ways to protect your motorcycle from theft that are better than leaving the bike unprotected.\n'
+						})
+						+img('single-post-2-770x403')
+						p Ultrices mi tempus imperdiet nulla malesuada pellentesque elit eget. Enim lobortis scelerisque fermentum dui faucibus. A lacus vestibulum sed arcu non. Eu tincidunt tortor aliquam nulla facilisi cras fermentum odio. Neque gravida in fermentum et sollicitudin. Eros in cursus turpis massa. In tellus integer feugiat scelerisque. Nam libero justo laoreet sit amet cursus sit.
+						.post-big-share
+							.group-lg.group-justify.align-items-center
+								.post-big-share-title.big Share this post
+								div: ul.list-social.list-inline.list-inline-md
+									li: a.icon.mdi.mdi-facebook( href='#' )
+									li: a.icon.mdi.mdi-google( href='#' )
+									li: a.icon.mdi.mdi-twitter( href='#' )
+									li: a.icon.mdi.mdi-pinterest( href='#' )
+
+				.col-12.text-center
+					h6.title-5 Related Posts
+					.row.row-md.row-30
+						.col-sm-6
+							+post-classic({
+								img: 'post-10-370x366',
+								tag: { class: 'post-tag-gradient', text: 'News' },
+								title: 'Why motorcyclists won\'t wear high-visibility gear'
+							}).block-md
+						.col-sm-6
+							+post-classic({
+								img: 'post-11-370x366',
+								tag: { class: 'post-tag-gradient', text: 'News' },
+								title: 'Motorcycle security: Ways to save your bike'
+
+							}).block-md
+
+				.col-12.text-center
+					h6.title-5
+						span 3
+						| Comments
+					+comment-classic({
+						img: 'user-6-66x66',
+						author: 'Edward',
+						time: '3 day ago',
+						text: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'
+					})
+						+comment-classic({
+							img: 'user-7-66x66',
+							author: 'Anna',
+							time: '1 day ago',
+							text: 'Ac ut consequat semper viverra. Magna eget est lorem ipsum dolor sit. Commodo sed egestas egestas fringilla phasellus faucibus.'
+						})
+					+comment-classic({
+						img: 'user-8-66x66',
+						author: 'John',
+						time: '1 day ago',
+						text: 'Condimentum lacinia quis vel eros. Molestie ac feugiat sed lectus vestibulum mattis ullamcorper velit. Quis eleifend quam adipiscing vitae proin sagittis. Risus commodo viverra maecenas accumsan lacus vel facilisis. Mus mauris vitae ultricies leo integer malesuada nunc. Netus et malesuada fames ac turpis egestas sed'
+					})
+					.comment-form
+						.unit.unit-spacing-lg.flex-column.flex-sm-row
+							.unit-left: +img( 'user-9-66x66' ).comment-classic-image
+							.unit-body
+								.heading-6.comment-classic-author Jane
+									form.rd-form.rd-mailform.rd-form-centered( data-form-output="form-output-global", data-form-type='subscribe', method='post', action='bat/rd-mailform.php' )
+										.form-wrap
+											label.form-label( for='comment-message' ) Your comment
+											textarea#comment-message.form-input( name='message', data-constraints='@Required' )
+										button.button.button-lg.button-gradient( type='submit' ) Submit
+
+			.col-lg-4: .inset-xl-left-40
+				.aside.row.row-50.row-lg-70
+					.aside-item.col-12
+						// RD Search Form
+						form.form-search.rd-search.form-search.form-style-2(action='search-results.html', method='GET')
+							.form-wrap
+								label.form-label( for='search-form' ) Enter a keyword...
+								input#search-form.form-input( type='text', name='s', autocomplete='off' )
+								button.button-search.mdi.mdi-magnify( type='submit' )
+
+					.aside-item.col-sm-6.col-lg-12
+						h6.aside-title Category
+						ul.list-marked.list-marked-2.list-category
+							li: a( href='#' )
+								span News
+								span 12
+							li: a( href='#' )
+								span Tips
+								span 10
+							li: a( href='#' )
+								span Motorcycles
+								span 11
+							li: a( href='#' )
+								span Gear
+								span 14
+					.aside-item.col-sm-6.col-lg-12
+						h6.aside-title Popular Posts
+						.post-minimal-wrap
+							+post-minimal({
+								unit: 'align-items-md-center',
+								img: 'post-7-106x104',
+								title: 'How the Telescopic Fork Front Suspension Works',
+								time: { date: '2019-05-29', text: 'May 29, 2019' }
+							})
+							+post-minimal({
+								unit: 'align-items-md-center',
+								img: 'post-8-106x104',
+								title: 'Buying Inexpensive and Exotic Motorcycles',
+								time: { date: '2019-05-15', text: 'May 15, 2019' }
+							})
+							+post-minimal({
+								unit: 'align-items-md-center',
+								img: 'post-9-106x104',
+								title: '2 Icons by Triumph: Rocket 3 & Daytona',
+								time: { date: '2019-05-15', text: 'May 15, 2019' }
+							})
+					.aside-item.col-sm-6.col-lg-12
+						h6.aside-title Blog Archive
+						ul.list-marked.list-marked-2
+							li: a( href='#' ) September 2019
+							li: a( href='#' ) August 2019
+					.aside-item.col-sm-6.col-lg-12
+						h6.aside-title Tags
+						.group-xs.group-middle
+							a.button-tag( href='#' ) News
+							a.button-tag( href='#' ) Apparel
+							a.button-tag( href='#' ) Motorcycles
+							a.button-tag( href='#' ) Events
+							a.button-tag( href='#' ) Tips
+							a.button-tag( href='#' ) Repair
+
+	include ../sections/_footer-modern

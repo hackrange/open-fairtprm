@@ -1,0 +1,162 @@
+#!/bin/bash
+# =============================================================================
+# Open TPRM - Multi-Tenant Setup Script
+# Creates a tenant-specific deployment from this template directory.
+#
+# Usage:
+#   ./setup              (interactive — prompts for tenant name)
+#   ./setup tprm-9081    (non-interactive)
+#   ./setup 9081         (non-interactive, auto-prefixes "tprm-")
+# =============================================================================
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PARENT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# ── Gather input ─────────────────────────────────────────────────────────────
+if [ -n "$1" ]; then
+    TENANT_INPUT="$1"
+else
+    echo ""
+    echo "============================================"
+    echo "  Open TPRM - Multi-Tenant Setup"
+    echo "============================================"
+    echo ""
+    echo "  Enter a tenant name with port, e.g.:"
+    echo "    tprm-9080   (name=tprm-9080, port=9080)"
+    echo "    9081         (name=tprm-9081, port=9081)"
+    echo ""
+    read -p "  Tenant name: " TENANT_INPUT
+fi
+
+if [ -z "$TENANT_INPUT" ]; then
+    echo -e "${RED}Error: Tenant name cannot be empty.${NC}"
+    exit 1
+fi
+
+# ── Parse tenant name and port ───────────────────────────────────────────────
+if [[ "$TENANT_INPUT" =~ ^[0-9]+$ ]]; then
+    # Bare port number — auto-prefix with "tprm-"
+    PORT="$TENANT_INPUT"
+    TENANT_NAME="tprm-${PORT}"
+elif [[ "$TENANT_INPUT" =~ ([0-9]+)$ ]]; then
+    # Name ending in a number — extract port from the trailing digits
+    PORT="${BASH_REMATCH[1]}"
+    TENANT_NAME="$TENANT_INPUT"
+else
+    echo -e "${RED}Error: Could not extract a port number from '${TENANT_INPUT}'.${NC}"
+    echo "  The name must end with a port number, e.g. tprm-9080 or 9081"
+    exit 1
+fi
+
+# Validate port range
+if [ "$PORT" -lt 1024 ] || [ "$PORT" -gt 65535 ]; then
+    echo -e "${RED}Error: Port ${PORT} is out of valid range (1024-65535).${NC}"
+    exit 1
+fi
+
+# ── Check for conflicts ─────────────────────────────────────────────────────
+TARGET_DIR="${PARENT_DIR}/${TENANT_NAME}"
+
+if [ -d "$TARGET_DIR" ] && [ "$(realpath "$SCRIPT_DIR")" != "$(realpath "$TARGET_DIR")" ]; then
+    echo -e "${RED}Error: Directory '${TARGET_DIR}' already exists.${NC}"
+    exit 1
+fi
+
+# Check if port is already bound
+if command -v ss &>/dev/null; then
+    if ss -tlnH 2>/dev/null | awk '{print $4}' | grep -q ":${PORT}$"; then
+        echo -e "${YELLOW}  Warning: Port ${PORT} appears to be in use already.${NC}"
+    fi
+fi
+
+# ── Find an unused subnet in 10.100.X.0/24 ──────────────────────────────────
+# Collect subnets currently used by Docker networks
+USED_SUBNETS=$(docker network ls -q 2>/dev/null \
+    | xargs -r docker network inspect --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}' 2>/dev/null \
+    || true)
+
+SUBNET=""
+for i in $(seq 1 254); do
+    CANDIDATE="10.100.${i}.0/24"
+    if ! echo "$USED_SUBNETS" | grep -q "10.100.${i}.0"; then
+        SUBNET="$CANDIDATE"
+        break
+    fi
+done
+
+if [ -z "$SUBNET" ]; then
+    echo -e "${RED}Error: No available subnet in 10.100.0.0/16 range.${NC}"
+    exit 1
+fi
+
+# ── Summary ──────────────────────────────────────────────────────────────────
+echo ""
+echo "  Tenant name:      ${TENANT_NAME}"
+echo "  Port:             ${PORT}"
+echo "  Subnet:           ${SUBNET}"
+echo "  Container name:   ${TENANT_NAME}"
+echo "  Directory:        ${TARGET_DIR}"
+echo ""
+
+# ── Copy template to tenant directory (without setup script) ─────────────────
+echo "==> Copying template to ${TARGET_DIR}..."
+mkdir -p "$TARGET_DIR"
+cp -r "$SCRIPT_DIR"/docker-compose.yml "$TARGET_DIR"/
+cp -r "$SCRIPT_DIR"/docker "$TARGET_DIR"/ 2>/dev/null || true
+cp -r "$SCRIPT_DIR"/Dockerfile "$TARGET_DIR"/ 2>/dev/null || true
+cp -r "$SCRIPT_DIR"/.dockerignore "$TARGET_DIR"/ 2>/dev/null || true
+cp -r "$SCRIPT_DIR"/docker_deploy_readme.txt "$TARGET_DIR"/ 2>/dev/null || true
+
+# ── Apply changes to the COPY's docker-compose.yml ───────────────────────────
+COMPOSE="${TARGET_DIR}/docker-compose.yml"
+
+sed -i "s|container_name: open-tprm|container_name: ${TENANT_NAME}|g" "$COMPOSE"
+sed -i "s|9080:8080|${PORT}:8080|g"                                   "$COMPOSE"
+sed -i "s|10.100.0.0/24|${SUBNET}|g"                                  "$COMPOSE"
+
+echo -e "${GREEN}Setup complete! Starting deployment...${NC}"
+echo ""
+
+# ── Start the container ──────────────────────────────────────────────────────
+cd "$TARGET_DIR"
+docker-compose up -d
+
+# ── Wait for credentials to be generated ─────────────────────────────────────
+echo ""
+echo "==> Waiting for container to initialize..."
+SENSITIVE_FILE="${TARGET_DIR}/persistent/config/.sensitive"
+for i in $(seq 1 60); do
+    if [ -f "$SENSITIVE_FILE" ] && grep -q 'PORTAL_ADMIN_PASSWORD=.' "$SENSITIVE_FILE" 2>/dev/null; then
+        break
+    fi
+    sleep 2
+done
+
+if [ -f "$SENSITIVE_FILE" ]; then
+    ADMIN_USER=$(grep '^PORTAL_ADMIN_USERNAME=' "$SENSITIVE_FILE" | cut -d'=' -f2)
+    ADMIN_PASS=$(grep '^PORTAL_ADMIN_PASSWORD=' "$SENSITIVE_FILE" | cut -d'=' -f2)
+    echo ""
+    echo "============================================"
+    echo -e "  ${GREEN}Tenant ${TENANT_NAME} is running!${NC}"
+    echo "============================================"
+    echo ""
+    echo "  URL:              http://localhost:${PORT}"
+    echo "  Admin Username:   ${ADMIN_USER}"
+    echo "  Admin Password:   ${ADMIN_PASS}"
+    echo ""
+    echo "  Credentials file: ${SENSITIVE_FILE}"
+    echo "  Logs:             cd ${TARGET_DIR} && docker-compose logs"
+    echo "  Stop:             cd ${TARGET_DIR} && docker-compose down"
+    echo ""
+else
+    echo -e "${YELLOW}  Container is starting but credentials are not yet available.${NC}"
+    echo "  Check:  cat ${TARGET_DIR}/persistent/config/.sensitive"
+    echo "  Logs:   cd ${TARGET_DIR} && docker-compose logs"
+    echo ""
+fi

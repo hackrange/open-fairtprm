@@ -1,0 +1,84 @@
+//- Events
+mixin event( obj )
+	li.single-event( data-start= obj.time.start data-end= obj.time.end )&attributes( attributes )
+		.event-caption: .event-title= obj.title
+		.event-body
+			.event-name= obj.name
+			.event-button: a.button( href='#' ) Book Now
+
+mixin event-classic( obj )
+	// Event classic
+	article.event-classic&attributes( attributes )
+		.event-classic-title.big= obj.title
+		.event-classic-name= obj.name
+		.event-classic-body
+			.event-classic-time
+				div= obj.time.start
+				div= obj.time.end
+			.event-classic-button
+				a.button( href='#' ) Book Now
+			.event-classic-text= obj.text
+
+mixin event-route( obj )
+	// Event route
+	.event-route-caption&attributes( attributes )
+		.heading-5.event-route-title= obj.title
+		.big.event-route-text= obj.text
+
+mixin event-minimal( obj )
+	// Event minimal
+	article.event-minimal&attributes( attributes )
+		.event-minimal-caption
+			span.event-minimal-icon.mdi.mdi-arrow-right
+			.heading-3.event-minimal-time= obj.time
+			.heading-3.event-minimal-title: a( href='#' )= obj.title
+		.event-minimal-text.big= obj.text
+
+mixin event-joan( obj )
+	// Event joan
+	article.event-joan&attributes( attributes )
+		.big.event-joan-time= obj.time
+		.heading-4.event-joan-title: a( href='#' )= obj.title
+		.big.event-joan-name
+			span.icon.mdi.mdi-account-outline
+			span= obj.name
+
+mixin event-eva( obj )
+	// Event eva
+	article.event-eva&attributes( attributes )
+		.unit.unit-spacing-2
+			.unit-left
+				.event-eva-date: div
+					.heading-4= obj.date
+					= obj.month
+			.unit-body
+				.big.event-eva-title: a( href='blog-post.html' )= obj.title
+				.event-eva-location
+					span.icon.mdi.mdi-map-marker
+					span= obj.location
+
+mixin event-lucy( obj )
+	// Event lucy
+	article.event-lucy&attributes( attributes )
+		.heading-5.event-lucy-title: a( href='#' )= obj.title
+		.event-lucy-date
+			.event-lucy-days= obj.days
+			.event-lucy-time= obj.time
+
+mixin event-sally( obj )
+	// Event sally
+	article.event-sally&attributes( attributes )
+		.event-sally-body.group-sm
+			.event-sally-inner-1
+				.heading-6.event-sally-time= obj.time
+				.event-sally-date= obj.date
+			.event-sally-inner-2
+				.heading-5.event-sally-title: a( href='#' )= obj.title
+				ul.event-sally-info
+					li.event-sally-info-item
+						span.icon.mdi.mdi-clock
+						span.big= obj.time1
+					li.event-sally-info-item
+						span.icon.mdi.mdi-account-outline
+						span.big= obj.name
+			a.button.button-sm.button-default-outline-3( href='contact-us.html' ) Book now

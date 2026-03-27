@@ -1,0 +1,95 @@
+/** @section Row spacing */
+
+.row-0 {
+	@include grid-offset(0px);
+}
+
+.row-8 {
+	@include grid-offset(8px);
+}
+
+.row-10 {
+	@include grid-offset(10px);
+}
+
+.row-15 {
+	@include grid-offset(15px);
+}
+
+.row-20 {
+	@include grid-offset(20px);
+}
+
+.row-30 {
+	@include grid-offset(30px);
+}
+
+.row-40 {
+	@include grid-offset(40px);
+}
+
+.row-50 {
+	@include grid-offset(50px);
+}
+
+.row-xl-80 {
+	@include grid-offset(30px);
+	@include media-breakpoint-up(xl) {
+		@include grid-offset(50px);
+	}
+}
+
+@include media-breakpoint-up(md) {
+
+	.row-md-30 {
+		@include grid-offset(30px);
+	}
+
+	.row-md-50 {
+		@include grid-offset(50px);
+	}
+
+	.row-md-60 {
+		@include grid-offset(60px);
+	}
+}
+
+@include media-breakpoint-up(lg) {
+
+	.row-lg-50 {
+		@include grid-offset(50px);
+	}
+
+	.row-lg-70 {
+		@include grid-offset(70px);
+	}
+
+	.row-lg-80 {
+		@include grid-offset(80px);
+	}
+}
+
+@include media-breakpoint-up(xl) {
+
+	.row-xl-50 {
+		@include grid-offset(50px);
+	}
+
+	.row-xl-70 {
+		@include grid-offset(70px);
+	}
+
+	.row-xl-80 {
+		@include grid-offset(80px);
+	}
+
+	.row-xl-100 {
+		@include grid-offset(100px);
+	}
+}
+
+@include media-breakpoint-up(xxl) {
+	.row-xxl-60 {
+		@include grid-offset(60px);
+	}
+}

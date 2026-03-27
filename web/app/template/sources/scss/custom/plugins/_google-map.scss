@@ -1,0 +1,57 @@
+/** @section Google Map */
+
+
+.google-map-markers{
+  display: none;
+}
+
+.google-map-container {
+  width: 100%;
+}
+
+.google-map {
+  height: 300px;
+  width: 100%;
+
+  @include media-breakpoint-up(md) {
+    height: 400px;
+  }
+
+  @include media-breakpoint-up(lg) {
+    height: 570px;
+  }
+}
+
+
+
+//
+// Google map styles
+//
+.google-map-style-1 {
+  position: relative;
+  z-index: 1;
+
+  .google-map-container {
+    margin-top: 50px;
+  }
+
+  @include media-breakpoint-down(xs) {
+    padding-bottom: 0;
+  }
+
+  @include media-breakpoint-up(sm) {
+    .google-map-container {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      margin-top: 0;
+      z-index: -1;
+    }
+
+    .google-map {
+      height: 100%;
+    }
+  }
+}

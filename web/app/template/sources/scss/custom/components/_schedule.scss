@@ -1,0 +1,432 @@
+/** @section Schedule */
+
+//
+// Schedule
+//
+.schedule {
+	text-align: left;
+	padding: 15px;
+	border: 1px solid $gray-3;
+	background: $white;
+
+	.button {
+		margin-top: 0;
+	}
+}
+
+.schedule-body {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+}
+
+
+.schedule-days {
+	font-family: inherit;
+	letter-spacing: .01em;
+}
+
+.schedule-info {
+	font-weight: 400;
+	letter-spacing: .01em;
+	@include groupX(20px);
+}
+
+.schedule-info-item {
+	> * {
+		vertical-align: middle;
+	}
+
+	.icon {
+		margin-right: 10px;
+		font-size: 20px;
+		color: $gray-800;
+	}
+}
+
+.schedule-button-wrap {
+	display: flex;
+	align-items: center;
+
+	* + * {	margin-left: 16px; }
+}
+
+.schedule-button {
+	position: relative;
+	width: 40px;
+	height: 40px;
+	border: 2px solid;
+	border-radius: 50%;
+
+	&,
+	&:focus {
+		color: $gray-800;
+	}
+
+	&:hover,
+	&:active,
+	&.active {
+		color: $white;
+		background: $gray-5;
+		border-color: $gray-5;
+	}
+
+	&::before,
+	&::after {
+		position: absolute;
+		display: inline-block;
+		content: '';
+		top: 50%;
+		left: 50%;
+		transform: translate3d(-50%, -50%, 0) rotate(90deg);
+		transition: opacity .3s ease, transform .3s ease;
+	}
+
+	&::before {
+		height: 0;
+		width: 14px;
+		border-top: 2px solid;
+		opacity: 0;
+	}
+
+	&::after {
+		height: 14px;
+		width: 0;
+		border-left: 2px solid;
+	}
+
+	&.collapsed {
+		&::before,
+		&::after {
+			transform: translate3d(-50%, -50%, 0);
+		}
+
+		&::before {
+			opacity: 1;
+		}
+	}
+}
+
+//Offsets
+* + .schedule { margin-top: 20px; }
+* + .schedule-wrap { margin-top: 30px; }
+
+//Media
+@include media-breakpoint-up(sm) {
+
+	.schedule-days {
+		min-width: 16%;
+	}
+
+	.schedule-2 {
+		.schedule-days {
+			min-width: 20%;
+		}
+	}
+}
+
+@include media-breakpoint-up(md) {
+
+	.schedule {
+		padding: 15px;
+	}
+
+	.schedule-body {
+		justify-content: space-between;
+	}
+
+	.schedule-button {
+		width: 50px;
+		height: 50px;
+	}
+
+	* + .schedule-wrap { margin-top: 40px; }
+}
+
+@include media-breakpoint-up(lg) {
+
+	.schedule {
+		padding: 20px;
+	}
+
+	.schedule-info {
+		> li {
+			display: inline-block;
+		}
+	}
+
+	.schedule-button {
+		width: 60px;
+		height: 60px;
+	}
+
+	* + .schedule { margin-top: 30px; }
+	* + .schedule-wrap { margin-top: 50px; }
+}
+
+@include media-breakpoint-up(xl) {
+
+	.schedule {
+		padding: 24px 20px 24px 40px;
+	}
+
+	.schedule-info {
+		@include groupX(40px);
+	}
+}
+
+// Context styling
+%context-dark {
+
+	.schedule {
+		background: rgba($white, .1);
+		border-color: transparent;
+
+		.button,
+		.schedule-button {
+			&,
+			&:focus {
+				color: $white;
+				border-color: $white;
+			}
+
+			&:hover,
+			&:active,
+			&.active {
+				color: $gray-800;
+				background: $white;
+				border-color: $white;
+			}
+		}
+	}
+
+	.schedule-info-item .icon {
+		color: $white;
+	}
+}
+
+
+
+
+//
+// Event classic
+//
+.event-classic {
+	position: relative;
+	text-align: center;
+	padding: 15px;
+	line-height: 1.2;
+	font-weight: 400;
+	color: $gray-800;
+	background: $white;
+	transition: all .3s ease-in-out;
+	z-index: 1;
+}
+
+.event-classic-title {
+	color: $primary;
+	font-weight: 500;
+}
+
+.event-classic-time {
+	font-size: 13px;
+	line-height: 1.334;
+	font-weight: 500;
+}
+
+.event-classic-button {
+	.button {
+		padding: 5px 10px;
+		font-size: 13px;
+
+		&,
+		&:focus {
+			color: $white;
+			background: $primary;
+			border-color: $primary;
+		}
+
+		&:hover,
+		&:active,
+		&.active {
+			background: $gray-5;
+			border-color: $gray-5;
+		}
+	}
+}
+
+.event-classic-text {
+	font-size: 13px;
+}
+
+.event-classic-1 {
+	.event-classic-title { color: $secondary; }
+
+	.event-classic-button {
+		.button {
+			&,
+			&:focus {
+				background: $secondary;
+				border-color: $secondary;
+			}
+
+			&:hover,
+			&:active,
+			&.active {
+				background: $gray-5;
+				border-color: $gray-5;
+			}
+		}
+	}
+}
+
+.event-classic-2 {
+	.event-classic-title { color: $green-3; }
+
+	.event-classic-button {
+		.button {
+			&,
+			&:focus {
+				background: $green-3;
+				border-color: $green-3;
+			}
+
+			&:hover,
+			&:active,
+			&.active {
+				background: $gray-5;
+				border-color: $gray-5;
+			}
+		}
+	}
+}
+
+.event-classic-3 {
+	.event-classic-title { color: $violet-1; }
+
+	.event-classic-button {
+		.button {
+			&,
+			&:focus {
+				background: $violet-1;
+				border-color: $violet-1;
+			}
+
+			&:hover,
+			&:active,
+			&.active {
+				background: $gray-5;
+				border-color: $gray-5;
+			}
+		}
+	}
+}
+
+// Offsets
+* + .event-classic-name { margin-top: 6px; }
+* + .event-classic-body { margin-top: 10px; }
+* + .event-classic-button { margin-top: 10px; }
+* + .event-classic-text { margin-top: 10px; }
+
+// Media
+@include media-breakpoint-up(lg) {
+
+	.desktop {
+
+		.event-classic {
+			padding: 35px 5px;
+		}
+
+		.event-classic-body {
+			position: absolute;
+			top: calc(100% - 35px);
+			left: 0;
+			width: 100%;
+			padding: 14px 5px 39px;
+			color: $white;
+			background: inherit;
+			transition: opacity .3s ease-in-out;
+			visibility: hidden;
+			opacity: 0;
+		}
+
+		.event-classic .event-classic-button {
+			.button {
+				padding: 7px 10px;
+				font-size: 14px;
+
+				&,
+				&:focus {
+					color: $gray-800;
+					background: $white;
+					border-color: $white;
+				}
+
+				&:hover,
+				&:active,
+				&.active {
+					color: $white;
+					background: $primary;
+					border-color: $primary;
+				}
+			}
+		}
+
+		.event-classic:hover {
+			background: $gray-5;
+
+			.event-classic-body {
+				visibility: visible;
+				opacity: 1;
+			}
+
+			.event-classic-title {
+				color: $white;
+			}
+
+			.event-classic-name {
+				color: rgba($white, .5);
+			}
+		}
+
+		.event-classic-4 {
+
+			&:hover {
+				background-image: linear-gradient($secondary-5 0%, $secondary-6 100%);
+				background-color: transparent;
+			}
+
+			.event-classic-body {
+				background-image: linear-gradient($secondary-7 0%, $primary 100%);
+			}
+		}
+
+		.event-classic-time {
+			font-size: 15px;
+		}
+
+		.event-classic-text {
+			font-size: 14px;
+		}
+
+		* + .event-classic-body { margin-top: 0; }
+		* + .event-classic-button { margin-top: 18px; }
+		* + .event-classic-text { margin-top: 16px; }
+	}
+}
+
+@include media-breakpoint-up(xl) {
+
+	.desktop {
+
+		.event-classic {
+			padding: 45px 5px;
+		}
+
+		.event-classic-body {
+			top: calc(100% - 45px);
+			padding-bottom: 50px;
+		}
+	}
+}

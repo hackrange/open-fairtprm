@@ -1,0 +1,273 @@
+/** @section Backgrounds */
+
+.context-dark {
+	@extend %context-dark;
+}
+
+%context-dark {
+	// Logo
+	.brand {
+		.brand-logo-dark {
+			display: none;
+		}
+
+		.brand-logo-light {
+			display: block;
+		}
+	}
+}
+
+%context-light {
+	// Logo
+	.brand {
+		.brand-logo-dark {
+			display: block;
+		}
+
+		.brand-logo-light {
+			display: none;
+		}
+	}
+}
+
+
+// Light Backgrounds
+.bg-default { @include bg-behaviour($body-bg); }
+.bg-gray-100 { @include bg-behaviour($gray-100); }
+.bg-gray-1 { @include bg-behaviour($gray-1); }
+.bg-gray-2 { @include bg-behaviour($gray-2); }
+.bg-gray-3 { @include bg-behaviour($gray-3); }
+
+
+// Dark Backgrounds
+.bg-gray-700 {
+	@extend %context-dark;
+	@include bg-behaviour($gray-700);
+}
+
+.bg-gray-800 {
+	@extend %context-dark;
+	@include bg-behaviour($gray-800);
+}
+
+.bg-gray-5 {
+	@extend %context-dark;
+	@include bg-behaviour($gray-5);
+}
+
+
+.bg-gray-7 {
+	@extend %context-dark;
+	@include bg-behaviour($gray-7);
+}
+
+.bg-gray-13 {
+	@extend %context-dark;
+	@include bg-behaviour($gray-13);
+}
+
+.bg-gray-14 {
+	@extend %context-dark;
+	@include bg-behaviour($gray-14);
+}
+
+.bg-gray-17 {
+	@extend %context-dark;
+	@include bg-behaviour($gray-17);
+}
+
+.bg-gray-19 {
+	@extend %context-dark;
+	@include bg-behaviour($gray-19);
+}
+
+.bg-gray-21 {
+	@extend %context-dark;
+	@include bg-behaviour($gray-21);
+}
+
+
+// Accent Backgrounds
+.bg-primary {
+	@include bg-behaviour($primary);
+}
+
+.bg-red-2{
+	@include bg-behaviour($red-2);
+}
+
+.bg-accent-red{
+	@include bg-behaviour($accent-red)
+}
+
+.bg-secondary {
+	@extend %context-dark;
+	@include bg-behaviour($secondary);
+}
+
+
+// Gradient Backgrounds
+.bg-gradient-1 {
+	@extend %context-dark;
+	background-size: 200% auto;
+	background-position: 0 50%;
+	background-image: linear-gradient( 84deg, $primary 0%, $secondary-3 50%, $primary 100%);
+	animation: motionGradient2 20s infinite linear;
+}
+
+@keyframes motionGradient2 {
+	25% {
+		background-position: 0 50%;
+	}
+
+	50% {
+		background-position: 100% 50%;
+	}
+
+	75% {
+		background-position: 100% 50%;
+	}
+}
+
+
+
+// Background Image
+.bg-image {
+	background-size: cover;
+	background-position: center;
+}
+
+.bg-image-1{
+	background: url('../images/home-bg-1.png') no-repeat right bottom;
+}
+
+
+// Desktop only
+html:not(.tablet):not(.mobile) {
+	.bg-fixed {
+		@include media-breakpoint-up(lg) {
+			background-attachment: fixed;
+		}
+	}
+}
+
+
+
+// Color Default
+
+.color-default-line {
+	display: flex;
+	@include groupX(8px);
+}
+
+.color-default-item {
+	width: 53px;
+	height: 53px;
+}
+
+* + .color-default { margin-top: 16px; }
+.color-default-line + .color-default-line { margin-top: 8px; }
+
+
+
+//
+// Custom Background Effect
+//
+
+.bg-slideshow {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	top: 0;
+	left: 0;
+	z-index: -1;
+}
+
+.bg-slideshow li {
+	position: absolute;
+	width: inherit;
+	height: inherit;
+	top: 0;
+	left: 0;
+	opacity: 0;
+	z-index: 0;
+	-webkit-backface-visibility: hidden;
+	animation: imageAnimation 36s linear infinite 0s;
+
+	&:nth-child(2) { animation-delay: 6s; }
+	&:nth-child(3) { animation-delay: 12s; }
+	&:nth-child(4) { animation-delay: 18s; }
+	&:nth-child(5) { animation-delay: 24s; }
+	&:nth-child(6) { animation-delay: 30s; }
+}
+
+@keyframes imageAnimation {
+	0% {
+		opacity: 0;
+		animation-timing-function: ease-in;
+	}
+	8% {
+		opacity: 1;
+		transform: scale(1.05);
+		animation-timing-function: ease-out;
+	}
+	17% {
+		opacity: 1;
+		transform: scale(1.1) rotate(3deg);
+	}
+	25% {
+		opacity: 0;
+		transform: scale(1.1) rotate(3deg);
+	}
+	100% { opacity: 0 }
+}
+
+.overlay-creative{
+	&:before{
+		@include media-breakpoint-up(lg) {
+			content: '';
+			position: absolute;
+			right: 73%;
+			left: 0;
+			height: 100%;
+			top: 0;
+			display: block;
+			background-color: $secondary;
+		}
+		@media(min-width: 1500px){
+			right: 66.7%;
+		}
+	}
+  &:after{
+   @include media-breakpoint-up(lg) {
+		 content: '';
+		 position: absolute;
+		 left: 12%;
+		 top: 8%;
+		 width: 90px;
+		 height: 90px;
+		 background: url('../images/bg-figure-1-90x90.png') no-repeat center;
+		 z-index: 2;
+   }
+  }
+}
+
+.bg-img-2{
+	background-image: url('../images/bg-img-2.png');
+	background-size: contain;
+	background-position: bottom;
+	background-repeat: no-repeat;
+}
+
+.bg-img-3{
+	background-image: url('../images/bg-img-3.png');
+	background-size: contain;
+	background-position: bottom;
+	background-repeat: no-repeat;
+}
+
+.bg-img-4{
+	background: url('../images/coming-soon-bg.jpg') no-repeat center;
+	background-size: cover;
+
+}

@@ -1,0 +1,106 @@
+extends ../_skeleton
+
+include ../components/_pricing
+include ../components/_quote
+block variables
+	- pageName = 'Pricing Tables'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Pricing
+	section.section.section-xl.bg-default.text-center
+		.container
+			h2 #1
+			.row.row-xl.row-30.row-lg-50
+				.col-sm-6.col-md-4
+					+pricing({
+						title: 'Basic',
+						subtitle: 'For Beginners',
+						price: '5',
+						list: [
+							{ text: 'Motorcycles' },
+							{ text: 'Accessories' }
+						]
+					}).block-md
+						.pricing-information
+							.icon.mdi.mdi-information-outline
+							.pricing-information-text Our Basic plan is suitable for
+								br
+								| any motorbiking enthusiast.
+
+				.col-sm-6.col-md-4
+					+pricing({
+						title: 'Standard',
+						subtitle: 'For Regular clients',
+						price: '65',
+						buttonClass: 'button-gradient button-shadow',
+						list: [
+							{ text: 'Motorcycles' },
+							{ text: 'Accessories' },
+							{ text: 'Gear' },
+							{ text: 'Clothing' }
+						]
+					}).block-md
+						.pricing-brand
+							+logo
+							.pricing-text-1 Recommends
+
+				.col-sm-6.col-md-4
+					+pricing({
+						title: 'Premium',
+						subtitle: 'For Advanced level',
+						price: '95',
+						list: [
+							{ text: 'Motorcycles' },
+							{ text: 'Accessories' },
+							{ text: 'Gear' },
+							{ text: 'Clothing' },
+							{ text: 'Replacement Parts' }
+						]
+					}).block-md
+
+	//Pricing
+	section.section.section-xl.bg-default.text-center
+		.container
+			h2 #2
+			.row.row-xl.row-30.row-lg-50.align-items-center
+				.col-sm-6.col-lg-4
+					+pricing-classic({
+						title: 'Basic',
+						subtitle: 'Perfect for beginners',
+						price: '9',
+						list: [
+							{ text: 'Motorcycles' },
+							{ text: 'Accessories' },
+							{ text: 'Clothing' }
+						]
+					}).block-md
+				.col-sm-6.col-lg-4
+					+pricing-classic({
+						title: 'Standard',
+						subtitle: 'For all motorbike riders',
+						price: '28',
+						list: [
+							{ text: 'Motorcycles' },
+							{ text: 'Apparel' },
+							{ text: 'Shoewear' }
+						],
+						buttonClass: 'button-gradient'
+					}).block-md.pricing-classic-1
+				.col-sm-6.col-lg-4
+					+pricing-classic({
+						title: 'Premium',
+						subtitle: 'For experienced riders',
+						price: '40',
+						list: [
+							{ text: 'Motorcycles' },
+							{ text: 'Gear' },
+							{ text: 'Replacement Parts' }
+						],
+						label: 'Power'
+					}).block-md
+
+	include ../sections/_footer-modern

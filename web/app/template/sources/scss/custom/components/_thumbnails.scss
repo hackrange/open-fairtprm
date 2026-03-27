@@ -1,0 +1,297 @@
+/** @section Thumbnails */
+
+//
+// Thumbnail
+//
+.thumbnail {
+	position: relative;
+	color: $white;
+}
+
+.thumbnail-1 {
+	.thumbnail-overlay {
+		background: none;
+		z-index: 1;
+
+		&::before {
+			position: absolute;
+			content: '';
+			top: 0;
+			right: 0;
+			bottom: 0;
+			left: 0;
+			opacity: .59;
+			background-image: linear-gradient( 68deg, $primary-1 0%, $secondary-1 100%);
+			z-index: -1;
+		}
+	}
+}
+
+.thumbnail-figure {
+	display: block;
+	overflow: hidden;
+
+	img {
+		width: 100%;
+		transition: all .3s ease;
+		will-change: transform;
+	}
+
+	&,
+	&:focus,
+	&:active,
+	&:hover {
+		color: inherit;
+	}
+}
+
+.thumbnail-overlay {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background: rgba($gray-8, .21);
+	transition: all .3s ease-in-out;
+	pointer-events: none;
+
+	.icon {
+		font-size: 48px;
+	}
+
+	> * {
+		pointer-events: auto;
+	}
+}
+
+.thumbnail-text {
+	font-weight: 700;
+	letter-spacing: .075em;
+	text-transform: uppercase;
+}
+
+@include media-breakpoint-up(lg) {
+
+	.desktop {
+
+		.thumbnail-overlay {
+			opacity: 0;
+		}
+
+		.thumbnail:hover {
+			.thumbnail-overlay {
+				opacity: 1;
+			}
+
+			.thumbnail-figure img {
+				transform: scale(1.1);
+			}
+		}
+	}
+}
+
+
+
+//
+// Thumbnail classic
+//
+.thumbnail-classic {
+	position: relative;
+	color: $white;
+	background: $gray-12;
+}
+
+.thumbnail-classic-figure {
+	display: block;
+	overflow: hidden;
+
+	img {
+		width: 100%;
+		transition: all .3s ease;
+		will-change: transform;
+	}
+
+	&,
+	&:focus,
+	&:active,
+	&:hover {
+		color: inherit;
+	}
+}
+
+.thumbnail-classic-overlay {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background: rgba($gray-12, .45);
+	transition: all .3s ease;
+	z-index: 1;
+
+	.icon {
+		position: relative;
+		font-size: 30px;
+
+		&::after {
+		  position: absolute;
+		  content: '';
+			top: 50%;
+			left: 50%;
+			width: 60px;
+			height: 60px;
+			border-radius: 50%;
+			background: rgba($white, .35);
+			transform: translate(-50%, -50%);
+			transition: all .3s ease;
+			z-index: -1;
+		}
+	}
+}
+
+@include media-breakpoint-up(lg) {
+
+	.desktop {
+
+		.thumbnail-classic-overlay {
+			.icon::after {
+				width: 78px;
+				height: 78px;
+			}
+		}
+
+		.thumbnail-classic-overlay {
+			opacity: 0;
+
+			.icon::after {
+				transform: translate(-50%, -50%) scale(2);
+			}
+		}
+
+		.thumbnail-classic:hover {
+			.thumbnail-classic-overlay {
+				opacity: 1;
+
+				.icon::after {
+					transform: translate(-50%, -50%);
+				}
+			}
+
+			.thumbnail-classic-figure img {
+				transform: scale(1.1);
+			}
+		}
+	}
+}
+
+
+
+//
+// Thumbnail modern
+//
+.thumbnail-modern {
+	position: relative;
+	color: $white;
+	background: $gray-12;
+}
+
+.thumbnail-modern-figure {
+	display: block;
+	overflow: hidden;
+
+	img {
+		width: 100%;
+		transition: all .3s ease-in-out;
+
+		&.processed {
+			position: absolute;
+			opacity: .66;
+		}
+	}
+
+	&,
+	&:focus,
+	&:active,
+	&:hover {
+		color: inherit;
+	}
+}
+
+.thumbnail-modern-overlay {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	transition: all .3s ease;
+	z-index: 1;
+
+	.icon {
+		position: relative;
+		font-size: 30px;
+		color: $gray-800;
+
+		&::after {
+			position: absolute;
+			content: '';
+			top: 50%;
+			left: 50%;
+			width: 60px;
+			height: 60px;
+			border-radius: 50%;
+			background: $white;
+			transform: translate(-50%, -50%);
+			transition: all .3s ease;
+			z-index: -1;
+		}
+	}
+}
+
+@include media-breakpoint-up(lg) {
+
+	.desktop {
+
+		.thumbnail-modern-figure img.processed {
+			opacity: 0;
+		}
+
+		.thumbnail-modern-overlay {
+			.icon::after {
+				width: 78px;
+				height: 78px;
+			}
+		}
+
+		.thumbnail-modern-overlay {
+			opacity: 0;
+
+			.icon::after {
+				transform: translate(-50%, -50%) scale(2);
+			}
+		}
+
+		.thumbnail-modern:hover {
+
+			.thumbnail-modern-figure img.processed {
+				opacity: .66;
+			}
+
+			.thumbnail-modern-overlay {
+				opacity: 1;
+
+				.icon::after {
+					transform: translate(-50%, -50%);
+				}
+			}
+		}
+	}
+}

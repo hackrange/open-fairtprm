@@ -1,0 +1,112 @@
+/** @section Offsets */
+
+// Elements offset
+* + p { margin-top: 15px; }
+* + img { margin-top: 20px; }
+
+// Headings + Paragraph
+h1 + p { margin-top: 15px; }
+h2 + p { margin-top: 10px; }
+h3 + p { margin-top: 10px; }
+h4 + p { margin-top: 10px; }
+h5 + p { margin-top: 10px; }
+h6 + p { margin-top: 10px; }
+
+// Paragraph + Headings
+p + h2,
+p + .heading-2 { margin-top: 15px; }
+
+// Tags + Tags
+p + p { margin-top: 12px; }
+img + p { margin-top: 15px; }
+h3 + img { margin-top: 42px; }
+h3 + h3 { margin-top: 10px; }
+h2 + h4 { margin-top: 10px; }
+
+// Classes
+* + .row { margin-top: 30px; }
+* + .big { margin-top: 20px; }
+* + .text-block { margin-top: 20px; }
+* + .button { margin-top: 20px; }
+* + .rd-form { margin-top: 20px; }
+* + .owl-carousel { margin-top: 30px; }
+* + .offset-top-5 { margin-top: 30px; }
+
+// Classes + Tags
+
+
+// Classes + Classes
+.container + .container { margin-top: 40px; }
+.row + .row { margin-top: 40px; }
+.row + .button { margin-top: 30px; }
+
+// Media offsets
+
+@include media-breakpoint-up(md) {
+
+	h2 + h4 { margin-top: 30px; }
+
+	* + img { margin-top: 30px; }
+
+	// Headings + Paragraph
+	h1 + p { margin-top: 25px; }
+	h2 + p { margin-top: 20px; }
+	h3 + p { margin-top: 20px; }
+	h4 + p { margin-top: 20px; }
+	h5 + p { margin-top: 20px; }
+	h6 + p { margin-top: 16px; }
+
+	h6 + .rd-form { margin-top: 30px; }
+
+	* + .row-lg { margin-top: 50px; }
+	* + .row-xl { margin-top: 50px; }
+	* + .button { margin-top: 30px; }
+	* + .rd-form { margin-top: 30px; }
+	* + .owl-carousel { margin-top: 50px; }
+
+	.row + .row { margin-top: 50px; }
+	.row + .button { margin-top: 50px; }
+}
+
+@include media-breakpoint-up(lg) {
+
+	h2 + h4 { margin-top: 40px; }
+
+	// Headings + Paragraph
+	h1 + p { margin-top: 35px; }
+	h2 + p { margin-top: 30px; }
+	h3 + p { margin-top: 30px; }
+	h4 + p { margin-top: 30px; }
+	h5 + p { margin-top: 30px; }
+	h6 + p { margin-top: 22px; }
+
+	* + .row-sm { margin-top: 40px; }
+	* + .row-md { margin-top: 50px; }
+	* + .row-lg { margin-top: 60px; }
+	* + .row-xl { margin-top: 70px; }
+	* + .text-block { margin-top: 30px; }
+	* + .big { margin-top: 30px; }
+	* + .button { margin-top: 40px; }
+	* + .owl-carousel { margin-top: 70px; }
+
+	.row + .button { margin-top: 70px; }
+}
+
+@include media-breakpoint-up(xl) {
+
+	h4 + .rd-form { margin-top: 40px; }
+
+	* + .rd-form { margin-top: 50px; }
+	* + .offset-top-1 { margin-top: 40px; }
+	* + .offset-top-3 { margin-top: 60px; }
+	* + .owl-carousel { margin-top: 90px; }
+
+	.container + .container { margin-top: 60px; }
+	.row + .row { margin-top: 60px; }
+	.row + .button { margin-top: 90px; }
+	.row + .offset-top-2 { margin-top: 70px; }
+}
+
+@include media-breakpoint-up(xxl) {
+	* + .offset-top-4 { margin-top: 95px; }
+} 

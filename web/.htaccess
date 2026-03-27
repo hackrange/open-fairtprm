@@ -1,0 +1,42 @@
+Options -Indexes -MultiViews
+# All security headers are managed at the nginx reverse-proxy layer.
+# See /etc/nginx/conf.d/demo.fairtprm.com.conf
+
+# Block access to backup, temp, and hidden files that may leak source code
+<FilesMatch "\.(bak|old|orig|save|swp|tmp|dist|sql)$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+RewriteEngine On
+
+# Pass Authorization header through to PHP (Apache strips it by default)
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# Block PHP Easter Egg / info disclosure via query string
+RewriteCond %{QUERY_STRING} PHP[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} [NC]
+RewriteRule .* - [F]
+
+# SCIM 2.0 API - route all /scim/v2/* requests to the SCIM router
+RewriteRule ^scim/v2(/.*)?$ scim/scim-router.php [L,QSA]
+
+# REST API v2 - route all /api/v2/* requests to the API router
+RewriteRule ^api/v2(/.*)?$ api/v2/router.php [L,QSA]
+
+# Rewrite clean URLs to .php files
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.*)$ $1.php [L]
+
+# --- PHP overrides (match hardening ini) ---
+php_value upload_max_filesize 2G
+php_value post_max_size 2G
+php_value memory_limit 2G
+php_value max_execution_time 300
+php_value max_input_time 300
+php_flag display_errors Off
+php_flag display_startup_errors Off
+php_flag log_errors On

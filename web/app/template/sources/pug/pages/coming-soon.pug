@@ -1,0 +1,33 @@
+extends ../_skeleton
+include ../components/_countdown
+include ../components/_quote
+
+block variables
+	- pageName = 'Coming Soon'
+
+block page 
+	section.section.section-single.bg-img-4.context-dark
+		.section-single-inner
+			.section-single-header: .container: +logo
+
+			.section-single-main: .container
+				h2
+					span.font-weight-sbold We're getting ready
+					=' '
+					span.font-weight-thin to launch in
+
+				+countdown({ to: '2019-12-31' })
+
+				.rd-mailform-wrap
+					form.rd-form.form-lg.rd-mailform.rd-form-inline.group-md.justify-content-center.single-page-form( data-form-output='form-output-global', data-form-type='subscribe' method='post' action='bat/rd-mailform.php' )
+						.form-wrap
+							input.form-input#subscribe-form-email( type='email', name='email', data-constraints='@Email @Required' )
+							label.form-label( for='subscribe-form-email' )
+								span.icon.mdi.mdi-email-outline
+								span Enter your email
+						.form-button
+							button.button.button-sm.button-gradient.btn-flex( type='submit' ) Subscribe
+
+			.section-single-footer: .container: +rights
+
+

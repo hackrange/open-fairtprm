@@ -1,0 +1,93 @@
+//- Posts
+mixin post( obj )
+	//post
+	article.post&attributes( attributes )
+		+img( obj.img ).post-image
+		.post-content
+			div
+				a.post-tag( href='#' class= obj.tag.class )= obj.tag.text
+				.heading-5.post-title: a( href= links.blogPost )!= obj.title
+			.post-time
+				time( datetime= obj.time.date )= obj.time.text
+		.post-dummy
+
+mixin post-1( obj )
+	//post
+	article.post&attributes( attributes )
+		+img( obj.img ).post-image
+		.post-content
+			div
+				a.post-tag( href='#' class= obj.tag.class )= obj.tag.text
+			div
+				if block
+					block
+				.heading-2.post-title: a( href= links.blogPost )!= obj.title
+				.heading-5.post-text= obj.text
+				.post-time
+					time( datetime= obj.time.date )= obj.time.text
+		.post-dummy
+
+mixin post-modern( obj )
+	//post modern
+	article.post-modern&attributes( attributes )
+		.post-modern-body( class= obj.mod )
+			.post-modern-content
+				div
+					a.post-tag( href='#' class= obj.tag.class )= obj.tag.text
+					.heading-6.post-modern-title: a( href= links.blogPost )= obj.title
+					.post-modern-text= obj.text
+				.post-time
+					time( datetime= obj.time.date )= obj.time.text
+			.post-modern-figure: +img( obj.img )
+		.post-dummy
+
+mixin post-modern-1( obj )
+	//post modern 1
+	article.post-modern&attributes( attributes )
+		.post-modern-body
+			.post-modern-content
+				div
+					a.post-tag( href='#' class= obj.tag.class )= obj.tag.text
+					.heading-5.post-modern-title: a( href= links.blogPost )= obj.title
+				.post-time
+					time( datetime= obj.time.date )= obj.time.text
+			.post-modern-figure: +img( obj.img )
+		.post-dummy
+
+mixin post-minimal( obj )
+	//post minimal
+	article.post-minimal&attributes( attributes )
+		.unit( class= obj.unit )
+			.unit-left: a.post-minimal-figure( href= links.blogPost ): +img( obj.img )
+			.unit-body
+				.post-minimal-title: a( href= links.blogPost )= obj.title
+				.post-minimal-time
+					time( datetime= obj.time.date )= obj.time.text
+
+mixin post-classic( obj )
+	//post creative
+	article.post-classic&attributes( attributes )
+		+img( obj.img ).post-classic-image
+		.post-classic-content
+			div: a.post-tag( href='#' class= obj.tag.class )= obj.tag.text
+			.heading-5.post-classic-title: a( href= links.blogPost )= obj.title
+		.post-classic-dummy
+
+mixin post-creative( obj )
+	//post creative
+	article.post-creative&attributes( attributes )
+		a.post-creative-figure( href= links.blogPost ): +img( obj.img )
+		.post-creative-content
+			.heading-6.post-creative-title: a( href= links.blogPost )= obj.title
+			.post-creative-time: time( datetime= obj.time.date )= obj.time.text
+		a.post-tag.post-creative-tag( href='#' class= obj.tag.class )= obj.tag.text
+
+mixin post-bonnie( obj )
+	//post bonnie
+	article.post-bonnie&attributes( attributes )
+		a.post-bonnie-figure( href= links.blogPost )
+			+img( obj.img ).img-duotone( data-gradient-map="#181b6e, #ffffff" )
+		.post-bonnie-content
+			.heading-5.post-bonnie-title: a( href= links.blogPost )!= obj.title
+			.post-bonnie-time: time( datetime= obj.time.date )= obj.time.text
+			.post-bonnie-text.big= obj.text

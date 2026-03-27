@@ -1,0 +1,23 @@
+.table-custom-responsive
+	table.table-custom.table-cart
+		thead
+			tr
+				th Product name
+				th Price
+				th Quantity
+				th Total
+		tbody
+			tr
+				td: .table-cart-item
+					a.table-cart-figure( href=links.singleProduct ): +img('product-mini-1-146x132.png')
+					a.table-cart-link( href=links.singleProduct ) Klim Men's F4 Snocross
+				td $250
+				td: div.stepper-style-2: input( type='number', data-zeros='true', value='1', min='1', max='1000' )
+				td $250
+			tr
+				td: .table-cart-item
+					a.table-cart-figure( href=links.singleProduct ): +img('product-mini-2-146x132.png')
+					a.table-cart-link( href=links.singleProduct ) Motorcycle Riding Jacket
+				td $290
+				td: div.stepper-style-2: input( type='number', data-zeros='true', value='1', min='1', max='1000' )
+				td $290

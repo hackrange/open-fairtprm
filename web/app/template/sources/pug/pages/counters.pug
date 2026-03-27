@@ -1,0 +1,37 @@
+extends ../_skeleton
+
+include ../components/_counter
+include ../components/_quote
+block variables
+	- pageName = 'Counters'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Counters
+	section.section.section-lg.bg-default.text-center
+		.container
+			.row.row-30.justify-content-center
+				.col-sm-6.col-md-4
+					+counter({
+						value: 450,
+						text: 'Motorcycle Models'
+					}).block-sm
+				.col-sm-6.col-md-4
+					+counter({
+						value: 78,
+						postfix: '%',
+						text: 'Awards'
+					}).block-sm
+				.col-sm-6.col-md-4
+					+counter({
+						value: 600,
+						postfix: '+',
+						text: 'Satisfied Customers'
+					}).block-sm
+
+	include ../sections/_section-counter-dark
+
+	include ../sections/_footer-modern

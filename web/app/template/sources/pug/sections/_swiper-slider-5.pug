@@ -1,0 +1,22 @@
+//Swiper
+section.section.swiper-container.swiper-slider.swiper-slider-5( data-autoplay='5000', data-slide-effect='fade', data-simulate-touch='false' )
+	.swiper-wrapper
+		.swiper-slide( data-slide-bg='images/swiper-5-slide-1.jpg' ): .swiper-slide-custom
+		.swiper-slide( data-slide-bg='images/swiper-5-slide-2.jpg' ): .swiper-slide-custom
+	.swiper-content.section-xl: .container.offset-negative-bottom-1: .row.row-30.align-items-center.align-items-xl-start.justify-content-xl-between.team-dana
+		.col-sm-7
+			.team-dana-figure
+				+img('team-16-475x874.png')
+				.circle.team-dana-circle
+				.team-dana-list-social
+					ul.list-social
+						li: a.icon.mdi.mdi-facebook( href='#' )
+						li: a.icon.mdi.mdi-instagram( href='#' )
+						li: a.icon.mdi.mdi-youtube-play( href='#' )
+						li: a.icon.mdi.mdi-twitter( href='#' )
+		.col-sm-5.col-xl-4.context-dark.wow.fadeInUp
+			.team-dana-body
+				.team-dana-text hi! i’m
+				.heading-1.team-dana-name Jane Smith
+				.heading-4.team-dana-position Personal fitness trainer
+				a.button.button-lg.button-primary( href='contact-us.html' ) Contact me

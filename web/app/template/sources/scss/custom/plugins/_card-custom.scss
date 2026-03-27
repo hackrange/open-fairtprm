@@ -1,0 +1,354 @@
+/** @section Panel custom */
+
+// Local variables
+$accordion-corporate-color: $gray-800;
+$accordion-corporate-background: $white;
+$accordion-corporate-border: #dedede;
+$accordion-corporate-content-color: $body-color;
+$accordion-corporate-arrow-color: $white;
+$accordion-corporate-arrow-background: $primary;
+$accordion-corporate-shadow: -1px 2px 5px 0px rgba(#444953, 0.12);
+$accordion-corporate-border-radius: 6px;
+$accordion-corporate-header-padding: 21px 82px 21px 32px;
+$accordion-corporate-content-padding: 25px 44px 25px nth($accordion-corporate-header-padding, 4);
+
+$accordion-minimal-color: $gray-800;
+$accordion-minimal-background: $white;
+$accordion-minimal-border: $gray-3;
+$accordion-minimal-content-color: $body-color;
+$accordion-minimal-arrow-color: $gray-800;
+$accordion-minimal-header-padding: 25px 40px 25px 0;
+$accordion-minimal-content-padding: 40px 0;
+
+// Panel groups
+.card-group-custom {
+	margin-bottom: 0;
+
+	.card-header + .collapse > .card-body,
+	.card-header + .collapse > .list-group {
+		border-top: 0;
+	}
+
+	.card + .card {
+		margin-top: 0;
+	}
+}
+
+.card-group-custom.card-group-corporate {
+	.card + .card {
+		margin-top: 30px;
+	}
+}
+
+.card-group-minimal {
+	.card-minimal + .card-minimal { margin-top: 0; }
+}
+
+
+.card-custom {
+	display: block;
+	margin: 0;
+	background: inherit;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+	text-align: left;
+
+	a {
+		display: block;
+	}
+
+	// Panel heading
+	.card-header {
+		padding: 0;
+		border-bottom: 0;
+		border-top-left-radius: 0;
+		border-top-right-radius: 0;
+	}
+
+	// Panel contents
+	.card-body {
+		padding: 0;
+		border: 0;
+	}
+
+	.card-title {
+		margin-bottom: 0;
+	}
+}
+
+* + .card-group-custom {
+	margin-top: 35px;
+
+	@include media-breakpoint-up(md) {
+		margin-top: 50px;
+	}
+}
+
+
+
+//
+// Panel corporate
+//
+.card-corporate {
+	text-align: left;
+	box-shadow: $accordion-corporate-shadow;
+
+	.card-title a,
+	.card-body {
+		background: $accordion-corporate-background;
+	}
+
+	.card-title a {
+		position: relative;
+		z-index: 1;
+		padding: $accordion-corporate-header-padding;
+		font-weight: 700;
+		font-size: 16px;
+		line-height: 1.25;
+		letter-spacing: 0;
+		color: $accordion-corporate-color;
+		transition: 1.3s all ease;
+		border-radius: $accordion-corporate-border-radius $accordion-corporate-border-radius 0 0;
+		border-bottom: 1px solid $accordion-corporate-border;
+
+		// Open state
+		.card-arrow {
+			&:after {
+				opacity: 0;
+				visibility: hidden;
+			}
+		}
+
+		// Collapsed state
+		&.collapsed {
+			border-radius: $accordion-corporate-border-radius;
+			border-bottom-width: 0;
+
+			.card-arrow {
+				border-radius: 0 $accordion-corporate-border-radius $accordion-corporate-border-radius 0;
+				&:after {
+					opacity: 1;
+					visibility: visible;
+				}
+			}
+		}
+	}
+
+	// Panel arrow
+	.card-arrow {
+		position: absolute;
+		top: 0;
+		bottom: -1px;
+		right: -1px;
+		z-index: 2;
+		width: 70px;
+		background: $accordion-corporate-arrow-background;
+		border-radius: 0 $accordion-corporate-border-radius 0 0;
+		transition: .33s all ease;
+
+		&::before,
+		&::after {
+			content: '';
+			position: absolute;
+			top: 50%;
+			z-index: 4;
+			transform: translateY(-50%);
+			background: $accordion-corporate-arrow-color;
+		}
+
+		&::before {
+			width: 14px;
+			height: 2px;
+			right: 28px;
+		}
+
+		&::after {
+			width: 2px;
+			height: 14px;
+			right: 34px;
+		}
+	}
+
+	.collapse {
+		position: relative;
+		z-index: 1;
+		color: $accordion-corporate-content-color;
+		border-radius: 0 0 $accordion-corporate-border-radius $accordion-corporate-border-radius;
+	}
+
+	.card-body {
+		padding: $accordion-corporate-content-padding;
+	}
+
+	// Media queries
+	@include media-breakpoint-down(md) {
+		.card-title a,
+		.card-body {
+			padding-left: 25px;
+		}
+	}
+
+	@include media-breakpoint-up(md) {
+		.card-title a {
+			font-size: 18px;
+		}
+	}
+}
+
+
+
+//
+// Panel minimal
+//
+
+.card-minimal {
+	text-align: left;
+	border-bottom: 1px solid $accordion-minimal-border;
+
+	.card-title a,
+	.card-body {
+		background: $accordion-minimal-background;
+	}
+
+	.card-title a {
+		position: relative;
+		padding: 15px 40px 15px 0;
+		font-size: 16px;
+		line-height: $h5-line-height;
+		font-weight: 500;
+		letter-spacing: .025em;
+		color: $accordion-minimal-color;
+		border-bottom: 1px solid $accordion-minimal-border;
+		transition: all .3s ease-in-out;
+		z-index: 1;
+
+		&:hover {
+			color: $primary;
+
+			.card-arrow {
+				color: inherit;
+			}
+		}
+
+		// Open state
+		.card-arrow {
+			&:before {
+				opacity: 0;
+			}
+		}
+
+		// Collapsed state
+		&.collapsed {
+			border-color: transparent;
+
+			.card-arrow {
+
+				&::before,
+				&::after {
+					transform: translate3d(-50%, -50%, 0);
+				}
+
+				&::before {
+					opacity: 1;
+				}
+			}
+		}
+	}
+
+	// Panel arrow
+	.card-arrow {
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		width: 30px;
+		color: $accordion-minimal-arrow-color;
+		z-index: 2;
+
+		&::before,
+		&::after {
+			position: absolute;
+			display: inline-block;
+			content: '';
+			top: 50%;
+			left: 50%;
+			border-top: 2px solid;
+			transform: translate3d(-50%, -50%, 0) rotate(90deg);
+			transition: opacity .3s ease, transform .3s ease;
+		}
+
+		&::before {
+			height: 0;
+			width: 18px;
+			border-top: 2px solid;
+		}
+
+		&::after {
+			height: 18px;
+			width: 0;
+			border-left: 2px solid;
+		}
+	}
+
+	.collapse {
+		position: relative;
+		z-index: 1;
+	}
+
+	.card-body {
+		padding: 20px 0;
+	}
+
+	@include media-breakpoint-up(md) {
+
+		.card-title a {
+			font-size: 18px;
+		}
+
+		.card-body {
+			padding: 30px 0;
+		}
+	}
+
+	@include media-breakpoint-up(lg) {
+
+		.card-title a {
+			padding: $accordion-minimal-header-padding;
+			font-size: 20px;
+		}
+
+		.card-body {
+			padding: $accordion-minimal-content-padding;
+		}
+	}
+
+	@include media-breakpoint-up(xl) {
+
+		.card-title a {
+			font-size: 24px;
+		}
+	}
+}
+
+
+
+//
+// Card Custom Styles
+//
+.card-style-1 {
+
+	.card-body {
+		padding-top: 16px;
+	}
+
+	.owl-carousel.owl-hidden {
+		opacity: 1;
+	}
+
+	.owl-carousel .owl-dots {
+		margin-top: 20px;
+	}
+}
+
+.card-style-1 + .card-style-1 {	margin-top: 20px; }

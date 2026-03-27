@@ -1,0 +1,167 @@
+//
+// Formstone Stepper Plugin
+// --------------------------------------------------
+
+.stepper {
+	position: relative;
+	display: inline-block;
+
+	input[type="number"] {
+		width: 100%;
+		text-align: center;
+		font-size: 16px;
+		line-height: 30px;
+		padding: 10px 20px;
+		border: $form-input-border;
+		color: $gray-800;
+		background: $white;
+		-moz-appearance: textfield;
+	}
+
+	input[type=number]::-webkit-inner-spin-button {
+		-webkit-appearance: none;
+	}
+
+	&-arrow {
+		position: absolute;
+		top: 50%;
+		width: 20px;
+		height: 20px;
+		font-size: 20px;
+		line-height: 20px;
+		font-family: $mdi;
+		color: $gray-800;
+		cursor: pointer;
+		transform: translateY(-50%);
+		transition: .3s all ease;
+
+		&:hover {
+			color: $primary
+		}
+
+		&.up {
+			right: 0;
+			text-align: left;
+
+			&:before {
+				content: '\f504';
+			}
+		}
+
+		&.down {
+			left: 0;
+			text-align: right;
+			font-size: 16px;
+
+			&:before {
+				content: '\f69d';
+			}
+		}
+	}
+
+	&.disabled {
+		.stepper-arrow {
+			pointer-events: none;
+			opacity: .5;
+		}
+	}
+}
+
+// Stepper style 1
+.stepper-style-1 {
+	position: relative;
+	display: inline-block;
+	padding-right: 42px;
+
+	.stepper {
+		position: static;
+		width: 76px;
+		height: 76px;
+		max-width: 76px;
+
+		input[type="number"] {
+			padding: 10px;
+			width: 100%;
+			height: 100%;
+			font-size: 22px;
+			line-height: 30px;
+		}
+	}
+
+	.stepper-arrow {
+		text-align: center;
+		margin: 0;
+		width: 34px;
+		height: 34px;
+		line-height: 32px;
+		border: $form-input-border;
+		transform: none;
+
+		&.up {
+			top: 0;
+			font-size: 22px;
+		}
+
+		&.down {
+			top: auto;
+			right: 0;
+			bottom: 0;
+			left: auto;
+		}
+	}
+}
+
+// Stepper style 2
+.stepper-style-2 {
+	display: inline-block;
+	width: 100%;
+	max-width: 110px;
+
+	.stepper {
+		display: block;
+
+		input[type="number"] {
+			padding: 0 38px;
+			font-size: inherit;
+			line-height: 1.1;
+			letter-spacing: inherit;
+			background: transparent;
+			border-color: transparent;
+		}
+	}
+
+	.stepper-arrow {
+		text-align: center;
+		width: 30px;
+		height: 30px;
+		line-height: 28px;
+		border: 1px solid $gray-4;
+	}
+
+	@include media-breakpoint-up(xl) {
+		max-width: 123px;
+
+		.stepper-arrow {
+			width: 38px;
+			height: 38px;
+			line-height: 36px;
+
+			&.down {
+				font-size: 18px;
+			}
+
+			&.up {
+				font-size: 30px;
+			}
+		}
+	}
+}
+
+// Context styling
+@-moz-document url-prefix() {
+	.stepper-style-2 .stepper {
+		input[type="number"] {
+			box-shadow: none;
+		}
+	}
+}

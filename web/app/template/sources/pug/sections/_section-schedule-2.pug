@@ -1,0 +1,216 @@
+include ../components/_events
+
+//Schedule
+section.section.section-xl.section-inset-1.bg-default.text-center
+	.container( data-filter-group )
+		.heading-7.title-12.wow.fadeInDown Classes Timetable
+		+wave
+		//Filters list
+		ul.filters-list.filters-list-1.wow.fadeInUp
+			li: button.filter.active( data-filter='*' ) All Classes
+			li: button.filter( data-filter='category-0' ) Pilates
+			li: button.filter( data-filter='category-1' ) Meditation
+			li: button.filter( data-filter='category-2' ) Yin yoga
+			li: button.filter( data-filter='category-3' ) Hatha Yoga
+
+		.table-custom-responsive.table-custom-responsive-1.wow.fadeInUp
+			table.table-schedule
+				thead
+					tr
+						th
+						th Monday
+						th Tuesday
+						th Wednesday
+						th Thursday
+						th Friday
+						th Saturday
+						th Sunday
+				tbody
+					tr
+						td 9.00 AM
+						td
+							+event-classic({
+								title: 'Meditation',
+								name: 'Kate Wilson',
+								time: {
+									start: '9.00 AM', end: '10.00 AM'
+								},
+								text: 'Relaxation'
+							}).event-classic-4( data-category='category-1' )
+						td
+							+event-classic({
+								title: 'Yin Yoga',
+								name: 'Ann Nelson',
+								time: {
+									start: '9.00 AM', end: '10.00 AM'
+								},
+								text: 'Yoga Training'
+							}).event-classic-4( data-category='category-2' )
+						td
+						td
+							+event-classic({
+								title: 'Yin Yoga',
+								name: 'Ann Nelson',
+								time: {
+									start: '9.00 AM', end: '10.00 AM'
+								},
+								text: 'Yoga Training'
+							}).event-classic-4( data-category='category-2' )
+						td
+						td
+							+event-classic({
+								title: 'Meditation',
+								name: 'Kate Wilson',
+								time: {
+									start: '9.00 AM', end: '10.00 AM'
+								},
+								text: 'Relaxation'
+							}).event-classic-4( data-category='category-1' )
+						td
+					tr
+						td 10.00 AM
+						td
+							+event-classic({
+								title: 'Pilates',
+								name: 'Grace Peterson',
+								time: {
+									start: '10.00 AM', end: '11.00 AM'
+								},
+								text: 'Workout'
+							}).event-classic-4( data-category='category-0' )
+						td
+						td
+							+event-classic({
+								title: 'Pilates',
+								name: 'Grace Peterson',
+								time: {
+									start: '10.00 AM', end: '11.00 AM'
+								},
+								text: 'Workout'
+							}).event-classic-4( data-category='category-0' )
+						td
+							+event-classic({
+								title: 'Pilates',
+								name: 'Grace Peterson',
+								time: {
+									start: '10.00 AM', end: '11.00 AM'
+								},
+								text: 'Workout'
+							}).event-classic-4( data-category='category-0' )
+						td
+							+event-classic({
+								title: 'Meditation',
+								name: 'Kate Wilson',
+								time: {
+									start: '10.00 AM', end: '11.00 AM'
+								},
+								text: 'Relaxation'
+							}).event-classic-4( data-category='category-1' )
+						td
+						td
+							+event-classic({
+								title: 'Pilates',
+								name: 'Grace Peterson',
+								time: {
+									start: '10.00 AM', end: '11.00 AM'
+								},
+								text: 'Workout'
+							}).event-classic-4( data-category='category-0' )
+					tr
+						td 3.00 PM
+						td
+							+event-classic({
+								title: 'Yin Yoga',
+								name: 'Ann Nelson',
+								time: {
+									start: '3.00 PM', end: '4.00 PM'
+								},
+								text: 'Yoga Training'
+							}).event-classic-4( data-category='category-2' )
+						td
+							+event-classic({
+								title: 'Pilates',
+								name: 'Grace Peterson',
+								time: {
+									start: '3.00 PM', end: '4.00 PM'
+								},
+								text: 'Workout'
+							}).event-classic-4( data-category='category-0' )
+						td
+							+event-classic({
+								title: 'Yin Yoga',
+								name: 'Ann Nelson',
+								time: {
+									start: '3.00 PM', end: '4.00 PM'
+								},
+								text: 'Yoga Training'
+							}).event-classic-4( data-category='category-2' )
+						td
+						td
+							+event-classic({
+								title: 'Yin Yoga',
+								name: 'Ann Nelson',
+								time: {
+									start: '3.00 PM', end: '4.00 PM'
+								},
+								text: 'Yoga Training'
+							}).event-classic-4( data-category='category-2' )
+						td
+							+event-classic({
+								title: 'Pilates',
+								name: 'Grace Peterson',
+								time: {
+									start: '3.00 PM', end: '4.00 PM'
+								},
+								text: 'Workout'
+							}).event-classic-4( data-category='category-0' )
+						td
+							+event-classic({
+								title: 'Yin Yoga',
+								name: 'Ann Nelson',
+								time: {
+									start: '3.00 PM', end: '4.00 PM'
+								},
+								text: 'Yoga Training'
+							}).event-classic-4( data-category='category-2' )
+					tr
+						td 5.00 PM
+						td
+							+event-classic({
+								title: 'Hatha Yoga',
+								name: 'Kate Wilson',
+								time: {
+									start: '5.00 PM', end: '6.00 PM'
+								},
+								text: 'Yoga Training'
+							}).event-classic-4( data-category='category-3' )
+						td
+						td
+						td
+							+event-classic({
+								title: 'Hatha Yoga',
+								name: 'Kate Wilson',
+								time: {
+									start: '5.00 PM', end: '6.00 PM'
+								},
+								text: 'Yoga Training'
+							}).event-classic-4( data-category='category-3' )
+						td
+							+event-classic({
+								title: 'Hatha Yoga',
+								name: 'Kate Wilson',
+								time: {
+									start: '5.00 PM', end: '6.00 PM'
+								},
+								text: 'Yoga Training'
+							}).event-classic-4( data-category='category-3' )
+						td
+							+event-classic({
+								title: 'Hatha Yoga',
+								name: 'Kate Wilson',
+								time: {
+									start: '5.00 PM', end: '6.00 PM'
+								},
+								text: 'Yoga Training'
+							}).event-classic-4( data-category='category-3' )
+						td

@@ -1,0 +1,116 @@
+/** @section Pagination custom */
+
+// Base styles
+.pagination {
+	justify-content: center;
+	font-size: 0;
+	line-height: 0;
+	color: $gray-800;
+	@include group(13px);
+}
+
+.page-item {
+	display: inline-block;
+	vertical-align: middle;
+	text-align: center;
+	font-weight: 700;
+}
+
+.page-link {
+	display: inline-block;
+	min-width: $pagination-padding-y*2 + $pagination-border-width*2 + $pagination-line-height;
+	padding: $pagination-padding-y $pagination-padding-x;
+	border: $pagination-border-width solid $pagination-border-color;
+	font-size: $pagination-font-size;
+	line-height: ($pagination-line-height / $pagination-font-size);
+	background-color: $pagination-bg;
+	color: $pagination-color;
+	transition: $transition-base;
+
+	&:focus {
+		z-index: auto;
+		box-shadow: none;
+	}
+}
+
+// Hover & Focus & Active State
+.page-link {
+	&:hover,
+	&:focus,
+	&:active {
+		color: $pagination-hover-color;
+		background-color: $pagination-hover-bg;
+		border-color: $pagination-hover-border-color;
+	}
+}
+
+// Active State
+.page-item.active > .page-link {
+	&,
+	&:hover,
+	&:focus,
+	&:active {
+		color: $pagination-active-color;
+		background-color: $pagination-active-bg;
+		border-color: $pagination-active-border-color;
+	}
+}
+
+// Disabled State
+.page-item.disabled > .page-link {
+	&,
+	&:hover,
+	&:focus,
+	&:active {
+		color: $pagination-disabled-color;
+		background-color: $pagination-disabled-bg;
+		border-color: $pagination-disabled-border-color;
+	}
+}
+
+.page-item.page-item-control > .page-link {
+	&:hover,
+	&:focus,
+	&:active {
+		color: $pagination-hover-color;
+	}
+}
+
+.page-item-control {
+
+	.page-link {
+		padding: 0;
+	}
+
+	.icon {
+		font-family: $mdi;
+		font-size: 30px;
+		line-height: 1;
+	}
+}
+
+// Prev control
+.page-item-control:first-child {
+	.icon::before {
+		content: '\f237';
+	}
+}
+
+// Next control
+.page-item-control:last-child {
+	.icon::before {
+		content: '\f238';
+	}
+}
+
+* + .pagination-wrap { margin-top: 30px; }
+
+@include media-breakpoint-up(md) {
+
+	* + .pagination-wrap { margin-top: 50px; }
+}
+
+@include media-breakpoint-up(lg) {
+
+	* + .pagination-wrap { margin-top: 70px; }
+}

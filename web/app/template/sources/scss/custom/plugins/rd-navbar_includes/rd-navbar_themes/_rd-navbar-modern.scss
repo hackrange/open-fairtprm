@@ -1,0 +1,181 @@
+/**
+*
+* RD Navbar Modern
+* =====================================================
+*/
+.rd-navbar-modern {
+
+	// Static
+	&.rd-navbar-static {
+		&:before{
+			content: '';
+			position: absolute;
+			right: 73%;
+			@media(min-width: 1500px){
+				right: 66.7%;
+			}
+			left: 0;
+			height: 120%;
+			display: block;
+			background-color: $secondary;
+		}
+		box-shadow: $rd-navbar-shadow;
+
+		.rd-navbar-aside-outer,
+		.rd-navbar-main-outer {
+			padding-left: $grid-gutter-width / 2;
+			padding-right: $grid-gutter-width / 2;
+		}
+
+		.rd-navbar-aside-outer {
+			background: $gray-100;
+		}
+
+		.rd-navbar-aside,
+		.rd-navbar-main {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			max-width: $rd-navbar-width;
+			margin-left: auto;
+			margin-right: auto;
+
+			> * + * { margin-left: 30px; }
+		}
+
+		.rd-navbar-aside {
+			padding: 10px 0;
+			color: $gray-800;
+			font-weight: 400;
+
+			a {
+				@include link(inherit, $primary)
+			}
+		}
+
+		.rd-navbar-main {
+			position: relative;
+			padding: 10px 0;
+			@extend %rd-navbar-transition;
+		}
+
+		.rd-navbar-elements,
+		.rd-navbar-main-element {
+			display: flex;
+			align-items: center;
+
+			> * + * { margin-left: 10px; }
+
+			@include media-breakpoint-up(xl) {
+				> * + * { margin-left: 22px; }
+			}
+		}
+
+		// RD Navbar Brand
+		.rd-navbar-brand {
+			img {
+				max-width: 215px;
+				width: 100%;
+			}
+		}
+
+		&.rd-navbar--is-stuck,
+		&.rd-navbar--is-clone {
+			&:before{
+				display: none;
+			}
+			.rd-navbar-aside-outer {
+				display: none;
+			}
+
+			.rd-navbar-main {
+				padding: 2px 0;
+			}
+		}
+	}
+
+	// Fixed 
+	&.rd-navbar-fixed {
+		.rd-navbar-fixed-element-2 {
+			right: 40px;
+		}
+	}
+}
+
+
+
+// RD Navbar Modern 1
+.rd-navbar-modern-1 {
+
+	// Static
+	&.rd-navbar-static {
+
+		&:not(.rd-navbar--is-stuck) {
+			box-shadow: none;
+			background: $gray-100;
+			z-index: $zindex-rd-navbar;
+			.rd-navbar-aside-outer {
+				background: rgba($white, .18);
+			}
+
+			.rd-nav-item {
+				&.focus,
+				&.opened,
+				&.active {
+					.rd-nav-link {
+						color: $rd-navbar-nav-hover-color;
+					}
+				}
+			}
+
+			.rd-nav-link {
+				color: $gray-800;
+
+				&:hover {
+					color: $rd-navbar-nav-hover-color;
+				}
+			}
+
+			.rd-navbar-aside,
+			.sidebar-toggle {
+				color: $gray-800;
+			}
+
+			.sidebar-toggle-2 {
+				color: $gray-800;
+			}
+
+			.rd-navbar-basket {
+				@include link($gray-800, $primary);
+			}
+
+			.brand-logo-dark { display: block; }
+			.brand-logo-light { display: none; }
+		}
+	}
+
+	// Fixed
+	&.rd-navbar-fixed {
+
+	}
+}
+
+
+
+// RD Navbar Modern 2
+.rd-navbar-modern-2 {
+
+	// Static
+	&.rd-navbar-static {
+
+		&:not(.rd-navbar--is-stuck) {
+			background: transparent;
+		}
+
+		.rd-navbar-main {
+			@include media-breakpoint-up(xl) {
+				padding: 18px 0;
+			}
+		}
+	}
+}

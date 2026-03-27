@@ -1,0 +1,71 @@
+extends ../_skeleton
+
+include ../components/_posts
+include ../components/_pagination
+include ../components/_quote
+block variables
+	- pageName = 'Blog'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//News
+	section.section.section-lg.bg-gray-100
+		.container: .row.row-xl.row-30
+			.col-sm-6
+				+post({
+					img: 'post-1-570x367',
+					tag: { class: 'post-tag-gradient', text: 'News' },
+					title: 'Motorcycle security and anti-theft: Ways to save your bike',
+					time: { date: '2019-05-29', text: 'May 29, 2019' }
+				}).block-xl
+			.col-sm-6
+				+post({
+					img: 'post-2-570x367',
+					tag: { class: 'post-tag-gradient', text: 'News' },
+					title: 'How the telescopic fork front suspension works',
+					time: { date: '2019-05-15', text: 'May 15, 2019' }
+				}).block-xl
+			.col-sm-6
+				+post-modern({
+					img: 'post-3-570x367',
+					tag: { class: 'post-tag-gradient', text: 'News' },
+					title: 'Buying inexpensive and exotic motorcycles: your #1 guide\n',
+					text: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+					time: { date: '2019-05-15', text: 'May 15, 2019' }
+				}).block-xl
+			.col-sm-6
+				+post({
+					img: 'post-4-570x367',
+					tag: { class: 'post-tag-gradient', text: 'News' },
+					title: 'Triumph updates two icons for 2020: Rocket 3 & Daytona',
+					time: { date: '2019-05-05', text: 'May 5, 2019' }
+				}).block-xl
+			.col-sm-6
+				+post({
+					img: 'post-5-570x367',
+					tag: { class: 'post-tag-gradient', text: 'News' },
+					title: 'Why motorcyclists won\'t wear high-visibility gear',
+					time: { date: '2019-05-03', text: 'May 3, 2019' }
+				}).block-xl
+			.col-sm-6
+				+post-modern({
+					img: 'post-6-570x367',
+					tag: { class: 'post-tag-gradient', text: 'News' },
+					title: 'Iron Wheel Challenge: 1,000 miles, 24 hours, zero stops',
+					text: 'Id diam vel quam elementum pulvinar etiam non quam.',
+					time: { date: '2019-05-01', text: 'May 1, 2019' }
+				}).block-xl.post-modern-image-right
+
+		.pagination-wrap
+			+pagination-bootstrap([
+				{prev: '#', disabled: true},
+				{link: '#', active: true},
+				{link: '#'},
+				{link: '#'},
+				{next: '#'}
+			])
+
+	include ../sections/_footer-modern

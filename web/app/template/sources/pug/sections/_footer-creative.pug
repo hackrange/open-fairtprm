@@ -1,0 +1,52 @@
+footer.section.footer-creative.bg-default
+	.footer-creative-body.section-md
+		.container.wow.fadeInUp: .row.row-30.justify-content-md-between
+			.col-sm-8.col-md-7.col-lg-5.col-xl-4
+				.heading-6.footer-creative-title What People say
+				.owl-carousel.owl-style-9.owl-dots-1( data-items='1', data-dots='true', data-autoplay='true', data-margin='30', data-animation-in='fadeIn', data-animation-out='fadeOut', data-mouse-drag='false' )
+					+quote-june({
+						text: 'Thank you for the best training experience I’ve ever had! Your workouts made me a better person both physically and mentally.',
+						title: 'Jim Johnson'
+					})
+					+quote-june({
+						text: 'Your coaches are very friendly and they always know how to motivate me during my workouts. Thank you!',
+						title: 'Kate Peterson'
+					})
+					+quote-june({
+						text: 'I like your fitness club a lot! You have significantly improved my health and well-being over the past year. I appreciate it.',
+						title: 'Peter Jackson'
+					})
+
+			.col-sm-4.col-lg-2
+				.heading-6.footer-creative-title Quick Links
+				ul.footer-creative-nav.big
+					li: a( href='about-us.html' ) Who We Are
+					li: a( href='gallery.html' ) Gallery
+					li: a( href= links.schedule ) Schedule
+					li: a( href='coaches.html' ) Coaches
+					li: a( href='pricing-tables.html' ) Pricing
+
+			.col-sm-10.col-md-8.col-lg-4.col-xl-4
+				.heading-6.footer-creative-title Newsletter
+				form.rd-form.form-style-6.rd-mailform( data-form-output='form-output-global', data-form-type='subscribe' method='post' action='bat/rd-mailform.php' )
+					.form-wrap
+						input.form-input( id='subscribe-form-email' type='email', name='email', data-constraints='@Email @Required' )
+						label.form-label( for='subscribe-form-email' )
+							span.icon.mdi.mdi-email-outline
+							span Enter your email
+					button.button.button-block.button-primary.button-shadow( type='submit' ) Subscribe
+
+	.footer-creative-panel.text-center.text-md-left
+		.container.wow.fadeInUp: .row.row-20.align-items-center.justify-content-md-between
+			.col-md-auto.col-xl-5
+				.footer-creative-brand
+					+logo
+					.footer-creative-brand-text Network of fitness clubs
+			.col-md-auto.col-xl-3
+				.footer-creative-list-social
+					ul.list-social.list-inline.list-inline-md
+						li: a.icon.mdi.mdi-facebook( href='#' )
+						li: a.icon.mdi.mdi-google( href='#' )
+						li: a.icon.mdi.mdi-twitter( href='#' )
+						li: a.icon.mdi.mdi-pinterest( href='#' )
+			.col-xl-4.text-xl-right: +rights

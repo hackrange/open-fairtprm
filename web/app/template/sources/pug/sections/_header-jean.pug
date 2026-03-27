@@ -1,0 +1,44 @@
+header.section.page-header
+	//RD Navbar
+	.rd-navbar-wrap
+		nav.rd-navbar.rd-navbar-jean.rd-navbar-jean-2(
+			data-layout=                'rd-navbar-fixed'
+			data-sm-layout=             'rd-navbar-fixed'
+			data-md-layout=             'rd-navbar-fixed'
+			data-md-device-layout=      'rd-navbar-fixed'
+			data-lg-layout=             'rd-navbar-static'
+			data-lg-device-layout=      'rd-navbar-fixed'
+			data-xl-layout=             'rd-navbar-static'
+			data-xl-device-layout=      'rd-navbar-static'
+			data-xxl-layout=            'rd-navbar-static'
+			data-xxl-device-layout=     'rd-navbar-static'
+			data-lg-stick-up-offset=    '50px'
+			data-xl-stick-up-offset=    '50px'
+			data-xxl-stick-up-offset=   '50px'
+			data-lg-stick-up=           'true'
+			data-xl-stick-up=           'true'
+			data-xxl-stick-up=          'true'
+			data-lg-auto-height=        'false'
+			data-xl-auto-height=        'false'
+			data-xxl-auto-height=       'false'
+		)
+			.rd-navbar-main-outer
+				.rd-navbar-main
+					//RD Navbar Panel
+					.rd-navbar-panel
+						//RD Navbar Toggle
+						button.rd-navbar-toggle( data-rd-navbar-toggle='.rd-navbar-nav-wrap'): span
+
+						//RD Navbar Brand 
+						.rd-navbar-brand
+							+logo
+
+					.rd-navbar-main-element
+						button.sidebar-toggle( data-rd-navbar-toggle='.rd-navbar-nav' ): span
+						.rd-navbar-nav-wrap
+							+navigation( menu )
+							.rd-navbar-nav-text Menu
+
+					a.button.button-sm.button-primary-outline.rd-navbar-fixed-element-1( href='#' )
+						span.icon.mdi.mdi-calendar-check
+						span.button-text Get free class

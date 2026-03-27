@@ -1,0 +1,51 @@
+/** @section ToTop */
+
+
+.ui-to-top {
+	position: fixed;
+	overflow: hidden;
+	text-align: center;
+	right: 15px;
+	bottom: 15px;
+	z-index: 100;
+	width: $form-input-height - 10;
+	height: $form-input-height - 10;
+	font-size: 20px;
+	line-height: $form-input-height - 14px;
+	border-radius: 50%;
+	color: $white;
+	background: $primary;
+	text-decoration: none;
+	transition: .45s all ease-in-out;
+	transform: translate3d(0, 100px, 0);
+
+	&:hover {
+		color: $white;
+		background: $gray-900;
+		text-decoration: none;
+	}
+
+	&:focus {
+		color: $white;
+	}
+
+	&.active {
+		transform: translate3d(0, 0, 0);
+	}
+}
+
+html.mobile .ui-to-top,
+html.tablet .ui-to-top {
+	display: none !important;
+}
+
+@include media-breakpoint-up(xl) {
+	.ui-to-top {
+		right: 40px;
+		bottom: 40px;
+		width: $form-input-height;
+		height: $form-input-height;
+		font-size: 20px;
+		line-height: $form-input-height - 4px
+	}
+}

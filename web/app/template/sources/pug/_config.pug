@@ -1,0 +1,104 @@
+-
+	var
+		htmlClass = "wide wow-animation",
+		fonts = "//fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900",
+		logo = {
+			default: 'logo-default-418x78.png',
+			inverse: 'logo-inverse-416x78.png',
+			name: 'Brightcycle'
+		},
+		links = {
+			news: 'blog.html',
+			blogPost: 'blog-post.html',
+			schedule: 'schedule.html',
+			singleClass: 'single-class.html',
+			singleProduct: 'single-product.html',
+			teamMember: 'team-member.html',
+			getTemplate:'#get-template'
+		},
+		colors = {
+			primary: '#ff6543'
+		},
+		menu = [
+			{
+				title: 'Home',
+				link: './'
+			},
+			{
+				title: 'About',
+				link: 'about-us.html',
+				dropdown: [
+					{ title: 'Our Team' },
+					{ title: 'Team Member' }
+				]
+			},
+			{
+				title: 'Shop',
+				link: 'shop.html'
+			},
+			{
+				title: 'Blog',
+				links: 'blog.html',
+				dropdown: [
+					{ title: 'Blog post' }
+				]
+			},
+			{
+				title: 'Pages',
+				link: '#',
+				megamenu: [
+
+					{
+						title: 'Shop',
+						list: [
+							{ title: 'Shop' },
+							{ title: 'Single product' },
+							{ title: 'Pricing tables' },
+							{ title: 'Cart page' },
+							{ title: 'Checkout' }
+						]
+					},
+					{
+						title: 'Pages 1',
+						link: '#',
+						list: [
+							{ title: 'FAQ' },
+							{ title: 'Gallery' },
+							{ title: 'Promotions' },
+							{ title: 'Single Promotion' }
+						]
+					},
+					{
+						title: 'Pages 2',
+						link: '#',
+						list: [
+							{ title: '404' },
+							{ title: 'Coming soon' },
+							{ title: 'Search results' },
+							{ title: 'Privacy policy' },
+							{ title: 'Contact Us' }
+
+						]
+					}
+				]
+			},
+			{
+				title: 'Elements',
+				link: '#',
+				dropdown: [
+					{ title: 'Typography' },
+					{ title: 'Buttons' },
+					{ title: 'Forms' },
+					{ title: 'Tabs' },
+					{ title: 'Progress bars' },
+					{ title: 'Counters' },
+					{ title: 'Icon lists' }
+				]
+			}
+		],
+
+		// Predefined variables
+		self = {},
+		breadcrumbs = [],
+		pageName = 'Home',
+		checkoutFormCounter

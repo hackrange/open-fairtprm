@@ -1,0 +1,26 @@
+extends  ../_skeleton
+
+//- Includes
+include ../components/_quote
+
+block variables
+	- var activeCategory = 'shop'
+	- var pageName = 'Cart Page'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	// Shopping Cart
+	section.section.section-lg.bg-default.text-center.text-sm-right
+		.container
+			// Shopping cart
+			include ../includes/_shopping-cart
+			.group-xl.group-middle.justify-content-center
+				.big.font-weight-normal Total
+				.heading-3.font-family-base $540
+				a.button.button-lg.button-gradient( href='checkout.html' ) Checkout
+	='\n'
+
+	include ../sections/_footer-modern

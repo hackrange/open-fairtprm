@@ -1,0 +1,29 @@
+/** @section Simple filter */
+
+.scroll-handler {
+
+	> * {
+		position: relative;
+	}
+}
+
+.image-overlay,
+.canvas-overlay {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	background-size: cover;
+	background-position: center;
+}
+
+// Context styling
+.ie-10,
+.ie-11,
+.ie-edge {
+	.image-overlay,
+	.canvas-overlay {
+		display: none;
+	}
+}

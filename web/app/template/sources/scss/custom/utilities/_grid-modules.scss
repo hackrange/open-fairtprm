@@ -1,0 +1,222 @@
+/** @section Grid modules */
+
+.grid-demo { 
+	letter-spacing: 0;
+	text-align: center;
+
+	p {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	* + p { margin-top: 5px; }
+	* + .row { margin-top: 20px; }
+	.row + .row { margin-top: 0; }
+
+	@include media-breakpoint-up(xl) {
+		text-align: left;
+
+		p {
+			white-space: normal;
+			overflow: visible;
+			text-overflow: unset;
+		}
+
+		* + p { margin-top: 25px; }
+	}
+}
+
+.grid-demo-bordered {
+	.row {
+		border: 0 solid $gray-200;
+		border-top-width: 1px;
+
+		&:last-child {
+			border-bottom-width: 1px;
+		}
+	}
+
+	[class*='col'] {
+		padding: 5px 15px;
+
+		&:before {
+			content: '';
+			position: absolute;
+			top: 0;
+			bottom: 0;
+			left: -1px;
+			border-left: 1px solid $gray-200;
+		}
+
+		@include media-breakpoint-up(md) {
+			padding: 30px;
+		}
+
+		@include media-breakpoint-up(xl) {
+			padding: 50px 50px 45px;
+		}
+	}
+}
+
+.grid-demo-underlined {
+	.row {
+		border-bottom: 1px solid $gray-200;
+	}
+
+	[class*='col'] {
+		padding: 5px 15px;
+
+		@include media-breakpoint-up(md) {
+			padding-top: 25px;
+			padding-bottom: 25px;
+		}
+
+		@include media-breakpoint-up(xl) {
+			padding-top: 45px;
+			padding-bottom: 45px;
+		}
+	}
+}
+
+
+// Custom Grid
+//
+// Change $enable-grid-classes-custom: true
+// that would generate custom grid (example: 10 columns)
+
+$enable-grid-classes-custom: false;
+
+@mixin make-grid-columns-custom($columns: $grid-columns, $gutter: $grid-gutter-width, $breakpoints: $grid-breakpoints) {
+	@each $breakpoint in map-keys($breakpoints) {
+		$infix: breakpoint-infix($breakpoint, $breakpoints);
+
+		@include media-breakpoint-up($breakpoint, $breakpoints) {
+			@for $i from 1 through $columns {
+				.col#{$infix}-#{$i} {
+					@include make-col($i, $columns);
+				}
+			}
+		}
+	}
+}
+
+@if $enable-grid-classes-custom {
+	.row-ten {
+		@include make-grid-columns-custom(10);
+	}
+
+	.row-xl-ten {
+		@include make-grid-columns-custom(10, 30px, (xl: map-get($grid-breakpoints, xl), xlg: map-get($grid-breakpoints, xlg), xxl: map-get($grid-breakpoints, xxl)));
+	}
+}
+
+
+// Gutters
+.gutter-6 {
+	margin-left: -3px;
+	margin-right: -3px;
+
+	> [class*='col'] {
+		padding-left: 3px;
+		padding-right: 3px;
+	}
+}
+
+.gutter-8 {
+	margin-left: -4px;
+	margin-right: -4px;
+
+	> [class*='col'] {
+		padding-left: 4px;
+		padding-right: 4px;
+	}
+}
+
+.gutter-20 {
+	margin-left: -10px;
+	margin-right: -10px;
+
+	> [class*='col'] {
+		padding-left: 10px;
+		padding-right: 10px;
+	}
+}
+
+
+// Container
+.container-style-1 {
+	@include media-breakpoint-up(xl) {
+		max-width: none;
+	}
+}
+
+.container-style-2 {
+	@include media-breakpoint-up(xl) {
+		max-width: 1800px;
+	} 
+}
+
+.container-style-3 {
+	@include media-breakpoint-up(xl) {
+		max-width: none;
+		padding: 0;
+	}
+}
+
+.container-style-4 {
+	@include media-breakpoint-up(xl) {
+		padding-left: 2%;
+		padding-right: 2%;
+		max-width: 1760px;
+	}
+
+	@include media-breakpoint-up(xxl) {
+		padding-left: 30px;
+	} padding-right: 2.3%;
+}
+
+.boxed-1 {
+
+	[class*='section-'] + [class*='section-'] {
+		padding-top: 0;
+	}
+	
+	@include media-breakpoint-up(xxl) {
+		margin-left: 5.5208%;
+		border-left: 1px solid $gray-3;
+	}
+}
+
+
+$grid-gutter-width-narrow: 10px;
+$grid-gutter-width-narrow-80: 80px;
+
+// Row Narrow
+.row-narrow {
+	margin-right: ($grid-gutter-width-narrow / -2);
+	margin-left: ($grid-gutter-width-narrow / -2);
+
+
+	> .col,
+	> [class*="col-"] {
+		padding-right: ($grid-gutter-width-narrow / 2);
+		padding-left: ($grid-gutter-width-narrow / 2);
+	}
+
+}
+
+// Row Narrow
+.row-narrow-80 {
+	@include media-breakpoint-up(xl) {
+		margin-right: ($grid-gutter-width-narrow-80 / -2);
+		margin-left: ($grid-gutter-width-narrow-80 / -2);
+
+		> .col,
+		> [class*="col-"] {
+			padding-right: ($grid-gutter-width-narrow-80 / 2);
+			padding-left: ($grid-gutter-width-narrow-80 / 2);
+		}
+	}
+
+}

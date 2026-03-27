@@ -1,0 +1,83 @@
+extends ../_skeleton
+
+include ../components/_quote
+include ../components/_schedule
+
+block variables
+	- pageName = 'Single Promotion'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Classes
+	section.section.section-xl.bg-default
+		.container: .row.row-30
+			.col-lg-5.col-xl-6: .row.row-20.gutter-20
+				.col-sm-6.col-lg-12: +img('service-19-500x300')
+				.col-sm-6.col-lg-12: +img('service-20-500x300')
+
+			.col-md-11.col-lg-7.col-xl-6
+				h3.font-family-base Grab Your Honda
+				p.big Adipiscing elit duis tristique sollicitudin nibh sit amet commodo nulla. Condimentum lacinia quis vel eros. Molestie ac feugiat sed lectus vestibulum mattis ullamcorper velit. Quis eleifend quam adipiscing vitae proin sagittis. Risus commodo viverra maecenas accumsan lacus vel facilisis.
+				+quote({
+					text: 'Take part in this exclusive sale and purchase any Honda motorcycle with a huge discount!'
+				}).quote-1
+				ul.list-marked.list-2-column.big
+					li Faucibus scelerisque eleifend
+					li Egestas fringilla phasellus
+					li Sit amet justo donec enim
+					li Molestie a iaculis at erat
+
+				a.button.button-lg.button-gradient( href='#' ) Shop Now
+
+	section.section.section-xxl.bg-gray-100.section-decor-1
+		.container.tabs-custom.tabs-style-2: .row.row-30.justify-content-center
+			.col-md-7.wow.fadeInLeft
+				h6.title-8 Testimonials
+				h2.font-weight-bold What our Clients say
+				//Tab panes
+				.tab-content.inset-xl-right-40
+					div#tabs-1-1.tab-pane.fade.show.active
+						+quote-modern({
+							text: 'I am extremely pleased with the process of purchasing my new Honda Africa Twin from Brightcycle. I knew exactly what I wanted so it was easy to choose and purchase this motorcycle.',
+							title: 'Helen Russell',
+							subtitle: 'Regular Client'
+						})
+					div#tabs-1-2.tab-pane.fade
+						+quote-modern({
+							text: 'I\'ve bought two motorcycles from this place and never plan to shop anywhere else! Low-pressure atmosphere, friendly mechanics, and excellent prices. I\'m treated like family here!',
+							title: 'Joseph Wilson',
+							subtitle: 'Regular Client'
+						})
+					div#tabs-1-3.tab-pane.fade
+						+quote-modern({
+							text: 'Extremely helpful staff. The team at Brightcycle saved my road trip! I called all over town looking for a new motorcycle and they provided me with what I needed, quickly and efficiently.',
+							title: 'Eric Thompson',
+							subtitle: 'Regular Client'
+						})
+					div#tabs-1-4.tab-pane.fade
+						+quote-modern({
+							text: 'Great, friendly service. Brightcycle never tried to sell me something I don\'t need. They\'ve never snobbed my weird taste in motorbikes and that’s why I recommend them to everyone!',
+							title: 'Gary Wood',
+							subtitle: 'Regular Client'
+						})
+					div#tabs-1-5.tab-pane.fade
+						+quote-modern({
+							text: 'This place is awesome.  I was looking for a reliable place to buy a motorcycle and Brightcycle team proved to be extremely friendly and helpful. They set me up with the Kawasaki Ninja.',
+							title: 'Amy Washington',
+							subtitle: 'Regular Client'
+						})
+			.col-md-5.wow.fadeInRight
+				//Nav tabs
+				ul.nav.nav-tabs
+					li.nav-item( role='presentation' ): a.nav-link.active( href='#tabs-1-1', data-toggle='tab' ): +img('user-5-89x89')
+					li.nav-item( role='presentation' ): a.nav-link( href='#tabs-1-2', data-toggle='tab' ): +img('user-12-89x89')
+					li.nav-item( role='presentation' ): a.nav-link( href='#tabs-1-3', data-toggle='tab' ): +img('user-13-89x89')
+					li.nav-item( role='presentation' ): a.nav-link( href='#tabs-1-4', data-toggle='tab' ): +img('user-14-89x89')
+					li.nav-item( role='presentation' ): a.nav-link( href='#tabs-1-5', data-toggle='tab' ): +img('user-4-89x89')
+
+
+
+	include ../sections/_footer-modern

@@ -1,0 +1,34 @@
+//- Form Checkout
+mixin form-checkout(obj)
+	-  var uniquePrefix = checkoutFormCounter
+	if (obj.customUnique)
+		- var uniquePrefix = obj.customUnique
+	else
+		- checkoutFormCounter = checkoutFormCounter + 1
+
+	form.rd-form.rd-mailform.form-checkout
+		.row.row-20.gutter-20
+			.col-sm-6: .form-wrap
+				input.form-input( id='checkout-first-name-' + uniquePrefix type='text', name='name', data-constraints='@Required' )
+				label.form-label( for='checkout-first-name-' + uniquePrefix) First Name
+			.col-sm-6: .form-wrap
+				input.form-input( id='checkout-last-name-' + uniquePrefix type='text', name='name', data-constraints='@Required' )
+				label.form-label( for='checkout-last-name-' + uniquePrefix) Last Name
+			.col-12: .form-wrap
+				input.form-input( id='checkout-company-' + uniquePrefix type='text', name='name', data-constraints='@Required' )
+				label.form-label( for='checkout-company-' + uniquePrefix) Company
+			.col-12: .form-wrap
+				input.form-input( id='checkout-address-' + uniquePrefix type='text', name='name', data-constraints='@Required' )
+				label.form-label( for='checkout-address-' + uniquePrefix) Address
+			.col-sm-6: .form-wrap
+				input.form-input( id='checkout-postcode-' + uniquePrefix type='text', name='name', data-constraints='@Required' )
+				label.form-label( for='checkout-postcode-' + uniquePrefix) Postcode
+			.col-sm-6: .form-wrap
+				input.form-input( id='checkout-city-' + uniquePrefix type='text', name='name', data-constraints='@Required' )
+				label.form-label( for='checkout-city-' + uniquePrefix) City
+			.col-sm-6: .form-wrap
+				input.form-input( id='checkout-email-' + uniquePrefix type='email', name='email', data-constraints='@Email @Required' )
+				label.form-label( for='checkout-email-' + uniquePrefix) E-Mail
+			.col-sm-6: .form-wrap
+				input.form-input( id='checkout-phone-' + uniquePrefix type='text', name='phone', data-constraints='@Numeric' )
+				label.form-label( for='checkout-phone-' + uniquePrefix) Phone

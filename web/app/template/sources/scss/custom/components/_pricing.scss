@@ -1,0 +1,276 @@
+/** @section Pricing tables */
+
+//
+// Pricing
+//
+.pricing {
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	border: 1px solid $gray-3;
+	background: $white;
+	min-height: 100%;
+}
+
+.pricing-2 {
+	.pricing-subtitle {
+		color: $primary;
+	}
+}
+
+.pricing-header {
+	padding: 15px;
+	background: $gray-100;
+	border-bottom: 1px solid $gray-3;
+}
+
+.pricing-title {
+	font-family: $font-family-base;
+}
+
+.pricing-subtitle {
+	font-size: 14px;
+	font-weight: 500;
+	letter-spacing: .075em;
+	text-transform: uppercase;
+	color: $secondary;
+}
+
+.pricing-body {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	flex-grow: 1;
+	padding: 20px 15px;
+}
+
+.pricing-price {
+	font-weight: 300;
+	font-family: $font-family-base;
+}
+
+.pricing-list {
+	font-weight: 400;
+
+	li + li {	margin-top: 8px; }
+}
+
+.pricing-brand {
+	font-size: 0;
+
+	img {
+		width: auto;
+		max-height: 30px;
+	}
+}
+
+.pricing-information {
+	.icon {
+		font-size: 20px;
+		color: $gray-800;
+	}
+}
+
+.pricing-information-text {
+	line-height: 1.5;
+	font-weight: 400;
+}
+
+.pricing-text-1 {
+	font-size: 12px;
+	font-weight: 500;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: rgba($gray-800, .6);
+}
+
+// Offsets
+* + .pricing-subtitle {	margin-top: 4px; }
+* + .pricing-list {	margin-top: 20px; }
+* + .pricing-brand {	margin-top: 15px; }
+* + .pricing-text-1 {	margin-top: 15px; }
+* + .pricing-information {	margin-top: 15px; }
+* + .pricing-information-text {	margin-top: 6px; }
+.pricing-price + .button { margin-top: 15px; }
+
+// Media
+
+@include media-breakpoint-up(md) {
+
+	.pricing-body {
+		padding: 30px 15px;
+	}
+
+	.pricing-list {
+		li + li {	margin-top: 12px; }
+	}
+
+	* + .pricing-list {	margin-top: 30px; }
+	* + .pricing-brand {	margin-top: 25px; }
+	* + .pricing-information {	margin-top: 25px; }
+	.pricing-price + .button { margin-top: 25px; }
+}
+
+@include media-breakpoint-up(lg) {
+
+	.pricing-header {
+		padding: 20px 15px;
+	}
+
+	.pricing-body {
+		padding: 40px 15px;
+	}
+
+	.pricing-list {
+		li + li {	margin-top: 18px; }
+	}
+
+	* + .pricing-list {	margin-top: 45px; }
+	.pricing-price + .button { margin-top: 35px; }
+}
+
+
+
+
+// Pricing classic
+.pricing-classic {
+	position: relative;
+	text-align: center;
+	padding: 40px 10px 30px;
+	font-weight: 400;
+	border-radius: 5px;
+	color: $white;
+	background: $gray-5;
+	z-index: 1;
+}
+
+.pricing-classic-1 {
+	box-shadow: 0 19px 40px 0 rgba(0, 0, 0, 0.19);
+}
+
+.pricing-classic-2 {
+	background: $gray-16;
+
+	.pricing-classic-label {
+		background: $primary;
+		
+		&::before {
+			background: $primary-4;
+		}
+	}
+
+	.pricing-classic-price {
+		color: $secondary;
+		background: $gray-17;
+	}
+}
+
+.pricing-classic-title {
+	font-weight: 700;
+	font-family: $font-family-base;
+	text-transform: uppercase;
+	color: $white;
+}
+
+.pricing-classic-subtitle {
+	color: rgba($white, .4);
+}
+
+.pricing-classic-price {
+	display: inline-block;
+	padding: 0 10px;
+	height: 95px;
+	min-width: 95px;
+	line-height: 95px;
+	font-weight: 700;
+	border-radius: 100px;
+	font-family: $font-family-base;
+	color: $secondary;
+	background: $gray-7;
+}
+
+.pricing-classic-list {
+
+	li + li {	margin-top: 6px; }
+}
+
+.pricing-classic-label {
+	position: absolute;
+	top: 10px;
+	right: -12px;
+	padding: 0 7px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: .1em;
+	line-height: 2;
+	text-transform: uppercase;
+	border-radius: 5px;
+	white-space: nowrap;
+	color: $white;
+	background: $secondary;
+	
+	&::before {
+		position: absolute;
+		content: '';
+		right: 0;
+		bottom: 2px;
+		width: 12px;
+		height: 14px;
+		background: $secondary-4;
+		transform: skewY(-45deg);
+		border-bottom-right-radius: 2px;
+		transform-origin: 100% 50%;
+		z-index: -1;
+	}
+}
+
+// Offsets
+* + .pricing-classic-price {	margin-top: 12px; }
+* + .pricing-classic-list {	margin-top: 10px; }
+.pricing-classic-list + .button { margin-top: 30px; }
+
+// Media
+
+@include media-breakpoint-up(md) {
+
+	.pricing-classic {
+		padding: 40px 10px;
+	}
+
+	.pricing-classic-price {
+		height: 105px;
+		min-width: 105px;
+		line-height: 105px;
+	}
+
+	.pricing-classic-label {
+		top: 42px;
+		font-size: 14px;
+	}
+
+	* + .pricing-classic-subtitle {	margin-top: 10px; }
+	* + .pricing-classic-price {	margin-top: 22px; }
+	* + .pricing-classic-list {	margin-top: 20px; }
+	.pricing-classic-list + .button { margin-top: 40px; }
+}
+
+@include media-breakpoint-up(lg) {
+
+	.pricing-classic-price {
+		height: 117px;
+		min-width: 117px;
+		line-height: 117px;
+	}
+}
+
+@include media-breakpoint-up(xl) {
+
+	.pricing-classic {
+		padding: 40px 15px 50px;
+	}
+
+	.pricing-classic-1 {
+		padding-top: 60px;
+		padding-bottom: 70px;
+	}
+}

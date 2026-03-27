@@ -1,0 +1,28 @@
+# =============================================================================
+# Fair TPRM & GRC Platform - v2.5.8
+# =============================================================================
+
+services:
+  open-tprm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dockerregistry.fairtprm.com/fairtprm:v2.5.8
+    container_name: fairtprm
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - persistent_data:/persistent
+      - mariadb_data:/var/lib/mysql
+    restart: unless-stopped
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  persistent_data:
+  mariadb_data:

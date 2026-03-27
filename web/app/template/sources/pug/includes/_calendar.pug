@@ -1,0 +1,1065 @@
+include ../components/_events
+
+.rd-calendar
+	.rdc-panel
+		a.rdc-prev
+		.wrap-calendar
+			span.rdc-month
+			=' '
+			span.rdc-fullyear
+		a.rdc-next
+
+	.rdc-table
+	.rdc-events
+		//a.rdc-events_close
+		ul
+			//May
+			li.rdc-event.active( data-date='05/03/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Fri, May 03',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Fri, May 03',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Fri, May 03',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Fri, May 03',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Fri, May 03',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Fri, May 03',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Fri, May 03',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Fri, May 03',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='05/15/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Fri, May 10',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Fri, May 10',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Fri, May 10',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Fri, May 10',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Fri, May 10',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Fri, May 10',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Fri, May 10',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Fri, May 10',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='05/20/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Tue, May 14',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Tue, May 14',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Tue, May 14',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Tue, May 14',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Tue, May 14',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Tue, May 14',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Tue, May 14',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Tue, May 14',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			//June
+			li.rdc-event( data-date='06/05/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Sat, May 18',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Sat, May 18',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Sat, May 18',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Sat, May 18',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Sat, May 18',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Sat, May 18',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Sat, May 18',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Sat, May 18',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='06/13/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='06/18/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			//July
+			li.rdc-event( data-date='07/09/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Fri, May 03',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Fri, May 03',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Fri, May 03',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Fri, May 03',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Fri, May 03',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Fri, May 03',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Fri, May 03',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Fri, May 03',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='07/14/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Fri, May 10',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Fri, May 10',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Fri, May 10',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Fri, May 10',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Fri, May 10',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Fri, May 10',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Fri, May 10',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Fri, May 10',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='07/29/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Tue, May 14',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Tue, May 14',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Tue, May 14',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Tue, May 14',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Tue, May 14',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Tue, May 14',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Tue, May 14',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Tue, May 14',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			//August
+			li.rdc-event( data-date='08/02/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Sat, May 18',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Sat, May 18',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Sat, May 18',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Sat, May 18',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Sat, May 18',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Sat, May 18',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Sat, May 18',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Sat, May 18',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='08/11/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='08/19/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			//September
+			li.rdc-event( data-date='09/04/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Fri, May 03',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Fri, May 03',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Fri, May 03',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Fri, May 03',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Fri, May 03',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Fri, May 03',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Fri, May 03',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Fri, May 03',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='09/16/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Fri, May 10',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Fri, May 10',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Fri, May 10',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Fri, May 10',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Fri, May 10',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Fri, May 10',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Fri, May 10',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Fri, May 10',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='09/24/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Tue, May 14',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Tue, May 14',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Tue, May 14',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Tue, May 14',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Tue, May 14',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Tue, May 14',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Tue, May 14',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Tue, May 14',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			//October
+			li.rdc-event( data-date='10/07/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Sat, May 18',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Sat, May 18',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Sat, May 18',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Sat, May 18',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Sat, May 18',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Sat, May 18',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Sat, May 18',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Sat, May 18',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='10/13/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+			li.rdc-event( data-date='10/27/2019' )
+				.event-sally-wrap: .event-sally-scroll
+					+event-sally({
+						time: '10:30 am - 11:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '11:00 am - 12:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '11:30 am - 12:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '1:00 pm - 2:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '4:30 pm - 5:30 pm',
+						date: 'Wed, May 22',
+						title: 'CrossFit',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})
+					+event-sally({
+						time: '5:00 pm - 6:00 pm',
+						date: 'Wed, May 22',
+						title: 'Powerlifting',
+						time1: '60 min',
+						name: 'Sophia Smith'
+					})
+					+event-sally({
+						time: '5:30 pm - 6:30 pm',
+						date: 'Wed, May 22',
+						title: 'Body Conditioning',
+						time1: '60 min',
+						name: 'Grace Dean'
+					})
+					+event-sally({
+						time: '6:00 pm - 7:00 pm',
+						date: 'Wed, May 22',
+						title: 'TRX',
+						time1: '60 min',
+						name: 'Sam Peterson'
+					})

@@ -1,0 +1,58 @@
+<?php
+/**
+ * API: Save (create or update) a template section
+ */
+header('Content-Type: application/json');
+require_once '../includes/init.php';
+requireAuth();
+
+$security = Security::getInstance();
+$session = Session::getInstance();
+$auth = Auth::getInstance();
+
+// Access check: admin or cyber_tprm
+$isAllowed = $session->get('is_super_admin') || $auth->isAdmin() || hasGroup('administrator') || hasGroup('cyber_tprm');
+if (!$isAllowed) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Access denied']);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+    exit;
+}
+
+if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Invalid CSRF token']);
+    exit;
+}
+
+require_once __DIR__ . '/../includes/classes/VendorAssessmentService.php';
+$svc = new VendorAssessmentService();
+
+$templateId = intval($_POST['template_id'] ?? 0);
+$sectionId = intval($_POST['section_id'] ?? 0);
+$name = trim($_POST['name'] ?? '');
+$description = trim($_POST['description'] ?? '');
+
+if (!$templateId || empty($name)) {
+    echo json_encode(['success' => false, 'message' => 'Template ID and name are required', 'csrf_token' => $security->getCSRFToken()]);
+    exit;
+}
+
+try {
+    if ($sectionId) {
+        $svc->updateSection($sectionId, ['name' => $name, 'description' => $description]);
+        $resultId = $sectionId;
+    } else {
+        $resultId = $svc->createSection($templateId, ['name' => $name, 'description' => $description]);
+    }
+
+    echo json_encode(['success' => true, 'section_id' => $resultId, 'csrf_token' => $security->getCSRFToken()]);
+} catch (Exception $e) {
+    error_log('Section save error: ' . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Failed to save section', 'csrf_token' => $security->getCSRFToken()]);
+}

@@ -1,0 +1,40 @@
+//- Team
+
+mixin team( obj )
+	// Team
+	article.team&attributes( attributes )
+		+img( obj.img ).team-image
+		.team-content: div
+			.team-position= obj.position
+			.heading-5.team-name: a( href= links.teamMember )= obj.name
+			ul.team-list-social.list-social.list-inline.list-inline-sm
+				li: a.icon.mdi.mdi-facebook( href='#' )
+				li: a.icon.mdi.mdi-instagram( href='#' )
+				li: a.icon.mdi.mdi-twitter( href='#' )
+
+mixin team-modern( obj )
+	// Team modern
+	article.team-modern&attributes( attributes )
+		.team-modern-figure: a( href= links.teamMember )
+			+img( obj.img ).img-duotone( data-gradient-map="#242659, #7bd7eb" )
+		.team-modern-content
+			.heading-5.team-modern-name: a( href= links.teamMember )= obj.name
+			.team-modern-position= obj.position
+			.team-modern-share
+				.team-modern-share-button( data-custom-toggle='', data-custom-toggle-disable-on-blur='true' )
+				ul.team-modern-list-social
+					li: a.icon.mdi.mdi-facebook( href='#' )
+					li: a.icon.mdi.mdi-instagram( href='#' )
+
+mixin team-classic( obj )
+	// Team classic
+	article.team-classic&attributes( attributes )
+		+img( obj.img ).team-classic-image
+		.team-classic-content
+			.heading-4.team-classic-name: a( href='#' )= obj.name
+			.team-classic-position= obj.position
+			.team-classic-overlay
+				ul.team-classic-list-social.list-social.list-inline.list-inline-sm
+					li: a.icon.mdi.mdi-facebook( href='#' )
+					li: a.icon.mdi.mdi-instagram( href='#' )
+					li: a.icon.mdi.mdi-twitter( href='#' )

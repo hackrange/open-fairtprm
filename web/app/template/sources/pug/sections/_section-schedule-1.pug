@@ -1,0 +1,299 @@
+include ../components/_events
+
+//Daily schedule
+section.section.section-xl.bg-default
+	.container.wow.fadeInUp
+		.row.row-30.align-items-lg-end
+			.col-lg-4
+				.title-10 Daily schedule
+				.divider
+				h3.text-transform-none Select your perfect time for Fitness
+			.col-sm-6.col-lg-4
+				p.big.font-weight-normal
+					span.font-weight-bold 01.
+					|  In the schedule below, feel free to select a type of workout that you would like to visit or learn more about.
+			.col-sm-6.col-lg-4
+				p.big.font-weight-normal
+					span.font-weight-bold 02.
+					|  You can also choose a preferable time of training and read other important information about workouts.
+
+		#tabs-2.row.row-30.row-xl-70.align-items-center.tabs-custom.tabs-minimal( data-view-triggerable='true' )
+			.col-xl-8
+				ul.nav.nav-tabs.justify-content-xl-start
+					li.nav-item( role='presentation' ): a.nav-link.active( href='#tabs-2-1', data-toggle='tab' ) Monday
+					li.nav-item( role='presentation' ): a.nav-link( href='#tabs-2-2', data-toggle='tab' ) Tuesday
+					li.nav-item( role='presentation' ): a.nav-link( href='#tabs-2-3', data-toggle='tab' ) Wednesday
+					li.nav-item( role='presentation' ): a.nav-link( href='#tabs-2-4', data-toggle='tab' ) Thursday
+					li.nav-item( role='presentation' ): a.nav-link( href='#tabs-2-5', data-toggle='tab' ) Friday
+					li.nav-item( role='presentation' ): a.nav-link( href='#tabs-2-6', data-toggle='tab' ) Saturday
+			.col-xl-4.text-center.text-xl-right
+				.group-md.group-middle
+					a.button.button-sm.button-default-outline-4( href= links.schedule ) Full schedule
+					.owl-nav-2.owl-nav-3.tabs-trigger
+						.active( data-view-trigger='#tabs-2-1' ): #owl-nav-1
+						div( data-view-trigger='#tabs-2-2' ): #owl-nav-2
+						div( data-view-trigger='#tabs-2-3' ): #owl-nav-3
+						div( data-view-trigger='#tabs-2-4' ): #owl-nav-4
+						div( data-view-trigger='#tabs-2-5' ): #owl-nav-5
+						div( data-view-trigger='#tabs-2-6' ): #owl-nav-6
+			.col-xl-12
+				//Tab panes
+				.tab-content
+					div#tabs-2-1.tab-pane.fade.show.active
+						// Owl Carousel
+						.owl-carousel.owl-style-7( data-items='1', data-sm-items='2', data-md-items='3', data-lg-items='4', data-autoplay='true', data-navigation-class='#owl-nav-1' )
+							+event-joan({
+								time: '08:00 am - 09:00 am',
+								title: 'CrossFit',
+								name: 'Kate McMillan'
+							})
+							+event-joan({
+								time: '09:00 am - 10:00 am',
+								title: 'Pilates',
+								name: 'Sophia Smith'
+							})
+							+event-joan({
+								time: '10:00 am - 11:00 am',
+								title: 'Cardio',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '11:00 am - 12:00 pm',
+								title: 'Endurance',
+								name: 'Ann Williams'
+							})
+							+event-joan({
+								time: '12:00 pm - 1:00 pm',
+								title: 'Bodybuilding',
+								name: 'Earl Allen'
+							})
+							+event-joan({
+								time: '1:00 pm - 2:00 pm',
+								title: 'Yoga',
+								name: 'Ann Williams'
+							})
+							+event-joan({
+								time: '2:00 pm - 3:00 pm',
+								title: 'TRX',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '3:00 pm - 4:00 pm',
+								title: 'Weightlifting',
+								name: 'Sam Peterson'
+							})
+					div#tabs-2-2.tab-pane.fade
+						// Owl Carousel
+						.owl-carousel.owl-style-7( data-items='1', data-sm-items='2', data-md-items='3', data-lg-items='4', data-navigation-class='#owl-nav-2' )
+							+event-joan({
+								time: '08:00 am - 09:00 am',
+								title: 'Bodybuilding',
+								name: 'Earl Allen'
+							})
+							+event-joan({
+								time: '09:00 am - 10:00 am',
+								title: 'Yoga',
+								name: 'Ann Williams'
+							})
+							+event-joan({
+								time: '10:00 am - 11:00 am',
+								title: 'TRX',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '11:00 am - 12:00 pm',
+								title: 'Weightlifting',
+								name: 'Sam Peterson'
+							})
+							+event-joan({
+								time: '12:00 pm - 1:00 pm',
+								title: 'CrossFit',
+								name: 'Kate McMillan'
+							})
+							+event-joan({
+								time: '1:00 pm - 2:00 pm',
+								title: 'Pilates',
+								name: 'Sophia Smith'
+							})
+							+event-joan({
+								time: '2:00 pm - 3:00 pm',
+								title: 'Cardio',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '3:00 pm - 4:00 pm',
+								title: 'Endurance',
+								name: 'Ann Williams'
+							})
+					div#tabs-2-3.tab-pane.fade
+						// Owl Carousel
+						.owl-carousel.owl-style-7( data-items='1', data-sm-items='2', data-md-items='3', data-lg-items='4', data-navigation-class='#owl-nav-3' )
+							+event-joan({
+								time: '08:00 am - 09:00 am',
+								title: 'TRX',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '09:00 am - 10:00 am',
+								title: 'Weightlifting',
+								name: 'Sam Peterson'
+							})
+							+event-joan({
+								time: '10:00 am - 11:00 am',
+								title: 'Bodybuilding',
+								name: 'Earl Allen'
+							})
+							+event-joan({
+								time: '11:00 am - 12:00 pm',
+								title: 'Yoga',
+								name: 'Ann Williams'
+							})
+							+event-joan({
+								time: '12:00 pm - 1:00 pm',
+								title: 'Cardio',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '1:00 pm - 2:00 pm',
+								title: 'Endurance',
+								name: 'Ann Williams'
+							})
+							+event-joan({
+								time: '2:00 pm - 3:00 pm',
+								title: 'CrossFit',
+								name: 'Kate McMillan'
+							})
+							+event-joan({
+								time: '3:00 pm - 4:00 pm',
+								title: 'Pilates',
+								name: 'Sophia Smith'
+							})
+					div#tabs-2-4.tab-pane.fade
+						// Owl Carousel
+						.owl-carousel.owl-style-7( data-items='1', data-sm-items='2', data-md-items='3', data-lg-items='4', data-navigation-class='#owl-nav-4' )
+							+event-joan({
+								time: '08:00 am - 09:00 am',
+								title: 'Yoga',
+								name: 'Ann Williams'
+							})
+							+event-joan({
+								time: '09:00 am - 10:00 am',
+								title: 'Cardio',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '10:00 am - 11:00 am',
+								title: 'Endurance',
+								name: 'Ann Williams'
+							})
+							+event-joan({
+								time: '11:00 am - 12:00 pm',
+								title: 'TRX',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '12:00 pm - 1:00 pm',
+								title: 'Weightlifting',
+								name: 'Sam Peterson'
+							})
+							+event-joan({
+								time: '1:00 pm - 2:00 pm',
+								title: 'Bodybuilding',
+								name: 'Earl Allen'
+							})
+							+event-joan({
+								time: '2:00 pm - 3:00 pm',
+								title: 'Pilates',
+								name: 'Sophia Smith'
+							})
+							+event-joan({
+								time: '3:00 pm - 4:00 pm',
+								title: 'CrossFit',
+								name: 'Kate McMillan'
+							})
+					div#tabs-2-5.tab-pane.fade
+						// Owl Carousel
+						.owl-carousel.owl-style-7( data-items='1', data-sm-items='2', data-md-items='3', data-lg-items='4', data-navigation-class='#owl-nav-5' )
+							+event-joan({
+								time: '08:00 am - 09:00 am',
+								title: 'Cardio',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '09:00 am - 10:00 am',
+								title: 'Yoga',
+								name: 'Ann Williams'
+							})
+							+event-joan({
+								time: '10:00 am - 11:00 am',
+								title: 'Bodybuilding',
+								name: 'Earl Allen'
+							})
+							+event-joan({
+								time: '11:00 am - 12:00 pm',
+								title: 'Pilates',
+								name: 'Sophia Smith'
+							})
+							+event-joan({
+								time: '12:00 pm - 1:00 pm',
+								title: 'CrossFit',
+								name: 'Kate McMillan'
+							})
+							+event-joan({
+								time: '1:00 pm - 2:00 pm',
+								title: 'Endurance',
+								name: 'Ann Williams'
+							})
+							+event-joan({
+								time: '2:00 pm - 3:00 pm',
+								title: 'TRX',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '3:00 pm - 4:00 pm',
+								title: 'Weightlifting',
+								name: 'Sam Peterson'
+							})
+					div#tabs-2-6.tab-pane.fade
+						// Owl Carousel
+						.owl-carousel.owl-style-7( data-items='1', data-sm-items='2', data-md-items='3', data-lg-items='4', data-navigation-class='#owl-nav-6' )
+							+event-joan({
+								time: '08:00 am - 09:00 am',
+								title: 'TRX',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '09:00 am - 10:00 am',
+								title: 'Weightlifting',
+								name: 'Sam Peterson'
+							})
+							+event-joan({
+								time: '10:00 am - 11:00 am',
+								title: 'CrossFit',
+								name: 'Kate McMillan'
+							})
+							+event-joan({
+								time: '11:00 am - 12:00 pm',
+								title: 'Endurance',
+								name: 'Ann Williams'
+							})
+							+event-joan({
+								time: '12:00 pm - 1:00 pm',
+								title: 'Bodybuilding',
+								name: 'Earl Allen'
+							})
+							+event-joan({
+								time: '1:00 pm - 2:00 pm',
+								title: 'Pilates',
+								name: 'Sophia Smith'
+							})
+							+event-joan({
+								time: '2:00 pm - 3:00 pm',
+								title: 'Cardio',
+								name: 'Patrick Stuart'
+							})
+							+event-joan({
+								time: '3:00 pm - 4:00 pm',
+								title: 'Yoga',
+								name: 'Ann Williams'
+							})

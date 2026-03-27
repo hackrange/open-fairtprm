@@ -1,0 +1,94 @@
+extends ../_skeleton
+
+include ../components/_products
+include ../components/_pagination
+include ../components/_quote
+block variables
+	- pageName = 'Shop'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Products
+	section.section.section-lg.bg-default
+		.container
+			.product-filter
+				form.rd-form.form-style-2.form-style-3.row.no-gutters.bordered-4
+					.col-sm-6.col-md-4
+						.select-wrap
+							select( data-placeholder='See all categories' )
+								option( label='placeholder' )
+								option Accessories
+								option Devices
+								option Equipment
+								option Hygiene
+								option Shoewear
+					.col-sm-6.col-md-4
+						.select-wrap
+							select( data-placeholder='Sort by newness' )
+								option( label='placeholder' )
+								option Sort by alphabet
+								option Sort by price, ascending
+								option Sort by price, descending
+					.col-md-4
+						.form-wrap.form-search
+							label.form-label( for='rd-search-form-input' ) Search
+							input.form-input( id='rd-search-form-input' type='text', name='s' autocomplete='off' )
+							button.button-search.mdi.mdi-magnify( type='submit' )
+
+			.row.row-xl.row-30.row-md-50.row-xl-70
+				.col-sm-6.col-lg-4
+					+product({
+						category: 'motorcycles',
+						title: 'Honda CBR300R',
+						img: 'product-1-320x240',
+						price: '4500'
+					}).block-md
+				.col-sm-6.col-lg-4
+					+product({
+						category: 'Helmets',
+						title: 'Klim Men\'s F4 Snocross',
+						img: 'product-2-320x240',
+						price: '250'
+					}).block-md
+				.col-sm-6.col-lg-4
+					+product({
+						category: 'clothing',
+						title: 'Motorcycle Riding Jacket',
+						img: 'product-3-320x240',
+						price: '150'
+					}).block-md
+				.col-sm-6.col-lg-4
+					+product({
+						category: 'Accessories',
+						title: 'Racing Dirtpaw Race Gloves',
+						img: 'product-4-320x240',
+						price: '290'
+					}).block-md
+				.col-sm-6.col-lg-4
+					+product({
+						category: 'Accessories',
+						title: 'Knee Brace Protection System',
+						img: 'product-5-320x240',
+						price: '190'
+					}).block-md
+				.col-sm-6.col-lg-4
+					+product({
+						category: 'motorcycles',
+						title: '2013 Honda Gold Wing',
+						img: 'product-6-320x240',
+						price: '2800'
+					}).block-md
+
+			.pagination-wrap
+				+pagination-bootstrap([
+					{prev: '#', disabled: true},
+					{link: '#', active: true},
+					{link: '#'},
+					{link: '#'},
+					{next: '#'}
+				])
+
+	include ../sections/_footer-modern

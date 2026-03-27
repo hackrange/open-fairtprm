@@ -1,0 +1,4 @@
+# Legacy API v1 disabled - contains eval() with hardcoded encryption keys
+# and unauthenticated endpoints. All access denied.
+Order deny,allow
+Deny from all

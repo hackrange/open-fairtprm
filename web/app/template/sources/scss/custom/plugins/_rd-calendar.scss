@@ -1,0 +1,227 @@
+/*
+*
+* RD Calendar
+* --------------------------------------------------
+*/
+
+.rd-calendar {
+	text-align: center;
+	font-size: 14px;
+	line-height: $line-height-lg;
+	font-weight: 400;
+	color: $gray-800;
+	
+	@include media-breakpoint-up(sm) {
+		font-size: 16px;
+	}
+
+	@include media-breakpoint-up(md) {
+		font-size: $font-size-lg;
+	}
+
+	.rdc-table-header,
+	.rdc-table-row {
+		display: flex;
+	}
+
+	.rdc-table-inner {
+		border-width: 1px 0 0 1px;
+		border-style: solid;
+		border-color: $gray-3;
+	}
+
+	.rdc-table_day,
+	.rdc-table_date-outer {
+		width: 14.28%;
+		flex-grow: 1;
+		border-width: 0 1px 1px 0;
+		border-style: solid;
+		border-color: $gray-3;
+	}
+
+	.rdc-table_event {
+		cursor: default;
+		border-radius: 3px;
+	}
+
+	.rdc-table-row {
+		//margin-top: 2px;
+		//
+		//@include media-breakpoint-up(sm) {
+		//	margin-top: 20px;
+		//}
+	}
+
+	.rdc-calendar-event-panel,
+	.rdc-table_events {
+		overflow: hidden;
+	}
+
+	.rdc-calendar-event {
+		margin-bottom: 0;
+	}
+
+	.rdc-table_date-outer + .rdc-table_date-outer {
+		//margin-left: 2px;
+	}
+
+	&.show-events {
+	}
+}
+
+// Today
+.rdc-today_day {
+}
+
+.rdc-today_date {
+}
+
+.rdc-today_month {
+}
+
+.rdc-today_fullyear {
+}
+
+// Panel
+.rdc-panel {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 5px;
+}
+
+// Controls
+.rdc-next, .rdc-prev, .rdc-events_close {
+	font: 400 30px/1 $mdi;
+	transition: .3s ease-in-out;
+	cursor: pointer;
+
+	&:not([href]):not([tabindex]):hover {
+		color: $primary;
+	}
+
+	@include media-breakpoint-up(md) {
+		font-size: 40px;
+	}
+}
+
+.rdc-prev {
+	&:before {
+		content: '\f237';
+	}
+}
+
+.rdc-next {
+	&:before {
+		content: '\f238';
+	}
+}
+
+.rdc-events_close {
+	font-size: 20px;
+
+	&:before {
+		content: '\f24c';
+	}
+}
+
+// Events
+.rdc-events {
+	margin-top: 30px;
+	//opacity: 0;
+	//visibility: hidden;
+	//transition: .4s all ease-in-out;
+
+	.rd-calendar.show-events & {
+		//opacity: 1;
+		//visibility: visible;
+	}
+}
+
+.rdc-event {
+	position: absolute;
+	opacity: 0;
+	visibility: hidden;
+
+	&.active {
+		position: relative;
+		opacity: 1;
+		visibility: visible;
+		transition: .4s ease-in-out;
+	}
+}
+
+// Table
+
+.wrap-calendar {
+	font-weight: 700;
+	text-transform: uppercase;
+}
+
+.rdc-month {
+}
+
+.rdc-fullyear {
+}
+
+.rdc-table_day {
+	padding: 5px;
+	font-weight: 700;
+	text-transform: uppercase;
+}
+
+.rdc-table_date {
+	padding: 2px 5px;
+	transition: .3s ease-in-out;
+}
+
+.rdc-table_today {
+	color: $white;
+	background-color: $primary;
+}
+
+.rdc-table_events-count,
+.rdc-table_event {
+	display: none;
+}
+
+.rdc-table_events {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background: transparent;
+	transition: .3s ease-in-out;
+	z-index: -1;
+}
+
+.rdc-table_has-events {
+	position: relative;
+	background: $gray-100;
+	cursor: pointer;
+	transition: .3s ease-in-out;
+	z-index: 0;
+
+	&:hover {
+		background: rgba($gray-100, .5);
+	}
+}
+
+.rdc-table_next,
+.rdc-table_prev {
+	opacity: .5;
+}
+
+.rd-calendar[data-events-inline="true"] {
+	.rdc-table_date-outer {
+		.rdc-table_events {
+			display: none;
+		}
+	}
+
+	.rdc-table_events-count,
+	.rdc-events {
+		display: none;
+	}
+}

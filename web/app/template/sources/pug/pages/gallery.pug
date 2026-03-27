@@ -1,0 +1,77 @@
+extends ../_skeleton
+
+include ../components/_thumbnails
+include ../components/_quote
+block variables
+	- pageName = 'Gallery'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Classes
+	section.section.section-lg.bg-default
+		.row.row-8.gutter-8( data-lightgallery='group' )
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-1-475x354',
+					imgOriginal: 'gallery-1-1200x800-original'
+				})
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-2-475x354',
+					imgOriginal: 'gallery-5-1200x800-original'
+				})
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-3-475x354',
+					imgOriginal: 'gallery-6-1200x800-original'
+				})
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-4-475x354',
+					imgOriginal: 'gallery-7-1200x800-original'
+				})
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-5-475x354',
+					imgOriginal: 'gallery-3-1200x800-original'
+				})
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-6-475x354',
+					imgOriginal: 'gallery-8-1200x800-original'
+				})
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-7-475x354',
+					imgOriginal: 'gallery-9-1200x800-original'
+				})
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-8-475x354',
+					imgOriginal: 'gallery-10-1200x800-original'
+				})
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-9-475x354',
+					imgOriginal: 'gallery-11-1200x800-original'
+				})
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-10-475x354',
+					imgOriginal: 'gallery-12-1200x800-original'
+				})
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-11-475x354',
+					imgOriginal: 'gallery-13-1200x800-original'
+				})
+			.col-sm-6.col-md-4.col-xl-3
+				+thumbnail-classic({
+					img: 'gallery-12-475x354',
+					imgOriginal: 'gallery-4-1200x800-original'
+				})
+
+	include ../sections/_footer-modern

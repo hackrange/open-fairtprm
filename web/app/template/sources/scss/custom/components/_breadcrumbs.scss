@@ -1,0 +1,145 @@
+/** @section Breadcrumbs */
+
+// Local variables
+$breadcrumb-padding-vertical: 8px;
+$breadcrumb-padding-horizontal: 15px;
+$breadcrumb-bg: $gray-700;
+$breadcrumb-color: $gray-800;
+$breadcrumb-active-color: $gray-800;
+$breadcrumb-separator: '\\';
+
+// Base styles
+.breadcrumbs-custom {
+	position: relative;
+	text-align: center;
+	background-color: $white;
+	padding-top: 60px;
+	&:after{
+		display: none;
+	}
+	&:before{
+		top: 0;
+	}
+}
+
+.breadcrumbs-main {
+	padding: 0 0 50px 0;
+	.breadcrumbs-media{
+		display: flex;
+		justify-content: center;
+		padding: 15px 0 0px 0;
+		max-width: 300px;
+		margin-left: auto;
+		margin-right: auto;
+
+		@include media-breakpoint-up(md) {
+			padding: 15px 0 15px 0;
+		}
+		@include media-breakpoint-up(xl) {
+			max-width: none;
+			justify-content: flex-end;
+			width: 100%;
+			padding-right: 20px;
+		}
+		img{
+			object-fit: contain;
+			@include media-breakpoint-up(xl) {
+				width: 486px;
+				max-width: none;
+			}
+		}
+	}
+}
+
+.ie-10,.ie-11{
+	.breadcrumbs-media{
+		@include media-breakpoint-up(xl) {
+			width: 486px;
+			float: right;
+		}
+	}
+}
+
+.breadcrumbs-panel {
+	padding: 15px 0;
+	background: $gray-light;
+}
+
+.breadcrumbs-custom-path {
+	font-size: 0;
+	line-height: 0;
+	@include spacingX(30px);
+
+	a {
+		display: inline;
+
+		&,
+		&:active,
+		&:focus {
+			color: $breadcrumb-color;
+		}
+	}
+
+	li {
+		position: relative;
+		display: inline-block;
+		vertical-align: middle;
+		font-size: 12px;
+		line-height: 1.2;
+		font-weight: 500;
+		letter-spacing: .13em;
+		text-transform: uppercase;
+
+		&::after {
+			position: absolute;
+			right: -3px;
+			content: $breadcrumb-separator;
+		}
+	}
+
+	li:last-child {
+		&:after {
+			display: none;
+		}
+	}
+
+	a:hover {
+		color: $primary;
+	}
+
+	li.active {
+		color: $breadcrumb-active-color;
+		font-weight: 900;
+	}
+}
+
+@include media-breakpoint-up(md) {
+
+	.breadcrumbs-main {
+		padding: 0;
+	}
+}
+
+@include media-breakpoint-up(lg) {
+
+
+	.breadcrumbs-main {
+		padding: 0;
+	}
+
+	.breadcrumbs-panel {
+		padding: 25px 0;
+	}
+}
+
+@include media-breakpoint-up(xl) {
+	.breadcrumbs-main {
+		padding: 0;
+	}
+}
+
+@include media-breakpoint-up(xxl) {
+	.breadcrumbs-main {
+		padding: 0;
+	}
+}

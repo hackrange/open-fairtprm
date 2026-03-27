@@ -1,0 +1,35 @@
+extends ../_skeleton
+
+include ../components/_progress-linear
+include ../components/_countdown
+include ../components/_quote
+block variables
+	- pageName = 'Progress Bars'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Countdown
+	section.section.section-lg.bg-default.text-center
+		.container
+			+countdown({ to: '2019-12-31' })
+
+	//Skill Bars
+	section.section.section-lg.bg-default
+		.container: .row.justify-content-center: .col-sm-11.col-md-9.col-lg-7.col-xl-6.progress-linear-wrap
+			+progress-linear({
+				title: 'DEDICATION',
+				value: '85'
+			})
+			+progress-linear({
+				title: 'KNOWLEDGE',
+				value: '80'
+			}).progress-linear-blue
+			+progress-linear({
+				title: 'EXPERIENCE',
+				value: '70'
+			}).progress-linear-secondary
+
+	include ../sections/_footer-modern

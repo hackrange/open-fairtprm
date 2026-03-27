@@ -1,0 +1,27 @@
+//- Video
+mixin video( obj )
+	// Video
+	article.video&attributes( attributes )
+		+img( obj.img ).video-image
+		a.video-link( href=obj.link data-lightgallery='item' ): span.icon.mdi.mdi-play
+
+mixin video-2( obj )
+	// Video
+	article.video-classic.video&attributes( attributes )
+		.video-figure: +img( obj.img ).video-image
+		a.video-link( href=obj.link data-lightgallery='item' ): span.icon.mdi.mdi-play
+
+mixin video-modern( obj )
+	// Video modern
+	article.video-modern&attributes( attributes )
+		+img( obj.img ).video-modern-image
+		a.video-modern-link( href=obj.link data-lightgallery='item' ): span.icon.mdi.mdi-play
+
+mixin video-creative( obj )
+	// Video creative
+	article.video-creative&attributes( attributes )
+		.video-creative-figure
+			+img( obj.img ).img-duotone( data-gradient-map="#181b6e, #ffffff" )
+			.video-creative-caption
+				a.video-creative-link( href=obj.link data-lightgallery='item' ): span.icon.mdi.mdi-play
+				.video-creative-title how i work

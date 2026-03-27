@@ -1,0 +1,233 @@
+/** @section Sections */
+
+// Section Spacing
+.section-xs,
+.section-sm,
+.section-md,
+.section-lg,
+.section-xl,
+.section-xxl {
+	padding: 50px 0;
+}
+
+// Section collapse
+.section-collapse + .section-collapse {
+	padding-top: 0;
+}
+
+.section-collapse:last-child {
+	padding-bottom: 0;
+}
+
+// Section with bottom zero padding
+html [class*='section-'].section-bottom-0 {
+	padding-bottom: 0;
+}
+
+@include media-breakpoint-down(md) {
+	section.section-sm,
+	section.section-md,
+	section.section-lg,
+	section.section-xl,
+	section.section-xxl {
+		&:first-of-type {
+			padding-top: 40px;
+		}
+	}
+}
+
+@include media-breakpoint-up(md) {
+
+	.section-sm { padding: 60px 0; }
+	.section-md { padding: 70px 0; }
+	.section-lg { padding: 80px 0; }
+	.section-xl { padding: 90px 0; }
+	.section-xxl { padding: 100px 0; }
+}
+
+@include media-breakpoint-up(lg) {
+
+	.section-xs { padding: 60px 0; }
+	.section-sm { padding: 70px 0; }
+	.section-md { padding: 80px 0; }
+	.section-lg { padding: 90px 0; }
+	.section-xl { padding: 100px 0; }
+	.section-xxl { padding: 110px 0; }
+
+	.section-inset-1 { padding-bottom: 130px; }
+	.rd-navbar-static-linked .section-inset-2 { padding: 160px 0; }
+	.section-inset-5 { padding-top: 200px; }
+}
+
+@include media-breakpoint-up(xl) {
+
+	.section-xs { padding: 70px 0; }
+	.section-sm { padding: 80px 0; }
+	.section-md { padding: 90px 0; }
+	.section-lg { padding: 100px 0; }
+	.section-xl { padding: 110px 0; }
+	.section-xxl { padding: 120px 0; }
+
+	.section-inset-1 { padding-bottom: 150px; }
+	.section-inset-3 { padding-top: 140px; }
+	.section-inset-4 { padding: 260px 0 140px; }
+	.section-inset-5 { padding: 325px 0 180px; }
+	.section-inset-6 { padding-bottom: 0; }
+	.section-inset-7 { padding: 160px 0; }
+	.section-inset-8 { padding: 200px 0 240px; }
+	.section-inset-9 { padding-top: 0; }
+}
+
+@include media-breakpoint-up(xxl) {
+	.section-inset-10 { padding: 150px 0; }
+	.section-inset-11 { padding: 140px 0; }
+}
+
+
+
+//
+// Section single
+//
+.section-single {
+	position: relative;
+	display: flex;
+	text-align: center;
+	z-index: 1;
+
+	p {
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	.rd-mailform-wrap {
+		max-width: 720px;
+		margin-left: auto;
+		margin-right: auto;
+		text-align: center;
+	}
+
+	* + .rights { margin-top: 30px; }
+	* + .rd-mailform-wrap { margin-top: 30px; }
+
+	@include media-breakpoint-up(md) {
+		* + .rd-mailform-wrap { margin-top: 45px; }
+	}
+
+	@include media-breakpoint-up(lg) {
+
+		* + .rights { margin-top: 60px; }
+		* + .rd-mailform-wrap { margin-top: 60px; }
+	}
+
+	@include media-breakpoint-up(xl) {
+
+		* + .rd-mailform-wrap { margin-top: 80px; }
+	}
+}
+
+.section-single-header {
+	padding: calc(1em + 2vh) 0;
+}
+
+.section-single-main {
+	padding: calc(1em + 4vh) 0;
+}
+
+.section-single-footer {
+	padding: calc(1em + 2vh) 0;
+}
+
+.section-single-inner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	min-height: 100vh;
+
+	> * {
+		width: 100%;
+	}
+}
+
+@include media-breakpoint-up(lg) {
+
+	.section-single-header {
+		padding-top: calc(1em + 6vh);
+	}
+
+	.section-single-footer {
+		padding-bottom: calc(1em + 3vh);
+	}
+}
+
+
+
+// Section Decor
+
+.section-decor {
+	position: relative;
+	z-index: 0;
+
+	&::before {
+		position: absolute;
+		content: '';
+		background-image: radial-gradient($gray-200 1.5px, transparent 2.5px);
+		background-size: 30px 30px;
+		z-index: -1;
+	}
+}
+
+.section-decor-left {
+	&::before {
+		top: 0;
+		bottom: 0;
+		left: 0;
+		width: 15.6%;
+		background-position: 0 0;
+	}
+}
+
+.section-decor-left-2 {
+	&::before {
+		bottom: 0;
+		left: 0;
+		width: 25%;
+		height: 77%;
+		background-position: 0 100%;
+	}
+}
+
+.section-decor-top {
+	&::before {
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 15%;
+		background-position: 0 0;
+
+		@include media-breakpoint-up(lg) {
+			height: 20%;
+		}
+	}
+}
+
+.overflow-hidden{
+	overflow: hidden;
+}
+
+.section-decor-1{
+	position: relative;
+	&:after{
+		@include media-breakpoint-up(lg) {
+			content: '';
+			position: absolute;
+			left: 10%;
+			top: 13%;
+			width: 90px;
+			height: 90px;
+			background: url('../images/bg-figure-1-90x90.png') no-repeat center;
+			z-index: 2;
+		}
+	}
+}

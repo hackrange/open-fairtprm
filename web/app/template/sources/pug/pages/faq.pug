@@ -1,0 +1,39 @@
+extends ../_skeleton
+
+include ../components/_card
+include ../components/_quote
+block variables
+	- pageName = 'FAQ'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//FAQ
+	section.section.section-lg.bg-default
+		.container: .row.justify-content-center: .col-xl-11
+			#accordion1.card-group-custom.card-group-minimal( role='tablist', aria-multiselectable='false' )
+				+card({
+					show: true,
+					parentId: 'accordion1',
+					title: 'Do you provide any scripts with your templates?'
+				}).card-minimal
+					p.big Our templates do not include any additional scripts. Newsletter subscriptions, search fields, forums, image galleries (in HTML versions of Flash products) are inactive. Basic scripts can be easily added at www.zemez.io If you are not sure that the element you’re interested in is active please contact our Support Chat for clarification.
+				+card({
+					parentId: 'accordion1',
+					title: 'What are the advantages of purchasing a website template?'
+				}).card-minimal
+					p.big The major advantage is price: You get a high quality design for just $20-$70. You don’t have to hire a web designer or web design studio. Second advantage is time frame: It usually takes 5-15 days for a good designer to produce a web page of such quality.
+				+card({
+					parentId: 'accordion1',
+					title: 'What do I receive when I order a template from Zemez?'
+				}).card-minimal
+					p.big After you complete the payment via our secure form you will receive the instructions for downloading the product. The source files in the download package can vary based on the type of the product you have purchased.
+				+card({
+					parentId: 'accordion1',
+					title: 'In what formats are your templates available?'
+				}).card-minimal
+					p.big Website templates are available in Photoshop and HTML formats. Fonts are included with the Photoshop file. In most templates, HTML is compatible with Adobe® Dreamweaver® and Microsoft® FrontPage®.
+
+	include ../sections/_footer-modern

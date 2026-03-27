@@ -1,0 +1,56 @@
+header.section.page-header
+	//RD Navbar
+	.rd-navbar-wrap
+		nav.rd-navbar.rd-navbar-classic.rd-navbar-classic-1(
+			data-layout=                'rd-navbar-fixed'
+			data-sm-layout=             'rd-navbar-fixed'
+			data-md-layout=             'rd-navbar-fixed'
+			data-md-device-layout=      'rd-navbar-fixed'
+			data-lg-layout=             'rd-navbar-static'
+			data-lg-device-layout=      'rd-navbar-fixed'
+			data-xl-layout=             'rd-navbar-static'
+			data-xl-device-layout=      'rd-navbar-static'
+			data-xxl-layout=            'rd-navbar-static'
+			data-xxl-device-layout=     'rd-navbar-static'
+			data-lg-stick-up-offset=    '50px'
+			data-xl-stick-up-offset=    '1px'
+			data-xxl-stick-up-offset=   '1px'
+			data-lg-stick-up=           'true'
+			data-xl-stick-up=           'true'
+			data-xxl-stick-up=          'true'
+			data-lg-auto-height=        'false'
+			data-xl-auto-height=        'false'
+			data-xxl-auto-height=       'false'
+		)
+			.rd-navbar-main-outer
+				.rd-navbar-main
+					//RD Navbar Panel
+					.rd-navbar-panel
+						//RD Navbar Toggle
+						button.rd-navbar-toggle( data-rd-navbar-toggle='.rd-navbar-nav-wrap' ): span
+
+						//RD Navbar Brand
+						.rd-navbar-brand: +logo
+
+					.rd-navbar-nav-wrap: +navigation( menu )
+					a.button.button-sm.button-primary-outline.rd-navbar-fixed-element-2( href='#' )
+						span.icon.mdi.mdi-calendar-check
+						span.button-text Take part
+
+					button.sidebar-toggle.rd-navbar-fixed-element-1( data-rd-navbar-toggle='.sidebar-classic-wrap' ): span
+			.sidebar-classic-wrap
+				.sidebar-classic
+					ul.contacts-classic
+						li
+							= 'T. '
+							a( href='tel:#' ) +61 3 8376 6284
+							br
+							= 'E. '
+							a( href='mailto:#' ) info@demolink.org
+						li 652 Main Road, Apt 12 New York, USA 10033
+				.sidebar-classic-panel
+					ul.list-social.list-inline.list-inline-md
+						li: a.icon.mdi.mdi-facebook( href='#' )
+						li: a.icon.mdi.mdi-google( href='#' )
+						li: a.icon.mdi.mdi-twitter( href='#' )
+						li: a.icon.mdi.mdi-pinterest( href='#' )

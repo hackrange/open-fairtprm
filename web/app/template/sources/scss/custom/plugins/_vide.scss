@@ -1,0 +1,34 @@
+/*
+*
+* Video BG
+* --------------------------------------------------
+*/
+
+.vide {
+  width: 100%;
+  background-size: cover;
+  background-position: center;
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  video {
+    will-change: transform;
+    pointer-events: none;
+  }
+}
+
+.vide-1 {
+  &::before {
+    position: absolute;
+    content: '';
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: rgba($black, .6);
+    z-index: 1;
+  }
+}

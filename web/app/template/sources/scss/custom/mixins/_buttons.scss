@@ -1,0 +1,57 @@
+// Custom button variants
+@mixin btn-variant($clr, $bg, $bd, $clr-hover, $bg-hover, $bd-hover) {
+	&,
+	&:focus {
+		color: $clr;
+		background-color: $bg;
+		border-color: $bd;
+	}
+
+	&:hover,
+	&:active,
+	&.active {
+		color: $clr-hover;
+		background-color: $bg-hover;
+		border-color: $bd-hover;
+	}
+
+	&.button-ujarak {
+		&::before {
+			background: $bg-hover;
+		}
+	}
+}
+
+// Button sizes
+@mixin btn-size($padding-vertical, $padding-horizontal, $font-size, $line-height) {
+	padding: $padding-vertical  $padding-horizontal ;
+	font-size: $font-size - 2;
+	line-height: $line-height;
+
+	@include media-breakpoint-up(md) {
+		padding: $padding-vertical - 4 $padding-horizontal - 10;
+		font-size: $font-size - 1;
+	}
+
+	@include media-breakpoint-up(lg) {
+		padding: $padding-vertical $padding-horizontal;
+		font-size: $font-size;
+	}
+}
+
+// Reset Button
+@mixin reset-button() {
+	background: none;
+	border: none;
+	display: inline-block;
+	padding: 0;
+	outline: none;
+	outline-offset: 0;
+	cursor: pointer;
+	-webkit-appearance: none;
+
+	&::-moz-focus-inner {
+		border: none;
+		padding: 0;
+	}
+}

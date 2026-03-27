@@ -1,0 +1,199 @@
+/** @section Comments */
+
+//
+// Comment
+//
+.comment {
+	position: relative;
+	text-align: left;
+	padding-bottom: 30px;
+	font-weight: 400;
+	letter-spacing: .05em;
+	border-bottom: 1px solid $gray-4;
+	color: $gray-800;
+
+	> .comment {
+		margin-top: 35px;
+		padding-top: 35px;
+		border-top: 1px solid $gray-4;
+		padding-bottom: 0;
+		border-bottom: none;
+	}
+}
+
+.comment-image {
+	max-width: 60px;
+}
+
+.comment-author {
+	text-transform: none;
+}
+
+.comment-time {
+	color: $gray-9;
+}
+
+.comment-form {
+	text-align: left;
+
+	.unit-body { flex-grow: 1; }
+	* + .form-wrap { margin-top: 20px; }
+}
+
+.tab-content .comment {
+	padding-bottom: 0;
+	border-bottom: none;
+}
+
+// Offsets
+* + .comment { margin-top: 30px; }
+* + .comment-form { margin-top: 30px; }
+.comment-form + .button { margin-top: 30px; }
+* + .comment-text { margin-top: 12px; }
+.comment + h6 { margin-top: 30px; }
+.comment + .comment { margin-top: 30px; }
+
+// Media
+@include media-breakpoint-up(sm) {
+	.comment-image {
+		max-width: 80px;
+	}
+}
+
+// Medium ≥768px
+@include media-breakpoint-up(md) {
+
+	.comment {
+		padding-bottom: 45px;
+
+		> .comment {
+			margin-top: 45px;
+			padding-top: 45px;
+			margin-left: 70px;
+		}
+	}
+
+	.comment-image {
+		max-width: 100%;
+	}
+
+	.comment + h6 { margin-top: 40px; }
+	.comment + .comment { margin-top: 45px; }
+	* + .comment-form { margin-top: 45px; }
+}
+
+// Extra large ≥1200px
+@include media-breakpoint-up(xl) {
+
+	.comment {
+
+		> .comment {
+			margin-left: 145px;
+		}
+	}
+}
+
+
+
+// Box rating
+.box-rating {
+	font-size: 0;
+	line-height: 0;
+
+	> * {
+		vertical-align: middle;
+		font-size: 19px;
+		color: $yellow-2;
+	}
+}
+
+
+
+//
+// Comment Classic
+//
+.comment-classic {
+	position: relative;
+	text-align: left;
+	padding-bottom: 30px;
+	border-bottom: 1px solid $gray-4;
+
+	> .comment-classic {
+		margin-top: 35px;
+		padding-top: 35px;
+		border-top: 1px solid $gray-4;
+		padding-bottom: 0;
+		border-bottom: none;
+	}
+}
+
+.comment-classic-image {
+	border-radius: 5px;
+	max-width: 60px;
+}
+
+.comment-classic-author {
+	text-transform: none;
+}
+
+.comment-classic-time {
+	color: $gray-800;
+	font-weight: 400;
+}
+
+.comment-classic-link {
+	font-size: 15px;
+	font-weight: 500;
+	color: $gray-800;
+
+	.icon {
+		font-size: 24px;
+		color: rgba($gray-800, .5);
+	}
+
+	a {
+		@include link(inherit, $primary)
+	}
+
+	> * {
+		vertical-align: middle;
+	}
+
+	> * + * {
+		margin-left: 6px;
+	}
+}
+
+// Offsets
+* + .comment-classic { margin-top: 30px; }
+* + .comment-classic-text { margin-top: 6px; }
+* + .comment-classic-panel { margin-top: 10px; }
+.comment-classic + .comment-classic { margin-top: 30px; }
+
+// Media
+@include media-breakpoint-up(sm) {
+	.comment-classic-image {
+		max-width: 80px;
+	}
+}
+
+@include media-breakpoint-up(md) {
+
+	.comment-classic {
+		padding-bottom: 45px;
+
+		> .comment-classic {
+			margin-top: 45px;
+			padding-top: 45px;
+			margin-left: 90px;
+		}
+	}
+
+	.comment-classic-image {
+		max-width: 100%;
+	}
+
+	* + .comment-classic { margin-top: 50px; }
+	* + .comment-classic-panel { margin-top: 20px; }
+	.comment-classic + .comment-classic { margin-top: 45px; }
+}

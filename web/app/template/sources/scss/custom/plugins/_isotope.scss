@@ -1,0 +1,32 @@
+/** @section Isotope */
+
+
+.isotope {
+	z-index: 0;
+	display: block;
+	transition: .3s ease;
+}
+
+.isotope-sizer {
+	height: 0;
+	margin-top: -1px;
+	margin-bottom: 0;
+}
+
+.isotope-item {
+	display: block;
+	will-change: transform;
+	backface-visibility: hidden;
+	transition: .1s opacity ease-in;
+}
+
+.isotope-filters {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+// Offsets
+* + .isotope {
+	margin-top: 28px;
+}

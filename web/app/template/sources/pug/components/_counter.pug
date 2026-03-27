@@ -1,0 +1,45 @@
+//- Counter
+	@param {object} obj
+	@param {number} obj.value
+	@param {string} [obj.title]
+	@param {string} [obj.postfix]
+	@param {number} [obj.duration]
+mixin counter( obj )
+	//Counter
+	.counter-wrap&attributes( attributes )
+		.counter-main
+			.heading-1.counter-number.counter( data-speed= obj.duration )= obj.value
+			if ( obj.postfix )
+				.heading-3.counter-postfix= obj.postfix
+		.big.counter-text= obj.text
+
+mixin counter-classic( obj )
+	//Counter classic
+	.counter-classic&attributes( attributes )
+		.unit.unit-spacing-2
+			.unit-left
+				.counter-classic-main
+					.heading-1.counter-classic-number.counter( data-speed= obj.duration )= obj.value
+					if ( obj.postfix )
+						.heading-3.counter-classic-postfix= obj.postfix
+			.unit-body
+				.counter-classic-icon( class= obj.icon )
+				.big.counter-classic-text= obj.text
+
+mixin counter-minimal( obj )
+	//Counter minimal
+	.counter-minimal&attributes( attributes )
+		.counter-minimal-main
+			.heading-7.counter-minimal-number.counter( data-speed= obj.duration )= obj.value
+			if ( obj.postfix )
+				.heading-5.counter-minimal-postfix= obj.postfix
+		.counter-minimal-title= obj.title
+
+mixin counter-nikki( obj )
+	//Counter nikki
+	.counter-nikki&attributes( attributes )
+		.counter-nikki-main
+			.heading-1.counter-nikki-number.counter( data-speed= obj.duration )= obj.value
+			if ( obj.postfix )
+				.heading-5.counter-nikki-postfix= obj.postfix
+		.counter-nikki-title= obj.title

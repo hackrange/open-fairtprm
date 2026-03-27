@@ -1,0 +1,388 @@
+// Variables
+
+// Color system
+// Gray colors
+$white: #ffffff;
+$gray-100: #f5f5f5;
+$gray-200: #d7d7d7;
+$gray-300: #cccccc;
+$gray-400: #b7b7b7;
+$gray-500: #9b9b9b;
+$gray-600: #868e96;
+$gray-700: #3d3d3d;
+$gray-800: #151515;
+$gray-900: #111111;
+$black: #000000;
+$gray-light: #f6f6f6;
+$gray-1: #e8e8e8;
+$gray-2: #dddddd;
+$gray-3: #d1d1d1;
+$gray-4: #e1e1e1;
+$gray-5: #373737;
+$gray-6: #5c5b5b;
+$gray-7: #3e3e3e;
+$gray-8: #3a3a3a;
+$gray-9: #777777;
+$gray-10: #202020;
+$gray-11: #505050;
+$gray-12: #08151d;
+$gray-13: #313131;
+$gray-14: #3f4046;
+$gray-15: #46474b;
+$gray-16: #4a4b52;
+$gray-17: #404148;
+$gray-18: #595a62;
+$gray-19: #232a30;
+$gray-20: #ebebeb;
+$gray-21: #2d2c2c;
+$gray-22: #252525;
+$gray-23: #b8b8b8;
+
+// Body 
+$body-bg: $white;
+$body-color: rgba($gray-800, .8);
+
+$theme-colors: ();
+
+// Accent colors
+$primary:   #ff6543;
+$secondary: #ffc83b;
+$accent-red: #d04222;
+$red-light: #ff6543;
+$red-2: #eb502e;
+
+
+
+
+
+$danger-color: #f5543f;
+$success-color: #98bf44;
+$green-1: #d4efb9;
+$green-2: #1ec2b1;
+$green-3: #40c692;
+$green-4: #c5e6d9;
+$yellow-1: #fff4a9;
+$yellow-2: #f6db41;
+$yellow-3: #fff663;
+$rose-1: #f1d4d1;
+$turquoise-1: #d7f6f1;
+$blue-1: #6693d0;
+$blue-2: #4371cf;
+$red-1: #f6425f;
+$violet-1: #7977cf;
+$violet-2: #f0e4f5;
+$orange-1: #f4a14f;
+
+// Accent colors shade
+$primary-1: darken(saturate(adjust_hue($primary, -0.36184210526317884), 30.817610062893074%), 30.19607843137254%);
+$primary-2: lighten(saturate(adjust_hue($primary, -0.3250773993808025), 32.15094339622642%), 36.66666666666667%);//#f8eafb
+$primary-3: darken(desaturate(adjust_hue($primary, 13.638684061259198), 9.035181236673765%), 17.64705882352941%);//#181b6e
+$primary-4: darken(desaturate(adjust_hue($primary, 0.16483516483521043), 28.12142038946162%), 19.607843137254896%);
+$secondary-1: darken(desaturate(adjust_hue($secondary, -9.824753559693363), 33.14917127071824%), 2.941176470588246%);
+$secondary-2: lighten(desaturate(adjust_hue($secondary, 3.8990825688073336), 9.999999999999972%), 3.529411764705891%);//#f5aa41;
+$secondary-3: lighten(desaturate(adjust_hue($secondary, 0.012908777969016683), 22.222222222222214%), 4.313725490196077%);//#ef7f81;
+$secondary-4: darken(desaturate(adjust_hue($secondary, 0.16483516483521043), 28.12142038946162%), 19.607843137254896%);
+$secondary-5: lighten(desaturate(adjust_hue($secondary, -358.9156626506024), 13.513513513513516%), 3.529411764705884%);//#f57575
+$secondary-6: darken(desaturate(adjust_hue($secondary, -22.665662650602428), 48.38709677419356%), 3.9215686274509878%);//#d27298
+$secondary-7: darken(desaturate(adjust_hue($secondary, -12.37360657583605), 38.150289017341045%), 1.3725490196078454%);//#de738b
+
+// Additional colors
+$facebook: #4d70a8;
+$facebook-light: #748abc;
+$facebook-darken: darken($facebook, 5%);
+
+$twitter: #02bcf3;
+$twitter-light: #81cbdb;
+$twitter-darken: darken($twitter, 5%);
+
+$google: #e2411e;
+$google-light: #de7272;
+$google-darken: darken($google, 5%);
+
+// Page
+$page-boxed-width: 1600px;
+$page-boxed-background-color: $gray-100;
+$page-boxed-background-image: url(../images/bg-pattern-boxed.png);
+
+// Components
+// Define common padding and border radius sizes and more.
+$border-width: 1px;
+
+$border-radius: 0;
+$border-radius-lg: .3rem;
+$border-radius-sm: .2rem;
+
+$transition-base: all .3s ease-in-out;
+
+// Map
+$map-height: 200px;
+$map-xs-height: 250px;
+$map-md-height: 450px;
+
+// Custom
+$shadow-area-1: -3px 0px 50px -2px rgba(0, 0, 0, 0.09);
+$shadow-area-2: 1px 1px 10px 0 rgba(0, 0, 0, 0.2);
+
+// Fonts
+// Font, line-height, and color for body text, headings, and more.
+$font-family-sans-serif: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+$font-family-sans-serif-1: "Barlow Condensed", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !default;
+$font-family-serif: "Roboto Slab", "Times New Roman", Times, serif;
+$font-family-monospace: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+$font-family-base: $font-family-sans-serif;
+$font-family-sec: $font-family-sans-serif-1;
+
+$font-weight-bold: 700;
+
+// Base fonts 
+$font-size-body: 18px;
+$font-size-lg: 18px;
+$font-size-sm: 12px;
+
+$_lh-base: 30px;
+$_lh-lg: 33px;
+$_lh-sm: 18px;
+
+$font-weight-base: 400;
+
+// ** < Calculated font values >
+$line-height-base: ($_lh-base / $font-size-body);
+$line-height-lg: ($_lh-lg / $font-size-lg);
+$line-height-sm: ($_lh-sm / $font-size-sm);
+// ** </ Calculated font values >
+
+// Headings
+$headings-font-family: $font-family-base;
+$headings-font-weight: 700;
+$headings-line-height: 1.1;
+$headings-color: $gray-800;
+
+// Template Heading Values
+$_h1-fsz: 72;
+$_h2-fsz: 48;
+$_h3-fsz: 36;
+$_h4-fsz: 28;
+$_h5-fsz: 24;
+$_h6-fsz: 18;
+
+$_h1-lh: 111;
+$_h2-lh: 60;
+$_h3-lh: 48;
+$_h4-lh: 36;
+$_h5-lh: 30;
+$_h6-lh: 30;
+
+// ** < Calculated Headings values >
+$h1-font-size: $_h1-fsz * 1px;
+$h2-font-size: $_h2-fsz * 1px;
+$h3-font-size: $_h3-fsz * 1px;
+$h4-font-size: $_h4-fsz * 1px;
+$h5-font-size: $_h5-fsz * 1px;
+$h6-font-size: $_h6-fsz * 1px;
+
+$h1-line-height: ($_h1-lh / $_h1-fsz);
+$h2-line-height: ($_h2-lh / $_h2-fsz);
+$h3-line-height: ($_h3-lh / $_h3-fsz);
+$h4-line-height: ($_h4-lh / $_h4-fsz);
+$h5-line-height: ($_h5-lh / $_h5-fsz);
+$h6-line-height: ($_h6-lh / $_h6-fsz);
+// ** </ Calculated Headings values >
+
+// Icon Fonts
+$fa: 'FontAwesome';
+$mdi: 'Material Design Icons';
+$mi: 'Material Icons';
+
+// Lead
+$lead-font-size: 20px;
+$lead-line-height: 33px;
+$lead-font-weight: 300;
+
+// Hr
+$hr-border-color: $gray-4;
+$hr-border-width: $border-width;
+
+// Mark
+$mark-padding: 5px 10px;
+$mark-bg: $primary;
+
+$dt-font-weight: inherit;
+$list-inline-padding: 5px;
+
+// Code
+$code-font-size: 90%;
+$code-padding-y: 3px;
+$code-padding-x: 5px;
+$code-color: $gray-900;
+$code-bg: $gray-100;
+
+//
+// Links
+//
+$link-color: $primary;
+$link-decoration: none;
+$link-hover-color: darken($link-color, 15%);
+$link-press-color: darken($link-color, 15%);
+$link-hover-decoration: underline;
+
+// Z-index master list
+//
+// Warning: Avoid customizing these values. They're used for a bird's eye view
+// of components dependent on the z-axis and are designed to all work together.
+
+$zindex-dropdown: 1000;
+$zindex-sticky: 1020;
+$zindex-fixed: 1030;
+$zindex-modal-backdrop: 1040;
+$zindex-modal: 1050;
+$zindex-popover: 1060;
+$zindex-tooltip: 1070;
+// Custom
+$zindex-rd-navbar: 1080;
+$zindex-lg: 1090;
+$zindex-layout-panel: 1100;
+
+// Grid breakpoints
+// Define the minimum dimensions at which your layout will change,
+// adapting to different screen sizes, for use in media queries.
+$grid-breakpoints: (
+	xs: 0,
+	sm: 576px,
+	md: 768px,
+	lg: 992px,
+	xl: 1200px,
+	xxl: 1600px
+);
+
+@include _assert-ascending($grid-breakpoints, "$grid-breakpoints");
+@include _assert-starts-at-zero($grid-breakpoints);
+
+$screen-fullhd: 1600px;
+
+// Grid containers
+// Define the maximum width of `.container` for different screen sizes.
+$container-max-widths: (
+	sm: 540px,
+	md: 720px,
+	lg: 960px,
+	xl: 1200px
+);
+@include _assert-ascending($container-max-widths, "$container-max-widths");
+
+// Grid columns
+// Set the number of columns and specify the width of the gutters.
+$grid-columns: 12;
+$grid-gutter-width: 30px;
+$grid-gutter-width-narrow: 30px;
+
+// Buttons
+$input-btn-padding-y: 16px;
+$input-btn-padding-x: 40px;
+$input-btn-font-size: 16px;
+$input-btn-line-height: 1.334;
+
+
+$input-btn-padding-y-md: 18px;
+$input-btn-padding-x-md: 24px;
+$input-btn-line-height-md: 1.334;
+
+$input-btn-padding-y-sm: 11px;
+$input-btn-padding-x-sm: 30px;
+$input-btn-line-height-sm: 1.6;
+
+$input-btn-padding-y-lg: 18px;
+$input-btn-padding-x-lg: 57px;
+$input-btn-line-height-lg: 1.334;
+
+$btn-font-family: $font-family-base;
+$btn-font-weight: 700;
+$btn-letter-spacing: .075em;
+$btn-text-transform: uppercase;
+
+$btn-box-shadow: 0;
+$btn-focus-box-shadow: 0;
+$btn-active-box-shadow: 0;
+
+$btn-link-disabled-color: $gray-600;
+
+$btn-block-spacing-y: .5rem;
+
+// Allows for customizing button radius independently from global border radius
+$btn-border-radius: $border-radius;
+$btn-border-radius-lg: $border-radius-lg;
+$btn-border-radius-sm: $border-radius-sm;
+
+$btn-transition: all .15s ease-in-out;
+
+// Forms
+$form-input-height: 60px;
+$form-input-lg-height: 70px;
+$form-input-sm-height: 50px;
+
+$form-input-color: $gray-800;
+$form-input-color-placeholder: $form-input-color;
+
+$form-input-background: $gray-100;
+$form-input-border-color: $gray-3;
+$form-input-border-radius: 5px;
+
+$form-input-font-size: 18px;
+$form-input-line-height: 30px;
+$form-input-font-weight: 300;
+
+$form-input-border: 1px solid $form-input-border-color;
+$form-input-padding-horizontal: 25px;
+$form-input-line-height: round($form-input-font-size * 1.66667);
+
+$form-input-padding-vertical: round(($form-input-height - $form-input-line-height) / 2) + 1px;
+$form-input-padding: $form-input-padding-vertical $form-input-padding-horizontal;
+
+@if ($form-input-border != none) {
+	$form-input-padding-vertical: round(($form-input-height - $form-input-line-height - (nth($form-input-border, 1) * 2)) / 2);
+	$form-input-padding: $form-input-padding-vertical $form-input-padding-horizontal;
+}
+
+$form-textarea-default-height: 170px;
+$form-textarea-default-min-height: $form-input-height;
+$form-textarea-default-max-height: round($form-textarea-default-height * 1.7);
+
+$form-feedback-focus-color: $primary;
+$form-feedback-valid-color: $success-color;
+$form-feedback-invalid-color: $danger-color;
+
+// Pagination
+$pagination-padding-y: 5px;
+$pagination-padding-x: 5px;
+$pagination-font-size: 18px;
+$pagination-line-height: 20px;
+
+$pagination-color: $gray-800;
+$pagination-bg: transparent;
+$pagination-border-width: 0;
+$pagination-border-color: transparent;
+
+$pagination-hover-color: $primary;
+$pagination-hover-bg: transparent;
+$pagination-hover-border-color: transparent;
+
+$pagination-active-color: $primary;
+$pagination-active-bg: transparent;
+$pagination-active-border-color: transparent;
+
+$pagination-disabled-color: rgba($gray-800, .8);
+$pagination-disabled-bg: transparent;
+$pagination-disabled-border-color: transparent;
+
+// Tooltips
+$tooltip-max-width: 200px;
+$tooltip-color: $white;
+$tooltip-bg: $gray-800;
+$tooltip-opacity: 1;
+$tooltip-padding-y: 2px;
+$tooltip-padding-x: 10px;
+$tooltip-margin: 0;
+
+$tooltip-arrow-width: 12px;
+$tooltip-arrow-height: 6px;
+$tooltip-arrow-color: $tooltip-bg;

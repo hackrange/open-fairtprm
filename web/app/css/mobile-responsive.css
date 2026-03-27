@@ -1,0 +1,829 @@
+/**
+ * Mobile Responsive Styles for Open TPRM
+ *
+ * Include this file after bootstrap.css and style.css to add
+ * comprehensive mobile support across all pages.
+ */
+
+/* ============================================================================
+   CSS Variables for Mobile
+   ============================================================================ */
+:root {
+    --mobile-header-height: 60px;
+    --mobile-sidebar-width: 280px;
+}
+
+/* ============================================================================
+   Mobile Menu Toggle Button (Hidden on Desktop)
+   ============================================================================ */
+.mobile-menu-toggle {
+    display: none;
+    background: white;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    z-index: 1001;
+    border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.mobile-menu-toggle span {
+    display: block;
+    width: 14px;
+    height: 2px;
+    background: #333;
+    margin: 3px 0;
+    border-radius: 1px;
+    transition: all 0.3s ease;
+}
+
+/* Hamburger animation when open */
+.mobile-menu-toggle.active span:nth-child(1) {
+    transform: rotate(45deg) translate(3px, 3px);
+}
+.mobile-menu-toggle.active span:nth-child(2) {
+    opacity: 0;
+}
+.mobile-menu-toggle.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(4px, -4px);
+}
+
+/* Mobile overlay when menu is open */
+.mobile-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: var(--mobile-sidebar-width);
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+
+.mobile-overlay.active {
+    display: block;
+}
+
+/* ============================================================================
+   Tablet Breakpoint (max-width: 992px)
+   ============================================================================ */
+@media (max-width: 992px) {
+    /* Show mobile menu toggle - small and unobtrusive */
+    .mobile-menu-toggle {
+        display: block;
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        z-index: 1001;
+    }
+
+    /* Top bar adjustments - less padding needed with smaller icon */
+    .top-bar {
+        padding-left: 45px !important;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    /* Sidebar completely hidden off-screen until opened */
+    .sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: -320px !important;
+        width: var(--mobile-sidebar-width) !important;
+        min-width: var(--mobile-sidebar-width) !important;
+        max-width: var(--mobile-sidebar-width) !important;
+        height: 100vh !important;
+        z-index: 10000 !important;
+        transition: left 0.3s ease !important;
+        overflow-y: auto !important;
+        box-shadow: none;
+        visibility: hidden;
+    }
+
+    .sidebar.mobile-open {
+        left: 0 !important;
+        visibility: visible;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+    }
+
+    /* Main content takes full width - no sidebar space */
+    .main-layout {
+        flex-direction: column !important;
+    }
+
+    .main-content {
+        width: 100% !important;
+        padding: 20px 15px !important;
+        margin-left: 0 !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Page header bar responsiveness */
+    .page-header-bar {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 15px !important;
+        padding: 15px !important;
+    }
+
+    .page-header-bar h1 {
+        font-size: 20px !important;
+    }
+
+    /* Cards and grids */
+    .module-grid,
+    .card-grid,
+    .grid-3,
+    .grid-4 {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+
+    /* Tables - horizontal scroll wrapper */
+    .card,
+    .table-responsive,
+    .table-container {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 600px;
+    }
+
+    /* Form elements */
+    .form-row,
+    .form-grid {
+        flex-direction: column !important;
+        gap: 15px !important;
+    }
+
+    .form-group {
+        width: 100% !important;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="url"],
+    select,
+    textarea {
+        font-size: 16px !important; /* Prevents iOS zoom on focus */
+        padding: 12px !important;
+    }
+
+    /* Buttons - touch friendly */
+    button,
+    .btn,
+    input[type="submit"],
+    input[type="button"] {
+        min-height: 44px;
+        padding: 12px 20px !important;
+    }
+
+    /* Quick stats grid */
+    .stats-grid,
+    .quick-stats {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+
+    /* User menu */
+    .user-menu {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px !important;
+    }
+
+    .user-menu a {
+        padding: 8px 12px !important;
+        font-size: 13px !important;
+    }
+
+    /* Welcome header */
+    .welcome-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 15px !important;
+    }
+
+    /* Dashboard widgets */
+    .widget-row,
+    .dashboard-row {
+        flex-direction: column !important;
+    }
+
+    .widget,
+    .dashboard-widget {
+        width: 100% !important;
+        margin-bottom: 15px !important;
+    }
+}
+
+/* ============================================================================
+   Pagination - Tablet (max-width: 768px)
+   ============================================================================ */
+@media (max-width: 768px) {
+    .pagination-bar {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+
+    .pagination {
+        justify-content: center !important;
+        flex-wrap: wrap !important;
+        order: 1 !important;
+        width: 100% !important;
+    }
+
+    .pagination-info {
+        text-align: center !important;
+        width: 100% !important;
+        font-size: 12px !important;
+        color: #666 !important;
+        order: 2 !important;
+        margin-top: 5px !important;
+    }
+
+    .pagination li a,
+    .pagination li span {
+        padding: 8px 12px !important;
+        min-width: 40px !important;
+        text-align: center !important;
+    }
+}
+
+/* ============================================================================
+   Mobile Breakpoint (max-width: 576px)
+   ============================================================================ */
+@media (max-width: 576px) {
+    /* Pagination - compact on phones, buttons 5% smaller */
+    .pagination-bar {
+        padding: 10px 8px !important;
+    }
+
+    .pagination li a,
+    .pagination li span {
+        padding: 8px 10px !important;
+        font-size: 13px !important;
+        min-width: 36px !important;
+    }
+
+    .pagination-info {
+        font-size: 11px !important;
+    }
+
+    /* Hide ellipsis on mobile */
+    .pagination li.disabled span:not(:first-child):not(:last-child) {
+        display: none !important;
+    }
+
+    /* Add class to hide extra page numbers via JS */
+    .pagination li.mobile-hidden {
+        display: none !important;
+    }
+
+    /* Top bar stacks vertically */
+    .top-bar {
+        flex-direction: column !important;
+        padding: 10px 15px 10px 45px !important;
+        gap: 8px !important;
+    }
+
+    .user-menu {
+        width: 100%;
+        justify-content: center !important;
+    }
+
+    /* Smaller module cards */
+    .module-card {
+        padding: 15px !important;
+    }
+
+    .module-card h3 {
+        font-size: 15px !important;
+    }
+
+    .module-card p {
+        font-size: 12px !important;
+    }
+
+    /* Single column stats */
+    .stats-grid,
+    .quick-stats {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Page titles */
+    h1 {
+        font-size: 22px !important;
+    }
+
+    h2 {
+        font-size: 18px !important;
+    }
+
+    h3 {
+        font-size: 16px !important;
+    }
+
+    /* Table adjustments */
+    table {
+        font-size: 12px !important;
+    }
+
+    table th,
+    table td {
+        padding: 8px 10px !important;
+    }
+
+    /* Hide less important columns on mobile */
+    .hide-mobile,
+    table .hide-mobile {
+        display: none !important;
+    }
+
+    /* Action buttons in tables */
+    table .actions {
+        white-space: nowrap;
+    }
+
+    table .actions a,
+    table .actions button {
+        padding: 6px 10px !important;
+        font-size: 11px !important;
+    }
+
+    /* Modal adjustments */
+    .modal-content {
+        width: 95% !important;
+        margin: 10px auto !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+    }
+
+    /* Cards - allow horizontal scroll for long content */
+    .card {
+        padding: 15px !important;
+        margin-bottom: 15px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Todo cards - allow horizontal scroll but keep header clickable */
+    .todo-card {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .todo-header {
+        /* Don't add overflow to header - it breaks click/tap events */
+        cursor: pointer !important;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
+        touch-action: manipulation !important;
+        min-height: 60px !important;
+        padding: 15px 12px !important;
+    }
+
+    .todo-header .expand-icon {
+        font-size: 16px !important;
+        padding: 8px !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .todo-content {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .todo-body {
+        padding: 15px 12px !important;
+    }
+
+    /* Stats row - horizontal scroll on very narrow screens */
+    .stats-row {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* General content areas - allow horizontal scroll */
+    pre, code {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Completed section - allow scroll for long content */
+    #completed-section {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Completed actions list - allow horizontal scroll */
+    .completed-actions-list {
+        overflow-x: auto !important;
+        overflow: visible !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Completed actions table - convert to card layout on mobile */
+    #completedActionsTable {
+        display: block !important;
+    }
+
+    #completedActionsTable thead {
+        display: none !important;
+    }
+
+    #completedActionsTable tbody {
+        display: block !important;
+    }
+
+    #completedActionsTable tbody tr {
+        display: block !important;
+        padding: 12px !important;
+        margin-bottom: 10px !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 8px !important;
+        background: #fff !important;
+        cursor: pointer !important;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
+        touch-action: manipulation !important;
+    }
+
+    #completedActionsTable tbody tr:active {
+        background: #f3f4f6 !important;
+    }
+
+    #completedActionsTable tbody tr td {
+        display: block !important;
+        padding: 4px 0 !important;
+        border: none !important;
+        text-align: left !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Hide columns we don't need: Closed By (3), Date (4), Type (5), Expand (6) */
+    #completedActionsTable td:nth-child(3),
+    #completedActionsTable td:nth-child(4),
+    #completedActionsTable td:nth-child(5),
+    #completedActionsTable td:nth-child(6) {
+        display: none !important;
+    }
+
+    /* Vendor name - bold, full width */
+    #completedActionsTable td:first-child {
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        padding-bottom: 6px !important;
+        border-bottom: 1px solid #f3f4f6 !important;
+        margin-bottom: 6px !important;
+    }
+
+    #completedActionsTable td:first-child a {
+        font-size: 14px !important;
+    }
+
+    /* Description - wrap text */
+    #completedActionsTable td:nth-child(2) {
+        font-size: 13px !important;
+        color: #333 !important;
+        line-height: 1.4 !important;
+    }
+
+    #completedActionsTable td:nth-child(2) > div,
+    #completedActionsTable td:nth-child(2) > div:first-child {
+        white-space: normal !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+    }
+
+    /* Show mobile closed date */
+    .mobile-closed-date {
+        display: block !important;
+        margin-top: 8px !important;
+        padding-top: 6px !important;
+        border-top: 1px solid #f3f4f6 !important;
+    }
+
+
+    /* Expanded details rows - style for mobile card layout */
+    #completedActionsTable tbody tr[id^="completed-details-"] {
+        padding: 12px !important;
+        margin-top: -10px !important;
+        margin-bottom: 10px !important;
+        border-top: none !important;
+        border-top-left-radius: 0 !important;
+        border-top-right-radius: 0 !important;
+        background: #f9fafb !important;
+    }
+
+    #completedActionsTable tbody tr[id^="completed-details-"] td {
+        padding: 8px 0 !important;
+    }
+
+    /* When a row is expanded, remove bottom border radius */
+    #completedActionsTable tbody tr.expanded {
+        border-bottom-left-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    /* Make sure td inside details row shows all content */
+    #completedActionsTable tbody tr[id^="completed-details-"] td[colspan] {
+        display: block !important;
+    }
+
+    /* Vendor SRS details specific */
+    .fair-grid,
+    .score-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .fair-metric,
+    .score-card {
+        padding: 12px !important;
+    }
+
+    /* Fix buttons that are side by side */
+    .button-row,
+    .btn-group,
+    .action-buttons {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+
+    .button-row > *,
+    .btn-group > *,
+    .action-buttons > * {
+        width: 100% !important;
+    }
+
+    /* All buttons - wrap text and be responsive */
+    button,
+    .btn,
+    a.btn,
+    input[type="submit"],
+    input[type="button"] {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Inline flex buttons - stack on mobile */
+    div[style*="display: flex"] > button,
+    div[style*="display: flex"] > .btn,
+    div[style*="display: flex"] > a.btn,
+    div[style*="display:flex"] > button,
+    div[style*="display:flex"] > .btn {
+        flex: 1 1 100% !important;
+        margin: 4px 0 !important;
+    }
+
+    /* Force flex containers with buttons to wrap */
+    div[style*="display: flex"]:has(button),
+    div[style*="display: flex"]:has(.btn),
+    div[style*="display:flex"]:has(button) {
+        flex-wrap: wrap !important;
+    }
+
+    /* Print/action buttons on detail pages - stack vertically */
+    .no-print[style*="position: fixed"] {
+        position: relative !important;
+        top: auto !important;
+        right: auto !important;
+        margin: 5px !important;
+        display: block !important;
+        width: calc(100% - 20px) !important;
+    }
+
+    /* Findings/evidence sections */
+    .finding-row,
+    .evidence-row {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+
+    /* Search/filter bars */
+    .search-bar,
+    .filter-bar {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+
+    .search-bar input,
+    .filter-bar select {
+        width: 100% !important;
+    }
+
+    /* Cyber Todo Header - stack vertically on mobile */
+    .cyber-todo-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 15px !important;
+    }
+
+    .cyber-todo-title-row {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 10px !important;
+        text-align: center !important;
+    }
+
+    .cyber-todo-title-row h2 {
+        width: 100% !important;
+        text-align: center !important;
+    }
+
+    .cyber-todo-title-row button {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    .cyber-todo-header .vendor-search-container {
+        width: 100% !important;
+        min-width: unset !important;
+    }
+
+    .cyber-todo-header .vendor-search-container input {
+        width: 100% !important;
+    }
+
+    /* Recently Completed Actions section - stack vertically on mobile */
+    #completed-section > div:first-child {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 15px !important;
+        text-align: center !important;
+    }
+
+    #completed-section > div:first-child > div:first-child {
+        width: 100% !important;
+        text-align: center !important;
+    }
+
+    #completed-section > div:first-child > div:first-child h2 {
+        text-align: center !important;
+    }
+
+    #completed-section > div:first-child > div:last-child {
+        width: 100% !important;
+    }
+
+    #completed-section input[name="completed_search"] {
+        width: 100% !important;
+        padding-right: 12px !important;
+    }
+
+    #completed-section input[name="completed_search"]::placeholder {
+        font-size: 11px !important;
+    }
+
+    /* Hide the search buttons on mobile - form submits on enter */
+    #completed-section > div:first-child > div:last-child > div {
+        display: none !important;
+    }
+}
+
+/* ============================================================================
+   Touch-friendly Improvements
+   ============================================================================ */
+@media (hover: none) and (pointer: coarse) {
+    /* Increase tap targets */
+    a, button, .btn, [role="button"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Remove hover states that don't work on touch */
+    .sidebar-nav li a:hover {
+        background: transparent;
+    }
+
+    .sidebar-nav li a:active {
+        background: rgba(255,255,255,0.2);
+    }
+
+    /* Larger checkboxes and radio buttons */
+    input[type="checkbox"],
+    input[type="radio"] {
+        width: 22px !important;
+        height: 22px !important;
+    }
+}
+
+/* ============================================================================
+   Landscape Phone Orientation
+   ============================================================================ */
+@media (max-height: 500px) and (orientation: landscape) {
+    .sidebar {
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+    }
+
+    .sidebar-brand {
+        padding: 10px 15px !important;
+    }
+
+    .sidebar-nav li a {
+        padding: 8px 15px !important;
+    }
+}
+
+/* ============================================================================
+   Force Scrolling on All Mobile Devices
+   ============================================================================ */
+@media (max-width: 992px) {
+    html {
+        overflow-x: auto !important;
+        overflow-y: auto !important;
+    }
+
+    body {
+        overflow-x: auto !important;
+        overflow-y: auto !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+
+    .main-layout,
+    .main-content,
+    .content-wrapper,
+    .container,
+    .container-fluid {
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        -webkit-overflow-scrolling: touch;
+        min-width: 0 !important;
+    }
+
+    /* Ensure tables can scroll */
+    table {
+        display: block !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100% !important;
+    }
+
+    /* Allow wide content to scroll - but not sidebar */
+    .main-content .card,
+    .main-content .panel,
+    .main-content .box,
+    .main-content .section,
+    .main-content [class*="detail"] {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Ensure sidebar is fully interactive */
+    .sidebar,
+    .sidebar * {
+        pointer-events: auto !important;
+    }
+}
+
+/* ============================================================================
+   Safe Area Insets (for notched phones)
+   ============================================================================ */
+@supports (padding: env(safe-area-inset-left)) {
+    .sidebar {
+        padding-left: env(safe-area-inset-left);
+    }
+
+    .main-content {
+        padding-left: calc(15px + env(safe-area-inset-left));
+        padding-right: calc(15px + env(safe-area-inset-right));
+    }
+
+    .top-bar {
+        padding-left: calc(45px + env(safe-area-inset-left));
+        padding-right: calc(15px + env(safe-area-inset-right));
+    }
+}
+
+/* ============================================================================
+   Print Styles - Hide Mobile Elements
+   ============================================================================ */
+@media print {
+    .mobile-menu-toggle,
+    .mobile-overlay {
+        display: none !important;
+    }
+
+    .sidebar {
+        position: static !important;
+        left: 0 !important;
+        width: auto !important;
+    }
+}

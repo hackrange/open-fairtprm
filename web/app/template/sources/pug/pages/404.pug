@@ -1,0 +1,19 @@
+extends ../_skeleton
+
+include ../components/_quote
+block variables
+	- pageName = '404'
+
+block page
+	include ../sections/_header-modern
+
+	+breadcrumbs
+
+	//Button Sizes
+	section.section.section-lg.bg-default.text-center.bg-img-3
+		.container
+			.title-3: span.text-gradient-1 404
+			h5.title-4 Page Not Found
+			a.button.btn-md.button-md-2.button-gray-5( href='index.html' ) Go to home page
+
+	include ../sections/_footer-modern

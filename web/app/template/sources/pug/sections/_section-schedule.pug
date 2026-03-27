@@ -1,0 +1,308 @@
+include ../components/_events
+
+//Our schedule
+section.section.section-lg.section-inset-1.bg-gray-100.text-center
+	.container
+		h6.title-8.wow.fadeInUp Choose your time
+		h2.font-weight-bold.wow.fadeInUp Our schedule
+
+		.cd-schedule.cd-schedule-1.loading.wow.fadeInUp
+			.events-timeline
+				ul
+					li: span 9:00 AM
+					li: span 10:00 AM
+					li: span 11:00 AM
+					li: span 12:00 PM
+					li: span 1:00 PM
+					li: span 2:00 PM
+					li: span 3:00 PM
+					li: span 4:00 PM
+					li: span 5:00 PM
+					li: span 6:00 PM
+					li: span 7:00 PM
+
+			.events
+				ul
+					li.events-group
+						.events-day: span Monday
+						ul
+							+event({
+								time: {
+									start: '09:00', end: '11:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+							+event({
+								time: {
+									start: '11:00', end: '12:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+							+event({
+								time: {
+									start: '14:00', end: '15:00'
+								},
+								title: 'Endurance',
+								name: 'Frank Johnson'
+							}).single-event-1
+							+event({
+								time: {
+									start: '15:00', end: '17:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+							+event({
+								time: {
+									start: '17:00', end: '18:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+							+event({
+								time: {
+									start: '19:00', end: '20:00'
+								},
+								title: 'Endurance',
+								name: 'Frank Johnson'
+							}).single-event-1
+					li.events-group
+						.events-day: span Tuesday
+						ul
+							+event({
+								time: {
+									start: '09:00', end: '11:00'
+								},
+								title: 'Endurance',
+								name: 'Frank Johnson'
+							}).single-event-1
+							+event({
+								time: {
+									start: '11:00', end: '13:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+							+event({
+								time: {
+									start: '15:00', end: '16:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+							+event({
+								time: {
+									start: '17:00', end: '20:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+					li.events-group
+						.events-day: span Wednesday
+						ul
+							+event({
+								time: {
+									start: '10:00', end: '11:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+							+event({
+								time: {
+									start: '12:00', end: '14:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+							+event({
+								time: {
+									start: '14:00', end: '15:00'
+								},
+								title: 'Endurance',
+								name: 'Frank Johnson'
+							}).single-event-1
+							+event({
+								time: {
+									start: '15:00', end: '17:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+							+event({
+								time: {
+									start: '17:00', end: '19:00'
+								},
+								title: 'Basic WOD',
+								name: 'Frank Johnson'
+							}).single-event-3
+							+event({
+								time: {
+									start: '19:00', end: '20:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+					li.events-group
+						.events-day: span Thursday
+						ul
+							+event({
+								time: {
+									start: '10:00', end: '12:00'
+								},
+								title: 'Endurance',
+								name: 'Frank Johnson'
+							}).single-event-1
+							+event({
+								time: {
+									start: '13:00', end: '14:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+							+event({
+								time: {
+									start: '14:00', end: '15:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+							+event({
+								time: {
+									start: '18:00', end: '19:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+
+					li.events-group
+						.events-day: span Friday
+						ul
+							+event({
+								time: {
+									start: '09:00', end: '11:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+							+event({
+								time: {
+									start: '13:00', end: '14:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+							+event({
+								time: {
+									start: '14:00', end: '15:00'
+								},
+								title: 'Endurance',
+								name: 'Frank Johnson'
+							}).single-event-1
+							+event({
+								time: {
+									start: '15:00', end: '17:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+							+event({
+								time: {
+									start: '17:00', end: '18:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+							+event({
+								time: {
+									start: '19:00', end: '20:00'
+								},
+								title: 'Endurance',
+								name: 'Frank Johnson'
+							}).single-event-1
+
+					li.events-group
+						.events-day: span Saturday
+						ul
+							+event({
+								time: {
+									start: '09:00', end: '11:00'
+								},
+								title: 'Endurance',
+								name: 'Frank Johnson'
+							}).single-event-1
+							+event({
+								time: {
+									start: '11:00', end: '13:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+							+event({
+								time: {
+									start: '15:00', end: '16:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+							+event({
+								time: {
+									start: '17:00', end: '20:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+
+					li.events-group
+						.events-day: span Sunday
+						ul
+							+event({
+								time: {
+									start: '10:00', end: '11:00'
+								},
+								title: 'Daily WOD',
+								name: 'Frank Johnson'
+							})
+							+event({
+								time: {
+									start: '11:00', end: '12:00'
+								},
+								title: 'Endurance',
+								name: 'Frank Johnson'
+							}).single-event-1
+							+event({
+								time: {
+									start: '12:00', end: '14:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+							+event({
+								time: {
+									start: '14:00', end: '15:00'
+								},
+								title: 'Endurance',
+								name: 'Frank Johnson'
+							}).single-event-1
+							+event({
+								time: {
+									start: '15:00', end: '17:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4
+							+event({
+								time: {
+									start: '17:00', end: '19:00'
+								},
+								title: 'Basic WOD',
+								name: 'Frank Johnson'
+							}).single-event-3
+							+event({
+								time: {
+									start: '19:00', end: '20:00'
+								},
+								title: 'Open WOD',
+								name: 'Frank Johnson'
+							}).single-event-4

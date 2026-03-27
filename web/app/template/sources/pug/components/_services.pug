@@ -1,0 +1,107 @@
+//- Services
+mixin service( obj )
+	// Service
+	article.service&attributes( attributes )
+		a.service-figure( href= links.singleClass ): +img( obj.img )
+		.service-caption
+			.heading-4.service-title: a( href= links.singleClass )= obj.title
+			.big.service-text= obj.text
+
+		.service-panel
+			ul.list-inline
+				li: .unit.align-items-center
+					.unit-left: +img( obj.user.img ).service-userimage
+					.unit-body: .big.service-username= obj.user.name
+				li: .big.service-time
+					span.icon.mdi.mdi-clock
+					span.big= obj.time + ' min'
+				li: a.service-link( href= links.singleClass ) Read more
+
+mixin service-classic( obj )
+	// Service
+	article.service-classic&attributes( attributes )
+		.service-classic-figure
+			+img( obj.img )
+			.button-wrap: a.button.button-white-2( href= links.singleClass ) Read More
+		.service-classic-caption
+			.heading-4.service-classic-title: a( href= links.singleClass )= obj.title
+
+		block
+
+mixin service-modern( obj )
+	// Service
+	article.service-modern&attributes( attributes )
+		.service-modern-figure
+			a( href= links.singleClass )
+				+img( obj.img ).img-duotone( data-gradient-map="#242659, #87f8fc" )
+			block
+
+		.service-modern-caption
+			.heading-4.service-modern-title: a( href= links.singleClass )= obj.title
+			.big.service-modern-text= obj.text
+
+mixin service-minimal( obj )
+	// Service
+	article.service-minimal&attributes( attributes )
+		a.service-minimal-figure( href= links.singleClass )
+			+img( obj.img )
+			if obj.number
+				.service-minimal-number= obj.number
+			else
+				.service-minimal-number.ordered-item
+		.service-minimal-caption
+			.heading-4.service-minimal-title: a( href= links.singleClass )= obj.title
+			.service-minimal-time
+				span.icon.mdi.mdi-clock
+				span.big= obj.time + ' min'
+
+mixin service-joan( obj )
+	// Service joan
+	article.service-joan&attributes( attributes )
+		a.service-joan-figure( href= links.singleClass ): +img( obj.img )
+		.service-joan-caption
+			.heading-4.service-joan-title: a( href= links.singleClass )= obj.title
+			.big.service-joan-text= obj.text
+
+//- Services tab pane
+mixin service-tab-pane-1
+	.unit.unit-spacing-md.align-items-center
+		.unit-left: .service-classic-userimage: +img( 'user-1-69x69.jpg' )
+		.unit-body
+			.big.service-classic-time 7:30 am - 8:45 am
+			.big.service-classic-username Patrick Stuart
+
+mixin service-tab-pane-2
+	.unit.unit-spacing-md.align-items-center
+		.unit-left: .service-classic-userimage: +img( 'user-4-69x69.jpg' )
+		.unit-body
+			.big.service-classic-time 9:00 am - 10:30 am
+			.big.service-classic-username Sophia Oliver
+
+mixin service-tab-pane-3
+	.unit.unit-spacing-md.align-items-center
+		.unit-left: .service-classic-userimage: +img( 'user-5-69x69.jpg' )
+		.unit-body
+			.big.service-classic-time 10:30 am - 12:00 pm
+			.big.service-classic-username Kate Wilson
+
+mixin service-tab-pane-4
+	.unit.unit-spacing-md.align-items-center
+		.unit-left: .service-classic-userimage: +img( 'user-5-69x69.jpg' )
+		.unit-body
+			.big.service-classic-time 12:00 pm - 1:00 pm
+			.big.service-classic-username Kate Wilson
+
+mixin service-tab-pane-5
+	.unit.unit-spacing-md.align-items-center
+		.unit-left: .service-classic-userimage: +img( 'user-2-69x69.jpg' )
+		.unit-body
+			.big.service-classic-time 1:00 pm - 2:00 pm
+			.big.service-classic-username Grace Peterson
+
+mixin service-tab-pane-6
+	.unit.unit-spacing-md.align-items-center
+		.unit-left: .service-classic-userimage: +img( 'user-3-69x69.jpg' )
+		.unit-body
+			.big.service-classic-time 2:00 pm - 3:30 pm
+			.big.service-classic-username Ann Nelson

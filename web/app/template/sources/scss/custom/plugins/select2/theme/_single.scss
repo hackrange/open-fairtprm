@@ -1,0 +1,92 @@
+.select2-selection--single {
+
+	.select2-selection__rendered {
+		padding-top: (map-get( $select2, input-height ) - map-get( $select2, input-lh ))/2 - map-get( $select2, input-border-width ) - 10;
+		padding-bottom: (map-get( $select2, input-height ) - map-get( $select2, input-lh ))/2 - map-get( $select2, input-border-width ) - 10;
+		padding-left: map-get( $select2, input-side-indent ) - 10;
+		font-size: map-get( $select2, input-fsz ) - 2;
+		line-height: map-get( $select2, input-lh );
+		letter-spacing: .035em;
+		color: map-get( $select2, color-default );
+		border: map-get( $select2, input-border-width ) solid $form-input-border-color;
+		border-radius: $form-input-border-radius;
+		background-color: map-get( $select2, background-default );
+
+		@if ( map-get( $select2, input-side-indent ) > map-get( $select2-CONST, input-single-right-indent ) ) {
+			padding-right: map-get( $select2, input-side-indent );
+		} @else {
+			padding-right: map-get( $select2-CONST, input-single-right-indent )
+		}
+
+		@include media-breakpoint-up(md) {
+			padding-top: (map-get( $select2, input-height ) - map-get( $select2, input-lh ))/2 - map-get( $select2, input-border-width ) - 5;
+			padding-bottom: (map-get( $select2, input-height ) - map-get( $select2, input-lh ))/2 - map-get( $select2, input-border-width ) - 5;
+			padding-left: map-get( $select2, input-side-indent ) - 5;
+			font-size: map-get( $select2, input-fsz );
+		}
+
+		@include media-breakpoint-up(lg) {
+			padding-top: (map-get( $select2, input-height ) - map-get( $select2, input-lh ))/2 - map-get( $select2, input-border-width );
+			padding-bottom: (map-get( $select2, input-height ) - map-get( $select2, input-lh ))/2 - map-get( $select2, input-border-width );
+			padding-left: map-get( $select2, input-side-indent );
+		}
+	}
+
+	.select2-selection__clear {
+		cursor: pointer;
+		float: right;
+		font-weight: bold;
+	}
+
+	.select2-selection__placeholder {
+		color: map-get( $select2, color-default );;
+	}
+
+	.select2-selection__arrow {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		width: 50px;
+		font-size: 0;
+		line-height: 0;
+
+		b {
+			display: inline-block;
+			font-size: 22px;
+			line-height: 1;
+			color: map-get( $select2, color-default );
+
+			&::before {
+			  content: '\f236';
+				font-family: $mdi;
+			}
+		}
+	}
+}
+
+&.select2-container--disabled {
+	.select2-selection--single {
+		cursor: default;
+		background-color: map-get( $select2, background-disabled );
+		color: map-get( $select2, color-disabled );
+
+		.select2-selection__clear {
+			display: none;
+		}
+	}
+}
+
+&.select2-container--open {
+	.select2-selection--single {
+		.select2-selection__arrow {
+			b {
+				transform: rotate(180deg);
+			}
+		}
+	}
+}

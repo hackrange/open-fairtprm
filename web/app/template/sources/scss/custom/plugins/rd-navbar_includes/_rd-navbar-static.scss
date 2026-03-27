@@ -1,0 +1,401 @@
+/*
+* @subsection  RD Navbar Static
+*/
+// - li first level and li
+// - link first level and link
+// - menus
+// - dropdowns
+// - megamenus
+// - rd-search
+// - submenus
+
+.rd-navbar-static {
+	display: block;
+
+	// RD Navbar Nav
+	//
+	// RD Nav item 1-st level
+	.rd-nav-item {
+		display: inline-block;
+		&.focus,
+		&.opened {
+			.rd-nav-link {
+				color: $rd-navbar-nav-hover-color;
+				background: $rd-navbar-nav-hover-background;
+			}
+
+			> .rd-navbar-submenu-toggle {
+				color: $rd-navbar-nav-hover-color;
+			}
+		}
+
+		&.active {
+			.rd-nav-link {
+				color: $rd-navbar-nav-active-color;
+				background: $rd-navbar-nav-active-background;
+			}
+
+			> .rd-navbar-submenu-toggle {
+				color: $rd-navbar-nav-active-color;
+			}
+		}
+
+		&.focus > .rd-navbar-submenu-toggle,
+		&.opened > .rd-navbar-submenu-toggle,
+		.rd-nav-link:hover + .rd-navbar-submenu-toggle {
+			&::before {
+				transform: rotate(180deg);
+			}
+		}
+
+		> .rd-navbar-submenu-toggle {
+			display: none;
+			margin-left: 4px;
+			font-size: 16px;
+			font-weight: 700;
+			font-family: $mdi;
+			cursor: pointer;
+
+			&::before {
+				position: relative;
+				display: inline-block;
+				transition: .22s;
+				content: '\f236';
+			}
+
+			&:hover {
+				color: $rd-navbar-nav-hover-color;
+			}
+		}
+
+		// If Have submenu
+		> .rd-navbar-submenu {
+			margin-top: 20px;
+		}
+	}
+
+	.rd-nav-item + .rd-nav-item {
+		margin-left: $navbar-static-nav-indent - 15;
+
+		@include media-breakpoint-up(xl) {
+			margin-left: $navbar-static-nav-indent;
+		}
+	}
+
+	// Rd Nav Link 1-st level
+	.rd-nav-link {
+		position: relative;
+		display: inline-block;
+		color: $rd-navbar-nav-color;
+		font-size: 14px;
+		line-height: 1.2;
+		font-weight: 700;
+		letter-spacing: .075em;
+		text-transform: uppercase;
+		transition: .25s;
+
+		&:hover {
+			color: $rd-navbar-nav-hover-color;
+		}
+		
+		@include media-breakpoint-up(xl) {
+			font-size: 16px;
+		} 
+	}
+
+	// Rd Menu (dropdown and megamenu)
+	.rd-menu {
+		z-index: 15;
+		position: absolute;
+		display: block;
+		visibility: hidden;
+		opacity: 0;
+		text-align: left;
+		box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.08);
+		@extend %rd-navbar-transition;
+	}
+
+	// RD Dropdown 1-st level
+	.rd-navbar-dropdown {
+		position: absolute;
+		top: calc(100% - 10px);
+		width: $rd-navbar-dropdown-width - 40;
+		margin-left: -20px;
+		background: $rd-navbar-dropdown-background;
+		transform: translate3d(0, 30px, 0);
+		z-index: 5;
+
+		.rd-navbar-dropdown {
+			top: -1px;
+			left: 100%;
+			z-index: 2;
+			margin-top: -15px;
+			margin-left: 15px;
+			transform: translate3d(30px, 0, 0);
+
+			// If the menu is on the right edge window
+			&.rd-navbar-open-left {
+				left: auto;
+				right: 100%;
+				margin-left: 0;
+				margin-right: 15px;
+				transform: translate3d(-30px, 0, 0);
+			}
+		}
+
+		@include media-breakpoint-up(xl) {
+			width: $rd-navbar-dropdown-width;
+			margin-left: -30px;
+		}
+	}
+
+	.rd-dropdown-item {
+		&.focus,
+		&.opened {
+			.rd-dropdown-link {
+				color: $rd-navbar-dropdown-item-active-color;
+			}
+		}
+
+		+ .rd-dropdown-item { border-top: 1px solid $gray-3 }
+	}
+
+	.rd-dropdown-link {
+		color: $rd-navbar-dropdown-item-color;
+
+		&:hover {
+			color: $rd-navbar-dropdown-item-hover-color;
+		}
+	}
+
+	.rd-navbar-dropdown {
+		@include submenu-with-arrow;
+	}
+
+	.rd-dropdown-link,
+	.rd-megamenu-list-link {
+		font-size: 13px;
+		line-height: 1.2;
+		font-weight: 500;
+		letter-spacing: .1em;
+		text-transform: uppercase;
+
+		@include media-breakpoint-up(xl) {
+			font-size: 14px;
+		}
+	}
+
+	// RD all megamenu
+	.rd-navbar-megamenu {
+		display: flex;
+		top: calc(100% - 10px);
+		left: 50%;
+		width: 100%;
+		max-width: 1170px;
+		padding: 35px 190px 16px 30px;
+		background: $rd-navbar-megamenu-background;
+		transform: translate3d(-50%, 30px, 0);
+
+		@include media-breakpoint-up(xl) {
+			padding: 45px 225px 16px 45px;
+		}
+	}
+
+	.rd-megamenu-image {
+		position: absolute;
+		overflow: hidden;
+		content: '';
+		top: 0;
+		right: 0;
+		bottom: 0;
+		width: 160px;
+
+		@include media-breakpoint-up(xl) {
+			width: 180px;
+		}
+	}
+
+	.rd-megamenu-link {
+		display: block;
+		width: 100%;
+		height: 100%;
+		background-image: url(../images/map-1-182x381.jpg);
+		background-position: 50%;
+		background-size: cover;
+		transition: all .3s ease;
+
+		&:hover {
+			transform: scale(1.2);
+		}
+	}
+
+	// Megamenu item 1st level
+	.rd-megamenu-item {
+		flex-basis: 50%;
+		flex-grow: 1;
+
+		+ .rd-megamenu-item { padding-left: 30px; }
+
+		@include media-breakpoint-up(xl) {
+			+ .rd-megamenu-item { padding-left: 40px; }
+		}
+	}
+
+	// Megamenu title
+	.rd-megamenu-title {
+		border-left: 4px solid;
+		font-size: 14px;
+		line-height: 20px;
+		font-weight: 700;
+		padding-left: 10px;
+		text-transform: uppercase;
+		letter-spacing: .12em;
+		color: $primary;
+
+		a {
+			@include link(inherit, $gray-800)
+		}
+
+		@include media-breakpoint-up(xl) {
+			font-size: 15px;
+		}
+	}
+	
+	* + .rd-megamenu-title {
+		margin-top: 30px;
+	}
+
+	// Megamenu list item
+	.rd-megamenu-list-item {
+		padding: 10px 0;
+
+		+ .rd-megamenu-list-item {
+			border-top: 1px solid $gray-3
+		}
+
+		@include media-breakpoint-up(xl) {
+			padding: 20px 0;
+		}
+	}
+
+	// Megamenu list link
+	.rd-megamenu-list-link {
+		text-align: left;
+		color: $rd-navbar-megamenu-item-color;
+		background: $rd-navbar-megamenu-item-background;
+		&:hover {
+			color: $rd-navbar-megamenu-item-hover-color;
+			background: $rd-navbar-megamenu-item-hover-background;
+		}
+	}
+
+	// Megamenu list offset
+	* + .rd-megamenu-list {
+		margin-top: 18px;
+	}
+
+	// RD all submenus
+	.rd-navbar-submenu {
+		&.focus,
+		&.opened {
+			> .rd-menu {
+				opacity: 1;
+				visibility: visible;
+			}
+
+			> .rd-navbar-dropdown {
+				transform: none;
+			}
+
+			> .rd-navbar-megamenu {
+				transform: translate3d(-50%,0,0);
+			}
+		}
+	}
+
+	// RD navbar search
+	.rd-navbar-search {
+		&.active {
+			.rd-search {
+				visibility: visible;
+				opacity: 1;
+			}
+		}
+	}
+
+	.rd-search {
+		position: absolute;
+		top: 100%;
+		right: 0;
+		width: 270px;
+		opacity: 0;
+		visibility: hidden;
+		transition: .3s;
+		margin-top: 20px;
+		z-index: 2;
+	}
+
+	// RD search offset
+	* + .rd-navbar-search {
+		margin-left: $navbar-static-nav-indent;
+	}
+
+	.rd-navbar-search-toggle {
+		display: inline-flex;
+		@include toggle-icons-via-rotation(32px, 32px, 26px, '\f43b', '\f24c', 'Material Design Icons', 'Material Design Icons');
+		color: $rd-navbar-nav-color;
+
+		&:hover {
+			color: $rd-navbar-nav-hover-color;
+		}
+	}
+
+	// RD navbar Clone
+	&.rd-navbar--is-clone {
+		display: block;
+		transform: translate3d(0, -100%, 0);
+
+		&.rd-navbar--is-stuck {
+			transform: translate3d(0, 0, 0);
+		}
+	}
+
+	// RD Navbar Stuck || Clone
+	&.rd-navbar--is-stuck,
+	&.rd-navbar--is-clone {
+		position: fixed;
+		left: 0;
+		top: 0;
+		right: 0;
+		z-index: $zindex-rd-navbar;
+	}
+
+	// RD Navbar States
+	.rd-navbar--has-dropdown {
+
+	}
+
+	// RD Navbar Brand
+	.rd-navbar-brand {
+		display: flex;
+		align-items: center;
+		min-height: 70px;
+
+		a {
+			display: block;
+		}
+	}
+}
+
+
+
+// Context styling
+.ie-10,
+.ie-11,
+.ie-edge {
+	.rd-navbar-static {
+		.rd-navbar-brand {
+			height: 70px;
+		}
+	}
+}

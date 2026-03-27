@@ -1,0 +1,437 @@
+/** @section Products */
+
+//
+// Product
+//
+.product {
+	text-align: center;
+	border: 1px solid $gray-2;
+}
+
+.product-body {
+	position: relative;
+	overflow: hidden;
+	padding: 20px 15px;
+	background: $gray-100;
+	transition: all .4s ease;
+}
+
+.product-info {
+	transition: inherit;
+}
+
+.product-category {
+	font-size: 13px;
+	letter-spacing: .05em;
+	text-transform: uppercase;
+	color: rgba($gray-800,.8);
+	font-weight: 300;
+}
+
+.product-title {
+	font-weight: 300;
+	letter-spacing: .01em;
+	text-transform: none;
+}
+
+.product-figure {
+	img {
+		max-width: 200px;
+	}
+}
+
+.product-description {
+	color: $gray-800;
+	transition: inherit;
+}
+
+.product-rating {
+
+	.icon {
+		font-size: 20px;
+	}
+
+	> * + * { margin-left: 1px; }
+}
+
+.product-panel {
+	padding: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border-top: 1px solid $gray-2;
+	color: $gray-800;
+	background: $white;
+}
+
+.product-link {
+	font-size: 13px;
+	font-weight: 500;
+	letter-spacing: .05em;
+	text-transform: uppercase;
+
+	a {
+		text-decoration: underline;
+		@include link($primary, $primary);
+
+		&:hover {
+			text-decoration: none;
+		}
+	}
+}
+
+.product-price {
+	font-weight: 400;
+	letter-spacing: .01em;
+}
+
+.product-share {
+	position: relative;
+}
+
+.product-share-button {
+	padding: 5px;
+	font-size: 23px;
+	line-height: 1;
+
+	&,
+	&:focus,
+	&:active {
+		color: $gray-800;
+	}
+
+	&:hover {
+		color: $primary;
+	}
+}
+
+.product-share-button {
+	cursor: pointer;
+
+	&::before {
+		content: '\ec20';
+	}
+
+	&.active::before {
+		content: '\ec2a'
+	}
+
+	&.active ~ .product-share-list {
+
+		li {
+			opacity: 1;
+			visibility: visible;
+		}
+
+		$nth: li !default;
+
+		@for $i from 2 through 10 {
+			$delayStep: 50ms;
+
+			#{$nth}:nth-child(#{$i}) {
+				transition-delay: $delayStep*($i - 1);
+			}
+		}
+	}
+}
+
+.product-share-list {
+	display: flex;
+	position: absolute;
+	top: 50%;
+	right: calc( 100% + 6px );
+	transform: translateY(-50%);
+	@include groupX(10px);
+
+	li {
+		opacity: 0;
+		visibility: hidden;
+		transition: all .3s ease;
+	}
+
+	.icon {
+		font-size: 20px;
+		vertical-align: middle;
+	}
+
+	a {
+		@include link($primary, $gray-800)
+	}
+
+	.mdi-facebook {
+		@include link($facebook, $facebook-light)
+	}
+
+	.mdi-google {
+		@include link($google, $google-light)
+	}
+
+	.mdi-twitter {
+		@include link($twitter, $twitter-darken)
+	}
+}
+
+* + .product-figure { margin-top: 5px; }
+* + .product-text { margin-top: 4px; }
+* + .product-link { margin-top: 10px; }
+.product-text + .button { margin-top: 10px; }
+
+@include media-breakpoint-up(md) {
+
+	.product-panel {
+		padding: 20px;
+	}
+
+	.product-share-list {
+		right: calc( 100% + 16px );
+		@include groupX(18px);
+
+		.icon {
+			font-size: 22px;
+		}
+	}
+
+	* + .product-title { margin-top: 6px; }
+	* + .product-figure { margin-top: 25px; }
+	* + .product-text { margin-top: 10px; }
+	* + .product-link { margin-top: 20px; }
+	.product-text + .button { margin-top: 18px; }
+}
+
+@include media-breakpoint-up(lg) {
+
+	.desktop {
+
+		.product-body {
+			padding-top: 34px;
+			padding-bottom: 34px;
+
+			&::before {
+				position: absolute;
+				content: '';
+				top: 0;
+				right: 0;
+				bottom: 0;
+				left: 0;
+				background-image: linear-gradient( $gray-100 0%, rgba($white, 0) 100%);
+				transition: inherit;
+				pointer-events: none;
+				opacity: 0;
+				z-index: 1;
+			}
+		}
+
+		.product-figure {
+			img {
+				max-width: 100%;
+			}
+		}
+
+		.product-description {
+			position: absolute;
+			padding: 25px 15px;
+			left: 0;
+			bottom: 0;
+			width: 100%;
+			transform: translateY(100%);
+			z-index: 2;
+		}
+
+		.product:hover {
+
+			.product-body {
+				&::before {
+					opacity: .82;
+				}
+			}
+
+			.product-info {
+				transform: translateY(-74%);
+			}
+
+			.product-description {
+				transform: none;
+			}
+		}
+	}
+}
+
+@include media-breakpoint-up(xl) {
+
+	.desktop {
+
+		.product-description {
+			padding-top: 35px;
+			padding-bottom: 35px;
+		}
+	}
+
+	.product-panel {
+		padding: 28px 30px;
+	}
+}
+
+// Context styling
+.ie-10,
+.ie-11,
+.ie-edge {
+	.product-share-list {
+		justify-content: flex-end;
+		min-width: 150px;
+	}
+}
+
+
+
+
+//
+// Single Product
+//
+
+.single-product {
+
+	text-align: left;
+	color: $gray-800;
+
+	.button { min-width: 176px; }
+
+	* + .group-inline { margin-top: 20px; }
+	hr + .group-middle { margin-top: 0; }
+	.group-inline + p { margin-top: 16px; }
+}
+
+// Medium ≥768px
+@include media-breakpoint-up(md) {
+
+
+	.single-product {
+
+		.group-inline + p { margin-top: 26px; }
+	}
+}
+
+.single-product-title {
+	letter-spacing: .01em;
+	font-family: $font-family-base;
+}
+
+.single-product-price {
+	font-weight: 400;
+	letter-spacing: .025em;
+	font-family: $font-family-base;
+	color: $primary;
+}
+
+.single-product-rating {
+	font-size: 0;
+	line-height: 0;
+
+	.icon {
+		font-size: 25px;
+		color: $yellow-2;
+	}
+}
+
+.single-product-info {
+	.icon {
+		color: rgba($gray-800, .1);
+	}
+}
+
+.list-description {
+	text-align: left;
+	font-weight: 400;
+	color: $gray-800;
+
+	li {
+
+		span:first-child {
+			margin-right: 6px;
+		}
+
+		span:last-child {
+			color: $gray-9;
+		}
+	}
+
+	li + li {	margin-top: 2px; }
+}
+
+* + .list-description { margin-top: 20px; }
+.list-description + .group-middle { margin-top: 20px; }
+
+// Medium ≥768px
+@include media-breakpoint-up(md) {
+
+	* + .list-description { margin-top: 30px; }
+}
+
+
+
+//
+// Box Radio
+//
+.box-radio {
+	text-align: left;
+	padding: 15px;
+	border: 1px solid $gray-4;
+}
+
+.radio-panel-content {
+	height: 0;
+	max-height: 0;
+	opacity: 0;
+	letter-spacing: .05em;
+	color: $gray-500;
+}
+
+.radio-panel {
+
+	.radio-inline {
+		font-size: 14px;
+		font-weight: 500;
+		letter-spacing: .1em;
+		text-transform: uppercase;
+		color: $gray-800;
+
+		&.active + .radio-panel-content {
+			opacity: 1;
+			height: 100%;
+			max-height: 100%;
+			margin-top: 5px;
+			transition: opacity .3s ease-out;
+		}
+	}
+}
+
+.radio-panel-content {
+	font-weight: 400;
+}
+
+// Offset
+* + .box-radio { margin-top: 20px; }
+.radio-panel + .radio-panel { margin-top: 15px; }
+
+// Media
+@include media-breakpoint-up(sm) {
+
+	.box-radio { padding: 25px; }
+}
+
+@include media-breakpoint-up(md) {
+
+	.radio-panel {
+
+		.radio-inline {
+			font-size: 16px;
+		}
+	}
+
+	* + .box-radio { margin-top: 30px; }
+	.radio-panel + .radio-panel { margin-top: 20px; }
+}
+
+@include media-breakpoint-up(lg) {
+
+	* + .box-radio { margin-top: 40px; }
+}

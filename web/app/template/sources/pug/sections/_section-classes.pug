@@ -1,0 +1,121 @@
+include ../components/_services
+
+//Our Classes
+section.section.section-xl.bg-gray-100.text-center
+	.container
+		.heading-7.title-12.wow.fadeInDown Our Classes
+		+wave
+		.row.row-xl.row-30.row-md-50.row-xl-70
+			.col-sm-6.col-lg-4.wow.fadeInUp( data-wow-delay='.05s' )
+				+service-classic({
+					img: 'service-21-370x246',
+					title: 'Yoga For Beginners'
+				}).service-classic-1.block-md
+
+					.service-classic-days: ul.list-inline.nav.nav-tabs
+						li( role='presentation' ): a.active( href='#tabs-service-1-1', data-toggle='tab' ) Mo
+						li( role='presentation' ): a( href='#tabs-service-1-2', data-toggle='tab' ) We
+						li( role='presentation' ): a( href='#tabs-service-1-3', data-toggle='tab' ) FR
+
+					.service-classic-panel.tab-content
+						div#tabs-service-1-1.tab-pane.fade.show.active
+							+service-tab-pane-1
+						div#tabs-service-1-2.tab-pane.fade
+							+service-tab-pane-3
+						div#tabs-service-1-3.tab-pane.fade
+							+service-tab-pane-5
+
+			.col-sm-6.col-lg-4.wow.fadeInUp
+				+service-classic({
+					img: 'service-22-370x246',
+					title: 'Yoga For Pregnant'
+				}).service-classic-1.block-md
+
+					.service-classic-days: ul.list-inline.nav.nav-tabs
+						li( role='presentation' ): a.active( href='#tabs-service-2-1', data-toggle='tab' ) Tu
+						li( role='presentation' ): a( href='#tabs-service-2-2', data-toggle='tab' ) We
+						li( role='presentation' ): a( href='#tabs-service-2-3', data-toggle='tab' ) Th
+
+					.service-classic-panel.tab-content
+						div#tabs-service-2-1.tab-pane.fade.show.active
+							+service-tab-pane-2
+						div#tabs-service-2-2.tab-pane.fade
+							+service-tab-pane-4
+						div#tabs-service-2-3.tab-pane.fade
+							+service-tab-pane-6
+
+			.col-sm-6.col-lg-4.wow.fadeInUp( data-wow-delay='.05s' )
+				+service-classic({
+					img: 'service-7-370x246',
+					title: 'Hatha Yoga'
+				}).service-classic-1.block-md
+
+					.service-classic-days: ul.list-inline.nav.nav-tabs
+						li( role='presentation' ): a.active( href='#tabs-service-3-1', data-toggle='tab' ) Mo
+						li( role='presentation' ): a( href='#tabs-service-3-2', data-toggle='tab' ) Th
+						li( role='presentation' ): a( href='#tabs-service-3-3', data-toggle='tab' ) Fr
+
+					.service-classic-panel.tab-content
+						div#tabs-service-3-1.tab-pane.fade.show.active
+							+service-tab-pane-3
+						div#tabs-service-3-2.tab-pane.fade
+							+service-tab-pane-5
+						div#tabs-service-3-3.tab-pane.fade
+							+service-tab-pane-1
+
+			.col-sm-6.col-lg-4.wow.fadeInUp( data-wow-delay='.05s' )
+				+service-classic({
+					img: 'service-23-370x246',
+					title: 'Meditation'
+				}).service-classic-1.block-md
+
+					.service-classic-days: ul.list-inline.nav.nav-tabs
+						li( role='presentation' ): a.active( href='#tabs-service-4-1', data-toggle='tab' ) Tu
+						li( role='presentation' ): a( href='#tabs-service-4-2', data-toggle='tab' ) Th
+						li( role='presentation' ): a( href='#tabs-service-4-3', data-toggle='tab' ) Sa
+
+					.service-classic-panel.tab-content
+						div#tabs-service-4-1.tab-pane.fade.show.active
+							+service-tab-pane-4
+						div#tabs-service-4-2.tab-pane.fade
+							+service-tab-pane-6
+						div#tabs-service-4-3.tab-pane.fade
+							+service-tab-pane-2
+
+			.col-sm-6.col-lg-4.wow.fadeInUp
+				+service-classic({
+					img: 'service-24-370x246',
+					title: 'Pilates'
+				}).service-classic-1.block-md
+
+					.service-classic-days: ul.list-inline.nav.nav-tabs
+						li( role='presentation' ): a.active( href='#tabs-service-5-1', data-toggle='tab' ) Mo
+						li( role='presentation' ): a( href='#tabs-service-5-2', data-toggle='tab' ) We
+						li( role='presentation' ): a( href='#tabs-service-5-3', data-toggle='tab' ) Sa
+
+					.service-classic-panel.tab-content
+						div#tabs-service-5-1.tab-pane.fade.show.active
+							+service-tab-pane-5
+						div#tabs-service-5-2.tab-pane.fade
+							+service-tab-pane-1
+						div#tabs-service-5-3.tab-pane.fade
+							+service-tab-pane-3
+
+			.col-sm-6.col-lg-4.wow.fadeInUp( data-wow-delay='.05s' )
+				+service-classic({
+					img: 'service-25-370x246',
+					title: 'Restorative/Yin'
+				}).service-classic-1.block-md
+
+					.service-classic-days: ul.list-inline.nav.nav-tabs
+						li( role='presentation' ): a.active( href='#tabs-service-6-1', data-toggle='tab' ) Mo
+						li( role='presentation' ): a( href='#tabs-service-6-2', data-toggle='tab' ) Tu
+						li( role='presentation' ): a( href='#tabs-service-6-3', data-toggle='tab' ) Fr
+
+					.service-classic-panel.tab-content
+						div#tabs-service-6-1.tab-pane.fade.show.active
+							+service-tab-pane-6
+						div#tabs-service-6-2.tab-pane.fade
+							+service-tab-pane-2
+						div#tabs-service-6-3.tab-pane.fade
+							+service-tab-pane-4

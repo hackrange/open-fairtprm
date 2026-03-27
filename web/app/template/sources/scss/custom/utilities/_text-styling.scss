@@ -1,0 +1,148 @@
+/** @section Text styling */
+
+// Text styles
+.text-italic {
+	font-style: italic;
+}
+
+.text-normal {
+	font-style: normal;
+}
+
+.text-transform-none {
+	text-transform: none;
+}
+
+// Text decoration
+.text-underline {
+	text-decoration: underline;
+}
+
+.text-strike {
+	text-decoration: line-through;
+}
+
+// Text weight
+.font-weight-thin {
+	font-weight: 100;
+}
+
+.font-weight-light {
+	font-weight: 300;
+}
+
+.font-weight-regular {
+	font-weight: 400;
+}
+
+.font-weight-medium {
+	font-weight: 500;
+}
+
+.font-weight-sbold {
+	font-weight: 600;
+}
+
+.font-weight-bold {
+	font-weight: 700;
+}
+
+.font-weight-ubold {
+	font-weight: 900;
+}
+
+// Text spacing
+.text-spacing-0 { letter-spacing: 0; }
+.text-spacing-75 { letter-spacing: .075em; }
+.text-spacing-100 { letter-spacing: .1em; }
+
+
+// Text color
+.text-primary { color: $primary; }
+.text-white { color: $white; }
+.text-gray-800 { color: $gray-800; }
+
+.text-gradient-1 {
+	@include gradient-horizontal();
+	-webkit-text-fill-color: transparent;
+	-webkit-background-clip: text;
+}
+
+// Context styling
+.ie-10,
+.ie-11,
+.ie-edge {
+	.text-gradient-1 {
+		color: $primary;
+		background: none;
+	}
+}
+
+
+
+//
+// Text Styles
+//
+
+// Text 1
+.text-1 {
+	line-height: 1.2;
+	letter-spacing: .05em;
+	color: $gray-800;
+
+	@include media-breakpoint-up(md) {
+		font-size: 16px;
+	}
+
+	@include media-breakpoint-up(lg) {
+		font-size: 18px;
+	}
+
+	@include media-breakpoint-up(xl) {
+		font-size: 20px;
+	}
+}
+
+.floating-text__right{
+	display: none;
+	@include media-breakpoint-up(md) {
+		display: inline-block;
+		font-size: 260px;
+	}
+	@include media-breakpoint-up(xl) {
+		font-size: 333px;
+	}
+	font-weight: 900;
+	color: #ececec;
+	text-transform: uppercase;
+	position: absolute;
+	text-align: center;
+	transform: rotate(-90deg) translate(50%, -80%);
+	transform-origin: 100% 0%;
+	line-height: 1;
+	right: 0;
+	top: 50%;
+}
+
+.floating-text__left{
+	display: none;
+	@include media-breakpoint-up(md) {
+		display: inline-block;
+		font-size: 260px;
+	}
+	@include media-breakpoint-up(xl) {
+		font-size: 333px;
+		line-height: .78;
+		width: 0;
+	}
+	font-weight: 900;
+	color: #ececec;
+	text-transform: uppercase;
+	position: absolute;
+	text-align: center;
+	transform: rotate(-90deg) translateX(50%);
+	transform-origin: 100% 0;
+	line-height: 1;
+	left: 0;
+	top: 112%;
+}
