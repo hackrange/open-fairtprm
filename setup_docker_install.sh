@@ -44,6 +44,90 @@ header() {
     echo "" | tee -a "$LOG_FILE"
 }
 
+# ---- Show credentials helper ----
+# Reads credentials from the container and prints username/password prominently
+show_credentials() {
+    local COMP_CMD="$1"
+
+    cd "$INSTALL_DIR"
+
+    local CREDS
+    CREDS=$($COMP_CMD exec -T open-tprm cat /persistent/config/.sensitive 2>/dev/null) || true
+
+    if [ -n "$CREDS" ]; then
+        local ADMIN_USER ADMIN_PASS DB_ROOT_PASS DB_USER_PASS ENC_KEY
+        ADMIN_USER=$(echo "$CREDS" | grep "^PORTAL_ADMIN_USERNAME=" | cut -d'=' -f2-)
+        ADMIN_PASS=$(echo "$CREDS" | grep "^PORTAL_ADMIN_PASSWORD=" | cut -d'=' -f2-)
+        DB_ROOT_PASS=$(echo "$CREDS" | grep "^MYSQL_ROOT_PASSWORD=" | cut -d'=' -f2-)
+        DB_USER_PASS=$(echo "$CREDS" | grep "^MYSQL_USER_PASSWORD=" | cut -d'=' -f2-)
+        ENC_KEY=$(echo "$CREDS" | grep "^ENCRYPTION_KEY=" | cut -d'=' -f2-)
+
+        echo ""
+        echo -e "  ${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "  ${GREEN}║                  ADMIN LOGIN CREDENTIALS                  ║${NC}"
+        echo -e "  ${GREEN}╠════════════════════════════════════════════════════════════╣${NC}"
+        echo -e "  ${GREEN}║${NC}                                                            ${GREEN}║${NC}"
+        printf "  ${GREEN}║${NC}   Username:  ${YELLOW}%-43s${NC}${GREEN}║${NC}\n" "${ADMIN_USER:-admin}"
+        printf "  ${GREEN}║${NC}   Password:  ${YELLOW}%-43s${NC}${GREEN}║${NC}\n" "${ADMIN_PASS:-<not yet generated>}"
+        echo -e "  ${GREEN}║${NC}                                                            ${GREEN}║${NC}"
+        echo -e "  ${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+        echo -e "  ${BLUE}Database Credentials (for advanced users):${NC}"
+        echo -e "    MySQL Root Password:     ${DB_ROOT_PASS:-<not available>}"
+        echo -e "    MySQL App User:          tprm_user"
+        echo -e "    MySQL App Password:      ${DB_USER_PASS:-<not available>}"
+        echo -e "    Encryption Key:          ${ENC_KEY:-<not available>}"
+        echo ""
+        echo -e "  ${BLUE}To view these credentials later, run:${NC}"
+        echo "    cd $INSTALL_DIR && $COMP_CMD exec open-tprm cat /persistent/config/.sensitive"
+    else
+        echo ""
+        echo -e "  ${YELLOW}Credentials are not available yet. The container may still be initializing.${NC}"
+        echo -e "  ${YELLOW}Check the logs for your credentials:${NC}"
+        echo "    cd $INSTALL_DIR && $COMP_CMD logs | grep -A 20 'DATABASE CREATED'"
+        echo ""
+        echo -e "  ${YELLOW}Or wait a moment and run:${NC}"
+        echo "    cd $INSTALL_DIR && $COMP_CMD exec open-tprm cat /persistent/config/.sensitive"
+    fi
+}
+
+# ---- Show info for an existing running installation ----
+show_existing_install() {
+    local COMP_CMD="$1"
+    local SERVER_IP
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+
+    echo ""
+    echo -e "${GREEN}============================================================${NC}"
+    echo -e "${GREEN}  Fair TPRM & GRC Platform — Already Installed & Running!${NC}"
+    echo -e "${GREEN}============================================================${NC}"
+    echo ""
+    echo -e "  The application is ${GREEN}already set up${NC} and ${GREEN}running${NC}."
+    echo ""
+    echo -e "  ${BLUE}Access the application at:${NC}"
+    echo ""
+    echo -e "    ${YELLOW}http://${SERVER_IP}:8080${NC}"
+    echo -e "    ${YELLOW}http://localhost:8080${NC}"
+    echo ""
+
+    show_credentials "$COMP_CMD"
+
+    echo ""
+    echo -e "  ${BLUE}Useful commands:${NC}"
+    echo "    cd $INSTALL_DIR"
+    echo "    $COMP_CMD logs -f          # Watch live logs"
+    echo "    $COMP_CMD restart          # Restart the container"
+    echo "    $COMP_CMD down             # Stop the container"
+    echo "    $COMP_CMD up -d            # Start the container"
+    echo ""
+    echo -e "  ${BLUE}To reinstall from scratch, stop first then re-run:${NC}"
+    echo "    cd $INSTALL_DIR && $COMP_CMD down"
+    echo "    sudo $0"
+    echo ""
+    echo -e "${GREEN}============================================================${NC}"
+    echo ""
+}
+
 # ---- Pre-flight checks ----
 preflight() {
     header "Pre-flight Checks"
@@ -92,21 +176,59 @@ preflight() {
         log "RAM: ${TOTAL_RAM_GB} GB available"
     fi
 
-    # Check if the install directory already exists with content
-    if [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
-        warn "Directory $INSTALL_DIR already exists with a docker-compose.yml."
+    # Check if already installed and running
+    if [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/docker-compose.yml" ] && command -v docker &>/dev/null; then
+        # Determine which compose command works
+        local EXISTING_COMPOSE=""
+        if docker compose version &>/dev/null; then
+            EXISTING_COMPOSE="docker compose"
+        elif command -v docker-compose &>/dev/null; then
+            EXISTING_COMPOSE="docker-compose"
+        fi
+
+        if [ -n "$EXISTING_COMPOSE" ]; then
+            # Check if the container is running and healthy
+            local EXISTING_STATE
+            EXISTING_STATE=$(cd "$INSTALL_DIR" && $EXISTING_COMPOSE ps --format '{{.State}}' 2>/dev/null | head -1) || true
+
+            if [ "$EXISTING_STATE" = "running" ]; then
+                show_existing_install "$EXISTING_COMPOSE"
+                exit 0
+            fi
+        fi
+
+        # Installed but not running — offer to reinstall or start
+        warn "Directory $INSTALL_DIR exists but the container is not running."
         echo ""
-        read -r -p "  Overwrite and reinstall? (y/N): " CONFIRM
-        if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-            info "Aborted by user."
-            exit 0
-        fi
-        # Stop any running containers before overwriting
-        if command -v docker &>/dev/null; then
-            info "Stopping any existing containers in $INSTALL_DIR..."
-            (cd "$INSTALL_DIR" && docker compose down 2>/dev/null) || true
-            (cd "$INSTALL_DIR" && docker-compose down 2>/dev/null) || true
-        fi
+        echo "  What would you like to do?"
+        echo ""
+        echo "    1) Start the existing container"
+        echo "    2) Reinstall from scratch"
+        echo "    3) Exit"
+        echo ""
+        read -r -p "  Choose [1/2/3]: " CHOICE
+        case "$CHOICE" in
+            1)
+                info "Starting existing container..."
+                cd "$INSTALL_DIR"
+                COMPOSE_CMD="$EXISTING_COMPOSE"
+                if [ -z "$COMPOSE_CMD" ]; then
+                    COMPOSE_CMD="docker compose"
+                fi
+                $COMPOSE_CMD up -d
+                wait_and_show
+                exit 0
+                ;;
+            2)
+                info "Stopping any existing containers..."
+                (cd "$INSTALL_DIR" && docker compose down 2>/dev/null) || true
+                (cd "$INSTALL_DIR" && docker-compose down 2>/dev/null) || true
+                ;;
+            *)
+                info "Exiting."
+                exit 0
+                ;;
+        esac
     fi
 }
 
@@ -326,35 +448,24 @@ wait_and_show() {
         warn "Check status with: cd $INSTALL_DIR && $COMPOSE_CMD logs -f"
     fi
 
-    # Retrieve credentials
+    # Show completion banner with credentials
+    local SERVER_IP
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+
     echo ""
     echo -e "${GREEN}============================================================${NC}"
     echo -e "${GREEN}  Fair TPRM & GRC Platform — Setup Complete!${NC}"
     echo -e "${GREEN}============================================================${NC}"
     echo ""
-    echo -e "  ${BLUE}Application URL:${NC}  http://$(hostname -I | awk '{print $1}'):8080"
-    echo -e "  ${BLUE}                   http://localhost:8080${NC}"
+    echo -e "  ${BLUE}Access the application at:${NC}"
+    echo ""
+    echo -e "    ${YELLOW}http://${SERVER_IP}:8080${NC}"
+    echo -e "    ${YELLOW}http://localhost:8080${NC}"
     echo ""
     echo -e "  ${BLUE}Install directory:${NC} $INSTALL_DIR"
     echo -e "  ${BLUE}Setup log:${NC}         $LOG_FILE"
-    echo ""
 
-    # Try to show credentials
-    local CREDS
-    CREDS=$($COMPOSE_CMD exec -T open-tprm cat /persistent/config/.sensitive 2>/dev/null) || true
-
-    if [ -n "$CREDS" ]; then
-        echo -e "  ${YELLOW}Login Credentials:${NC}"
-        echo "$CREDS" | grep -E "^(PORTAL_|MYSQL_|ENCRYPTION)" | while IFS='=' read -r KEY VAL; do
-            printf "    %-28s %s\n" "$KEY:" "$VAL"
-        done
-        echo ""
-        echo -e "  ${YELLOW}To view credentials later:${NC}"
-        echo "    cd $INSTALL_DIR && $COMPOSE_CMD exec open-tprm cat /persistent/config/.sensitive"
-    else
-        echo -e "  ${YELLOW}Credentials will appear in the container logs once initialization completes:${NC}"
-        echo "    cd $INSTALL_DIR && $COMPOSE_CMD logs | grep -A 20 'DATABASE CREATED'"
-    fi
+    show_credentials "$COMPOSE_CMD"
 
     echo ""
     echo -e "  ${BLUE}Useful commands:${NC}"
