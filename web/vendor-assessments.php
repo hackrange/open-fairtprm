@@ -1392,9 +1392,6 @@ try {
             if (event.target.classList.contains('modal')) {
                 event.target.style.display = 'none';
             }
-            if (event.target.id === 'emailModal') {
-                closeEmailModal();
-            }
         }
 
         document.addEventListener('keydown', function(e) {
