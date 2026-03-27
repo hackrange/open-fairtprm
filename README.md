@@ -86,7 +86,7 @@ everything (Git, Docker, Docker Compose), clones the repository to
 `/data/docker/fairtprm`, builds the Docker image, and starts the application:
 
 ```bash
-curl -fsSL https://git.hackrange.com/trice/open-fairtprm/-/raw/master/setup_docker_install.sh | sudo bash
+curl -fsSL https://git.hackrange.com/trice/open-fairtprm/-/raw/master/setup_docker_install.sh -o /tmp/setup.sh && sudo bash /tmp/setup.sh
 ```
 
 Or if you already have the repository cloned:

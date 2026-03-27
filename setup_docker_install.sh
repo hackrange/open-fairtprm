@@ -6,15 +6,21 @@
 # This script:
 #   1. Detects your Ubuntu version (22.04 or 24.04)
 #   2. Installs Git if not already installed
-#   3. Installs Docker Engine and Docker Compose v2 (falls back to v1 if needed)
+#   3. Installs Docker Engine and Docker Compose v2
 #   4. Clones the repository into /data/docker/fairtprm
 #   5. Builds and starts the application container
 #
-# Usage:
-#   chmod +x setup_docker_install.sh
-#   sudo ./setup_docker_install.sh
+# Usage (pick one):
+#   curl -fsSL https://git.hackrange.com/trice/open-fairtprm/-/raw/master/setup_docker_install.sh -o /tmp/setup.sh && sudo bash /tmp/setup.sh
+#   -- or --
+#   chmod +x setup_docker_install.sh && sudo ./setup_docker_install.sh
 #
 # =============================================================================
+# The { } block forces bash to read the ENTIRE script into memory before
+# executing anything. Without this, "curl | bash" reads line-by-line and
+# subcommands (apt-get, docker, etc.) can swallow parts of the script.
+# =============================================================================
+{
 
 set -euo pipefail
 
@@ -22,27 +28,20 @@ set -euo pipefail
 INSTALL_DIR="/data/docker/fairtprm"
 REPO_URL="https://git.hackrange.com/trice/open-fairtprm.git"
 LOG_FILE="/tmp/fairtprm-setup-$(date +%Y%m%d-%H%M%S).log"
-
-# Detect if we're running from a pipe (curl | bash) - stdin is not a terminal.
-# In pipe mode, skip interactive prompts and use safe defaults.
-if [ -t 0 ]; then
-    INTERACTIVE=true
-else
-    INTERACTIVE=false
-fi
+COMPOSE_CMD=""
 
 # ---- Colors for output ----
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # ---- Helper functions ----
-log()   { echo -e "${GREEN}[OK]${NC}    $1" | tee -a "$LOG_FILE"; }
-info()  { echo -e "${BLUE}[INFO]${NC}  $1" | tee -a "$LOG_FILE"; }
-warn()  { echo -e "${YELLOW}[WARN]${NC}  $1" | tee -a "$LOG_FILE"; }
-fail()  { echo -e "${RED}[FAIL]${NC}  $1" | tee -a "$LOG_FILE"; exit 1; }
+log()    { echo -e "${GREEN}[OK]${NC}    $1" | tee -a "$LOG_FILE"; }
+info()   { echo -e "${BLUE}[INFO]${NC}  $1" | tee -a "$LOG_FILE"; }
+warn()   { echo -e "${YELLOW}[WARN]${NC}  $1" | tee -a "$LOG_FILE"; }
+fail()   { echo -e "${RED}[FAIL]${NC}  $1" | tee -a "$LOG_FILE"; exit 1; }
 
 header() {
     echo "" | tee -a "$LOG_FILE"
@@ -52,23 +51,27 @@ header() {
     echo "" | tee -a "$LOG_FILE"
 }
 
-# ---- Show credentials helper ----
-# Reads credentials from the container and prints username/password prominently
+# ---- Detect which compose command to use ----
+detect_compose() {
+    if docker compose version >/dev/null 2>&1; then
+        COMPOSE_CMD="docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        COMPOSE_CMD="docker-compose"
+    fi
+}
+
+# ---- Show credentials from running container ----
 show_credentials() {
-    local COMP_CMD="$1"
-
-    cd "$INSTALL_DIR"
-
-    local CREDS
-    CREDS=$($COMP_CMD exec -T open-tprm cat /persistent/config/.sensitive 2>/dev/null) || true
+    local CREDS=""
+    CREDS=$(cd "$INSTALL_DIR" && $COMPOSE_CMD exec -T open-tprm cat /persistent/config/.sensitive 2>/dev/null) || true
 
     if [ -n "$CREDS" ]; then
         local ADMIN_USER ADMIN_PASS DB_ROOT_PASS DB_USER_PASS ENC_KEY
-        ADMIN_USER=$(echo "$CREDS" | grep "^PORTAL_ADMIN_USERNAME=" | cut -d'=' -f2-)
-        ADMIN_PASS=$(echo "$CREDS" | grep "^PORTAL_ADMIN_PASSWORD=" | cut -d'=' -f2-)
-        DB_ROOT_PASS=$(echo "$CREDS" | grep "^MYSQL_ROOT_PASSWORD=" | cut -d'=' -f2-)
-        DB_USER_PASS=$(echo "$CREDS" | grep "^MYSQL_USER_PASSWORD=" | cut -d'=' -f2-)
-        ENC_KEY=$(echo "$CREDS" | grep "^ENCRYPTION_KEY=" | cut -d'=' -f2-)
+        ADMIN_USER=$(echo "$CREDS" | grep "^PORTAL_ADMIN_USERNAME=" | cut -d'=' -f2-) || true
+        ADMIN_PASS=$(echo "$CREDS" | grep "^PORTAL_ADMIN_PASSWORD=" | cut -d'=' -f2-) || true
+        DB_ROOT_PASS=$(echo "$CREDS" | grep "^MYSQL_ROOT_PASSWORD=" | cut -d'=' -f2-) || true
+        DB_USER_PASS=$(echo "$CREDS" | grep "^MYSQL_USER_PASSWORD=" | cut -d'=' -f2-) || true
+        ENC_KEY=$(echo "$CREDS" | grep "^ENCRYPTION_KEY=" | cut -d'=' -f2-) || true
 
         echo ""
         echo -e "  ${GREEN}+------------------------------------------------------------+${NC}"
@@ -81,59 +84,86 @@ show_credentials() {
         echo -e "  ${GREEN}+------------------------------------------------------------+${NC}"
         echo ""
         echo -e "  ${BLUE}Database Credentials (for advanced users):${NC}"
-        echo -e "    MySQL Root Password:     ${DB_ROOT_PASS:-<not available>}"
-        echo -e "    MySQL App User:          tprm_user"
-        echo -e "    MySQL App Password:      ${DB_USER_PASS:-<not available>}"
-        echo -e "    Encryption Key:          ${ENC_KEY:-<not available>}"
+        echo "    MySQL Root Password:     ${DB_ROOT_PASS:-<not available>}"
+        echo "    MySQL App User:          tprm_user"
+        echo "    MySQL App Password:      ${DB_USER_PASS:-<not available>}"
+        echo "    Encryption Key:          ${ENC_KEY:-<not available>}"
         echo ""
         echo -e "  ${BLUE}To view these credentials later, run:${NC}"
-        echo "    cd $INSTALL_DIR && $COMP_CMD exec open-tprm cat /persistent/config/.sensitive"
+        echo "    cd $INSTALL_DIR && $COMPOSE_CMD exec open-tprm cat /persistent/config/.sensitive"
     else
         echo ""
         echo -e "  ${YELLOW}Credentials are not available yet. The container may still be initializing.${NC}"
-        echo -e "  ${YELLOW}Check the logs for your credentials:${NC}"
-        echo "    cd $INSTALL_DIR && $COMP_CMD logs | grep -A 20 'DATABASE CREATED'"
-        echo ""
-        echo -e "  ${YELLOW}Or wait a moment and run:${NC}"
-        echo "    cd $INSTALL_DIR && $COMP_CMD exec open-tprm cat /persistent/config/.sensitive"
+        echo -e "  ${YELLOW}Wait a moment, then run:${NC}"
+        echo "    cd $INSTALL_DIR && $COMPOSE_CMD exec open-tprm cat /persistent/config/.sensitive"
     fi
 }
 
-# ---- Show info for an existing running installation ----
-show_existing_install() {
-    local COMP_CMD="$1"
-    local SERVER_IP
-    SERVER_IP=$(hostname -I | awk '{print $1}')
+# ---- Check if already installed and running ----
+check_existing() {
+    # Not installed at all
+    if [ ! -d "$INSTALL_DIR" ] || [ ! -f "$INSTALL_DIR/docker-compose.yml" ]; then
+        return 0
+    fi
 
-    echo ""
-    echo -e "${GREEN}============================================================${NC}"
-    echo -e "${GREEN}  Fair TPRM & GRC Platform - Already Installed & Running!${NC}"
-    echo -e "${GREEN}============================================================${NC}"
-    echo ""
-    echo -e "  The application is ${GREEN}already set up${NC} and ${GREEN}running${NC}."
-    echo ""
-    echo -e "  ${BLUE}Access the application at:${NC}"
-    echo ""
-    echo -e "    ${YELLOW}http://${SERVER_IP}:8080${NC}"
-    echo -e "    ${YELLOW}http://localhost:8080${NC}"
-    echo ""
+    # Installed but Docker is not available yet
+    if ! command -v docker >/dev/null 2>&1; then
+        return 0
+    fi
 
-    show_credentials "$COMP_CMD"
+    detect_compose
+    if [ -z "$COMPOSE_CMD" ]; then
+        return 0
+    fi
 
-    echo ""
-    echo -e "  ${BLUE}Useful commands:${NC}"
-    echo "    cd $INSTALL_DIR"
-    echo "    $COMP_CMD logs -f          # Watch live logs"
-    echo "    $COMP_CMD restart          # Restart the container"
-    echo "    $COMP_CMD down             # Stop the container"
-    echo "    $COMP_CMD up -d            # Start the container"
-    echo ""
-    echo -e "  ${BLUE}To reinstall from scratch, stop first then re-run:${NC}"
-    echo "    cd $INSTALL_DIR && $COMP_CMD down"
-    echo "    sudo $0"
-    echo ""
-    echo -e "${GREEN}============================================================${NC}"
-    echo ""
+    # Check if the container is running
+    local CONTAINER_STATE=""
+    CONTAINER_STATE=$(cd "$INSTALL_DIR" && $COMPOSE_CMD ps -q 2>/dev/null | head -1) || true
+
+    if [ -n "$CONTAINER_STATE" ]; then
+        local IS_RUNNING=""
+        IS_RUNNING=$(docker inspect --format='{{.State.Running}}' "$CONTAINER_STATE" 2>/dev/null) || true
+
+        if [ "$IS_RUNNING" = "true" ]; then
+            local SERVER_IP
+            SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}') || SERVER_IP="localhost"
+
+            echo ""
+            echo -e "${GREEN}============================================================${NC}"
+            echo -e "${GREEN}  Fair TPRM & GRC Platform - Already Installed & Running!${NC}"
+            echo -e "${GREEN}============================================================${NC}"
+            echo ""
+            echo -e "  The application is ${GREEN}already set up${NC} and ${GREEN}running${NC}."
+            echo ""
+            echo -e "  ${BLUE}Access the application at:${NC}"
+            echo ""
+            echo -e "    ${YELLOW}http://${SERVER_IP}:8080${NC}"
+            echo -e "    ${YELLOW}http://localhost:8080${NC}"
+
+            show_credentials
+
+            echo ""
+            echo -e "  ${BLUE}Useful commands:${NC}"
+            echo "    cd $INSTALL_DIR"
+            echo "    $COMPOSE_CMD logs -f          # Watch live logs"
+            echo "    $COMPOSE_CMD restart          # Restart the container"
+            echo "    $COMPOSE_CMD down             # Stop the container"
+            echo "    $COMPOSE_CMD up -d            # Start the container"
+            echo ""
+            echo -e "  ${BLUE}To reinstall from scratch:${NC}"
+            echo "    cd $INSTALL_DIR && $COMPOSE_CMD down"
+            echo "    sudo bash $INSTALL_DIR/setup_docker_install.sh"
+            echo ""
+            echo -e "${GREEN}============================================================${NC}"
+            echo ""
+            exit 0
+        fi
+    fi
+
+    # Installed but not running - stop any dead containers and continue with rebuild
+    info "Previous installation found but not running. Rebuilding..."
+    (cd "$INSTALL_DIR" && $COMPOSE_CMD down 2>/dev/null) || true
+    return 0
 }
 
 # ---- Pre-flight checks ----
@@ -157,7 +187,6 @@ preflight() {
         fail "This script only supports Ubuntu. Detected: $ID"
     fi
 
-    # Must be 22.04 or 24.04
     case "$VERSION_ID" in
         22.04|24.04)
             log "Detected Ubuntu $VERSION_ID ($VERSION_CODENAME)"
@@ -167,7 +196,7 @@ preflight() {
             ;;
     esac
 
-    # Check available disk space (need at least 5 GB on the partition where /data will live)
+    # Check disk space
     AVAIL_KB=$(df --output=avail / | tail -1 | tr -d ' ')
     AVAIL_GB=$((AVAIL_KB / 1024 / 1024))
     if [ "$AVAIL_GB" -lt 5 ]; then
@@ -175,272 +204,164 @@ preflight() {
     fi
     log "Disk space: ${AVAIL_GB} GB available"
 
-    # Check available RAM (need at least 2 GB)
+    # Check RAM
     TOTAL_RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
     TOTAL_RAM_GB=$((TOTAL_RAM_KB / 1024 / 1024))
     if [ "$TOTAL_RAM_KB" -lt 1800000 ]; then
-        warn "Low memory detected (${TOTAL_RAM_GB} GB). Recommended: 2 GB minimum. ClamAV may not start."
+        warn "Low memory detected (${TOTAL_RAM_GB} GB). Recommended: 2 GB minimum."
     else
         log "RAM: ${TOTAL_RAM_GB} GB available"
     fi
 
-    # Check if already installed and running
-    if [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/docker-compose.yml" ] && command -v docker &>/dev/null; then
-        # Determine which compose command works
-        local EXISTING_COMPOSE=""
-        if docker compose version &>/dev/null; then
-            EXISTING_COMPOSE="docker compose"
-        elif command -v docker-compose &>/dev/null; then
-            EXISTING_COMPOSE="docker-compose"
-        fi
-
-        if [ -n "$EXISTING_COMPOSE" ]; then
-            # Check if the container is running and healthy
-            local EXISTING_STATE
-            EXISTING_STATE=$(cd "$INSTALL_DIR" && $EXISTING_COMPOSE ps --format '{{.State}}' 2>/dev/null | head -1) || true
-
-            if [ "$EXISTING_STATE" = "running" ]; then
-                show_existing_install "$EXISTING_COMPOSE"
-                exit 0
-            fi
-        fi
-
-        # Installed but not running
-        warn "Directory $INSTALL_DIR exists but the container is not running."
-
-        if [ "$INTERACTIVE" = true ]; then
-            echo ""
-            echo "  What would you like to do?"
-            echo ""
-            echo "    1) Start the existing container"
-            echo "    2) Reinstall from scratch"
-            echo "    3) Exit"
-            echo ""
-            read -r -p "  Choose [1/2/3]: " CHOICE </dev/tty
-            case "$CHOICE" in
-                1)
-                    info "Starting existing container..."
-                    cd "$INSTALL_DIR"
-                    COMPOSE_CMD="${EXISTING_COMPOSE:-docker compose}"
-                    $COMPOSE_CMD up -d
-                    wait_and_show
-                    exit 0
-                    ;;
-                2)
-                    info "Stopping any existing containers..."
-                    (cd "$INSTALL_DIR" && docker compose down 2>/dev/null) || true
-                    (cd "$INSTALL_DIR" && docker-compose down 2>/dev/null) || true
-                    ;;
-                *)
-                    info "Exiting."
-                    exit 0
-                    ;;
-            esac
-        else
-            # Non-interactive (piped) - default to rebuilding
-            info "Non-interactive mode: rebuilding automatically..."
-            (cd "$INSTALL_DIR" && docker compose down 2>/dev/null) || true
-            (cd "$INSTALL_DIR" && docker-compose down 2>/dev/null) || true
-        fi
-    fi
+    # Check for existing installation
+    check_existing
 }
 
 # ---- Step 1: Install Git ----
 install_git() {
     header "Step 1/5 - Installing Git"
 
-    if command -v git &>/dev/null; then
+    if command -v git >/dev/null 2>&1; then
         log "Git is already installed: $(git --version)"
-        return
+        return 0
     fi
 
     info "Installing Git..."
-    apt-get update -qq
-    apt-get install -y -qq git ca-certificates curl gnupg lsb-release > /dev/null 2>&1
+    apt-get update -qq </dev/null
+    apt-get install -y -qq git ca-certificates curl gnupg lsb-release </dev/null >/dev/null 2>&1
     log "Git installed: $(git --version)"
 }
 
 # ---- Step 2: Install Docker ----
 install_docker() {
-    header "Step 2/5 - Installing Docker Engine"
+    header "Step 2/5 - Installing Docker Engine + Compose v2"
 
-    # Check if Docker is already installed and working
-    if command -v docker &>/dev/null && docker info &>/dev/null; then
-        DOCKER_VERSION=$(docker --version)
-        log "Docker is already installed: $DOCKER_VERSION"
+    local NEED_DOCKER=false
+    local NEED_COMPOSE=false
+    local NEED_BUILDX=false
 
-        # Even if Docker exists, check if it's the docker.io (Ubuntu) package
-        # which often lacks buildx and compose v2 - these are needed for
-        # compatibility with newer kernels
-        if ! docker compose version &>/dev/null || ! docker buildx version &>/dev/null; then
-            info "Docker is installed but missing compose v2 or buildx plugin."
-            info "Installing missing plugins..."
+    # Check what we already have
+    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+        log "Docker is already installed: $(docker --version)"
+    else
+        NEED_DOCKER=true
+    fi
 
-            # Add Docker's official repo if not present (for plugin packages)
-            if [ ! -f /etc/apt/sources.list.d/docker.list ]; then
-                install -m 0755 -d /etc/apt/keyrings
-                if [ -f /etc/apt/keyrings/docker.gpg ]; then
-                    rm -f /etc/apt/keyrings/docker.gpg
-                fi
-                curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-                chmod a+r /etc/apt/keyrings/docker.gpg
+    if docker compose version >/dev/null 2>&1; then
+        log "Docker Compose v2 is already installed: $(docker compose version 2>&1)"
+    else
+        NEED_COMPOSE=true
+        if command -v docker-compose >/dev/null 2>&1; then
+            warn "Docker Compose v1 found but v1 uses a legacy builder that fails on newer kernels."
+            info "Will install Compose v2 alongside it."
+        fi
+    fi
 
-                . /etc/os-release
-                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" \
-                    | tee /etc/apt/sources.list.d/docker.list > /dev/null
-                apt-get update -qq
-            fi
+    if docker buildx version >/dev/null 2>&1; then
+        log "Docker Buildx is already installed"
+    else
+        NEED_BUILDX=true
+    fi
+
+    # If everything is installed, we're done
+    if [ "$NEED_DOCKER" = false ] && [ "$NEED_COMPOSE" = false ] && [ "$NEED_BUILDX" = false ]; then
+        COMPOSE_CMD="docker compose"
+        return 0
+    fi
+
+    # Add Docker's official apt repository (needed for docker-ce, compose plugin, buildx)
+    if [ ! -f /etc/apt/sources.list.d/docker.list ] || [ "$NEED_DOCKER" = true ]; then
+        info "Adding Docker official repository..."
+        apt-get update -qq </dev/null
+        apt-get install -y -qq ca-certificates curl gnupg </dev/null >/dev/null 2>&1
+
+        install -m 0755 -d /etc/apt/keyrings
+        rm -f /etc/apt/keyrings/docker.gpg
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        chmod a+r /etc/apt/keyrings/docker.gpg
+
+        . /etc/os-release
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" \
+            > /etc/apt/sources.list.d/docker.list
+
+        apt-get update -qq </dev/null
+    fi
+
+    # Install what we need
+    if [ "$NEED_DOCKER" = true ]; then
+        info "Removing old Docker packages..."
+        apt-get remove -y docker docker-engine docker.io containerd runc </dev/null 2>/dev/null || true
+
+        info "Installing Docker Engine..."
+        apt-get install -y -qq docker-ce docker-ce-cli containerd.io </dev/null >/dev/null 2>&1
+        systemctl enable --now docker
+        log "Docker installed: $(docker --version)"
+    fi
+
+    if [ "$NEED_COMPOSE" = true ]; then
+        info "Installing Docker Compose v2 plugin..."
+        apt-get install -y -qq docker-compose-plugin </dev/null >/dev/null 2>&1 || true
+
+        if ! docker compose version >/dev/null 2>&1; then
+            # Direct download fallback
+            info "Trying direct download of Compose v2..."
+            local PLUGIN_DIR="/usr/local/lib/docker/cli-plugins"
+            mkdir -p "$PLUGIN_DIR"
+            curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+                -o "$PLUGIN_DIR/docker-compose" 2>/dev/null || true
+            chmod +x "$PLUGIN_DIR/docker-compose" 2>/dev/null || true
         fi
 
-        install_compose
-        return
+        if docker compose version >/dev/null 2>&1; then
+            log "Docker Compose v2 installed: $(docker compose version 2>&1)"
+        else
+            fail "Could not install Docker Compose v2. Visit https://docs.docker.com/engine/install/ubuntu/"
+        fi
     fi
 
-    info "Removing any old Docker packages..."
-    apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
-
-    info "Installing Docker prerequisites..."
-    apt-get update -qq
-    apt-get install -y -qq ca-certificates curl gnupg > /dev/null 2>&1
-
-    info "Adding Docker GPG key and repository..."
-    install -m 0755 -d /etc/apt/keyrings
-    if [ -f /etc/apt/keyrings/docker.gpg ]; then
-        rm -f /etc/apt/keyrings/docker.gpg
-    fi
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    chmod a+r /etc/apt/keyrings/docker.gpg
-
-    . /etc/os-release
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" \
-        | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-    info "Installing Docker Engine..."
-    apt-get update -qq
-    apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin > /dev/null 2>&1
-
-    # Start and enable Docker
-    systemctl enable --now docker
-
-    # Verify Docker works
-    if ! docker info &>/dev/null; then
-        fail "Docker installed but not responding. Check: systemctl status docker"
+    if [ "$NEED_BUILDX" = true ]; then
+        info "Installing Docker Buildx..."
+        apt-get install -y -qq docker-buildx-plugin </dev/null >/dev/null 2>&1 || true
+        if docker buildx version >/dev/null 2>&1; then
+            log "Docker Buildx installed"
+        else
+            warn "Buildx not available - builds may be slower"
+        fi
     fi
 
-    log "Docker installed: $(docker --version)"
-    install_compose
-}
-
-# ---- Install/verify Docker Compose ----
-install_compose() {
-    info "Checking Docker Compose..."
-
-    # Always prefer Compose v2 (docker compose plugin) - the legacy v1
-    # docker-compose uses the old builder which fails on newer kernels
-    # with "open sysctl net.ipv4.ip_unprivileged_port_start" errors.
-
-    # 1. If v2 plugin is already installed, use it
-    if docker compose version &>/dev/null; then
-        COMPOSE_CMD="docker compose"
-        log "Docker Compose v2 available: $(docker compose version)"
-        ensure_buildx
-        return
+    # Verify Docker is working
+    if ! docker info >/dev/null 2>&1; then
+        fail "Docker is not responding. Run: systemctl status docker"
     fi
 
-    # 2. v2 not found - try to install it (even if v1 exists)
-    if command -v docker-compose &>/dev/null; then
-        warn "Docker Compose v1 found, but v1 uses the legacy builder which may fail."
-        info "Upgrading to Docker Compose v2..."
-    else
-        info "Installing Docker Compose v2 plugin..."
-    fi
-
-    # Try installing from Docker's official repo
-    apt-get update -qq 2>/dev/null || true
-    apt-get install -y -qq docker-compose-plugin 2>/dev/null || true
-
-    if docker compose version &>/dev/null; then
-        COMPOSE_CMD="docker compose"
-        log "Docker Compose v2 installed: $(docker compose version)"
-        ensure_buildx
-        return
-    fi
-
-    # Try installing the plugin binary directly
-    info "Attempting direct plugin download..."
-    local COMPOSE_PLUGIN_DIR="/usr/local/lib/docker/cli-plugins"
-    mkdir -p "$COMPOSE_PLUGIN_DIR"
-    curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
-        -o "$COMPOSE_PLUGIN_DIR/docker-compose"
-    chmod +x "$COMPOSE_PLUGIN_DIR/docker-compose"
-
-    if docker compose version &>/dev/null; then
-        COMPOSE_CMD="docker compose"
-        log "Docker Compose v2 installed via direct download: $(docker compose version)"
-        ensure_buildx
-        return
-    fi
-
-    # Last resort: use v1 if available (may fail on newer kernels)
-    if command -v docker-compose &>/dev/null; then
-        COMPOSE_CMD="docker-compose"
-        warn "Falling back to Docker Compose v1: $(docker-compose --version)"
-        warn "If the build fails, install Docker from https://docs.docker.com/engine/install/ubuntu/"
-        return
-    fi
-
-    fail "Could not install Docker Compose. Please install Docker from https://docs.docker.com/engine/install/ubuntu/"
-}
-
-# ---- Ensure BuildKit / buildx is available ----
-ensure_buildx() {
-    if docker buildx version &>/dev/null; then
-        log "Docker Buildx available: $(docker buildx version)"
-        # Enable BuildKit by default for faster, more compatible builds
-        export DOCKER_BUILDKIT=1
-        export COMPOSE_DOCKER_CLI_BUILD=1
-        return
-    fi
-
-    info "Installing Docker Buildx..."
-    apt-get install -y -qq docker-buildx-plugin 2>/dev/null || true
-
-    if docker buildx version &>/dev/null; then
-        log "Docker Buildx installed: $(docker buildx version)"
-        export DOCKER_BUILDKIT=1
-        export COMPOSE_DOCKER_CLI_BUILD=1
-    else
-        warn "Buildx not available - build will use the legacy builder"
-    fi
+    COMPOSE_CMD="docker compose"
 }
 
 # ---- Step 3: Clone repository ----
 clone_repo() {
     header "Step 3/5 - Cloning Repository"
 
-    # Create parent directories
     mkdir -p "$(dirname "$INSTALL_DIR")"
 
     if [ -d "$INSTALL_DIR/.git" ]; then
         info "Repository already cloned. Pulling latest changes..."
         cd "$INSTALL_DIR"
-        git fetch --all
-        git reset --hard origin/master
+        git fetch --all </dev/null
+        git reset --hard origin/master </dev/null
         log "Repository updated to latest"
     else
-        # Remove directory if it exists but isn't a git repo
         if [ -d "$INSTALL_DIR" ]; then
             rm -rf "$INSTALL_DIR"
         fi
 
         info "Cloning into $INSTALL_DIR..."
-        git clone "$REPO_URL" "$INSTALL_DIR"
+        git clone "$REPO_URL" "$INSTALL_DIR" </dev/null
         log "Repository cloned to $INSTALL_DIR"
     fi
 
     cd "$INSTALL_DIR"
 
-    # Verify critical files exist
+    # Verify critical files
     local MISSING=0
     for f in Dockerfile docker-compose.yml docker/entrypoint.sh web/login.php; do
         if [ ! -f "$INSTALL_DIR/$f" ]; then
@@ -450,7 +371,7 @@ clone_repo() {
     done
 
     if [ "$MISSING" -eq 1 ]; then
-        fail "Repository is incomplete. Some required files are missing."
+        fail "Repository is incomplete. Required files are missing."
     fi
 
     log "All required files verified"
@@ -462,12 +383,11 @@ build_and_start() {
 
     cd "$INSTALL_DIR"
 
-    # Ensure BuildKit is enabled for compatibility with newer kernels
     export DOCKER_BUILDKIT=1
     export COMPOSE_DOCKER_CLI_BUILD=1
 
     info "Building the Docker image (this may take 5-10 minutes on first run)..."
-    $COMPOSE_CMD build --progress=plain 2>&1 | tee -a "$LOG_FILE"
+    $COMPOSE_CMD build --progress=plain </dev/null 2>&1 | tee -a "$LOG_FILE"
 
     if [ "${PIPESTATUS[0]}" -ne 0 ]; then
         fail "Docker build failed. Check the log: $LOG_FILE"
@@ -475,7 +395,7 @@ build_and_start() {
     log "Docker image built successfully"
 
     info "Starting the container..."
-    $COMPOSE_CMD up -d
+    $COMPOSE_CMD up -d </dev/null
 
     log "Container started"
 }
@@ -490,30 +410,27 @@ wait_and_show() {
     info "ClamAV virus definitions loading + database initialization..."
     echo ""
 
-    # Wait up to 180 seconds for the health check to pass
     local SECONDS_WAITED=0
     local MAX_WAIT=180
     local HEALTHY=0
 
     while [ $SECONDS_WAITED -lt $MAX_WAIT ]; do
-        # Check container health status
-        local STATUS
-        STATUS=$($COMPOSE_CMD ps --format '{{.Health}}' 2>/dev/null | head -1) || true
+        local HEALTH_STATUS=""
+        HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' fairtprm 2>/dev/null) || true
 
-        if [ "$STATUS" = "healthy" ]; then
+        if [ "$HEALTH_STATUS" = "healthy" ]; then
             HEALTHY=1
             break
         fi
 
-        # Also check if the container exited
-        local STATE
-        STATE=$($COMPOSE_CMD ps --format '{{.State}}' 2>/dev/null | head -1) || true
-        if [ "$STATE" = "exited" ] || [ "$STATE" = "dead" ]; then
+        # Check if the container died
+        local RUNNING=""
+        RUNNING=$(docker inspect --format='{{.State.Running}}' fairtprm 2>/dev/null) || true
+        if [ "$RUNNING" = "false" ]; then
             echo ""
-            fail "Container exited unexpectedly. Check logs with: cd $INSTALL_DIR && $COMPOSE_CMD logs"
+            fail "Container exited unexpectedly. Check logs: cd $INSTALL_DIR && $COMPOSE_CMD logs"
         fi
 
-        # Show a progress indicator
         printf "\r  Waiting... %3ds / %ds" "$SECONDS_WAITED" "$MAX_WAIT"
         sleep 5
         SECONDS_WAITED=$((SECONDS_WAITED + 5))
@@ -526,12 +443,11 @@ wait_and_show() {
         log "Application is healthy and ready!"
     else
         warn "Health check hasn't passed after ${MAX_WAIT}s. The app may still be starting."
-        warn "Check status with: cd $INSTALL_DIR && $COMPOSE_CMD logs -f"
+        warn "Check status: cd $INSTALL_DIR && $COMPOSE_CMD logs -f"
     fi
 
-    # Show completion banner with credentials
     local SERVER_IP
-    SERVER_IP=$(hostname -I | awk '{print $1}')
+    SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}') || SERVER_IP="localhost"
 
     echo ""
     echo -e "${GREEN}============================================================${NC}"
@@ -546,7 +462,7 @@ wait_and_show() {
     echo -e "  ${BLUE}Install directory:${NC} $INSTALL_DIR"
     echo -e "  ${BLUE}Setup log:${NC}         $LOG_FILE"
 
-    show_credentials "$COMPOSE_CMD"
+    show_credentials
 
     echo ""
     echo -e "  ${BLUE}Useful commands:${NC}"
@@ -578,3 +494,5 @@ main() {
 }
 
 main "$@"
+exit 0
+}
