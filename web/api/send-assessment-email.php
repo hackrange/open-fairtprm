@@ -123,6 +123,8 @@ try {
         }
     }
 
+    // Include refreshed CSRF token so the caller can update its state
+    $result['csrf_token'] = $security->getCSRFToken();
     echo json_encode($result);
 
 } catch (Exception $e) {

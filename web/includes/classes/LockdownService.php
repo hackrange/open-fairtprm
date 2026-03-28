@@ -1538,6 +1538,13 @@ SecRule REQUEST_BODY "@rx (?:;\s*(?:cat|ls|id|whoami|uname|curl|wget|nc|bash|sh)
 
 # ── SECTION 4: Template Injection / SSTI ──────────────────────────────────
 
+# Rule 400024: Exempt admin email template editor from SSTI detection.
+# The email template system legitimately uses {{variable}} placeholders
+# (e.g. {{vendor_name}}, {{assessment_url}}) that would otherwise trigger
+# rules 400025/400026.
+SecRule REQUEST_URI "@streq /admin.php" \
+    "id:400024,phase:1,pass,nolog,ctl:ruleRemoveById=400026"
+
 # Rule 400025: SSTI payloads in URI, query string, or POST body
 SecRule REQUEST_URI|QUERY_STRING "@rx [\$%]\{\{|#\{.*\}|\{\{.*\}\}|\{%.*%\}" \
     "id:400025,phase:1,deny,status:403,log,msg:'SSTI detected: template expression in request',tag:'attack-ssti',t:none,t:urlDecodeUni"

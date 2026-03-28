@@ -1232,7 +1232,7 @@ try {
         }
 
         const emailEnabled = <?php echo $emailEnabled ? 'true' : 'false'; ?>;
-        const csrfToken = <?php echo json_encode($csrfToken); ?>;
+        var csrfToken = <?php echo json_encode($csrfToken); ?>;
 
         // --- Email Modal State ---
         var emailModalState = { uuid: '', vendorName: '', recipients: [] };
@@ -1343,9 +1343,27 @@ try {
 
             var successes = [];
             var failures = [];
-            var pending = recipients.length;
 
-            recipients.forEach(function(email) {
+            // Send sequentially so each request uses the fresh CSRF token
+            // returned by the previous one (tokens are single-use).
+            function sendNext(i) {
+                if (i >= recipients.length) {
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Send';
+                    if (failures.length === 0) {
+                        statusEl.style.color = '#10b981';
+                        statusEl.textContent = 'Email sent successfully to ' + successes.join(', ');
+                        setTimeout(closeEmailModal, 1500);
+                    } else {
+                        var msg = '';
+                        if (successes.length) msg += 'Sent to: ' + successes.join(', ') + '. ';
+                        msg += 'Failed: ' + failures.join('; ');
+                        statusEl.style.color = '#ef4444';
+                        statusEl.textContent = msg;
+                    }
+                    return;
+                }
+                var email = recipients[i];
                 fetch('api/send-assessment-email.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1358,6 +1376,10 @@ try {
                 })
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
+                    if (data.csrf_token) {
+                        csrfToken = data.csrf_token;
+                        document.querySelectorAll('input[name="csrf_token"]').forEach(function(el) { el.value = csrfToken; });
+                    }
                     if (data.success) {
                         successes.push(email);
                     } else {
@@ -1368,24 +1390,10 @@ try {
                     failures.push(email + ': Network error');
                 })
                 .finally(function() {
-                    pending--;
-                    if (pending === 0) {
-                        sendBtn.disabled = false;
-                        sendBtn.textContent = 'Send';
-                        if (failures.length === 0) {
-                            statusEl.style.color = '#10b981';
-                            statusEl.textContent = 'Email sent successfully to ' + successes.join(', ');
-                            setTimeout(closeEmailModal, 1500);
-                        } else {
-                            var msg = '';
-                            if (successes.length) msg += 'Sent to: ' + successes.join(', ') + '. ';
-                            msg += 'Failed: ' + failures.join('; ');
-                            statusEl.style.color = '#ef4444';
-                            statusEl.textContent = msg;
-                        }
-                    }
+                    sendNext(i + 1);
                 });
-            });
+            }
+            sendNext(0);
         }
 
         window.onclick = function(event) {
