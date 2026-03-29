@@ -146,16 +146,28 @@ $maxCharsPerDoc = 4000;
 $maxTotalChars = 12000;
 $documentTexts = [];
 $totalChars = 0;
+$extractionErrors = [];
 foreach ($certDocs as $doc) {
     if ($totalChars >= $maxTotalChars) break;
+    $docLabel = $doc['original_filename'] ?? ('doc #' . $doc['id']);
 
     try {
+        $encLen = strlen($doc['encrypted_data'] ?? '');
+        if ($encLen === 0) {
+            $extractionErrors[] = "{$docLabel}: encrypted_data is empty (0 bytes)";
+            continue;
+        }
+
         $decrypted = $encryption->decryptRaw($doc['encrypted_data']);
-        if (empty($decrypted)) continue;
+        if (empty($decrypted)) {
+            $extractionErrors[] = "{$docLabel}: decryption returned empty ({$encLen} bytes encrypted)";
+            continue;
+        }
 
         $remaining = $maxTotalChars - $totalChars;
         $limit = min($maxCharsPerDoc, $remaining);
         $extractedText = DocumentTextExtractor::extract($decrypted, $doc['mime_type'], $limit);
+        $decryptedLen = strlen($decrypted);
         unset($decrypted);
 
         if ($extractedText !== null) {
@@ -166,14 +178,34 @@ foreach ($certDocs as $doc) {
             $entry = "=== {$certLabel} (expires: {$expiryStr}) — {$doc['original_filename']} ===\n{$extractedText}";
             $documentTexts[] = $entry;
             $totalChars += mb_strlen($entry);
+        } else {
+            $extractionErrors[] = "{$docLabel}: text extraction returned null (mime={$doc['mime_type']}, decrypted_size={$decryptedLen})";
         }
     } catch (Exception $e) {
-        // Skip this document
+        $extractionErrors[] = "{$docLabel}: exception — " . $e->getMessage();
     }
 }
 
+if (!empty($extractionErrors)) {
+    error_log("Assessment AI auto-fill extraction issues for assessment #{$assessmentId}: " . implode('; ', $extractionErrors));
+}
+
 if (empty($documentTexts)) {
-    echo json_encode(['error' => 'Could not extract text from any certification documents.', 'csrf_token' => $newCsrfToken]);
+    $hint = '';
+    if (!empty($extractionErrors)) {
+        // Give the user a concise hint about what went wrong
+        $firstError = $extractionErrors[0];
+        if (strpos($firstError, 'encrypted_data is empty') !== false) {
+            $hint = ' Documents appear to have no stored file data.';
+        } elseif (strpos($firstError, 'decryption returned empty') !== false) {
+            $hint = ' Document decryption failed — the encryption key may have changed.';
+        } elseif (strpos($firstError, 'text extraction returned null') !== false) {
+            $hint = ' The documents may be scanned images (not text-based PDFs). Text-based PDFs, CSV, or Excel files are required.';
+        } elseif (strpos($firstError, 'exception') !== false) {
+            $hint = ' A processing error occurred — check the server error log for details.';
+        }
+    }
+    echo json_encode(['error' => 'Could not extract text from any certification documents.' . $hint, 'csrf_token' => $newCsrfToken]);
     exit;
 }
 
