@@ -79,25 +79,24 @@ class DocumentTextExtractor
         $tmpFile = null;
         $tmpOut = null;
         try {
-            if (!file_exists('/usr/bin/pdftotext')) {
-                error_log('DocumentTextExtractor: /usr/bin/pdftotext not found — install poppler-utils');
-                return null;
-            }
-
             $tmpFile = tempnam(sys_get_temp_dir(), 'dte_');
             file_put_contents($tmpFile, $data);
 
             $tmpOut = $tmpFile . '.txt';
-            // Use proc_open (exec is disabled in php-hardening.ini)
+            // Use proc_open (exec is disabled in php-hardening.ini).
+            // Use pipes instead of /dev/null — open_basedir blocks /dev/null access.
             $cmd = ['/usr/bin/pdftotext', '-l', '10', '-enc', 'UTF-8', $tmpFile, $tmpOut];
-            $desc = [0 => ['file', '/dev/null', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['pipe', 'w']];
+            $desc = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
             $proc = proc_open($cmd, $desc, $pipes);
-            $stderr = '';
-            if (is_resource($proc)) {
-                $stderr = stream_get_contents($pipes[2]);
-                fclose($pipes[2]);
+            if (!is_resource($proc)) {
+                error_log('DocumentTextExtractor: proc_open failed for pdftotext — check open_basedir or disable_functions');
+                return null;
             }
-            $retCode = is_resource($proc) ? proc_close($proc) : 1;
+            fclose($pipes[0]);
+            $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $retCode = proc_close($proc);
 
             if ($retCode !== 0) {
                 error_log("DocumentTextExtractor: pdftotext exit code {$retCode}" . ($stderr ? ": {$stderr}" : ''));
