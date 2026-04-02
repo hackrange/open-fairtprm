@@ -309,6 +309,21 @@ $currentPage = 'grc_audits';
                 return;
             }
             renderSections(data.report, data.framework_name);
+            // If AI sections were queued, poll and merge when ready
+            if (data.ai_job_id) {
+                (function pollJob() {
+                    setTimeout(function() {
+                        fetch('api/ai-job-status.php?id=' + data.ai_job_id).then(function(r) { return r.json(); }).then(function(poll) {
+                            if (poll.csrf_token) _csrfToken = poll.csrf_token;
+                            if (poll.status === 'completed' && poll.result && poll.result.sections) {
+                                // Merge AI sections into the report
+                                var merged = Object.assign({}, data.report, poll.result.sections);
+                                renderSections(merged, data.framework_name);
+                            } else if (poll.status !== 'failed') { pollJob(); }
+                        }).catch(function() {});
+                    }, 3000);
+                })();
+            }
         })
         .catch(function(err) {
             showAlert('Network error loading report: ' + err.message, 'danger');

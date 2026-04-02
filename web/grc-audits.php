@@ -1222,6 +1222,23 @@ $currentPage = 'grc_audits';
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.csrf_token) csrfToken = data.csrf_token;
+                        if (data.queued && data.job_id) {
+                            (function pollJob() {
+                                setTimeout(function() {
+                                    fetch('api/ai-job-status.php?id=' + data.job_id).then(function(r) { return r.json(); }).then(function(poll) {
+                                        if (poll.csrf_token) csrfToken = poll.csrf_token;
+                                        if (poll.status === 'completed' && poll.result) {
+                                            btn.disabled = false; btn.textContent = 'Suggest with AI';
+                                            if (poll.result.refined) { descEl.value = poll.result.refined; descEl.style.borderColor = '#6366f1'; setTimeout(function() { descEl.style.borderColor = ''; }, 2000); }
+                                            else if (poll.result.content) { descEl.value = poll.result.content; descEl.style.borderColor = '#6366f1'; setTimeout(function() { descEl.style.borderColor = ''; }, 2000); }
+                                        } else if (poll.status === 'failed') {
+                                            btn.disabled = false; btn.textContent = 'Suggest with AI'; alert('AI error: ' + (poll.error || 'Failed'));
+                                        } else { pollJob(); }
+                                    }).catch(function() { btn.disabled = false; btn.textContent = 'Suggest with AI'; });
+                                }, 3000);
+                            })();
+                            return;
+                        }
                         btn.disabled = false;
                         btn.textContent = 'Suggest with AI';
                         if (data.error) { alert('AI error: ' + data.error); return; }
@@ -1663,6 +1680,24 @@ $currentPage = 'grc_audits';
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.csrf_token) _csrfToken = data.csrf_token;
+            if (data.queued && data.job_id) {
+                (function pollJob() {
+                    setTimeout(function() {
+                        fetch('api/ai-job-status.php?id=' + data.job_id).then(function(r) { return r.json(); }).then(function(poll) {
+                            if (poll.csrf_token) _csrfToken = poll.csrf_token;
+                            if (poll.status === 'completed' && poll.result) {
+                                btn.disabled = false; btn.innerHTML = 'Refine with AI';
+                                var refined = poll.result.refined || poll.result.content || '';
+                                document.getElementById('refinePreviewText').textContent = refined;
+                                document.getElementById('refinePreview').style.display = 'block';
+                            } else if (poll.status === 'failed') {
+                                btn.disabled = false; btn.innerHTML = 'Refine with AI'; alert('Error: ' + (poll.error || 'Failed'));
+                            } else { pollJob(); }
+                        }).catch(function() { btn.disabled = false; btn.innerHTML = 'Refine with AI'; });
+                    }, 3000);
+                })();
+                return;
+            }
             btn.disabled = false;
             btn.innerHTML = 'Refine with AI';
             if (data.error) { alert('Error: ' + data.error); return; }
@@ -1924,8 +1959,31 @@ $currentPage = 'grc_audits';
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.csrf_token) _csrfToken = data.csrf_token;
+                if (data.queued && data.job_id) {
+                    (function pollJob() {
+                        setTimeout(function() {
+                            fetch('api/ai-job-status.php?id=' + data.job_id).then(function(r) { return r.json(); }).then(function(poll) {
+                                if (poll.csrf_token) _csrfToken = poll.csrf_token;
+                                if (poll.status === 'completed' && poll.result && poll.result.suggestion) {
+                                    document.getElementById('ccAiStatus').style.display = 'none';
+                                    var s = poll.result.suggestion;
+                                    document.getElementById('ccTitle').value = s.title || fallbackTitle;
+                                    document.getElementById('ccDescription').value = s.description || fallbackDesc;
+                                    if (s.control_type) document.getElementById('ccType').value = s.control_type;
+                                    if (s.control_category) document.getElementById('ccCategory').value = s.control_category;
+                                    if (s.implementation_status) document.getElementById('ccStatus').value = s.implementation_status;
+                                    if (s.frequency) document.getElementById('ccFrequency').value = s.frequency;
+                                    if (s.risk_level) document.getElementById('ccRiskLevel').value = s.risk_level;
+                                } else if (poll.status === 'failed') {
+                                    document.getElementById('ccAiStatus').style.display = 'none';
+                                } else { pollJob(); }
+                            }).catch(function() { document.getElementById('ccAiStatus').style.display = 'none'; });
+                        }, 3000);
+                    })();
+                    return;
+                }
                 document.getElementById('ccAiStatus').style.display = 'none';
-                if (data.error) return; // Keep non-AI defaults
+                if (data.error) return;
                 var s = data.suggestion;
                 document.getElementById('ccTitle').value = s.title || fallbackTitle;
                 document.getElementById('ccDescription').value = s.description || fallbackDesc;
@@ -2012,6 +2070,22 @@ $currentPage = 'grc_audits';
         .then(function(data) {
             if (data.csrf_token) _csrfToken = data.csrf_token;
             if (data.error) { document.getElementById('reqDetailContent').innerHTML = '<p style="color:#6b7280;font-style:italic;">' + escapeHtml(data.error) + '</p>'; return; }
+            if (data.queued && data.job_id) {
+                (function pollJob() {
+                    setTimeout(function() {
+                        fetch('api/ai-job-status.php?id=' + data.job_id).then(function(r) { return r.json(); }).then(function(poll) {
+                            if (poll.csrf_token) _csrfToken = poll.csrf_token;
+                            if (poll.status === 'completed' && poll.result) {
+                                _reqDetailCache[reqId] = poll.result.content;
+                                document.getElementById('reqDetailContent').innerHTML = poll.result.content;
+                            } else if (poll.status === 'failed') {
+                                document.getElementById('reqDetailContent').innerHTML = '<p style="color:#dc3545;">' + escapeHtml(poll.error || 'Failed') + '</p>';
+                            } else { pollJob(); }
+                        }).catch(function() { document.getElementById('reqDetailContent').innerHTML = '<p style="color:#dc3545;">Network error.</p>'; });
+                    }, 3000);
+                })();
+                return;
+            }
             _reqDetailCache[reqId] = data.content;
             document.getElementById('reqDetailContent').innerHTML = data.content;
         })

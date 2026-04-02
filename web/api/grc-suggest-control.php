@@ -120,51 +120,20 @@ Respond with ONLY the JSON object."
     ]
 ];
 
-$result = $ai->chatCompletion($messages, [
-    'max_tokens' => max($ai->getMaxTokens(), 1500),
-    'temperature' => 0.4,
+$jobId = $db->insert('ai_job_queue', [
+    'job_type' => 'grc_suggest_control',
+    'status' => 'pending',
+    'user_id' => $user['id'],
+    'request_payload' => json_encode([
+        'messages' => $messages,
+        'ai_options' => ['max_tokens' => max($ai->getMaxTokens(), 1500), 'temperature' => 0.4],
+        'context' => ['requirement_title' => $requirementTitle],
+    ]),
 ]);
-
-if (!$result['success']) {
-    error_log("AI Platform API error (grc-suggest-control): " . $result['error']);
-    echo json_encode(['error' => 'AI service error: ' . $result['error'], 'csrf_token' => $newCsrfToken]);
-    exit;
-}
-
-$content = trim($result['content'] ?? '');
-
-// Strip markdown fences if present
-$content = preg_replace('/^```(?:json)?\s*/i', '', $content);
-$content = preg_replace('/```\s*$/s', '', $content);
-$content = trim($content);
-
-$suggestion = json_decode($content, true);
-
-if (!$suggestion || !is_array($suggestion)) {
-    error_log("AI returned invalid JSON for control suggestion: " . substr($content, 0, 500));
-    echo json_encode(['error' => 'AI returned an invalid response. Please try again.', 'csrf_token' => $newCsrfToken]);
-    exit;
-}
-
-// Validate enum values
-$validTypes = ['preventive', 'detective', 'corrective', 'directive'];
-$validCategories = ['technical', 'administrative', 'physical'];
-$validStatuses = ['planned', 'in_progress', 'implemented', 'not_applicable'];
-$validFrequencies = ['continuous', 'daily', 'weekly', 'monthly', 'quarterly', 'annually', 'ad_hoc'];
-$validRiskLevels = ['low', 'medium', 'high', 'critical'];
-
-$clean = [
-    'title' => substr(trim($suggestion['title'] ?? $requirementTitle), 0, 500),
-    'description' => trim($suggestion['description'] ?? ''),
-    'control_type' => in_array($suggestion['control_type'] ?? '', $validTypes) ? $suggestion['control_type'] : 'preventive',
-    'control_category' => in_array($suggestion['control_category'] ?? '', $validCategories) ? $suggestion['control_category'] : 'technical',
-    'implementation_status' => in_array($suggestion['implementation_status'] ?? '', $validStatuses) ? $suggestion['implementation_status'] : 'planned',
-    'frequency' => in_array($suggestion['frequency'] ?? '', $validFrequencies) ? $suggestion['frequency'] : 'ad_hoc',
-    'risk_level' => in_array($suggestion['risk_level'] ?? '', $validRiskLevels) ? $suggestion['risk_level'] : 'medium',
-];
 
 echo json_encode([
     'success' => true,
-    'suggestion' => $clean,
+    'queued' => true,
+    'job_id' => $jobId,
     'csrf_token' => $newCsrfToken,
 ]);

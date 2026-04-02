@@ -1288,6 +1288,27 @@ $_page = 'grc_assessment';
         document.querySelectorAll('input[name="csrf_token"]').forEach(function(el) { el.value = token; });
     }
 
+    function pollAiJob(jobId, onComplete, onError) {
+        var interval = setInterval(function() {
+            fetch('api/ai-job-status.php?id=' + jobId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.csrf_token) syncCsrf(data.csrf_token);
+                if (data.status === 'completed' && data.result) {
+                    clearInterval(interval);
+                    onComplete(data.result);
+                } else if (data.status === 'failed') {
+                    clearInterval(interval);
+                    onError(data.error || 'AI processing failed. Please try again.');
+                }
+            })
+            .catch(function() {
+                clearInterval(interval);
+                onError('Network error checking AI status.');
+            });
+        }, 3000);
+    }
+
     // Question metadata for static (non-AI) guidance
     var _questionData = <?php
         $qMeta = [];
@@ -1824,8 +1845,32 @@ $_page = 'grc_assessment';
         })
         .then(function(resp) {
             syncCsrf(resp.csrf_token);
+            if (resp.queued && resp.job_id) {
+                pollAiJob(resp.job_id, function(result) {
+                    btn.disabled = false;
+                    btn.textContent = 'Rewrite';
+                    resp = result;
+                    resp.success = true;
+                    handleModalRewriteResult(resp, btn, ta, targetId);
+                }, function(err) {
+                    btn.disabled = false;
+                    btn.textContent = 'Rewrite';
+                    alert(err);
+                });
+                return;
+            }
             btn.disabled = false;
             btn.textContent = 'Rewrite';
+            handleModalRewriteResult(resp, btn, ta, targetId);
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            btn.textContent = 'Rewrite';
+            alert(err.message || 'Connection error.');
+        });
+    }
+
+    function handleModalRewriteResult(resp, btn, ta, targetId) {
             if (resp.success && resp.content) {
                 var preview = document.createElement('div');
                 preview.className = 'rewrite-preview';
@@ -1841,12 +1886,6 @@ $_page = 'grc_assessment';
             } else {
                 alert('Rewrite failed: ' + (resp.error || 'Unknown error'));
             }
-        })
-        .catch(function(err) {
-            btn.disabled = false;
-            btn.textContent = 'Rewrite';
-            alert(err.message || 'Connection error.');
-        });
     }
 
     function acceptModalAssist(targetId) {
@@ -1953,6 +1992,22 @@ $_page = 'grc_assessment';
         })
         .then(function(resp) {
             syncCsrf(resp.csrf_token);
+            if (resp.queued && resp.job_id) {
+                pollAiJob(resp.job_id, function(result) {
+                    btn.disabled = false;
+                    btn.textContent = 'Assistant';
+                    if (result.content) {
+                        content.innerHTML = markdownToHtml(result.content);
+                    } else {
+                        content.innerHTML = '<p style="color:#dc3545;font-size:12px;">No guidance returned.</p>';
+                    }
+                }, function(err) {
+                    btn.disabled = false;
+                    btn.textContent = 'Assistant';
+                    content.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(err) + '</p>';
+                });
+                return;
+            }
             btn.disabled = false;
             btn.textContent = 'Assistant';
             if (resp.success && resp.content) {
@@ -2074,6 +2129,22 @@ $_page = 'grc_assessment';
         })
         .then(function(resp) {
             syncCsrf(resp.csrf_token);
+            if (resp.queued && resp.job_id) {
+                pollAiJob(resp.job_id, function(result) {
+                    btn.disabled = false;
+                    btn.textContent = 'Explain Further';
+                    if (result.content) {
+                        container.innerHTML = '<div class="guidance-content">' + markdownToHtml(result.content) + '</div>';
+                    } else {
+                        container.innerHTML = '<p style="color:#dc3545;font-size:12px;">No explanation returned.</p>';
+                    }
+                }, function(err) {
+                    btn.disabled = false;
+                    btn.textContent = 'Explain Further';
+                    container.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(err) + '</p>';
+                });
+                return;
+            }
             btn.disabled = false;
             btn.textContent = 'Explain Further';
             if (resp.success && resp.content) {
@@ -2128,6 +2199,29 @@ $_page = 'grc_assessment';
         })
         .then(function(resp) {
             syncCsrf(resp.csrf_token);
+            if (resp.queued && resp.job_id) {
+                pollAiJob(resp.job_id, function(result) {
+                    btn.disabled = false;
+                    btn.textContent = 'Rewrite';
+                    if (result.content) {
+                        var preview = document.createElement('div');
+                        preview.className = 'rewrite-preview';
+                        preview.id = 'rewrite-preview-' + questionId;
+                        preview.innerHTML = '<div class="evidence-section-label" style="margin-bottom:6px;">Proposed Rewrite</div>' +
+                            '<div class="rewrite-text">' + escHtml(result.content) + '</div>' +
+                            '<div class="rewrite-actions">' +
+                            '<button class="btn btn-xs btn-success" data-action="accept-rewrite" data-question-id="' + questionId + '">Accept</button>' +
+                            '<button class="btn btn-xs btn-outline" data-action="discard-rewrite" data-question-id="' + questionId + '">Discard</button>' +
+                            '</div>';
+                        ta.closest('.notes-panel').insertBefore(preview, ta.closest('div').nextSibling);
+                    } else { alert('Rewrite failed.'); }
+                }, function(err) {
+                    btn.disabled = false;
+                    btn.textContent = 'Rewrite';
+                    alert(err);
+                });
+                return;
+            }
             btn.disabled = false;
             btn.textContent = 'Rewrite';
             if (resp.success && resp.content) {

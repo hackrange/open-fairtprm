@@ -229,6 +229,14 @@ function postProcessResult(string $jobType, string $content, array $context): ar
             return postProcessAssessmentAutofill($content, $context);
         case 'detailed_summary':
             return postProcessDetailedSummary($content);
+        case 'grc_assistant':
+            return postProcessGrcAssistant($content, $context);
+        case 'grc_suggest_control':
+            return postProcessGrcSuggestControl($content, $context);
+        case 'grc_report':
+            return postProcessGrcReport($content);
+        case 'grc_requirement_desc':
+            return postProcessGrcRequirementDesc($content, $context);
         default:
             throw new Exception("Unknown job type: {$jobType}");
     }
@@ -475,6 +483,146 @@ function postProcessAssessmentAutofill(string $content, array $context): array
     ];
 }
 
+
+/**
+ * Post-process GRC assistant AI responses.
+ * Handles: assistant_guidance, assistant_rewrite, assistant_explain,
+ *          assistant_rewrite_and_recommend, refine_notes, requirement_detail.
+ */
+function postProcessGrcAssistant(string $content, array $context): array
+{
+    $action = $context['action'] ?? '';
+
+    // Strip markdown fences
+    $cleaned = preg_replace('/^```(?:json|html)?\s*/i', '', $content);
+    $cleaned = preg_replace('/```\s*$/s', '', $cleaned);
+    $cleaned = trim($cleaned);
+
+    if ($action === 'assistant_rewrite_and_recommend') {
+        $parsed = json_decode($cleaned, true);
+        if ($parsed && isset($parsed['proposed_rewrite'])) {
+            return ['success' => true, 'content' => $content, 'parsed' => $parsed];
+        }
+        return ['success' => true, 'content' => $content, 'parsed' => [
+            'proposed_rewrite' => $content,
+            'current_maturity' => '',
+            'current_conformity' => '',
+            'recommendations' => 'Could not parse recommendations. Please try again.'
+        ]];
+    }
+
+    if ($action === 'refine_notes') {
+        return ['success' => true, 'refined' => $cleaned];
+    }
+
+    if ($action === 'requirement_detail') {
+        // Sanitize HTML
+        $cleaned = preg_replace('/<\!DOCTYPE[^>]*>/i', '', $cleaned);
+        $cleaned = preg_replace('/<\/?html[^>]*>/i', '', $cleaned);
+        $cleaned = preg_replace('/<\/?head[^>]*>/i', '', $cleaned);
+        $cleaned = preg_replace('/<\/?body[^>]*>/i', '', $cleaned);
+        $cleaned = preg_replace('/<title[^>]*>.*?<\/title>/is', '', $cleaned);
+        $allowed = '<h4><h5><p><ul><ol><li><strong><em><b><i><br><table><thead><tbody><tr><th><td>';
+        $cleaned = strip_tags(trim($cleaned), $allowed);
+        $cleaned = preg_replace('/<(\w+)\s+[^>]*>/', '<$1>', $cleaned);
+        return [
+            'success' => true,
+            'content' => $cleaned,
+            'requirement_ref' => $context['requirement_ref'] ?? '',
+            'requirement_title' => $context['requirement_title'] ?? '',
+            'framework' => $context['framework'] ?? '',
+        ];
+    }
+
+    // assistant_guidance, assistant_rewrite, assistant_explain
+    return ['success' => true, 'content' => $cleaned];
+}
+
+/**
+ * Post-process GRC suggest control AI response (JSON).
+ */
+function postProcessGrcSuggestControl(string $content, array $context): array
+{
+    $content = preg_replace('/^```(?:json)?\s*/i', '', $content);
+    $content = preg_replace('/```\s*$/s', '', $content);
+    $content = trim($content);
+
+    $suggestion = json_decode($content, true);
+    if (!$suggestion || !is_array($suggestion)) {
+        throw new Exception('AI returned an invalid response. Please try again.');
+    }
+
+    $validTypes = ['preventive', 'detective', 'corrective', 'directive'];
+    $validCategories = ['technical', 'administrative', 'physical'];
+    $validStatuses = ['planned', 'in_progress', 'implemented', 'not_applicable'];
+    $validFrequencies = ['continuous', 'daily', 'weekly', 'monthly', 'quarterly', 'annually', 'ad_hoc'];
+    $validRiskLevels = ['low', 'medium', 'high', 'critical'];
+
+    $requirementTitle = $context['requirement_title'] ?? '';
+
+    return ['success' => true, 'suggestion' => [
+        'title' => substr(trim($suggestion['title'] ?? $requirementTitle), 0, 500),
+        'description' => trim($suggestion['description'] ?? ''),
+        'control_type' => in_array($suggestion['control_type'] ?? '', $validTypes) ? $suggestion['control_type'] : 'preventive',
+        'control_category' => in_array($suggestion['control_category'] ?? '', $validCategories) ? $suggestion['control_category'] : 'technical',
+        'implementation_status' => in_array($suggestion['implementation_status'] ?? '', $validStatuses) ? $suggestion['implementation_status'] : 'planned',
+        'frequency' => in_array($suggestion['frequency'] ?? '', $validFrequencies) ? $suggestion['frequency'] : 'ad_hoc',
+        'risk_level' => in_array($suggestion['risk_level'] ?? '', $validRiskLevels) ? $suggestion['risk_level'] : 'medium',
+    ]];
+}
+
+/**
+ * Post-process GRC report AI response (JSON with sections).
+ */
+function postProcessGrcReport(string $content): array
+{
+    $content = preg_replace('/^```(?:json)?\s*/i', '', $content);
+    $content = preg_replace('/```\s*$/s', '', $content);
+    $content = trim($content);
+
+    $parsed = json_decode($content, true);
+    $sections = [];
+    if ($parsed && is_array($parsed)) {
+        foreach ($parsed as $key => $section) {
+            if (is_array($section) && !empty($section['content'])) {
+                $sections[$key] = [
+                    'title' => $section['title'] ?? ucfirst(str_replace('_', ' ', $key)),
+                    'content' => $section['content'],
+                ];
+            }
+        }
+    }
+    return ['success' => true, 'sections' => $sections];
+}
+
+/**
+ * Post-process GRC requirement description AI response.
+ * Saves the result directly to the database.
+ */
+function postProcessGrcRequirementDesc(string $content, array $context): array
+{
+    $raw = trim($content);
+    $title = $context['current_title'] ?? '';
+    $desc = $raw;
+    $reqId = (int)($context['requirement_id'] ?? 0);
+
+    if (preg_match('/^Title:\s*(.+)/mi', $raw, $tm)) {
+        $title = trim($tm[1]);
+    }
+    if (preg_match('/^Description:\s*(.+)/mi', $raw, $dm)) {
+        $desc = trim($dm[1]);
+    }
+
+    if ($reqId > 0) {
+        $db = Database::getInstance();
+        $db->query(
+            'UPDATE grc_framework_requirements SET title = :title, description = :desc, updated_at = NOW() WHERE id = :id',
+            [':title' => $title, ':desc' => $desc, ':id' => $reqId]
+        );
+    }
+
+    return ['success' => true, 'id' => $reqId, 'title' => $title, 'description' => $desc];
+}
 
 /**
  * Parse and sanitize detailed summary AI response (HTML output).

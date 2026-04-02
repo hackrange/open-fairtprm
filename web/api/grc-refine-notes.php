@@ -81,25 +81,21 @@ $messages = [
     ]
 ];
 
-$result = $ai->chatCompletion($messages, [
-    'max_tokens' => max($ai->getMaxTokens(), 1000),
+$db = Database::getInstance();
+$jobId = $db->insert('ai_job_queue', [
+    'job_type' => 'grc_assistant',
+    'status' => 'pending',
+    'user_id' => $user['id'],
+    'request_payload' => json_encode([
+        'messages' => $messages,
+        'ai_options' => ['max_tokens' => max($ai->getMaxTokens(), 1000)],
+        'context' => ['action' => 'refine_notes'],
+    ]),
 ]);
-
-if (!$result['success']) {
-    error_log("AI Platform API error (grc-refine-notes): " . $result['error']);
-    echo json_encode(['error' => 'AI service error: ' . $result['error'], 'csrf_token' => $newCsrfToken]);
-    exit;
-}
-
-$refined = trim($result['content'] ?? '');
-
-// Strip any markdown fences or wrappers
-$refined = preg_replace('/```[a-z]*\s*/i', '', $refined);
-$refined = preg_replace('/```\s*$/s', '', $refined);
-$refined = trim($refined);
 
 echo json_encode([
     'success' => true,
-    'refined' => $refined,
+    'queued' => true,
+    'job_id' => $jobId,
     'csrf_token' => $newCsrfToken,
 ]);
