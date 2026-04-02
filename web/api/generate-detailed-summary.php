@@ -584,43 +584,34 @@ VENDOR DATA:
 Output ONLY HTML.";
 
 // ============================================================================
-// Call AI Platform API
+// Queue AI job for background processing
 // ============================================================================
 $messages = [
     ['role' => 'user', 'content' => $prompt]
 ];
 
-$result = $ai->chatCompletion($messages, [
-    'purpose' => 'fair',
-    'max_tokens' => max($ai->getMaxTokens(), 3000),
+$user = $auth->getUser();
+
+$jobPayload = json_encode([
+    'messages' => $messages,
+    'ai_options' => [
+        'purpose' => 'fair',
+        'max_tokens' => max($ai->getMaxTokens(), 3000),
+    ],
+    'context' => [],
 ]);
 
-if (!$result['success']) {
-    error_log("AI Platform API error (detailed-summary): " . $result['error']);
-    echo json_encode(['error' => 'AI service error: ' . $result['error'], 'csrf_token' => $newCsrfToken]);
-    exit;
-}
-
-$content = $result['content'];
-
-// Clean up markdown fences and stray HTML wrappers
-$content = preg_replace('/```html\s*/i', '', $content);
-$content = preg_replace('/```\s*$/s', '', $content);
-$content = preg_replace('/```/s', '', $content);
-$content = preg_replace('/<\!DOCTYPE[^>]*>/i', '', $content);
-$content = preg_replace('/<\/?html[^>]*>/i', '', $content);
-$content = preg_replace('/<\/?head[^>]*>/i', '', $content);
-$content = preg_replace('/<\/?body[^>]*>/i', '', $content);
-$content = preg_replace('/<title[^>]*>.*?<\/title>/is', '', $content);
-
-// Sanitize: allow only safe tags (same whitelist as generate-srs-summary.php + table tags)
-$allowed = '<h3><h4><h5><p><ul><ol><li><strong><em><b><i><br><table><thead><tbody><tr><th><td>';
-$content = strip_tags(trim($content), $allowed);
-$content = preg_replace('/<(\w+)\s+[^>]*>/', '<$1>', $content);
+$jobId = $db->insert('ai_job_queue', [
+    'job_type' => 'detailed_summary',
+    'status' => 'pending',
+    'user_id' => $user['id'],
+    'request_payload' => $jobPayload,
+]);
 
 echo json_encode([
     'success' => true,
-    'summary' => $content,
+    'queued' => true,
+    'job_id' => $jobId,
     'csrf_token' => $newCsrfToken,
 ]);
 

@@ -2000,22 +2000,20 @@ $isProcurement = hasGroup('procurement');
             .then(function(data) {
                 if (data.csrf_token) {
                     fairAiCsrf = data.csrf_token;
-                    // Update the hidden form field so Submit Analysis works
                     var hiddenCsrf = document.querySelector('input[name="csrf_token"]');
                     if (hiddenCsrf) hiddenCsrf.value = data.csrf_token;
                 }
-                btn.disabled = false;
-                btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run AI-Assisted Analysis';
-                loading.style.display = 'none';
 
                 if (data.error) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run AI-Assisted Analysis';
+                    loading.style.display = 'none';
                     alert('AI Analysis Error: ' + data.error);
                     return;
                 }
 
-                if (data.success && data.ai_estimates) {
-                    lastAiEstimates = data.ai_estimates;
-                    displayAIResults(data.ai_estimates);
+                if (data.queued && data.job_id) {
+                    pollAiJob(data.job_id, btn, loading, resultsPanel);
                 }
             })
             .catch(function(err) {
@@ -2025,6 +2023,46 @@ $isProcurement = hasGroup('procurement');
                 alert('Failed to run AI analysis. Please try again.');
                 console.error('AI analysis error:', err);
             });
+        }
+
+        function pollAiJob(jobId, btn, loading, resultsPanel) {
+            var pollInterval = setInterval(function() {
+                fetch('api/ai-job-status.php?id=' + jobId)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.csrf_token) {
+                        fairAiCsrf = data.csrf_token;
+                        var hiddenCsrf = document.querySelector('input[name="csrf_token"]');
+                        if (hiddenCsrf) hiddenCsrf.value = data.csrf_token;
+                    }
+
+                    if (data.status === 'completed' && data.result) {
+                        clearInterval(pollInterval);
+                        btn.disabled = false;
+                        btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run AI-Assisted Analysis';
+                        loading.style.display = 'none';
+
+                        if (data.result.ai_estimates) {
+                            lastAiEstimates = data.result.ai_estimates;
+                            displayAIResults(data.result.ai_estimates);
+                        }
+                    } else if (data.status === 'failed') {
+                        clearInterval(pollInterval);
+                        btn.disabled = false;
+                        btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run AI-Assisted Analysis';
+                        loading.style.display = 'none';
+                        alert('AI Analysis Error: ' + (data.error || 'Processing failed. Please try again.'));
+                    }
+                    // pending/processing: keep polling
+                })
+                .catch(function() {
+                    clearInterval(pollInterval);
+                    btn.disabled = false;
+                    btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run AI-Assisted Analysis';
+                    loading.style.display = 'none';
+                    alert('Failed to check AI analysis status. Please try again.');
+                });
+            }, 3000);
         }
 
         function displayAIResults(estimates) {

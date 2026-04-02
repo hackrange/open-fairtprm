@@ -5523,6 +5523,56 @@ function getFieldValue($request, $field, $default = '') {
                 return {filled: filled, skipped: skipped};
             }
 
+            // Poll AI job for contract pricing extraction results
+            function pollPricingJob(jobId, btn, statusEl, fieldPrefix) {
+                var pollInterval = setInterval(function() {
+                    fetch('api/ai-job-status.php?id=' + jobId)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.csrf_token) updateAllCsrfTokens(data.csrf_token);
+
+                        if (data.status === 'completed' && data.result) {
+                            clearInterval(pollInterval);
+                            btn.disabled = false;
+                            btn.textContent = 'Extract from Document';
+                            if (data.result.pricing) {
+                                var result = populatePricingFields(fieldPrefix, data.result.pricing);
+                                if (result.filled > 0) {
+                                    statusEl.textContent = 'Filled ' + result.filled + ' field' + (result.filled !== 1 ? 's' : '') + (result.skipped > 0 ? ' (' + result.skipped + ' kept)' : '');
+                                    statusEl.style.color = '#16a34a';
+                                } else if (result.skipped > 0) {
+                                    statusEl.textContent = 'All fields already populated';
+                                    statusEl.style.color = '#9ca3af';
+                                } else {
+                                    statusEl.textContent = 'No pricing data found in document';
+                                    statusEl.style.color = '#9ca3af';
+                                }
+                            } else {
+                                statusEl.textContent = 'No pricing data found in document';
+                                statusEl.style.color = '#9ca3af';
+                            }
+                            statusEl.style.display = '';
+                        } else if (data.status === 'failed') {
+                            clearInterval(pollInterval);
+                            btn.disabled = false;
+                            btn.textContent = 'Extract from Document';
+                            statusEl.textContent = data.error || 'Extraction failed';
+                            statusEl.style.color = '#dc2626';
+                            statusEl.style.display = '';
+                        }
+                        // pending/processing: keep polling
+                    })
+                    .catch(function() {
+                        clearInterval(pollInterval);
+                        btn.disabled = false;
+                        btn.textContent = 'Extract from Document';
+                        statusEl.textContent = 'Network error';
+                        statusEl.style.color = '#dc2626';
+                        statusEl.style.display = '';
+                    });
+                }, 3000);
+            }
+
             // Upload modal AI button
             var docAiBtn = document.getElementById('docPricingAiBtn');
             if (docAiBtn) {
@@ -5545,32 +5595,25 @@ function getFieldValue($request, $field, $default = '') {
 
                     var xhr = new XMLHttpRequest();
                     xhr.addEventListener('load', function() {
-                        docAiBtn.disabled = false;
-                        docAiBtn.textContent = 'Extract from Document';
                         try {
                             var resp = JSON.parse(xhr.responseText);
                             if (resp.csrf_token) updateAllCsrfTokens(resp.csrf_token);
-                            if (resp.success && resp.pricing) {
-                                var result = populatePricingFields('docPricing_', resp.pricing);
-                                if (result.filled > 0) {
-                                    statusEl.textContent = 'Filled ' + result.filled + ' field' + (result.filled !== 1 ? 's' : '') + (result.skipped > 0 ? ' (' + result.skipped + ' kept)' : '');
-                                    statusEl.style.color = '#16a34a';
-                                } else if (result.skipped > 0) {
-                                    statusEl.textContent = 'All fields already populated';
-                                    statusEl.style.color = '#9ca3af';
-                                } else {
-                                    statusEl.textContent = 'No pricing data found in document';
-                                    statusEl.style.color = '#9ca3af';
-                                }
+                            if (resp.queued && resp.job_id) {
+                                pollPricingJob(resp.job_id, docAiBtn, statusEl, 'docPricing_');
                             } else {
+                                docAiBtn.disabled = false;
+                                docAiBtn.textContent = 'Extract from Document';
                                 statusEl.textContent = resp.error || 'Extraction failed';
                                 statusEl.style.color = '#dc2626';
+                                statusEl.style.display = '';
                             }
                         } catch (e) {
+                            docAiBtn.disabled = false;
+                            docAiBtn.textContent = 'Extract from Document';
                             statusEl.textContent = 'Unexpected response';
                             statusEl.style.color = '#dc2626';
+                            statusEl.style.display = '';
                         }
-                        statusEl.style.display = '';
                     });
                     xhr.addEventListener('error', function() {
                         docAiBtn.disabled = false;
@@ -5606,32 +5649,25 @@ function getFieldValue($request, $field, $default = '') {
 
                     var xhr = new XMLHttpRequest();
                     xhr.addEventListener('load', function() {
-                        editAiBtn.disabled = false;
-                        editAiBtn.textContent = 'Extract from Document';
                         try {
                             var resp = JSON.parse(xhr.responseText);
                             if (resp.csrf_token) updateAllCsrfTokens(resp.csrf_token);
-                            if (resp.success && resp.pricing) {
-                                var result = populatePricingFields('editPricing_', resp.pricing);
-                                if (result.filled > 0) {
-                                    statusEl.textContent = 'Filled ' + result.filled + ' field' + (result.filled !== 1 ? 's' : '') + (result.skipped > 0 ? ' (' + result.skipped + ' kept)' : '');
-                                    statusEl.style.color = '#16a34a';
-                                } else if (result.skipped > 0) {
-                                    statusEl.textContent = 'All fields already populated';
-                                    statusEl.style.color = '#9ca3af';
-                                } else {
-                                    statusEl.textContent = 'No pricing data found in document';
-                                    statusEl.style.color = '#9ca3af';
-                                }
+                            if (resp.queued && resp.job_id) {
+                                pollPricingJob(resp.job_id, editAiBtn, statusEl, 'editPricing_');
                             } else {
+                                editAiBtn.disabled = false;
+                                editAiBtn.textContent = 'Extract from Document';
                                 statusEl.textContent = resp.error || 'Extraction failed';
                                 statusEl.style.color = '#dc2626';
+                                statusEl.style.display = '';
                             }
                         } catch (e) {
+                            editAiBtn.disabled = false;
+                            editAiBtn.textContent = 'Extract from Document';
                             statusEl.textContent = 'Unexpected response';
                             statusEl.style.color = '#dc2626';
+                            statusEl.style.display = '';
                         }
-                        statusEl.style.display = '';
                     });
                     xhr.addEventListener('error', function() {
                         editAiBtn.disabled = false;
@@ -7373,15 +7409,55 @@ function getFieldValue($request, $field, $default = '') {
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     if (data.csrf_token) procCsrf = data.csrf_token;
-                    btn.disabled = false;
-                    btn.textContent = origText;
 
                     if (data.error) {
+                        btn.disabled = false;
+                        btn.textContent = origText;
                         if (w) w.close();
                         alert('Error: ' + data.error);
                         return;
                     }
 
+                    if (data.queued && data.job_id) {
+                        var pollInterval = setInterval(function() {
+                            fetch('api/ai-job-status.php?id=' + data.job_id)
+                            .then(function(r) { return r.json(); })
+                            .then(function(poll) {
+                                if (poll.csrf_token) procCsrf = poll.csrf_token;
+                                if (poll.status === 'completed' && poll.result) {
+                                    clearInterval(pollInterval);
+                                    btn.disabled = false;
+                                    btn.textContent = origText;
+                                    data.summary = poll.result.summary;
+                                    procApplyCommentary(data, w);
+                                } else if (poll.status === 'failed') {
+                                    clearInterval(pollInterval);
+                                    btn.disabled = false;
+                                    btn.textContent = origText;
+                                    if (w) w.close();
+                                    alert('Error: ' + (poll.error || 'AI processing failed.'));
+                                }
+                            })
+                            .catch(function() {
+                                clearInterval(pollInterval);
+                                btn.disabled = false;
+                                btn.textContent = origText;
+                                if (w) w.close();
+                                alert('Failed to check AI status.');
+                            });
+                        }, 3000);
+                        return;
+                    }
+                })
+                .catch(function(err) {
+                    btn.disabled = false;
+                    btn.textContent = origText;
+                    if (w) w.close();
+                    alert('Error: ' + (err.message || 'Request failed'));
+                    console.error(err);
+                });
+
+                function procApplyCommentary(data, w) {
                     var chartImages = procCaptureCharts();
 
                     // Clone the full report, inject commentary into the placeholder
@@ -7440,14 +7516,7 @@ function getFieldValue($request, $field, $default = '') {
 
                     // Auto-trigger browser print dialog after content is ready
                     setTimeout(function() { w.print(); }, 400);
-                })
-                .catch(function(err) {
-                    btn.disabled = false;
-                    btn.textContent = origText;
-                    if (w) w.close();
-                    alert('Failed to generate commentary. Please try again.');
-                    console.error(err);
-                });
+                }
             });
         }
     })();

@@ -16,7 +16,7 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- =============================================================================
--- SECTION 1: Complete Database Schema (93 tables)
+-- SECTION 1: Complete Database Schema (95 tables)
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS `acl_group_permissions` (
@@ -244,6 +244,23 @@ CREATE TABLE IF NOT EXISTS `cron_execution_history` (
   KEY `idx_started_at` (`started_at`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB AUTO_INCREMENT=891 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS `ai_job_queue` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `job_type` varchar(50) NOT NULL COMMENT 'fair_analysis, contract_pricing, assessment_autofill',
+  `status` enum('pending','processing','completed','failed') DEFAULT 'pending',
+  `user_id` int(10) unsigned NOT NULL,
+  `request_payload` longtext NOT NULL COMMENT 'JSON: messages, options, and context',
+  `result_payload` longtext DEFAULT NULL COMMENT 'JSON: full result for frontend',
+  `error_message` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `started_at` datetime DEFAULT NULL,
+  `completed_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_aiq_status` (`status`),
+  KEY `idx_aiq_user_id` (`user_id`),
+  KEY `idx_aiq_created_at` (`created_at`),
+  KEY `idx_aiq_type_status` (`job_type`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS `cyber_todo_activities` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `todo_type` enum('cert_expiry','srs_rescore','score_drop','annual_review','not_approved','not_tiered','custom','user_import','vendor_import','contract_expiry') NOT NULL,
@@ -4969,7 +4986,7 @@ JOIN assessment_templates t2 ON q.triggers_assessment_template_id = t2.id
 WHERE q.triggers_assessment_template_id IS NOT NULL;
 
 -- AI Usage workflow rule: auto-trigger AI Usage assessment when vendor says AI is used
-INSERT INTO assessment_workflow_rules (name, description, source_template_id, question_id, condition_operator, condition_value, target_template_id, assign_to, is_active)
+INSERT IGNORE INTO assessment_workflow_rules (name, description, source_template_id, question_id, condition_operator, condition_value, target_template_id, assign_to, is_active)
 SELECT
     'AI Usage',
     'Automatically trigger AI Usage assessment when vendor indicates AI usage in onboarding.',
@@ -5214,18 +5231,57 @@ WHERE vsf.cve_id IS NOT NULL AND vsf.cve_id != '';
 
 -- =============================================================================
 -- SECTION 15: Schema Compatibility (safe ALTER for existing databases)
--- Compatible with MySQL 8.0+ and MariaDB 10.5+ via PDO and mysql CLI.
--- Uses ALTER IGNORE so adding an existing column is a warning, not an error.
+-- Compatible with MySQL 8.0+ and MariaDB 10.5+.
+-- Uses information_schema checks via PREPARE/EXECUTE so adding an existing
+-- column or index is a no-op rather than an error on either platform.
 -- =============================================================================
 
-ALTER IGNORE TABLE `grc_frameworks` ADD COLUMN `compliance_year` SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER `is_active`;
-ALTER IGNORE TABLE `grc_frameworks` ADD INDEX `idx_year` (`compliance_year`);
-ALTER IGNORE TABLE `grc_frameworks` ADD COLUMN `generated_from` VARCHAR(50) DEFAULT NULL;
+-- grc_frameworks.compliance_year
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_frameworks' AND column_name = 'compliance_year') = 0,
+  'ALTER TABLE `grc_frameworks` ADD COLUMN `compliance_year` SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER `is_active`',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
-ALTER IGNORE TABLE `cyber_breach_alerts` ADD COLUMN `investigating_by` INT UNSIGNED DEFAULT NULL AFTER `resolved_at`;
-ALTER IGNORE TABLE `cyber_breach_alerts` ADD COLUMN `investigating_at` DATETIME DEFAULT NULL AFTER `investigating_by`;
+-- grc_frameworks idx_year index
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.statistics
+   WHERE table_schema = DATABASE() AND table_name = 'grc_frameworks' AND index_name = 'idx_year') = 0,
+  'ALTER TABLE `grc_frameworks` ADD INDEX `idx_year` (`compliance_year`)',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
--- Add osint_exposure to breach alert types and organization to entity types
+-- grc_frameworks.generated_from
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_frameworks' AND column_name = 'generated_from') = 0,
+  'ALTER TABLE `grc_frameworks` ADD COLUMN `generated_from` VARCHAR(50) DEFAULT NULL',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- cyber_breach_alerts.investigating_by
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND column_name = 'investigating_by') = 0,
+  'ALTER TABLE `cyber_breach_alerts` ADD COLUMN `investigating_by` INT UNSIGNED DEFAULT NULL AFTER `resolved_at`',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- cyber_breach_alerts.investigating_at
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND column_name = 'investigating_at') = 0,
+  'ALTER TABLE `cyber_breach_alerts` ADD COLUMN `investigating_at` DATETIME DEFAULT NULL AFTER `investigating_by`',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Extend breach alert ENUM types (MODIFY is safe — adds new values, preserves existing data)
 ALTER TABLE `cyber_breach_alerts`
     MODIFY COLUMN `alert_type` ENUM('data_breach','cyber_attack','vulnerability','supply_chain','ransomware','osint_exposure','other') NOT NULL DEFAULT 'other';
 

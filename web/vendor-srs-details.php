@@ -3887,16 +3887,43 @@ function generateExecSummary() {
     .then(r => r.json())
     .then(data => {
         if (data.csrf_token) execSummaryCsrf = data.csrf_token;
-        btn.disabled = false;
-        btn.innerHTML = origText;
 
         if (data.error) {
+            btn.disabled = false;
+            btn.innerHTML = origText;
             if (w) w.close();
             alert('Error: ' + data.error);
             return;
         }
 
-        openExecReport(data.summary, w);
+        if (data.queued && data.job_id) {
+            var pollInterval = setInterval(function() {
+                fetch('api/ai-job-status.php?id=' + data.job_id)
+                .then(function(r) { return r.json(); })
+                .then(function(poll) {
+                    if (poll.csrf_token) execSummaryCsrf = poll.csrf_token;
+                    if (poll.status === 'completed' && poll.result) {
+                        clearInterval(pollInterval);
+                        btn.disabled = false;
+                        btn.innerHTML = origText;
+                        openExecReport(poll.result.summary, w);
+                    } else if (poll.status === 'failed') {
+                        clearInterval(pollInterval);
+                        btn.disabled = false;
+                        btn.innerHTML = origText;
+                        if (w) w.close();
+                        alert('Error: ' + (poll.error || 'AI processing failed.'));
+                    }
+                })
+                .catch(function() {
+                    clearInterval(pollInterval);
+                    btn.disabled = false;
+                    btn.innerHTML = origText;
+                    if (w) w.close();
+                    alert('Failed to check AI status. Please try again.');
+                });
+            }, 3000);
+        }
     })
     .catch(err => {
         btn.disabled = false;

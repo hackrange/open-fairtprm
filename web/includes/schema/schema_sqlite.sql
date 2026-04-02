@@ -1387,6 +1387,29 @@ CREATE INDEX IF NOT EXISTS idx_shadow_saas_created_by ON shadow_saas (created_by
 CREATE INDEX IF NOT EXISTS idx_shadow_saas_rescore ON shadow_saas (rescore_status);
 
 -- =============================================================================
+-- SECTION 16: AI JOB QUEUE
+-- Background queue for AI tasks so they don't block web workers.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS ai_job_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_type TEXT NOT NULL,                                -- fair_analysis, contract_pricing, assessment_autofill
+    status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'processing', 'completed', 'failed')),
+    user_id INTEGER NOT NULL,
+    request_payload TEXT NOT NULL,                         -- JSON: messages, options, context
+    result_payload TEXT,                                   -- JSON: full result for frontend
+    error_message TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    started_at TEXT,
+    completed_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_aiq_status ON ai_job_queue(status);
+CREATE INDEX IF NOT EXISTS idx_aiq_user_id ON ai_job_queue(user_id);
+CREATE INDEX IF NOT EXISTS idx_aiq_created_at ON ai_job_queue(created_at);
+CREATE INDEX IF NOT EXISTS idx_aiq_type_status ON ai_job_queue(job_type, status);
+
+-- =============================================================================
 -- POST-INSTALL SECURITY NOTES
 -- =============================================================================
 -- 1. CHANGE the default admin password immediately

@@ -6,6 +6,7 @@
 CRON_TZ=UTC
 
 * * * * * www-data /usr/bin/php /var/www/html/cron/rescore-queue.php >> /var/log/php/cron-rescore-queue.log 2>&1
+* * * * * www-data /usr/bin/php /var/www/html/cron/ai-queue.php >> /var/log/php/cron-ai-queue.log 2>&1
 * * * * * www-data /usr/bin/timeout --signal=TERM --kill-after=30 1800 /usr/bin/php /var/www/html/cron/breach-scan-queue.php >> /var/log/php/cron-breach-scan-queue.log 2>&1
 0 * * * * www-data /usr/bin/php /var/www/html/cron/srs-rescore.php >> /var/log/php/cron-srs-rescore.log 2>&1
 0 2 * * * www-data /usr/bin/php /var/www/html/cron/annual-review-reminders.php >> /var/log/php/cron-annual-review.log 2>&1

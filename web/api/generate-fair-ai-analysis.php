@@ -328,107 +328,42 @@ Constraints: All USD values are positive floats. reasoning is 1-2 sentences max.
 PROMPT;
 
 // ============================================================================
-// Call AI Platform API
+// Queue AI job for background processing
 // ============================================================================
 $messages = [
     ['role' => 'user', 'content' => $prompt]
 ];
 
-$result = $ai->chatCompletion($messages, [
-    'purpose' => 'fair',
-    'temperature' => max(0.1, min(0.5, $ai->getTemperature())),
-    'max_tokens' => 500,
+$jobPayload = json_encode([
+    'messages' => $messages,
+    'ai_options' => [
+        'purpose' => 'fair',
+        'temperature' => max(0.1, min(0.5, $ai->getTemperature())),
+        'max_tokens' => 500,
+    ],
+    'context' => [
+        'max_ale' => $maxALE,
+        'is_low_risk_capped' => $isLowRiskCapped,
+        'vendor_name' => $vendorName,
+    ],
 ]);
 
-if (!$result['success']) {
-    error_log("FAIR AI Analysis API error: " . $result['error']);
-    echo json_encode(['error' => 'AI service error: ' . $result['error'], 'csrf_token' => $newCsrfToken]);
-    exit;
-}
-
-// ============================================================================
-// Parse and validate AI response
-// ============================================================================
-$content = $result['content'];
-
-// Strip markdown code fences and whitespace
-$content = preg_replace('/```json\s*/i', '', $content);
-$content = preg_replace('/```\s*$/s', '', $content);
-$content = preg_replace('/```/', '', $content);
-$content = trim($content);
-
-// Try to extract JSON if there's extra text around it
-if ($content[0] !== '{') {
-    // Find the first { and last }
-    $jsonStart = strpos($content, '{');
-    $jsonEnd = strrpos($content, '}');
-    if ($jsonStart !== false && $jsonEnd !== false) {
-        $content = substr($content, $jsonStart, $jsonEnd - $jsonStart + 1);
-    }
-}
-
-$aiEstimates = json_decode($content, true);
-
-if (!$aiEstimates || !isset($aiEstimates['annualized_loss_expectancy'])) {
-    error_log('FAIR AI Analysis: Failed to parse JSON from AI response: ' . substr($content, 0, 500));
-    echo json_encode([
-        'error' => 'AI returned an invalid response format. Please try again.',
-        'raw_response' => substr($content, 0, 200),
-        'csrf_token' => $newCsrfToken,
-    ]);
-    exit;
-}
-
-// Validate and clamp all values to sane ranges
-$aiEstimates['threat_event_frequency'] = max(0.01, floatval($aiEstimates['threat_event_frequency'] ?? 1.0));
-$aiEstimates['vulnerability_score'] = max(0.01, min(1.0, floatval($aiEstimates['vulnerability_score'] ?? 0.5)));
-$aiEstimates['loss_event_frequency'] = max(0, floatval($aiEstimates['loss_event_frequency'] ?? 0));
-$aiEstimates['primary_loss_magnitude'] = max(0, floatval($aiEstimates['primary_loss_magnitude'] ?? 0));
-$aiEstimates['secondary_loss_magnitude'] = max(0, floatval($aiEstimates['secondary_loss_magnitude'] ?? 0));
-$aiEstimates['annualized_loss_expectancy'] = max(0, floatval($aiEstimates['annualized_loss_expectancy'] ?? 0));
-$aiEstimates['recommended_cyber_insurance'] = max(0, floatval($aiEstimates['recommended_cyber_insurance'] ?? 0));
-
-// Validate risk_level
-$validRiskLevels = ['Very Low', 'Low', 'Medium', 'High', 'Very High', 'Critical'];
-if (!in_array($aiEstimates['risk_level'] ?? '', $validRiskLevels)) {
-    $aiEstimates['risk_level'] = 'Medium';
-}
-
-// Validate confidence
-$validConfidence = ['Low', 'Medium', 'High'];
-if (!in_array($aiEstimates['confidence'] ?? '', $validConfidence)) {
-    $aiEstimates['confidence'] = 'Medium';
-}
-
-// Ensure reasoning is a string
-$aiEstimates['reasoning'] = strval($aiEstimates['reasoning'] ?? 'No reasoning provided.');
-
-// Apply revenue cap even to AI estimates
-if ($maxALE > 0 && $aiEstimates['annualized_loss_expectancy'] > $maxALE) {
-    $aiEstimates['annualized_loss_expectancy'] = $maxALE;
-    $aiEstimates['revenue_cap_applied'] = true;
-}
-
-// Defense-in-depth: enforce low-risk cap server-side (mirrors FairCalculator::applyRiskModifiers)
-if ($isLowRiskCapped) {
-    $aiEstimates['primary_loss_magnitude'] = 0;
-    $aiEstimates['secondary_loss_magnitude'] = 0;
-    $aiEstimates['annualized_loss_expectancy'] = min($aiEstimates['annualized_loss_expectancy'], 1000);
-    $aiEstimates['risk_level'] = 'Very Low';
-    $aiEstimates['recommended_cyber_insurance'] = min($aiEstimates['recommended_cyber_insurance'], 3000);
-    $aiEstimates['low_risk_cap_applied'] = true;
-}
+$jobId = $db->insert('ai_job_queue', [
+    'job_type' => 'fair_analysis',
+    'status' => 'pending',
+    'user_id' => $user['id'],
+    'request_payload' => $jobPayload,
+]);
 
 // Audit log
 $auth->audit($user['id'], 'fair_ai_analysis', 'tprm_results', null, [
     'vendor_name' => $vendorName,
-    'ai_ale' => $aiEstimates['annualized_loss_expectancy'],
-    'ai_risk_level' => $aiEstimates['risk_level'],
-    'ai_confidence' => $aiEstimates['confidence'],
+    'queued_job_id' => $jobId,
 ]);
 
 echo json_encode([
     'success' => true,
-    'ai_estimates' => $aiEstimates,
+    'queued' => true,
+    'job_id' => $jobId,
     'csrf_token' => $newCsrfToken,
 ]);

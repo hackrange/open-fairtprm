@@ -1656,21 +1656,53 @@ function generateAiAnalysis() {
     })
     .then(function(data) {
         if (data.csrf_token) _detailedCsrf = data.csrf_token;
-        if (spinner) spinner.classList.remove('active');
 
-        if (data.success && data.summary) {
-            if (results) results.innerHTML = data.summary;
-        } else {
-            // AI failed — hide the section entirely
+        if (data.error) {
+            if (spinner) spinner.classList.remove('active');
             if (section) section.style.display = 'none';
-            alert('AI analysis failed: ' + (data.error || 'Unknown error'));
+            alert('AI analysis failed: ' + data.error);
+            if (btn) { btn.disabled = false; btn.innerHTML = origText; }
+            return;
         }
-        if (btn) { btn.disabled = false; btn.innerHTML = origText; }
+
+        if (data.queued && data.job_id) {
+            var pollInterval = setInterval(function() {
+                fetch('api/ai-job-status.php?id=' + data.job_id)
+                .then(function(r) { return r.json(); })
+                .then(function(poll) {
+                    if (poll.csrf_token) _detailedCsrf = poll.csrf_token;
+
+                    if (poll.status === 'completed' && poll.result) {
+                        clearInterval(pollInterval);
+                        if (spinner) spinner.classList.remove('active');
+                        if (poll.result.summary) {
+                            if (results) results.innerHTML = poll.result.summary;
+                        } else {
+                            if (section) section.style.display = 'none';
+                        }
+                        if (btn) { btn.disabled = false; btn.innerHTML = origText; }
+                    } else if (poll.status === 'failed') {
+                        clearInterval(pollInterval);
+                        if (spinner) spinner.classList.remove('active');
+                        if (section) section.style.display = 'none';
+                        alert('AI analysis failed: ' + (poll.error || 'Processing failed. Please try again.'));
+                        if (btn) { btn.disabled = false; btn.innerHTML = origText; }
+                    }
+                })
+                .catch(function(err) {
+                    clearInterval(pollInterval);
+                    console.error('AI poll error:', err);
+                    if (spinner) spinner.classList.remove('active');
+                    if (section) section.style.display = 'none';
+                    alert('Failed to check AI analysis status.');
+                    if (btn) { btn.disabled = false; btn.innerHTML = origText; }
+                });
+            }, 3000);
+        }
     })
     .catch(function(err) {
         console.error('AI generation error:', err);
         if (spinner) spinner.classList.remove('active');
-        // Hide section on error — don't leave empty content
         if (section) section.style.display = 'none';
         alert('AI analysis request failed: ' + err.message);
         if (btn) { btn.disabled = false; btn.innerHTML = origText; }

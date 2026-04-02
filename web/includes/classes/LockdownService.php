@@ -73,6 +73,8 @@ class LockdownService
         '/download-pdf.php',
         '/admin-users-import.php',
         // API endpoints
+        '/api/ai-job-status.php',
+        '/api/assessment-ai-apply.php',
         '/api/assessment-ai-autofill.php',
         '/api/assessment-autosave.php',
         '/api/assessment-certificate-download.php',

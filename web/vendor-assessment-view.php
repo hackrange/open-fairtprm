@@ -463,15 +463,64 @@ $csrfToken = $security->generateCSRFToken();
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.csrf_token) csrfToken = data.csrf_token;
-            if (data.success) {
-                status.style.color = '#16a34a';
-                status.textContent = 'Filled ' + data.filled + ' of ' + data.total + ' unanswered questions. Reloading...';
-                setTimeout(function() { location.reload(); }, 1500);
-            } else {
+            if (data.error) {
                 btn.disabled = false;
                 btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"> Auto-Fill from Certifications';
                 status.style.color = '#dc2626';
                 status.textContent = data.error || 'Auto-fill failed.';
+                return;
+            }
+            if (data.queued && data.job_id) {
+                status.textContent = 'AI is analyzing certification documents. This may take a minute...';
+                var pollInterval = setInterval(function() {
+                    fetch('api/ai-job-status.php?id=' + data.job_id)
+                    .then(function(r) { return r.json(); })
+                    .then(function(poll) {
+                        if (poll.csrf_token) csrfToken = poll.csrf_token;
+                        if (poll.status === 'completed' && poll.result) {
+                            clearInterval(pollInterval);
+                            // Apply the validated answers to the assessment
+                            fetch('api/assessment-ai-apply.php', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ csrf_token: csrfToken, job_id: data.job_id })
+                            })
+                            .then(function(r) { return r.json(); })
+                            .then(function(applyData) {
+                                if (applyData.csrf_token) csrfToken = applyData.csrf_token;
+                                if (applyData.success) {
+                                    status.style.color = '#16a34a';
+                                    status.textContent = 'Filled ' + applyData.filled + ' of ' + applyData.total + ' unanswered questions. Reloading...';
+                                    setTimeout(function() { location.reload(); }, 1500);
+                                } else {
+                                    btn.disabled = false;
+                                    btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"> Auto-Fill from Certifications';
+                                    status.style.color = '#dc2626';
+                                    status.textContent = applyData.error || 'Failed to apply answers.';
+                                }
+                            })
+                            .catch(function() {
+                                btn.disabled = false;
+                                btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"> Auto-Fill from Certifications';
+                                status.style.color = '#dc2626';
+                                status.textContent = 'Network error applying answers. Please try again.';
+                            });
+                        } else if (poll.status === 'failed') {
+                            clearInterval(pollInterval);
+                            btn.disabled = false;
+                            btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"> Auto-Fill from Certifications';
+                            status.style.color = '#dc2626';
+                            status.textContent = poll.error || 'AI processing failed. Please try again.';
+                        }
+                    })
+                    .catch(function() {
+                        clearInterval(pollInterval);
+                        btn.disabled = false;
+                        btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"> Auto-Fill from Certifications';
+                        status.style.color = '#dc2626';
+                        status.textContent = 'Network error. Please try again.';
+                    });
+                }, 3000);
             }
         })
         .catch(function() {
