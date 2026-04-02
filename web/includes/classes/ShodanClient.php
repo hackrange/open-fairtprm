@@ -1285,13 +1285,19 @@ class ShodanClient
             });
             $allBanners = array_values($allBanners);
 
-            // Filter vulns tied to filtered ports on CDN IPs
+            // Filter ALL vulns on CDN IPs. When a domain is behind a WAF/CDN
+            // (e.g. Cloudflare), Shodan scans the CDN edge — not the origin server.
+            // CVEs reported on CDN IPs are false positives: they reflect the CDN
+            // infrastructure or leaked origin headers, not actual vendor exposure.
+            // The CDN mitigates these vulnerabilities at the edge.
+            $preFilterVulns = count($allVulns);
             $allVulns = array_filter($allVulns, function ($vuln) use ($cdnIps) {
-                if (isset($vuln['port']) && isset($cdnIps[$vuln['ip'] ?? ''])) {
-                    return in_array($vuln['port'], self::CDN_PROXIED_PORTS);
-                }
-                return true; // Keep host-level vulns (no port) regardless
+                return !isset($cdnIps[$vuln['ip'] ?? '']);
             });
+            $cdnFiltered = $preFilterVulns - count($allVulns);
+            if ($cdnFiltered > 0) {
+                error_log("Shodan: Filtered {$cdnFiltered} CVEs on CDN/WAF IPs for {$domain} (false positives)");
+            }
         }
 
         // Filter CVEs older than the configured minimum year
