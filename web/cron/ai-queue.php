@@ -85,14 +85,22 @@ try {
          LIMIT 3"
     );
 
+    // Recover stuck jobs: if a job has been 'processing' for over 5 minutes,
+    // the worker likely crashed. Reset it to 'failed' so the user gets feedback.
+    $db->query(
+        "UPDATE ai_job_queue SET status = 'failed', error_message = 'Processing timed out. Please try again.', completed_at = NOW()
+         WHERE status = 'processing' AND started_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)"
+    );
+
+    // Clean up old completed/failed jobs (older than 24 hours)
+    $db->query(
+        "DELETE FROM ai_job_queue WHERE status IN ('completed', 'failed') AND created_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+    );
+
     if (empty($pending)) {
         if ($verbose) {
             CronHelper::info("No pending AI jobs found.");
         }
-        // Clean up old completed/failed jobs (older than 24 hours)
-        $db->query(
-            "DELETE FROM ai_job_queue WHERE status IN ('completed', 'failed') AND created_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
-        );
         $cron->releaseLock();
         exit(0);
     }
@@ -190,11 +198,6 @@ try {
     if ($processed > 0) {
         CronHelper::info("Queue processing complete: {$processed} processed, {$succeeded} succeeded, {$failed} failed");
     }
-
-    // Clean up old completed/failed jobs (older than 24 hours)
-    $db->query(
-        "DELETE FROM ai_job_queue WHERE status IN ('completed', 'failed') AND created_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
-    );
 
     $cron->logExecutionComplete($db, $processed, $succeeded, $failed, $errors);
 
