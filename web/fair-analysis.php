@@ -1353,12 +1353,12 @@ $isProcurement = hasGroup('procurement');
                     <!-- AI-Assisted FAIR Analysis Section (only shown when enabled) -->
                     <?php if ($fairAiAvailable): ?>
                     <div class="section-header" id="aiAnalysisSection">
-                        <h3>AI-Assisted Analysis</h3>
+                        <h3>Assisted Analysis</h3>
                     </div>
                     <div class="section-content">
                         <p style="color: #64748b; font-size: 13px; margin-bottom: 12px;">Use AI to estimate realistic FAIR financial risk values based on all available vendor security intelligence (Shodan, UpGuard, CVEs, certifications). The AI will apply the FAIR model methodology and return estimates you can review before accepting.</p>
                         <button type="button" id="aiAnalysisBtn" class="btn btn-secondary" style="margin-bottom: 15px;">
-                            <img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run AI-Assisted Analysis
+                            <img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run Assisted Analysis
                         </button>
                         <div id="aiAnalysisLoading" style="display: none; padding: 20px; text-align: center; color: #64748b;">
                             <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid #e2e8f0; border-top: 3px solid #1e3a5f; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 8px;"></div>
@@ -1982,7 +1982,7 @@ $isProcurement = hasGroup('procurement');
             };
 
             if (!formData.vendor_name) {
-                alert('Please select or enter a vendor name before running AI analysis.');
+                alert('Please select or enter a vendor name before running analysis.');
                 return;
             }
 
@@ -2006,9 +2006,9 @@ $isProcurement = hasGroup('procurement');
 
                 if (data.error) {
                     btn.disabled = false;
-                    btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run AI-Assisted Analysis';
+                    btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run Assisted Analysis';
                     loading.style.display = 'none';
-                    alert('AI Analysis Error: ' + data.error);
+                    alert('Analysis Error:' + data.error);
                     return;
                 }
 
@@ -2018,10 +2018,10 @@ $isProcurement = hasGroup('procurement');
             })
             .catch(function(err) {
                 btn.disabled = false;
-                btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run AI-Assisted Analysis';
+                btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run Assisted Analysis';
                 loading.style.display = 'none';
-                alert('Failed to run AI analysis. Please try again.');
-                console.error('AI analysis error:', err);
+                alert('Failed to run analysis. Please try again.');
+                console.error('Analysis error:', err);
             });
         }
 
@@ -2039,7 +2039,7 @@ $isProcurement = hasGroup('procurement');
                     if (data.status === 'completed' && data.result) {
                         clearInterval(pollInterval);
                         btn.disabled = false;
-                        btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run AI-Assisted Analysis';
+                        btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run Assisted Analysis';
                         loading.style.display = 'none';
 
                         if (data.result.ai_estimates) {
@@ -2049,18 +2049,18 @@ $isProcurement = hasGroup('procurement');
                     } else if (data.status === 'failed') {
                         clearInterval(pollInterval);
                         btn.disabled = false;
-                        btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run AI-Assisted Analysis';
+                        btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run Assisted Analysis';
                         loading.style.display = 'none';
-                        alert('AI Analysis Error: ' + (data.error || 'Processing failed. Please try again.'));
+                        alert('Analysis Error:' + (data.error || 'Processing failed. Please try again.'));
                     }
                     // pending/processing: keep polling
                 })
                 .catch(function() {
                     clearInterval(pollInterval);
                     btn.disabled = false;
-                    btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run AI-Assisted Analysis';
+                    btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run Assisted Analysis';
                     loading.style.display = 'none';
-                    alert('Failed to check AI analysis status. Please try again.');
+                    alert('Failed to check analysis status. Please try again.');
                 });
             }, 3000);
         }

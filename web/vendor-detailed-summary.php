@@ -979,7 +979,7 @@ function gradeClass(string $grade): string {
     <div id="aiSection" style="display: none;">
         <h3 class="section-title" style="page-break-before: always;">Summary</h3>
         <div class="ai-spinner" id="aiSpinner">
-            Generating AI analysis... This may take 30-60 seconds.
+            Generating analysis... This may take 30-60 seconds.
         </div>
         <div id="aiResults"></div>
     </div>
@@ -1660,7 +1660,7 @@ function generateAiAnalysis() {
         if (data.error) {
             if (spinner) spinner.classList.remove('active');
             if (section) section.style.display = 'none';
-            alert('AI analysis failed: ' + data.error);
+            alert('Analysis failed:' + data.error);
             if (btn) { btn.disabled = false; btn.innerHTML = origText; }
             return;
         }
@@ -1685,7 +1685,7 @@ function generateAiAnalysis() {
                         clearInterval(pollInterval);
                         if (spinner) spinner.classList.remove('active');
                         if (section) section.style.display = 'none';
-                        alert('AI analysis failed: ' + (poll.error || 'Processing failed. Please try again.'));
+                        alert('Analysis failed:' + (poll.error || 'Processing failed. Please try again.'));
                         if (btn) { btn.disabled = false; btn.innerHTML = origText; }
                     }
                 })
@@ -1694,7 +1694,7 @@ function generateAiAnalysis() {
                     console.error('AI poll error:', err);
                     if (spinner) spinner.classList.remove('active');
                     if (section) section.style.display = 'none';
-                    alert('Failed to check AI analysis status.');
+                    alert('Failed to check analysis status.');
                     if (btn) { btn.disabled = false; btn.innerHTML = origText; }
                 });
             }, 3000);
@@ -1704,7 +1704,7 @@ function generateAiAnalysis() {
         console.error('AI generation error:', err);
         if (spinner) spinner.classList.remove('active');
         if (section) section.style.display = 'none';
-        alert('AI analysis request failed: ' + err.message);
+        alert('Analysis request failed:' + err.message);
         if (btn) { btn.disabled = false; btn.innerHTML = origText; }
     });
 }

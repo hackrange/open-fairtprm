@@ -79,7 +79,7 @@ require_once __DIR__ . '/../includes/classes/AIPlatformService.php';
 $ai = AIPlatformService::getInstance();
 
 if (!$ai->isEnabled()) {
-    echo json_encode(['error' => 'AI service is not configured', 'csrf_token' => $newCsrfToken]);
+    echo json_encode(['error' => 'Service is not configured', 'csrf_token' => $newCsrfToken]);
     exit;
 }
 

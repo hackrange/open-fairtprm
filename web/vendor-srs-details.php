@@ -3912,7 +3912,7 @@ function generateExecSummary() {
                         btn.disabled = false;
                         btn.innerHTML = origText;
                         if (w) w.close();
-                        alert('Error: ' + (poll.error || 'AI processing failed.'));
+                        alert('Error: ' + (poll.error || 'Processing failed.'));
                     }
                 })
                 .catch(function() {
@@ -3920,7 +3920,7 @@ function generateExecSummary() {
                     btn.disabled = false;
                     btn.innerHTML = origText;
                     if (w) w.close();
-                    alert('Failed to check AI status. Please try again.');
+                    alert('Failed to check status. Please try again.');
                 });
             }, 3000);
         }

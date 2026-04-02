@@ -7435,7 +7435,7 @@ function getFieldValue($request, $field, $default = '') {
                                     btn.disabled = false;
                                     btn.textContent = origText;
                                     if (w) w.close();
-                                    alert('Error: ' + (poll.error || 'AI processing failed.'));
+                                    alert('Error: ' + (poll.error || 'Processing failed.'));
                                 }
                             })
                             .catch(function() {
@@ -7443,7 +7443,7 @@ function getFieldValue($request, $field, $default = '') {
                                 btn.disabled = false;
                                 btn.textContent = origText;
                                 if (w) w.close();
-                                alert('Failed to check AI status.');
+                                alert('Failed to check status.');
                             });
                         }, 3000);
                         return;

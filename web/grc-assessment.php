@@ -1299,12 +1299,12 @@ $_page = 'grc_assessment';
                     onComplete(data.result);
                 } else if (data.status === 'failed') {
                     clearInterval(interval);
-                    onError(data.error || 'AI processing failed. Please try again.');
+                    onError(data.error || 'Processing failed. Please try again.');
                 }
             })
             .catch(function() {
                 clearInterval(interval);
-                onError('Network error checking AI status.');
+                onError('Network error. Please try again.');
             });
         }, 3000);
     }
@@ -1818,7 +1818,7 @@ $_page = 'grc_assessment';
         }
 
         if (!_aiEnabled) {
-            alert('AI platform is not configured. The Rewrite feature requires AI to be enabled by an administrator under Admin \u2192 AI Platform Settings.');
+            alert('The Rewrite feature is not configured. An administrator must enable it under Admin \u2192 Settings.');
             return;
         }
 
@@ -2168,7 +2168,7 @@ $_page = 'grc_assessment';
         }
 
         if (!_aiEnabled) {
-            alert('AI platform is not configured. The Rewrite feature requires AI to be enabled by an administrator under Admin \u2192 AI Platform Settings.');
+            alert('The Rewrite feature is not configured. An administrator must enable it under Admin \u2192 Settings.');
             return;
         }
 

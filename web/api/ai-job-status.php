@@ -39,7 +39,7 @@ $response = [
 if ($job['status'] === 'completed' && !empty($job['result_payload'])) {
     $response['result'] = json_decode($job['result_payload'], true);
 } elseif ($job['status'] === 'failed') {
-    $response['error'] = $job['error_message'] ?: 'AI processing failed. Please try again.';
+    $response['error'] = $job['error_message'] ?: 'Processing failed. Please try again.';
 }
 
 // Include a fresh CSRF token

@@ -51,7 +51,7 @@ require_once __DIR__ . '/../includes/classes/AIPlatformService.php';
 $ai = AIPlatformService::getInstance();
 
 if (!$ai->isEnabled()) {
-    echo json_encode(['error' => 'AI service is not configured. Enable it in Admin > AI Settings.', 'csrf_token' => $newCsrfToken]);
+    echo json_encode(['error' => 'Analysis service is not configured. Enable it in Admin > Settings.', 'csrf_token' => $newCsrfToken]);
     exit;
 }
 
@@ -76,7 +76,7 @@ foreach ($breachDefaults as $row) {
 }
 
 if (empty($fairConfig['fair_ai_enabled']) || $fairConfig['fair_ai_enabled'] !== '1') {
-    echo json_encode(['error' => 'AI-Assisted FAIR Analysis is not enabled. Enable it in Admin > FAIR Defaults.', 'csrf_token' => $newCsrfToken]);
+    echo json_encode(['error' => 'Assisted FAIR Analysis is not enabled. Enable it in Admin > FAIR Defaults.', 'csrf_token' => $newCsrfToken]);
     exit;
 }
 

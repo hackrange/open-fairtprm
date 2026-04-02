@@ -266,7 +266,7 @@ try {
             require_once __DIR__ . '/../includes/classes/AIPlatformService.php';
             $ai = AIPlatformService::getInstance();
             if (!$ai->isEnabled()) {
-                echo json_encode(['success' => false, 'error' => 'Assistant is not enabled.', 'csrf_token' => $newToken]);
+                echo json_encode(['success' => false, 'error' => 'The assistant feature is not enabled. An administrator can configure it under Admin > Settings.', 'csrf_token' => $newToken]);
                 exit;
             }
 
@@ -362,7 +362,7 @@ try {
             require_once __DIR__ . '/../includes/classes/AIPlatformService.php';
             $ai = AIPlatformService::getInstance();
             if (!$ai->isEnabled()) {
-                echo json_encode(['success' => false, 'error' => 'AI platform is not enabled.', 'csrf_token' => $newToken]);
+                echo json_encode(['success' => false, 'error' => 'The assistant feature is not enabled. An administrator can configure it under Admin > Settings.', 'csrf_token' => $newToken]);
                 exit;
             }
             $frameworkId = (int)($input['framework_id'] ?? 0);

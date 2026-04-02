@@ -1232,7 +1232,7 @@ $currentPage = 'grc_audits';
                                             if (poll.result.refined) { descEl.value = poll.result.refined; descEl.style.borderColor = '#6366f1'; setTimeout(function() { descEl.style.borderColor = ''; }, 2000); }
                                             else if (poll.result.content) { descEl.value = poll.result.content; descEl.style.borderColor = '#6366f1'; setTimeout(function() { descEl.style.borderColor = ''; }, 2000); }
                                         } else if (poll.status === 'failed') {
-                                            btn.disabled = false; btn.textContent = 'Suggest with AI'; alert('AI error: ' + (poll.error || 'Failed'));
+                                            btn.disabled = false; btn.textContent = 'Suggest with AI'; alert('Error:' + (poll.error || 'Failed'));
                                         } else { pollJob(); }
                                     }).catch(function() { btn.disabled = false; btn.textContent = 'Suggest with AI'; });
                                 }, 3000);
@@ -1241,7 +1241,7 @@ $currentPage = 'grc_audits';
                         }
                         btn.disabled = false;
                         btn.textContent = 'Suggest with AI';
-                        if (data.error) { alert('AI error: ' + data.error); return; }
+                        if (data.error) { alert('Error:' + data.error); return; }
                         if (data.refined) {
                             descEl.value = data.refined;
                             descEl.style.borderColor = '#6366f1';

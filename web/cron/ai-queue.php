@@ -159,7 +159,7 @@ try {
             $result = $ai->chatCompletion($payload['messages'], $aiOptions);
 
             if (!$result['success']) {
-                throw new Exception('AI service error: ' . ($result['error'] ?? 'Unknown error'));
+                throw new Exception('Service error: ' . ($result['error'] ?? 'Unknown error'));
             }
 
             // Post-process based on job type

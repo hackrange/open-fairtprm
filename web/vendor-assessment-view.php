@@ -471,7 +471,7 @@ $csrfToken = $security->generateCSRFToken();
                 return;
             }
             if (data.queued && data.job_id) {
-                status.textContent = 'AI is analyzing certification documents. This may take a minute...';
+                status.textContent = 'Analyzing certification documents. This may take a minute...';
                 var pollInterval = setInterval(function() {
                     fetch('api/ai-job-status.php?id=' + data.job_id)
                     .then(function(r) { return r.json(); })
@@ -510,7 +510,7 @@ $csrfToken = $security->generateCSRFToken();
                             btn.disabled = false;
                             btn.innerHTML = '<img src="app/icons/lightning-02.svg" alt="" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"> Auto-Fill from Certifications';
                             status.style.color = '#dc2626';
-                            status.textContent = poll.error || 'AI processing failed. Please try again.';
+                            status.textContent = poll.error || 'Processing failed. Please try again.';
                         }
                     })
                     .catch(function() {

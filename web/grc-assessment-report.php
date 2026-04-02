@@ -612,7 +612,7 @@ $csrfToken = $security->generateCSRFToken();
 
         if (!_aiEnabled) {
             // Without AI, populate with the existing default text
-            showStatus('AI platform is not configured. You can manually edit the section text. To enable AI-assisted writing, an administrator can configure it under Admin \u2192 AI Platform Settings.', 'error');
+            showStatus('Assisted writing is not configured. You can manually edit the section text. An administrator can enable this feature under Admin \u2192 Settings.', 'error');
             return;
         }
 

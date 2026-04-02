@@ -111,7 +111,7 @@ function generateExecutiveSummary($data) {
     $ai = AIPlatformService::getInstance();
 
     if (!$ai->isEnabled()) {
-        return '<p><em>AI-generated summaries are disabled. Enable an AI platform (OpenWebUI or LibreChat) in Admin Portal → AI Integration to use this feature.</em></p>';
+        return '<p><em>Automated summaries are disabled. An administrator can enable this feature in Admin Portal → Settings.</em></p>';
     }
 
     $prompt = "Generate a concise executive summary for a Third-Party Risk Management (TPRM) FAIR analysis report.
