@@ -1356,24 +1356,24 @@ $isProcurement = hasGroup('procurement');
                         <h3>Assisted Analysis</h3>
                     </div>
                     <div class="section-content">
-                        <p style="color: #64748b; font-size: 13px; margin-bottom: 12px;">Use AI to estimate realistic FAIR financial risk values based on all available vendor security intelligence (Shodan, UpGuard, CVEs, certifications). The AI will apply the FAIR model methodology and return estimates you can review before accepting.</p>
+                        <p style="color: #64748b; font-size: 13px; margin-bottom: 12px;">Estimate realistic FAIR financial risk values based on all available vendor security intelligence (Shodan, UpGuard, CVEs, certifications). The FAIR model methodology will be applied and estimates returned for you to review before accepting.</p>
                         <button type="button" id="aiAnalysisBtn" class="btn btn-secondary" style="margin-bottom: 15px;">
                             <img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run Assisted Analysis
                         </button>
                         <div id="aiAnalysisLoading" style="display: none; padding: 20px; text-align: center; color: #64748b;">
                             <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid #e2e8f0; border-top: 3px solid #1e3a5f; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 8px;"></div>
-                            <p style="margin: 0; font-size: 13px;">AI is analyzing vendor security data using the FAIR model...</p>
+                            <p style="margin: 0; font-size: 13px;">Analyzing vendor security data using the FAIR model...</p>
                             <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
                         </div>
                         <div id="aiResultsPanel" style="display: none;">
                             <div style="background: #fefce8; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin-bottom: 15px;">
-                                <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #92400e;">AI FAIR Analysis Results</h4>
+                                <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #92400e;">FAIR Analysis Results</h4>
                                 <div style="overflow-x: auto;">
                                     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                                         <thead>
                                             <tr style="border-bottom: 2px solid #fde68a;">
                                                 <th style="text-align: left; padding: 6px 8px; color: #78716c;">Metric</th>
-                                                <th style="text-align: right; padding: 6px 8px; color: #78716c;">AI Estimate</th>
+                                                <th style="text-align: right; padding: 6px 8px; color: #78716c;">Estimate</th>
                                             </tr>
                                         </thead>
                                         <tbody id="aiResultsBody">
@@ -1388,7 +1388,7 @@ $isProcurement = hasGroup('procurement');
                                     <strong>Reasoning:</strong> <span id="aiReasoning"></span>
                                 </div>
                                 <div style="margin-top: 15px; display: flex; gap: 10px;">
-                                    <button type="button" id="aiApplyBtn" class="btn btn-primary" style="font-size: 13px;">Apply AI Estimates</button>
+                                    <button type="button" id="aiApplyBtn" class="btn btn-primary" style="font-size: 13px;">Apply FAIR Estimates</button>
                                     <button type="button" id="aiDismissBtn" class="btn btn-outline" style="font-size: 13px;">Dismiss</button>
                                 </div>
                             </div>
@@ -2127,12 +2127,12 @@ $isProcurement = hasGroup('procurement');
             // Also store the AI recommendation as a note in the threat_intelligence field
             var threatInput = document.getElementById('threat_intelligence');
             if (threatInput) {
-                var aiNote = '[AI FAIR Analysis] Risk Level: ' + lastAiEstimates.risk_level +
+                var aiNote = '[FAIR Analysis] Risk Level: ' + lastAiEstimates.risk_level +
                     ', ALE: $' + Math.round(lastAiEstimates.annualized_loss_expectancy).toLocaleString() +
                     ', Recommended Insurance: $' + Math.round(lastAiEstimates.recommended_cyber_insurance).toLocaleString() +
                     ', Confidence: ' + lastAiEstimates.confidence +
                     '. ' + lastAiEstimates.reasoning;
-                if (threatInput.value && !threatInput.value.includes('[AI FAIR Analysis]')) {
+                if (threatInput.value && !threatInput.value.includes('[FAIR Analysis]')) {
                     threatInput.value = aiNote + '\n\n' + threatInput.value;
                 } else if (!threatInput.value) {
                     threatInput.value = aiNote;
@@ -2143,7 +2143,7 @@ $isProcurement = hasGroup('procurement');
             var panel = document.getElementById('aiResultsPanel');
             if (panel) {
                 panel.innerHTML = '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:12px 16px;font-size:13px;color:#065f46;">' +
-                    '<strong>AI estimates applied.</strong> The AI financial values (ALE, LEF, loss magnitudes) will be used when you submit this form.</div>';
+                    '<strong>FAIR estimates applied.</strong> The financial values (ALE, LEF, loss magnitudes) will be used when you submit this form.</div>';
                 setTimeout(function() { panel.style.display = 'none'; }, 8000);
             }
         }
