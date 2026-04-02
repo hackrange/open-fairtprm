@@ -2258,6 +2258,8 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`) VALUES
 ('cron_grc_monitors_schedule', '*/5 * * * *'),
 ('cron_grc_policy_reminders_enabled', '1'),
 ('cron_grc_policy_reminders_schedule', '0 9 * * 2'),
+('cron_ai_queue_enabled', '1'),
+('cron_ai_queue_schedule', '* * * * *'),
 ('cron_rescore_queue_enabled', '1'),
 ('cron_rescore_queue_schedule', '* * * * *'),
 ('cron_srs_rescore_enabled', '1'),

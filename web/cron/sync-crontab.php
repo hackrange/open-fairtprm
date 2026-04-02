@@ -40,6 +40,7 @@ $db = Database::getInstance();
 // Job definitions — keep in sync with includes/admin/scheduler.php
 // -------------------------------------------------------------------------
 $cronJobs = [
+    'ai_queue'             => ['script' => 'ai-queue.php',                    'log' => '/var/log/php/cron-ai-queue.log',                 'default_schedule' => '* * * * *'],
     'rescore_queue'        => ['script' => 'rescore-queue.php',              'log' => '/var/log/php/cron-rescore-queue.log',            'default_schedule' => '* * * * *'],
     'breach_scan_queue'    => ['script' => 'breach-scan-queue.php',          'log' => '/var/log/php/cron-breach-scan-queue.log',        'default_schedule' => '* * * * *',   'timeout' => 1800],
     'srs_rescore'          => ['script' => 'srs-rescore.php',                'log' => '/var/log/php/cron-srs-rescore.log',              'default_schedule' => '0 * * * *'],

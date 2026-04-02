@@ -21,6 +21,14 @@
 // Job Definitions
 // ============================================================================
 $cronJobs = [
+    'ai_queue' => [
+        'name'            => 'AI Job Queue',
+        'description'     => 'Processes background AI tasks (FAIR analysis, contract pricing, assessment autofill, GRC assistant, report generation) so they don\'t block web users',
+        'script'          => 'ai-queue.php',
+        'log'             => '/var/log/php/cron-ai-queue.log',
+        'default_schedule' => '* * * * *',
+        'history_key'     => 'ai-queue',
+    ],
     'rescore_queue' => [
         'name'            => 'Rescore Queue',
         'description'     => 'Processes the UpGuard SRS rescore queue',
