@@ -1622,6 +1622,22 @@ CREATE TABLE IF NOT EXISTS waf_learned_requests (
     INDEX idx_request_at (request_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Per-IP+UA failed-login tracking. Drives the IP-fingerprint lockout that
+-- replaces blanket account lockout as the primary brute-force defense, so a
+-- threat actor at one source IP cannot DoS legitimate users by guessing
+-- their passwords. Account-level lockout still triggers on distributed
+-- attacks (failures from 3+ IPs against one username in 24h).
+CREATE TABLE IF NOT EXISTS auth_failed_attempts (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    client_ip VARCHAR(45) NOT NULL,
+    ua_hash CHAR(64) NOT NULL,
+    username_attempted VARCHAR(255) DEFAULT NULL,
+    attempted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_ip_ua_time (client_ip, ua_hash, attempted_at),
+    INDEX idx_username_time (username_attempted, attempted_at),
+    INDEX idx_attempted_at (attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- =============================================================================
 -- SECTION 16: AI JOB QUEUE
 -- Background queue for AI tasks so they don't block web workers.

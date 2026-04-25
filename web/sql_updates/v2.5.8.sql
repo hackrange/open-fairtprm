@@ -1950,6 +1950,23 @@ CREATE TABLE IF NOT EXISTS `waf_whitelist_rules` (
   UNIQUE KEY `uq_rule_id` (`rule_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=512 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Per-IP+UA failed-login tracking. Drives the IP-fingerprint lockout that
+-- replaces blanket account lockout as the primary brute-force defense, so a
+-- threat actor at one source IP cannot DoS legitimate users by guessing
+-- their passwords. Account-level lockout still triggers on distributed
+-- attacks (failures from 3+ IPs against one username in 24h).
+CREATE TABLE IF NOT EXISTS `auth_failed_attempts` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `client_ip` varchar(45) NOT NULL,
+  `ua_hash` char(64) NOT NULL,
+  `username_attempted` varchar(255) DEFAULT NULL,
+  `attempted_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_ip_ua_time` (`client_ip`, `ua_hash`, `attempted_at`),
+  KEY `idx_username_time` (`username_attempted`, `attempted_at`),
+  KEY `idx_attempted_at` (`attempted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `cyber_breach_alerts` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `alert_hash` varchar(64) NOT NULL,
