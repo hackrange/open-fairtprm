@@ -19,6 +19,22 @@ error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
+// Deny-by-default HTTP method allowlist. Reject unknown verbs (e.g. "ABC", "FOO")
+// before any auth, routing, or business logic runs -- so method-restricted controls
+// upstream cannot be bypassed by HTTP verb tampering. Allowed set covers web pages
+// (GET/POST/HEAD), CORS preflight (OPTIONS), and REST/SCIM (PUT/DELETE/PATCH).
+$_allowedHttpMethods = ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'DELETE', 'PATCH'];
+$_requestMethod = $_SERVER['REQUEST_METHOD'] ?? '';
+if (!in_array($_requestMethod, $_allowedHttpMethods, true)) {
+    error_log('Rejected disallowed HTTP method: ' . $_requestMethod
+        . ' for ' . ($_SERVER['REQUEST_URI'] ?? '')
+        . ' from ' . ($_SERVER['REMOTE_ADDR'] ?? ''));
+    header('Allow: ' . implode(', ', $_allowedHttpMethods));
+    http_response_code(405);
+    exit;
+}
+unset($_allowedHttpMethods, $_requestMethod);
+
 // Define path constants so the rest of the app doesn't have to guess where things are.
 // Using these instead of relative paths keeps everything sane when files include each other.
 if (!defined('APP_ROOT')) {
