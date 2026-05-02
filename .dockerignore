@@ -1,0 +1,24 @@
+.git
+.claude
+*.md
+config/
+entrypoint.sh
+
+# Database backups must NEVER enter the Docker build context.
+# A `RUN rm -rf` in the Dockerfile does not remove a file once it has been
+# copied in -- the file persists in the underlying layer blob and is
+# downloadable by anyone who can pull the image, even if the final
+# filesystem hides it. The only safe defense is to keep these out of the
+# build context entirely.
+web/db_backup/
+web/db_backup.upgrade_shelter/
+**/db_backup/
+**/db_backup.upgrade_shelter/
+**/tprm_database_backup_*.sql
+**/tprm_database_backup_*.sql.gz
+**/tprm_database_backup_*.sql.bz2
+**/tprm_database_backup_*.sql.xz
+**/*.sql.gz
+**/*.sql.bz2
+**/*.sql.xz
+**/*.dump
