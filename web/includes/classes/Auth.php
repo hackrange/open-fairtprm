@@ -67,18 +67,51 @@ class Auth {
      * @return array ['success' => bool, 'message' => string, 'requires_totp' => bool, 'user_id' => int]
      */
     public function login($username, $password) {
+        // Constant ~250ms delay on every failed-login response (mirrors
+        // verifyTOTP). Masks the timing oracle between the user-not-found
+        // fast path and the password-verify slow path so an attacker can't
+        // enumerate usernames by stopwatch, and caps credential-spraying
+        // throughput regardless of which branch the request lands on.
+        $start = microtime(true);
+        $minResponseSeconds = 0.25;
+        $pace = function (array $result) use ($start, $minResponseSeconds) {
+            if ($result['success'] ?? false) {
+                return $result;
+            }
+            $elapsed = microtime(true) - $start;
+            $remaining = $minResponseSeconds - $elapsed;
+            if ($remaining > 0) {
+                usleep((int)($remaining * 1_000_000));
+            }
+            return $result;
+        };
+
         try {
-            // Step 0: IP-fingerprint lockout. This is the primary brute-force
-            // defense — locks the threat actor (their IP+UA), not the victim's
-            // account. Whitelisted IPs (waf_ip_whitelist) skip the check.
+            // Step 0a: IP-fingerprint lockout. Locks the threat actor (IP+UA),
+            // not the victim's account. Whitelisted IPs (waf_ip_whitelist) skip.
             [$clientIp, $uaHash] = $this->getClientFingerprint();
             if (!$this->isWhitelistedIp($clientIp)) {
                 $fpLock = $this->getFingerprintLockout($clientIp, $uaHash);
                 if ($fpLock !== null) {
-                    return [
+                    return $pace([
                         'success' => false,
-                        'message' => "Too many failed login attempts from this device. Please try again in {$fpLock['minutes']} minute(s)."
-                    ];
+                        'message' => "Too many failed login attempts from this device. Please try again in {$fpLock['minutes']} minute(s).",
+                        'lockout_seconds' => max(1, $fpLock['locked_until_ts'] - time()),
+                    ]);
+                }
+
+                // Step 0b: IP-only fallback lockout. Catches credential-stuffing
+                // tools that randomize the User-Agent per request to evade the
+                // (IP, UA) fingerprint check above. Threshold is intentionally
+                // higher (3x max_login_attempts) so legitimate shared-NAT
+                // populations aren't penalized.
+                $ipLock = $this->getIpOnlyLockout($clientIp);
+                if ($ipLock !== null) {
+                    return $pace([
+                        'success' => false,
+                        'message' => "Too many failed login attempts from this network. Please try again in {$ipLock['minutes']} minute(s).",
+                        'lockout_seconds' => max(1, $ipLock['locked_until_ts'] - time()),
+                    ]);
                 }
             }
 
@@ -98,7 +131,7 @@ class Auth {
                     'username' => $username,
                     'reason' => 'user_not_found'
                 ]);
-                return ['success' => false, 'message' => 'Invalid username or password'];
+                return $pace(['success' => false, 'message' => 'Invalid username or password']);
             }
 
             // Step 2: Is this account in the penalty box? Check lockout timer.
@@ -106,10 +139,11 @@ class Auth {
             if ($user['account_locked_until'] && strtotime($user['account_locked_until']) > time()) {
                 $lockoutRemaining = strtotime($user['account_locked_until']) - time();
                 $minutes = ceil($lockoutRemaining / 60);
-                return [
+                return $pace([
                     'success' => false,
-                    'message' => "Account is locked. Please try again in {$minutes} minute(s)."
-                ];
+                    'message' => "Account is locked. Please try again in {$minutes} minute(s).",
+                    'lockout_seconds' => $lockoutRemaining,
+                ]);
             }
 
             // Step 3: Does the password actually match? This uses constant-time comparison
@@ -120,7 +154,7 @@ class Auth {
                     'username' => $username,
                     'reason' => 'invalid_password'
                 ]);
-                return ['success' => false, 'message' => 'Invalid username or password'];
+                return $pace(['success' => false, 'message' => 'Invalid username or password']);
             }
 
             // Step 4: While we have the plaintext password handy, check if the hash
@@ -169,7 +203,7 @@ class Auth {
         } catch (Exception $e) {
             // Something went sideways. Log it, but don't leak details to the user.
             error_log('Login error: ' . $e->getMessage());
-            return ['success' => false, 'message' => 'An error occurred during login'];
+            return $pace(['success' => false, 'message' => 'An error occurred during login']);
         }
     }
 
@@ -202,7 +236,19 @@ class Auth {
                     $this->session->remove('pending_totp_user_id');
                     return [
                         'success' => false,
-                        'message' => "Too many failed verification attempts from this device. Please try again in {$fpLock['minutes']} minute(s)."
+                        'message' => "Too many failed verification attempts from this device. Please try again in {$fpLock['minutes']} minute(s).",
+                        'lockout_seconds' => max(1, $fpLock['locked_until_ts'] - time()),
+                    ];
+                }
+
+                // IP-only fallback for UA-rotating attackers (mirrors login()).
+                $ipLock = $this->getIpOnlyLockout($clientIp);
+                if ($ipLock !== null) {
+                    $this->session->remove('pending_totp_user_id');
+                    return [
+                        'success' => false,
+                        'message' => "Too many failed verification attempts from this network. Please try again in {$ipLock['minutes']} minute(s).",
+                        'lockout_seconds' => max(1, $ipLock['locked_until_ts'] - time()),
                     ];
                 }
             }
@@ -223,10 +269,12 @@ class Auth {
             // account through the same browser session indefinitely.
             if ($user['account_locked_until'] && strtotime($user['account_locked_until']) > time()) {
                 $this->session->remove('pending_totp_user_id');
-                $minutes = ceil((strtotime($user['account_locked_until']) - time()) / 60);
+                $lockoutRemaining = strtotime($user['account_locked_until']) - time();
+                $minutes = ceil($lockoutRemaining / 60);
                 return [
                     'success' => false,
-                    'message' => "Account is locked. Please try again in {$minutes} minute(s)."
+                    'message' => "Account is locked. Please try again in {$minutes} minute(s).",
+                    'lockout_seconds' => $lockoutRemaining,
                 ];
             }
 
@@ -252,7 +300,19 @@ class Auth {
                     $this->session->remove('pending_totp_user_id');
                     return [
                         'success' => false,
-                        'message' => "Too many failed verification attempts from this device. Please try again in {$fpLock['minutes']} minute(s)."
+                        'message' => "Too many failed verification attempts from this device. Please try again in {$fpLock['minutes']} minute(s).",
+                        'lockout_seconds' => max(1, $fpLock['locked_until_ts'] - time()),
+                    ];
+                }
+
+                // Or the IP-only fallback?
+                $ipLock = $this->getIpOnlyLockout($clientIp);
+                if ($ipLock !== null) {
+                    $this->session->remove('pending_totp_user_id');
+                    return [
+                        'success' => false,
+                        'message' => "Too many failed verification attempts from this network. Please try again in {$ipLock['minutes']} minute(s).",
+                        'lockout_seconds' => max(1, $ipLock['locked_until_ts'] - time()),
                     ];
                 }
 
@@ -265,10 +325,12 @@ class Auth {
                 if ($fresh && $fresh['account_locked_until']
                     && strtotime($fresh['account_locked_until']) > time()) {
                     $this->session->remove('pending_totp_user_id');
-                    $minutes = ceil((strtotime($fresh['account_locked_until']) - time()) / 60);
+                    $lockoutRemaining = strtotime($fresh['account_locked_until']) - time();
+                    $minutes = ceil($lockoutRemaining / 60);
                     return [
                         'success' => false,
-                        'message' => "Account is locked. Please try again in {$minutes} minute(s)."
+                        'message' => "Account is locked. Please try again in {$minutes} minute(s).",
+                        'lockout_seconds' => $lockoutRemaining,
                     ];
                 }
 
@@ -566,6 +628,53 @@ class Auth {
         }
 
         // Locked until window elapses past the most recent failure
+        $lastTs = strtotime($row['last_attempt']);
+        $unlockTs = $lastTs + $windowSec;
+        if ($unlockTs <= time()) {
+            return null;
+        }
+
+        return [
+            'locked_until_ts' => $unlockTs,
+            'minutes' => max(1, (int)ceil(($unlockTs - time()) / 60)),
+        ];
+    }
+
+    /**
+     * IP-only fallback lockout. Counts failures from this client_ip over the
+     * lockout window REGARDLESS of User-Agent. The (IP, UA) fingerprint check
+     * is the primary defense, but a credential-stuffing tool that randomizes
+     * the User-Agent per request never accumulates hits on a single
+     * fingerprint and would slip through. This second check closes that gap.
+     *
+     * Threshold is intentionally higher (3x max_login_attempts) so that
+     * legitimate shared-NAT populations — corporate offices, guest WiFi —
+     * aren't penalized by a couple of users fumbling passwords at the same
+     * time. The (IP, UA) check still fires at the lower per-fingerprint
+     * threshold for any single attacker.
+     *
+     * @return array|null Lockout details ['locked_until_ts', 'minutes'] or null if not locked
+     */
+    private function getIpOnlyLockout($ip) {
+        $maxAttempts = $this->getMaxLoginAttempts() * 3;
+        $windowSec = $this->getLockoutDurationSeconds();
+
+        try {
+            $row = $this->db->fetchOne(
+                'SELECT COUNT(*) AS c, MAX(attempted_at) AS last_attempt
+                 FROM auth_failed_attempts
+                 WHERE client_ip = :ip
+                   AND attempted_at >= DATE_SUB(NOW(), INTERVAL :win SECOND)',
+                [':ip' => $ip, ':win' => $windowSec]
+            );
+        } catch (Exception $e) {
+            return null;
+        }
+
+        if (!$row || (int)$row['c'] < $maxAttempts) {
+            return null;
+        }
+
         $lastTs = strtotime($row['last_attempt']);
         $unlockTs = $lastTs + $windowSec;
         if ($unlockTs <= time()) {

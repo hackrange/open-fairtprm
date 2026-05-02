@@ -60,6 +60,29 @@ $success = '';
 $requiresTOTP = false;
 $pendingUserId = null;
 
+/**
+ * Emit standardized rate-limit headers when the auth layer returns a lockout
+ * response. The HTML page still renders so a real user sees the friendly
+ * message, but scanners, bots, and rate-limit-aware HTTP clients now see the
+ * HTTP 429 + Retry-After signal they expect — without which a credential
+ * stuffing tool has no machine-readable evidence that throttling exists.
+ * Headers are no-ops if Auth didn't return lockout_seconds.
+ */
+$emitLockoutHeaders = function (array $result) {
+    $secs = (int)($result['lockout_seconds'] ?? 0);
+    if ($secs <= 0 || headers_sent()) {
+        return;
+    }
+    http_response_code(429);
+    header('Retry-After: ' . $secs);
+    // Advisory: surface the configured per-fingerprint failure budget so
+    // operators / clients can see how the throttle is provisioned.
+    $maxAttempts = (int)getAppConfig('max_login_attempts', '5');
+    header('X-RateLimit-Limit: ' . $maxAttempts);
+    header('X-RateLimit-Remaining: 0');
+    header('X-RateLimit-Reset: ' . (time() + $secs));
+};
+
 // Only process form submissions, not GET requests (duh)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF check first -- if someone tries to replay this form, they can go pound sand
@@ -83,9 +106,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect($redirectAfterLogin);
             } else {
                 // Wrong code -- maybe your clock is off, or you typed it too slowly
+                $emitLockoutHeaders($result);
                 $error = $result['message'];
-                $requiresTOTP = true;
-                $pendingUserId = $userId;
+                // If lockout tore down the pending TOTP session, fall back to
+                // the username/password form rather than re-prompting for a
+                // code there's no longer a session for.
+                if (!empty($result['lockout_seconds'])
+                    && (int)$session->get('pending_totp_user_id', 0) <= 0) {
+                    $requiresTOTP = false;
+                } else {
+                    $requiresTOTP = true;
+                    $pendingUserId = $userId;
+                }
             }
         }
 
@@ -112,6 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pendingUserId = $result['user_id'];
             } else {
                 // Nope. Wrong password, locked out, or some other sad state of affairs.
+                $emitLockoutHeaders($result);
                 $error = $result['message'];
             }
         }

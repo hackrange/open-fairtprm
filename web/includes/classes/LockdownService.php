@@ -831,6 +831,23 @@ class LockdownService
     }
 
     /**
+     * Get the current login-endpoint rate limit settings. Separate from the
+     * global rate limit so POST /login.php can be throttled aggressively
+     * without affecting normal app traffic. Defaults are tuned to allow
+     * legitimate shared-NAT login bursts while stopping credential spraying
+     * cold (20 attempts / 60s, then a 10-minute block).
+     */
+    public function getLoginRateLimitSettings(): array
+    {
+        return [
+            'enabled'        => (bool)$this->getConfigValue('waf_login_rate_limit_enabled', '1'),
+            'requests'       => (int)$this->getConfigValue('waf_login_rate_limit_requests', '20'),
+            'period'         => (int)$this->getConfigValue('waf_login_rate_limit_period', '60'),
+            'block_duration' => (int)$this->getConfigValue('waf_login_rate_limit_block', '600'),
+        ];
+    }
+
+    /**
      * Update rate limit settings. Regenerates scanner-detection.conf.
      */
     public function updateRateLimitSettings(bool $enabled, int $requests, int $period, int $blockDuration): bool
@@ -1458,6 +1475,46 @@ SecRule IP:req_count "@gt {$rl['requests']}" \
 RL;
         }
 
+        // Login-endpoint rate limit (POST /login.php). Independent counter
+        // (ip.login_count) on the same ip collection, so it coexists with
+        // the global rate limit above without sharing state. Defense-in-depth
+        // for credential stuffing: stops bursts at the WAF before the PHP
+        // application ever runs the password-verify path.
+        $loginRateLimitBlock = '';
+        $lrl = $this->getLoginRateLimitSettings();
+        if ($lrl['enabled']) {
+            $loginRateLimitBlock = <<<LRL
+
+# ── SECTION 11: Login-Endpoint Rate Limiting (POST /login.php) ───────────
+# Throttles login form submissions per IP regardless of credentials used.
+# Threshold: {$lrl['requests']} POSTs per {$lrl['period']}s, block for {$lrl['block_duration']}s.
+# Separate from the global rate limit so credential stuffing is stopped
+# even when the global limit is set high enough to allow normal browsing.
+
+# Ensure the ip collection exists (idempotent if SECTION 10 already ran)
+SecAction "id:400070,phase:1,nolog,pass,initcol:ip=%{REMOTE_ADDR}"
+
+# Increment login-attempt counter only on POST /login.php
+SecRule REQUEST_FILENAME "@streq /login.php" \
+    "id:400071,phase:1,pass,nolog,chain"
+    SecRule REQUEST_METHOD "@streq POST" \
+        "setvar:ip.login_count=+1,expirevar:ip.login_count={$lrl['period']}"
+
+# If this IP is currently in the login-block penalty box, deny POST /login.php
+SecRule REQUEST_FILENAME "@streq /login.php" \
+    "id:400072,phase:1,deny,status:429,log,msg:'Login throttle: IP temporarily blocked',tag:'login-rate-limit',chain"
+    SecRule IP:login_blocked "@eq 1" "t:none"
+
+# If the counter just exceeded the threshold, set the block flag and deny.
+# Block flag's TTL is the configured block_duration; counter resets when its
+# own TTL expires so the IP gets a fresh window after the block lifts.
+SecRule REQUEST_FILENAME "@streq /login.php" \
+    "id:400073,phase:1,deny,status:429,log,msg:'Login throttle: too many login attempts',tag:'login-rate-limit',setvar:ip.login_blocked=1,expirevar:ip.login_blocked={$lrl['block_duration']},chain"
+    SecRule IP:login_count "@gt {$lrl['requests']}" "t:none"
+
+LRL;
+        }
+
         return <<<CONF
 # =============================================================================
 # Open TPRM - Automated Scanner & Attack Detection Rules
@@ -1615,7 +1672,7 @@ SecRule REQUEST_URI|QUERY_STRING|REQUEST_BODY "@rx %00|\\\\x00" \
 # Rule 400052: HTTP method not used by this application
 SecRule REQUEST_METHOD "!@rx ^(?:GET|POST|PUT|DELETE|HEAD|OPTIONS)$" \
     "id:400052,phase:1,deny,status:403,log,msg:'Protocol abuse: disallowed HTTP method',tag:'protocol-abuse'"
-{$rateLimitBlock}
+{$rateLimitBlock}{$loginRateLimitBlock}
 CONF;
     }
 

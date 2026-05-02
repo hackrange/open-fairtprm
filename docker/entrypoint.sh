@@ -456,6 +456,33 @@ if [ ! -f "$WAF_INIT_FLAG" ] && mysql -e "USE tprm" 2>/dev/null; then
     echo "==> WAF security initialized."
 fi
 
+# =========================================================================
+# 8c2. Always regenerate scanner-detection.conf from current code + DB.
+#      This is what ships new ModSecurity rules (e.g. login-endpoint rate
+#      limiting) to existing customer deployments without requiring an admin
+#      to click anything in the WAF UI. The conf is deterministic from the
+#      DB config + LockdownService source, so regenerating every start is
+#      safe and idempotent.
+# =========================================================================
+if mysql -e "USE tprm" 2>/dev/null; then
+    REGENERATED_CONF=$(php -r "
+        require '/var/www/html/includes/init.php';
+        \$db = Database::getInstance();
+        \$lockdown = new LockdownService(\$db);
+
+        \$method = new ReflectionMethod(\$lockdown, 'buildScannerDetectionConf');
+        \$method->setAccessible(true);
+        echo \$method->invoke(\$lockdown);
+    " 2>/dev/null)
+    # Only overwrite if PHP produced a non-trivial conf (guards against DB
+    # outage, autoloader failure, etc., which would otherwise blank the file).
+    if [ "${#REGENERATED_CONF}" -gt 200 ]; then
+        echo "$REGENERATED_CONF" | sudo tee /etc/modsecurity/scanner-detection.conf > /dev/null
+        cp /etc/modsecurity/scanner-detection.conf /persistent/modsecurity/scanner-detection.conf
+        echo "==> Regenerated scanner-detection.conf from current LockdownService code."
+    fi
+fi
+
 # Fix ownership on all persistent files created by root above
 chown -R www-data:www-data /persistent/modsecurity
 chown -R www-data:www-data /persistent/sql_updates

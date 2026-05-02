@@ -1260,7 +1260,13 @@ INSERT INTO app_config (config_key, config_value, is_encrypted, description) VAL
 ('procurement_notifications_enabled', '0', 0, 'Enable/disable procurement contract expiry email notifications'),
 ('procurement_notification_recipients', 'all', 0, 'Procurement notification recipients: all, selected, or none'),
 ('procurement_notification_warning_days', '30', 0, 'Days before contract expiry to start sending warnings'),
-('procurement_notification_selected_users', '[]', 0, 'JSON array of selected user IDs for procurement notifications')
+('procurement_notification_selected_users', '[]', 0, 'JSON array of selected user IDs for procurement notifications'),
+
+-- WAF login-endpoint rate limiting (defense-in-depth against credential stuffing)
+('waf_login_rate_limit_enabled', '1', 0, 'Enable WAF rate limiting on POST /login.php'),
+('waf_login_rate_limit_requests', '20', 0, 'Max POST /login.php requests per IP per period'),
+('waf_login_rate_limit_period', '60', 0, 'Login rate-limit window in seconds'),
+('waf_login_rate_limit_block', '600', 0, 'Login rate-limit block duration in seconds')
 ON DUPLICATE KEY UPDATE description = VALUES(description);
 
 -- =============================================================================
