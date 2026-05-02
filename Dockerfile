@@ -53,7 +53,8 @@ RUN apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Apache configuration ----
-RUN a2enmod rewrite headers deflate remoteip security2
+RUN a2enmod rewrite headers deflate remoteip security2 \
+    && a2dismod -f status
 
 # ModSecurity configuration
 COPY docker/modsecurity/modsecurity.conf /etc/modsecurity/modsecurity.conf
