@@ -831,33 +831,6 @@ class LockdownService
     }
 
     /**
-     * Get the current login-endpoint rate limit settings.
-     *
-     * DEFAULT IS DISABLED. Brute-force / password-spray detection is now
-     * handled at the PHP application layer (Auth::login() with three
-     * progressively narrower lockouts: per-(IP, UA) fingerprint, per-
-     * (username, IP), and per-IP fallback) which is username-aware,
-     * DB-backed, and reliably keyed on the real client IP regardless of
-     * Apache module-hook ordering. The WAF rule was a coarse outer ring
-     * that produced confusing cross-tenant blocks when mod_remoteip
-     * hadn't rewritten REMOTE_ADDR before phase:1 fired.
-     *
-     * Operators who want a volumetric throttle in front of /login.php
-     * (e.g. as DDoS shielding ahead of PHP) can enable it via the WAF UI.
-     * The general-purpose global rate limit in SECTION 10 remains on by
-     * default for that purpose.
-     */
-    public function getLoginRateLimitSettings(): array
-    {
-        return [
-            'enabled'        => (bool)$this->getConfigValue('waf_login_rate_limit_enabled', '0'),
-            'requests'       => (int)$this->getConfigValue('waf_login_rate_limit_requests', '40'),
-            'period'         => (int)$this->getConfigValue('waf_login_rate_limit_period', '60'),
-            'block_duration' => (int)$this->getConfigValue('waf_login_rate_limit_block', '120'),
-        ];
-    }
-
-    /**
      * Update rate limit settings. Regenerates scanner-detection.conf.
      */
     public function updateRateLimitSettings(bool $enabled, int $requests, int $period, int $blockDuration): bool
@@ -904,26 +877,6 @@ class LockdownService
         $this->setConfigValue('lockout_duration',   (string)$lockoutDuration);
 
         return true;
-    }
-
-    /**
-     * Update the WAF login-endpoint rate-limit settings (the optional
-     * volumetric throttle on POST /login.php). Off by default — the PHP
-     * layer's per-(username, IP) lockout is the primary defense and the
-     * WAF rule only exists for operators who want a coarse pre-PHP shield.
-     */
-    public function updateLoginRateLimitSettings(bool $enabled, int $requests, int $period, int $blockDuration): bool
-    {
-        $requests      = max(10, min(10000, $requests));
-        $period        = max(10, min(3600,  $period));
-        $blockDuration = max(60, min(86400, $blockDuration));
-
-        $this->setConfigValue('waf_login_rate_limit_enabled',  $enabled ? '1' : '0');
-        $this->setConfigValue('waf_login_rate_limit_requests', (string)$requests);
-        $this->setConfigValue('waf_login_rate_limit_period',   (string)$period);
-        $this->setConfigValue('waf_login_rate_limit_block',    (string)$blockDuration);
-
-        return $this->rebuildAndReload();
     }
 
     /**
@@ -1545,47 +1498,14 @@ SecRule IP:req_count "@gt {$rl['requests']}" \
 RL;
         }
 
-        // Login-endpoint rate limit (POST /login.php). Independent counter
-        // (ip.login_count) on the same ip collection, so it coexists with
-        // the global rate limit above without sharing state. Defense-in-depth
-        // for credential stuffing: stops bursts at the WAF before the PHP
-        // application ever runs the password-verify path.
-        $loginRateLimitBlock = '';
-        $lrl = $this->getLoginRateLimitSettings();
-        if ($lrl['enabled']) {
-            $loginRateLimitBlock = <<<LRL
-
-# ── SECTION 11: Login-Endpoint Rate Limiting (POST /login.php) ───────────
-# Throttles login form submissions per IP regardless of credentials used.
-# Threshold: {$lrl['requests']} POSTs per {$lrl['period']}s, block for {$lrl['block_duration']}s.
-# Separate from the global rate limit so credential stuffing is stopped
-# even when the global limit is set high enough to allow normal browsing.
-
-# Ensure the ip collection exists (idempotent if SECTION 10 already ran).
-# Keyed on TX:real_ip so the login_count / login_blocked flags are scoped
-# to the actual attacker IP, not the upstream proxy.
-SecAction "id:400070,phase:1,nolog,pass,initcol:ip=%{tx.real_ip}"
-
-# Increment login-attempt counter only on POST /login.php
-SecRule REQUEST_FILENAME "@streq /login.php" \
-    "id:400071,phase:1,pass,nolog,chain"
-    SecRule REQUEST_METHOD "@streq POST" \
-        "setvar:ip.login_count=+1,expirevar:ip.login_count={$lrl['period']}"
-
-# If this IP is currently in the login-block penalty box, deny POST /login.php
-SecRule REQUEST_FILENAME "@streq /login.php" \
-    "id:400072,phase:1,deny,status:429,log,msg:'Login throttle: IP temporarily blocked',tag:'login-rate-limit',chain"
-    SecRule IP:login_blocked "@eq 1" "t:none"
-
-# If the counter just exceeded the threshold, set the block flag and deny.
-# Block flag's TTL is the configured block_duration; counter resets when its
-# own TTL expires so the IP gets a fresh window after the block lifts.
-SecRule REQUEST_FILENAME "@streq /login.php" \
-    "id:400073,phase:1,deny,status:429,log,msg:'Login throttle: too many login attempts',tag:'login-rate-limit',setvar:ip.login_blocked=1,expirevar:ip.login_blocked={$lrl['block_duration']},chain"
-    SecRule IP:login_count "@gt {$lrl['requests']}" "t:none"
-
-LRL;
-        }
+        // Login-endpoint brute-force / password-spray detection lives in
+        // PHP (Auth::login() with per-(IP, UA), per-(username, IP), and
+        // per-IP fallback lockouts). A WAF login-specific throttle was
+        // tried here and removed — being IP-keyed and volumetric, it
+        // produced shared-counter DoS for any tenant whose egress IP a
+        // scanner was hammering, even when the WAF correctly resolved the
+        // real client IP. PHP's username-aware lockouts don't have that
+        // failure mode by construction.
 
         return <<<CONF
 # =============================================================================
@@ -1779,7 +1699,7 @@ SecRule REQUEST_URI|QUERY_STRING|REQUEST_BODY "@rx %00|\\\\x00" \
 # Rule 400052: HTTP method not used by this application
 SecRule REQUEST_METHOD "!@rx ^(?:GET|POST|PUT|DELETE|HEAD|OPTIONS)$" \
     "id:400052,phase:1,deny,status:403,log,msg:'Protocol abuse: disallowed HTTP method',tag:'protocol-abuse'"
-{$rateLimitBlock}{$loginRateLimitBlock}
+{$rateLimitBlock}
 CONF;
     }
 

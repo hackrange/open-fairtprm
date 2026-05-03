@@ -204,22 +204,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Failed to update authentication lockout settings.';
         }
 
-    } elseif ($wafAction === 'update_login_rate_limit') {
-        $lrlEnabled = isset($_POST['lrl_enabled']);
-        $lrlRequests = (int)($_POST['lrl_requests'] ?? 40);
-        $lrlPeriod = (int)($_POST['lrl_period'] ?? 60);
-        $lrlBlock = (int)($_POST['lrl_block'] ?? 120);
-        if ($lockdown->updateLoginRateLimitSettings($lrlEnabled, $lrlRequests, $lrlPeriod, $lrlBlock)) {
-            $success = $lrlEnabled
-                ? "WAF login throttle enabled: {$lrlRequests} POSTs per {$lrlPeriod}s, block for {$lrlBlock}s."
-                : 'WAF login throttle disabled.';
-            $auth->audit($user['id'], 'waf_login_rate_limit', 'app_config', null, [
-                'new' => ['enabled' => $lrlEnabled, 'requests' => $lrlRequests, 'period' => $lrlPeriod, 'block' => $lrlBlock],
-            ]);
-        } else {
-            $error = 'Failed to update WAF login throttle settings.';
-        }
-
     } elseif ($wafAction === 'clear_block_log') {
         try {
             $db->query("DELETE FROM waf_block_events");
@@ -303,7 +287,6 @@ $rules = $lockdown->getWhitelistRules();
 $blocks = $lockdown->getRecentBlocks(0);
 $whitelistedIPs = $lockdown->getWhitelistedIPs();
 $rateLimitSettings = $lockdown->getRateLimitSettings();
-$loginRateLimitSettings = $lockdown->getLoginRateLimitSettings();
 $authLockoutSettings = $lockdown->getAuthLockoutSettings();
 
 // Detail view: load individual requests for the selected pattern
@@ -768,87 +751,31 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
 <div class="card">
     <h3>Authentication Lockouts</h3>
     <p style="font-size: 13px; color: #666; margin-bottom: 16px;">
-        Brute-force and password-spray protection for the login endpoint. The PHP layer (left) is the primary defense — it triggers on real failed logins and locks per-(IP, browser fingerprint), per-(username, IP), and per-IP combinations independently, so an attacker can't lock the legitimate user out of their own network. The WAF throttle (right) is an optional volumetric pre-PHP shield, off by default.
+        Brute-force and password-spray protection for the login endpoint. Triggered on real failed logins and applied independently to per-(IP, browser fingerprint), per-(username, IP), and per-IP fallback combinations — so a scanner attacking one account from one IP can never lock the legitimate user out of their own network.
     </p>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <!-- PHP Auth Lockouts -->
-        <div>
-            <h4 style="margin: 0 0 10px; font-size: 14px; color: #374151;">PHP Authentication Lockouts</h4>
-            <p style="font-size: 12px; color: #666; margin-bottom: 12px;">
-                Triggered on real failed logins. Threshold and window apply to all three lockout layers (fingerprint, username+IP, and IP-only fallback).
-            </p>
-            <form method="POST" action="admin.php?section=lockdown">
-                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                <input type="hidden" name="waf_action" value="update_auth_lockout">
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; font-size: 13px;">
-                        <label>Max attempts:</label>
-                        <input type="number" name="al_max_attempts" value="<?php echo (int)$authLockoutSettings['max_attempts']; ?>" min="1" max="50" style="width: 80px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;">
-                        <label>Lockout window:</label>
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <input type="number" name="al_lockout_duration" value="<?php echo (int)$authLockoutSettings['lockout_duration']; ?>" min="60" max="86400" style="width: 80px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;">
-                            <span style="color: #666;">seconds</span>
-                        </div>
-                    </div>
-                    <div style="margin-top: 6px;">
-                        <button type="submit" class="btn btn-sm btn-primary" data-disable-on-click="Saving...">
-                            Save Auth Lockouts
-                        </button>
-                    </div>
+    <form method="POST" action="admin.php?section=lockdown" style="max-width: 420px;">
+        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+        <input type="hidden" name="waf_action" value="update_auth_lockout">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; font-size: 13px;">
+                <label>Max attempts:</label>
+                <input type="number" name="al_max_attempts" value="<?php echo (int)$authLockoutSettings['max_attempts']; ?>" min="1" max="50" style="width: 80px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;">
+                <label>Lockout window:</label>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" name="al_lockout_duration" value="<?php echo (int)$authLockoutSettings['lockout_duration']; ?>" min="60" max="86400" style="width: 80px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;">
+                    <span style="color: #666;">seconds</span>
                 </div>
-            </form>
-            <div style="margin-top: 10px; padding: 8px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12px; color: #166534;">
-                Active: <?php echo (int)$authLockoutSettings['max_attempts']; ?> attempts triggers a <?php echo (int)$authLockoutSettings['lockout_duration']; ?>s lockout
+            </div>
+            <div style="margin-top: 6px;">
+                <button type="submit" class="btn btn-sm btn-primary" data-disable-on-click="Saving...">
+                    Save Auth Lockouts
+                </button>
             </div>
         </div>
-
-        <!-- WAF Login Throttle -->
-        <div>
-            <h4 style="margin: 0 0 10px; font-size: 14px; color: #374151;">WAF Login Throttle (optional)</h4>
-            <p style="font-size: 12px; color: #666; margin-bottom: 12px;">
-                Volumetric pre-PHP throttle on POST /login.php. Off by default — the PHP lockouts are more precise and DoS-safe. Enable only if you want a coarse outer ring (e.g. as DDoS shielding in front of PHP).
-            </p>
-            <form method="POST" action="admin.php?section=lockdown">
-                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                <input type="hidden" name="waf_action" value="update_login_rate_limit">
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
-                        <input type="checkbox" name="lrl_enabled" value="1" <?php echo $loginRateLimitSettings['enabled'] ? 'checked' : ''; ?>>
-                        Enable WAF login throttle
-                    </label>
-                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; font-size: 13px;">
-                        <label>Max POSTs:</label>
-                        <input type="number" name="lrl_requests" value="<?php echo (int)$loginRateLimitSettings['requests']; ?>" min="10" max="10000" style="width: 80px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;">
-                        <label>Time window:</label>
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <input type="number" name="lrl_period" value="<?php echo (int)$loginRateLimitSettings['period']; ?>" min="10" max="3600" style="width: 80px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;">
-                            <span style="color: #666;">seconds</span>
-                        </div>
-                        <label>Block duration:</label>
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <input type="number" name="lrl_block" value="<?php echo (int)$loginRateLimitSettings['block_duration']; ?>" min="60" max="86400" style="width: 80px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;">
-                            <span style="color: #666;">seconds</span>
-                        </div>
-                    </div>
-                    <div style="margin-top: 6px;">
-                        <button type="submit" class="btn btn-sm btn-primary" <?php echo !$modSecAvailable ? 'disabled' : ''; ?>
-                                data-disable-on-click="Saving...">
-                            Save WAF Login Throttle
-                        </button>
-                    </div>
-                </div>
-            </form>
-            <?php if ($loginRateLimitSettings['enabled']): ?>
-            <div style="margin-top: 10px; padding: 8px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12px; color: #166534;">
-                Active: blocking IPs after <?php echo (int)$loginRateLimitSettings['requests']; ?> POSTs in <?php echo (int)$loginRateLimitSettings['period']; ?>s (blocked for <?php echo (int)$loginRateLimitSettings['block_duration']; ?>s)
-            </div>
-            <?php else: ?>
-            <div style="margin-top: 10px; padding: 8px 12px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 6px; font-size: 12px; color: #92400e;">
-                Disabled — login throttling handled by PHP layer.
-            </div>
-            <?php endif; ?>
-        </div>
+    </form>
+    <div style="margin-top: 10px; padding: 8px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12px; color: #166534; max-width: 420px;">
+        Active: <?php echo (int)$authLockoutSettings['max_attempts']; ?> attempts triggers a <?php echo (int)$authLockoutSettings['lockout_duration']; ?>s lockout
     </div>
 </div>
 

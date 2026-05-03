@@ -1,64 +1,53 @@
 -- =============================================================================
--- FairTPRM v2.5.8 - Login throttling and lockout defaults
+-- FairTPRM v2.5.8 - Login lockout defaults + WAF throttle teardown
 --
--- Seeds the WAF login-endpoint rate-limit configuration AND the auth-layer
--- account lockout duration so a `docker compose down && up -d` on existing
--- deployments automatically picks up the looser, less-DoS-prone defaults.
+-- Authoritative state for the PHP-layer authentication lockout (max attempts
+-- and lockout window) and the cleanup of the deprecated WAF login-endpoint
+-- throttle keys. The WAF rule was removed in this commit — it was IP-keyed
+-- and volumetric, so a scanner hammering one IP took out every tenant whose
+-- egress flowed through the same path. Brute-force / password-spray
+-- detection is fully owned by Auth::login()'s three layers
+-- (per-(IP, UA) fingerprint, per-(username, IP), per-IP fallback) which are
+-- username-aware and DoS-safe by construction.
 --
 -- Pattern (smart upsert that preserves operator customizations):
 --   1. INSERT IGNORE seeds the row on fresh installs.
 --   2. A conditional UPDATE only rewrites values that still match the OLD
 --      shipped default, so operators who explicitly tuned a value (tighter
---      OR looser) keep their setting. Anything matching the prior default
---      is treated as untouched and gets the new default.
+--      OR looser) keep their setting.
+--   3. DELETE removes the orphaned waf_login_rate_limit_* keys so they
+--      don't reappear in any future config dump or audit.
 --
 -- Re-applied automatically when this file's md5 changes (entrypoint hash
--- tracking), so future default tweaks ship by editing this file alone.
---
--- Compatible with MySQL 8.0+ and MariaDB 10.5+. Idempotent.
+-- tracking). Compatible with MySQL 8.0+ and MariaDB 10.5+. Idempotent.
 -- =============================================================================
 
 SET NAMES utf8mb4;
 
 -- ---------------------------------------------------------------------------
--- 1. Seed rows on fresh installs. INSERT IGNORE no-ops if a row with the
---    same config_key already exists, regardless of value.
+-- 1. Seed PHP-layer auth lockout defaults on fresh installs.
 -- ---------------------------------------------------------------------------
 INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`, `description`) VALUES
-('waf_login_rate_limit_enabled',  '0',   0, 'Enable WAF rate limiting on POST /login.php (default off — login throttling is handled in PHP)'),
-('waf_login_rate_limit_requests', '40',  0, 'Max POST /login.php requests per IP per period'),
-('waf_login_rate_limit_period',   '60',  0, 'Login rate-limit window in seconds'),
-('waf_login_rate_limit_block',    '120', 0, 'Login rate-limit block duration in seconds'),
-('lockout_duration',              '300', 0, 'Account lockout duration in seconds'),
-('max_login_attempts',            '5',   0, 'Maximum failed login attempts before lockout');
+('lockout_duration',   '300', 0, 'Account lockout duration in seconds'),
+('max_login_attempts', '5',   0, 'Maximum failed login attempts before lockout');
 
 -- ---------------------------------------------------------------------------
--- 2. Push new defaults to deployments still running the prior originals.
---    Each WHERE clause matches the OLD shipped default; operators who set
---    something else keep their value untouched.
+-- 2. Push the new lockout window default to deployments still running the
+--    prior original (1800s = 30 min). Operators who customized keep theirs.
 -- ---------------------------------------------------------------------------
-
--- WAF login rate limit: original was 20 req / 60s window / 600s block.
-UPDATE `app_config` SET `config_value` = '40'
- WHERE `config_key` = 'waf_login_rate_limit_requests' AND `config_value` = '20';
-
-UPDATE `app_config` SET `config_value` = '120'
- WHERE `config_key` = 'waf_login_rate_limit_block'    AND `config_value` = '600';
-
--- Auth-layer lockout window: original master-schema default was 1800s (30 min).
--- Lower to 300s (5 min) so a fumbling user isn't punished beyond what's needed
--- to crush a credential-stuffer's effective rate.
 UPDATE `app_config` SET `config_value` = '300'
  WHERE `config_key` = 'lockout_duration' AND `config_value` = '1800';
 
--- WAF login-endpoint throttle: was originally enabled (value '1'). Now defaults
--- to disabled because the WAF rule was a coarse IP-only counter that produced
--- cross-tenant 429s when Apache's mod_remoteip hadn't rewritten REMOTE_ADDR
--- before mod_security2's phase:1 ran (ip collection keyed on the upstream
--- proxy IP, shared across every tenant behind it). Login brute-force /
--- password-spray detection is fully handled at the PHP layer in Auth::login()
--- via three progressively narrower lockouts that are username-aware and
--- correctly scoped to the real client IP. Operators who explicitly disabled
--- or re-enabled the WAF rule keep their setting.
-UPDATE `app_config` SET `config_value` = '0'
- WHERE `config_key` = 'waf_login_rate_limit_enabled' AND `config_value` = '1';
+-- ---------------------------------------------------------------------------
+-- 3. Tear down the deprecated WAF login-endpoint throttle. Keys are removed
+--    so they can't be accidentally re-enabled by a UI toggle, a stale dump,
+--    or a config import. SECTION 11 of scanner-detection.conf is no longer
+--    generated either.
+-- ---------------------------------------------------------------------------
+DELETE FROM `app_config`
+ WHERE `config_key` IN (
+     'waf_login_rate_limit_enabled',
+     'waf_login_rate_limit_requests',
+     'waf_login_rate_limit_period',
+     'waf_login_rate_limit_block'
+ );
