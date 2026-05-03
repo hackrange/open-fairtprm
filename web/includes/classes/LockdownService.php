@@ -729,9 +729,15 @@ class LockdownService
     }
 
     /**
-     * Get recent block events for display.
+     * Get recent block events for display. Paginated — without limits the
+     * query and rendered DOM both grow unbounded as scanners hammer the
+     * site, making the lockdown page slow to load and the table choppy
+     * to scroll.
+     *
+     * Pass $limit=0 ONLY for the CSV export path, which deliberately wants
+     * the whole table.
      */
-    public function getRecentBlocks(int $limit = 50): array
+    public function getRecentBlocks(int $limit = 50, int $offset = 0): array
     {
         // Ingest any new blocks from the Apache error log first
         $this->ingestBlockLog();
@@ -741,12 +747,28 @@ class LockdownService
                     FROM waf_block_events
                     ORDER BY blocked_at DESC";
             if ($limit > 0) {
-                $sql .= " LIMIT :limit";
-                return $this->db->fetchAll($sql, [':limit' => $limit]);
+                // OFFSET/LIMIT must be ints — PDO with PDO::ATTR_EMULATE_PREPARES
+                // off would bind these as strings, which MySQL/MariaDB rejects.
+                // Casting to int + sprintf is safe here because both values are
+                // already int-typed at the call site.
+                $sql .= sprintf(" LIMIT %d OFFSET %d", max(1, $limit), max(0, $offset));
             }
             return $this->db->fetchAll($sql);
         } catch (\Exception $e) {
             return [];
+        }
+    }
+
+    /**
+     * Total count of block events. Used for pagination controls.
+     */
+    public function getRecentBlocksCount(): int
+    {
+        try {
+            $row = $this->db->fetchOne("SELECT COUNT(*) AS c FROM waf_block_events");
+            return $row ? (int)$row['c'] : 0;
+        } catch (\Exception $e) {
+            return 0;
         }
     }
 

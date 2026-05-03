@@ -645,29 +645,31 @@ class Auth {
      * @return array|null Lockout details ['locked_until_ts', 'minutes'] or null if not locked
      */
     private function getFingerprintLockout($ip, $ua) {
-        $maxAttempts = $this->getMaxLoginAttempts();
-        $windowSec   = $this->getLockoutDurationSeconds();
-        $windowStart = date('Y-m-d H:i:s', time() - $windowSec);
+        $maxAttempts    = $this->getMaxLoginAttempts();
+        $windowSec      = $this->getLockoutDurationSeconds();
+        $windowStartUnix = time() - $windowSec;
 
         try {
             $sinceRow = $this->db->fetchOne(
-                "SELECT MAX(created_at) AS ts FROM audit_log
+                "SELECT UNIX_TIMESTAMP(MAX(created_at)) AS ts_unix FROM audit_log
                  WHERE action IN ('login_success', 'totp_verification_success')
                    AND ip_address = :ip
                    AND user_agent = :ua
-                   AND created_at >= :ws",
-                [':ip' => $ip, ':ua' => $ua, ':ws' => $windowStart]
+                   AND created_at >= FROM_UNIXTIME(:ws)",
+                [':ip' => $ip, ':ua' => $ua, ':ws' => $windowStartUnix]
             );
-            $since = ($sinceRow && !empty($sinceRow['ts'])) ? $sinceRow['ts'] : $windowStart;
+            $sinceUnix = ($sinceRow && !empty($sinceRow['ts_unix']))
+                ? (int)$sinceRow['ts_unix']
+                : $windowStartUnix;
 
             $row = $this->db->fetchOne(
-                "SELECT COUNT(*) AS c, MAX(created_at) AS last_attempt
+                "SELECT COUNT(*) AS c, UNIX_TIMESTAMP(MAX(created_at)) AS last_attempt_ts
                  FROM audit_log
                  WHERE action IN ('login_failed', 'totp_verification_failed')
                    AND ip_address = :ip
                    AND user_agent = :ua
-                   AND created_at > :since",
-                [':ip' => $ip, ':ua' => $ua, ':since' => $since]
+                   AND created_at > FROM_UNIXTIME(:since)",
+                [':ip' => $ip, ':ua' => $ua, ':since' => $sinceUnix]
             );
         } catch (Exception $e) {
             return null;
@@ -693,29 +695,31 @@ class Auth {
         if ($username === null || $username === '') {
             return null;
         }
-        $maxAttempts = $this->getMaxLoginAttempts();
-        $windowSec   = $this->getLockoutDurationSeconds();
-        $windowStart = date('Y-m-d H:i:s', time() - $windowSec);
+        $maxAttempts     = $this->getMaxLoginAttempts();
+        $windowSec       = $this->getLockoutDurationSeconds();
+        $windowStartUnix = time() - $windowSec;
 
         try {
             $sinceRow = $this->db->fetchOne(
-                "SELECT MAX(created_at) AS ts FROM audit_log
+                "SELECT UNIX_TIMESTAMP(MAX(created_at)) AS ts_unix FROM audit_log
                  WHERE action IN ('login_success', 'totp_verification_success')
                    AND ip_address = :ip
                    AND JSON_UNQUOTE(JSON_EXTRACT(new_values, '$.username')) = :u
-                   AND created_at >= :ws",
-                [':ip' => $ip, ':u' => $username, ':ws' => $windowStart]
+                   AND created_at >= FROM_UNIXTIME(:ws)",
+                [':ip' => $ip, ':u' => $username, ':ws' => $windowStartUnix]
             );
-            $since = ($sinceRow && !empty($sinceRow['ts'])) ? $sinceRow['ts'] : $windowStart;
+            $sinceUnix = ($sinceRow && !empty($sinceRow['ts_unix']))
+                ? (int)$sinceRow['ts_unix']
+                : $windowStartUnix;
 
             $row = $this->db->fetchOne(
-                "SELECT COUNT(*) AS c, MAX(created_at) AS last_attempt
+                "SELECT COUNT(*) AS c, UNIX_TIMESTAMP(MAX(created_at)) AS last_attempt_ts
                  FROM audit_log
                  WHERE action IN ('login_failed', 'totp_verification_failed')
                    AND ip_address = :ip
                    AND JSON_UNQUOTE(JSON_EXTRACT(new_values, '$.username')) = :u
-                   AND created_at > :since",
-                [':ip' => $ip, ':u' => $username, ':since' => $since]
+                   AND created_at > FROM_UNIXTIME(:since)",
+                [':ip' => $ip, ':u' => $username, ':since' => $sinceUnix]
             );
         } catch (Exception $e) {
             return null;
@@ -735,27 +739,29 @@ class Auth {
      * @return array|null Lockout details ['locked_until_ts', 'minutes'] or null if not locked
      */
     private function getIpOnlyLockout($ip) {
-        $maxAttempts = $this->getMaxLoginAttempts() * 3;
-        $windowSec   = $this->getLockoutDurationSeconds();
-        $windowStart = date('Y-m-d H:i:s', time() - $windowSec);
+        $maxAttempts     = $this->getMaxLoginAttempts() * 3;
+        $windowSec       = $this->getLockoutDurationSeconds();
+        $windowStartUnix = time() - $windowSec;
 
         try {
             $sinceRow = $this->db->fetchOne(
-                "SELECT MAX(created_at) AS ts FROM audit_log
+                "SELECT UNIX_TIMESTAMP(MAX(created_at)) AS ts_unix FROM audit_log
                  WHERE action IN ('login_success', 'totp_verification_success')
                    AND ip_address = :ip
-                   AND created_at >= :ws",
-                [':ip' => $ip, ':ws' => $windowStart]
+                   AND created_at >= FROM_UNIXTIME(:ws)",
+                [':ip' => $ip, ':ws' => $windowStartUnix]
             );
-            $since = ($sinceRow && !empty($sinceRow['ts'])) ? $sinceRow['ts'] : $windowStart;
+            $sinceUnix = ($sinceRow && !empty($sinceRow['ts_unix']))
+                ? (int)$sinceRow['ts_unix']
+                : $windowStartUnix;
 
             $row = $this->db->fetchOne(
-                "SELECT COUNT(*) AS c, MAX(created_at) AS last_attempt
+                "SELECT COUNT(*) AS c, UNIX_TIMESTAMP(MAX(created_at)) AS last_attempt_ts
                  FROM audit_log
                  WHERE action IN ('login_failed', 'totp_verification_failed')
                    AND ip_address = :ip
-                   AND created_at > :since",
-                [':ip' => $ip, ':since' => $since]
+                   AND created_at > FROM_UNIXTIME(:since)",
+                [':ip' => $ip, ':since' => $sinceUnix]
             );
         } catch (Exception $e) {
             return null;
@@ -765,16 +771,19 @@ class Auth {
     }
 
     /**
-     * Shared tail of every lockout query: turn a {c, last_attempt} row into
-     * the standard ['locked_until_ts', 'minutes'] shape, or null if the
-     * threshold isn't met or the lockout window has already elapsed past
-     * the last failure.
+     * Shared tail of every lockout query: turn a {c, last_attempt_ts} row
+     * into the standard ['locked_until_ts', 'minutes'] shape, or null if
+     * the threshold isn't met or the lockout window has already elapsed
+     * past the last failure. Uses MySQL's UNIX_TIMESTAMP for the timestamp
+     * so we sidestep MariaDB↔PHP timezone mismatch on the DATETIME string
+     * (otherwise a query returned in UTC and parsed in EDT was producing
+     * "245 minute(s)" lockout messages instead of 5).
      */
     private function lockoutFromRow($row, int $maxAttempts, int $windowSec) {
         if (!$row || (int)$row['c'] < $maxAttempts) {
             return null;
         }
-        $lastTs   = strtotime($row['last_attempt']);
+        $lastTs   = (int)$row['last_attempt_ts'];
         $unlockTs = $lastTs + $windowSec;
         if ($unlockTs <= time()) {
             return null;

@@ -284,7 +284,15 @@ $isDetailView = ($detailUri !== '');
 $patterns = $lockdown->getLearnedPatterns(500, $ipFilter);
 $clientIPs = $lockdown->getDistinctClientIPs();
 $rules = $lockdown->getWhitelistRules();
-$blocks = $lockdown->getRecentBlocks(0);
+// Block Log pagination: default 50 per page, keep current page in URL so
+// reloads land in the same place. Capped page size so a hostile ?per_page
+// can't blow up memory.
+$blocksPerPage = max(10, min(500, (int)($_GET['bl_per_page'] ?? 50)));
+$blocksPage = max(1, (int)($_GET['bl_page'] ?? 1));
+$blocksTotal = $lockdown->getRecentBlocksCount();
+$blocksTotalPages = max(1, (int)ceil($blocksTotal / $blocksPerPage));
+if ($blocksPage > $blocksTotalPages) $blocksPage = $blocksTotalPages;
+$blocks = $lockdown->getRecentBlocks($blocksPerPage, ($blocksPage - 1) * $blocksPerPage);
 $whitelistedIPs = $lockdown->getWhitelistedIPs();
 $rateLimitSettings = $lockdown->getRateLimitSettings();
 $authLockoutSettings = $lockdown->getAuthLockoutSettings();
@@ -1076,11 +1084,42 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
         </div>
         <?php endif; ?>
     </div>
-    <?php if (empty($blocks)): ?>
+    <?php if ($blocksTotal === 0): ?>
         <p style="color: #999;">No blocked requests recorded.</p>
     <?php else: ?>
-        <p style="color: #666; margin-bottom: 15px; font-size: 13px;"><?php echo number_format(count($blocks)); ?> recent block event(s).</p>
-        <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
+        <?php
+        $blStart = ($blocksPage - 1) * $blocksPerPage + 1;
+        $blEnd   = min($blStart + count($blocks) - 1, $blocksTotal);
+        $blQs = function(array $extra) use ($ipFilter, $blocksPerPage) {
+            $params = ['section' => 'lockdown', 'bl_per_page' => $blocksPerPage];
+            if ($ipFilter !== '') $params['ip'] = $ipFilter;
+            return 'admin.php?' . http_build_query(array_merge($params, $extra));
+        };
+        ?>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <p style="color: #666; font-size: 13px; margin: 0;">
+                Showing <strong><?php echo number_format($blStart); ?>–<?php echo number_format($blEnd); ?></strong> of <?php echo number_format($blocksTotal); ?> block event(s).
+            </p>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                <label style="color: #666;">Per page:</label>
+                <select onchange="location.href = '<?php echo e($blQs(['bl_page' => 1])); ?>'.replace(/bl_per_page=\d+/, 'bl_per_page=' + this.value)"
+                        style="font-size: 12px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px;">
+                    <?php foreach ([25, 50, 100, 250] as $opt): ?>
+                    <option value="<?php echo $opt; ?>" <?php echo $blocksPerPage === $opt ? 'selected' : ''; ?>><?php echo $opt; ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if ($blocksTotalPages > 1): ?>
+                <a href="<?php echo e($blQs(['bl_page' => max(1, $blocksPage - 1)])); ?>"
+                   class="btn btn-sm btn-secondary"
+                   style="padding: 3px 10px; <?php echo $blocksPage <= 1 ? 'pointer-events: none; opacity: 0.4;' : ''; ?>">&laquo; Prev</a>
+                <span style="color: #666;">Page <?php echo $blocksPage; ?> of <?php echo $blocksTotalPages; ?></span>
+                <a href="<?php echo e($blQs(['bl_page' => min($blocksTotalPages, $blocksPage + 1)])); ?>"
+                   class="btn btn-sm btn-secondary"
+                   style="padding: 3px 10px; <?php echo $blocksPage >= $blocksTotalPages ? 'pointer-events: none; opacity: 0.4;' : ''; ?>">Next &raquo;</a>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div style="overflow-x: auto;">
             <table>
                 <thead>
                     <tr>
