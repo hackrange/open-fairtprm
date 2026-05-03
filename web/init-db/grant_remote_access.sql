@@ -130,7 +130,7 @@ INSERT INTO app_config (config_key, config_value, is_encrypted, description) VAL
 ('auth_type', 'local', 0, 'Authentication type: local or saml'),
 ('session_timeout', '3600', 0, 'Session timeout in seconds'),
 ('max_login_attempts', '5', 0, 'Maximum failed login attempts before lockout'),
-('lockout_duration', '1800', 0, 'Account lockout duration in seconds'),
+('lockout_duration', '300', 0, 'Account lockout duration in seconds'),
 ('password_min_length', '12', 0, 'Minimum password length'),
 ('require_password_complexity', '1', 0, 'Require complex passwords'),
 ('totp_issuer', 'TPRM FAIR Analysis', 0, 'TOTP issuer name'),

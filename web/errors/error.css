@@ -1,0 +1,102 @@
+:root {
+    --primary: #1a365d;
+    --primary-light: #2a4a7f;
+    --accent: #38b2ac;
+    --accent-light: #4fd1c5;
+    --gray-100: #f7fafc;
+    --gray-600: #718096;
+    --gray-800: #2d3748;
+    --white: #ffffff;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--gray-800);
+    line-height: 1.6;
+    background: var(--gray-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.error-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+    max-width: 600px;
+}
+
+.error-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.error-icon svg { width: 36px; height: 36px; }
+
+.error-code {
+    font-size: 100px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.03em;
+}
+
+.error-title {
+    font-size: 1.75rem;
+    color: var(--primary);
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+}
+
+.error-description {
+    font-size: 1.05rem;
+    color: var(--gray-600);
+    max-width: 500px;
+    line-height: 1.7;
+    margin-bottom: 2rem;
+}
+
+.error-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 2rem;
+    background: var(--accent);
+    color: var(--white);
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.error-btn:hover {
+    background: var(--accent-light);
+    transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+    .error-code { font-size: 64px; }
+    .error-title { font-size: 1.4rem; }
+    .error-description { font-size: 0.95rem; }
+    .error-icon { width: 64px; height: 64px; }
+    .error-icon svg { width: 28px; height: 28px; }
+    .error-btn { width: 100%; justify-content: center; }
+}

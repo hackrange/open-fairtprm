@@ -100,11 +100,30 @@ class Auth {
                     ]);
                 }
 
-                // Step 0b: IP-only fallback lockout. Catches credential-stuffing
-                // tools that randomize the User-Agent per request to evade the
-                // (IP, UA) fingerprint check above. Threshold is intentionally
-                // higher (3x max_login_attempts) so legitimate shared-NAT
-                // populations aren't penalized.
+                // Step 0b: (username, IP) lockout. Stops a single attacker
+                // brute-forcing one account from one source even if they
+                // rotate User-Agent per request. The pair-keyed counter means
+                // an attacker hammering this username from THEIR IP cannot
+                // lock the legitimate user out of THEIR own IP — no account-
+                // lockout DoS surface. Reuses the same generic "from this
+                // network" message as the IP-only branch below so an attacker
+                // can't tell from the response which check fired (which would
+                // confirm the username exists or that the threshold was hit).
+                $aipLock = $this->getAccountIpLockout($username, $clientIp);
+                if ($aipLock !== null) {
+                    return $pace([
+                        'success' => false,
+                        'message' => "Too many failed login attempts from this network. Please try again in {$aipLock['minutes']} minute(s).",
+                        'lockout_seconds' => max(1, $aipLock['locked_until_ts'] - time()),
+                    ]);
+                }
+
+                // Step 0c: IP-only fallback lockout. Catches credential-stuffing
+                // tools that randomize the User-Agent AND spray many usernames
+                // from one IP — neither the fingerprint nor the (username, IP)
+                // counters accumulate fast enough to fire. Threshold is
+                // intentionally higher (3x max_login_attempts) so legitimate
+                // shared-NAT populations aren't penalized.
                 $ipLock = $this->getIpOnlyLockout($clientIp);
                 if ($ipLock !== null) {
                     return $pace([
@@ -563,7 +582,7 @@ class Auth {
         } catch (Exception $e) {
             // fall through
         }
-        return (int)$this->config->get('auth.lockout_duration', 1800);
+        return (int)$this->config->get('auth.lockout_duration', 300);
     }
 
     /**
@@ -628,6 +647,62 @@ class Auth {
         }
 
         // Locked until window elapses past the most recent failure
+        $lastTs = strtotime($row['last_attempt']);
+        $unlockTs = $lastTs + $windowSec;
+        if ($unlockTs <= time()) {
+            return null;
+        }
+
+        return [
+            'locked_until_ts' => $unlockTs,
+            'minutes' => max(1, (int)ceil(($unlockTs - time()) / 60)),
+        ];
+    }
+
+    /**
+     * Per-(username, IP) lockout. Counts failures against this username from
+     * this client_ip over the lockout window. Targets a single attacker
+     * brute-forcing one account from one source: trips at the same threshold
+     * as the (IP, UA) fingerprint check, but is immune to UA rotation because
+     * the username pins the counter to the actual victim account.
+     *
+     * Crucially, this is NOT a per-account lockout — locking the (username, IP)
+     * pair means an attacker hammering victim@corp.com from their own IP can
+     * never lock the legitimate user out of their own IP, eliminating the
+     * classic account-lockout DoS vector. A user fumbling their own password
+     * only locks themselves out from the device they're sitting at; their
+     * other devices and networks are unaffected.
+     *
+     * Returns the same shape as the other lockout helpers, or null if not
+     * locked. Username may be a non-existent user (typo) — that's fine, the
+     * check still works because handleFailedLogin records by attempted name.
+     *
+     * @return array|null Lockout details ['locked_until_ts', 'minutes'] or null if not locked
+     */
+    private function getAccountIpLockout($username, $ip) {
+        if ($username === null || $username === '') {
+            return null;
+        }
+        $maxAttempts = $this->getMaxLoginAttempts();
+        $windowSec = $this->getLockoutDurationSeconds();
+
+        try {
+            $row = $this->db->fetchOne(
+                'SELECT COUNT(*) AS c, MAX(attempted_at) AS last_attempt
+                 FROM auth_failed_attempts
+                 WHERE username_attempted = :u
+                   AND client_ip = :ip
+                   AND attempted_at >= DATE_SUB(NOW(), INTERVAL :win SECOND)',
+                [':u' => $username, ':ip' => $ip, ':win' => $windowSec]
+            );
+        } catch (Exception $e) {
+            return null;
+        }
+
+        if (!$row || (int)$row['c'] < $maxAttempts) {
+            return null;
+        }
+
         $lastTs = strtotime($row['last_attempt']);
         $unlockTs = $lastTs + $windowSec;
         if ($unlockTs <= time()) {

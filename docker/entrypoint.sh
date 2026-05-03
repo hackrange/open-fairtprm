@@ -483,6 +483,28 @@ if mysql -e "USE tprm" 2>/dev/null; then
     fi
 fi
 
+# =========================================================================
+# 8c3. Ensure Apache server-info hardening is applied at runtime.
+#      ServerTokens/ServerSignature/TraceEnable are baked into the image,
+#      but customers running an older image who only restart the container
+#      (rather than rebuild) wouldn't have them. Writing the conf here makes
+#      the next restart suppress the version banner on default error pages
+#      regardless of when the image was built. Idempotent — overwrites with
+#      identical content on every boot.
+# =========================================================================
+HARDENING_CONF=/etc/apache2/conf-available/security-hardening.conf
+cat > "$HARDENING_CONF" <<'APACHE_HARDENING'
+# Minimize server info disclosure (OWASP A05:2021).
+# ServerTokens Prod  -> "Server: Apache" only, no version or OS.
+# ServerSignature Off -> no version/host footer on default error pages.
+# TraceEnable Off    -> reject TRACE so XST attacks have nothing to land on.
+ServerTokens Prod
+ServerSignature Off
+TraceEnable Off
+APACHE_HARDENING
+a2enconf security-hardening >/dev/null 2>&1 || true
+echo "==> Apache server-info hardening conf ensured (ServerTokens Prod, ServerSignature Off)."
+
 # Fix ownership on all persistent files created by root above
 chown -R www-data:www-data /persistent/modsecurity
 chown -R www-data:www-data /persistent/sql_updates

@@ -13,6 +13,6 @@ SET NAMES utf8mb4;
 
 INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`, `description`) VALUES
 ('waf_login_rate_limit_enabled', '1', 0, 'Enable WAF rate limiting on POST /login.php'),
-('waf_login_rate_limit_requests', '20', 0, 'Max POST /login.php requests per IP per period'),
+('waf_login_rate_limit_requests', '40', 0, 'Max POST /login.php requests per IP per period'),
 ('waf_login_rate_limit_period', '60', 0, 'Login rate-limit window in seconds'),
-('waf_login_rate_limit_block', '600', 0, 'Login rate-limit block duration in seconds');
+('waf_login_rate_limit_block', '120', 0, 'Login rate-limit block duration in seconds');

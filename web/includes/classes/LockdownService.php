@@ -833,17 +833,18 @@ class LockdownService
     /**
      * Get the current login-endpoint rate limit settings. Separate from the
      * global rate limit so POST /login.php can be throttled aggressively
-     * without affecting normal app traffic. Defaults are tuned to allow
-     * legitimate shared-NAT login bursts while stopping credential spraying
-     * cold (20 attempts / 60s, then a 10-minute block).
+     * without affecting normal app traffic. Defaults are tuned so legitimate
+     * shared-NAT populations (offices, VPN egresses) don't trip the limit
+     * during routine login bursts, while still capping credential-stuffing
+     * throughput hard (40 attempts / 60s, then a 2-minute block).
      */
     public function getLoginRateLimitSettings(): array
     {
         return [
             'enabled'        => (bool)$this->getConfigValue('waf_login_rate_limit_enabled', '1'),
-            'requests'       => (int)$this->getConfigValue('waf_login_rate_limit_requests', '20'),
+            'requests'       => (int)$this->getConfigValue('waf_login_rate_limit_requests', '40'),
             'period'         => (int)$this->getConfigValue('waf_login_rate_limit_period', '60'),
-            'block_duration' => (int)$this->getConfigValue('waf_login_rate_limit_block', '600'),
+            'block_duration' => (int)$this->getConfigValue('waf_login_rate_limit_block', '120'),
         ];
     }
 
