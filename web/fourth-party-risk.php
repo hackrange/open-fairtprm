@@ -56,6 +56,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
         echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
         exit;
     }
+    if (!$isAdmin && !$isCyberTPRM && !$isSuperAdmin) {
+        // Don't set HTTP 403 here — Apache's ErrorDocument would replace the
+        // JSON body with the HTML error page, breaking the AJAX caller.
+        // The JSON envelope carries the error.
+        $auth->audit($user['id'], 'bfla_attempt', 'vendor_shodan_cve_waivers', null, [
+            'new' => ['page' => 'fourth-party-risk.php', 'action' => $_POST['action']]
+        ]);
+        echo json_encode(['success' => false, 'error' => 'You do not have permission to perform this action.']);
+        exit;
+    }
     $vid = intval($_POST['vendor_id'] ?? 0);
     $cve = strtoupper(trim($_POST['cve_id'] ?? ''));
 
@@ -94,6 +104,12 @@ $massWaiveError = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'mass_waive_cves') {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $massWaiveError = 'Invalid CSRF token. Please try again.';
+    } elseif (!$isAdmin && !$isCyberTPRM && !$isSuperAdmin) {
+        $massWaiveError = 'You do not have permission to perform this action.';
+        http_response_code(403);
+        $auth->audit($user['id'], 'bfla_attempt', 'vendor_shodan_cve_waivers', null, [
+            'new' => ['page' => 'fourth-party-risk.php', 'action' => 'mass_waive_cves']
+        ]);
     } else {
         $waiveVendorId = intval($_POST['vendor_id'] ?? 0);
         $waiveCveText = trim($_POST['cve_ids'] ?? '');

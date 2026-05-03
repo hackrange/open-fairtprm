@@ -177,6 +177,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
 
+    } elseif (!$isAdmin && !$isCyberTPRM) {
+        // Auditors get read-only access. The UI hides these controls but the
+        // backend must enforce the same rule.
+        http_response_code(403);
+        $error = 'You do not have permission to perform this action.';
+        $auth->audit($user['id'], 'bfla_attempt', 'shadow_saas_apps', null, [
+            'new' => ['page' => 'shadow-saas.php', 'action' => $_POST['action'] ?? '(none)']
+        ]);
+
     } elseif (isset($_POST['action']) && $_POST['action'] === 'import_csv' && isset($_FILES['csv_file'])) {
         // CSV Import
         $file = $_FILES['csv_file'];

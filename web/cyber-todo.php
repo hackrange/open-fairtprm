@@ -61,6 +61,14 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
+    } elseif (!$isAdmin && !$isCyberTPRM) {
+        // Auditors get read-only access to the todo list. The UI hides the
+        // action controls; the backend must enforce the same.
+        http_response_code(403);
+        $error = 'You do not have permission to perform this action.';
+        $auth->audit($user['id'], 'bfla_attempt', 'cyber_todo_activities', null, [
+            'new' => ['page' => 'cyber-todo.php', 'fields' => array_keys($_POST)]
+        ]);
     } elseif (isset($_POST['add_activity'])) {
         $todoType = $_POST['todo_type'] ?? '';
         $referenceType = $_POST['reference_type'] ?? '';

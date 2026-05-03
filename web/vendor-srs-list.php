@@ -81,6 +81,14 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
+    } elseif (!$isAdmin && !$isCyberTPRM) {
+        // Auditors can view this page but cannot perform state-changing actions.
+        // The UI hides these controls but the backend must enforce the rule too.
+        http_response_code(403);
+        $error = 'You do not have permission to perform this action.';
+        $auth->audit($user['id'], 'bfla_attempt', 'vendor_onboarding_requests', null, [
+            'new' => ['page' => 'vendor-srs-list.php', 'fields' => array_keys($_POST)]
+        ]);
     } elseif (isset($_POST['rescore_vendor_id'])) {
         // Individual vendor rescore (supports provider selection)
         $vendorId = intval($_POST['rescore_vendor_id']);
