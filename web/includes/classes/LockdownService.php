@@ -831,17 +831,26 @@ class LockdownService
     }
 
     /**
-     * Get the current login-endpoint rate limit settings. Separate from the
-     * global rate limit so POST /login.php can be throttled aggressively
-     * without affecting normal app traffic. Defaults are tuned so legitimate
-     * shared-NAT populations (offices, VPN egresses) don't trip the limit
-     * during routine login bursts, while still capping credential-stuffing
-     * throughput hard (40 attempts / 60s, then a 2-minute block).
+     * Get the current login-endpoint rate limit settings.
+     *
+     * DEFAULT IS DISABLED. Brute-force / password-spray detection is now
+     * handled at the PHP application layer (Auth::login() with three
+     * progressively narrower lockouts: per-(IP, UA) fingerprint, per-
+     * (username, IP), and per-IP fallback) which is username-aware,
+     * DB-backed, and reliably keyed on the real client IP regardless of
+     * Apache module-hook ordering. The WAF rule was a coarse outer ring
+     * that produced confusing cross-tenant blocks when mod_remoteip
+     * hadn't rewritten REMOTE_ADDR before phase:1 fired.
+     *
+     * Operators who want a volumetric throttle in front of /login.php
+     * (e.g. as DDoS shielding ahead of PHP) can enable it via the WAF UI.
+     * The general-purpose global rate limit in SECTION 10 remains on by
+     * default for that purpose.
      */
     public function getLoginRateLimitSettings(): array
     {
         return [
-            'enabled'        => (bool)$this->getConfigValue('waf_login_rate_limit_enabled', '1'),
+            'enabled'        => (bool)$this->getConfigValue('waf_login_rate_limit_enabled', '0'),
             'requests'       => (int)$this->getConfigValue('waf_login_rate_limit_requests', '40'),
             'period'         => (int)$this->getConfigValue('waf_login_rate_limit_period', '60'),
             'block_duration' => (int)$this->getConfigValue('waf_login_rate_limit_block', '120'),
@@ -1437,13 +1446,17 @@ class LockdownService
                 foreach ($ips as $idx => $row) {
                     $ruleId = 399900 + $idx;
                     $ipEsc = addcslashes($row['ip_address'], '"\\');
+                    // Match against TX:real_ip (resolved in SECTION 0a below)
+                    // rather than REMOTE_ADDR — REMOTE_ADDR is the upstream
+                    // proxy IP in this deployment, which would cause the
+                    // whitelist to either match nothing or match every tenant.
                     if (strpos($row['ip_address'], '/') !== false) {
                         // CIDR notation
-                        $ipWhitelistBlock .= "SecRule REMOTE_ADDR \"@ipMatch {$ipEsc}\" \\\n";
+                        $ipWhitelistBlock .= "SecRule TX:real_ip \"@ipMatch {$ipEsc}\" \\\n";
                         $ipWhitelistBlock .= "    \"id:{$ruleId},phase:1,allow,nolog,msg:'IP whitelist: {$ipEsc}'\"\n\n";
                     } else {
                         // Single IP
-                        $ipWhitelistBlock .= "SecRule REMOTE_ADDR \"@ipMatch {$ipEsc}\" \\\n";
+                        $ipWhitelistBlock .= "SecRule TX:real_ip \"@ipMatch {$ipEsc}\" \\\n";
                         $ipWhitelistBlock .= "    \"id:{$ruleId},phase:1,allow,nolog,msg:'IP whitelist: {$ipEsc}'\"\n\n";
                     }
                 }
@@ -1462,8 +1475,12 @@ class LockdownService
 # Tracks requests per IP using ModSecurity IP collections.
 # Threshold: {$rl['requests']} requests per {$rl['period']}s, block for {$rl['block_duration']}s
 
-# Initialize IP collection and increment request counter
-SecAction "id:400060,phase:1,nolog,pass,initcol:ip=%{REMOTE_ADDR},setvar:ip.req_count=+1,expirevar:ip.req_count={$rl['period']}"
+# Initialize IP collection and increment request counter. Keyed on
+# TX:real_ip (resolved in SECTION 0a) rather than REMOTE_ADDR so each
+# real visitor gets their own counter — without this, every tenant
+# behind the upstream proxy shares one bucket and a single attacker
+# rate-limits the whole platform.
+SecAction "id:400060,phase:1,nolog,pass,initcol:ip=%{tx.real_ip},setvar:ip.req_count=+1,expirevar:ip.req_count={$rl['period']}"
 
 # If already flagged as blocked, deny immediately
 SecRule IP:blocked "@eq 1" \
@@ -1492,8 +1509,10 @@ RL;
 # Separate from the global rate limit so credential stuffing is stopped
 # even when the global limit is set high enough to allow normal browsing.
 
-# Ensure the ip collection exists (idempotent if SECTION 10 already ran)
-SecAction "id:400070,phase:1,nolog,pass,initcol:ip=%{REMOTE_ADDR}"
+# Ensure the ip collection exists (idempotent if SECTION 10 already ran).
+# Keyed on TX:real_ip so the login_count / login_blocked flags are scoped
+# to the actual attacker IP, not the upstream proxy.
+SecAction "id:400070,phase:1,nolog,pass,initcol:ip=%{tx.real_ip}"
 
 # Increment login-attempt counter only on POST /login.php
 SecRule REQUEST_FILENAME "@streq /login.php" \
@@ -1526,6 +1545,41 @@ LRL;
 # are blocked immediately regardless of whether the path is whitelisted.
 # Last updated: {$this->timestamp()}
 # =============================================================================
+
+# ── SECTION 0a: Real Client IP Resolution ────────────────────────────────
+# Apache's mod_remoteip swaps REMOTE_ADDR with the trusted-proxy header
+# (X-Real-IP) before PHP runs, BUT module-hook ordering in Apache 2.4
+# does not guarantee mod_remoteip fires before mod_security2's phase:1.
+# In a multi-tenant deployment behind a frontend proxy that means every
+# tenant shares one ip collection (the proxy IP) and a single attacker
+# locks out all customers. Resolving the client IP into TX:real_ip here,
+# and using %{tx.real_ip} for every collection key below, makes the
+# rate limits scope to the real visitor regardless of mod_remoteip's
+# hook order.
+
+# Default: REMOTE_ADDR (whatever Apache hands us — proxy IP if mod_remoteip
+# hasn't run yet, real client IP if it has).
+SecAction "id:399950,phase:1,nolog,pass,setvar:tx.real_ip=%{REMOTE_ADDR}"
+
+# Override with X-Real-IP, but ONLY when the connection came from a
+# trusted-proxy CIDR (mirrors apache-vhost.conf's RemoteIPInternalProxy
+# list). This blocks an external attacker from spoofing X-Real-IP to
+# bypass blocks, while still picking up the real visitor IP that the
+# upstream nginx/proxy stamps onto the request.
+SecRule REMOTE_ADDR "@ipMatch 127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16" \\
+    "id:399951,phase:1,nolog,pass,chain"
+    SecRule REQUEST_HEADERS:X-Real-IP "@rx ^([0-9]{1,3}\\.){3}[0-9]{1,3}\$" \\
+        "setvar:tx.real_ip=%{matched_var}"
+
+# ── SECTION 0b: Branded Error-Page Asset Bypass ──────────────────────────
+# Static assets under /errors/ (the branded 4xx/5xx HTML and shared
+# stylesheet) are served by Apache when ModSec denies a request. If the
+# *same* IP is in penalty-box state, the page's <link> request to
+# /errors/error.css would itself return 429 and the user would see a
+# blank white page. Allowing /errors/* unconditionally guarantees the
+# branded error page always renders.
+SecRule REQUEST_URI "@beginsWith /errors/" \\
+    "id:399952,phase:1,nolog,allow"
 
 {$ipWhitelistBlock}
 # ── SECTION 1: Known Scanner Fingerprints ─────────────────────────────────

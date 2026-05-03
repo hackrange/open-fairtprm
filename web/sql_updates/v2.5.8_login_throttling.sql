@@ -25,7 +25,7 @@ SET NAMES utf8mb4;
 --    same config_key already exists, regardless of value.
 -- ---------------------------------------------------------------------------
 INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`, `description`) VALUES
-('waf_login_rate_limit_enabled',  '1',   0, 'Enable WAF rate limiting on POST /login.php'),
+('waf_login_rate_limit_enabled',  '0',   0, 'Enable WAF rate limiting on POST /login.php (default off — login throttling is handled in PHP)'),
 ('waf_login_rate_limit_requests', '40',  0, 'Max POST /login.php requests per IP per period'),
 ('waf_login_rate_limit_period',   '60',  0, 'Login rate-limit window in seconds'),
 ('waf_login_rate_limit_block',    '120', 0, 'Login rate-limit block duration in seconds'),
@@ -50,3 +50,15 @@ UPDATE `app_config` SET `config_value` = '120'
 -- to crush a credential-stuffer's effective rate.
 UPDATE `app_config` SET `config_value` = '300'
  WHERE `config_key` = 'lockout_duration' AND `config_value` = '1800';
+
+-- WAF login-endpoint throttle: was originally enabled (value '1'). Now defaults
+-- to disabled because the WAF rule was a coarse IP-only counter that produced
+-- cross-tenant 429s when Apache's mod_remoteip hadn't rewritten REMOTE_ADDR
+-- before mod_security2's phase:1 ran (ip collection keyed on the upstream
+-- proxy IP, shared across every tenant behind it). Login brute-force /
+-- password-spray detection is fully handled at the PHP layer in Auth::login()
+-- via three progressively narrower lockouts that are username-aware and
+-- correctly scoped to the real client IP. Operators who explicitly disabled
+-- or re-enabled the WAF rule keep their setting.
+UPDATE `app_config` SET `config_value` = '0'
+ WHERE `config_key` = 'waf_login_rate_limit_enabled' AND `config_value` = '1';
