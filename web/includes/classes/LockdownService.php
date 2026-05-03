@@ -875,6 +875,58 @@ class LockdownService
     }
 
     /**
+     * Get the PHP-layer authentication lockout settings (max_login_attempts
+     * and lockout_duration). These drive Auth::login()'s three lockout
+     * helpers: per-(IP, UA) fingerprint, per-(username, IP), and per-IP
+     * fallback. Conceptually a Lockdown setting; the values live in
+     * app_config alongside the other security knobs.
+     */
+    public function getAuthLockoutSettings(): array
+    {
+        return [
+            'max_attempts'     => (int)$this->getConfigValue('max_login_attempts', '5'),
+            'lockout_duration' => (int)$this->getConfigValue('lockout_duration', '300'),
+        ];
+    }
+
+    /**
+     * Update the PHP-layer authentication lockout settings. Bounds match
+     * the original general.php form (1-50 attempts, 60-86400 seconds).
+     * No conf rebuild needed — Auth.php reads the values on demand each
+     * request, so changes take effect immediately.
+     */
+    public function updateAuthLockoutSettings(int $maxAttempts, int $lockoutDuration): bool
+    {
+        $maxAttempts     = max(1,  min(50,    $maxAttempts));
+        $lockoutDuration = max(60, min(86400, $lockoutDuration));
+
+        $this->setConfigValue('max_login_attempts', (string)$maxAttempts);
+        $this->setConfigValue('lockout_duration',   (string)$lockoutDuration);
+
+        return true;
+    }
+
+    /**
+     * Update the WAF login-endpoint rate-limit settings (the optional
+     * volumetric throttle on POST /login.php). Off by default — the PHP
+     * layer's per-(username, IP) lockout is the primary defense and the
+     * WAF rule only exists for operators who want a coarse pre-PHP shield.
+     */
+    public function updateLoginRateLimitSettings(bool $enabled, int $requests, int $period, int $blockDuration): bool
+    {
+        $requests      = max(10, min(10000, $requests));
+        $period        = max(10, min(3600,  $period));
+        $blockDuration = max(60, min(86400, $blockDuration));
+
+        $this->setConfigValue('waf_login_rate_limit_enabled',  $enabled ? '1' : '0');
+        $this->setConfigValue('waf_login_rate_limit_requests', (string)$requests);
+        $this->setConfigValue('waf_login_rate_limit_period',   (string)$period);
+        $this->setConfigValue('waf_login_rate_limit_block',    (string)$blockDuration);
+
+        return $this->rebuildAndReload();
+    }
+
+    /**
      * Rebuild scanner-detection.conf (and whitelist conf) and reload Apache.
      */
     private function rebuildAndReload(): bool
