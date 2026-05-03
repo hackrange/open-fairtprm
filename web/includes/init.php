@@ -23,9 +23,15 @@ ini_set('log_errors', 1);
 // before any auth, routing, or business logic runs -- so method-restricted controls
 // upstream cannot be bypassed by HTTP verb tampering. Allowed set covers web pages
 // (GET/POST/HEAD), CORS preflight (OPTIONS), and REST/SCIM (PUT/DELETE/PATCH).
+//
+// Skip the check when running under php-cli (entrypoint regen, cron jobs,
+// seed scripts). REQUEST_METHOD is empty in CLI mode and would always fail
+// the allowlist, silently exiting every CLI bootstrap that includes this
+// file. PHP_SAPI is set by the runtime, not the request — an attacker
+// cannot fake it via HTTP.
 $_allowedHttpMethods = ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'DELETE', 'PATCH'];
 $_requestMethod = $_SERVER['REQUEST_METHOD'] ?? '';
-if (!in_array($_requestMethod, $_allowedHttpMethods, true)) {
+if (PHP_SAPI !== 'cli' && !in_array($_requestMethod, $_allowedHttpMethods, true)) {
     error_log('Rejected disallowed HTTP method: ' . $_requestMethod
         . ' for ' . ($_SERVER['REQUEST_URI'] ?? '')
         . ' from ' . ($_SERVER['REMOTE_ADDR'] ?? ''));

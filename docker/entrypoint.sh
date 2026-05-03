@@ -465,13 +465,17 @@ fi
 #      safe and idempotent.
 # =========================================================================
 if mysql -e "USE tprm" 2>/dev/null; then
-    REGENERATED_CONF=$(php -r "
+    # `-d display_errors=0` keeps any PHP notice/deprecation off STDOUT so a
+    # warning can't ever get prepended to the conf file (which makes Apache
+    # refuse to start). setAccessible(true) is a no-op in PHP 8.1+ and
+    # deprecated in 8.5, so we don't call it — private-method reflection
+    # works without it on this stack.
+    REGENERATED_CONF=$(php -d display_errors=0 -r "
         require '/var/www/html/includes/init.php';
         \$db = Database::getInstance();
         \$lockdown = new LockdownService(\$db);
 
         \$method = new ReflectionMethod(\$lockdown, 'buildScannerDetectionConf');
-        \$method->setAccessible(true);
         echo \$method->invoke(\$lockdown);
     " 2>/dev/null)
     # Only overwrite if PHP produced a non-trivial conf (guards against DB
