@@ -127,7 +127,8 @@ RUN rm -rf /var/www/html/docker \
            /var/www/html/docker-compose.yml \
            /var/www/html/.dockerignore \
            /var/www/html/db_backup \
-           /var/www/html/persistent
+           /var/www/html/persistent \
+           /var/www/html/index.html
 
 # Install PHP dependencies
 RUN cd /var/www/html && COMPOSER_ALLOW_SUPERUSER=1 composer install \
