@@ -79,7 +79,7 @@ $success = '';
 
 // Handle POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } elseif (!$isAdmin && !$isCyberTPRM) {
         // Auditors can view this page but cannot perform state-changing actions.

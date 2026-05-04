@@ -97,7 +97,7 @@ if (($seedCheck['cnt'] ?? 0) == 0) {
 // POST HANDLERS
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['add_field'])) {
         $fieldName    = trim($_POST['field_name'] ?? '');

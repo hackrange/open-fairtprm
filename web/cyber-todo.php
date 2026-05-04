@@ -59,7 +59,7 @@ $success = '';
 // marking annual reviews, closing/reopening todos, and reverting imports.
 // Each branch delegates to CyberTodoService for the actual DB work.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } elseif (!$isAdmin && !$isCyberTPRM) {
         // Auditors get read-only access to the todo list. The UI hides the

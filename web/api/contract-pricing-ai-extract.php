@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // CSRF validation — FormData sends as POST field, not JSON body
 $csrfToken = $_POST['csrf_token'] ?? '';
-if (empty($csrfToken) || !$security->validateCSRFToken($csrfToken)) {
+if (!$security->validateCSRFToken($csrfToken)) {
     http_response_code(403);
     echo json_encode(['error' => 'Invalid CSRF token', 'csrf_token' => $security->getCSRFToken()]);
     exit;

@@ -72,7 +72,7 @@ $canApproveContactChanges = $acl->hasGroup('cyber_tprm') || $acl->hasGroup('admi
 // CSRF VALIDATION
 // Standard cross-site request forgery protection.
 // ---------------------------------------------------------------
-if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
     http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
     exit;

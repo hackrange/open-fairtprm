@@ -190,7 +190,7 @@ function sanitizeExecutiveSummaryHtml($html) {
 
 // Handle Generate Summary button click
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_summary'])) {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } else {
         // Generate executive summary and sanitize HTML before storing

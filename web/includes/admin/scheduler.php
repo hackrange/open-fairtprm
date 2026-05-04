@@ -279,7 +279,7 @@ function describeCron(string $expr): string
 // POST Handler: save_schedules
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['save_schedules'])) {
         $changes = [];

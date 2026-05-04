@@ -61,7 +61,7 @@ $successHtml = '';
 // We validate CSRF tokens first because we're not savages.
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['create_assessment'])) {
         // Procurement cannot create assessments -- read-only access for them

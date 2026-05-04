@@ -460,7 +460,7 @@ usort($allVersions, function ($a, $b) {
 $upgradeLog = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['perform_docker_upgrade'])) {
         $upgradeLog = [];
@@ -1174,7 +1174,7 @@ if ($versionsFetchError) {
 $upgradeLog = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['perform_version_upgrade'])) {
         $upgradeLog = [];

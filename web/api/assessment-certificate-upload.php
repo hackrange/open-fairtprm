@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // CSRF PROTECTION
 // Standard cross-site request forgery check. The basics matter.
 // ---------------------------------------------------------------
-if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Invalid request']);
     exit;

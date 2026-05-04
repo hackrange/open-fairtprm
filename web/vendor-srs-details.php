@@ -134,7 +134,7 @@ $restoreScroll = 0;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor) {
     $restoreScroll = intval($_POST['_scroll'] ?? 0);
 
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['update_tier'])) {
         // Tier update -- changes how often this vendor gets rescored.

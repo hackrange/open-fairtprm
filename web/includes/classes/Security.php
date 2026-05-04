@@ -90,6 +90,16 @@ class Security {
             session_start();
         }
 
+        // Reject missing / non-string up front so callers can drop the
+        // `!isset($_POST['csrf_token']) ||` short-circuit and still get the
+        // 403. Without this, an absent token field meant validateCSRFToken
+        // was never called and the response stayed 200 — which scanners
+        // (correctly) flag as the token not being checked.
+        if (!is_string($token) || $token === '') {
+            http_response_code(403);
+            return false;
+        }
+
         $tokenName = $this->config->get('security.csrf_token_name', 'csrf_token');
         $lifetime = $this->config->get('security.csrf_token_lifetime', 7200);
 

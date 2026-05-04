@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Verify the token so we know this request came from our form
 // and not some shady cross-site shenanigans.
 // ---------------------------------------------------------------
-if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
     http_response_code(403);
     echo json_encode([
         'success' => false,

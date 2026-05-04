@@ -616,7 +616,7 @@ function isAnyAdmin() {
  */
 function requireCsrfToken($tokenKey = 'csrf_token') {
     $security = Security::getInstance();
-    if (!isset($_POST[$tokenKey]) || !$security->validateCSRFToken($_POST[$tokenKey])) {
+    if (!$security->validateCSRFToken($_POST[$tokenKey] ?? '')) {
         header('Content-Type: application/json');
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Invalid security token']);

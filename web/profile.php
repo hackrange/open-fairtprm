@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$security->validateOrigin()) {
         http_response_code(403);
         $error = 'Invalid request origin. Please try again.';
-    } elseif (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    } elseif (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         http_response_code(403);
         $error = 'Invalid request. Please try again.';
 

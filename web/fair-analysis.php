@@ -640,7 +640,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !$acl->hasPermission("analysis.crea
     http_response_code(403);
     $error = "Access denied. You do not have permission to create or edit analyses.";
 } elseif ($_SERVER["REQUEST_METHOD"] === "POST") {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please refresh the page and try again.';
     } else {
         $vendorName = $security->cleanInput($_POST['vendor_name'] ?? '');

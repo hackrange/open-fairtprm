@@ -86,7 +86,7 @@ $emitLockoutHeaders = function (array $result) {
 // Only process form submissions, not GET requests (duh)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF check first -- if someone tries to replay this form, they can go pound sand
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
 
     // TOTP verification step -- user already passed username/password, now prove you have your phone

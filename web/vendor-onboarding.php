@@ -898,7 +898,7 @@ if ($showVendorTabs) {
 // Adds a threaded reply to an existing case.
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_reply']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request - security token mismatch.';
     } else {
         $parentCaseId = intval($_POST['parent_case_id'] ?? 0);
@@ -947,7 +947,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_reply']) && $edit
 // Toggles a case between open and closed.
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_case_status']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request - security token mismatch.';
     } else {
         $toggleCaseId = intval($_POST['case_id'] ?? 0);
@@ -991,7 +991,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_case_status'])
 // Reassigns an existing case to a different user.
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reassign_case']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request - security token mismatch.';
     } else {
         $reassignCaseId = intval($_POST['reassign_case_id'] ?? 0);
@@ -1048,7 +1048,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reassign_case']) && $
 // Adds a note to the vendor via cyber_todo_activities table.
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_note']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request - security token mismatch.';
     } else {
         $noteTitle = trim($security->cleanInput($_POST['note_title'] ?? ''));
@@ -1116,7 +1116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_note']) && $editM
 // TIER CHANGE -- handled separately from the main form because it uses a modal,
 // not the main save flow. Same audit-trail logic as vendor-srs-details.php.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_tier']) && $canEditTier && $editMode && $requestId > 0) {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request - security token mismatch. Please try again.';
     } else {
         $newTier = $_POST['new_tier'] ?? '';
@@ -1163,7 +1163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_tier']) && $ca
 
 // Handle rescore from Risks tab
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['rescore']) || isset($_POST['rescore_upguard']) || isset($_POST['rescore_shodan'])) && $editMode && $requestId > 0 && ($isAdmin || $isCyberTPRM)) {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request - security token mismatch.';
     } elseif (($request['status'] ?? '') === 'inactive') {
         $error = 'Cannot score an inactive vendor. Re-activate the vendor first.';
@@ -1277,7 +1277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_template_onboar
 $canProcessForm = $canEdit || $canDeactivate || $canDelete;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['update_tier'])) {
     // CSRF check first -- always. No token, no service.
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request - security token mismatch. Please try again.';
     } else {
         $action = $_POST['action'] ?? '';

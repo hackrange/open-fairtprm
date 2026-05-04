@@ -28,7 +28,7 @@ $modSecAvailable = $lockdown->isModSecurityAvailable();
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wafAction = $_POST['waf_action'] ?? '';
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } elseif (!$modSecAvailable) {
         $error = 'ModSecurity is not available. Cannot perform WAF operations.';

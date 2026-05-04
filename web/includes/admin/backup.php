@@ -43,7 +43,7 @@ if (!empty($_SESSION['flash_needs_key'])) {
 // POST Handlers: create_backup, delete_backup, restore_backup, upload_restore_backup
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['create_backup'])) {
         try {
