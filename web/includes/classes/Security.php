@@ -373,7 +373,7 @@ class Security {
              . "font-src 'self' https://fonts.gstatic.com; "
              . "img-src 'self' data: https:; "
              . "connect-src 'self'; "
-             . "frame-src https://www.google.com blob:; "
+             . "frame-src https://www.google.com; "
              . "frame-ancestors 'none'; "
              . "base-uri 'self'; "
              . "form-action 'self'; "
