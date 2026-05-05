@@ -85,6 +85,18 @@
         return (typeof fn === 'function') ? fn : null;
     }
 
+    // Reject javascript:, data:, vbscript:, etc. before assigning to location.href.
+    // Allows relative URLs and http(s)/mailto/tel — the only schemes the app emits.
+    function isSafeNavigationUrl(url) {
+        if (typeof url !== 'string') return false;
+        var trimmed = url.trim();
+        if (trimmed === '' || /[\x00-\x1F\x7F]/.test(trimmed)) return false;
+        var m = trimmed.match(/^([a-z][a-z0-9+\-.]*):/i);
+        if (!m) return true;
+        var s = m[1].toLowerCase();
+        return s === 'http' || s === 'https' || s === 'mailto' || s === 'tel';
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
 
         // =================================================================
@@ -267,7 +279,10 @@
             var el = e.target.closest('[data-href]');
             if (!el) return;
 
-            window.location.href = el.getAttribute('data-href');
+            var href = el.getAttribute('data-href');
+            if (isSafeNavigationUrl(href)) {
+                window.location.href = href;
+            }
         });
 
         // =================================================================
