@@ -952,6 +952,9 @@ $theme = getUserTheme();
         </footer>
     </div>
     <script src="app/js/core.min.js"></script>
+    <script src="app/js/vendor/bootstrap.bundle-4.6.2.min.js"></script>
+    <script src="app/js/vendor/lightgallery-1.10.0.min.js"></script>
+    <script src="app/js/vendor/select2-4.0.13.min.js"></script>
     <script src="app/js/script.js"></script>
     <script nonce="<?php echo cspNonce(); ?>">
         // Sync color picker with text field for theme colors

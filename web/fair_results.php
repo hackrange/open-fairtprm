@@ -444,6 +444,9 @@ $isProcurement = hasGroup('procurement');
         </footer>
     </div>
     <script src="app/js/core.min.js"></script>
+    <script src="app/js/vendor/bootstrap.bundle-4.6.2.min.js"></script>
+    <script src="app/js/vendor/lightgallery-1.10.0.min.js"></script>
+    <script src="app/js/vendor/select2-4.0.13.min.js"></script>
     <script src="app/js/script.js"></script>
     <script src="app/js/vendor-search.js?v=2.5.5b"></script>
     <script src="app/js/mobile-nav.js"></script>
