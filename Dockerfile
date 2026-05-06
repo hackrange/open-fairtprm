@@ -1,11 +1,12 @@
 # =============================================================================
 # Fair TPRM & GRC Platform
 # Debian Bookworm + Apache 2.4 + PHP 8.5 + MariaDB + ClamAV + ModSecurity
+#
+# Two-stage build: the `builder` stage performs all install/config steps,
+# then the final stage copies the resulting filesystem into a single layer
+# via FROM scratch. Keeps the image at 1 filesystem layer instead of ~30+.
 # =============================================================================
-FROM debian:bookworm-slim
-
-LABEL maintainer="Tim Rice - Hack Range"
-LABEL version="2.5.8"
+FROM debian:bookworm-slim AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -150,6 +151,18 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # ---- Write version file ----
 RUN echo 'v2.5.8' > /var/www/html/VERSION \
     && chown -R www-data:www-data /var/www/html/
+
+# =============================================================================
+# Final stage — squash builder filesystem into a single layer.
+# FROM scratch produces a one-layer image; metadata directives below add
+# manifest entries but not additional filesystem layers.
+# =============================================================================
+FROM scratch
+
+COPY --from=builder / /
+
+LABEL maintainer="Tim Rice - Hack Range"
+LABEL version="2.5.8"
 
 EXPOSE 8080/tcp
 
