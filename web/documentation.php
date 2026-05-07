@@ -32,7 +32,7 @@ $isCyberGRC = hasGroup('cyber_grc');
 
 $nonce = cspNonce();
 $currentPage = 'documentation';
-$logoUrl = $theme['logo_url'] ?? 'app/template/site/images/logo-default-418x78.png';
+$logoUrl = $theme['logo_url'] ?? 'app/images/logo-default-418x78.png';
 $csrfToken = $security->getCSRFToken();
 ?>
 <!DOCTYPE html>

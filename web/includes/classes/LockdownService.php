@@ -158,7 +158,6 @@ class LockdownService
         '/app/icons/',
         '/app/images/',
         '/app/fonts/',
-        '/app/template/',
     ];
 
     public function __construct(Database $db)
