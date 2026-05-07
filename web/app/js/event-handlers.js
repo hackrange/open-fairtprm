@@ -143,7 +143,7 @@
                 if (arrowId) {
                     var arrow = document.getElementById(arrowId);
                     if (arrow) {
-                        arrow.innerHTML = (target.style.display === 'none') ? '&#9654;' : '&#9660;';
+                        arrow.textContent = (target.style.display === 'none') ? '▶' : '▼';
                     }
                 }
             }
