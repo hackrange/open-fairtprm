@@ -19,6 +19,15 @@ error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
+// Suppress PHP's session-module cache headers. The default 'nocache' limiter
+// emits a hardcoded "Expires: Thu, 19 Nov 1981 08:52:00 GMT" (a PHP-core
+// developer's birthday baked into the source) plus a Pragma/Cache-Control
+// pair, which together fingerprint the backend as PHP. We disable the
+// limiter here; Security::setSecurityHeaders() emits a Cache-Control of
+// our own so the no-cache semantics are preserved without the giveaway.
+// Must run before any session_start().
+session_cache_limiter('');
+
 // Deny-by-default HTTP method allowlist. Reject unknown verbs (e.g. "ABC", "FOO")
 // before any auth, routing, or business logic runs -- so method-restricted controls
 // upstream cannot be bypassed by HTTP verb tampering. Allowed set covers web pages

@@ -355,9 +355,12 @@ class Security {
 
         // Prevent browsers and proxies from caching authenticated pages.
         // Sensitive data (user lists, vendor assessments, etc.) must not
-        // persist in browser/proxy caches.
+        // persist in browser/proxy caches. no-store implies max-age=0 and
+        // alone is sufficient for HTTP/1.1+ caches; the legacy Pragma
+        // header was dropped because it is meaningless to modern browsers
+        // and was part of the PHP-default header trio (alongside the 1981
+        // Expires) that scanners use to fingerprint a PHP backend.
         header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-        header('Pragma: no-cache');
 
         // HSTS: only set when served over HTTPS to avoid issues in dev
         if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
