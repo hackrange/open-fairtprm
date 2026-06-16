@@ -109,51 +109,16 @@ $companyName = getAppConfig('company_name', '');
 // CSRF token for form submissions -- yes, even public forms need this
 $csrfToken = $security->generateCSRFToken();
 
-// ----------------------------------------------------------------------------
-// Optional translation of the assessment into the vendor's language. This is a
-// public, login-less page, so the chosen language comes from ?lang= (not a user
-// preference) and is applied to the admin-authored content via the cached AI
-// translator. If the language isn't enabled or the AI platform is off, this is
-// a silent no-op and the original English text is shown.
-// ----------------------------------------------------------------------------
-$enabledLangs = i18nEnabledLanguages();
-$assessmentLang = $_GET['lang'] ?? 'en';
-if (!in_array($assessmentLang, $enabledLangs, true)) {
-    $assessmentLang = 'en';
-}
-$langNames = i18nLanguages();
-$pickerLangs = array_values(array_filter($enabledLangs, function ($c) { return $c !== 'en'; }));
-$translator = AssessmentTranslationService::getInstance();
-$showLangPicker = !empty($pickerLangs);
-try { $showLangPicker = $showLangPicker && AIPlatformService::getInstance()->isEnabled(); }
-catch (Throwable $e) { $showLangPicker = false; }
-
-if ($translator->canTranslate($assessmentLang)) {
-    // Pre-translate every string this page needs in ONE batched AI call (then
-    // the per-string calls below are cache reads). Bounds the render to a single
-    // time-capped AI call instead of one blocking call per question/option.
-    $translator->warmAssessment($assessment, $sections, $currentSection, $currentQuestions, $assessmentLang);
-    $assessment['template_name'] = $translator->translate('template_name', (int)$assessment['template_id'], $assessment['template_name'] ?? '', $assessmentLang);
-    foreach ($sections as $sIdx => $sec) {
-        $sections[$sIdx]['name'] = $translator->translate('section_name', (int)$sec['id'], $sec['name'] ?? '', $assessmentLang);
-    }
-    if ($currentSection) {
-        $currentSection['name'] = $translator->translate('section_name', (int)$currentSection['id'], $currentSection['name'] ?? '', $assessmentLang);
-        $currentSection['description'] = $translator->translate('section_description', (int)$currentSection['id'], $currentSection['description'] ?? '', $assessmentLang);
-    }
-    foreach ($currentQuestions as $qIdx => $cq) {
-        $currentQuestions[$qIdx]['question_text'] = $translator->translate('question_text', (int)$cq['id'], $cq['question_text'] ?? '', $assessmentLang);
-        if (!empty($cq['help_text'])) {
-            $currentQuestions[$qIdx]['help_text'] = $translator->translate('help_text', (int)$cq['id'], $cq['help_text'], $assessmentLang);
-        }
-        if (!empty($cq['options']) && is_array($cq['options'])) {
-            $currentQuestions[$qIdx]['option_labels'] = $translator->translateOptions((int)$cq['id'], $cq['options'], $assessmentLang);
-        }
-    }
-}
+// Localization note: assessment content is admin-authored dynamic text, so
+// instead of a paid/slow AI translation service we let vendors use their
+// browser's built-in "Translate page" feature (Chrome/Edge/Safari/Firefox).
+// The page declares its source language as English below, which is what lets
+// browsers detect it and offer to translate into the vendor's language. Answer
+// option VALUES stay original English (only the visible label gets translated
+// by the browser), so submitted responses, scoring, and logic are unaffected.
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo htmlspecialchars($assessmentLang); ?>">
+<html lang="en">
 <head>
     <title><?php echo htmlspecialchars($assessment['template_name']); ?> - Vendor Assessment</title>
     <meta charset="utf-8">
@@ -884,24 +849,11 @@ if ($translator->canTranslate($assessmentLang)) {
         $progressHue = round(($completionStatus['percentage'] / 100) * 120);
         $progressColor = "hsl({$progressHue}, 70%, 45%)";
         ?>
-        <?php if ($showLangPicker): ?>
-        <!-- Language picker: reloads the assessment translated into the chosen language -->
-        <div class="lang-picker" style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:16px;">
-            <form method="get" action="vendor-assessment.php" style="display:flex; align-items:center; gap:8px;">
-                <input type="hidden" name="token" value="<?php echo htmlspecialchars($uuid); ?>">
-                <input type="hidden" name="section" value="<?php echo (int)$currentSectionIndex; ?>">
-                <?php if ($forceEdit): ?><input type="hidden" name="edit" value="1"><?php endif; ?>
-                <label for="langSelect" style="font-size:13px; color:#555;">&#127760; <?php echo e(t('vendor-assessment.language')); ?></label>
-                <select id="langSelect" name="lang" style="padding:6px 8px; border:1px solid #ccc; border-radius:6px;">
-                    <option value="en" <?php echo $assessmentLang === 'en' ? 'selected' : ''; ?>>English</option>
-                    <?php foreach ($pickerLangs as $code): ?>
-                    <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $assessmentLang === $code ? 'selected' : ''; ?>><?php echo htmlspecialchars($langNames[$code] ?? $code); ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <button type="submit" class="btn btn-secondary" style="padding:6px 12px;"><?php echo e(t('vendor-assessment.translate')); ?></button>
-            </form>
+        <!-- Vendors view this in their own language via the browser's built-in
+             page translation (Chrome/Edge/Safari/Firefox); no app-side picker. -->
+        <div class="translate-hint" style="text-align:right; font-size:12px; color:#888; margin-bottom:12px;">
+            &#127760; Tip: use your browser&rsquo;s &ldquo;Translate&rdquo; feature to view this assessment in your language.
         </div>
-        <?php endif; ?>
         <!-- Progress bar showing overall completion percentage -->
         <div class="progress-container">
             <div class="progress-header">
@@ -1090,7 +1042,7 @@ if ($translator->canTranslate($assessmentLang)) {
                             <option value=""><?php echo e(t('vendor-assessment.select_option')); ?></option>
                             <?php foreach ($q['options'] as $opt): ?>
                             <option value="<?php echo htmlspecialchars($opt); ?>" <?php echo $response === $opt ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($q['option_labels'][$opt] ?? $opt); ?>
+                                <?php echo htmlspecialchars($opt); ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
@@ -1106,7 +1058,7 @@ if ($translator->canTranslate($assessmentLang)) {
                                        value="<?php echo htmlspecialchars($opt); ?>"
                                        <?php echo $response === $opt ? 'checked' : ''; ?>
                                        class="autosave-input" data-qid="<?php echo $q['id']; ?>">
-                                <?php echo htmlspecialchars($q['option_labels'][$opt] ?? $opt); ?>
+                                <?php echo htmlspecialchars($opt); ?>
                             </label>
                             <?php endforeach; ?>
                         </div>
@@ -1122,7 +1074,7 @@ if ($translator->canTranslate($assessmentLang)) {
                                        value="<?php echo htmlspecialchars($opt); ?>"
                                        <?php echo $response === $opt ? 'checked' : ''; ?>
                                        class="autosave-input" data-qid="<?php echo $q['id']; ?>">
-                                <?php echo htmlspecialchars($q['option_labels'][$opt] ?? $opt); ?>
+                                <?php echo htmlspecialchars($opt); ?>
                             </label>
                             <?php endforeach; ?>
                         </div>
@@ -1139,7 +1091,7 @@ if ($translator->canTranslate($assessmentLang)) {
                                        value="<?php echo htmlspecialchars($opt); ?>"
                                        <?php echo in_array($opt, $selectedOptions) ? 'checked' : ''; ?>
                                        class="autosave-checkbox" data-qid="<?php echo $q['id']; ?>">
-                                <?php echo htmlspecialchars($q['option_labels'][$opt] ?? $opt); ?>
+                                <?php echo htmlspecialchars($opt); ?>
                             </label>
                             <?php endforeach; ?>
                         </div>
@@ -1156,7 +1108,7 @@ if ($translator->canTranslate($assessmentLang)) {
                                        value="<?php echo htmlspecialchars($opt); ?>"
                                        <?php echo in_array($opt, $selectedOptions) ? 'checked' : ''; ?>
                                        class="autosave-checkbox" data-qid="<?php echo $q['id']; ?>">
-                                <?php echo htmlspecialchars($q['option_labels'][$opt] ?? $opt); ?>
+                                <?php echo htmlspecialchars($opt); ?>
                             </label>
                             <?php endforeach; ?>
                         </div>
