@@ -1,4 +1,4 @@
-# Fair TPRM & GRC Platform v2.5.8
+# Fair TPRM & GRC Platform v2.6.1
 
 Third-Party Risk Management and Governance, Risk & Compliance platform with
 FAIR (Factor Analysis of Information Risk) quantitative analysis. Built on
@@ -142,18 +142,20 @@ admin credentials on screen.
 - **GRC Controls, Risks, Gaps, Policies, Audits, Tasks, Evidence** — Full compliance lifecycle
 - **GRC Assessments** — Unified question bank with framework-mapped assessments
 - **Fourth-Party Risk** — Technology inventory tracking across vendor supply chains
-- **Breach Alerts** — Automated breach monitoring
-- **Shadow SaaS Discovery** — Identify unauthorized SaaS usage
+- **Breach Alerts** — Automated breach monitoring with OSINT-driven discovery
+- **Shadow SaaS Discovery** — Identify unauthorized SaaS usage with risk scoring and onboarding workflows
+- **Grip Security Integration** — Sync discovered SaaS apps, users, and alerts from Grip Security into the Shadow SaaS inventory (scheduled rehydration + on-demand "Run Now")
+- **Zscaler Enforcement** — Block unsanctioned SaaS domains directly in Zscaler Internet Access (ZIA) from the Shadow SaaS "Deny" action
 - **Procurement Contracts** — Contract tracking with expiry reminders
 - **Cyber Todo** — Task and activity tracking
 - **SCIM v2 Provisioning** — Automated user provisioning from identity providers
-- **SAML 2.0 SSO** — Single sign-on via Okta, Azure AD, or any SAML 2.0 IdP
-- **Role-Based Access Control** — Granular ACL with groups and permissions
-- **ModSecurity WAF** — Built-in web application firewall with learning/enforcing modes
+- **SAML 2.0 SSO** — Single sign-on via Okta, Azure AD/Entra, or any SAML 2.0 IdP, validated with the battle-tested `onelogin/php-saml` library; supports an optional SAML-only mode with a break-glass local admin login
+- **Role-Based Access Control** — Granular ACL with groups and permissions, including a read-only Auditor role enforced server-side
+- **ModSecurity WAF** — Built-in web application firewall with learning/enforcing modes and a positive-security lockdown whitelist
 - **ClamAV Scanning** — Antivirus scanning on all file uploads
 - **PDF Reports** — Downloadable PDF reports via dompdf
-- **Email Notifications** — SMTP-based notifications with configurable templates
-- **AI Integration** — Optional OpenWebUI/LLM integration for AI-assisted analysis
+- **Email Notifications** — SMTP **or** Microsoft 365 Graph API delivery, with configurable templates
+- **AI-Assisted Analysis** — Optional OpenWebUI/LibreChat (LLM) integration for AI-generated FAIR risk analysis, vendor enrichment, and AI risk indicators on vendor records
 
 ---
 
@@ -388,7 +390,7 @@ docker compose build
 **Build directly with `docker build`:**
 
 ```bash
-docker build -t fairtprm:v2.5.8 .
+docker build -t fairtprm:v2.6.1 .
 ```
 
 **Run without Docker Compose (using `docker run`):**
@@ -400,7 +402,7 @@ docker run -d \
   -v fairtprm_persistent:/persistent \
   -v fairtprm_mariadb:/var/lib/mysql \
   --restart unless-stopped \
-  fairtprm:v2.5.8
+  fairtprm:v2.6.1
 ```
 
 ### Volumes and Persistence
@@ -1114,7 +1116,7 @@ sudo certbot --nginx -d tprm.example.com
 ## Directory Structure
 
 ```
-docker_refactor_2.5.8/
+docker_refactor_2.6.1/
 ├── setup_docker_install.sh           # One-command setup script (Ubuntu 22.04/24.04)
 ├── Dockerfile                        # Docker image build instructions
 ├── docker-compose.yml                # Docker Compose orchestration
@@ -1136,7 +1138,7 @@ docker_refactor_2.5.8/
 │
 └── web/                              # Application source (→ /var/www/html)
     ├── .htaccess                     # URL rewrites, PHP overrides, API routing
-    ├── VERSION                       # Version identifier (v2.5.8)
+    ├── VERSION                       # Version identifier (v2.6.1)
     ├── composer.json / composer.lock  # PHP dependency definitions
     ├── index.php / index.html        # Landing page
     ├── login.php / logout.php        # Authentication
@@ -1225,7 +1227,7 @@ docker_refactor_2.5.8/
     │   └── grant_remote_access.sql   # User grants + seed data
     │
     ├── sql_updates/                  # Versioned SQL migrations
-    │   └── v2.5.8.sql                # Current version migration
+    │   └── v2.6.1.sql                # Current version migration
     │
     ├── cron/                         # Cron job scripts
     │   ├── rescore-queue.php
@@ -1359,10 +1361,12 @@ the Admin panel:
 |-------------|-------------------|-------------|
 | **UpGuard** | Admin > Settings | Security rating scores for vendor domains |
 | **Shodan** | Admin > Settings | Internet-facing asset and vulnerability scanning |
-| **SAML 2.0** | `config.php` + Admin | SSO via Okta, Azure AD, or any SAML 2.0 IdP |
+| **Grip Security** | Admin > Shadow SaaS | Sync SaaS apps, users, and alerts into the Shadow SaaS inventory |
+| **Zscaler (ZIA)** | Admin > Shadow SaaS | Block unsanctioned SaaS domains via a custom URL category |
+| **SAML 2.0** | Admin > SAML | SSO via Okta, Azure AD/Entra, or any SAML 2.0 IdP (validated with `onelogin/php-saml`); optional SAML-only mode + break-glass local login |
 | **SCIM v2** | API token via Admin | Automated user provisioning from identity providers |
-| **SMTP** | Admin > Settings | Email notifications for reminders and alerts |
-| **OpenWebUI / LLM** | Admin > Settings | AI-assisted FAIR analysis generation |
+| **SMTP / Microsoft 365 Graph** | Admin > Settings | Email notifications via SMTP or the Microsoft Graph API |
+| **OpenWebUI / LibreChat (LLM)** | Admin > Settings | AI-assisted FAIR analysis, vendor enrichment, and AI risk indicators |
 | **ClamAV** | Built-in (automatic) | Antivirus scanning on file uploads |
 
 ---
