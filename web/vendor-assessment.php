@@ -397,9 +397,10 @@ $csrfToken = $security->generateCSRFToken();
             font-style: italic;
         }
 
-        /* Form inputs -- text, email, number, date, textarea, select */
+        /* Form inputs -- text, email, tel, number, date, textarea, select */
         input[type="text"],
         input[type="email"],
+        input[type="tel"],
         input[type="number"],
         input[type="date"],
         textarea,
@@ -414,6 +415,7 @@ $csrfToken = $security->generateCSRFToken();
         }
         input[type="text"]:focus,
         input[type="email"]:focus,
+        input[type="tel"]:focus,
         input[type="number"]:focus,
         input[type="date"]:focus,
         textarea:focus,
