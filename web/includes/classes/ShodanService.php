@@ -243,6 +243,17 @@ class ShodanService
     }
 
     /**
+     * Request Shodan to rescan multiple IPs in a single API call.
+     *
+     * @param array $ips Array of IP address strings
+     * @return array ['success' => bool, 'message' => string, 'scan_id' => string|null]
+     */
+    public function requestRescanBatch(array $ips): array
+    {
+        return $this->shodan->requestRescanBatch($ips);
+    }
+
+    /**
      * Override on-demand scan setting for this request (ad-hoc usage).
      */
     public function setOnDemandScan(bool $enabled): void
@@ -386,6 +397,66 @@ class ShodanService
                     foreach ($s['category_scores'] as $cat => $catScore) {
                         $categoryTotals[$cat] = ($categoryTotals[$cat] ?? 0) + $catScore;
                     }
+                }
+            }
+
+            // Dedupe findings merged from primary + sister domain scoring passes.
+            // Each scoring pass produces its own copy of aggregate signals like
+            // "HSTS Enabled" or "WAF Detected" anchored at whichever subdomain it
+            // happened to see first — so a plain array_merge kept both rows with
+            // different anchors, inflating counts and doubling scoring points.
+            //
+            // Collapse by (category, signal). The anchor subdomain is cosmetic
+            // because the richer "Observed Subdomains" list in proof already
+            // carries the full set of detections. When duplicates collide, keep
+            // the row with the richest proof AND merge the Observed Subdomains
+            // lists so no detection info is lost across passes.
+            if (!empty($mergedFindings)) {
+                $dedup = [];
+                foreach ($mergedFindings as $f) {
+                    $key = ($f['category'] ?? '') . '|' . ($f['signal'] ?? '');
+                    if (!isset($dedup[$key])) {
+                        $dedup[$key] = $f;
+                        continue;
+                    }
+                    // Collide: pick the row with more proof keys as the base,
+                    // then union the Observed Subdomains lists from both rows.
+                    $existing = $dedup[$key];
+                    $existingProofCount = is_array($existing['proof'] ?? null) ? count($existing['proof']) : 0;
+                    $incomingProofCount = is_array($f['proof'] ?? null) ? count($f['proof']) : 0;
+                    $base  = ($incomingProofCount > $existingProofCount) ? $f : $existing;
+                    $other = ($incomingProofCount > $existingProofCount) ? $existing : $f;
+
+                    $baseProof  = is_array($base['proof'] ?? null) ? $base['proof'] : [];
+                    $otherProof = is_array($other['proof'] ?? null) ? $other['proof'] : [];
+
+                    $parseSubs = function($v) {
+                        if (empty($v)) return [];
+                        if (is_array($v)) return array_map('trim', $v);
+                        return array_values(array_filter(array_map('trim', explode(',', (string)$v))));
+                    };
+                    $unionSubs = array_values(array_unique(array_merge(
+                        $parseSubs($baseProof['Observed Subdomains'] ?? null),
+                        $parseSubs($otherProof['Observed Subdomains'] ?? null),
+                        // Include the anchor subdomains as well so nothing is dropped
+                        !empty($base['subdomain']) ? [$base['subdomain']] : [],
+                        !empty($other['subdomain']) ? [$other['subdomain']] : []
+                    )));
+                    if (!empty($unionSubs)) {
+                        $baseProof['Observed Subdomains'] = implode(', ', $unionSubs);
+                    }
+                    $base['proof'] = $baseProof;
+                    $dedup[$key] = $base;
+                }
+                $mergedFindings = array_values($dedup);
+
+                // Recount positive/negative after dedupe so UI counts match reality
+                $totalPositive = 0;
+                $totalNegative = 0;
+                foreach ($mergedFindings as $f) {
+                    $type = $f['type'] ?? '';
+                    if ($type === 'positive') $totalPositive++;
+                    elseif ($type === 'negative') $totalNegative++;
                 }
             }
 

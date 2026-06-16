@@ -90,16 +90,6 @@ class Security {
             session_start();
         }
 
-        // Reject missing / non-string up front so callers can drop the
-        // `!isset($_POST['csrf_token']) ||` short-circuit and still get the
-        // 403. Without this, an absent token field meant validateCSRFToken
-        // was never called and the response stayed 200 — which scanners
-        // (correctly) flag as the token not being checked.
-        if (!is_string($token) || $token === '') {
-            http_response_code(403);
-            return false;
-        }
-
         $tokenName = $this->config->get('security.csrf_token_name', 'csrf_token');
         $lifetime = $this->config->get('security.csrf_token_lifetime', 7200);
 
@@ -355,12 +345,9 @@ class Security {
 
         // Prevent browsers and proxies from caching authenticated pages.
         // Sensitive data (user lists, vendor assessments, etc.) must not
-        // persist in browser/proxy caches. no-store implies max-age=0 and
-        // alone is sufficient for HTTP/1.1+ caches; the legacy Pragma
-        // header was dropped because it is meaningless to modern browsers
-        // and was part of the PHP-default header trio (alongside the 1981
-        // Expires) that scanners use to fingerprint a PHP backend.
+        // persist in browser/proxy caches.
         header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
 
         // HSTS: only set when served over HTTPS to avoid issues in dev
         if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
@@ -376,7 +363,7 @@ class Security {
              . "font-src 'self' https://fonts.gstatic.com; "
              . "img-src 'self' data: https:; "
              . "connect-src 'self'; "
-             . "frame-src https://www.google.com; "
+             . "frame-src https://www.google.com blob:; "
              . "frame-ancestors 'none'; "
              . "base-uri 'self'; "
              . "form-action 'self'; "

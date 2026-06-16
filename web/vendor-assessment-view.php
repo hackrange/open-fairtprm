@@ -354,13 +354,62 @@ $csrfToken = $security->generateCSRFToken();
             }
         }
         ?>
-        <?php if ($showAiAutofill): ?>
-        <div style="margin-bottom: 20px; text-align: right;">
+        <?php
+        // Import-from-PDF is available whenever the assessment is not yet at
+        // 100% completion and not yet marked completed. The endpoint will also
+        // re-verify the PDF Reference against this assessment's UUID before
+        // writing anything.
+        $showImportPdf = !$isAuditor
+            && $assessment['status'] !== 'completed'
+            && (int)($completionStatus['percentage'] ?? 0) < 100;
+        ?>
+        <?php if ($showAiAutofill || $showImportPdf): ?>
+        <div style="margin-bottom: 20px; text-align: right; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+            <?php if ($showAiAutofill): ?>
             <button type="button" id="aiAutofillBtn" data-action="aiAutofillAssessment"
                     class="btn" style="background: var(--theme-header-color, #2563eb); color: white; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px;">
                 <img src="app/icons/lightning-02.svg" alt="" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"> Auto-Fill from Certifications
             </button>
-            <div id="aiAutofillStatus" style="display:none; margin-top: 8px; font-size: 13px;"></div>
+            <?php endif; ?>
+
+            <?php if ($showImportPdf): ?>
+            <button type="button" id="importPdfBtn"
+                    class="btn" style="background:#b91c1c; color:white; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px;"
+                    title="Import answers from a completed fillable PDF. The PDF's Reference must match this assessment.">
+                <span style="display:inline-block;font-weight:700;">PDF</span> Import Fillable PDF
+            </button>
+            <?php endif; ?>
+        </div>
+        <?php if ($showAiAutofill): ?>
+        <div id="aiAutofillStatus" style="display:none; margin-top: 8px; font-size: 13px; text-align:right;"></div>
+        <?php endif; ?>
+        <?php endif; ?>
+
+        <?php if ($showImportPdf): ?>
+        <!-- Import PDF modal -->
+        <div id="importPdfModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+            <div style="background:white; padding:24px; border-radius:8px; max-width:520px; width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                    <h3 style="margin:0; color:#333; font-size:18px;">Import Fillable PDF</h3>
+                    <button type="button" id="importPdfCloseX" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1;">&times;</button>
+                </div>
+                <p style="margin:0 0 12px; color:#555; font-size:14px;">
+                    Upload a PDF previously downloaded for this assessment. Answers will be
+                    merged into the existing responses. The PDF's Reference must match
+                    this assessment's ID before anything is imported.
+                </p>
+                <form id="importPdfForm" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                    <input type="hidden" name="assessment_id" value="<?php echo (int)$assessment['id']; ?>">
+                    <input type="file" name="pdf" accept="application/pdf" required
+                           style="display:block; width:100%; padding:10px; border:1px dashed #d1d5db; border-radius:6px; background:#f9fafb; font-size:13px;">
+                    <div id="importPdfStatus" style="display:none; margin-top:12px; padding:10px; border-radius:4px; font-size:13px;"></div>
+                    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;">
+                        <button type="button" id="importPdfCancelBtn" class="btn btn-secondary" style="padding:8px 18px;">Cancel</button>
+                        <button type="submit" id="importPdfSubmitBtn" class="btn btn-primary" style="padding:8px 18px;">Import</button>
+                    </div>
+                </form>
+            </div>
         </div>
         <?php endif; ?>
 
@@ -531,6 +580,64 @@ $csrfToken = $security->generateCSRFToken();
             status.textContent = 'Network error. Please try again.';
         });
     };
+    </script>
+    <?php endif; ?>
+
+    <?php if ($showImportPdf): ?>
+    <script nonce="<?php echo cspNonce(); ?>">
+    (function() {
+        var modal   = document.getElementById('importPdfModal');
+        var btn     = document.getElementById('importPdfBtn');
+        var closeX  = document.getElementById('importPdfCloseX');
+        var cancel  = document.getElementById('importPdfCancelBtn');
+        var form    = document.getElementById('importPdfForm');
+        var submit  = document.getElementById('importPdfSubmitBtn');
+        var status  = document.getElementById('importPdfStatus');
+        if (!modal || !btn || !form) return;
+
+        function open()  { status.style.display = 'none'; form.reset(); modal.style.display = 'flex'; }
+        function close() { modal.style.display = 'none'; }
+
+        btn.addEventListener('click', open);
+        closeX.addEventListener('click', close);
+        cancel.addEventListener('click', close);
+        modal.addEventListener('click', function(e) { if (e.target === modal) close(); });
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            submit.disabled = true;
+            submit.textContent = 'Importing...';
+            status.style.display = 'block';
+            status.style.background = '#eff6ff';
+            status.style.color = '#1e40af';
+            status.textContent = 'Reading PDF and matching answers...';
+
+            var data = new FormData(form);
+            fetch('api/assessment-import-pdf.php', { method: 'POST', body: data, credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(json) {
+                    if (json && json.success) {
+                        status.style.background = '#f0fdf4';
+                        status.style.color = '#166534';
+                        status.textContent = json.message || 'Imported successfully.';
+                        setTimeout(function() { window.location.reload(); }, 1200);
+                    } else {
+                        status.style.background = '#fef2f2';
+                        status.style.color = '#991b1b';
+                        status.textContent = (json && json.message) || 'Import failed.';
+                        submit.disabled = false;
+                        submit.textContent = 'Import';
+                    }
+                })
+                .catch(function() {
+                    status.style.background = '#fef2f2';
+                    status.style.color = '#991b1b';
+                    status.textContent = 'Network error during import.';
+                    submit.disabled = false;
+                    submit.textContent = 'Import';
+                });
+        });
+    })();
     </script>
     <?php endif; ?>
 </body>

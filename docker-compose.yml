@@ -1,5 +1,5 @@
 # =============================================================================
-# Fair TPRM & GRC Platform - v2.5.8
+# Fair TPRM & GRC Platform - v2.6.1
 # =============================================================================
 
 services:
@@ -7,7 +7,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: dockerregistry.fairtprm.com/fairtprm:v2.5.8
+    image: dockerregistry.fairtprm.com/fairtprm:v2.6.1
     container_name: fairtprm
     privileged: true
     ports:

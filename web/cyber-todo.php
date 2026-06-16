@@ -59,16 +59,16 @@ $success = '';
 // marking annual reviews, closing/reopening todos, and reverting imports.
 // Each branch delegates to CyberTodoService for the actual DB work.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
-    } elseif (!$isAdmin && !$isCyberTPRM) {
-        // Auditors get read-only access to the todo list. The UI hides the
-        // action controls; the backend must enforce the same.
+    } elseif ($isAuditor && !$isAdmin && !$isCyberTPRM) {
+        // Auditor is a read-only role: it may VIEW the to-do list but must not
+        // drive any state-changing action (add_activity, update_tier,
+        // close/reopen, revert_import, ...). The UI hides these controls; this
+        // is the matching server-side enforcement so a hand-crafted POST with a
+        // scraped CSRF token cannot mutate or delete data.
         http_response_code(403);
-        $error = 'You do not have permission to perform this action.';
-        $auth->audit($user['id'], 'bfla_attempt', 'cyber_todo_activities', null, [
-            'new' => ['page' => 'cyber-todo.php', 'fields' => array_keys($_POST)]
-        ]);
+        $error = 'Your role has read-only access and cannot perform this action.';
     } elseif (isset($_POST['add_activity'])) {
         $todoType = $_POST['todo_type'] ?? '';
         $referenceType = $_POST['reference_type'] ?? '';

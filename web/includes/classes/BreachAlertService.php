@@ -377,8 +377,9 @@ class BreachAlertService {
             }
 
             $prompt = $this->buildResearchPrompt($batchContext);
+            $searchQueries = $this->buildSearchQueries($batchContext);
 
-            $result = $this->callAIWithRetry($aiService, $prompt, 'breach_research');
+            $result = $this->callAIWithRetry($aiService, $prompt, 'breach_research', null, $searchQueries);
 
             if (!$result['success']) {
                 $batchErrors[] = "Batch {$batchNum}/{$totalBatches} failed: " . ($result['error'] ?? 'Unknown');
@@ -411,8 +412,14 @@ class BreachAlertService {
 
     /**
      * Call the AI platform with retry logic. Shared by breach and OSINT research.
+     *
+     * $searchQueries is forwarded to the active platform via $options. Passing
+     * it from the breach path lets the Custom dispatcher (FairTPRM orchestrator)
+     * pre-fetch /v1/safe-search hits and prepend them as evidence — matching
+     * the way LibreChat agents transparently browse during a chat completion.
+     * Other platforms ignore the option, so this is safe to always pass.
      */
-    private function callAIWithRetry(AIPlatformService $aiService, string $prompt, string $purpose, ?string $systemPrompt = null): array {
+    private function callAIWithRetry(AIPlatformService $aiService, string $prompt, string $purpose, ?string $systemPrompt = null, array $searchQueries = []): array {
         if ($systemPrompt === null) {
             $systemPrompt = 'You are a cybersecurity threat intelligence analyst. You ONLY report real, verified, credible security incidents and data breaches. Never fabricate incidents. If you cannot confirm an incident is real, do not include it. Every alert MUST include at least 2 credible source URLs from reputable cybersecurity news outlets, government advisories (CISA, NVD, CERT), or the affected organization\'s official disclosure.';
         }
@@ -430,14 +437,18 @@ class BreachAlertService {
             'purpose'     => $purpose,
             'timeout'     => $timeout,
         ];
+        if (!empty($searchQueries)) {
+            $options['search_queries']     = $searchQueries;
+            // Match the 7-day window enforced in buildResearchPrompt(). The
+            // Custom dispatcher uses this to drop stale hits at the source so
+            // the model never sees out-of-window evidence in the first place.
+            $options['search_max_age_days'] = 7;
+        }
 
         $maxAttempts = 3;
         $retryDelays = [2, 4];
         $result = null;
 
-        // Breach research always goes through the configured AI platform (LibreChat/OpenWebUI)
-        // which has web search capabilities via its agent. OSINT uses the GitHub scanner
-        // directly and doesn't come through this method.
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             $result = $aiService->chatCompletion($messages, $options);
 
@@ -454,6 +465,45 @@ class BreachAlertService {
         }
 
         return $result;
+    }
+
+    /**
+     * Build a bounded list of web-search queries for one batch of monitored
+     * entities. The Custom platform uses these to pre-fetch evidence via the
+     * orchestrator's /v1/safe-search; LibreChat/OpenWebUI ignore them.
+     *
+     * The cap keeps full-vendor scans within a reasonable time budget — at
+     * roughly 1-2s per query, 12 per batch × 18 batches stays under 6 min of
+     * search overhead.
+     */
+    private function buildSearchQueries(array $context): array {
+        $queries = [];
+        $maxPerBatch = 12;
+        $window = date('Y-m'); // current month, for recency hinting in queries
+
+        foreach ($context['technologies'] ?? [] as $t) {
+            $name = trim($t['technology_name'] ?? '');
+            if ($name !== '') {
+                $queries[] = "\"{$name}\" CVE OR vulnerability OR exploited {$window}";
+            }
+        }
+        foreach ($context['subprocessors'] ?? [] as $s) {
+            $name = trim($s['subprocessor_name'] ?? '');
+            if ($name !== '') {
+                $queries[] = "\"{$name}\" data breach OR ransomware OR cyberattack {$window}";
+            }
+        }
+        foreach ($context['vendors'] ?? [] as $v) {
+            $name = trim($v['vendor_name'] ?? '');
+            if ($name !== '') {
+                $queries[] = "\"{$name}\" breach OR ransomware OR cyberattack OR vulnerability {$window}";
+            }
+        }
+
+        if (count($queries) > $maxPerBatch) {
+            $queries = array_slice($queries, 0, $maxPerBatch);
+        }
+        return $queries;
     }
 
     private function buildResearchPrompt(array $context): string {

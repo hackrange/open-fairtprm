@@ -27,7 +27,7 @@
 //                impersonate, stop_impersonation, delete_user
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['create_user'])) {
         try {
@@ -477,7 +477,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
             </div>
             <div class="form-group">
                 <label for="create_password">Password *</label>
-                <input type="password" id="create_password" name="password" class="form-control" required minlength="8" autocomplete="new-password">
+                <input type="password" id="create_password" name="password" class="form-control" required minlength="8">
                 <div class="form-help">Minimum 8 characters</div>
             </div>
             <div class="form-group">
@@ -512,7 +512,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
             </div>
             <div class="form-group">
                 <label for="edit_new_password">New Password (Optional)</label>
-                <input type="password" id="edit_new_password" name="new_password" class="form-control" minlength="8" autocomplete="new-password">
+                <input type="password" id="edit_new_password" name="new_password" class="form-control" minlength="8">
                 <div class="form-help">Leave blank to keep current password</div>
             </div>
             <div class="form-group">
@@ -711,7 +711,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
             })
         });
 
-        window.location.href = 'admin.php?section=users';
+        window.location.reload();
     }
 
     function confirmImpersonate(userId, fullName) {

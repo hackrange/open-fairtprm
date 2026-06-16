@@ -37,7 +37,7 @@ if (!$isAdmin && !$isProcurement && !$isCyberTPRM) {
 }
 
 // CSRF check
-if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Invalid request']);
     exit;
@@ -80,7 +80,7 @@ $certificationType = null;
 $certificationExpirationDate = null;
 $description = null;
 
-$allowedContractTypes = ['DPA', 'Master Service Agreement', 'Privacy', 'Order Form', 'PO'];
+$allowedContractTypes = ['NDA', 'DPA', 'Master Service Agreement', 'Privacy', 'Order Form', 'PO'];
 $allowedCertTypes = [
     'SOC 2 Type II', 'ISO/IEC 27001', 'PCI DSS', 'HITRUST CSF',
     'NIST SP 800-171', 'NIST SP 800-53', 'NIST CSF', 'CMMC', 'FedRAMP',
@@ -197,11 +197,15 @@ try {
     $encryption = new Encryption();
     $encryptedData = $encryption->encryptRaw($fileContents);
 
-    // Generate UUID using cryptographically secure random bytes
-    $uuidBytes = random_bytes(16);
-    $uuidBytes[6] = chr(ord($uuidBytes[6]) & 0x0f | 0x40); // Version 4
-    $uuidBytes[8] = chr(ord($uuidBytes[8]) & 0x3f | 0x80); // Variant 1
-    $fileUuid = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($uuidBytes), 4));
+    // Generate UUID
+    $fileUuid = sprintf(
+        '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+        mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+        mt_rand(0, 0xffff),
+        mt_rand(0, 0x0fff) | 0x4000,
+        mt_rand(0, 0x3fff) | 0x8000,
+        mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+    );
 
     $user = $auth->getUser();
     $safeFilename = $security->cleanInput(basename($file['name']));

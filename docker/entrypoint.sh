@@ -194,6 +194,14 @@ MIGRATE_PDO
     fi
 fi
 
+# Harden config.php permissions: it holds the DB password and the encryption
+# key. 640 (owner+group read, no "other") keeps the mysql/clamav service users
+# from reading it; www-data (owner) still reads it for the app.
+if [ -f /persistent/config/config.php ]; then
+    chown www-data:www-data /persistent/config/config.php 2>/dev/null || true
+    chmod 640 /persistent/config/config.php
+fi
+
 # Ensure .sensitive file always exists on the host and has the admin password
 if [ ! -f /persistent/config/.sensitive ] || ! grep -q 'PORTAL_ADMIN_PASSWORD=.' /persistent/config/.sensitive 2>/dev/null; then
     cat > /persistent/config/.sensitive <<EOF

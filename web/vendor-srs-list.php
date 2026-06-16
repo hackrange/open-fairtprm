@@ -79,16 +79,8 @@ $success = '';
 
 // Handle POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
-    } elseif (!$isAdmin && !$isCyberTPRM) {
-        // Auditors can view this page but cannot perform state-changing actions.
-        // The UI hides these controls but the backend must enforce the rule too.
-        http_response_code(403);
-        $error = 'You do not have permission to perform this action.';
-        $auth->audit($user['id'], 'bfla_attempt', 'vendor_onboarding_requests', null, [
-            'new' => ['page' => 'vendor-srs-list.php', 'fields' => array_keys($_POST)]
-        ]);
     } elseif (isset($_POST['rescore_vendor_id'])) {
         // Individual vendor rescore (supports provider selection)
         $vendorId = intval($_POST['rescore_vendor_id']);
@@ -361,6 +353,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+    } elseif ((isset($_POST['create_ai_risk']) || isset($_POST['update_ai_risk'])) && ($isAdmin || $isCyberTPRM || $acl->hasGroup('cyber_grc'))) {
+        // Create or update the "Uses AI" risk register entry for a vendor
+        $aiVid = intval($_POST['ai_risk_vendor_id'] ?? 0);
+        $vRow = $aiVid > 0 ? $db->fetchOne('SELECT id, vendor_name FROM vendor_onboarding_requests WHERE id = :id', [':id' => $aiVid]) : null;
+        if (!$vRow) {
+            $error = 'Invalid vendor.';
+        } else {
+            $aiTitle = trim($security->cleanInput($_POST['ai_risk_title'] ?? ''));
+            if ($aiTitle === '') {
+                $aiTitle = $vRow['vendor_name'] . ' - Uses AI in their services';
+            }
+
+            // Resolve owner: explicit id preferred, fall back to name lookup limited to cyber_grc/cyber_tprm
+            $aiOwnerId = intval($_POST['ai_risk_owner_id'] ?? 0);
+            if ($aiOwnerId <= 0 && !empty($_POST['ai_risk_owner_name'])) {
+                $ownerNameQuery = trim($security->cleanInput($_POST['ai_risk_owner_name']));
+                if ($ownerNameQuery !== '') {
+                    $ownerRow = $db->fetchOne(
+                        "SELECT DISTINCT u.id FROM users u
+                         JOIN user_acl_groups uag ON uag.user_id = u.id
+                         JOIN acl_groups ag ON ag.id = uag.group_id
+                         WHERE u.is_active = 1 AND u.full_name = :n
+                           AND ag.group_name IN ('cyber_grc','cyber_tprm')
+                         LIMIT 1",
+                        [':n' => $ownerNameQuery]
+                    );
+                    if ($ownerRow) $aiOwnerId = (int)$ownerRow['id'];
+                }
+            }
+            if ($aiOwnerId > 0) {
+                $ownerChk = $db->fetchOne(
+                    "SELECT 1 FROM user_acl_groups uag
+                     JOIN acl_groups ag ON ag.id = uag.group_id
+                     WHERE uag.user_id = :uid AND ag.group_name IN ('cyber_grc','cyber_tprm')
+                     LIMIT 1",
+                    [':uid' => $aiOwnerId]
+                );
+                if (!$ownerChk) $aiOwnerId = 0;
+            }
+
+            $likelihoodNumeric = ['rare'=>1,'unlikely'=>2,'possible'=>3,'likely'=>4,'almost_certain'=>5];
+            $impactNumeric = ['insignificant'=>1,'minor'=>2,'moderate'=>3,'major'=>4,'catastrophic'=>5];
+            $aiLikelihood = $_POST['ai_risk_likelihood'] ?? 'possible';
+            $aiImpact = $_POST['ai_risk_impact'] ?? 'moderate';
+            if (!isset($likelihoodNumeric[$aiLikelihood])) $aiLikelihood = 'possible';
+            if (!isset($impactNumeric[$aiImpact])) $aiImpact = 'moderate';
+            $aiInherent = $likelihoodNumeric[$aiLikelihood] * $impactNumeric[$aiImpact];
+            $aiResidual = (isset($_POST['ai_risk_residual']) && $_POST['ai_risk_residual'] !== '')
+                ? (float)$_POST['ai_risk_residual'] : $aiInherent;
+
+            $allowedTreatment = ['accept','mitigate','transfer','avoid'];
+            $aiTreatment = $_POST['ai_risk_treatment'] ?? 'mitigate';
+            if (!in_array($aiTreatment, $allowedTreatment, true)) $aiTreatment = 'mitigate';
+
+            $allowedCats = ['strategic','operational','financial','compliance','reputational','technology','third_party'];
+            $aiCategory = $_POST['ai_risk_category'] ?? 'technology';
+            if (!in_array($aiCategory, $allowedCats, true)) $aiCategory = 'technology';
+
+            $allowedStatus = ['identified','assessing','treating','monitoring','closed'];
+            $aiStatus = $_POST['ai_risk_status'] ?? 'identified';
+            if (!in_array($aiStatus, $allowedStatus, true)) $aiStatus = 'identified';
+
+            $aiControlIdStr = null;
+            if (!empty($_POST['ai_risk_control_ids'])) {
+                $rawIds = is_array($_POST['ai_risk_control_ids'])
+                    ? $_POST['ai_risk_control_ids']
+                    : explode(',', $_POST['ai_risk_control_ids']);
+                $cleanIds = array_values(array_filter(array_map('intval', $rawIds)));
+                if (!empty($cleanIds)) $aiControlIdStr = implode(',', $cleanIds);
+            }
+
+            $aiData = [
+                'title' => $aiTitle,
+                'description' => trim($security->cleanInput($_POST['ai_risk_description'] ?? '')) ?: null,
+                'risk_category' => $aiCategory,
+                'likelihood' => $aiLikelihood,
+                'impact' => $aiImpact,
+                'inherent_risk_score' => $aiInherent,
+                'residual_risk_score' => $aiResidual,
+                'risk_treatment' => $aiTreatment,
+                'treatment_plan' => trim($security->cleanInput($_POST['ai_risk_treatment_plan'] ?? '')) ?: null,
+                'owner_user_id' => $aiOwnerId > 0 ? $aiOwnerId : null,
+                'control_ids' => $aiControlIdStr,
+                'status' => $aiStatus,
+                'review_date' => !empty($_POST['ai_risk_review_date']) ? $_POST['ai_risk_review_date'] : null,
+                'vendor_id' => $aiVid,
+            ];
+
+            // Look up existing AI risk for this vendor (link by vendor_id or fall back to title pattern)
+            $existingAiRisk = $db->fetchOne(
+                "SELECT id FROM grc_risk_register
+                 WHERE (vendor_id = :vid OR title LIKE :pat)
+                 ORDER BY (vendor_id = :vid_order) DESC
+                 LIMIT 1",
+                [
+                    ':vid' => $aiVid,
+                    ':vid_order' => $aiVid,
+                    ':pat' => $vRow['vendor_name'] . ' - Uses AI in their services',
+                ]
+            );
+
+            try {
+                if ($existingAiRisk) {
+                    $db->update('grc_risk_register', $aiData, 'id = :id', [':id' => (int)$existingAiRisk['id']]);
+                    $auth->audit($user['id'], 'ai_risk_update', 'grc_risk_register', (int)$existingAiRisk['id'], [
+                        'new' => ['vendor_id' => $aiVid, 'title' => $aiTitle]
+                    ]);
+                    $success = "AI risk updated for '" . $vRow['vendor_name'] . "'.";
+                } else {
+                    $lastRef = $db->fetchOne("SELECT risk_ref FROM grc_risk_register WHERE risk_ref LIKE 'RSK-%' ORDER BY id DESC LIMIT 1");
+                    $newRef = $lastRef
+                        ? 'RSK-' . str_pad((int)substr($lastRef['risk_ref'], 4) + 1, 3, '0', STR_PAD_LEFT)
+                        : 'RSK-001';
+                    $aiData['risk_ref'] = $newRef;
+                    $aiData['created_by'] = (int)$user['id'];
+                    $newId = $db->insert('grc_risk_register', $aiData);
+                    $auth->audit($user['id'], 'ai_risk_create', 'grc_risk_register', (int)$newId, [
+                        'new' => ['vendor_id' => $aiVid, 'title' => $aiTitle, 'risk_ref' => $newRef]
+                    ]);
+                    $success = "AI risk created for '" . $vRow['vendor_name'] . "' (" . $newRef . ").";
+                }
+            } catch (Exception $e) {
+                error_log('AI risk save error: ' . $e->getMessage());
+                $error = 'Failed to save AI risk. Please try again.';
+            }
+        }
     } elseif (isset($_POST['eval_selected'])) {
         // Mark selected vendors as Evaluation status
         $selectedIds = array_filter(array_map('intval', explode(',', $_POST['eval_vendor_ids'] ?? '')));
@@ -445,6 +563,7 @@ $gradeFilter = isset($_GET['grade']) ? strtoupper($_GET['grade']) : '';
 $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
 $showNeedsRescore = isset($_GET['needs_rescore']) && $_GET['needs_rescore'] === '1';
 $showShadowSaas = isset($_GET['show_shadow_saas']) && $_GET['show_shadow_saas'] === '1';
+$showUsesAi = isset($_GET['uses_ai']) && $_GET['uses_ai'] === '1';
 $statFilter = $_GET['filter'] ?? '';
 
 // Map stat tile filter to specific filter behavior
@@ -629,6 +748,11 @@ if ($showNeedsRescore) {
     $whereConditions[] = $needsRescoreExpr;
 }
 
+// Uses AI filter: match vendors where Services Use AI checkbox is checked
+if ($showUsesAi) {
+    $whereConditions[] = "r.vendor_use_ai = 'yes'";
+}
+
 $isCveSearch = false;
 $cveSearchQuery = '';
 if (!empty($searchQuery) && preg_match('/^CVE-/i', trim($searchQuery))) {
@@ -661,13 +785,15 @@ if (!empty($searchQuery) && preg_match('/^CVE-/i', trim($searchQuery))) {
         $whereConditions[] = "1 = 0";
     }
 } elseif (!empty($searchQuery)) {
-    $whereConditions[] = "(r.vendor_name LIKE :search OR r.vendor_domain LIKE :search2 OR stakeholder_user.full_name LIKE :search3 OR stakeholder_user.email LIKE :search4 OR owner_user.full_name LIKE :search5 OR owner_user.email LIKE :search6)";
+    $whereConditions[] = "(r.vendor_name LIKE :search OR r.vendor_domain LIKE :search2 OR stakeholder_user.full_name LIKE :search3 OR stakeholder_user.email LIKE :search4 OR owner_user.full_name LIKE :search5 OR owner_user.email LIKE :search6 OR r.project LIKE :search7 OR r.cost_center LIKE :search8)";
     $params[':search'] = '%' . $searchQuery . '%';
     $params[':search2'] = '%' . $searchQuery . '%';
     $params[':search3'] = '%' . $searchQuery . '%';
     $params[':search4'] = '%' . $searchQuery . '%';
     $params[':search5'] = '%' . $searchQuery . '%';
     $params[':search6'] = '%' . $searchQuery . '%';
+    $params[':search7'] = '%' . $searchQuery . '%';
+    $params[':search8'] = '%' . $searchQuery . '%';
 }
 
 $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
@@ -710,7 +836,7 @@ $filteredAvgScore = (int)($filteredAvgRow['filtered_avg'] ?? 0);
 
 // Build dynamic label for the avg score card
 $avgScoreLabel = 'Avg Score';
-$hasActiveFilter = !empty($statFilter) || $showNeedsRescore || !empty($tierFilter) || !empty($gradeFilter) || !empty($searchQuery);
+$hasActiveFilter = !empty($statFilter) || $showNeedsRescore || $showUsesAi || !empty($tierFilter) || !empty($gradeFilter) || !empty($searchQuery);
 if ($hasActiveFilter) {
     $parts = [];
     if ($tierFilter === 'none') $parts[] = 'No Tier';
@@ -721,6 +847,7 @@ if ($hasActiveFilter) {
     elseif ($statFilter === 'evaluation') $parts[] = 'Eval';
     elseif ($statFilter === 'in_review') $parts[] = 'In Review';
     if (!empty($gradeFilter)) $parts[] = 'Grade ' . $gradeFilter;
+    if ($showUsesAi) $parts[] = 'Uses AI';
     if (!empty($searchQuery)) $parts[] = 'Search';
     $avgScoreLabel = 'Avg ' . (!empty($parts) ? implode(' + ', $parts) : 'Selected');
 }
@@ -749,7 +876,7 @@ $groupBy = "GROUP BY r.id, r.vendor_name, r.vendor_domain, r.vendor_tier, r.vend
              r.current_srs_score, r.last_srs_score_at{$shodanGroupCols},
              r.status, r.created_at,
              r.primary_contact_email, r.primary_contact_details, r.primary_contact_title, r.primary_contact_phone,
-             r.product_service_description";
+             r.product_service_description, r.vendor_use_ai";
 
 // ====================================================================
 // COUNT QUERY (total filtered rows)
@@ -789,7 +916,7 @@ $sqlOrderCol = $orderMap[$sortColumn] ?? 'r.vendor_name';
 $dataQuery = "
     SELECT r.id, r.vendor_name, r.vendor_domain, r.vendor_tier, r.vendor_type,
            r.current_srs_score, r.last_srs_score_at{$shodanSelectCols},
-           r.status, r.created_at,
+           r.status, r.created_at, r.vendor_use_ai,
            r.primary_contact_email, r.primary_contact_details, r.primary_contact_title, r.primary_contact_phone,
            r.product_service_description,
            MAX(COALESCE(stakeholder_user.full_name, owner_user.full_name)) as stakeholder_name,
@@ -961,6 +1088,58 @@ try {
         $subprocessorVendorIds[(int)$sp['linked_vendor_id']] = true;
     }
 } catch (Exception $e) {}
+
+// ====================================================================
+// AI RISK REGISTER LOOKUP (for AI risk action button in detail row)
+// ====================================================================
+$aiRiskMap = [];          // vendor_id => risk row (for prefill)
+$aiEligibleOwners = [];   // users in cyber_grc/cyber_tprm for typeahead & validation
+$aiAllControls = [];      // grc_internal_controls for mitigating controls multi-select
+try {
+    $pageVendorIds = [];
+    foreach ($paginatedVendors as $pv) {
+        if (!empty($pv['id']) && (($pv['status'] ?? '') !== 'shadow_saas')) {
+            $pageVendorIds[] = (int)$pv['id'];
+        }
+    }
+    if (!empty($pageVendorIds)) {
+        $inList = implode(',', $pageVendorIds);
+        $aiRiskRows = $db->fetchAll(
+            "SELECT r.id, r.risk_ref, r.vendor_id, r.title, r.description, r.risk_category,
+                    r.likelihood, r.impact, r.inherent_risk_score, r.residual_risk_score,
+                    r.risk_treatment, r.treatment_plan, r.owner_user_id, r.control_ids,
+                    r.status, r.review_date, u.full_name AS owner_name
+             FROM grc_risk_register r
+             LEFT JOIN users u ON u.id = r.owner_user_id
+             WHERE r.vendor_id IN ($inList)
+               AND r.title LIKE '% - Uses AI in their services'
+             ORDER BY r.id DESC"
+        );
+        foreach ($aiRiskRows as $ar) {
+            $vid = (int)$ar['vendor_id'];
+            if (!isset($aiRiskMap[$vid])) {
+                $aiRiskMap[$vid] = $ar;
+            }
+        }
+    }
+
+    $aiEligibleOwners = $db->fetchAll(
+        "SELECT DISTINCT u.id, u.full_name, u.email
+         FROM users u
+         JOIN user_acl_groups uag ON uag.user_id = u.id
+         JOIN acl_groups ag ON ag.id = uag.group_id
+         WHERE u.is_active = 1
+           AND ag.group_name IN ('cyber_grc','cyber_tprm')
+         ORDER BY u.full_name"
+    );
+
+    $aiAllControls = $db->fetchAll(
+        "SELECT id, control_ref, title FROM grc_internal_controls
+         WHERE is_active = 1 ORDER BY control_ref"
+    );
+} catch (Exception $e) {
+    error_log('AI risk lookup error: ' . $e->getMessage());
+}
 
 // Helper functions delegate to Pagination class
 function buildSortUrl($column, $currentSort, $currentOrder) {
@@ -1402,6 +1581,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                     <a href="vendor-srs-export.php<?php echo (!empty($tierFilter) || !empty($gradeFilter) || !empty($searchQuery)) ? '?' . http_build_query(array_filter(['tier' => $tierFilter, 'grade' => $gradeFilter, 'search' => $searchQuery])) : ''; ?>" class="btn" style="background: #6b7280; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px;">Export CSV</a>
                     <a href="vendor-srs-import.php" class="btn" style="background: #059669; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px;">Import CSV</a>
+                    <button type="button" data-action="openComplianceReportModal" class="btn" style="background: var(--theme-button-color); color: white; padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer;">Compliance Report</button>
                 </div>
             </div>
             <div class="vendor-search-container" style="position: relative; min-width: 375px;">
@@ -1459,7 +1639,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <form method="GET" class="filters-bar">
             <div class="filter-group">
                 <label>Search:</label>
-                <input type="text" name="search" value="<?php echo e($searchQuery); ?>" placeholder="Vendor, domain, or CVE-ID...">
+                <input type="text" name="search" value="<?php echo e($searchQuery); ?>" placeholder="Vendor, domain, project, cost center, or CVE-ID...">
             </div>
             <div class="filter-group">
                 <label>Tier:</label>
@@ -1486,6 +1666,12 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 <label>
                     <input type="checkbox" name="needs_rescore" value="1" <?php echo $showNeedsRescore ? 'checked' : ''; ?>>
                     Needs Rescore Only
+                </label>
+            </div>
+            <div class="filter-group">
+                <label>
+                    <input type="checkbox" name="uses_ai" value="1" <?php echo $showUsesAi ? 'checked' : ''; ?>>
+                    Uses AI
                 </label>
             </div>
             <?php if ($shadowSaasTableExists): ?>
@@ -1549,6 +1735,40 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <input type="hidden" name="eval_vendor_ids" id="evalVendorIds" value="">
         </form>
         <?php endif; ?>
+
+        <!-- 90-Day Compliance Report Modal -->
+        <div id="complianceReportModal" data-modal-backdrop style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+            <div style="background: white; border-radius: 12px; padding: 0; width: 460px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.3);" data-stop-propagation>
+                <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #333;">90-Day Compliance Report</h3>
+                    <button type="button" data-close="compliance" style="background: none; border: none; font-size: 20px; color: #9ca3af; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                </div>
+                <form id="complianceReportForm" method="GET" action="vendor-srs-compliance-report.php" target="_blank">
+                    <div style="padding: 24px;">
+                        <p style="margin: 0 0 18px; font-size: 13px; color: #666;">
+                            Generates a fiscal-quarter compliance summary showing the average UpGuard SRS, Shodan, and combined scores for all Tier&nbsp;1 vendors and for FairTPRM.
+                        </p>
+                        <div style="margin-bottom: 18px;">
+                            <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;">Fiscal Quarter</label>
+                            <select name="quarter" required style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                                <option value="Q1">Q1 &mdash; Jan 1 to Apr 1</option>
+                                <option value="Q2">Q2 &mdash; Apr 1 to Jul 1</option>
+                                <option value="Q3">Q3 &mdash; Jul 1 to Oct 1</option>
+                                <option value="Q4">Q4 &mdash; Oct 1 to Dec 31</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 0;">
+                            <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;">Year</label>
+                            <input type="number" name="year" required min="2020" max="2099" value="<?php echo (int)date('Y'); ?>" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                        </div>
+                    </div>
+                    <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; background: #f9fafb; border-radius: 0 0 12px 12px;">
+                        <button type="button" data-close="compliance" style="padding: 8px 18px; border: 1px solid #d1d5db; border-radius: 6px; background: white; font-size: 13px; cursor: pointer; color: #374151;">Cancel</button>
+                        <button type="submit" style="padding: 8px 18px; border: none; border-radius: 6px; background: var(--theme-button-color); color: white; font-size: 13px; font-weight: 500; cursor: pointer;">Generate Report</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <!-- Re-Tier Modal -->
         <div id="retierModal" data-modal-backdrop style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
@@ -1689,6 +1909,9 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <?php if (($vendor['status'] ?? '') === 'evaluation'): ?>
                                 <span style="font-size: 10px; background: #e0f2fe; color: #0369a1; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 500;">Eval</span>
                                 <?php endif; ?>
+                                <?php if (($vendor['vendor_use_ai'] ?? '') === 'yes'): ?>
+                                <span title="Services Use AI" style="display: inline-flex; align-items: center; gap: 2px; font-size: 10px; background: linear-gradient(135deg, #ede9fe, #fce7f3); color: #6d28d9; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 600; vertical-align: middle;"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2zm6 10l.9 2.6L21.5 15.5l-2.6.9L18 19l-.9-2.6L14.5 15.5l2.6-.9L18 12zM6 14l.7 2L8.5 16.5l-1.8.5L6 19l-.7-2L3.5 16.5l1.8-.5L6 14z"/></svg>AI</span>
+                                <?php endif; ?>
                                 <?php if ($isShadowSaas): ?>
                                 <span style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 500;">Shadow</span>
                                 <?php endif; ?>
@@ -1779,6 +2002,8 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         <td>
                             <?php if ($isShadowSaas): ?>
                             <span class="status-badge" style="background: #fef3c7; color: #92400e;">Shadow SaaS</span>
+                            <?php elseif (($vendor['status'] ?? '') === 'inactive'): ?>
+                            <span class="status-badge" style="background: #f3f4f6; color: #6b7280;">Inactive</span>
                             <?php elseif (($vendor['status'] ?? '') === 'in_review'): ?>
                             <span class="status-badge" style="background: #ede9fe; color: #6d28d9;">In Review</span>
                             <?php elseif ($needsRescore): ?>
@@ -1792,6 +2017,18 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             <a href="shadow-saas.php?search=<?php echo urlencode($vendor['vendor_domain']); ?>" class="btn-sm btn-view">Manage</a>
                             <?php else: ?>
                             <a href="vendor-srs-details.php?id=<?php echo $vendor['id']; ?>" class="btn-sm btn-view">View</a>
+                            <?php endif; ?>
+                            <?php if (!$isShadowSaas && ($vendor['vendor_use_ai'] ?? '') === 'yes' && ($isAdmin || $isCyberTPRM || $acl->hasGroup('cyber_grc'))): ?>
+                            <?php $existingAiBtn = $aiRiskMap[(int)$vendor['id']] ?? null; ?>
+                            <a href="#" class="ai-risk-link btn-sm"
+                               data-vendor-id="<?php echo (int)$vendor['id']; ?>"
+                               data-vendor-name="<?php echo e($vendor['vendor_name'] ?? ''); ?>"
+                               data-existing="<?php echo $existingAiBtn ? '1' : '0'; ?>"
+                               title="<?php echo $existingAiBtn ? 'Update AI risk register entry' : 'Add AI risk register entry'; ?>"
+                               style="background: <?php echo $existingAiBtn ? '#ede9fe' : '#f5f3ff'; ?>; color: #6d28d9; border: 1px solid #ddd6fe; text-decoration: none; margin-left: 4px; display: inline-flex; align-items: center; gap: 3px;">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2zm6 10l.9 2.6L21.5 15.5l-2.6.9L18 19l-.9-2.6L14.5 15.5l2.6-.9L18 12z"/></svg>
+                                <?php echo $existingAiBtn ? 'Update AI Risk' : 'AI Risk'; ?>
+                            </a>
                             <?php endif; ?>
                             <?php if (!$isAuditor): ?>
                             <?php if (!$isShadowSaas && ($srsAvailable || $shodanAvailable) && !empty($vendor['vendor_domain'])): ?>
@@ -1839,6 +2076,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     <div class="detail-value<?php echo empty($vendor['vendor_domain']) ? ' empty' : ''; ?>"><?php echo !empty($vendor['vendor_domain']) ? e($vendor['vendor_domain']) : 'Not set'; ?></div>
                                     <?php if ($isAdmin || $isCyberTPRM): ?>
                                     <a href="#" class="add-case-link" data-vendor-id="<?php echo (int)$vendor['id']; ?>" data-vendor-name="<?php echo e($vendor['vendor_name'] ?? ''); ?>" style="display: inline-block; margin-top: 6px; font-size: 12px; color: var(--theme-header-color, #35a0a3); text-decoration: none; font-weight: 500;">+ Add Case</a>
+                                    <?php endif; ?>
+                                    <?php if (($vendor['vendor_use_ai'] ?? '') === 'yes' && ($isAdmin || $isCyberTPRM || $acl->hasGroup('cyber_grc'))): ?>
+                                    <?php $existingAi = $aiRiskMap[(int)$vendor['id']] ?? null; ?>
+                                    <a href="#" class="ai-risk-link" data-vendor-id="<?php echo (int)$vendor['id']; ?>" data-vendor-name="<?php echo e($vendor['vendor_name'] ?? ''); ?>" data-existing="<?php echo $existingAi ? '1' : '0'; ?>" style="display: inline-block; margin-top: 6px; margin-left: 10px; font-size: 12px; color: #6d28d9; text-decoration: none; font-weight: 500;"><?php echo $existingAi ? '✎ Update AI Risk' : '+ Add AI Risk'; ?></a>
                                     <?php endif; ?>
                                 </div>
                                 <div class="detail-item">
@@ -1970,6 +2211,134 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         <div style="display: flex; gap: 10px; justify-content: flex-end;">
                             <button type="button" id="addCaseCancelBtn" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 13px;">Cancel</button>
                             <button type="submit" style="padding: 10px 20px; border: none; background: var(--theme-button-color, #35a0a3); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">Create Case</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($isAdmin || $isCyberTPRM || $acl->hasGroup('cyber_grc')): ?>
+            <!-- AI Risk Register Modal (does not close on backdrop click) -->
+            <div id="aiRiskModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center;">
+                <div style="background: white; padding: 28px 32px; border-radius: 8px; max-width: 720px; width: 92%; box-shadow: 0 4px 24px rgba(0,0,0,0.3); max-height: 92vh; overflow-y: auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                        <h3 id="aiRiskModalTitle" style="margin: 0; color: #333; font-size: 20px;">Add AI Risk to Register</h3>
+                        <button type="button" id="aiRiskCloseX" aria-label="Close" style="background: none; border: none; font-size: 22px; color: #9ca3af; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                    </div>
+                    <div id="aiRiskVendorLabel" style="margin-bottom: 18px; font-size: 13px; color: #666;"></div>
+                    <form method="POST" action="vendor-srs-list.php" id="aiRiskForm">
+                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                        <input type="hidden" name="create_ai_risk" id="aiRiskActionCreate" value="1">
+                        <input type="hidden" name="update_ai_risk" id="aiRiskActionUpdate" value="" disabled>
+                        <input type="hidden" name="ai_risk_vendor_id" id="aiRiskVendorId" value="">
+                        <input type="hidden" name="ai_risk_id" id="aiRiskId" value="">
+                        <input type="hidden" name="ai_risk_owner_id" id="aiRiskOwnerId" value="">
+
+                        <div style="margin-bottom: 14px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Risk Title <span style="color: #dc3545;">*</span></label>
+                            <input type="text" name="ai_risk_title" id="aiRiskTitle" required style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box; background: #f9fafb;">
+                        </div>
+
+                        <div style="margin-bottom: 14px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Description</label>
+                            <textarea name="ai_risk_description" id="aiRiskDescription" rows="2" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Category</label>
+                                <select name="ai_risk_category" id="aiRiskCategory" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                                    <option value="strategic">Strategic</option>
+                                    <option value="operational">Operational</option>
+                                    <option value="financial">Financial</option>
+                                    <option value="compliance">Compliance</option>
+                                    <option value="reputational">Reputational</option>
+                                    <option value="technology" selected>Technology</option>
+                                    <option value="third_party">Third Party</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Risk Owner</label>
+                                <div style="position: relative;">
+                                    <input type="text" id="aiRiskOwnerInput" placeholder="Search cyber_grc / cyber_tprm..." autocomplete="off" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                                    <div id="aiRiskOwnerSuggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 220px; overflow-y: auto; z-index: 10; margin-top: 2px;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Status</label>
+                                <select name="ai_risk_status" id="aiRiskStatus" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                                    <option value="identified">Identified</option>
+                                    <option value="assessing">Assessing</option>
+                                    <option value="treating">Treating</option>
+                                    <option value="monitoring">Monitoring</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <h4 style="font-size: 13px; color: #555; margin: 16px 0 8px; border-top: 1px solid #e5e7eb; padding-top: 14px;">Risk Assessment</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Likelihood</label>
+                                <select name="ai_risk_likelihood" id="aiRiskLikelihood" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                                    <option value="rare">Rare (1)</option>
+                                    <option value="unlikely">Unlikely (2)</option>
+                                    <option value="possible" selected>Possible (3)</option>
+                                    <option value="likely">Likely (4)</option>
+                                    <option value="almost_certain">Almost Certain (5)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Impact</label>
+                                <select name="ai_risk_impact" id="aiRiskImpact" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                                    <option value="insignificant">Insignificant (1)</option>
+                                    <option value="minor">Minor (2)</option>
+                                    <option value="moderate" selected>Moderate (3)</option>
+                                    <option value="major">Major (4)</option>
+                                    <option value="catastrophic">Catastrophic (5)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Residual Score</label>
+                                <input type="number" name="ai_risk_residual" id="aiRiskResidual" min="0" max="25" step="0.01" placeholder="Auto" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                            </div>
+                        </div>
+
+                        <h4 style="font-size: 13px; color: #555; margin: 16px 0 8px; border-top: 1px solid #e5e7eb; padding-top: 14px;">Treatment</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 14px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Treatment Strategy</label>
+                                <select name="ai_risk_treatment" id="aiRiskTreatment" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                                    <option value="accept">Accept</option>
+                                    <option value="mitigate" selected>Mitigate</option>
+                                    <option value="transfer">Transfer</option>
+                                    <option value="avoid">Avoid</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Treatment Plan</label>
+                                <textarea name="ai_risk_treatment_plan" id="aiRiskTreatmentPlan" rows="2" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 14px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Mitigating Controls</label>
+                            <select name="ai_risk_control_ids[]" id="aiRiskControls" multiple style="width: 100%; min-height: 110px; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; box-sizing: border-box;">
+                                <?php foreach ($aiAllControls as $ac): ?>
+                                <option value="<?php echo (int)$ac['id']; ?>"><?php echo e($ac['control_ref']); ?> - <?php echo e($ac['title']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div style="font-size: 11px; color: #9ca3af; margin-top: 3px;">Hold Ctrl/Cmd to select multiple.</div>
+                        </div>
+
+                        <div style="margin-bottom: 18px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Next Review Date</label>
+                            <input type="date" name="ai_risk_review_date" id="aiRiskReviewDate" style="width: 200px; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                        </div>
+
+                        <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+                            <button type="button" id="aiRiskCancelBtn" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 13px;">Cancel</button>
+                            <button type="submit" id="aiRiskSubmitBtn" style="padding: 10px 22px; border: none; background: #6d28d9; color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">Create Risk</button>
                         </div>
                     </form>
                 </div>
@@ -2114,6 +2483,33 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     retierModal.style.display = 'none';
                 }
             });
+
+            // 90-Day Compliance Report modal
+            // Close button is wired via document-level CAPTURE-phase delegation.
+            // event-handlers.js attaches a [data-stop-propagation] handler on
+            // document.body in capture, which calls stopPropagation() and
+            // prevents both bubble-phase delegation and element-level listeners
+            // inside the modal from firing. Listening on document in capture
+            // runs before body in the capture order, so our handler executes.
+            var complianceModal = document.getElementById('complianceReportModal');
+            window.openComplianceReportModal = function() {
+                if (complianceModal) complianceModal.style.display = 'flex';
+            };
+            if (complianceModal) {
+                var closeCompliance = function() { complianceModal.style.display = 'none'; };
+                document.addEventListener('click', function(e) {
+                    var btn = e.target.closest('[data-close="compliance"]');
+                    if (btn && complianceModal.contains(btn)) {
+                        e.preventDefault();
+                        closeCompliance();
+                    } else if (e.target === complianceModal) {
+                        closeCompliance();
+                    }
+                }, true);
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && complianceModal.style.display === 'flex') closeCompliance();
+                });
+            }
         })();
     </script>
     <script nonce="<?php echo cspNonce(); ?>">
@@ -2289,6 +2685,247 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             document.addEventListener('click', function(e) {
                 if (!assigneeInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
                     suggestionsBox.style.display = 'none';
+                }
+            });
+        })();
+    </script>
+    <?php endif; ?>
+    <?php if ($isAdmin || $isCyberTPRM || $acl->hasGroup('cyber_grc')): ?>
+    <script nonce="<?php echo cspNonce(); ?>">
+        // AI Risk Register modal — stays open on backdrop click, prefills for update
+        (function() {
+            var modal = document.getElementById('aiRiskModal');
+            if (!modal) return;
+
+            var aiRiskMap = <?php
+                $jsMap = [];
+                foreach ($aiRiskMap as $vid => $r) {
+                    $cids = [];
+                    if (!empty($r['control_ids'])) {
+                        $cids = array_values(array_filter(array_map('intval', explode(',', $r['control_ids']))));
+                    }
+                    $jsMap[(string)$vid] = [
+                        'id' => (int)$r['id'],
+                        'title' => $r['title'] ?? '',
+                        'description' => $r['description'] ?? '',
+                        'risk_category' => $r['risk_category'] ?? 'technology',
+                        'likelihood' => $r['likelihood'] ?? 'possible',
+                        'impact' => $r['impact'] ?? 'moderate',
+                        'residual_risk_score' => $r['residual_risk_score'] ?? '',
+                        'risk_treatment' => $r['risk_treatment'] ?? 'mitigate',
+                        'treatment_plan' => $r['treatment_plan'] ?? '',
+                        'status' => $r['status'] ?? 'identified',
+                        'review_date' => $r['review_date'] ?? '',
+                        'owner_user_id' => (int)($r['owner_user_id'] ?? 0),
+                        'owner_name' => $r['owner_name'] ?? '',
+                        'control_ids' => $cids,
+                    ];
+                }
+                echo json_encode($jsMap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+            ?>;
+
+            var ownersList = <?php
+                $jsOwners = [];
+                foreach ($aiEligibleOwners as $u) {
+                    $jsOwners[] = [
+                        'id' => (int)$u['id'],
+                        'name' => $u['full_name'] ?? '',
+                        'email' => $u['email'] ?? '',
+                    ];
+                }
+                echo json_encode($jsOwners, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+            ?>;
+
+            var titleInput = document.getElementById('aiRiskTitle');
+            var descInput = document.getElementById('aiRiskDescription');
+            var categorySel = document.getElementById('aiRiskCategory');
+            var statusSel = document.getElementById('aiRiskStatus');
+            var likelihoodSel = document.getElementById('aiRiskLikelihood');
+            var impactSel = document.getElementById('aiRiskImpact');
+            var residualInput = document.getElementById('aiRiskResidual');
+            var treatmentSel = document.getElementById('aiRiskTreatment');
+            var treatmentPlanInput = document.getElementById('aiRiskTreatmentPlan');
+            var controlsSel = document.getElementById('aiRiskControls');
+            var reviewDateInput = document.getElementById('aiRiskReviewDate');
+            var ownerInput = document.getElementById('aiRiskOwnerInput');
+            var ownerHidden = document.getElementById('aiRiskOwnerId');
+            var ownerBox = document.getElementById('aiRiskOwnerSuggestions');
+            var vendorIdInput = document.getElementById('aiRiskVendorId');
+            var riskIdInput = document.getElementById('aiRiskId');
+            var vendorLabel = document.getElementById('aiRiskVendorLabel');
+            var modalTitle = document.getElementById('aiRiskModalTitle');
+            var submitBtn = document.getElementById('aiRiskSubmitBtn');
+            var actionCreate = document.getElementById('aiRiskActionCreate');
+            var actionUpdate = document.getElementById('aiRiskActionUpdate');
+            var cancelBtn = document.getElementById('aiRiskCancelBtn');
+            var closeX = document.getElementById('aiRiskCloseX');
+            var form = document.getElementById('aiRiskForm');
+
+            function escapeHtml(s) {
+                var d = document.createElement('div');
+                d.textContent = s == null ? '' : String(s);
+                return d.innerHTML;
+            }
+
+            function resetForm() {
+                titleInput.value = '';
+                descInput.value = '';
+                categorySel.value = 'technology';
+                statusSel.value = 'identified';
+                likelihoodSel.value = 'possible';
+                impactSel.value = 'moderate';
+                residualInput.value = '';
+                treatmentSel.value = 'mitigate';
+                treatmentPlanInput.value = '';
+                reviewDateInput.value = '';
+                ownerInput.value = '';
+                ownerHidden.value = '';
+                for (var i = 0; i < controlsSel.options.length; i++) {
+                    controlsSel.options[i].selected = false;
+                }
+            }
+
+            function setSelect(sel, val) {
+                if (val == null || val === '') return;
+                for (var i = 0; i < sel.options.length; i++) {
+                    if (sel.options[i].value === String(val)) { sel.selectedIndex = i; return; }
+                }
+            }
+
+            function openAiRiskModal(vendorId, vendorName, hasExisting) {
+                resetForm();
+                vendorIdInput.value = vendorId;
+                vendorLabel.textContent = 'Vendor: ' + vendorName;
+                var defaultTitle = vendorName + ' - Uses AI in their services';
+                titleInput.value = defaultTitle;
+
+                var existing = aiRiskMap[String(vendorId)];
+                if (hasExisting && existing) {
+                    modalTitle.textContent = 'Update AI Risk (' + (existing.id ? 'RSK #' + existing.id : '') + ')';
+                    submitBtn.textContent = 'Update Risk';
+                    actionCreate.disabled = true;
+                    actionCreate.removeAttribute('name');
+                    actionUpdate.disabled = false;
+                    actionUpdate.name = 'update_ai_risk';
+                    actionUpdate.value = '1';
+                    riskIdInput.value = existing.id;
+
+                    if (existing.title) titleInput.value = existing.title;
+                    descInput.value = existing.description || '';
+                    setSelect(categorySel, existing.risk_category);
+                    setSelect(statusSel, existing.status);
+                    setSelect(likelihoodSel, existing.likelihood);
+                    setSelect(impactSel, existing.impact);
+                    residualInput.value = existing.residual_risk_score || '';
+                    setSelect(treatmentSel, existing.risk_treatment);
+                    treatmentPlanInput.value = existing.treatment_plan || '';
+                    reviewDateInput.value = existing.review_date || '';
+
+                    if (existing.owner_user_id && existing.owner_name) {
+                        ownerHidden.value = existing.owner_user_id;
+                        ownerInput.value = existing.owner_name;
+                    }
+
+                    if (existing.control_ids && existing.control_ids.length) {
+                        var wanted = {};
+                        existing.control_ids.forEach(function(id) { wanted[String(id)] = true; });
+                        for (var i = 0; i < controlsSel.options.length; i++) {
+                            controlsSel.options[i].selected = !!wanted[controlsSel.options[i].value];
+                        }
+                    }
+                } else {
+                    modalTitle.textContent = 'Add AI Risk to Register';
+                    submitBtn.textContent = 'Create Risk';
+                    actionCreate.disabled = false;
+                    actionCreate.name = 'create_ai_risk';
+                    actionCreate.value = '1';
+                    actionUpdate.disabled = true;
+                    actionUpdate.removeAttribute('name');
+                    riskIdInput.value = '';
+                }
+                modal.style.display = 'flex';
+                setTimeout(function() { titleInput.focus(); }, 30);
+            }
+
+            function closeAiRiskModal() {
+                modal.style.display = 'none';
+                ownerBox.style.display = 'none';
+            }
+
+            document.querySelectorAll('.ai-risk-link').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openAiRiskModal(
+                        this.dataset.vendorId,
+                        this.dataset.vendorName,
+                        this.dataset.existing === '1'
+                    );
+                });
+            });
+
+            cancelBtn.addEventListener('click', closeAiRiskModal);
+            closeX.addEventListener('click', closeAiRiskModal);
+
+            // Intentionally do NOT close on backdrop click — modal stays open when clicked off of
+            // (User explicitly requested this behavior.)
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modal.style.display === 'flex') closeAiRiskModal();
+            });
+
+            // Owner typeahead (client-side filter over preloaded list)
+            function renderOwnerSuggestions(query) {
+                var q = query.trim().toLowerCase();
+                var matches = ownersList.filter(function(u) {
+                    if (!q) return true;
+                    return u.name.toLowerCase().indexOf(q) !== -1 ||
+                           (u.email && u.email.toLowerCase().indexOf(q) !== -1);
+                }).slice(0, 20);
+
+                if (matches.length === 0) {
+                    ownerBox.innerHTML = '<div style="padding: 10px 12px; font-size: 12px; color: #9ca3af;">No users found</div>';
+                } else {
+                    ownerBox.innerHTML = matches.map(function(u) {
+                        return '<div class="ai-owner-item" data-user-id="' + u.id +
+                            '" data-user-name="' + escapeHtml(u.name) +
+                            '" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f3f4f6; font-size: 13px;">' +
+                            '<div style="color: #111;">' + escapeHtml(u.name) + '</div>' +
+                            (u.email ? '<div style="color: #6b7280; font-size: 11px;">' + escapeHtml(u.email) + '</div>' : '') +
+                            '</div>';
+                    }).join('');
+                    ownerBox.querySelectorAll('.ai-owner-item').forEach(function(item) {
+                        item.addEventListener('mouseenter', function() { this.style.background = '#f3f4f6'; });
+                        item.addEventListener('mouseleave', function() { this.style.background = 'white'; });
+                        item.addEventListener('click', function() {
+                            ownerHidden.value = this.dataset.userId;
+                            ownerInput.value = this.dataset.userName;
+                            ownerBox.style.display = 'none';
+                        });
+                    });
+                }
+                ownerBox.style.display = 'block';
+            }
+
+            ownerInput.addEventListener('input', function() {
+                ownerHidden.value = '';
+                renderOwnerSuggestions(this.value);
+            });
+            ownerInput.addEventListener('focus', function() {
+                renderOwnerSuggestions(this.value);
+            });
+            document.addEventListener('click', function(e) {
+                if (!ownerInput.contains(e.target) && !ownerBox.contains(e.target)) {
+                    ownerBox.style.display = 'none';
+                }
+            });
+
+            // Fallback: if user types a name that exactly matches an owner, set the id on submit
+            form.addEventListener('submit', function(e) {
+                if (!ownerHidden.value && ownerInput.value.trim() !== '') {
+                    var typed = ownerInput.value.trim().toLowerCase();
+                    var match = ownersList.find(function(u) { return u.name.toLowerCase() === typed; });
+                    if (match) ownerHidden.value = match.id;
                 }
             });
         })();

@@ -1,5 +1,5 @@
 -- =============================================================================
--- FairTPRM v2.5.8 - Complete Database Schema and Seed Data
+-- FairTPRM v2.6.1 - Complete Database Schema and Seed Data
 -- 
 -- This file creates ALL required database objects and seeds default data.
 -- Safe to run on new or existing databases (idempotent).
@@ -1138,6 +1138,7 @@ CREATE TABLE IF NOT EXISTS `grc_risk_register` (
   `status` enum('identified','assessing','treating','monitoring','closed') DEFAULT 'identified',
   `review_date` date DEFAULT NULL,
   `created_by` int(10) unsigned NOT NULL,
+  `vendor_id` int(10) unsigned DEFAULT NULL COMMENT 'vendor_onboarding_requests.id this risk is associated with',
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
@@ -1145,7 +1146,8 @@ CREATE TABLE IF NOT EXISTS `grc_risk_register` (
   KEY `idx_ref` (`risk_ref`),
   KEY `idx_category` (`risk_category`),
   KEY `idx_status` (`status`),
-  KEY `idx_owner` (`owner_user_id`)
+  KEY `idx_owner` (`owner_user_id`),
+  KEY `idx_vendor_id` (`vendor_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS `grc_scopes` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -1287,7 +1289,7 @@ CREATE TABLE IF NOT EXISTS `shadow_saas` (
   `rescore_status` varchar(30) DEFAULT NULL,
   `rescore_started_at` datetime DEFAULT NULL,
   `rescore_result` text DEFAULT NULL,
-  `status` enum('pending','onboarded','dismissed') DEFAULT 'pending',
+  `status` enum('pending','onboarded','dismissed','unsanctioned') DEFAULT 'pending',
   `onboarded_vendor_id` int(10) unsigned DEFAULT NULL,
   `onboarded_at` datetime DEFAULT NULL,
   `onboarded_by` int(10) unsigned DEFAULT NULL,
@@ -1541,7 +1543,7 @@ CREATE TABLE IF NOT EXISTS `vendor_documents` (
   `vendor_request_id` int(10) unsigned NOT NULL COMMENT 'FK to vendor_onboarding_requests',
   `document_type` varchar(20) NOT NULL COMMENT 'contract, certification, or other',
   `contract_name` varchar(255) DEFAULT NULL COMMENT 'Contract display name',
-  `contract_type` varchar(50) DEFAULT NULL COMMENT 'DPA, Master Service Agreement, Privacy, Order Form, PO',
+  `contract_type` varchar(50) DEFAULT NULL COMMENT 'NDA, DPA, Master Service Agreement, Privacy, Order Form, PO',
   `contract_creation_date` date DEFAULT NULL,
   `contract_expiration_date` date DEFAULT NULL,
   `certification_type` varchar(100) DEFAULT NULL COMMENT 'SOC 2 Type II, ISO 27001, etc.',
@@ -1696,6 +1698,15 @@ CREATE TABLE IF NOT EXISTS `vendor_shodan_cve_waivers` (
   KEY `idx_cve_waiver_vendor` (`vendor_onboarding_id`),
   CONSTRAINT `vendor_shodan_cve_waivers_ibfk_1` FOREIGN KEY (`vendor_onboarding_id`) REFERENCES `vendor_onboarding_requests` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS `shodan_rescan_log` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `ip_address` varchar(45) NOT NULL,
+  `scan_id` varchar(64) DEFAULT NULL,
+  `requested_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `requested_by` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_ip_requested` (`ip_address`,`requested_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS `vendor_shodan_findings` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `shodan_score_id` int(10) unsigned NOT NULL,
@@ -1950,23 +1961,6 @@ CREATE TABLE IF NOT EXISTS `waf_whitelist_rules` (
   UNIQUE KEY `uq_rule_id` (`rule_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=512 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Per-IP+UA failed-login tracking. Drives the IP-fingerprint lockout that
--- replaces blanket account lockout as the primary brute-force defense, so a
--- threat actor at one source IP cannot DoS legitimate users by guessing
--- their passwords. Account-level lockout still triggers on distributed
--- attacks (failures from 3+ IPs against one username in 24h).
-CREATE TABLE IF NOT EXISTS `auth_failed_attempts` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `client_ip` varchar(45) NOT NULL,
-  `ua_hash` char(64) NOT NULL,
-  `username_attempted` varchar(255) DEFAULT NULL,
-  `attempted_at` datetime NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `idx_ip_ua_time` (`client_ip`, `ua_hash`, `attempted_at`),
-  KEY `idx_username_time` (`username_attempted`, `attempted_at`),
-  KEY `idx_attempted_at` (`attempted_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE TABLE IF NOT EXISTS `cyber_breach_alerts` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `alert_hash` varchar(64) NOT NULL,
@@ -2193,9 +2187,12 @@ UNLOCK TABLES;
 
 INSERT IGNORE INTO `app_config` (`config_key`, `config_value`) VALUES
 ('app_timezone', 'America/New_York'),
-('app_version', 'v2.5.8'),
+('app_version', 'v2.6.1'),
 ('auth_type', 'local'),
+('local_login_enabled', '1'),
+('break_glass_admin_username', 'admin'),
 ('company_name', 'FairTPRM'),
+('org_self_domain', ''),
 ('app_url', 'http://localhost:8080'),
 ('email_enabled', '0'),
 ('email_method', 'smtp'),
@@ -2237,6 +2234,7 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`) VALUES
 ('shodan_min_cve_year', '0'),
 ('shodan_randomize_subdomains', '1'),
 ('shodan_on_demand_scan', '0'),
+('shodan_rescan_cooldown_hours', '24'),
 ('shodan_use_cron', '1'),
 ('shodan_category_weights', '{"tls_crypto":5,"network_security":15,"vuln_exposure":40,"email_security":20}'),
 ('upguard_enabled', '0'),
@@ -2260,6 +2258,8 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`) VALUES
 ('librechat_enabled', '0'),
 ('librechat_max_tokens', '500'),
 ('librechat_temperature', '0.7'),
+('custom_enabled', '0'),
+('custom_secret_header_name', 'x-app-secret'),
 ('procurement_notifications_enabled', '0'),
 ('procurement_notification_recipients', 'all'),
 ('procurement_notification_selected_users', '[]'),
@@ -2294,6 +2294,18 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`) VALUES
 ('breach_alert_last_run', ''),
 ('cron_breach_monitor_enabled', '1'),
 ('cron_breach_monitor_schedule', '0 7 * * *');
+
+-- =============================================================================
+-- Microsoft 365 Graph API email transport config (folded in from the former
+-- standalone v2.5.8_graph_email.sql migration). Lets admins choose between SMTP
+-- and Microsoft Graph for outbound email. Seeded empty; the client secret row
+-- is flagged is_encrypted=1 so the app stores it encrypted once configured.
+-- =============================================================================
+INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) VALUES
+('email_ms_tenant_id',     '', 0),
+('email_ms_client_id',     '', 0),
+('email_ms_client_secret', '', 1),
+('email_ms_sender',        '', 0);
 
 -- =============================================================================
 -- Fix UpGuard grade thresholds: older installs seeded raw-score values
@@ -5308,5 +5320,300 @@ ALTER TABLE `cyber_breach_alerts`
     MODIFY COLUMN `affected_entity_type` ENUM('vendor','subprocessor','technology','organization') NOT NULL DEFAULT 'vendor';
 
 -- =============================================================================
--- FairTPRM v2.5.8 schema and seed data complete
+-- vendor_onboarding_requests: Cost Center and Project (Engagement Details)
+-- =============================================================================
+
+-- vendor_onboarding_requests.cost_center
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND column_name = 'cost_center') = 0,
+  'ALTER TABLE `vendor_onboarding_requests` ADD COLUMN `cost_center` INT(10) UNSIGNED DEFAULT NULL COMMENT ''Accounting cost center (integer)'' AFTER `target_user_count`',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- vendor_onboarding_requests.project
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND column_name = 'project') = 0,
+  'ALTER TABLE `vendor_onboarding_requests` ADD COLUMN `project` VARCHAR(255) DEFAULT NULL COMMENT ''Project name / identifier'' AFTER `cost_center`',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Index to speed up search/filter on cost_center and project
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.statistics
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND index_name = 'idx_project') = 0,
+  'ALTER TABLE `vendor_onboarding_requests` ADD INDEX `idx_project` (`project`)',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.statistics
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND index_name = 'idx_cost_center') = 0,
+  'ALTER TABLE `vendor_onboarding_requests` ADD INDEX `idx_cost_center` (`cost_center`)',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Seed field_references entries for Cost Center, Project, and Services Use AI
+-- (vendor_use_ai column already exists; this just documents it in field-reference UI)
+INSERT IGNORE INTO `field_references` (`field_name`, `column_type`, `section`, `category`, `description`, `is_builtin`) VALUES
+  ('cost_center',  'INT(10) UNSIGNED',   'Engagement Details',     'onboarding', 'Accounting cost center (integer)', 1),
+  ('project',      'VARCHAR(255)',       'Engagement Details',     'onboarding', 'Project name / identifier', 1),
+  ('vendor_use_ai','ENUM(''yes'',''no'','''')', 'Data & Risk Assessment', 'onboarding', 'Does vendor solution use AI? (Services Use AI checkbox on onboarding)', 1);
+
+-- =============================================================================
+-- grc_risk_register: vendor_id link (for per-vendor AI risk tracking from SRS list)
+-- =============================================================================
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_risk_register' AND column_name = 'vendor_id') = 0,
+  'ALTER TABLE `grc_risk_register` ADD COLUMN `vendor_id` INT(10) UNSIGNED DEFAULT NULL COMMENT ''vendor_onboarding_requests.id this risk is associated with'' AFTER `created_by`',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.statistics
+   WHERE table_schema = DATABASE() AND table_name = 'grc_risk_register' AND index_name = 'idx_vendor_id') = 0,
+  'ALTER TABLE `grc_risk_register` ADD INDEX `idx_vendor_id` (`vendor_id`)',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- =============================================================================
+-- Grip Security integration (Shadow SaaS): mirror tables, shadow_saas link
+-- columns, and app_config defaults. Idempotent — safe to re-run.
+-- =============================================================================
+
+-- Mirror tables for the Grip Security public API. Created here so fresh
+-- installs get them; existing installs are unaffected because of IF NOT EXISTS.
+
+CREATE TABLE IF NOT EXISTS `shadow_saas_grip_apps` (
+  `grip_id` varchar(64) NOT NULL,
+  `name` varchar(500) DEFAULT NULL,
+  `url` varchar(2048) DEFAULT NULL,
+  `domain` varchar(255) DEFAULT NULL COMMENT 'Normalized registrable domain extracted from url',
+  `logo_url` varchar(2048) DEFAULT NULL,
+  `category` varchar(255) DEFAULT NULL,
+  `risk_score` int(10) unsigned DEFAULT NULL,
+  `sanction_tag` varchar(50) DEFAULT NULL,
+  `number_of_users` int(10) unsigned DEFAULT NULL,
+  `number_of_onboarded_users` int(10) unsigned DEFAULT NULL,
+  `number_of_offboarded_users` int(10) unsigned DEFAULT NULL,
+  `sso_percentage` int(10) unsigned DEFAULT NULL,
+  `access_removal_support` varchar(50) DEFAULT NULL,
+  `business_owner` varchar(64) DEFAULT NULL,
+  `app_instances_count` int(10) unsigned DEFAULT NULL,
+  `last_known_usage` datetime DEFAULT NULL,
+  `first_event_time` datetime DEFAULT NULL,
+  `latest_event_time` datetime DEFAULT NULL,
+  `unique_scopes_count` int(10) unsigned DEFAULT NULL,
+  `mfa_supported` text DEFAULT NULL,
+  `ai_depth_level` varchar(255) DEFAULT NULL,
+  `ai_depth_description` text DEFAULT NULL,
+  `oauth_total` int(10) unsigned DEFAULT NULL,
+  `oauth_high` int(10) unsigned DEFAULT NULL,
+  `oauth_medium` int(10) unsigned DEFAULT NULL,
+  `oauth_low` int(10) unsigned DEFAULT NULL,
+  `primary_contact_name` varchar(255) DEFAULT NULL,
+  `primary_contact_email` varchar(320) DEFAULT NULL,
+  `primary_contact_user_id` varchar(64) DEFAULT NULL,
+  `labels` longtext DEFAULT NULL COMMENT 'JSON array',
+  `source_platforms` longtext DEFAULT NULL COMMENT 'JSON array',
+  `assets` longtext DEFAULT NULL COMMENT 'JSON array',
+  `compliances` longtext DEFAULT NULL COMMENT 'JSON array',
+  `saml_supported` longtext DEFAULT NULL COMMENT 'JSON object: idp -> doc url',
+  `saas_users_roles` longtext DEFAULT NULL COMMENT 'JSON array',
+  `terms_questions` longtext DEFAULT NULL COMMENT 'JSON',
+  `terms_references` longtext DEFAULT NULL COMMENT 'JSON',
+  `oauth_scopes_high` longtext DEFAULT NULL COMMENT 'JSON array',
+  `oauth_scopes_medium` longtext DEFAULT NULL COMMENT 'JSON array',
+  `oauth_scopes_low` longtext DEFAULT NULL COMMENT 'JSON array',
+  `raw_payload` longtext DEFAULT NULL COMMENT 'Full original JSON',
+  `first_seen_at` timestamp NULL DEFAULT current_timestamp(),
+  `last_synced_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`grip_id`),
+  KEY `idx_name` (`name`(191)),
+  KEY `idx_domain` (`domain`),
+  KEY `idx_category` (`category`),
+  KEY `idx_risk_score` (`risk_score`),
+  KEY `idx_sanction_tag` (`sanction_tag`),
+  KEY `idx_last_synced_at` (`last_synced_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `shadow_saas_grip_users` (
+  `grip_id` varchar(64) NOT NULL,
+  `mail` varchar(320) DEFAULT NULL,
+  `aliases` longtext DEFAULT NULL COMMENT 'JSON array',
+  `full_name` varchar(255) DEFAULT NULL,
+  `display_name` varchar(255) DEFAULT NULL,
+  `organizational_unit` varchar(255) DEFAULT NULL,
+  `manager_email` varchar(320) DEFAULT NULL,
+  `user_type` varchar(64) DEFAULT NULL,
+  `number_of_saas` int(10) unsigned DEFAULT NULL,
+  `sso_percentage` int(10) unsigned DEFAULT NULL,
+  `has_active_mailbox` tinyint(1) DEFAULT NULL,
+  `last_usage` datetime DEFAULT NULL,
+  `first_event_time` datetime DEFAULT NULL,
+  `latest_event_time` datetime DEFAULT NULL,
+  `offboarding_workflow_status` varchar(64) DEFAULT NULL,
+  `offboarding_workflow_timestamp` datetime DEFAULT NULL,
+  `roles` longtext DEFAULT NULL COMMENT 'JSON array',
+  `labels` longtext DEFAULT NULL COMMENT 'JSON array',
+  `platforms_activity` longtext DEFAULT NULL COMMENT 'JSON array',
+  `custom_fields` longtext DEFAULT NULL COMMENT 'JSON',
+  `raw_payload` longtext DEFAULT NULL,
+  `first_seen_at` timestamp NULL DEFAULT current_timestamp(),
+  `last_synced_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`grip_id`),
+  KEY `idx_mail` (`mail`),
+  KEY `idx_full_name` (`full_name`),
+  KEY `idx_org_unit` (`organizational_unit`),
+  KEY `idx_last_synced_at` (`last_synced_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `shadow_saas_grip_alerts` (
+  `alert_id` varchar(64) NOT NULL,
+  `alert_type` varchar(255) DEFAULT NULL,
+  `alert_severity` varchar(50) DEFAULT NULL,
+  `category` varchar(255) DEFAULT NULL,
+  `status` varchar(50) DEFAULT NULL,
+  `description` longtext DEFAULT NULL,
+  `mitigation_steps` longtext DEFAULT NULL COMMENT 'JSON',
+  `potential_impacts` longtext DEFAULT NULL COMMENT 'JSON array',
+  `unique_fields_data` longtext DEFAULT NULL COMMENT 'JSON',
+  `related_entity_id` varchar(64) DEFAULT NULL,
+  `related_entity_name` varchar(500) DEFAULT NULL,
+  `related_entity_type` varchar(64) DEFAULT NULL,
+  `alert_url` varchar(2048) DEFAULT NULL,
+  `created_at_grip` datetime DEFAULT NULL,
+  `updated_at_grip` datetime DEFAULT NULL,
+  `raw_payload` longtext DEFAULT NULL,
+  `first_seen_at` timestamp NULL DEFAULT current_timestamp(),
+  `last_synced_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`alert_id`),
+  KEY `idx_alert_type` (`alert_type`),
+  KEY `idx_alert_severity` (`alert_severity`),
+  KEY `idx_status` (`status`),
+  KEY `idx_related_entity` (`related_entity_id`),
+  KEY `idx_created_at_grip` (`created_at_grip`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `shadow_saas_grip_sync_log` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `started_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `finished_at` datetime DEFAULT NULL,
+  `trigger_source` varchar(20) NOT NULL DEFAULT 'cron' COMMENT 'cron|manual|test',
+  `status` varchar(20) NOT NULL DEFAULT 'running' COMMENT 'running|success|partial|error',
+  `apps_fetched` int(10) unsigned DEFAULT 0,
+  `users_fetched` int(10) unsigned DEFAULT 0,
+  `alerts_fetched` int(10) unsigned DEFAULT 0,
+  `shadow_saas_upserted` int(10) unsigned DEFAULT 0,
+  `error_message` text DEFAULT NULL,
+  `triggered_by` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_started_at` (`started_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- shadow_saas link columns used by GripService::projectAppsToShadowSaas().
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_id') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `grip_id` VARCHAR(64) DEFAULT NULL COMMENT ''Grip Security UUID for matching upserts''',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.statistics
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND index_name = 'idx_grip_id') = 0,
+  'ALTER TABLE `shadow_saas` ADD INDEX `idx_grip_id` (`grip_id`)',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'source') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `source` VARCHAR(20) DEFAULT ''csv'' COMMENT ''Origin of this row: csv | grip | manual''',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Zscaler block state: tracks vendors whose domain has been pushed into
+-- the configured ZIA URL Category via the Deny button. The Allow button
+-- in shadow-saas.php is rendered iff is_zscaler_blocked = 1.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'is_zscaler_blocked') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `is_zscaler_blocked` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''1 = domain currently in Zscaler URL Category''',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'zscaler_blocked_at') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `zscaler_blocked_at` DATETIME DEFAULT NULL COMMENT ''When the domain was last added to Zscaler URL Category''',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Default app_config rows so fresh installs render the admin page with
+-- predictable values. INSERT IGNORE leaves any operator-customized values alone.
+-- grip_base_url is intentionally NOT seeded — it's tenant-specific and the
+-- admin enters it in the UI; the PHP loader falls back to a sensible value
+-- when the row is absent.
+INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) VALUES
+  ('grip_enabled',         '0',     0),
+  ('grip_api_token',       '',      1),
+  ('grip_cron_enabled',    '0',     0),
+  ('grip_cron_frequency',  'daily', 0);
+
+-- Repair any rows that were already saved with NULL config_value (the bug
+-- this migration accompanies could create those for grip_cron_frequency
+-- in earlier installs of v2.5.8). NOT NULL prevents future occurrences.
+UPDATE `app_config` SET `config_value` = 'daily' WHERE `config_key` = 'grip_cron_frequency' AND `config_value` IS NULL;
+UPDATE `app_config` SET `config_value` = '0'     WHERE `config_key` = 'grip_cron_enabled'   AND `config_value` IS NULL;
+UPDATE `app_config` SET `config_value` = ''      WHERE `config_key` = 'grip_api_token'      AND `config_value` IS NULL;
+
+-- shadow_saas.status: ensure the enum includes 'unsanctioned'. Earlier installs
+-- only had ('pending','onboarded','dismissed'); the Deny button in shadow-saas.php
+-- now flips rows to 'unsanctioned' as a local equivalent of Grip's sanctionTag.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas'
+     AND column_name = 'status' AND column_type LIKE '%unsanctioned%') = 0,
+  'ALTER TABLE `shadow_saas` MODIFY COLUMN `status` ENUM(''pending'',''onboarded'',''dismissed'',''unsanctioned'') DEFAULT ''pending''',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- =============================================================================
+-- audit_log lockout index (folded in from the former v2.5.8_login_throttling
+-- migration). The PHP-layer login lockout runs IP-keyed COUNT queries against
+-- audit_log on every login attempt; without this composite index those queries
+-- full-scan a growing table. CREATE INDEX is not natively idempotent on older
+-- MariaDB (<10.6), so guard via INFORMATION_SCHEMA to keep re-runs safe.
+-- =============================================================================
+SET @idx_exists := (
+    SELECT COUNT(*) FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name   = 'audit_log'
+      AND index_name   = 'idx_audit_ip_created'
+);
+SET @sql := IF(@idx_exists = 0,
+    'CREATE INDEX idx_audit_ip_created ON audit_log (ip_address, created_at)',
+    'SELECT 1');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- =============================================================================
+-- FairTPRM v2.6.1 schema and seed data complete
 -- =============================================================================

@@ -47,6 +47,32 @@ try {
     // SAML not available, that's fine
 }
 
+// Local-login policy. When SAML is enabled, an admin may set local_login_enabled=0
+// to make SSO the only path for normal users. The designated break-glass admin
+// account can ALWAYS use local login, so a broken/misconfigured IdP can never lock
+// everyone out. If SAML is not actually configured, the toggle is ignored entirely
+// (anti-lockout) and local login stays fully available.
+$localLoginEnabled = true;
+$breakGlassUser = 'admin';
+if ($samlEnabled) {
+    try {
+        $cfgDb = Database::getInstance();
+        $rowLL = $cfgDb->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'local_login_enabled'");
+        if ($rowLL !== null && isset($rowLL['config_value'])) {
+            $localLoginEnabled = ((string)$rowLL['config_value'] !== '0');
+        }
+        $rowBG = $cfgDb->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'break_glass_admin_username'");
+        if ($rowBG !== null && !empty($rowBG['config_value'])) {
+            $breakGlassUser = (string)$rowBG['config_value'];
+        }
+    } catch (Exception $e) {
+        // On any config-read error, fail OPEN for local login (anti-lockout).
+        $localLoginEnabled = true;
+    }
+}
+// SAML-only mode: SSO is the sole path for everyone except the break-glass admin.
+$samlOnly = $samlEnabled && !$localLoginEnabled;
+
 // Check for SAML error message from ACS redirect
 $samlError = $session->get('saml_error');
 if ($samlError) {
@@ -60,33 +86,10 @@ $success = '';
 $requiresTOTP = false;
 $pendingUserId = null;
 
-/**
- * Emit standardized rate-limit headers when the auth layer returns a lockout
- * response. The HTML page still renders so a real user sees the friendly
- * message, but scanners, bots, and rate-limit-aware HTTP clients now see the
- * HTTP 429 + Retry-After signal they expect — without which a credential
- * stuffing tool has no machine-readable evidence that throttling exists.
- * Headers are no-ops if Auth didn't return lockout_seconds.
- */
-$emitLockoutHeaders = function (array $result) {
-    $secs = (int)($result['lockout_seconds'] ?? 0);
-    if ($secs <= 0 || headers_sent()) {
-        return;
-    }
-    http_response_code(429);
-    header('Retry-After: ' . $secs);
-    // Advisory: surface the configured per-fingerprint failure budget so
-    // operators / clients can see how the throttle is provisioned.
-    $maxAttempts = (int)getAppConfig('max_login_attempts', '5');
-    header('X-RateLimit-Limit: ' . $maxAttempts);
-    header('X-RateLimit-Remaining: 0');
-    header('X-RateLimit-Reset: ' . (time() + $secs));
-};
-
 // Only process form submissions, not GET requests (duh)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF check first -- if someone tries to replay this form, they can go pound sand
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
 
     // TOTP verification step -- user already passed username/password, now prove you have your phone
@@ -106,18 +109,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect($redirectAfterLogin);
             } else {
                 // Wrong code -- maybe your clock is off, or you typed it too slowly
-                $emitLockoutHeaders($result);
                 $error = $result['message'];
-                // If lockout tore down the pending TOTP session, fall back to
-                // the username/password form rather than re-prompting for a
-                // code there's no longer a session for.
-                if (!empty($result['lockout_seconds'])
-                    && (int)$session->get('pending_totp_user_id', 0) <= 0) {
-                    $requiresTOTP = false;
-                } else {
-                    $requiresTOTP = true;
-                    $pendingUserId = $userId;
-                }
+                $requiresTOTP = true;
+                $pendingUserId = $userId;
             }
         }
 
@@ -129,7 +123,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $username = $security->cleanInput($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        if (empty($username) || empty($password)) {
+        if ($samlOnly && strcasecmp($username, $breakGlassUser) !== 0) {
+            // SAML-only mode: reject local password auth for everyone except the
+            // break-glass admin. Enforced server-side, not just hidden in the UI.
+            $error = 'Local login is disabled. Please sign in with SSO.';
+        } elseif (empty($username) || empty($password)) {
             $error = 'Please enter both username and password';
         } else {
             // Let the Auth class do the heavy lifting -- password hashing, lockout checks, etc.
@@ -144,7 +142,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pendingUserId = $result['user_id'];
             } else {
                 // Nope. Wrong password, locked out, or some other sad state of affairs.
-                $emitLockoutHeaders($result);
                 $error = $result['message'];
             }
         }
@@ -353,7 +350,7 @@ $csrfToken = $security->generateCSRFToken();
                 </a>
 
                 <div style="text-align: center; margin-top: 20px;">
-                    <a href="#" id="localSigninToggle" style="color: #999; font-size: 12px; text-decoration: none;">Local Sign In</a>
+                    <a href="#" id="localSigninToggle" style="color: #999; font-size: 12px; text-decoration: none;"><?php echo $samlOnly ? 'Administrator (break-glass) login' : 'Local Sign In'; ?></a>
                 </div>
 
                 <div id="localSigninForm" style="display: <?php echo $error && !$samlError ? '' : 'none'; ?>; margin-top: 20px;">
@@ -439,7 +436,6 @@ $csrfToken = $security->generateCSRFToken();
         </footer>
     </div>
     <script src="app/js/core.min.js"></script>
-    <script src="app/js/vendor/select2-4.0.13.min.js"></script>
     <script src="app/js/script.js"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
 </body>

@@ -59,6 +59,10 @@ return [
     // =========================================================================
     'auth' => [
         'type' => 'local', // 'local' = username/password in our DB, 'saml' = SSO via OKTA/etc.
+        // When true AND SAML is configured/enabled, the local username/password form is hidden
+        // and /login.php returns 404. If SAML is NOT configured, this flag is ignored so admins
+        // can still get in via local login (lockout safety net).
+        'force_saml' => false,
         'session_lifetime' => 3600, // 1 hour in seconds. Adjust for paranoia level.
         'session_name' => '__Host-tprm_session',  // __Host- prefix enforces Secure, no Domain, Path=/
         'max_login_attempts' => 5,         // 5 strikes and you're locked out

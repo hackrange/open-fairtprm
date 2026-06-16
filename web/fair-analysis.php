@@ -640,7 +640,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !$acl->hasPermission("analysis.crea
     http_response_code(403);
     $error = "Access denied. You do not have permission to create or edit analyses.";
 } elseif ($_SERVER["REQUEST_METHOD"] === "POST") {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please refresh the page and try again.';
     } else {
         $vendorName = $security->cleanInput($_POST['vendor_name'] ?? '');
@@ -730,6 +730,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !$acl->hasPermission("analysis.crea
                         $fairResults['loss_magnitude'] = floatval($_POST['ai_loss_magnitude'] ?? 0);
                         $fairResults['recommended_liability'] = floatval($_POST['ai_recommended_liability'] ?? 0);
                         $fairResults['risk_level'] = trim($_POST['ai_risk_level'] ?? '');
+
+                        // Tier-based LEF reduction also applies to AI-generated estimates.
+                        // Tier 2: LEF x 0.30, Tier 3: LEF x 0.10. Recompute ALE from reduced LEF.
+                        if ($vendorOnboardingId) {
+                            $tierRow = $db->fetchOne(
+                                'SELECT vendor_tier FROM vendor_onboarding_requests WHERE id = :id',
+                                [':id' => $vendorOnboardingId]
+                            );
+                            $tier = $tierRow['vendor_tier'] ?? null;
+                            $lefMultiplier = 1.0;
+                            if ($tier === '2' || $tier === 2) {
+                                $lefMultiplier = 0.30;
+                            } elseif ($tier === '3' || $tier === 3) {
+                                $lefMultiplier = 0.10;
+                            }
+                            if ($lefMultiplier < 1.0) {
+                                $fairResults['loss_event_frequency'] *= $lefMultiplier;
+                                $fairResults['annualized_loss_expectancy'] =
+                                    $fairResults['loss_event_frequency'] * $fairResults['loss_magnitude'];
+                            }
+                        }
                     }
 
                     // Store FAIR calculation results (encrypted)
@@ -1463,7 +1484,6 @@ $isProcurement = hasGroup('procurement');
     <?php endif; ?>
 
     <script src="app/js/core.min.js"></script>
-    <script src="app/js/vendor/select2-4.0.13.min.js"></script>
     <script src="app/js/script.js"></script>
     <script nonce="<?php echo cspNonce(); ?>">
         // Vendor autocomplete for both name and domain fields + enrichment

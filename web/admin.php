@@ -77,11 +77,12 @@ $sectionFiles = [
     'fair'      => 'fair-defaults.php',
     'email'     => 'email.php',
     'saml'      => 'saml.php',
-    'openwebui' => 'ai-platform.php',
-    'api'       => 'ai-platform.php',
+    'openwebui' => 'api-integration.php',
+    'api'       => 'api-integration.php',
     'ai-platform' => 'ai-platform.php',
     'api-tokens' => 'api-tokens.php',
     'srs'       => 'srs.php',
+    'shadow-saas' => 'shadow-saas-grip.php',
     'users'     => 'users.php',
     'groups'    => 'groups.php',
     'backup'    => 'backup.php',
@@ -422,13 +423,14 @@ if ($originalMethod !== 'POST' || !empty($success)) {
                         </ul>
                     </details>
 
-                    <details class="sidebar-section"<?php echo in_array($section, ['saml', 'openwebui', 'api', 'ai-platform', 'api-tokens', 'srs']) ? ' open' : ''; ?>>
+                    <details class="sidebar-section"<?php echo in_array($section, ['saml', 'openwebui', 'api', 'api-tokens', 'srs', 'shadow-saas']) ? ' open' : ''; ?>>
                         <summary class="sidebar-section-title">Integrations</summary>
                         <ul class="sidebar-nav">
                             <li><a href="?section=saml" class="<?php echo $section === 'saml' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/users-01.svg" alt="" width="18" height="18"></span><span>SAML SSO</span></a></li>
-                            <li><a href="?section=ai-platform" class="<?php echo in_array($section, ['api', 'openwebui', 'ai-platform']) ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/message-text-square-02.svg" alt="" width="18" height="18"></span><span>AI Integration</span></a></li>
+                            <li><a href="?section=api" class="<?php echo in_array($section, ['api', 'openwebui']) ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/message-text-square-02.svg" alt="" width="18" height="18"></span><span>AI Integration</span></a></li>
                             <li><a href="?section=api-tokens" class="<?php echo $section === 'api-tokens' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/key-01.svg" alt="" width="18" height="18"></span><span>RESTful API</span></a></li>
                             <li><a href="?section=srs" class="<?php echo $section === 'srs' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span>SRS</span></a></li>
+                            <li><a href="?section=shadow-saas" class="<?php echo $section === 'shadow-saas' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span>Shadow SaaS</span></a></li>
                         </ul>
                     </details>
 

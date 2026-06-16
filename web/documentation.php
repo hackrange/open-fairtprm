@@ -32,7 +32,7 @@ $isCyberGRC = hasGroup('cyber_grc');
 
 $nonce = cspNonce();
 $currentPage = 'documentation';
-$logoUrl = $theme['logo_url'] ?? 'app/images/logo-default-418x78.png';
+$logoUrl = $theme['logo_url'] ?? 'app/template/site/images/logo-default-418x78.png';
 $csrfToken = $security->getCSRFToken();
 ?>
 <!DOCTYPE html>
@@ -1264,7 +1264,7 @@ $csrfToken = $security->getCSRFToken();
                     // scrollIntoView works regardless of which ancestor is the scroll container
                     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     setTimeout(function() {
-                        history.replaceState(null, '', '#' + targetId.replace(/[^a-zA-Z0-9_\-]/g, ''));
+                        history.replaceState(null, '', '#' + targetId);
                     }, 100);
                 }
             });

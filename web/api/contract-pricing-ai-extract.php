@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // CSRF validation — FormData sends as POST field, not JSON body
 $csrfToken = $_POST['csrf_token'] ?? '';
-if (!$security->validateCSRFToken($csrfToken)) {
+if (empty($csrfToken) || !$security->validateCSRFToken($csrfToken)) {
     http_response_code(403);
     echo json_encode(['error' => 'Invalid CSRF token', 'csrf_token' => $security->getCSRFToken()]);
     exit;
@@ -53,7 +53,7 @@ require_once __DIR__ . '/../includes/classes/AIPlatformService.php';
 $ai = AIPlatformService::getInstance();
 
 if (!$ai->isEnabled()) {
-    echo json_encode(['error' => 'Service is not configured', 'csrf_token' => $newCsrfToken]);
+    echo json_encode(['error' => 'AI service is not configured', 'csrf_token' => $newCsrfToken]);
     exit;
 }
 
@@ -214,32 +214,99 @@ Return ONLY a valid JSON object with the fields you found (no markdown fences, n
 {\"contractId\":\"value\",\"annualFee\":\"value\"}";
 
 // ============================================================================
-// Queue AI job for background processing
+// Send to AI
 // ============================================================================
 $messages = [
     ['role' => 'user', 'content' => $prompt]
 ];
 
-$jobPayload = json_encode([
-    'messages' => $messages,
-    'ai_options' => [
-        'purpose' => 'fair',
-        'temperature' => 0.3,
-        'max_tokens' => max($ai->getMaxTokens(), 2000),
-    ],
-    'context' => [],
+$result = $ai->chatCompletion($messages, [
+    'purpose' => 'fair',
+    'temperature' => 0.3,
+    'max_tokens' => max($ai->getMaxTokens(), 2000),
 ]);
 
-$jobId = $db->insert('ai_job_queue', [
-    'job_type' => 'contract_pricing',
-    'status' => 'pending',
-    'user_id' => $user['id'],
-    'request_payload' => $jobPayload,
-]);
+if (!$result['success']) {
+    error_log("Contract pricing AI extract error: " . $result['error']);
+    echo json_encode(['error' => 'AI service error: ' . $result['error'], 'csrf_token' => $newCsrfToken]);
+    exit;
+}
+
+$content = $result['content'];
+
+// ============================================================================
+// Parse AI response
+// ============================================================================
+
+// Strip markdown fences if present
+$content = preg_replace('/```json\s*/i', '', $content);
+$content = preg_replace('/```\s*$/s', '', $content);
+$content = preg_replace('/```/', '', $content);
+$content = trim($content);
+
+// Find the JSON object
+$firstBrace = strpos($content, '{');
+$lastBrace = strrpos($content, '}');
+if ($firstBrace === false || $lastBrace === false) {
+    error_log("Contract pricing AI extract error: No JSON object found in AI response");
+    echo json_encode(['error' => 'AI returned an invalid response. Please try again.', 'csrf_token' => $newCsrfToken]);
+    exit;
+}
+
+$jsonStr = substr($content, $firstBrace, $lastBrace - $firstBrace + 1);
+$parsed = json_decode($jsonStr, true);
+
+if (!$parsed || !is_array($parsed)) {
+    error_log("Contract pricing AI extract error: Invalid JSON structure");
+    echo json_encode(['error' => 'AI returned an invalid response. Please try again.', 'csrf_token' => $newCsrfToken]);
+    exit;
+}
+
+// Validate and sanitize fields
+$validFields = [
+    'contractId', 'systemOfRecordLink', 'renewalType', 'billingFrequency',
+    'renewalNoticeWindow', 'terminationRights', 'annualFee', 'unitPrice',
+    'includedUnits', 'overagePrice', 'oneTimeFees', 'priceIncreaseCap', 'renewalUplift'
+];
+
+$validRenewalTypes = ['Auto-Renew', 'Manual', 'Evergreen'];
+$validBillingFrequencies = ['Monthly', 'Quarterly', 'Annually'];
+$validRenewalUplift = ['Y', 'N'];
+
+$numericFields = ['annualFee', 'unitPrice', 'includedUnits', 'overagePrice', 'oneTimeFees', 'priceIncreaseCap'];
+
+$pricing = [];
+foreach ($validFields as $field) {
+    if (!isset($parsed[$field]) || $parsed[$field] === '' || $parsed[$field] === null) {
+        continue;
+    }
+
+    $val = $parsed[$field];
+
+    // Validate enum fields
+    if ($field === 'renewalType' && !in_array($val, $validRenewalTypes, true)) continue;
+    if ($field === 'billingFrequency' && !in_array($val, $validBillingFrequencies, true)) continue;
+    if ($field === 'renewalUplift' && !in_array($val, $validRenewalUplift, true)) continue;
+
+    // Clean numeric fields
+    if (in_array($field, $numericFields)) {
+        // Strip currency symbols, commas, whitespace
+        $val = preg_replace('/[^0-9.\-]/', '', (string)$val);
+        if ($val === '' || !is_numeric($val)) continue;
+    }
+
+    // Sanitize string values
+    if (is_string($val)) {
+        $val = trim($val);
+        if ($val === '' || strtolower($val) === 'n/a' || strtolower($val) === 'not specified') continue;
+    }
+
+    $pricing[$field] = (string)$val;
+}
 
 echo json_encode([
     'success' => true,
-    'queued' => true,
-    'job_id' => $jobId,
+    'pricing' => $pricing,
+    'filled' => count($pricing),
     'csrf_token' => $newCsrfToken,
 ]);

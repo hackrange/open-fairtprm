@@ -67,73 +67,7 @@ class Auth {
      * @return array ['success' => bool, 'message' => string, 'requires_totp' => bool, 'user_id' => int]
      */
     public function login($username, $password) {
-        // Constant ~250ms delay on every failed-login response (mirrors
-        // verifyTOTP). Masks the timing oracle between the user-not-found
-        // fast path and the password-verify slow path so an attacker can't
-        // enumerate usernames by stopwatch, and caps credential-spraying
-        // throughput regardless of which branch the request lands on.
-        $start = microtime(true);
-        $minResponseSeconds = 0.25;
-        $pace = function (array $result) use ($start, $minResponseSeconds) {
-            if ($result['success'] ?? false) {
-                return $result;
-            }
-            $elapsed = microtime(true) - $start;
-            $remaining = $minResponseSeconds - $elapsed;
-            if ($remaining > 0) {
-                usleep((int)($remaining * 1_000_000));
-            }
-            return $result;
-        };
-
         try {
-            // Step 0a: IP-fingerprint lockout. Locks the threat actor (IP+UA),
-            // not the victim's account. Whitelisted IPs (waf_ip_whitelist) skip.
-            [$clientIp, $clientUa] = $this->getClientFingerprint();
-            if (!$this->isWhitelistedIp($clientIp)) {
-                $fpLock = $this->getFingerprintLockout($clientIp, $clientUa);
-                if ($fpLock !== null) {
-                    return $pace([
-                        'success' => false,
-                        'message' => "Too many failed login attempts from this device. Please try again in {$fpLock['minutes']} minute(s).",
-                        'lockout_seconds' => max(1, $fpLock['locked_until_ts'] - time()),
-                    ]);
-                }
-
-                // Step 0b: (username, IP) lockout. Stops a single attacker
-                // brute-forcing one account from one source even if they
-                // rotate User-Agent per request. The pair-keyed counter means
-                // an attacker hammering this username from THEIR IP cannot
-                // lock the legitimate user out of THEIR own IP — no account-
-                // lockout DoS surface. Reuses the same generic "from this
-                // network" message as the IP-only branch below so an attacker
-                // can't tell from the response which check fired (which would
-                // confirm the username exists or that the threshold was hit).
-                $aipLock = $this->getAccountIpLockout($username, $clientIp);
-                if ($aipLock !== null) {
-                    return $pace([
-                        'success' => false,
-                        'message' => "Too many failed login attempts from this network. Please try again in {$aipLock['minutes']} minute(s).",
-                        'lockout_seconds' => max(1, $aipLock['locked_until_ts'] - time()),
-                    ]);
-                }
-
-                // Step 0c: IP-only fallback lockout. Catches credential-stuffing
-                // tools that randomize the User-Agent AND spray many usernames
-                // from one IP — neither the fingerprint nor the (username, IP)
-                // counters accumulate fast enough to fire. Threshold is
-                // intentionally higher (3x max_login_attempts) so legitimate
-                // shared-NAT populations aren't penalized.
-                $ipLock = $this->getIpOnlyLockout($clientIp);
-                if ($ipLock !== null) {
-                    return $pace([
-                        'success' => false,
-                        'message' => "Too many failed login attempts from this network. Please try again in {$ipLock['minutes']} minute(s).",
-                        'lockout_seconds' => max(1, $ipLock['locked_until_ts'] - time()),
-                    ]);
-                }
-            }
-
             // Step 1: Find the user in the database. Active users only -- no zombies.
             $user = $this->db->fetchOne(
                 'SELECT * FROM users WHERE username = :username AND is_active = 1',
@@ -142,38 +76,32 @@ class Auth {
 
             // No user found? Log it and give a vague error so attackers can't enumerate usernames
             if (!$user) {
-                // Still record the attempt against the fingerprint so a typoed
-                // username doesn't give the attacker a free pass on the IP
-                // lockout count. handleFailedLogin handles a 0 user id.
-                $this->handleFailedLogin(0, $username);
                 $this->logAudit(null, 'login_failed', 'users', null, [
                     'username' => $username,
                     'reason' => 'user_not_found'
                 ]);
-                return $pace(['success' => false, 'message' => 'Invalid username or password']);
+                return ['success' => false, 'message' => 'Invalid username or password'];
             }
 
             // Step 2: Is this account in the penalty box? Check lockout timer.
-            // (Now only set by the distributed-attack path in handleFailedLogin.)
             if ($user['account_locked_until'] && strtotime($user['account_locked_until']) > time()) {
                 $lockoutRemaining = strtotime($user['account_locked_until']) - time();
                 $minutes = ceil($lockoutRemaining / 60);
-                return $pace([
+                return [
                     'success' => false,
-                    'message' => "Account is locked. Please try again in {$minutes} minute(s).",
-                    'lockout_seconds' => $lockoutRemaining,
-                ]);
+                    'message' => "Account is locked. Please try again in {$minutes} minute(s)."
+                ];
             }
 
             // Step 3: Does the password actually match? This uses constant-time comparison
             // under the hood so timing attacks can go pound sand.
             if (!$this->encryption->verifyPassword($password, $user['password_hash'])) {
-                $this->handleFailedLogin($user['id'], $user['username']);
+                $this->handleFailedLogin($user['id']);
                 $this->logAudit($user['id'], 'login_failed', 'users', $user['id'], [
                     'username' => $username,
                     'reason' => 'invalid_password'
                 ]);
-                return $pace(['success' => false, 'message' => 'Invalid username or password']);
+                return ['success' => false, 'message' => 'Invalid username or password'];
             }
 
             // Step 4: While we have the plaintext password handy, check if the hash
@@ -189,9 +117,6 @@ class Auth {
                 'failed_login_attempts' => 0,
                 'account_locked_until' => null
             ], 'id = :id', [':id' => $user['id']]);
-            // The lockout counter is implicitly cleared on success: the
-            // login_success entry just written to audit_log becomes the
-            // floor that future lockout queries count failures *after*.
 
             // Step 6: TOTP check -- if 2FA is enabled, we need that second factor before
             // we let them fully in. Stash the user ID so the TOTP verification step knows
@@ -222,7 +147,7 @@ class Auth {
         } catch (Exception $e) {
             // Something went sideways. Log it, but don't leak details to the user.
             error_log('Login error: ' . $e->getMessage());
-            return $pace(['success' => false, 'message' => 'An error occurred during login']);
+            return ['success' => false, 'message' => 'An error occurred during login'];
         }
     }
 
@@ -238,40 +163,7 @@ class Auth {
      * @return array ['success' => bool, 'message' => string]
      */
     public function verifyTOTP($userId, $code) {
-        // Constant ~250ms delay on every code check (success or failure). Slows
-        // brute-force attempts and masks the timing difference between "invalid
-        // code" and "account locked" responses so an attacker can't tell from
-        // response time alone which branch ran.
-        usleep(250000);
-
         try {
-            // IP-fingerprint lockout — same as the password step. If this
-            // device has hammered too many bad codes, refuse the request and
-            // tear down the pending TOTP session.
-            [$clientIp, $clientUa] = $this->getClientFingerprint();
-            if (!$this->isWhitelistedIp($clientIp)) {
-                $fpLock = $this->getFingerprintLockout($clientIp, $clientUa);
-                if ($fpLock !== null) {
-                    $this->session->remove('pending_totp_user_id');
-                    return [
-                        'success' => false,
-                        'message' => "Too many failed verification attempts from this device. Please try again in {$fpLock['minutes']} minute(s).",
-                        'lockout_seconds' => max(1, $fpLock['locked_until_ts'] - time()),
-                    ];
-                }
-
-                // IP-only fallback for UA-rotating attackers (mirrors login()).
-                $ipLock = $this->getIpOnlyLockout($clientIp);
-                if ($ipLock !== null) {
-                    $this->session->remove('pending_totp_user_id');
-                    return [
-                        'success' => false,
-                        'message' => "Too many failed verification attempts from this network. Please try again in {$ipLock['minutes']} minute(s).",
-                        'lockout_seconds' => max(1, $ipLock['locked_until_ts'] - time()),
-                    ];
-                }
-            }
-
             // Make sure the user exists and is active -- no ghost logins
             $user = $this->db->fetchOne(
                 'SELECT * FROM users WHERE id = :id AND is_active = 1',
@@ -282,92 +174,17 @@ class Auth {
                 return ['success' => false, 'message' => 'TOTP not enabled for this user'];
             }
 
-            // If the account is in the lockout penalty box, refuse the code and
-            // tear down the pending TOTP session state. Without this, an attacker
-            // who knew the password could keep submitting codes against a locked
-            // account through the same browser session indefinitely.
-            if ($user['account_locked_until'] && strtotime($user['account_locked_until']) > time()) {
-                $this->session->remove('pending_totp_user_id');
-                $lockoutRemaining = strtotime($user['account_locked_until']) - time();
-                $minutes = ceil($lockoutRemaining / 60);
-                return [
-                    'success' => false,
-                    'message' => "Account is locked. Please try again in {$minutes} minute(s).",
-                    'lockout_seconds' => $lockoutRemaining,
-                ];
-            }
-
             // Decrypt the stored TOTP secret and verify the code.
             // The secret is encrypted at rest because we're not animals.
             $secret = $this->encryption->decrypt($user['totp_secret']);
             $totp = new TOTP();
 
             if (!$totp->verifyCode($secret, $code)) {
-                // Wire failed TOTP into the hybrid lockout: every failure
-                // counts toward the IP-fingerprint lockout (so a TOTP
-                // brute-forcer trips the same 5-strike threshold the
-                // password brute-forcer does), and contributes to the
-                // distributed-attack detection on the user's account.
-                $this->handleFailedLogin($user['id'], $user['username']);
                 $this->logAudit($userId, 'totp_verification_failed', 'users', $userId);
-
-                // Did THIS attempt trip the IP-fingerprint lockout? If so,
-                // kill the pending session so the attacker can't keep
-                // hammering — they have to restart the password flow.
-                $fpLock = $this->getFingerprintLockout($clientIp, $clientUa);
-                if ($fpLock !== null) {
-                    $this->session->remove('pending_totp_user_id');
-                    return [
-                        'success' => false,
-                        'message' => "Too many failed verification attempts from this device. Please try again in {$fpLock['minutes']} minute(s).",
-                        'lockout_seconds' => max(1, $fpLock['locked_until_ts'] - time()),
-                    ];
-                }
-
-                // Or the IP-only fallback?
-                $ipLock = $this->getIpOnlyLockout($clientIp);
-                if ($ipLock !== null) {
-                    $this->session->remove('pending_totp_user_id');
-                    return [
-                        'success' => false,
-                        'message' => "Too many failed verification attempts from this network. Please try again in {$ipLock['minutes']} minute(s).",
-                        'lockout_seconds' => max(1, $ipLock['locked_until_ts'] - time()),
-                    ];
-                }
-
-                // Did this attempt trip the per-account distributed-attack
-                // lockout? Same teardown.
-                $fresh = $this->db->fetchOne(
-                    'SELECT account_locked_until FROM users WHERE id = :id',
-                    [':id' => $user['id']]
-                );
-                if ($fresh && $fresh['account_locked_until']
-                    && strtotime($fresh['account_locked_until']) > time()) {
-                    $this->session->remove('pending_totp_user_id');
-                    $lockoutRemaining = strtotime($fresh['account_locked_until']) - time();
-                    $minutes = ceil($lockoutRemaining / 60);
-                    return [
-                        'success' => false,
-                        'message' => "Account is locked. Please try again in {$minutes} minute(s).",
-                        'lockout_seconds' => $lockoutRemaining,
-                    ];
-                }
-
                 return ['success' => false, 'message' => 'Invalid TOTP code'];
             }
 
-            // Code checks out! Reset the failed-attempt counter (a couple of
-            // fumbles before getting it right shouldn't poison future logins),
-            // clean up the pending state, and let them in.
-            $this->db->update('users', [
-                'failed_login_attempts' => 0,
-                'account_locked_until' => null,
-                'last_failed_login' => null,
-            ], 'id = :id', [':id' => $user['id']]);
-            // No clearFingerprintAttempts: the totp_success / login_success
-            // audit_log entry will serve as the floor for any future lockout
-            // count, so the slate is implicitly clean.
-
+            // Code checks out! Clean up the pending state and let them in.
             $this->session->remove('pending_totp_user_id');
             $this->establishSession($user);
 
@@ -550,323 +367,35 @@ class Auth {
     }
 
     /**
-     * Read max_login_attempts from the admin-configurable app_config table,
-     * falling back to the file config and then a hard default. The admin UI
-     * (admin.php?section=general) writes to app_config; the file config is
-     * just a deploy-time fallback. Always honor the admin's setting first.
-     */
-    private function getMaxLoginAttempts() {
-        try {
-            $row = $this->db->fetchOne(
-                "SELECT config_value FROM app_config WHERE config_key = 'max_login_attempts'"
-            );
-            if ($row && is_numeric($row['config_value']) && (int)$row['config_value'] > 0) {
-                return (int)$row['config_value'];
-            }
-        } catch (Exception $e) {
-            // app_config may not exist yet on a fresh DB — fall through.
-        }
-        return (int)$this->config->get('auth.max_login_attempts', 5);
-    }
-
-    /**
-     * Read lockout_duration (in seconds) from the admin-configurable
-     * app_config table. Same precedence as getMaxLoginAttempts().
-     */
-    private function getLockoutDurationSeconds() {
-        try {
-            $row = $this->db->fetchOne(
-                "SELECT config_value FROM app_config WHERE config_key = 'lockout_duration'"
-            );
-            if ($row && is_numeric($row['config_value']) && (int)$row['config_value'] > 0) {
-                return (int)$row['config_value'];
-            }
-        } catch (Exception $e) {
-            // fall through
-        }
-        return (int)$this->config->get('auth.lockout_duration', 300);
-    }
-
-    /**
-     * Build the (client_ip, user_agent) fingerprint used by the IP-level
-     * lockout. Returns the raw User-Agent string because that's what
-     * audit_log stores and what our lockout queries match against.
+     * Handle a failed login attempt -- the "three strikes and you're out" logic.
      *
-     * @return array [client_ip, user_agent]
-     */
-    private function getClientFingerprint() {
-        $ip = $this->security->getClientIP();
-        $ua = $this->security->getUserAgent();
-        return [$ip, $ua];
-    }
-
-    /**
-     * Is this IP whitelisted? Whitelisted IPs (waf_ip_whitelist) skip the
-     * fingerprint lockout entirely so trusted office networks never get
-     * locked out by a noisy user. Unknown table = nothing whitelisted.
-     */
-    private function isWhitelistedIp($ip) {
-        try {
-            $row = $this->db->fetchOne(
-                'SELECT 1 FROM waf_ip_whitelist WHERE ip_address = :ip LIMIT 1',
-                [':ip' => $ip]
-            );
-            return $row !== false && $row !== null;
-        } catch (Exception $e) {
-            return false;
-        }
-    }
-
-    /**
-     * Lockout queries below all key off audit_log — the same table that
-     * already records every login_failed / login_success / totp_*
-     * event for the activity log. Using one canonical record source means
-     * we can't get into the (now-fixed) state where the lockout counter
-     * silently fell out of sync with the audit log because a parallel
-     * insert into a separate table failed.
+     * Increments the failed attempt counter and checks if we've hit the threshold.
+     * If so, locks the account for a configurable duration (default 30 minutes).
+     * This is our brute-force protection. Not the fanciest, but it works.
+     * Bots hate this one weird trick.
      *
-     * Each lockout query has the same shape:
-     *   1. Find the most recent matching login_success within the window —
-     *      this becomes the "since" floor for counting failures (so a
-     *      successful auth implicitly clears the counter, no DELETE needed).
-     *   2. Count failures (login_failed + totp_verification_failed) since
-     *      that floor.
-     *   3. If the count is >= threshold, return lockout details; else null.
-     *
-     * Whitelisted IPs never reach these checks (the caller gates on
-     * isWhitelistedIp before calling). audit_log entries are never deleted
-     * by the lockout path; pruning is the activity-log retention job's
-     * responsibility.
+     * @param int $userId User ID of the account being hammered
      */
-
-    /**
-     * Has this fingerprint (IP + raw UA) tripped the lockout?
-     *
-     * @return array|null Lockout details ['locked_until_ts', 'minutes'] or null if not locked
-     */
-    private function getFingerprintLockout($ip, $ua) {
-        $maxAttempts    = $this->getMaxLoginAttempts();
-        $windowSec      = $this->getLockoutDurationSeconds();
-        $windowStartUnix = time() - $windowSec;
-
-        try {
-            $sinceRow = $this->db->fetchOne(
-                "SELECT UNIX_TIMESTAMP(MAX(created_at)) AS ts_unix FROM audit_log
-                 WHERE action IN ('login_success', 'totp_verification_success')
-                   AND ip_address = :ip
-                   AND user_agent = :ua
-                   AND created_at >= FROM_UNIXTIME(:ws)",
-                [':ip' => $ip, ':ua' => $ua, ':ws' => $windowStartUnix]
-            );
-            $sinceUnix = ($sinceRow && !empty($sinceRow['ts_unix']))
-                ? (int)$sinceRow['ts_unix']
-                : $windowStartUnix;
-
-            $row = $this->db->fetchOne(
-                "SELECT COUNT(*) AS c, UNIX_TIMESTAMP(MAX(created_at)) AS last_attempt_ts
-                 FROM audit_log
-                 WHERE action IN ('login_failed', 'totp_verification_failed')
-                   AND ip_address = :ip
-                   AND user_agent = :ua
-                   AND created_at > FROM_UNIXTIME(:since)",
-                [':ip' => $ip, ':ua' => $ua, ':since' => $sinceUnix]
-            );
-        } catch (Exception $e) {
-            return null;
-        }
-
-        return $this->lockoutFromRow($row, $maxAttempts, $windowSec);
-    }
-
-    /**
-     * Per-(username, IP) lockout. Targets a single attacker brute-forcing
-     * one account from one source — works regardless of UA rotation because
-     * the key is the typed username + client IP. Crucially DoS-safe: locking
-     * the (username, IP) pair means an attacker hammering victim@corp.com
-     * from their own IP can never lock the legitimate user out of their own
-     * IP. JSON_UNQUOTE/EXTRACT pulls the username out of new_values which
-     * already gets stamped on every login_failed and login_success entry
-     * (whether the user existed or not), so this captures both "wrong
-     * password" and "user not found" cases.
-     *
-     * @return array|null Lockout details ['locked_until_ts', 'minutes'] or null if not locked
-     */
-    private function getAccountIpLockout($username, $ip) {
-        if ($username === null || $username === '') {
-            return null;
-        }
-        $maxAttempts     = $this->getMaxLoginAttempts();
-        $windowSec       = $this->getLockoutDurationSeconds();
-        $windowStartUnix = time() - $windowSec;
-
-        try {
-            $sinceRow = $this->db->fetchOne(
-                "SELECT UNIX_TIMESTAMP(MAX(created_at)) AS ts_unix FROM audit_log
-                 WHERE action IN ('login_success', 'totp_verification_success')
-                   AND ip_address = :ip
-                   AND JSON_UNQUOTE(JSON_EXTRACT(new_values, '$.username')) = :u
-                   AND created_at >= FROM_UNIXTIME(:ws)",
-                [':ip' => $ip, ':u' => $username, ':ws' => $windowStartUnix]
-            );
-            $sinceUnix = ($sinceRow && !empty($sinceRow['ts_unix']))
-                ? (int)$sinceRow['ts_unix']
-                : $windowStartUnix;
-
-            $row = $this->db->fetchOne(
-                "SELECT COUNT(*) AS c, UNIX_TIMESTAMP(MAX(created_at)) AS last_attempt_ts
-                 FROM audit_log
-                 WHERE action IN ('login_failed', 'totp_verification_failed')
-                   AND ip_address = :ip
-                   AND JSON_UNQUOTE(JSON_EXTRACT(new_values, '$.username')) = :u
-                   AND created_at > FROM_UNIXTIME(:since)",
-                [':ip' => $ip, ':u' => $username, ':since' => $sinceUnix]
-            );
-        } catch (Exception $e) {
-            return null;
-        }
-
-        return $this->lockoutFromRow($row, $maxAttempts, $windowSec);
-    }
-
-    /**
-     * IP-only fallback lockout. Catches credential-stuffing tools that
-     * spray many usernames from one IP — neither fingerprint nor
-     * (username, IP) accumulate fast enough. Threshold intentionally higher
-     * (3× max_login_attempts) so legitimate shared-NAT populations
-     * (corporate offices, guest WiFi) aren't penalized by a couple of users
-     * fumbling at once.
-     *
-     * @return array|null Lockout details ['locked_until_ts', 'minutes'] or null if not locked
-     */
-    private function getIpOnlyLockout($ip) {
-        $maxAttempts     = $this->getMaxLoginAttempts() * 3;
-        $windowSec       = $this->getLockoutDurationSeconds();
-        $windowStartUnix = time() - $windowSec;
-
-        try {
-            $sinceRow = $this->db->fetchOne(
-                "SELECT UNIX_TIMESTAMP(MAX(created_at)) AS ts_unix FROM audit_log
-                 WHERE action IN ('login_success', 'totp_verification_success')
-                   AND ip_address = :ip
-                   AND created_at >= FROM_UNIXTIME(:ws)",
-                [':ip' => $ip, ':ws' => $windowStartUnix]
-            );
-            $sinceUnix = ($sinceRow && !empty($sinceRow['ts_unix']))
-                ? (int)$sinceRow['ts_unix']
-                : $windowStartUnix;
-
-            $row = $this->db->fetchOne(
-                "SELECT COUNT(*) AS c, UNIX_TIMESTAMP(MAX(created_at)) AS last_attempt_ts
-                 FROM audit_log
-                 WHERE action IN ('login_failed', 'totp_verification_failed')
-                   AND ip_address = :ip
-                   AND created_at > FROM_UNIXTIME(:since)",
-                [':ip' => $ip, ':since' => $sinceUnix]
-            );
-        } catch (Exception $e) {
-            return null;
-        }
-
-        return $this->lockoutFromRow($row, $maxAttempts, $windowSec);
-    }
-
-    /**
-     * Shared tail of every lockout query: turn a {c, last_attempt_ts} row
-     * into the standard ['locked_until_ts', 'minutes'] shape, or null if
-     * the threshold isn't met or the lockout window has already elapsed
-     * past the last failure. Uses MySQL's UNIX_TIMESTAMP for the timestamp
-     * so we sidestep MariaDB↔PHP timezone mismatch on the DATETIME string
-     * (otherwise a query returned in UTC and parsed in EDT was producing
-     * "245 minute(s)" lockout messages instead of 5).
-     */
-    private function lockoutFromRow($row, int $maxAttempts, int $windowSec) {
-        if (!$row || (int)$row['c'] < $maxAttempts) {
-            return null;
-        }
-        $lastTs   = (int)$row['last_attempt_ts'];
-        $unlockTs = $lastTs + $windowSec;
-        if ($unlockTs <= time()) {
-            return null;
-        }
-        return [
-            'locked_until_ts' => $unlockTs,
-            'minutes'         => max(1, (int)ceil(($unlockTs - time()) / 60)),
-        ];
-    }
-
-    /**
-     * Detect a distributed credential-stuffing pattern against ONE username:
-     * many failures from many distinct IPs in 24h. Threshold is set
-     * deliberately high (4× max_login_attempts AND ≥3 distinct IPs) so a
-     * single threat actor cannot easily trigger an account lockout that
-     * would DoS the legitimate user. Only a coordinated, multi-source
-     * campaign trips this. Queries audit_log via JSON path on the
-     * username stamped into new_values.
-     */
-    private function isAccountUnderDistributedAttack($username) {
-        if ($username === null || $username === '') return false;
-        $threshold = $this->getMaxLoginAttempts() * 4;
-        try {
-            $row = $this->db->fetchOne(
-                "SELECT COUNT(*) AS total, COUNT(DISTINCT ip_address) AS distinct_ips
-                 FROM audit_log
-                 WHERE action IN ('login_failed', 'totp_verification_failed')
-                   AND JSON_UNQUOTE(JSON_EXTRACT(new_values, '$.username')) = :u
-                   AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)",
-                [':u' => $username]
-            );
-        } catch (Exception $e) {
-            return false;
-        }
-        if (!$row) return false;
-        return ((int)$row['total'] >= $threshold) && ((int)$row['distinct_ips'] >= 3);
-    }
-
-    /**
-     * Handle a failed login or TOTP attempt.
-     *
-     * The lockout counters live in audit_log, populated automatically by
-     * the logAudit() call in login() / verifyTOTP() — this method does NOT
-     * write to audit_log itself. Its job is the per-user housekeeping on
-     * the users row: increment failed_login_attempts, and set
-     * account_locked_until ONLY when a distributed-attack pattern is
-     * detected (a single attacker can't DoS a legitimate user this way).
-     *
-     * @param int $userId User ID of the account being hammered (0 if unknown)
-     * @param string|null $username Username attempted (used for distributed-attack check)
-     */
-    private function handleFailedLogin($userId, $username = null) {
-        if ($userId <= 0) {
-            // No matching user (e.g. typo'd username). The login_failed
-            // audit_log entry written by the caller is enough for the
-            // fingerprint, (username, IP), and IP-only lockout checks
-            // on subsequent attempts; nothing to update on the users row.
-            return;
-        }
-
+    private function handleFailedLogin($userId) {
         // Grab current fail count
         $user = $this->db->fetchOne(
-            'SELECT failed_login_attempts, username FROM users WHERE id = :id',
+            'SELECT failed_login_attempts FROM users WHERE id = :id',
             [':id' => $userId]
         );
-        if (!$user) return;
 
         $attempts = ($user['failed_login_attempts'] ?? 0) + 1;
-        $effectiveUsername = $username ?? $user['username'];
+        $maxAttempts = $this->config->get('auth.max_login_attempts', 5);
 
         $updateData = [
             'failed_login_attempts' => $attempts,
             'last_failed_login' => date('Y-m-d H:i:s')
         ];
 
-        // Account-level lockout is now reserved for the distributed-attack
-        // pattern only. A single attacker brute-forcing one username from
-        // one IP gets stopped by the fingerprint lockout; their hits do not
-        // lock the legitimate user out of their own account.
-        if ($this->isAccountUnderDistributedAttack($effectiveUsername)) {
-            $lockoutDuration = $this->getLockoutDurationSeconds();
+        // If they've hit the limit, slam the door shut for a while
+        if ($attempts >= $maxAttempts) {
+            $lockoutDuration = $this->config->get('auth.lockout_duration', 1800);
             $updateData['account_locked_until'] = date('Y-m-d H:i:s', time() + $lockoutDuration);
-            $this->logAudit($userId, 'account_locked_distributed_attack', 'users', $userId, [
+            $this->logAudit($userId, 'account_locked', 'users', $userId, [
                 'new' => ['attempts' => $attempts, 'locked_until' => $updateData['account_locked_until']]
             ]);
         }

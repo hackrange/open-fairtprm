@@ -19,7 +19,7 @@
 // POST Handler: update_config
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_config'])) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } else {
         try {
@@ -50,6 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_config'])) {
                 'app_url' => $appUrl,
                 'auth_type' => $authType,
                 'session_timeout' => max(300, min(86400, intval($_POST['session_timeout'] ?? 3600))),
+                'max_login_attempts' => max(1, min(50, intval($_POST['max_login_attempts'] ?? 5))),
+                'lockout_duration' => max(60, min(86400, intval($_POST['lockout_duration'] ?? 1800))),
                 'app_timezone' => $appTimezone,
                 'log_retention_days' => max(0, min(3650, intval($_POST['log_retention_days'] ?? 90)))
             ];
@@ -93,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_config'])) {
 // POST Handler: update_default_theme
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_default_theme'])) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } else {
         try {
@@ -147,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_default_theme'
 // POST Handler: upload_branding
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_branding'])) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } else {
         try {
@@ -309,13 +311,22 @@ foreach ($configRows as $row) {
                 <div class="form-help">Default: 3600 (1 hour)</div>
             </div>
             <div class="form-group">
+                <label for="max_login_attempts">Maximum Login Attempts</label>
+                <input type="number" id="max_login_attempts" name="max_login_attempts" class="form-control" value="<?php echo e($appConfig['max_login_attempts'] ?? '5'); ?>" required>
+                <div class="form-help">Number of failed login attempts before account lockout</div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="lockout_duration">Lockout Duration (seconds)</label>
+                <input type="number" id="lockout_duration" name="lockout_duration" class="form-control" value="<?php echo e($appConfig['lockout_duration'] ?? '1800'); ?>" required>
+                <div class="form-help">Default: 1800 (30 minutes)</div>
+            </div>
+            <div class="form-group">
                 <label for="log_retention_days">Activity Log Retention (days)</label>
                 <input type="number" id="log_retention_days" name="log_retention_days" class="form-control" value="<?php echo e($appConfig['log_retention_days'] ?? '90'); ?>" min="0" max="3650">
                 <div class="form-help">Days to keep activity log entries. 0 = keep indefinitely. Default: 90</div>
             </div>
-        </div>
-        <div class="form-help" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
-            Login attempt limits and lockout duration moved to <a href="admin.php?section=lockdown">Lockdown &rarr; Authentication Lockouts</a>.
         </div>
         <div class="form-group">
             <label for="app_timezone">Application Timezone</label>

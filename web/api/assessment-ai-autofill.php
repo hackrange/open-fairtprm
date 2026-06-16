@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // CSRF validation
 $input = json_decode(file_get_contents('php://input'), true);
-if (!$input || !$security->validateCSRFToken($input['csrf_token'] ?? '')) {
+if (!$input || empty($input['csrf_token']) || !$security->validateCSRFToken($input['csrf_token'])) {
     http_response_code(403);
     echo json_encode(['error' => 'Invalid CSRF token', 'csrf_token' => $security->getCSRFToken()]);
     exit;
@@ -79,7 +79,7 @@ require_once __DIR__ . '/../includes/classes/AIPlatformService.php';
 $ai = AIPlatformService::getInstance();
 
 if (!$ai->isEnabled()) {
-    echo json_encode(['error' => 'Service is not configured', 'csrf_token' => $newCsrfToken]);
+    echo json_encode(['error' => 'AI service is not configured', 'csrf_token' => $newCsrfToken]);
     exit;
 }
 
@@ -146,28 +146,16 @@ $maxCharsPerDoc = 4000;
 $maxTotalChars = 12000;
 $documentTexts = [];
 $totalChars = 0;
-$extractionErrors = [];
 foreach ($certDocs as $doc) {
     if ($totalChars >= $maxTotalChars) break;
-    $docLabel = $doc['original_filename'] ?? ('doc #' . $doc['id']);
 
     try {
-        $encLen = strlen($doc['encrypted_data'] ?? '');
-        if ($encLen === 0) {
-            $extractionErrors[] = "{$docLabel}: encrypted_data is empty (0 bytes)";
-            continue;
-        }
-
         $decrypted = $encryption->decryptRaw($doc['encrypted_data']);
-        if (empty($decrypted)) {
-            $extractionErrors[] = "{$docLabel}: decryption returned empty ({$encLen} bytes encrypted)";
-            continue;
-        }
+        if (empty($decrypted)) continue;
 
         $remaining = $maxTotalChars - $totalChars;
         $limit = min($maxCharsPerDoc, $remaining);
         $extractedText = DocumentTextExtractor::extract($decrypted, $doc['mime_type'], $limit);
-        $decryptedLen = strlen($decrypted);
         unset($decrypted);
 
         if ($extractedText !== null) {
@@ -178,34 +166,14 @@ foreach ($certDocs as $doc) {
             $entry = "=== {$certLabel} (expires: {$expiryStr}) — {$doc['original_filename']} ===\n{$extractedText}";
             $documentTexts[] = $entry;
             $totalChars += mb_strlen($entry);
-        } else {
-            $extractionErrors[] = "{$docLabel}: text extraction returned null (mime={$doc['mime_type']}, decrypted_size={$decryptedLen})";
         }
     } catch (Exception $e) {
-        $extractionErrors[] = "{$docLabel}: exception — " . $e->getMessage();
+        // Skip this document
     }
-}
-
-if (!empty($extractionErrors)) {
-    error_log("Assessment AI auto-fill extraction issues for assessment #{$assessmentId}: " . implode('; ', $extractionErrors));
 }
 
 if (empty($documentTexts)) {
-    $hint = '';
-    if (!empty($extractionErrors)) {
-        // Give the user a concise hint about what went wrong
-        $firstError = $extractionErrors[0];
-        if (strpos($firstError, 'encrypted_data is empty') !== false) {
-            $hint = ' Documents appear to have no stored file data.';
-        } elseif (strpos($firstError, 'decryption returned empty') !== false) {
-            $hint = ' Document decryption failed — the encryption key may have changed.';
-        } elseif (strpos($firstError, 'text extraction returned null') !== false) {
-            $hint = ' The documents may be scanned images (not text-based PDFs). Text-based PDFs, CSV, or Excel files are required.';
-        } elseif (strpos($firstError, 'exception') !== false) {
-            $hint = ' A processing error occurred — check the server error log for details.';
-        }
-    }
-    echo json_encode(['error' => 'Could not extract text from any certification documents.' . $hint, 'csrf_token' => $newCsrfToken]);
+    echo json_encode(['error' => 'Could not extract text from any certification documents.', 'csrf_token' => $newCsrfToken]);
     exit;
 }
 
@@ -265,46 +233,140 @@ Return ONLY valid JSON in this exact format (no markdown fences, no commentary):
 {\"answers\":[{\"id\":123,\"value\":\"answer text\"},{\"id\":456,\"value\":[\"option1\",\"option2\"]}]}";
 
 // ============================================================================
-// Step 5: Queue AI job for background processing
+// Step 5: Send to AI
 // ============================================================================
 $messages = [
     ['role' => 'user', 'content' => $prompt]
 ];
 
-// Serialize question metadata so the cron worker can validate answers
-$questionMeta = [];
-foreach ($unansweredQuestions as $q) {
-    $questionMeta[$q['id']] = [
-        'question_type' => $q['question_type'],
-        'options' => $q['options'] ?? [],
-    ];
+$result = $ai->chatCompletion($messages, [
+    'purpose' => 'fair',
+    'temperature' => 0.3,
+    'max_tokens' => max($ai->getMaxTokens(), 4000),
+]);
+
+if (!$result['success']) {
+    error_log("Assessment AI auto-fill error: " . $result['error']);
+    echo json_encode(['error' => 'AI service error: ' . $result['error'], 'csrf_token' => $newCsrfToken]);
+    exit;
 }
 
-$jobPayload = json_encode([
-    'messages' => $messages,
-    'ai_options' => [
-        'purpose' => 'fair',
-        'temperature' => 0.3,
-        'max_tokens' => max($ai->getMaxTokens(), 4000),
-    ],
-    'context' => [
-        'assessment_id' => $assessmentId,
-        'assessment_status' => $assessment['status'],
-        'unanswered_questions' => $questionMeta,
-        'total_unanswered' => count($unansweredQuestions),
-    ],
-]);
+$content = $result['content'];
 
-$jobId = $db->insert('ai_job_queue', [
-    'job_type' => 'assessment_autofill',
-    'status' => 'pending',
-    'user_id' => $user['id'],
-    'request_payload' => $jobPayload,
-]);
+// ============================================================================
+// Step 6: Parse response and save answers
+// ============================================================================
+
+// Strip markdown fences if present
+$content = preg_replace('/```json\s*/i', '', $content);
+$content = preg_replace('/```\s*$/s', '', $content);
+$content = preg_replace('/```/', '', $content);
+$content = trim($content);
+
+// Find the JSON object in the response
+$firstBrace = strpos($content, '{');
+$lastBrace = strrpos($content, '}');
+if ($firstBrace === false || $lastBrace === false) {
+    error_log("Assessment AI auto-fill error: No JSON object found in AI response");
+    echo json_encode(['error' => 'AI returned an invalid response format. Please try again.', 'csrf_token' => $newCsrfToken]);
+    exit;
+}
+
+$jsonStr = substr($content, $firstBrace, $lastBrace - $firstBrace + 1);
+$parsed = json_decode($jsonStr, true);
+
+if (!$parsed || !isset($parsed['answers']) || !is_array($parsed['answers'])) {
+    error_log("Assessment AI auto-fill error: Invalid JSON structure in AI response");
+    echo json_encode(['error' => 'AI returned an invalid response format. Please try again.', 'csrf_token' => $newCsrfToken]);
+    exit;
+}
+
+$filled = 0;
+$skipped = 0;
+$totalUnanswered = count($unansweredQuestions);
+
+foreach ($parsed['answers'] as $answer) {
+    $questionId = intval($answer['id'] ?? 0);
+    $value = $answer['value'] ?? null;
+
+    // Validate question exists in our unanswered set
+    if (!$questionId || !isset($unansweredQuestions[$questionId])) {
+        $skipped++;
+        continue;
+    }
+
+    $q = $unansweredQuestions[$questionId];
+    $qType = $q['question_type'];
+
+    // Skip empty values and non-answers the AI returns when it doesn't have real data
+    if ($value === null || $value === '') {
+        $skipped++;
+        continue;
+    }
+    if (is_string($value)) {
+        $lowerVal = strtolower(trim($value));
+        if (in_array($lowerVal, [
+            'n/a', 'na', 'not specified', 'not specified in document',
+            'not specified in documents', 'not available', 'not provided',
+            'not found', 'not found in document', 'not found in documents',
+            'not mentioned', 'not mentioned in document', 'not mentioned in documents',
+            'unknown', 'none', 'none specified', 'not applicable',
+        ]) || preg_match('/^not\s+(specified|provided|found|mentioned|available|stated|indicated)/i', $lowerVal)) {
+            $skipped++;
+            continue;
+        }
+    }
+
+    // Validate based on question type
+    $validOptions = [];
+    if (!empty($q['options']) && is_array($q['options'])) {
+        $validOptions = array_map(function($opt) {
+            return is_array($opt) ? ($opt['value'] ?? $opt['label'] ?? '') : $opt;
+        }, $q['options']);
+    }
+
+    if (in_array($qType, ['select', 'radio', 'button_group'])) {
+        // Single-select: value must match an option exactly
+        if (!empty($validOptions) && !in_array($value, $validOptions, true)) {
+            $skipped++;
+            continue;
+        }
+    } elseif (in_array($qType, ['checkbox', 'button_group_multi'])) {
+        // Multi-select: value must be an array, each matching an option
+        if (!is_array($value)) {
+            $skipped++;
+            continue;
+        }
+        if (!empty($validOptions)) {
+            $allValid = true;
+            foreach ($value as $v) {
+                if (!in_array($v, $validOptions, true)) {
+                    $allValid = false;
+                    break;
+                }
+            }
+            if (!$allValid) {
+                $skipped++;
+                continue;
+            }
+        }
+        $value = json_encode($value);
+    }
+
+    // Save the response
+    $assessmentService->saveResponse($assessmentId, $questionId, $value);
+    $filled++;
+}
+
+// Update assessment status from pending to in_progress if we filled anything
+if ($filled > 0 && $assessment['status'] === 'pending') {
+    $assessmentService->updateStatus($assessmentId, 'in_progress');
+}
 
 echo json_encode([
     'success' => true,
-    'queued' => true,
-    'job_id' => $jobId,
+    'filled' => $filled,
+    'skipped' => $totalUnanswered - $filled,
+    'total' => $totalUnanswered,
     'csrf_token' => $newCsrfToken,
 ]);

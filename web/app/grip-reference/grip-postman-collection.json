@@ -1,0 +1,99 @@
+{
+  "info": {
+    "name": "Grip Security Public API (FairTPRM Reference)",
+    "_postman_id": "f9af6c7d-3a30-4ff0-b1a0-fairtprm-grip",
+    "description": "Reverse-engineered reference for the Grip Security public SaaS API used by the FairTPRM Shadow SaaS integration. Set the `tenant` and `accessToken` collection variables before sending requests. Confirmed against https://hr.dep.grip.security/public.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key",   "value": "access-token",      "type": "string" },
+      { "key": "value", "value": "{{accessToken}}",   "type": "string" },
+      { "key": "in",    "value": "header",             "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "tenant",      "value": "hr",  "description": "Grip tenant prefix (e.g. hr, demo)." },
+    { "key": "baseUrl",     "value": "https://{{tenant}}.dep.grip.security/public", "description": "Resolved base URL (rooted at /public)." },
+    { "key": "accessToken", "value": "REPLACE_ME", "description": "Administrator API key for the tenant." }
+  ],
+  "item": [
+    {
+      "name": "SaaS — List",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{baseUrl}}/saas?offset=0&limit=200",
+          "host": ["{{baseUrl}}"],
+          "path": ["saas"],
+          "query": [
+            { "key": "offset", "value": "0",   "description": "Zero-based pagination offset." },
+            { "key": "limit",  "value": "200", "description": "Page size (max 200)." }
+          ]
+        },
+        "description": "Paginated list of SaaS apps. The `next` response header contains the URL for the next page; iterate until a page returns fewer rows than `limit`."
+      }
+    },
+    {
+      "name": "SaaS — Get by ID",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{baseUrl}}/saas/:id",
+          "host": ["{{baseUrl}}"],
+          "path": ["saas", ":id"],
+          "variable": [{ "key": "id", "value": "0012f8ac-4673-4c06-ac63-9ddef3ec68ca", "description": "Grip SaaS UUID." }]
+        }
+      }
+    },
+    {
+      "name": "SaaS — Find by Name",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{baseUrl}}/saas/name/:name",
+          "host": ["{{baseUrl}}"],
+          "path": ["saas", "name", ":name"],
+          "variable": [{ "key": "name", "value": "ZoomInfo" }]
+        },
+        "description": "Returns an array of SaaS apps whose display name matches the path segment."
+      }
+    },
+    {
+      "name": "Users — List",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{baseUrl}}/users?offset=0&limit=200",
+          "host": ["{{baseUrl}}"],
+          "path": ["users"],
+          "query": [
+            { "key": "offset", "value": "0" },
+            { "key": "limit",  "value": "200" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Alerts — List",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{baseUrl}}/alerts?offset=0&limit=200",
+          "host": ["{{baseUrl}}"],
+          "path": ["alerts"],
+          "query": [
+            { "key": "offset", "value": "0" },
+            { "key": "limit",  "value": "200" }
+          ]
+        }
+      }
+    }
+  ]
+}

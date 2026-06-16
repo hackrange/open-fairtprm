@@ -444,6 +444,27 @@ class FairCalculator
         // Step 4: Loss Event Frequency = TEF x Vulnerability
         $results['loss_event_frequency'] = $results['threat_event_frequency'] * $results['vulnerability_score'];
 
+        // Step 4a: Tier-based LEF reduction
+        // Tier 2 vendors have less frequent exposure to high-impact data, so cut LEF by 70%.
+        // Tier 3 vendors have minimal exposure, so cut LEF by 90%. Tier 1 is unchanged.
+        if ($vendorOnboardingId) {
+            try {
+                $db = Database::getInstance();
+                $tierRow = $db->fetchOne(
+                    'SELECT vendor_tier FROM vendor_onboarding_requests WHERE id = :id',
+                    [':id' => $vendorOnboardingId]
+                );
+                $tier = $tierRow['vendor_tier'] ?? null;
+                if ($tier === '2' || $tier === 2) {
+                    $results['loss_event_frequency'] *= 0.30;
+                } elseif ($tier === '3' || $tier === 3) {
+                    $results['loss_event_frequency'] *= 0.10;
+                }
+            } catch (Exception $e) {
+                // If the lookup fails, leave LEF untouched rather than blowing up the calc
+            }
+        }
+
         // Step 5: Primary Loss
         $results['primary_loss'] = self::calculatePrimaryLoss($data, $results);
 

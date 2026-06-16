@@ -898,7 +898,7 @@ if ($showVendorTabs) {
 // Adds a threaded reply to an existing case.
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_reply']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request - security token mismatch.';
     } else {
         $parentCaseId = intval($_POST['parent_case_id'] ?? 0);
@@ -947,7 +947,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_reply']) && $edit
 // Toggles a case between open and closed.
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_case_status']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request - security token mismatch.';
     } else {
         $toggleCaseId = intval($_POST['case_id'] ?? 0);
@@ -991,7 +991,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_case_status'])
 // Reassigns an existing case to a different user.
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reassign_case']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request - security token mismatch.';
     } else {
         $reassignCaseId = intval($_POST['reassign_case_id'] ?? 0);
@@ -1048,7 +1048,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reassign_case']) && $
 // Adds a note to the vendor via cyber_todo_activities table.
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_note']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request - security token mismatch.';
     } else {
         $noteTitle = trim($security->cleanInput($_POST['note_title'] ?? ''));
@@ -1116,7 +1116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_note']) && $editM
 // TIER CHANGE -- handled separately from the main form because it uses a modal,
 // not the main save flow. Same audit-trail logic as vendor-srs-details.php.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_tier']) && $canEditTier && $editMode && $requestId > 0) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request - security token mismatch. Please try again.';
     } else {
         $newTier = $_POST['new_tier'] ?? '';
@@ -1163,7 +1163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_tier']) && $ca
 
 // Handle rescore from Risks tab
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['rescore']) || isset($_POST['rescore_upguard']) || isset($_POST['rescore_shodan'])) && $editMode && $requestId > 0 && ($isAdmin || $isCyberTPRM)) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request - security token mismatch.';
     } elseif (($request['status'] ?? '') === 'inactive') {
         $error = 'Cannot score an inactive vendor. Re-activate the vendor first.';
@@ -1277,7 +1277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_template_onboar
 $canProcessForm = $canEdit || $canDeactivate || $canDelete;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['update_tier'])) {
     // CSRF check first -- always. No token, no service.
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request - security token mismatch. Please try again.';
     } else {
         $action = $_POST['action'] ?? '';
@@ -1438,6 +1438,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                 'primary_contact_email', 'primary_contact_details',
                 'primary_contact_title', 'primary_contact_phone',
                 'nda_in_place', 'vendor_competitors',
+                'cost_center', 'project',
                 'pii_record_count', 'spii_record_count', 'sox_record_count',
                 'business_impact', 'unauthorized_disclosure_impact',
                 'unauthorized_disclosure_justification', 'unauthorized_modification_impact',
@@ -1448,13 +1449,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                 'remote_network_access', 'remote_access_justification',
                 'source_code_access', 'source_code_justification',
                 'critical_business_function', 'critical_function_justification',
-                'saml_sso_support', 'is_saas', 'additional_information',
+                'saml_sso_support', 'is_saas', 'vendor_use_ai', 'additional_information',
             ];
 
             // Numeric fields that must be NULL (not empty string) for DECIMAL/INT columns
             $numericFields = [
                 'pii_record_count', 'spii_record_count', 'sox_record_count',
-                'business_impact', 'target_user_count',
+                'business_impact', 'target_user_count', 'cost_center',
             ];
 
             // Human-readable labels for validation messages
@@ -1490,6 +1491,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                 'critical_business_function' => 'Critical Business Function',
                 'critical_function_justification' => 'Critical Function Justification',
                 'saml_sso_support' => 'SAML/SSO Support', 'is_saas' => 'SaaS Product',
+                'vendor_use_ai' => 'Services Use AI',
+                'cost_center' => 'Cost Center', 'project' => 'Project',
                 'additional_information' => 'Additional Information',
             ];
 
@@ -2459,6 +2462,11 @@ function getFieldValue($request, $field, $default = '') {
                             echo renderYesNo($val);
                         } elseif ($type === 'yes_no_unknown') {
                             echo renderYesNo($val);
+                        } elseif ($type === 'checkbox') {
+                            $checked = ($val === 'yes');
+                            echo '<span class="vendor-field-value">' . ($checked
+                                ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;background:#ecfdf5;color:#065f46;">&#10003; Yes</span>'
+                                : '<span style="color:#9ca3af;">No</span>') . '</span>';
                         } elseif ($type === 'severity') {
                             echo renderSeverity($val);
                         } elseif ($type === 'email' && $val) {
@@ -2468,7 +2476,17 @@ function getFieldValue($request, $field, $default = '') {
                         } elseif ($type === 'date' && $val) {
                             echo '<span class="vendor-field-value">' . date('M j, Y', strtotime($val)) . '</span>';
                         } elseif ($type === 'number') {
-                            echo '<span class="vendor-field-value">' . number_format(intval($val)) . '</span>';
+                            if ($val === '' || $val === null) {
+                                echo '<span class="vendor-field-value empty">Not provided</span>';
+                            } else {
+                                echo '<span class="vendor-field-value">' . number_format(intval($val)) . '</span>';
+                            }
+                        } elseif ($type === 'integer') {
+                            if ($val === '' || $val === null) {
+                                echo '<span class="vendor-field-value empty">Not provided</span>';
+                            } else {
+                                echo '<span class="vendor-field-value">' . intval($val) . '</span>';
+                            }
                         } elseif ($type === 'currency') {
                             echo ($val !== '' && $val !== null) ? '<span class="vendor-field-value">$' . number_format(floatval($val), 2) . '</span>' : '<span class="vendor-field-value empty">Not provided</span>';
                         } elseif ($type === 'tier') {
@@ -2491,6 +2509,12 @@ function getFieldValue($request, $field, $default = '') {
                         if ($type === 'yes_no') {
                             echo '<select name="' . e($field) . '" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;">';
                             echo '<option value="">--</option><option value="yes"' . ($val === 'yes' ? ' selected' : '') . '>Yes</option><option value="no"' . ($val === 'no' ? ' selected' : '') . '>No</option></select>';
+                        } elseif ($type === 'checkbox') {
+                            // Hidden sentinel ensures unchecked state submits as "no"
+                            echo '<input type="hidden" name="' . e($field) . '" value="no">';
+                            echo '<label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">';
+                            echo '<input type="checkbox" name="' . e($field) . '" value="yes"' . ($val === 'yes' ? ' checked' : '') . '>';
+                            echo 'Yes</label>';
                         } elseif ($type === 'yes_no_unknown') {
                             echo '<select name="' . e($field) . '" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;">';
                             echo '<option value="">--</option><option value="yes"' . ($val === 'yes' ? ' selected' : '') . '>Yes</option><option value="no"' . ($val === 'no' ? ' selected' : '') . '>No</option><option value="unknown"' . ($val === 'unknown' ? ' selected' : '') . '>Unknown</option></select>';
@@ -2514,8 +2538,8 @@ function getFieldValue($request, $field, $default = '') {
                             echo '<input type="date" name="' . e($field) . '" value="' . e($val) . '" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;">';
                         } elseif ($type === 'email') {
                             echo '<input type="email" name="' . e($field) . '" value="' . e($val) . '" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;width:100%;">';
-                        } elseif ($type === 'number' || $type === 'currency') {
-                            echo '<input type="number" name="' . e($field) . '" value="' . e($val) . '" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;width:120px;"' . ($type === 'currency' ? ' step="0.01"' : '') . '>';
+                        } elseif ($type === 'number' || $type === 'currency' || $type === 'integer') {
+                            echo '<input type="number" name="' . e($field) . '" value="' . e($val) . '" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;width:120px;"' . ($type === 'currency' ? ' step="0.01"' : ($type === 'integer' ? ' step="1"' : '')) . '>';
                         } else {
                             echo '<input type="text" name="' . e($field) . '" value="' . e($val) . '" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;width:100%;">';
                         }
@@ -2545,6 +2569,7 @@ function getFieldValue($request, $field, $default = '') {
                             <?php dualField($request, 'vendor_domain', 'Vendor Domain', 'domain'); ?>
                             <?php dualField($request, 'vendor_sisterdomains', 'Sister/Subdomains', 'textarea'); ?>
                             <?php dualField($request, 'vendor_type', 'Vendor Type', 'select', $vendorTypes); ?>
+                            <?php dualField($request, 'vendor_use_ai', 'Services Use AI', 'checkbox'); ?>
                             <?php // Tier is read-only here — managed via SRS details page
                             $tier = getFieldValue($request, 'vendor_tier');
                             echo '<div class="vendor-field-row"><span class="vendor-field-label">Vendor Tier</span>';
@@ -2580,6 +2605,8 @@ function getFieldValue($request, $field, $default = '') {
                             <?php dualField($request, 'expected_procurement_date', 'Expected Procurement', 'date'); ?>
                             <?php dualField($request, 'product_service_description', 'Product/Service', 'textarea'); ?>
                             <?php dualField($request, 'target_user_count', 'Target User Count', 'number'); ?>
+                            <?php dualField($request, 'cost_center', 'Cost Center', 'integer'); ?>
+                            <?php dualField($request, 'project', 'Project'); ?>
                             <?php dualField($request, 'nda_in_place', 'NDA in Place', 'yes_no'); ?>
                             <?php dualField($request, 'vendor_competitors', 'Competitors', 'textarea'); ?>
                         </div>
@@ -4831,6 +4858,7 @@ function getFieldValue($request, $field, $default = '') {
                                 <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: #333;">Contract Type <span style="color: #dc2626;">*</span></label>
                                 <select id="docContractType" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                                     <option value="">Select...</option>
+                                    <option value="NDA">NDA</option>
                                     <option value="DPA">DPA</option>
                                     <option value="Master Service Agreement">Master Service Agreement</option>
                                     <option value="Privacy">Privacy</option>
@@ -5040,6 +5068,7 @@ function getFieldValue($request, $field, $default = '') {
                                 <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: #333;">Contract Type</label>
                                 <select id="editContractType" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                                     <option value="">Select...</option>
+                                    <option value="NDA">NDA</option>
                                     <option value="DPA">DPA</option>
                                     <option value="Master Service Agreement">Master Service Agreement</option>
                                     <option value="Privacy">Privacy</option>

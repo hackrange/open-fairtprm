@@ -21,14 +21,6 @@
 // Job Definitions
 // ============================================================================
 $cronJobs = [
-    'ai_queue' => [
-        'name'            => 'AI Job Queue',
-        'description'     => 'Processes background AI tasks (FAIR analysis, contract pricing, assessment autofill, GRC assistant, report generation) so they don\'t block web users',
-        'script'          => 'ai-queue.php',
-        'log'             => '/var/log/php/cron-ai-queue.log',
-        'default_schedule' => '* * * * *',
-        'history_key'     => 'ai-queue',
-    ],
     'rescore_queue' => [
         'name'            => 'Rescore Queue',
         'description'     => 'Processes the UpGuard SRS rescore queue',
@@ -36,15 +28,6 @@ $cronJobs = [
         'log'             => '/var/log/php/cron-rescore-queue.log',
         'default_schedule' => '* * * * *',
         'history_key'     => 'rescore-queue',
-    ],
-    'breach_scan_queue' => [
-        'name'            => 'Breach Scan Queue',
-        'description'     => 'Processes on-demand breach scans triggered via "Scan Company" or "Scan All Vendors". Full vendor OSINT is spawned as a separate background process.',
-        'script'          => 'breach-scan-queue.php',
-        'log'             => '/var/log/php/cron-breach-scan-queue.log',
-        'default_schedule' => '* * * * *',
-        'history_key'     => 'breach-scan-queue',
-        'timeout'         => 1800,
     ],
     'srs_rescore' => [
         'name'            => 'SRS Rescoring',
@@ -94,41 +77,6 @@ $cronJobs = [
         'default_schedule' => '*/5 * * * *',
         'history_key'     => 'grc-continuous-monitors',
     ],
-    'grc_task_digest' => [
-        'name'            => 'GRC Task Digest',
-        'description'     => 'Sends daily email digest of assigned GRC tasks to assessors',
-        'script'          => 'grc-task-digest.php',
-        'log'             => '/var/log/php/cron-grc-task-digest.log',
-        'default_schedule' => '0 6 * * *',
-        'history_key'     => 'grc-task-digest',
-    ],
-    'breach_monitor' => [
-        'name'            => 'Breach / Cyber Alert Monitor',
-        'description'     => 'AI-powered daily research of security breaches, data breaches, and critical vulnerabilities affecting monitored vendors and technologies',
-        'script'          => 'breach-monitor.php',
-        'log'             => '/var/log/php/cron-breach-monitor.log',
-        'default_schedule' => '0 7 * * *',
-        'history_key'     => 'breach-monitor',
-        'timeout'         => 1800,
-    ],
-    'osint_company' => [
-        'name'            => 'OSINT Company Scanner',
-        'description'     => 'Daily GitHub code search for exposed credentials related to your organization\'s domains (Application URL, SRS org domain)',
-        'script'          => 'osint-company.php',
-        'log'             => '/var/log/php/cron-osint-company.log',
-        'default_schedule' => '0 8 * * *',
-        'history_key'     => 'osint-company',
-        'timeout'         => 600,
-    ],
-    'osint_vendors' => [
-        'name'            => 'OSINT Vendor Scanner',
-        'description'     => 'Weekly GitHub code search for exposed credentials across ALL monitored vendor domains. May take 1-2 hours depending on vendor count and GitHub rate limits.',
-        'script'          => 'osint-vendors.php',
-        'log'             => '/var/log/php/cron-osint-vendors.log',
-        'default_schedule' => '0 2 * * 0',
-        'history_key'     => 'osint-vendors',
-        'timeout'         => 7200,
-    ],
 ];
 
 // ============================================================================
@@ -165,24 +113,12 @@ function regenerateCrontab(Database $db, array $cronJobs): bool
             continue;
         }
 
-        // Wrap command with timeout if the job defines one (kills hung processes)
-        $timeout = (int)($job['timeout'] ?? 0);
-        if ($timeout > 0) {
-            $lines[] = sprintf(
-                '%s www-data /usr/bin/timeout --signal=TERM --kill-after=30 %d /usr/bin/php /var/www/html/cron/%s >> %s 2>&1',
-                $schedule,
-                $timeout,
-                $job['script'],
-                $job['log']
-            );
-        } else {
-            $lines[] = sprintf(
-                '%s www-data /usr/bin/php /var/www/html/cron/%s >> %s 2>&1',
-                $schedule,
-                $job['script'],
-                $job['log']
-            );
-        }
+        $lines[] = sprintf(
+            '%s www-data /usr/bin/php /var/www/html/cron/%s >> %s 2>&1',
+            $schedule,
+            $job['script'],
+            $job['log']
+        );
     }
 
     // Cron requires a trailing newline
@@ -245,8 +181,6 @@ function describeCron(string $expr): string
         '0 4 * * *'   => 'Daily at 4:00 AM',
         '0 5 * * *'   => 'Daily at 5:00 AM',
         '0 6 * * *'   => 'Daily at 6:00 AM',
-        '0 7 * * *'   => 'Daily at 7:00 AM',
-        '0 9 * * 2'   => 'Weekly on Tuesday at 9:00 AM',
         '0 12 * * *'  => 'Daily at noon',
         '0 0 * * 0'   => 'Weekly on Sunday at midnight',
         '0 0 1 * *'   => 'Monthly on the 1st at midnight',
@@ -279,7 +213,7 @@ function describeCron(string $expr): string
 // POST Handler: save_schedules
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['save_schedules'])) {
         $changes = [];

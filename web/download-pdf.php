@@ -107,12 +107,37 @@ foreach ($fieldsToDecrypt as $field) {
 // Think of it as the "make me sound smart" button.
 // ============================================================================
 function generateExecutiveSummary($data) {
-    // Use the platform-agnostic AI service (supports OpenWebUI and LibreChat)
-    $ai = AIPlatformService::getInstance();
+    // Load OpenWebUI configuration from app_config
+    $db = Database::getInstance();
+    $encryption = new Encryption();
 
-    if (!$ai->isEnabled()) {
-        return '<p><em>Automated summaries are disabled. An administrator can enable this feature in Admin Portal → Settings.</em></p>';
+    $config = $db->fetchAll(
+        'SELECT config_key, config_value, is_encrypted FROM app_config WHERE config_key LIKE ?',
+        ['openwebui_%']
+    );
+
+    $openWebUIConfig = [];
+    foreach ($config as $setting) {
+        $key = str_replace('openwebui_', '', $setting['config_key']);
+        $value = $setting['is_encrypted'] ? $encryption->decrypt($setting['config_value']) : $setting['config_value'];
+        $openWebUIConfig[$key] = $value;
     }
+
+    // Check if OpenWebUI is enabled
+    if (empty($openWebUIConfig['enabled']) || $openWebUIConfig['enabled'] !== '1') {
+        return '<p><em>AI-generated summaries are disabled. Enable OpenWebUI integration in Admin Portal → Settings to use this feature.</em></p>';
+    }
+
+    // Validate required settings
+    if (empty($openWebUIConfig['api_url']) || empty($openWebUIConfig['jwt_token'])) {
+        return '<p><em>OpenWebUI is not properly configured. Please configure API URL and JWT token in Admin Portal → Settings.</em></p>';
+    }
+
+    $apiUrl = $openWebUIConfig['api_url'];
+    $jwtToken = $openWebUIConfig['jwt_token'];
+    $model = $openWebUIConfig['model'] ?? 'novita.google/gemma-3-27b-it';
+    $temperature = floatval($openWebUIConfig['temperature'] ?? 0.7);
+    $maxTokens = intval($openWebUIConfig['max_tokens'] ?? 500);
 
     $prompt = "Generate a concise executive summary for a Third-Party Risk Management (TPRM) FAIR analysis report.
 
@@ -143,27 +168,51 @@ Secondary Loss Magnitude: \${$data['secondary_loss_magnitude']}
 
 Format the response in clean HTML with <h4> for headers, <p> for paragraphs, and <ul>/<li> for lists. Keep it professional and CONCISE. Output ONLY the HTML content - no character counts, no meta-commentary, no notes about the response.";
 
-    $messages = [['role' => 'user', 'content' => $prompt]];
-    $options = ['temperature' => 0.7, 'max_tokens' => 500, 'purpose' => 'fair_executive_summary', 'timeout' => 30];
+    $payload = [
+        "model" => $model,
+        "messages" => [
+            [
+                "role" => "user",
+                "content" => $prompt
+            ]
+        ],
+        "temperature" => $temperature,
+        "max_tokens" => $maxTokens
+    ];
 
-    $result = $ai->chatCompletion($messages, $options);
+    $ch = curl_init($apiUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "Authorization: Bearer $jwtToken",
+        "Content-Type: application/json"
+    ]);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 
-    if ($result['success'] && !empty($result['content'])) {
-        $content = $result['content'];
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
 
-        // Clean up markdown code fences if present
-        $content = preg_replace('/```html\s*/i', '', $content);
-        $content = preg_replace('/```\s*$/s', '', $content);
-        $content = preg_replace('/```/s', '', $content);
+    if ($httpCode === 200 && $response) {
+        $result = json_decode($response, true);
+        if (isset($result['choices'][0]['message']['content'])) {
+            $content = $result['choices'][0]['message']['content'];
 
-        // Remove any <!DOCTYPE html> and <html>/<body> tags if present
-        $content = preg_replace('/<\!DOCTYPE[^>]*>/i', '', $content);
-        $content = preg_replace('/<\/?html[^>]*>/i', '', $content);
-        $content = preg_replace('/<\/?head[^>]*>/i', '', $content);
-        $content = preg_replace('/<\/?body[^>]*>/i', '', $content);
-        $content = preg_replace('/<title[^>]*>.*?<\/title>/is', '', $content);
+            // Clean up markdown code fences if present
+            $content = preg_replace('/```html\s*/i', '', $content);
+            $content = preg_replace('/```\s*$/s', '', $content);
+            $content = preg_replace('/```/s', '', $content);
 
-        return trim($content);
+            // Remove any <!DOCTYPE html> and <html>/<body> tags if present
+            $content = preg_replace('/<\!DOCTYPE[^>]*>/i', '', $content);
+            $content = preg_replace('/<\/?html[^>]*>/i', '', $content);
+            $content = preg_replace('/<\/?head[^>]*>/i', '', $content);
+            $content = preg_replace('/<\/?body[^>]*>/i', '', $content);
+            $content = preg_replace('/<title[^>]*>.*?<\/title>/is', '', $content);
+
+            return trim($content);
+        }
     }
 
     // Fallback if API fails
@@ -190,7 +239,7 @@ function sanitizeExecutiveSummaryHtml($html) {
 
 // Handle Generate Summary button click
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_summary'])) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } else {
         // Generate executive summary and sanitize HTML before storing

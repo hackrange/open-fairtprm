@@ -26,7 +26,7 @@
 // POST Handlers: upload_sql_update, apply_sql_update, delete_sql_update
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['upload_sql_update'])) {
         try {

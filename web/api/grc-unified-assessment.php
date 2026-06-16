@@ -134,6 +134,10 @@ try {
             break;
 
         case 'update_task':
+            if ($readOnly) {
+                echo json_encode(['success' => false, 'error' => 'Read-only access.', 'csrf_token' => $newToken]);
+                exit;
+            }
             $taskId = (int)($input['task_id'] ?? 0);
             if ($taskId <= 0) {
                 echo json_encode(['success' => false, 'error' => 'Task ID required.', 'csrf_token' => $newToken]);

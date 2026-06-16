@@ -618,6 +618,146 @@ class ShodanClient
     }
 
     /**
+     * Returns a lowercase-keyed HTTP headers array for a Shodan banner.
+     * Shodan does not populate banner['http']['headers'] as a dict — it only
+     * exposes a headers_hash. The raw HTTP response (status line + headers +
+     * body) lives in the top-level banner['data'] field as plain text, so we
+     * parse it out of there. Falls back to banner['http']['headers'] if ever
+     * populated (defensive).
+     */
+    private function extractHttpHeaders(array $banner): array
+    {
+        $existing = $banner['http']['headers'] ?? null;
+        if (is_array($existing) && !empty($existing)) {
+            return array_change_key_case($existing, CASE_LOWER);
+        }
+        $raw = $banner['data'] ?? '';
+        if (!is_string($raw) || $raw === '') {
+            return [];
+        }
+        $split = preg_split("/\r?\n\r?\n/", $raw, 2);
+        $headerBlock = $split[0] ?? '';
+        if ($headerBlock === '') {
+            return [];
+        }
+        $lines = preg_split("/\r?\n/", $headerBlock);
+        $headers = [];
+        foreach ($lines as $i => $line) {
+            if ($i === 0 && preg_match('#^HTTP/\d#', $line)) {
+                continue; // skip status line
+            }
+            $pos = strpos($line, ':');
+            if ($pos === false) {
+                continue;
+            }
+            $name = strtolower(trim(substr($line, 0, $pos)));
+            $value = trim(substr($line, $pos + 1));
+            if ($name === '') {
+                continue;
+            }
+            if (isset($headers[$name])) {
+                if (is_array($headers[$name])) {
+                    $headers[$name][] = $value;
+                } else {
+                    $headers[$name] = [$headers[$name], $value];
+                }
+            } else {
+                $headers[$name] = $value;
+            }
+        }
+        return $headers;
+    }
+
+    /**
+     * Actively probes HTTPS subdomains in parallel with real SNI/Host headers to
+     * capture security-header posture that Shodan's IP-indexed passive scan misses.
+     *
+     * Shodan probes by IP without SNI, so CDN/WAF edges (Cloudflare, Fastly, ELB)
+     * return 400/403/301 defaults that don't carry HSTS/CSP/XFO/etc. This method
+     * fires parallel HEAD requests (curl_multi) to each hostname and returns
+     * synthetic banner records that downstream analyzers (analyzeTlsCrypto,
+     * analyzeAppHardening) will treat alongside real Shodan banners.
+     *
+     * @param string[] $hostnames          Hostnames to probe.
+     * @param array    $hostnameToIp       Map of hostname => IP (for proof/context).
+     * @return array[] Synthetic banner records (port=443, _active_probe=true, data=raw HTTP response).
+     */
+    private function probeActiveHeaders(array $hostnames, array $hostnameToIp): array
+    {
+        if (empty($hostnames) || !function_exists('curl_multi_init')) {
+            return [];
+        }
+
+        // Filter exclusions + dedupe + cap to maxSubdomains to bound work
+        $hostnames = array_values(array_unique(array_filter(
+            $hostnames,
+            fn($h) => !empty($h) && !$this->isExcludedDomain($h)
+        )));
+        if ($this->maxSubdomains > 0) {
+            $hostnames = array_slice($hostnames, 0, $this->maxSubdomains);
+        }
+        if (empty($hostnames)) {
+            return [];
+        }
+
+        $multi = curl_multi_init();
+        $handles = [];
+        foreach ($hostnames as $hostname) {
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL            => "https://{$hostname}/",
+                CURLOPT_NOBODY         => true,   // HEAD
+                CURLOPT_HEADER         => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 3,
+                CURLOPT_TIMEOUT        => 5,
+                CURLOPT_CONNECTTIMEOUT => 3,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => 0,
+                CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; FairTPRM-Probe/1.0)',
+            ]);
+            $handles[$hostname] = $ch;
+            curl_multi_add_handle($multi, $ch);
+        }
+
+        $running = null;
+        do {
+            curl_multi_exec($multi, $running);
+            if ($running > 0) {
+                curl_multi_select($multi, 1.0);
+            }
+        } while ($running > 0);
+
+        $results = [];
+        foreach ($handles as $hostname => $ch) {
+            $response = curl_multi_getcontent($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_multi_remove_handle($multi, $ch);
+
+            if ($httpCode > 0 && is_string($response) && $response !== '') {
+                $ip = $hostnameToIp[$hostname] ?? '';
+                $results[] = [
+                    'port'           => 443,
+                    'transport'      => 'tcp',
+                    '_ip'            => $ip,
+                    '_hostnames'     => [$hostname],
+                    '_active_probe'  => true,
+                    'data'           => $response,
+                    'http'           => [],
+                    'timestamp'      => date('c'),
+                ];
+            }
+        }
+        curl_multi_close($multi);
+
+        if (!empty($results)) {
+            error_log("Shodan: Active HTTPS probe captured " . count($results) . " of " . count($hostnames) . " hostnames");
+        }
+        return $results;
+    }
+
+    /**
      * Low-level HTTP GET request to the Shodan API.
      */
     private function request(string $endpoint, array $params = []): ?array
@@ -714,27 +854,46 @@ class ShodanClient
      */
     public function requestRescan(string $ip): array
     {
+        return $this->requestRescanBatch([$ip]);
+    }
+
+    /**
+     * Request Shodan to rescan one or more IPs in a single API call.
+     * Shodan's /shodan/scan endpoint accepts comma-separated IPs.
+     *
+     * @param array $ips Array of IP address strings
+     * @return array {success: bool, message: string, scan_id: string|null}
+     */
+    public function requestRescanBatch(array $ips): array
+    {
         if (!$this->isConfigured()) {
             return ['success' => false, 'message' => 'Shodan integration is not configured', 'scan_id' => null];
         }
 
-        // Validate IP format
-        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-            return ['success' => false, 'message' => 'Invalid IP address format', 'scan_id' => null];
+        // Validate and filter IPs
+        $validIps = array_filter($ips, function ($ip) {
+            return filter_var($ip, FILTER_VALIDATE_IP);
+        });
+
+        if (empty($validIps)) {
+            return ['success' => false, 'message' => 'No valid IP addresses provided', 'scan_id' => null];
         }
 
-        $result = $this->postRequest('/shodan/scan', ['ips' => $ip]);
+        // Shodan /shodan/scan accepts comma-separated IPs in a single request
+        $ipList = implode(',', $validIps);
+        $result = $this->postRequest('/shodan/scan', ['ips' => $ipList]);
 
         if ($result === null) {
             return ['success' => false, 'message' => $this->lastError ?? 'Rescan request failed', 'scan_id' => null];
         }
 
-        // Shodan returns: {"id": "scan_id", "count": 1, "credits_left": N}
+        // Shodan returns: {"id": "scan_id", "count": N, "credits_left": N}
         if (!empty($result['id'])) {
+            $count = $result['count'] ?? count($validIps);
             $creditsLeft = $result['credits_left'] ?? 'unknown';
             return [
                 'success' => true,
-                'message' => "Rescan initiated (scan ID: {$result['id']}). Credits remaining: {$creditsLeft}. Results typically available within 1-5 minutes.",
+                'message' => "Rescan initiated for {$count} IP(s) (scan ID: {$result['id']}). Credits remaining: {$creditsLeft}. Results typically available within 1-5 minutes.",
                 'scan_id' => $result['id']
             ];
         }
@@ -1285,19 +1444,20 @@ class ShodanClient
             });
             $allBanners = array_values($allBanners);
 
-            // Filter ALL vulns on CDN IPs. When a domain is behind a WAF/CDN
-            // (e.g. Cloudflare), Shodan scans the CDN edge — not the origin server.
-            // CVEs reported on CDN IPs are false positives: they reflect the CDN
-            // infrastructure or leaked origin headers, not actual vendor exposure.
-            // The CDN mitigates these vulnerabilities at the edge.
-            $preFilterVulns = count($allVulns);
+            // Filter vulns on CDN IPs. Port-bound vulns: keep only if the port is
+            // CDN-proxied. Host-level vulns (no port): drop entirely — Shodan is
+            // fingerprinting the CDN edge fleet, not the vendor's origin, so any
+            // host-level CVE on a Cloudflare/Akamai/etc. IP is a false positive.
             $allVulns = array_filter($allVulns, function ($vuln) use ($cdnIps) {
-                return !isset($cdnIps[$vuln['ip'] ?? '']);
+                $vulnIp = $vuln['ip'] ?? '';
+                if (isset($cdnIps[$vulnIp])) {
+                    if (isset($vuln['port'])) {
+                        return in_array($vuln['port'], self::CDN_PROXIED_PORTS);
+                    }
+                    return false;
+                }
+                return true;
             });
-            $cdnFiltered = $preFilterVulns - count($allVulns);
-            if ($cdnFiltered > 0) {
-                error_log("Shodan: Filtered {$cdnFiltered} CVEs on CDN/WAF IPs for {$domain} (false positives)");
-            }
         }
 
         // Filter CVEs older than the configured minimum year
@@ -1316,6 +1476,17 @@ class ShodanClient
         // Step 5: Handle no-data scenario
         if (empty($hostResults)) {
             return $this->buildNoDataResult($domain, $uniqueIps, $subdomains, $dnsData);
+        }
+
+        // Step 5b: Active HTTPS probe. Shodan indexes by IP without SNI, so CDN/WAF
+        // edges return default error responses that don't carry security headers
+        // (HSTS, CSP, XFO, etc.). Actively probe each hostname with real SNI to
+        // capture the real header posture and inject synthetic banners into the
+        // pipeline so the existing header-aware analyzers light up for every
+        // reachable subdomain, not just the few Shodan happens to see directly.
+        $probeBanners = $this->probeActiveHeaders(array_keys($hostnameToIp), $hostnameToIp);
+        if (!empty($probeBanners)) {
+            $allBanners = array_merge($allBanners, $probeBanners);
         }
 
         // Step 6: Run 5 category analyzers
@@ -1801,21 +1972,48 @@ class ShodanClient
             }
 
             // Check HSTS in HTTP headers
-            $headers = $banner['http']['headers'] ?? [];
-            if (!empty($headers)) {
-                $lowerHeaders = array_change_key_case($headers, CASE_LOWER);
-                if (isset($lowerHeaders['strict-transport-security'])) {
-                    $hstsVal = $lowerHeaders['strict-transport-security'];
-                    if (is_array($hstsVal)) $hstsVal = implode('; ', $hstsVal);
-                    $setFlag('hsts', ['Strict-Transport-Security' => $hstsVal]);
-                }
+            $lowerHeaders = $this->extractHttpHeaders($banner);
+            if (isset($lowerHeaders['strict-transport-security'])) {
+                $hstsVal = $lowerHeaders['strict-transport-security'];
+                if (is_array($hstsVal)) $hstsVal = implode('; ', $hstsVal);
+                $setFlag('hsts', ['Strict-Transport-Security' => $hstsVal]);
             }
         }
 
-        // Count unique SSL subdomains for proportional scoring
+        // Post-loop: HSTS detection for active-probe synthetic banners.
+        // The main loop above skips non-SSL banners, so synthetic probes aren't
+        // touched by cert/cipher analysis. We still want to catch HSTS on them.
+        foreach ($banners as $banner) {
+            if (empty($banner['_active_probe'])) continue;
+            $lowerHeaders = $this->extractHttpHeaders($banner);
+            if (!isset($lowerHeaders['strict-transport-security'])) continue;
+
+            $hstsVal = $lowerHeaders['strict-transport-security'];
+            if (is_array($hstsVal)) $hstsVal = implode('; ', $hstsVal);
+
+            $sub  = $banner['_hostnames'][0] ?? $domain;
+            $ip   = $banner['_ip'] ?? '';
+            $port = $banner['port'] ?? 443;
+
+            if (empty($flags['hsts'])) {
+                $flags['hsts'] = true;
+                $src['hsts'] = [
+                    'ip' => $ip, 'sub' => $sub, 'port' => $port,
+                    'proof' => ['Strict-Transport-Security' => $hstsVal],
+                    'allSubs' => !empty($sub) ? [$sub] : [],
+                ];
+            } elseif (!empty($sub) && !in_array($sub, $src['hsts']['allSubs'] ?? [])) {
+                $src['hsts']['allSubs'][] = $sub;
+            }
+        }
+
+        // Count unique SSL subdomains for proportional scoring.
+        // Active-probe synthetic banners count too — they represent real HTTPS
+        // hosts we reached directly, which is the denominator we want for the
+        // "X of Y hosts" adoption ratio.
         $sslSubdomains = [];
         foreach ($banners as $b) {
-            if (!empty($b['ssl'])) {
+            if (!empty($b['ssl']) || !empty($b['_active_probe'])) {
                 $sub = ($b['_hostnames'][0] ?? $domain);
                 if (!empty($sub)) $sslSubdomains[$sub] = true;
             }
@@ -1974,9 +2172,8 @@ class ShodanClient
         // Also check banners for CDN headers
         if (isset($hostInfo['data']) && is_array($hostInfo['data'])) {
             foreach ($hostInfo['data'] as $banner) {
-                $headers = $banner['http']['headers'] ?? [];
-                if (!empty($headers)) {
-                    $lowerHeaders = array_change_key_case($headers, CASE_LOWER);
+                $lowerHeaders = $this->extractHttpHeaders($banner);
+                if (!empty($lowerHeaders)) {
                     foreach (self::WAF_CDN_PATTERNS['headers'] as $headerKey => $name) {
                         if (isset($lowerHeaders[$headerKey])) {
                             return true;
@@ -2020,9 +2217,8 @@ class ShodanClient
             $subdomain = $hostnames[0] ?? null;
 
             // Check HTTP headers for WAF signatures
-            $headers = $banner['http']['headers'] ?? [];
-            if (!empty($headers)) {
-                $lowerHeaders = array_change_key_case($headers, CASE_LOWER);
+            $lowerHeaders = $this->extractHttpHeaders($banner);
+            if (!empty($lowerHeaders)) {
                 foreach (self::WAF_CDN_PATTERNS['headers'] as $headerKey => $name) {
                     if (isset($lowerHeaders[$headerKey])) {
                         if (!$wafDetected) {
@@ -2307,9 +2503,8 @@ class ShodanClient
                 }
             };
 
-            // Check headers
-            $headers = $banner['http']['headers'] ?? [];
-            $lowerHeaders = !empty($headers) ? array_change_key_case($headers, CASE_LOWER) : [];
+            // Check headers (parsed from banner.data since Shodan doesn't populate http.headers)
+            $lowerHeaders = $this->extractHttpHeaders($banner);
 
             // Server version disclosure
             if (!empty($serverHeader) && preg_match('/\d+\.\d+/', $serverHeader)) {
@@ -3137,18 +3332,11 @@ class ShodanClient
             }
 
             // --- WAF/CDN from headers ---
-            $httpHeaders = $banner['http']['headers'] ?? [];
-            if (is_string($httpHeaders)) {
-                $httpHeaders = []; // Sometimes Shodan returns raw header string
-            }
+            $httpHeaders = $this->extractHttpHeaders($banner);
             foreach (self::WAF_CDN_PATTERNS['headers'] as $headerKey => $wafName) {
-                // Check if header exists (Shodan lowercases header names)
-                foreach ($httpHeaders as $hk => $hv) {
-                    if (strtolower($hk) === $headerKey) {
-                        $addTech($wafName, 'cdn_waf', null, $subdomain, $port, 'http_header', 'high',
-                            ['header' => $headerKey], $bCves);
-                        break;
-                    }
+                if (isset($httpHeaders[$headerKey])) {
+                    $addTech($wafName, 'cdn_waf', null, $subdomain, $port, 'http_header', 'high',
+                        ['header' => $headerKey], $bCves);
                 }
             }
 

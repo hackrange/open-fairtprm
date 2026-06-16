@@ -237,10 +237,12 @@ if (!empty($statusFilter) && in_array($statusFilter, ['draft', 'submitted', 'in_
 }
 
 if (!empty($searchQuery)) {
-    $whereConditions[] = "(r.vendor_name LIKE :search OR r.vendor_type LIKE :search2 OR r.relationship_manager LIKE :search3)";
+    $whereConditions[] = "(r.vendor_name LIKE :search OR r.vendor_type LIKE :search2 OR r.relationship_manager LIKE :search3 OR r.project LIKE :search4 OR r.cost_center LIKE :search5)";
     $params[':search'] = '%' . $searchQuery . '%';
     $params[':search2'] = '%' . $searchQuery . '%';
     $params[':search3'] = '%' . $searchQuery . '%';
+    $params[':search4'] = '%' . $searchQuery . '%';
+    $params[':search5'] = '%' . $searchQuery . '%';
 }
 
 $whereClause = !empty($whereConditions) ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
@@ -1518,7 +1520,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                     <?php if (!empty($statusFilter)): ?>
                         <input type="hidden" name="status" value="<?php echo e($statusFilter); ?>">
                     <?php endif; ?>
-                    <input type="text" name="search" placeholder="Search by vendor name, type, or relationship manager..."
+                    <input type="text" name="search" placeholder="Search by vendor name, type, relationship manager, project, or cost center..."
                            value="<?php echo e($searchQuery); ?>">
                     <button type="submit" class="btn btn-outline">Search</button>
                     <?php if (!empty($searchQuery) || !empty($statusFilter)): ?>

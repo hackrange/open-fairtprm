@@ -19,37 +19,6 @@ error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
-// Suppress PHP's session-module cache headers. The default 'nocache' limiter
-// emits a hardcoded "Expires: Thu, 19 Nov 1981 08:52:00 GMT" (a PHP-core
-// developer's birthday baked into the source) plus a Pragma/Cache-Control
-// pair, which together fingerprint the backend as PHP. We disable the
-// limiter here; Security::setSecurityHeaders() emits a Cache-Control of
-// our own so the no-cache semantics are preserved without the giveaway.
-// Must run before any session_start().
-session_cache_limiter('');
-
-// Deny-by-default HTTP method allowlist. Reject unknown verbs (e.g. "ABC", "FOO")
-// before any auth, routing, or business logic runs -- so method-restricted controls
-// upstream cannot be bypassed by HTTP verb tampering. Allowed set covers web pages
-// (GET/POST/HEAD), CORS preflight (OPTIONS), and REST/SCIM (PUT/DELETE/PATCH).
-//
-// Skip the check when running under php-cli (entrypoint regen, cron jobs,
-// seed scripts). REQUEST_METHOD is empty in CLI mode and would always fail
-// the allowlist, silently exiting every CLI bootstrap that includes this
-// file. PHP_SAPI is set by the runtime, not the request — an attacker
-// cannot fake it via HTTP.
-$_allowedHttpMethods = ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'DELETE', 'PATCH'];
-$_requestMethod = $_SERVER['REQUEST_METHOD'] ?? '';
-if (PHP_SAPI !== 'cli' && !in_array($_requestMethod, $_allowedHttpMethods, true)) {
-    error_log('Rejected disallowed HTTP method: ' . $_requestMethod
-        . ' for ' . ($_SERVER['REQUEST_URI'] ?? '')
-        . ' from ' . ($_SERVER['REMOTE_ADDR'] ?? ''));
-    header('Allow: ' . implode(', ', $_allowedHttpMethods));
-    http_response_code(405);
-    exit;
-}
-unset($_allowedHttpMethods, $_requestMethod);
-
 // Define path constants so the rest of the app doesn't have to guess where things are.
 // Using these instead of relative paths keeps everything sane when files include each other.
 if (!defined('APP_ROOT')) {
@@ -160,6 +129,32 @@ try {
 // ============================================================================
 
 /**
+ * Resolve the effective unauthenticated-login URL.
+ *
+ * When auth.force_saml is true AND SAML is actually configured, send the user
+ * straight to /saml/login (because /login.php returns 404 in that mode).
+ * Otherwise fall back to /login.php as before.
+ */
+function getEffectiveLoginUrl($returnTo = '') {
+    $base = '/login.php';
+    try {
+        $forceSaml = (bool)Config::getInstance()->get('auth.force_saml', false);
+        if ($forceSaml) {
+            $saml = new SAMLHandler();
+            if ($saml->isEnabled()) {
+                $base = '/saml/login';
+            }
+        }
+    } catch (Exception $e) {
+        // SAML not available; stay on /login.php
+    }
+    if (!empty($returnTo) && $returnTo !== '/' && $returnTo !== '/login.php') {
+        $base .= '?return_to=' . urlencode($returnTo);
+    }
+    return $base;
+}
+
+/**
  * Checks if the user is logged in. If not, bounces them to the login page.
  * Call this at the top of any page that requires authentication.
  * Simple, effective, no-nonsense.
@@ -169,11 +164,7 @@ function requireAuth() {
     if (!$auth->isAuthenticated()) {
         // Preserve the original URL so the user lands back here after login
         $returnTo = $_SERVER['REQUEST_URI'] ?? '';
-        $loginUrl = '/login.php';
-        if (!empty($returnTo) && $returnTo !== '/' && $returnTo !== '/login.php') {
-            $loginUrl .= '?return_to=' . urlencode($returnTo);
-        }
-        header('Location: ' . $loginUrl);
+        header('Location: ' . getEffectiveLoginUrl($returnTo));
         exit;
     }
 }
@@ -196,11 +187,7 @@ function requireAdmin() {
         // Redirect to login instead of dying with 403 -- when a session expires
         // mid-use the user should land on the login page, not a dead-end error.
         $returnTo = $_SERVER['REQUEST_URI'] ?? '';
-        $loginUrl = '/login.php';
-        if (!empty($returnTo) && $returnTo !== '/' && $returnTo !== '/login.php') {
-            $loginUrl .= '?return_to=' . urlencode($returnTo);
-        }
-        header('Location: ' . $loginUrl);
+        header('Location: ' . getEffectiveLoginUrl($returnTo));
         exit;
     }
 
@@ -625,7 +612,7 @@ function isAnyAdmin() {
  */
 function requireCsrfToken($tokenKey = 'csrf_token') {
     $security = Security::getInstance();
-    if (!$security->validateCSRFToken($_POST[$tokenKey] ?? '')) {
+    if (!isset($_POST[$tokenKey]) || !$security->validateCSRFToken($_POST[$tokenKey])) {
         header('Content-Type: application/json');
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Invalid security token']);

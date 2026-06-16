@@ -42,7 +42,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"]) && $acl-
     header("Location: fair_dashboard.php");
     exit;
 } elseif ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"])) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $_SESSION['error_message'] = 'Invalid request.';
         header('Location: fair_dashboard.php');
         exit;

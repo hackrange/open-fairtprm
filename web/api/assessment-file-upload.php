@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // actually. We don't want someone tricking a vendor into uploading
 // files to the wrong assessment.
 // ---------------------------------------------------------------
-if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
     http_response_code(403);
     echo json_encode([
         'success' => false,

@@ -28,7 +28,7 @@ $modSecAvailable = $lockdown->isModSecurityAvailable();
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wafAction = $_POST['waf_action'] ?? '';
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (!$modSecAvailable) {
         $error = 'ModSecurity is not available. Cannot perform WAF operations.';
@@ -192,18 +192,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Failed to update rate limit settings.';
         }
 
-    } elseif ($wafAction === 'update_auth_lockout') {
-        $maxAttempts = (int)($_POST['al_max_attempts'] ?? 5);
-        $lockoutDuration = (int)($_POST['al_lockout_duration'] ?? 300);
-        if ($lockdown->updateAuthLockoutSettings($maxAttempts, $lockoutDuration)) {
-            $success = "Authentication lockouts updated: {$maxAttempts} attempts, {$lockoutDuration}s window.";
-            $auth->audit($user['id'], 'auth_lockout_update', 'app_config', null, [
-                'new' => ['max_login_attempts' => $maxAttempts, 'lockout_duration' => $lockoutDuration],
-            ]);
-        } else {
-            $error = 'Failed to update authentication lockout settings.';
-        }
-
     } elseif ($wafAction === 'clear_block_log') {
         try {
             $db->query("DELETE FROM waf_block_events");
@@ -263,18 +251,8 @@ $scannerBlocking = $lockdown->isScannerBlockingEnabled();
 
 // Count total intercepts since last Apache restart (from error log)
 // error.log is chown root:www-data in entrypoint — www-data is NOT in the adm group
-// exec() is in disable_functions, so use proc_open (same pattern as LockdownService)
-$interceptCount = 0;
-$desc = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-$proc = proc_open('grep -c "ModSecurity: Access denied" /var/log/apache2/error.log 2>/dev/null', $desc, $pipes);
-if (is_resource($proc)) {
-    fclose($pipes[0]);
-    $interceptCount = (int)trim(stream_get_contents($pipes[1]));
-    fclose($pipes[1]);
-    stream_get_contents($pipes[2]);
-    fclose($pipes[2]);
-    proc_close($proc);
-}
+// Note: is_readable() fails due to open_basedir, but exec() is not restricted by it
+$interceptCount = (int)exec('grep -c "ModSecurity: Access denied" /var/log/apache2/error.log 2>/dev/null');
 
 $ipFilter = trim($_GET['ip'] ?? '');
 $detailUri = $_GET['detail_uri'] ?? '';
@@ -284,18 +262,9 @@ $isDetailView = ($detailUri !== '');
 $patterns = $lockdown->getLearnedPatterns(500, $ipFilter);
 $clientIPs = $lockdown->getDistinctClientIPs();
 $rules = $lockdown->getWhitelistRules();
-// Block Log pagination: default 50 per page, keep current page in URL so
-// reloads land in the same place. Capped page size so a hostile ?per_page
-// can't blow up memory.
-$blocksPerPage = max(10, min(500, (int)($_GET['bl_per_page'] ?? 50)));
-$blocksPage = max(1, (int)($_GET['bl_page'] ?? 1));
-$blocksTotal = $lockdown->getRecentBlocksCount();
-$blocksTotalPages = max(1, (int)ceil($blocksTotal / $blocksPerPage));
-if ($blocksPage > $blocksTotalPages) $blocksPage = $blocksTotalPages;
-$blocks = $lockdown->getRecentBlocks($blocksPerPage, ($blocksPage - 1) * $blocksPerPage);
+$blocks = $lockdown->getRecentBlocks(0);
 $whitelistedIPs = $lockdown->getWhitelistedIPs();
 $rateLimitSettings = $lockdown->getRateLimitSettings();
-$authLockoutSettings = $lockdown->getAuthLockoutSettings();
 
 // Detail view: load individual requests for the selected pattern
 $detailRequests = [];
@@ -755,38 +724,6 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
     </div>
 </div>
 
-<!-- Card: Authentication Lockouts -->
-<div class="card">
-    <h3>Authentication Lockouts</h3>
-    <p style="font-size: 13px; color: #666; margin-bottom: 16px;">
-        Brute-force and password-spray protection for the login endpoint. Triggered on real failed logins and applied independently to per-(IP, browser fingerprint), per-(username, IP), and per-IP fallback combinations — so a scanner attacking one account from one IP can never lock the legitimate user out of their own network.
-    </p>
-
-    <form method="POST" action="admin.php?section=lockdown" style="max-width: 420px;">
-        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-        <input type="hidden" name="waf_action" value="update_auth_lockout">
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <div style="display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; font-size: 13px;">
-                <label>Max attempts:</label>
-                <input type="number" name="al_max_attempts" value="<?php echo (int)$authLockoutSettings['max_attempts']; ?>" min="1" max="50" style="width: 80px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;">
-                <label>Lockout window:</label>
-                <div style="display: flex; align-items: center; gap: 4px;">
-                    <input type="number" name="al_lockout_duration" value="<?php echo (int)$authLockoutSettings['lockout_duration']; ?>" min="60" max="86400" style="width: 80px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;">
-                    <span style="color: #666;">seconds</span>
-                </div>
-            </div>
-            <div style="margin-top: 6px;">
-                <button type="submit" class="btn btn-sm btn-primary" data-disable-on-click="Saving...">
-                    Save Auth Lockouts
-                </button>
-            </div>
-        </div>
-    </form>
-    <div style="margin-top: 10px; padding: 8px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12px; color: #166534; max-width: 420px;">
-        Active: <?php echo (int)$authLockoutSettings['max_attempts']; ?> attempts triggers a <?php echo (int)$authLockoutSettings['lockout_duration']; ?>s lockout
-    </div>
-</div>
-
 <!-- Card 2: Learned Patterns -->
 <div class="card">
     <h3>Learned Patterns</h3>
@@ -1084,42 +1021,11 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
         </div>
         <?php endif; ?>
     </div>
-    <?php if ($blocksTotal === 0): ?>
+    <?php if (empty($blocks)): ?>
         <p style="color: #999;">No blocked requests recorded.</p>
     <?php else: ?>
-        <?php
-        $blStart = ($blocksPage - 1) * $blocksPerPage + 1;
-        $blEnd   = min($blStart + count($blocks) - 1, $blocksTotal);
-        $blQs = function(array $extra) use ($ipFilter, $blocksPerPage) {
-            $params = ['section' => 'lockdown', 'bl_per_page' => $blocksPerPage];
-            if ($ipFilter !== '') $params['ip'] = $ipFilter;
-            return 'admin.php?' . http_build_query(array_merge($params, $extra));
-        };
-        ?>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-            <p style="color: #666; font-size: 13px; margin: 0;">
-                Showing <strong><?php echo number_format($blStart); ?>–<?php echo number_format($blEnd); ?></strong> of <?php echo number_format($blocksTotal); ?> block event(s).
-            </p>
-            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
-                <label style="color: #666;">Per page:</label>
-                <select onchange="location.href = '<?php echo e($blQs(['bl_page' => 1])); ?>'.replace(/bl_per_page=\d+/, 'bl_per_page=' + this.value)"
-                        style="font-size: 12px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px;">
-                    <?php foreach ([25, 50, 100, 250] as $opt): ?>
-                    <option value="<?php echo $opt; ?>" <?php echo $blocksPerPage === $opt ? 'selected' : ''; ?>><?php echo $opt; ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <?php if ($blocksTotalPages > 1): ?>
-                <a href="<?php echo e($blQs(['bl_page' => max(1, $blocksPage - 1)])); ?>"
-                   class="btn btn-sm btn-secondary"
-                   style="padding: 3px 10px; <?php echo $blocksPage <= 1 ? 'pointer-events: none; opacity: 0.4;' : ''; ?>">&laquo; Prev</a>
-                <span style="color: #666;">Page <?php echo $blocksPage; ?> of <?php echo $blocksTotalPages; ?></span>
-                <a href="<?php echo e($blQs(['bl_page' => min($blocksTotalPages, $blocksPage + 1)])); ?>"
-                   class="btn btn-sm btn-secondary"
-                   style="padding: 3px 10px; <?php echo $blocksPage >= $blocksTotalPages ? 'pointer-events: none; opacity: 0.4;' : ''; ?>">Next &raquo;</a>
-                <?php endif; ?>
-            </div>
-        </div>
-        <div style="overflow-x: auto;">
+        <p style="color: #666; margin-bottom: 15px; font-size: 13px;"><?php echo number_format(count($blocks)); ?> recent block event(s).</p>
+        <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
             <table>
                 <thead>
                     <tr>

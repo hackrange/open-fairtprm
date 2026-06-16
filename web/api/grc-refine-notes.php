@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
-if (!$input || !$security->validateCSRFToken($input['csrf_token'] ?? '')) {
+if (!$input || empty($input['csrf_token']) || !$security->validateCSRFToken($input['csrf_token'])) {
     http_response_code(403);
     echo json_encode(['error' => 'Invalid CSRF token', 'csrf_token' => $security->getCSRFToken()]);
     exit;
@@ -47,7 +47,7 @@ require_once __DIR__ . '/../includes/classes/AIPlatformService.php';
 $ai = AIPlatformService::getInstance();
 
 if (!$ai->isEnabled()) {
-    echo json_encode(['error' => 'Service is not configured', 'csrf_token' => $newCsrfToken]);
+    echo json_encode(['error' => 'AI service is not configured', 'csrf_token' => $newCsrfToken]);
     exit;
 }
 
@@ -81,21 +81,25 @@ $messages = [
     ]
 ];
 
-$db = Database::getInstance();
-$jobId = $db->insert('ai_job_queue', [
-    'job_type' => 'grc_assistant',
-    'status' => 'pending',
-    'user_id' => $user['id'],
-    'request_payload' => json_encode([
-        'messages' => $messages,
-        'ai_options' => ['max_tokens' => max($ai->getMaxTokens(), 1000)],
-        'context' => ['action' => 'refine_notes'],
-    ]),
+$result = $ai->chatCompletion($messages, [
+    'max_tokens' => max($ai->getMaxTokens(), 1000),
 ]);
+
+if (!$result['success']) {
+    error_log("AI Platform API error (grc-refine-notes): " . $result['error']);
+    echo json_encode(['error' => 'AI service error: ' . $result['error'], 'csrf_token' => $newCsrfToken]);
+    exit;
+}
+
+$refined = trim($result['content'] ?? '');
+
+// Strip any markdown fences or wrappers
+$refined = preg_replace('/```[a-z]*\s*/i', '', $refined);
+$refined = preg_replace('/```\s*$/s', '', $refined);
+$refined = trim($refined);
 
 echo json_encode([
     'success' => true,
-    'queued' => true,
-    'job_id' => $jobId,
+    'refined' => $refined,
     'csrf_token' => $newCsrfToken,
 ]);

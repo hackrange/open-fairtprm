@@ -52,6 +52,10 @@ if (($seedCheck['cnt'] ?? 0) == 0) {
         ['vendor_competitors',          'TEXT',                                     'Vendor Information',    'onboarding', 'Known vendor competitors'],
         ['vsu_onboarded',               "ENUM('yes','no','')",                       'Vendor Information',    'onboarding', 'VSU procurement onboarding status'],
 
+        // Section: Engagement Details
+        ['cost_center',                 'INT(10) UNSIGNED',                          'Engagement Details',    'onboarding', 'Accounting cost center (integer)'],
+        ['project',                     'VARCHAR(255)',                              'Engagement Details',    'onboarding', 'Project name / identifier'],
+
         // Section: Data & Risk Assessment
         ['pii_record_count',                      'INT UNSIGNED',                              'Data & Risk Assessment', 'onboarding', 'Number of PII records'],
         ['spii_record_count',                     'INT UNSIGNED',                              'Data & Risk Assessment', 'onboarding', 'Number of Sensitive PII records'],
@@ -97,7 +101,7 @@ if (($seedCheck['cnt'] ?? 0) == 0) {
 // POST HANDLERS
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['add_field'])) {
         $fieldName    = trim($_POST['field_name'] ?? '');

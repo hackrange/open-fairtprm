@@ -81,7 +81,7 @@ if (isset($_GET['download_template'])) {
 // Everything runs inside a transaction because we're not animals.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
     // First things first: CSRF check to prevent shenanigans
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } else {
         $file = $_FILES['csv_file'];
@@ -636,7 +636,6 @@ $csrfToken = $security->generateCSRFToken();
         </footer>
     </div>
     <script src="app/js/core.min.js"></script>
-    <script src="app/js/vendor/select2-4.0.13.min.js"></script>
     <script src="app/js/script.js"></script>
 </body>
 </html>

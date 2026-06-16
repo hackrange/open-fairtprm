@@ -146,6 +146,14 @@ class LockdownService
         '/api/grc-generate-report.php',
         '/api/grc-report-save.php',
         '/api/grc-report-download.php',
+        // SAML 2.0 SSO endpoints (v2.6.1). The IdP POSTs the signed SAMLResponse
+        // to /saml/acs.php and may GET/POST logout to /saml/sls.php, so these must
+        // stay reachable under positive-security lockdown. @streq matches on URI
+        // only (any method), which is required for the IdP's cross-site POST.
+        '/saml/acs.php',
+        '/saml/login.php',
+        '/saml/sls.php',
+        '/saml/metadata.php',
     ];
 
     /** Path prefixes always whitelisted (static assets, SCIM) */
@@ -158,6 +166,7 @@ class LockdownService
         '/app/icons/',
         '/app/images/',
         '/app/fonts/',
+        '/app/template/',
     ];
 
     public function __construct(Database $db)
@@ -728,15 +737,9 @@ class LockdownService
     }
 
     /**
-     * Get recent block events for display. Paginated — without limits the
-     * query and rendered DOM both grow unbounded as scanners hammer the
-     * site, making the lockdown page slow to load and the table choppy
-     * to scroll.
-     *
-     * Pass $limit=0 ONLY for the CSV export path, which deliberately wants
-     * the whole table.
+     * Get recent block events for display.
      */
-    public function getRecentBlocks(int $limit = 50, int $offset = 0): array
+    public function getRecentBlocks(int $limit = 50): array
     {
         // Ingest any new blocks from the Apache error log first
         $this->ingestBlockLog();
@@ -746,28 +749,12 @@ class LockdownService
                     FROM waf_block_events
                     ORDER BY blocked_at DESC";
             if ($limit > 0) {
-                // OFFSET/LIMIT must be ints — PDO with PDO::ATTR_EMULATE_PREPARES
-                // off would bind these as strings, which MySQL/MariaDB rejects.
-                // Casting to int + sprintf is safe here because both values are
-                // already int-typed at the call site.
-                $sql .= sprintf(" LIMIT %d OFFSET %d", max(1, $limit), max(0, $offset));
+                $sql .= " LIMIT :limit";
+                return $this->db->fetchAll($sql, [':limit' => $limit]);
             }
             return $this->db->fetchAll($sql);
         } catch (\Exception $e) {
             return [];
-        }
-    }
-
-    /**
-     * Total count of block events. Used for pagination controls.
-     */
-    public function getRecentBlocksCount(): int
-    {
-        try {
-            $row = $this->db->fetchOne("SELECT COUNT(*) AS c FROM waf_block_events");
-            return $row ? (int)$row['c'] : 0;
-        } catch (\Exception $e) {
-            return 0;
         }
     }
 
@@ -866,38 +853,6 @@ class LockdownService
         $this->setConfigValue('waf_rate_limit_block', (string)$blockDuration);
 
         return $this->rebuildAndReload();
-    }
-
-    /**
-     * Get the PHP-layer authentication lockout settings (max_login_attempts
-     * and lockout_duration). These drive Auth::login()'s three lockout
-     * helpers: per-(IP, UA) fingerprint, per-(username, IP), and per-IP
-     * fallback. Conceptually a Lockdown setting; the values live in
-     * app_config alongside the other security knobs.
-     */
-    public function getAuthLockoutSettings(): array
-    {
-        return [
-            'max_attempts'     => (int)$this->getConfigValue('max_login_attempts', '5'),
-            'lockout_duration' => (int)$this->getConfigValue('lockout_duration', '300'),
-        ];
-    }
-
-    /**
-     * Update the PHP-layer authentication lockout settings. Bounds match
-     * the original general.php form (1-50 attempts, 60-86400 seconds).
-     * No conf rebuild needed — Auth.php reads the values on demand each
-     * request, so changes take effect immediately.
-     */
-    public function updateAuthLockoutSettings(int $maxAttempts, int $lockoutDuration): bool
-    {
-        $maxAttempts     = max(1,  min(50,    $maxAttempts));
-        $lockoutDuration = max(60, min(86400, $lockoutDuration));
-
-        $this->setConfigValue('max_login_attempts', (string)$maxAttempts);
-        $this->setConfigValue('lockout_duration',   (string)$lockoutDuration);
-
-        return true;
     }
 
     /**
@@ -1472,17 +1427,13 @@ class LockdownService
                 foreach ($ips as $idx => $row) {
                     $ruleId = 399900 + $idx;
                     $ipEsc = addcslashes($row['ip_address'], '"\\');
-                    // Match against TX:real_ip (resolved in SECTION 0a below)
-                    // rather than REMOTE_ADDR — REMOTE_ADDR is the upstream
-                    // proxy IP in this deployment, which would cause the
-                    // whitelist to either match nothing or match every tenant.
                     if (strpos($row['ip_address'], '/') !== false) {
                         // CIDR notation
-                        $ipWhitelistBlock .= "SecRule TX:real_ip \"@ipMatch {$ipEsc}\" \\\n";
+                        $ipWhitelistBlock .= "SecRule REMOTE_ADDR \"@ipMatch {$ipEsc}\" \\\n";
                         $ipWhitelistBlock .= "    \"id:{$ruleId},phase:1,allow,nolog,msg:'IP whitelist: {$ipEsc}'\"\n\n";
                     } else {
                         // Single IP
-                        $ipWhitelistBlock .= "SecRule TX:real_ip \"@ipMatch {$ipEsc}\" \\\n";
+                        $ipWhitelistBlock .= "SecRule REMOTE_ADDR \"@ipMatch {$ipEsc}\" \\\n";
                         $ipWhitelistBlock .= "    \"id:{$ruleId},phase:1,allow,nolog,msg:'IP whitelist: {$ipEsc}'\"\n\n";
                     }
                 }
@@ -1501,12 +1452,8 @@ class LockdownService
 # Tracks requests per IP using ModSecurity IP collections.
 # Threshold: {$rl['requests']} requests per {$rl['period']}s, block for {$rl['block_duration']}s
 
-# Initialize IP collection and increment request counter. Keyed on
-# TX:real_ip (resolved in SECTION 0a) rather than REMOTE_ADDR so each
-# real visitor gets their own counter — without this, every tenant
-# behind the upstream proxy shares one bucket and a single attacker
-# rate-limits the whole platform.
-SecAction "id:400060,phase:1,nolog,pass,initcol:ip=%{tx.real_ip},setvar:ip.req_count=+1,expirevar:ip.req_count={$rl['period']}"
+# Initialize IP collection and increment request counter
+SecAction "id:400060,phase:1,nolog,pass,initcol:ip=%{REMOTE_ADDR},setvar:ip.req_count=+1,expirevar:ip.req_count={$rl['period']}"
 
 # If already flagged as blocked, deny immediately
 SecRule IP:blocked "@eq 1" \
@@ -1519,15 +1466,6 @@ SecRule IP:req_count "@gt {$rl['requests']}" \
 RL;
         }
 
-        // Login-endpoint brute-force / password-spray detection lives in
-        // PHP (Auth::login() with per-(IP, UA), per-(username, IP), and
-        // per-IP fallback lockouts). A WAF login-specific throttle was
-        // tried here and removed — being IP-keyed and volumetric, it
-        // produced shared-counter DoS for any tenant whose egress IP a
-        // scanner was hammering, even when the WAF correctly resolved the
-        // real client IP. PHP's username-aware lockouts don't have that
-        // failure mode by construction.
-
         return <<<CONF
 # =============================================================================
 # Open TPRM - Automated Scanner & Attack Detection Rules
@@ -1538,41 +1476,6 @@ RL;
 # are blocked immediately regardless of whether the path is whitelisted.
 # Last updated: {$this->timestamp()}
 # =============================================================================
-
-# ── SECTION 0a: Real Client IP Resolution ────────────────────────────────
-# Apache's mod_remoteip swaps REMOTE_ADDR with the trusted-proxy header
-# (X-Real-IP) before PHP runs, BUT module-hook ordering in Apache 2.4
-# does not guarantee mod_remoteip fires before mod_security2's phase:1.
-# In a multi-tenant deployment behind a frontend proxy that means every
-# tenant shares one ip collection (the proxy IP) and a single attacker
-# locks out all customers. Resolving the client IP into TX:real_ip here,
-# and using %{tx.real_ip} for every collection key below, makes the
-# rate limits scope to the real visitor regardless of mod_remoteip's
-# hook order.
-
-# Default: REMOTE_ADDR (whatever Apache hands us — proxy IP if mod_remoteip
-# hasn't run yet, real client IP if it has).
-SecAction "id:399950,phase:1,nolog,pass,setvar:tx.real_ip=%{REMOTE_ADDR}"
-
-# Override with X-Real-IP, but ONLY when the connection came from a
-# trusted-proxy CIDR (mirrors apache-vhost.conf's RemoteIPInternalProxy
-# list). This blocks an external attacker from spoofing X-Real-IP to
-# bypass blocks, while still picking up the real visitor IP that the
-# upstream nginx/proxy stamps onto the request.
-SecRule REMOTE_ADDR "@ipMatch 127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16" \\
-    "id:399951,phase:1,nolog,pass,chain"
-    SecRule REQUEST_HEADERS:X-Real-IP "@rx ^([0-9]{1,3}\\.){3}[0-9]{1,3}\$" \\
-        "setvar:tx.real_ip=%{matched_var}"
-
-# ── SECTION 0b: Branded Error-Page Asset Bypass ──────────────────────────
-# Static assets under /errors/ (the branded 4xx/5xx HTML and shared
-# stylesheet) are served by Apache when ModSec denies a request. If the
-# *same* IP is in penalty-box state, the page's <link> request to
-# /errors/error.css would itself return 429 and the user would see a
-# blank white page. Allowing /errors/* unconditionally guarantees the
-# branded error page always renders.
-SecRule REQUEST_URI "@beginsWith /errors/" \\
-    "id:399952,phase:1,nolog,allow"
 
 {$ipWhitelistBlock}
 # ── SECTION 1: Known Scanner Fingerprints ─────────────────────────────────

@@ -736,8 +736,16 @@ try {
                                 <div class="contract-pricing-summary">
                                     <?php if (!empty($pricing['contractId'])): ?>
                                     <div class="pricing-row">Contract ID: <span style="color: #334155; font-weight: 500;"><?php echo e($pricing['contractId']); ?></span>
-                                        <?php if (!empty($pricing['systemOfRecordLink'])): ?>
-                                            &middot; <a href="<?php echo e($pricing['systemOfRecordLink']); ?>" target="_blank" rel="noopener" style="color: #2563eb; text-decoration: none;">System of Record</a>
+                                        <?php
+                                            // Only render the link when it is an http(s) URL. e() blocks attribute
+                                            // breakout but NOT the scheme, so a stored `javascript:` value would be a
+                                            // clickable stored-XSS vector for the reviewer. Allow-list the scheme,
+                                            // matching the pattern used for theme logo URLs in init.php.
+                                            $sorLink = (string)($pricing['systemOfRecordLink'] ?? '');
+                                            $sorScheme = $sorLink !== '' ? strtolower((string)parse_url($sorLink, PHP_URL_SCHEME)) : '';
+                                        ?>
+                                        <?php if (in_array($sorScheme, ['http', 'https'], true)): ?>
+                                            &middot; <a href="<?php echo e($sorLink); ?>" target="_blank" rel="noopener" style="color: #2563eb; text-decoration: none;">System of Record</a>
                                         <?php endif; ?>
                                     </div>
                                     <?php endif; ?>

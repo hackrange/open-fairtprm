@@ -134,7 +134,7 @@ $restoreScroll = 0;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor) {
     $restoreScroll = intval($_POST['_scroll'] ?? 0);
 
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['update_tier'])) {
         // Tier update -- changes how often this vendor gets rescored.
@@ -663,17 +663,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
     } elseif (isset($_POST['rescan_ip'])) {
         $rescanIp = trim($_POST['rescan_ip'] ?? '');
         if (!empty($rescanIp) && filter_var($rescanIp, FILTER_VALIDATE_IP)) {
-            $rescanResult = $shodanService->requestRescan($rescanIp);
-            if ($rescanResult['success']) {
-                $success = $rescanResult['message'];
+            $cooldownRow = $db->fetchOne(
+                'SELECT config_value FROM app_config WHERE config_key = ?',
+                ['shodan_rescan_cooldown_hours']
+            );
+            $cooldownHours = max(0, intval($cooldownRow['config_value'] ?? 24));
+            $recent = null;
+            if ($cooldownHours > 0) {
+                $recent = $db->fetchOne(
+                    'SELECT requested_at FROM shodan_rescan_log WHERE ip_address = ? AND requested_at > NOW() - INTERVAL ? HOUR ORDER BY requested_at DESC LIMIT 1',
+                    [$rescanIp, $cooldownHours]
+                );
+            }
+            if ($recent) {
+                $error = "Rescan skipped: {$rescanIp} was already rescanned at {$recent['requested_at']} (within the {$cooldownHours}-hour cooldown).";
             } else {
-                $error = 'Rescan failed: ' . $rescanResult['message'];
+                $rescanResult = $shodanService->requestRescan($rescanIp);
+                if ($rescanResult['success']) {
+                    $db->insert('shodan_rescan_log', [
+                        'ip_address' => $rescanIp,
+                        'scan_id' => $rescanResult['scan_id'] ?? null,
+                        'requested_by' => $user['username'] ?? null,
+                    ]);
+                    $success = $rescanResult['message'];
+                } else {
+                    $error = 'Rescan failed: ' . $rescanResult['message'];
+                }
             }
         } else {
             $error = 'Invalid IP address for rescan.';
         }
     } elseif (isset($_POST['rescan_all_ips'])) {
-        // Request Shodan to rescan all IPs from the latest score
+        // Request Shodan to rescan all IPs in a single batch API call,
+        // skipping any IP rescanned within the configured cooldown window.
         $latestScore = $shodanService->getLatestScore($vendorId);
         $allIps = [];
         if ($latestScore && !empty($latestScore['ip_addresses'])) {
@@ -682,26 +704,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
         if (empty($allIps)) {
             $error = 'No IP addresses found for this vendor. Score the vendor first.';
         } else {
-            $okCount = 0;
-            $failCount = 0;
-            $lastMsg = '';
-            foreach ($allIps as $ip) {
-                if (!filter_var($ip, FILTER_VALIDATE_IP)) continue;
-                $result = $shodanService->requestRescan($ip);
-                if ($result['success']) {
-                    $okCount++;
-                    $lastMsg = $result['message'];
-                } else {
-                    $failCount++;
-                    $lastMsg = $result['message'];
-                }
-            }
-            if ($okCount > 0 && $failCount === 0) {
-                $success = "Rescan requested for {$okCount} IP" . ($okCount > 1 ? 's' : '') . ". {$lastMsg}";
-            } elseif ($okCount > 0) {
-                $success = "Rescan requested for {$okCount} IP(s), {$failCount} failed. Last: {$lastMsg}";
+            $validIps = array_values(array_filter($allIps, function ($ip) {
+                return filter_var($ip, FILTER_VALIDATE_IP);
+            }));
+            if (empty($validIps)) {
+                $error = 'No valid IP addresses found for this vendor.';
             } else {
-                $error = "All rescan requests failed. {$lastMsg}";
+                $cooldownRow = $db->fetchOne(
+                    'SELECT config_value FROM app_config WHERE config_key = ?',
+                    ['shodan_rescan_cooldown_hours']
+                );
+                $cooldownHours = max(0, intval($cooldownRow['config_value'] ?? 24));
+
+                $toScan = $validIps;
+                $skipped = [];
+                if ($cooldownHours > 0) {
+                    $placeholders = implode(',', array_fill(0, count($validIps), '?'));
+                    $params = $validIps;
+                    $params[] = $cooldownHours;
+                    $recentRows = $db->fetchAll(
+                        "SELECT DISTINCT ip_address FROM shodan_rescan_log WHERE ip_address IN ($placeholders) AND requested_at > NOW() - INTERVAL ? HOUR",
+                        $params
+                    );
+                    $recentIps = array_column($recentRows, 'ip_address');
+                    $skipped = array_values(array_intersect($validIps, $recentIps));
+                    $toScan = array_values(array_diff($validIps, $recentIps));
+                }
+
+                if (empty($toScan)) {
+                    $skipCount = count($skipped);
+                    $error = "No rescan requested: all {$skipCount} IP" . ($skipCount > 1 ? 's were' : ' was') . " rescanned within the last {$cooldownHours} hour" . ($cooldownHours !== 1 ? 's' : '') . ".";
+                } else {
+                    $result = $shodanService->requestRescanBatch($toScan);
+                    if ($result['success']) {
+                        $scanId = $result['scan_id'] ?? null;
+                        $requestedBy = $user['username'] ?? null;
+                        foreach ($toScan as $ip) {
+                            $db->insert('shodan_rescan_log', [
+                                'ip_address' => $ip,
+                                'scan_id' => $scanId,
+                                'requested_by' => $requestedBy,
+                            ]);
+                        }
+                        $scanCount = count($toScan);
+                        $skipCount = count($skipped);
+                        $msg = "Rescan requested for {$scanCount} IP" . ($scanCount > 1 ? 's' : '') . ".";
+                        if ($skipCount > 0) {
+                            $msg .= " {$skipCount} IP" . ($skipCount > 1 ? 's' : '') . " skipped (rescanned within last {$cooldownHours} hour" . ($cooldownHours !== 1 ? 's' : '') . ").";
+                        }
+                        $msg .= " {$result['message']}";
+                        $success = $msg;
+                    } else {
+                        $error = "Rescan request failed. {$result['message']}";
+                    }
+                }
             }
         }
     } elseif (isset($_POST['exclude_subdomain'])) {

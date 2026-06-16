@@ -157,13 +157,25 @@ try {
     // ---------------------------------------------------------------
     if ($isAdmin || $isCyberTPRM || $isAuditor) {
         try {
+            // Only surface 'pending' rows — dismissed entries are decision
+            // records, not actionable vendors, and onboarded rows are deleted
+            // from shadow_saas. Also exclude any pending row whose domain
+            // already exists as a non-inactive TPRM vendor, so we don't show
+            // the same vendor twice when both rows happen to coexist.
             $ssSql = "
                 SELECT ss.id, ss.vendor_name, ss.vendor_domain,
                        ss.relationship_manager, ss.status, ss.created_at,
                        ss.current_srs_score, ss.current_shodan_score
                 FROM shadow_saas ss
-                WHERE ss.status IN ('pending', 'dismissed')
+                WHERE ss.status = 'pending'
                   AND (ss.vendor_name LIKE :search OR ss.vendor_domain LIKE :search2 OR ss.relationship_manager LIKE :search3)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM vendor_onboarding_requests v
+                      WHERE v.vendor_domain IS NOT NULL
+                        AND v.vendor_domain <> ''
+                        AND v.vendor_domain = ss.vendor_domain
+                        AND v.status <> 'inactive'
+                  )
                 ORDER BY ss.vendor_name ASC
                 LIMIT 5
             ";

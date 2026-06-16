@@ -25,78 +25,6 @@
 (function() {
     'use strict';
 
-    // Allowlist of global function names that may be invoked via data-action.
-    // Without this gate, an injected element with data-action="eval" or any
-    // other window-resident function name would execute attacker-controlled
-    // JavaScript. The list is the union of every camelCase data-action value
-    // currently used in the codebase. Kebab-case data-action values (e.g.
-    // "save-pdf", "open-task") are handled by per-page listeners and never
-    // reach this dispatcher, so they don't need to be listed here. New
-    // data-action functions must be added here when introduced.
-    var SAFE_ACTIONS = {
-        addQuestion: 1, addSection: 1, aiAutofillAssessment: 1, changePerPage: 1,
-        clearReassignUser: 1, clearScoreHistory: 1, clearUserSearch: 1,
-        closeAssignGroupsModal: 1, closeCreateUserModal: 1, closeCronInfoModal: 1,
-        closeDeleteUserModal: 1, closeEditModal: 1, closeReassignModal: 1,
-        closeRestoreModal: 1, closeRetierModal: 1, closeTierModal: 1,
-        closeUploadRestoreModal: 1, confirmApplyUpdate: 1, confirmDeleteUser: 1,
-        confirmImpersonate: 1, confirmRestore: 1, confirmUploadRestore: 1,
-        copyLink: 1, deleteDocument: 1, deleteQuestion: 1, deleteSection: 1,
-        deleteVendor: 1, editDocumentMeta: 1, editQuestion: 1, editRule: 1,
-        editSection: 1, editSubprocessor: 1, emailLink: 1, evalSelected: 1,
-        exportOldFindings: 1, exportRawData: 1, exportRawFindings: 1,
-        exportScoreHistory: 1, exportShodanSignals: 1, exportVendorDomainsCSV: 1,
-        exportVendorTechCSV: 1, fillProviderSettings: 1, filterByGroup: 1,
-        filterByStatus: 1, filterByType: 1, generateExecSummary: 1, goToPage: 1,
-        identifiedRisksPage: 1, loadDependsOnValues: 1, oldFindingsPage: 1,
-        onQuestionChange: 1, onSourceTemplateChange: 1, openAssignGroupsModal: 1,
-        openCaseReassignModal: 1, openContactModal: 1, openCreateRule: 1,
-        openCreateUserModal: 1, openCronInfoModal: 1, openEditModal: 1,
-        openReassignModal: 1, openRetierModal: 1, openStakeholderModal: 1,
-        openStatusModal: 1, openTierModal: 1, openVendorNameModal: 1,
-        openVendorTypeModal: 1, previewSqlUpdate: 1, rawFindingsPage: 1,
-        removeSubprocessor: 1, reorderQuestion: 1, reorderSection: 1,
-        saveGroupAssignments: 1, saveQuestion: 1, saveSection: 1,
-        scoreSelected: 1, scrollToCategory: 1, scrollToSection: 1,
-        searchTechConcentration: 1, showEmailSection: 1, showShodanSection: 1,
-        showSrsSection: 1, showVendorTab: 1, toggleBlastVendor: 1,
-        toggleCatSubdomains: 1, toggleCompletedAction: 1, toggleDocumentStatus: 1,
-        toggleEmailMethod: 1, toggleEmailTemplate: 1, toggleHistoryTab: 1,
-        toggleIdentifiedRisks: 1, toggleOldFindings: 1, toggleOnbScoreMenu: 1,
-        toggleOptionsEditor: 1, toggleProcurementUserSelect: 1, toggleProof: 1,
-        toggleRawFindings: 1, toggleReplyForm: 1, toggleScoreHistory: 1,
-        toggleScoringMethod: 1, toggleShodanScoringMethod: 1,
-        toggleSignalCategory: 1, toggleTodo: 1, toggleVendorDomains: 1,
-        toggleVendorScoreMenu: 1, toggleVendorTech: 1, updateWeightTotal: 1,
-        vdSort: 1, vendorDomainsPage: 1, vendorTechPage: 1, vtSort: 1
-    };
-
-    /**
-     * Resolve a data-action attribute value to a callable function reference,
-     * or null if the name is not allowlisted. This is the security boundary
-     * that prevents arbitrary global functions (eval, Function, setTimeout
-     * with a string, etc.) from being invoked through DOM injection.
-     */
-    function resolveAction(fnName) {
-        if (!fnName || !Object.prototype.hasOwnProperty.call(SAFE_ACTIONS, fnName)) {
-            return null;
-        }
-        var fn = window[fnName];
-        return (typeof fn === 'function') ? fn : null;
-    }
-
-    // Reject javascript:, data:, vbscript:, etc. before assigning to location.href.
-    // Allows relative URLs and http(s)/mailto/tel — the only schemes the app emits.
-    function isSafeNavigationUrl(url) {
-        if (typeof url !== 'string') return false;
-        var trimmed = url.trim();
-        if (trimmed === '' || /[\x00-\x1F\x7F]/.test(trimmed)) return false;
-        var m = trimmed.match(/^([a-z][a-z0-9+\-.]*):/i);
-        if (!m) return true;
-        var s = m[1].toLowerCase();
-        return s === 'http' || s === 'https' || s === 'mailto' || s === 'tel';
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
 
         // =================================================================
@@ -143,7 +71,7 @@
                 if (arrowId) {
                     var arrow = document.getElementById(arrowId);
                     if (arrow) {
-                        arrow.textContent = (target.style.display === 'none') ? '▶' : '▼';
+                        arrow.innerHTML = (target.style.display === 'none') ? '&#9654;' : '&#9660;';
                     }
                 }
             }
@@ -174,8 +102,9 @@
             // Don't handle if this is a select/input (handled by change event)
             if (el.tagName === 'SELECT' || el.tagName === 'INPUT') return;
 
-            var fn = resolveAction(el.getAttribute('data-action'));
-            if (!fn) return;
+            var fnName = el.getAttribute('data-action');
+            var fn = window[fnName];
+            if (typeof fn !== 'function') return;
 
             var arg = el.getAttribute('data-arg');
             var argsJson = el.getAttribute('data-args');
@@ -201,8 +130,11 @@
             var el = e.target.closest('[data-action]');
             if (!el) return;
 
-            var fn = resolveAction(el.getAttribute('data-action'));
-            if (fn) fn(el.value);
+            var fnName = el.getAttribute('data-action');
+            var fn = window[fnName];
+            if (typeof fn === 'function') {
+                fn(el.value);
+            }
         });
 
         // =================================================================
@@ -215,8 +147,11 @@
             // Only handle input elements (not selects, which use change)
             if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
 
-            var fn = resolveAction(el.getAttribute('data-action'));
-            if (fn) fn(el.value);
+            var fnName = el.getAttribute('data-action');
+            var fn = window[fnName];
+            if (typeof fn === 'function') {
+                fn(el.value);
+            }
         });
 
         // =================================================================
@@ -279,10 +214,7 @@
             var el = e.target.closest('[data-href]');
             if (!el) return;
 
-            var href = el.getAttribute('data-href');
-            if (isSafeNavigationUrl(href)) {
-                window.location.href = href;
-            }
+            window.location.href = el.getAttribute('data-href');
         });
 
         // =================================================================

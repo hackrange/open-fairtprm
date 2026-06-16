@@ -2,13 +2,7 @@ Options -Indexes -MultiViews
 # All security headers are managed at the nginx reverse-proxy layer.
 # See /etc/nginx/conf.d/demo.fairtprm.com.conf
 
-# Block access to backup, temp, and hidden files that may leak source code
-<FilesMatch "\.(bak|old|orig|save|swp|tmp|dist|sql)$">
-    Require all denied
-</FilesMatch>
-<FilesMatch "^\.">
-    Require all denied
-</FilesMatch>
+ServerSignature Off
 
 RewriteEngine On
 

@@ -1,174 +1,199 @@
 # =============================================================================
-# Fair TPRM & GRC Platform
-# Debian Bookworm + Apache 2.4 + PHP 8.5 + MariaDB + ClamAV + ModSecurity
+# Fair TPRM - v2.6.1
 #
-# Two-stage build: the `builder` stage performs all install/config steps,
-# then the final stage copies the resulting filesystem into a single layer
-# via FROM scratch. Keeps the image at 1 filesystem layer instead of ~30+.
+# Self-contained build. The base is dockerregistry.fairtprm.com/fairtprm:v2.6.1
+# itself — a single-layer flattened image that contains the full Fair TPRM
+# filesystem (OS, Apache, PHP, app code, vendor libs). The v2.6.1 base was
+# produced by flattening this overlay onto the prior v2.5.8 base (one-time
+# version bump); builds are now self-referential on v2.6.1.
+#
+#     docker pull dockerregistry.fairtprm.com/fairtprm:v2.6.1
+#     docker build -t dockerregistry.fairtprm.com/fairtprm:v2.6.1 .
+#     docker-compose down && docker-compose up -d
+#
+# Layer hygiene: this Dockerfile adds exactly TWO layers on top of the base
+# (one COPY per source tree, then one RUN that places every file). The
+# previous per-file COPY pattern produced ~65 layers per build and tripped
+# Docker's storage-driver depth limit; consolidating keeps the image under
+# the 10-layer hygiene cap regardless of how many files are patched.
+#
+# The RUN block is one logical shell line (Docker collapses \-continuations),
+# so it cannot contain `#` comments inside; the file groupings below are
+# organised by destination path, blank-line-separated for readability.
+# sql_updates is purged to a single authoritative schema file (v2.6.1.sql).
 # =============================================================================
-FROM debian:bookworm-slim AS builder
+FROM dockerregistry.fairtprm.com/fairtprm:v2.6.1
 
-ENV DEBIAN_FRONTEND=noninteractive
+# Layer 1: stage every patch input under /tmp/build. One COPY per source tree
+# (php_patches and icons live under different paths in persistent/).
+COPY persistent/php_patches /tmp/build/php_patches
+COPY persistent/icons       /tmp/build/icons
 
-# ---- System packages: PHP 8.5 from Sury repo, MariaDB, ClamAV, ModSecurity ----
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        curl \
-        gnupg \
-        lsb-release \
-    && curl -fsSL https://packages.sury.org/php/apt.gpg \
-       | gpg --dearmor -o /usr/share/keyrings/sury-php.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/sury-php.gpg] https://packages.sury.org/php/ bookworm main" \
-       > /etc/apt/sources.list.d/sury-php.list \
-    && apt-get update
-
-RUN apt-get install -y --no-install-recommends \
-        apache2 \
-        libapache2-mod-php8.5 \
-        mariadb-server \
-        mariadb-client \
-        php8.5 \
-        php8.5-cli \
-        php8.5-common \
-        php8.5-curl \
-        php8.5-gd \
-        php8.5-mbstring \
-        php8.5-mysql \
-        php8.5-xml \
-        php8.5-xsl \
-        php8.5-zip \
-        php8.5-sqlite3 \
-        php8.5-readline \
-        php8.5-intl \
-        openssl \
-        tar \
-        cron \
-        coreutils \
-        sudo \
-        poppler-utils \
-        clamav \
-        clamav-daemon \
-        clamav-freshclam \
-        libapache2-mod-security2 \
-    && apt-get upgrade -y \
-    && rm -rf /var/lib/apt/lists/*
-
-# ---- Apache configuration ----
-RUN a2enmod rewrite headers deflate remoteip security2 \
-    && a2dismod -f status
-
-# ModSecurity configuration
-COPY docker/modsecurity/modsecurity.conf /etc/modsecurity/modsecurity.conf
-COPY docker/modsecurity/lockdown-whitelist.conf /etc/modsecurity/lockdown-whitelist.conf
-COPY docker/modsecurity/scanner-detection.conf /etc/modsecurity/scanner-detection.conf
-COPY docker/modsecurity/grc-assessment-rules.conf /etc/modsecurity/grc-assessment-rules.conf
-
-# ModSecurity persistent dirs and sudoers for www-data WAF management
-RUN mkdir -p /persistent/modsecurity/audit_log /persistent/modsecurity/rules \
-    && chown -R www-data:www-data /persistent/modsecurity \
-    && echo 'www-data ALL=(root) NOPASSWD: /usr/bin/tee /etc/modsecurity/modsecurity.conf' \
-       > /etc/sudoers.d/modsecurity-writer \
-    && echo 'www-data ALL=(root) NOPASSWD: /usr/bin/tee /etc/modsecurity/lockdown-whitelist.conf' \
-       >> /etc/sudoers.d/modsecurity-writer \
-    && echo 'www-data ALL=(root) NOPASSWD: /usr/bin/tee /persistent/modsecurity/modsecurity.conf' \
-       >> /etc/sudoers.d/modsecurity-writer \
-    && echo 'www-data ALL=(root) NOPASSWD: /usr/bin/tee /persistent/modsecurity/lockdown-whitelist.conf' \
-       >> /etc/sudoers.d/modsecurity-writer \
-    && echo 'www-data ALL=(root) NOPASSWD: /usr/bin/tee /etc/modsecurity/scanner-detection.conf' \
-       >> /etc/sudoers.d/modsecurity-writer \
-    && echo 'www-data ALL=(root) NOPASSWD: /usr/bin/tee /persistent/modsecurity/scanner-detection.conf' \
-       >> /etc/sudoers.d/modsecurity-writer \
-    && echo 'www-data ALL=(root) NOPASSWD: /usr/bin/tee /persistent/modsecurity/audit_log/modsec_audit.json' \
-       >> /etc/sudoers.d/modsecurity-writer \
-    && echo 'www-data ALL=(root) NOPASSWD: /usr/sbin/apachectl graceful' \
-       >> /etc/sudoers.d/modsecurity-writer \
-    && echo 'www-data ALL=(root) NOPASSWD: /usr/sbin/apachectl configtest' \
-       >> /etc/sudoers.d/modsecurity-writer \
-    && chmod 0440 /etc/sudoers.d/modsecurity-writer
-
-# Listen on 8080, disable default-ssl
-RUN echo "Listen 8080" > /etc/apache2/ports.conf
-RUN a2dissite default-ssl 2>/dev/null || true
-COPY docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
-RUN sed -i 's/^KeepAlive On$/KeepAlive Off/' /etc/apache2/apache2.conf
-
-# Server-level security directives (cannot be inside <VirtualHost>)
-RUN printf '# Minimize server info disclosure (OWASP A05:2021)\nServerTokens Prod\nServerSignature Off\nTraceEnable Off\n' \
-    > /etc/apache2/conf-available/security-hardening.conf \
-    && a2enconf security-hardening
-
-# ---- PHP hardening ----
-COPY docker/php-hardening.ini /etc/php/8.5/apache2/conf.d/99-hardening.ini
-
-# ---- Cron jobs ----
-COPY docker/crontab /etc/cron.d/open-tprm
-RUN chmod 0644 /etc/cron.d/open-tprm \
-    && echo 'www-data ALL=(root) NOPASSWD: /usr/bin/tee /etc/cron.d/open-tprm' \
-       > /etc/sudoers.d/crontab-writer \
-    && chmod 0440 /etc/sudoers.d/crontab-writer
-
-# ---- ClamAV ----
-COPY docker/clamd.conf /etc/clamav/clamd.conf
-RUN mkdir -p /var/run/clamav /var/log/clamav \
-    && chown clamav:clamav /var/run/clamav /var/log/clamav \
-    && freshclam \
-    && usermod -aG clamav www-data
-
-# ---- Composer ----
-RUN curl -sS https://getcomposer.org/installer \
-      | php -- --install-dir=/usr/local/bin --filename=composer
-
-# ---- Application code ----
-COPY web/ /var/www/html/
-
-# Remove build artifacts that should not ship in the image
-RUN rm -rf /var/www/html/docker \
-           /var/www/html/Dockerfile \
-           /var/www/html/Dockerfile.mariadb \
-           /var/www/html/docker-compose.yml \
-           /var/www/html/.dockerignore \
-           /var/www/html/db_backup \
-           /var/www/html/persistent \
-           /var/www/html/index.html
-
-# Install PHP dependencies
-RUN cd /var/www/html && COMPOSER_ALLOW_SUPERUSER=1 composer install \
-        --no-interaction --optimize-autoloader 2>/dev/null || true
-
-# ---- Prepare runtime directories and permissions ----
-RUN mkdir -p /var/log/php \
-    && chown www-data:www-data /var/log/php \
-    && mkdir -p /var/www/html/config/logs \
-    && chown -R www-data:www-data /var/www/html \
-    && mkdir -p /run/mysqld \
-    && chown mysql:mysql /run/mysqld \
-    && mkdir -p /persistent
-
-# ---- Entrypoint ----
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-# ---- Write version file ----
-RUN echo 'v2.5.8' > /var/www/html/VERSION \
-    && chown -R www-data:www-data /var/www/html/
-
-# =============================================================================
-# Final stage — squash builder filesystem into a single layer.
-# FROM scratch produces a one-layer image; metadata directives below add
-# manifest entries but not additional filesystem layers.
-# =============================================================================
-FROM scratch
-
-COPY --from=builder / /
-
-LABEL maintainer="Tim Rice - Hack Range"
-LABEL version="2.5.8"
-
-EXPOSE 8080/tcp
-
-VOLUME ["/persistent", "/var/lib/mysql"]
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/login.php || exit 1
-
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# Layer 2: place each file at its destination, set ownership, write VERSION,
+# verify the manifest, and remove the staging tree. set -e + cp's exit codes
+# cause the build to fail fast on any missing source file.
+RUN set -e; \
+    pp=/tmp/build/php_patches; \
+    \
+    cp -rp $pp/api/.            /var/www/html/api/; \
+    cp -rp $pp/cron/.           /var/www/html/cron/; \
+    cp -rp $pp/includes/admin/. /var/www/html/includes/admin/; \
+    mkdir -p /var/www/html/app/grip-reference; \
+    cp -rp $pp/app/grip-reference/. /var/www/html/app/grip-reference/; \
+    \
+    cp -p  $pp/sidebar_nav.php $pp/init.php $pp/FairCalculator.php \
+           /var/www/html/includes/; \
+    \
+    cp -p  $pp/email.php $pp/fair-defaults.php $pp/field-reference.php \
+           $pp/assessment-templates.php $pp/api-integration.php \
+           /var/www/html/includes/admin/; \
+    \
+    cp -p  $pp/EmailService.php $pp/LockdownService.php $pp/BreachAlertService.php \
+           $pp/AIPlatformService.php $pp/GitHubOSINTScanner.php \
+           $pp/ShodanClient.php $pp/ShodanService.php $pp/Security.php \
+           $pp/VendorAssessmentService.php $pp/GripService.php \
+           $pp/ZscalerService.php $pp/SAMLHandler.php \
+           /var/www/html/includes/classes/; \
+    \
+    cp -p  $pp/config.sample.php /var/www/html/config/; \
+    \
+    cp -p  $pp/search-vendors.php $pp/grc-unified-assessment.php \
+           $pp/vendor-document-delete.php $pp/send-assessment-email.php \
+           $pp/generate-fair-ai-analysis.php \
+           /var/www/html/api/; \
+    \
+    cp -p  $pp/grc-task-digest.php /var/www/html/cron/; \
+    \
+    cp -p  $pp/fair-analysis.php $pp/breach-alerts.php $pp/api-breach-scan-status.php \
+           $pp/cyber-todo.php $pp/fourth-party-risk.php \
+           $pp/grc-assessment.php $pp/grc-assessment-report.php $pp/grc-audit-report.php \
+           $pp/grc-audits.php $pp/grc-controls.php $pp/grc-crosswalk.php \
+           $pp/grc-dashboard.php $pp/grc-evidence.php $pp/grc-fairscore.php \
+           $pp/grc-framework-report.php $pp/grc-frameworks.php $pp/grc-gaps.php \
+           $pp/grc-monitors.php $pp/grc-policies.php $pp/grc-risks.php \
+           $pp/grc-tasks.php $pp/admin.php $pp/index.php $pp/login.php \
+           $pp/lockdown.php $pp/procurement-contracts.php $pp/shadow-saas.php \
+           $pp/updates.php $pp/vendor-assessment.php $pp/vendor-assessments.php \
+           $pp/vendor-assessment-view.php $pp/vendor-detailed-summary.php \
+           $pp/vendor-domains.php $pp/vendor-onboarding-list.php \
+           $pp/vendor-onboarding.php \
+           $pp/vendor-srs-list.php $pp/vendor-srs-compliance-report.php \
+           $pp/view-result.php \
+           /var/www/html/; \
+    \
+    cp -p  $pp/v2.6.1.sql /var/www/html/sql_updates/; \
+    find /var/www/html/sql_updates -maxdepth 1 -type f \
+         ! -name 'v2.6.1.sql' ! -name 'index.html' -delete; \
+    rm -rf /var/www/html/sql_updates/.applied_hashes; \
+    \
+    cp -p  $pp/grc-assessment-rules.conf /etc/modsecurity/grc-assessment-rules.conf; \
+    cp -p  $pp/open-tprm.cron /etc/cron.d/open-tprm; \
+    chmod 644 /etc/cron.d/open-tprm; \
+    \
+    cp -p  $pp/entrypoint.sh /usr/local/bin/entrypoint.sh; \
+    chmod 755 /usr/local/bin/entrypoint.sh; \
+    sed -i 's/^expose_php = On/expose_php = Off/' /etc/php/*/cli/php.ini; \
+    \
+    composer require onelogin/php-saml:^4.3 --no-interaction --no-progress \
+        --working-dir=/var/www/html; \
+    \
+    cp -p  /tmp/build/icons/announcement-03.svg /var/www/html/app/icons/announcement-03.svg; \
+    \
+    echo 'v2.6.1' > /var/www/html/VERSION; \
+    chown -R www-data:www-data /var/www/html/; \
+    rm -rf /tmp/build; \
+    \
+    for f in \
+        /var/www/html/includes/sidebar_nav.php \
+        /var/www/html/includes/init.php \
+        /var/www/html/includes/FairCalculator.php \
+        /var/www/html/includes/admin/email.php \
+        /var/www/html/includes/admin/fair-defaults.php \
+        /var/www/html/includes/admin/field-reference.php \
+        /var/www/html/includes/admin/assessment-templates.php \
+        /var/www/html/includes/admin/api-integration.php \
+        /var/www/html/includes/admin/shadow-saas-grip.php \
+        /var/www/html/includes/classes/EmailService.php \
+        /var/www/html/includes/classes/LockdownService.php \
+        /var/www/html/includes/classes/BreachAlertService.php \
+        /var/www/html/includes/classes/AIPlatformService.php \
+        /var/www/html/includes/classes/GitHubOSINTScanner.php \
+        /var/www/html/includes/classes/ShodanClient.php \
+        /var/www/html/includes/classes/ShodanService.php \
+        /var/www/html/includes/classes/Security.php \
+        /var/www/html/includes/classes/VendorAssessmentService.php \
+        /var/www/html/includes/classes/GripService.php \
+        /var/www/html/includes/classes/ZscalerService.php \
+        /var/www/html/includes/classes/SAMLHandler.php \
+        /var/www/html/vendor/onelogin/php-saml/src/Saml2/Response.php \
+        /var/www/html/config/config.sample.php \
+        /var/www/html/api/ai-job-status.php \
+        /var/www/html/api/assessment-ai-apply.php \
+        /var/www/html/api/assessment-download-pdf.php \
+        /var/www/html/api/assessment-import-pdf.php \
+        /var/www/html/api/vendor-document-upload.php \
+        /var/www/html/api/search-vendors.php \
+        /var/www/html/api/grc-unified-assessment.php \
+        /var/www/html/api/vendor-document-delete.php \
+        /var/www/html/api/send-assessment-email.php \
+        /var/www/html/api/generate-fair-ai-analysis.php \
+        /var/www/html/cron/ai-queue.php \
+        /var/www/html/cron/breach-monitor.php \
+        /var/www/html/cron/breach-scan-queue.php \
+        /var/www/html/cron/grip-sync.php \
+        /var/www/html/cron/osint-company.php \
+        /var/www/html/cron/osint-vendors.php \
+        /var/www/html/cron/sync-crontab.php \
+        /var/www/html/cron/grc-task-digest.php \
+        /var/www/html/app/grip-reference/grip-openapi.yaml \
+        /var/www/html/app/grip-reference/grip-postman-collection.json \
+        /var/www/html/app/icons/announcement-03.svg \
+        /var/www/html/fair-analysis.php \
+        /var/www/html/breach-alerts.php \
+        /var/www/html/api-breach-scan-status.php \
+        /var/www/html/cyber-todo.php \
+        /var/www/html/fourth-party-risk.php \
+        /var/www/html/grc-assessment.php \
+        /var/www/html/grc-assessment-report.php \
+        /var/www/html/grc-audit-report.php \
+        /var/www/html/grc-audits.php \
+        /var/www/html/grc-controls.php \
+        /var/www/html/grc-crosswalk.php \
+        /var/www/html/grc-dashboard.php \
+        /var/www/html/grc-evidence.php \
+        /var/www/html/grc-fairscore.php \
+        /var/www/html/grc-framework-report.php \
+        /var/www/html/grc-frameworks.php \
+        /var/www/html/grc-gaps.php \
+        /var/www/html/grc-monitors.php \
+        /var/www/html/grc-policies.php \
+        /var/www/html/grc-risks.php \
+        /var/www/html/grc-tasks.php \
+        /var/www/html/admin.php \
+        /var/www/html/index.php \
+        /var/www/html/login.php \
+        /var/www/html/lockdown.php \
+        /var/www/html/procurement-contracts.php \
+        /var/www/html/shadow-saas.php \
+        /var/www/html/updates.php \
+        /var/www/html/vendor-assessment.php \
+        /var/www/html/vendor-assessments.php \
+        /var/www/html/vendor-assessment-view.php \
+        /var/www/html/vendor-detailed-summary.php \
+        /var/www/html/vendor-domains.php \
+        /var/www/html/vendor-onboarding-list.php \
+        /var/www/html/vendor-onboarding.php \
+        /var/www/html/vendor-srs-list.php \
+        /var/www/html/vendor-srs-compliance-report.php \
+        /var/www/html/view-result.php \
+        /var/www/html/sql_updates/v2.6.1.sql \
+        /usr/local/bin/entrypoint.sh \
+        /etc/modsecurity/grc-assessment-rules.conf \
+        /etc/cron.d/open-tprm \
+        /var/www/html/VERSION \
+    ; do \
+        if [ ! -f "$f" ]; then echo "MANIFEST FAIL: missing $f"; exit 1; fi; \
+    done; \
+    stray="$(ls /var/www/html/sql_updates/*.sql 2>/dev/null | grep -v '/v2.6.1.sql$' || true)"; \
+    if [ -n "$stray" ]; then echo "CLEAN FAIL: stray schema files remain:"; echo "$stray"; exit 1; fi; \
+    echo "Manifest verification passed; sql_updates contains only v2.6.1.sql"

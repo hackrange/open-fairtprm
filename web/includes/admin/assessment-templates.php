@@ -21,7 +21,7 @@ $templateId = isset($_GET['template_id']) ? intval($_GET['template_id']) : 0;
 // POST HANDLERS
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['create_template'])) {
         $name = trim($_POST['name'] ?? '');
@@ -273,8 +273,8 @@ foreach ($editTemplate['sections'] as $sec) {
 }
 
 // Load field references for the field_name dropdown
-// All field references are shown regardless of template category — they map to
-// vendor data columns and are universally applicable across template types.
+// Filter by template category + 'all', so only relevant fields show
+$templateCategory = $editTemplate['category'] ?? 'vendor_assessment';
 try {
     $db->getConnection()->exec("CREATE TABLE IF NOT EXISTS field_references (
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -289,10 +289,21 @@ try {
         UNIQUE KEY uk_field_name (field_name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 } catch (Exception $e) {}
-$fieldReferences = $db->fetchAll(
-    "SELECT field_name, section, category, description FROM field_references
-     ORDER BY section, field_name"
-);
+// Vendor assessment templates can also map to onboarding-category fields,
+// since fields like vendor_use_ai live on vendor_onboarding_requests and the
+// linked request is updated when the assessment is saved.
+if ($templateCategory === 'vendor_assessment') {
+    $fieldReferences = $db->fetchAll(
+        "SELECT field_name, section, category, description FROM field_references
+         WHERE category IN ('vendor_assessment', 'onboarding', 'all') ORDER BY section, field_name"
+    );
+} else {
+    $fieldReferences = $db->fetchAll(
+        "SELECT field_name, section, category, description FROM field_references
+         WHERE category IN (?, 'all') ORDER BY section, field_name",
+        [$templateCategory]
+    );
+}
 // Build set of field_names already used in this template (for duplicate warning)
 $usedFieldNames = [];
 foreach ($editTemplate['sections'] as $sec) {

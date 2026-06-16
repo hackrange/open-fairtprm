@@ -214,8 +214,7 @@ function fetchDockerTags(string $registryHost, string $imageName, string &$error
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 15,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_FOLLOWLOCATION => false,
     ]);
     if ($username !== null && $username !== '') {
@@ -330,8 +329,7 @@ function fetchDockerManifest(string $registryHost, string $imageName, string $ta
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 30,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_HTTPHEADER     => [
             'Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json',
@@ -366,8 +364,7 @@ function downloadDockerBlob(string $registryHost, string $imageName, string $dig
     curl_setopt_array($ch, [
         CURLOPT_FILE           => $fp,
         CURLOPT_TIMEOUT        => 600,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS      => 5,
     ]);
@@ -460,7 +457,7 @@ usort($allVersions, function ($a, $b) {
 $upgradeLog = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['perform_docker_upgrade'])) {
         $upgradeLog = [];
@@ -1174,7 +1171,7 @@ if ($versionsFetchError) {
 $upgradeLog = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['perform_version_upgrade'])) {
         $upgradeLog = [];

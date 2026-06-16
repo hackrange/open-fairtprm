@@ -42,7 +42,7 @@ class AIPlatformService {
         $rows = $this->db->fetchAll(
             'SELECT config_key, config_value, is_encrypted FROM app_config
              WHERE config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ?',
-            ['openwebui_%', 'librechat_%', 'ai_platform_%', 'anthropic_%']
+            ['openwebui_%', 'librechat_%', 'custom_%', 'ai_platform_%']
         );
 
         foreach ($rows as $row) {
@@ -86,6 +86,9 @@ class AIPlatformService {
         }
         if ($platform === 'librechat') {
             return ($this->config['librechat_enabled'] ?? '0') === '1';
+        }
+        if ($platform === 'custom') {
+            return ($this->config['custom_enabled'] ?? '0') === '1';
         }
         return ($this->config['openwebui_enabled'] ?? '0') === '1';
     }
@@ -202,6 +205,11 @@ class AIPlatformService {
             return ['success' => false, 'content' => null, 'error' => 'AI integration is not enabled'];
         }
 
+        // Custom platform uses an admin-supplied curl-style template; dispatch separately.
+        if ($this->getActivePlatform() === 'custom') {
+            return $this->customChatCompletion($messages, $options);
+        }
+
         $apiUrl = $this->getApiUrl();
         $authToken = $this->getAuthToken();
         $model = $options['model'] ?? $this->getModel($options['purpose'] ?? null);
@@ -276,113 +284,317 @@ class AIPlatformService {
     }
 
     /**
-     * Call the Anthropic Messages API directly with web_search tool enabled.
-     * Used for OSINT research that requires live web searching.
-     * Falls back to the standard chatCompletion if no Anthropic API key is configured.
+     * Dispatch a chat completion via the admin-supplied custom curl template.
      *
-     * Requires app_config keys:
-     *   anthropic_api_key (encrypted) - Direct Anthropic API key
-     *   anthropic_osint_model (optional) - Model to use, defaults to claude-sonnet-4-6-20250514
+     * The admin pastes a block like:
+     *     -H 'Content-Type: application/json'
+     *     -H 'x-app-id: ...'
+     *     -H 'x-app-secret: ...'
+     *     --data-raw '{"model_class":"strong-fast","input_text":"SAMPLE"}'
+     *
+     * We extract -H lines as request headers, pull the --data-raw '...' body
+     * template, JSON-string-escape the flattened prompt, and substitute it
+     * for the literal token "SAMPLE" inside the body before sending.
+     *
+     * Response parsing prefers FairTPRM Orchestrator's top-level output_text,
+     * then falls back to OpenAI-compatible choices[0].message.content for
+     * other custom APIs.
      */
-    public function anthropicWebSearchCompletion(array $messages, array $options = []): array {
-        $apiKey = $this->config['anthropic_api_key'] ?? '';
+    private function customChatCompletion(array $messages, array $options): array {
+        $apiUrl      = $this->config['custom_api_url'] ?? '';
+        $headersBlob = $this->config['custom_headers']  ?? '';
 
-        if (empty($apiKey)) {
-            // No direct Anthropic key — fall back to standard chatCompletion via LibreChat
-            error_log('AIPlatformService: No anthropic_api_key configured, falling back to standard chatCompletion for OSINT');
-            return $this->chatCompletion($messages, $options);
+        if (empty($apiUrl)) {
+            return ['success' => false, 'content' => null, 'error' => 'Custom AI: API URL not configured'];
+        }
+        if (empty($headersBlob)) {
+            return ['success' => false, 'content' => null, 'error' => 'Custom AI: headers/body template not configured'];
         }
 
-        $model = $options['model'] ?? ($this->config['anthropic_osint_model'] ?? 'claude-sonnet-4-5-20250929');
-        $maxTokens = $options['max_tokens'] ?? 16000;
-        $temperature = $options['temperature'] ?? 0.1;
-        $timeout = $options['timeout'] ?? 480;
+        $httpHeaders = $this->buildCustomHeaders($headersBlob);
 
-        // Separate system message from user/assistant messages (Anthropic API format)
-        $systemText = '';
-        $apiMessages = [];
-        foreach ($messages as $msg) {
-            if (($msg['role'] ?? '') === 'system') {
-                $systemText .= ($systemText ? "\n\n" : '') . $msg['content'];
+        // Web grounding: when the caller provides search_queries (e.g., breach
+        // research), hit the orchestrator's /v1/safe-search for each query and
+        // prepend the joined results as a user-role context message. The model
+        // gets the same kind of fresh evidence a LibreChat agent would gather
+        // from its built-in browsing tool, but we stay entirely on Custom.
+        //
+        // search_max_age_days (optional): drop search hits older than N days
+        // before the model sees them. Filtering at the input is more reliable
+        // than asking the model to honor a date rule — observed failure mode
+        // was Haiku reporting months-old breaches because they appeared in
+        // search results despite a 7-day prompt rule.
+        if (!empty($options['search_queries']) && is_array($options['search_queries'])) {
+            $searchUrl = $this->getCustomSearchUrl();
+            if ($searchUrl === '') {
+                error_log('Custom AI: search_queries supplied but no safe-search URL is configured or derivable; proceeding without web grounding.');
             } else {
-                $apiMessages[] = $msg;
+                $maxResults = (int)($options['search_max_results']  ?? 8);
+                $maxAgeDays = (int)($options['search_max_age_days'] ?? 0);
+                $context = $this->fetchCustomSearchContext($searchUrl, $httpHeaders, $options['search_queries'], $maxResults, $maxAgeDays);
+
+                $insertAt = 0;
+                foreach ($messages as $i => $m) {
+                    if (($m['role'] ?? 'user') !== 'system') { $insertAt = $i; break; }
+                    $insertAt = $i + 1;
+                }
+                $ageNote = $maxAgeDays > 0
+                    ? "pre-filtered to articles published in the last {$maxAgeDays} days"
+                    : 'unfiltered';
+                // Always inject the preamble — even when the context is empty
+                // after filtering — so the "use ONLY these results, do not
+                // recall from training data" instruction is always in scope.
+                $body = $context !== ''
+                    ? $context
+                    : '(No results within the time window. Return an empty result set; do NOT recall historical incidents from training data.)';
+                array_splice($messages, $insertAt, 0, [[
+                    'role' => 'user',
+                    'content' => "[Web Search Results — {$ageNote}. Use ONLY URLs and facts that appear below; do not invent sources or dates and do not recall content from your training data. If the results are empty or do not contain a credible incident matching the request, return an empty result set — do NOT fall back to historical incidents from memory.]\n\n" . $body,
+                ]]);
             }
         }
 
-        // Build Anthropic Messages API payload
-        $payload = [
-            'model' => $model,
-            'max_tokens' => $maxTokens,
-            'temperature' => $temperature,
-            'messages' => $apiMessages,
-        ];
-
-        // Only enable web_search tool for OSINT research (not breach research)
-        $purpose = $options['purpose'] ?? '';
-        if ($purpose === 'osint_research') {
-            $payload['tools'] = [
-                [
-                    'type' => 'web_search_20250305',
-                    'name' => 'web_search',
-                    'max_uses' => 50,
-                ],
-            ];
+        // Extract --data-raw '...' body template. Greedy to last quote on a
+        // trailing line, with /s for multiline JSON.
+        if (!preg_match("/--data-raw\s+'([\s\S]*?)'\s*\\\\?\s*$/", $headersBlob, $bm)) {
+            return ['success' => false, 'content' => null, 'error' => "Custom AI: --data-raw '...' body template not found"];
         }
+        $bodyTemplate = $bm[1];
 
-        if (!empty($systemText)) {
-            $payload['system'] = $systemText;
+        // Flatten the messages array into a single prompt string. System
+        // messages get a [System] preamble; user/assistant content is joined
+        // verbatim. This mirrors how prepareMessages() folds system context
+        // for LibreChat agents.
+        $promptParts = [];
+        foreach ($messages as $msg) {
+            $role    = $msg['role']    ?? 'user';
+            $content = $msg['content'] ?? '';
+            if ($content === '' || !is_string($content)) continue;
+            if ($role === 'system') {
+                $promptParts[] = "[System]\n" . $content;
+            } else {
+                $promptParts[] = $content;
+            }
         }
+        $prompt = implode("\n\n", $promptParts);
 
-        $ch = curl_init('https://api.anthropic.com/v1/messages');
+        // JSON-string-escape so the prompt is safe to drop inside a JSON
+        // string literal (handles quotes, backslashes, newlines, unicode).
+        // json_encode wraps in quotes; strip the surrounding pair.
+        $jsonEncoded = json_encode($prompt, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $escaped     = ($jsonEncoded === false) ? '' : substr($jsonEncoded, 1, -1);
+
+        // Substitute SAMPLE token. str_replace touches every occurrence so
+        // templates can echo the prompt in multiple JSON fields if desired.
+        $body = str_replace('SAMPLE', $escaped, $bodyTemplate);
+
+        $ch = curl_init($apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        curl_setopt($ch, CURLOPT_POST,           true);
+        curl_setopt($ch, CURLOPT_TIMEOUT,        $options['timeout'] ?? 120);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'x-api-key: ' . $apiKey,
-            'anthropic-version: 2023-06-01',
-            'Content-Type: application/json',
-        ]);
+        curl_setopt($ch, CURLOPT_POSTFIELDS,     $body);
+        curl_setopt($ch, CURLOPT_HTTPHEADER,     $httpHeaders);
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $response  = curl_exec($ch);
+        $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
+
         if ($curlError) {
-            error_log('Anthropic API cURL error: ' . $curlError);
+            error_log('Custom AI cURL error: ' . $curlError);
             return ['success' => false, 'content' => null, 'error' => 'Connection failed: ' . $curlError];
         }
-
         if ($httpCode !== 200) {
-            error_log("Anthropic API HTTP {$httpCode}: " . substr($response, 0, 500));
-            return ['success' => false, 'content' => null, 'error' => "Anthropic API returned HTTP {$httpCode}"];
+            error_log("Custom AI HTTP {$httpCode}: " . substr((string)$response, 0, 500));
+            return ['success' => false, 'content' => null, 'error' => "Custom AI returned HTTP {$httpCode}"];
         }
 
-        $data = json_decode($response, true);
-        if (!$data) {
-            return ['success' => false, 'content' => null, 'error' => 'Invalid JSON response from Anthropic'];
+        $data = json_decode((string)$response, true);
+        if (!is_array($data)) {
+            return ['success' => false, 'content' => null, 'error' => 'Custom AI: invalid JSON response'];
         }
 
-        // Anthropic Messages API returns content as an array of content blocks
-        // Extract text from all text blocks (web_search results are interleaved)
-        $textParts = [];
-        foreach ($data['content'] ?? [] as $block) {
-            if (($block['type'] ?? '') === 'text') {
-                $textParts[] = $block['text'];
-            }
-        }
+        // FairTPRM Orchestrator returns output_text at the top level. Fall back
+        // to OpenAI-compatible chat completion shape so this dispatcher also
+        // works against other custom endpoints.
+        $content = $data['output_text']
+            ?? $data['choices'][0]['message']['content']
+            ?? null;
 
-        $content = implode("\n", $textParts);
-        if (empty($content)) {
-            return ['success' => false, 'content' => null, 'error' => 'No text content in Anthropic response'];
+        if ($content === null || $content === '') {
+            return ['success' => false, 'content' => null, 'error' => 'Custom AI: no content in response'];
         }
 
         return [
             'success' => true,
             'content' => $content,
-            'error' => null,
-            'usage' => $data['usage'] ?? null,
+            'error'   => null,
+            'usage'   => $data['usage'] ?? null,
         ];
+    }
+
+    /**
+     * Parse the curl-style headers blob into the array libcurl expects, with
+     * the encrypted secret header spliced back in at request time. Shared by
+     * the inference call and any safe-search calls so they authenticate the
+     * same way against the orchestrator.
+     */
+    private function buildCustomHeaders(string $headersBlob): array {
+        $httpHeaders = [];
+        if (preg_match_all("/-H\s+'([^']+)'/", $headersBlob, $hm)) {
+            foreach ($hm[1] as $line) {
+                $httpHeaders[] = $line;
+            }
+        }
+
+        $secretName  = trim($this->config['custom_secret_header_name']  ?? '');
+        $secretValue = $this->config['custom_secret_header_value']      ?? '';
+        if ($secretName !== '' && $secretValue !== '') {
+            $secretNameLower = strtolower($secretName);
+            $httpHeaders = array_values(array_filter($httpHeaders, function ($h) use ($secretNameLower) {
+                $colon = strpos($h, ':');
+                if ($colon === false) return true;
+                return strtolower(trim(substr($h, 0, $colon))) !== $secretNameLower;
+            }));
+            $httpHeaders[] = $secretName . ': ' . $secretValue;
+        }
+        return $httpHeaders;
+    }
+
+    /**
+     * Resolve the safe-search endpoint for the Custom platform. Admins can set
+     * `custom_search_url` explicitly; otherwise we auto-derive it by swapping
+     * `/v1/infer` for `/v1/safe-search` on the configured API URL (the FairTPRM
+     * orchestrator convention). Returns '' if neither is available — callers
+     * should fall back to inference-only when this is empty.
+     */
+    private function getCustomSearchUrl(): string {
+        $explicit = trim($this->config['custom_search_url'] ?? '');
+        if ($explicit !== '') return $explicit;
+
+        $apiUrl = trim($this->config['custom_api_url'] ?? '');
+        if ($apiUrl === '') return '';
+
+        if (preg_match('#^(https?://[^/]+)/v1/infer/?$#i', $apiUrl, $m)) {
+            return $m[1] . '/v1/safe-search';
+        }
+        return '';
+    }
+
+    /**
+     * Run each search query against the orchestrator's /v1/safe-search and
+     * concatenate the result_text blocks. Best-effort: a failed query is
+     * logged and skipped so a transient orchestrator hiccup can't block a
+     * whole breach scan. Returns '' if every query failed.
+     *
+     * When $maxAgeDays > 0, each result_text is parsed and entries older than
+     * the threshold (or with no parseable Age) are dropped before the model
+     * sees them.
+     */
+    private function fetchCustomSearchContext(string $searchUrl, array $httpHeaders, array $queries, int $maxResults, int $maxAgeDays = 0): string {
+        $blocks = [];
+        foreach ($queries as $q) {
+            if (!is_string($q) || trim($q) === '') continue;
+            $payload = json_encode(['query' => $q, 'max_results' => $maxResults], JSON_UNESCAPED_SLASHES);
+
+            $ch = curl_init($searchUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST,           true);
+            curl_setopt($ch, CURLOPT_TIMEOUT,        30);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_POSTFIELDS,     $payload);
+            curl_setopt($ch, CURLOPT_HTTPHEADER,     $httpHeaders);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+
+            if ($curlError || $httpCode !== 200) {
+                error_log("Custom AI safe-search [{$q}]: HTTP {$httpCode} " . ($curlError ?: substr((string)$response, 0, 300)));
+                continue;
+            }
+            $data = json_decode((string)$response, true);
+            $text = $data['result_text'] ?? '';
+            if (!is_string($text) || $text === '') continue;
+
+            if ($maxAgeDays > 0) {
+                $text = $this->filterSearchResultsByAge($text, $maxAgeDays);
+                if ($text === '') continue;
+            }
+
+            $blocks[] = "Query: {$q}\n{$text}";
+        }
+        return implode("\n\n---\n\n", $blocks);
+    }
+
+    /**
+     * Drop entries older than $maxAgeDays from a /v1/safe-search result_text
+     * block. The orchestrator emits each hit as a `[N] Title` block followed
+     * by indented `URL:`, `Age:`, and snippet lines; entries are blank-line
+     * separated, wrapped between `--- WEB SEARCH RESULTS ---` markers.
+     *
+     * Entries with no `Age:` line are dropped — without a date we can't tell
+     * whether they fall in window, and the user-reported failure mode was
+     * the model citing undated/old hits as if they were current. Better to
+     * lose a hit than feed the model misleading evidence.
+     */
+    private function filterSearchResultsByAge(string $resultText, int $maxAgeDays): string {
+        $kept = [];
+        // Split on blank lines and keep only chunks that look like numbered hits.
+        foreach (preg_split('/\n\n+/', $resultText) as $block) {
+            $block = rtrim($block);
+            if ($block === '' || !preg_match('/^\[\d+\]\s/', $block)) continue;
+            if (!preg_match('/^\s*Age:\s*(.+?)\s*$/m', $block, $m)) continue;
+            $days = $this->parseAgeToDays(trim($m[1]));
+            if ($days === null || $days > $maxAgeDays) continue;
+            $kept[] = $block;
+        }
+
+        if (empty($kept)) return '';
+
+        // Renumber so the model sees a clean sequence after filtering.
+        $renumbered = [];
+        foreach ($kept as $i => $entry) {
+            $renumbered[] = preg_replace('/^\[\d+\]/', '[' . ($i + 1) . ']', $entry, 1);
+        }
+
+        return "--- WEB SEARCH RESULTS (filtered to last {$maxAgeDays} days) ---\n\n"
+             . implode("\n\n", $renumbered)
+             . "\n\n--- END SEARCH RESULTS ---";
+    }
+
+    /**
+     * Convert the orchestrator's Age field to whole days since publication.
+     * Handles relative phrases ("3 days ago", "1 month", "2 weeks ago",
+     * "1 hour ago") and absolute dates ("October 31, 2025", "March 3, 2026").
+     * Returns null when the format isn't recognized — caller treats null as
+     * "drop the entry" rather than "keep an undated hit."
+     */
+    private function parseAgeToDays(string $ageStr): ?int {
+        $s = trim($ageStr);
+        if ($s === '') return null;
+
+        // Sub-day buckets — always within window.
+        if (preg_match('/^(today|just now|moments? ago)\b/i', $s)) return 0;
+        if (preg_match('/^\d+\s+(seconds?|minutes?|hours?)\b/i', $s)) return 0;
+
+        if (preg_match('/^(\d+)\s+days?\b/i', $s, $m))   return (int)$m[1];
+        if (preg_match('/^(\d+)\s+weeks?\b/i', $s, $m))  return (int)$m[1] * 7;
+        // Months/years are coarse but always exceed any week-scale window
+        // we'd actually filter on, so the approximation is safe.
+        if (preg_match('/^(\d+)\s+months?\b/i', $s, $m)) return (int)$m[1] * 30;
+        if (preg_match('/^(\d+)\s+years?\b/i', $s, $m))  return (int)$m[1] * 365;
+
+        // Absolute date — fall back to PHP's date parser. Day-precision math
+        // avoids timezone drift between the orchestrator and the PHP host.
+        $ts = strtotime($s);
+        if ($ts !== false && $ts > 0) {
+            $today = strtotime(date('Y-m-d'));
+            $pub   = strtotime(date('Y-m-d', $ts));
+            $days  = (int)floor(($today - $pub) / 86400);
+            return max(0, $days);
+        }
+        return null;
     }
 
     /**

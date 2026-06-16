@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$security->validateOrigin()) {
         http_response_code(403);
         $error = 'Invalid request origin. Please try again.';
-    } elseif (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    } elseif (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         http_response_code(403);
         $error = 'Invalid request. Please try again.';
 
@@ -952,7 +952,6 @@ $theme = getUserTheme();
         </footer>
     </div>
     <script src="app/js/core.min.js"></script>
-    <script src="app/js/vendor/select2-4.0.13.min.js"></script>
     <script src="app/js/script.js"></script>
     <script nonce="<?php echo cspNonce(); ?>">
         // Sync color picker with text field for theme colors

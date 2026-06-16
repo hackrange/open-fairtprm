@@ -20,7 +20,7 @@
 // ============================================================================
 $_shodanPostAction = isset($_POST['update_shodan']) || isset($_POST['update_shodan_signals']) || isset($_POST['reset_shodan_signals']) || isset($_POST['update_shodan_weights']) || isset($_POST['reset_shodan_weights']) || isset($_POST['test_shodan_connection']) || isset($_POST['remove_waiver']) || isset($_POST['remove_all_waivers']);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['update_shodan'])) {
         try {
@@ -42,7 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
                 'shodan_use_cron' => isset($_POST['shodan_use_cron']) ? '1' : '0',
                 'shodan_on_demand_scan' => isset($_POST['shodan_on_demand_scan']) ? '1' : '0',
                 'shodan_min_cve_year' => max(0, intval($_POST['shodan_min_cve_year'] ?? 0)),
-                'shodan_banner_max_age' => max(0, intval($_POST['shodan_banner_max_age'] ?? 7))
+                'shodan_banner_max_age' => max(0, intval($_POST['shodan_banner_max_age'] ?? 7)),
+                'shodan_rescan_cooldown_hours' => max(0, intval($_POST['shodan_rescan_cooldown_hours'] ?? 24))
             ];
 
             $apiKey = trim($_POST['shodan_api_key'] ?? '');
@@ -477,6 +478,11 @@ if (!in_array($shodanSubTab, ['settings', 'weights', 'signals', 'waivers', 'abou
             <label for="shodan_banner_max_age">Banner Max Age (Days)</label>
             <input type="number" id="shodan_banner_max_age" name="shodan_banner_max_age" class="form-control" value="<?php echo e($shodanConfig['banner_max_age'] ?? '7'); ?>" min="0" max="365" style="max-width: 200px;">
             <div class="form-help">Ignore Shodan banner data older than this many days. Shodan retains historical data for ports that may now be filtered/closed. Set to 0 to disable freshness filtering. Default: 7 days.</div>
+        </div>
+        <div class="form-group">
+            <label for="shodan_rescan_cooldown_hours">Rescan Cooldown (Hours)</label>
+            <input type="number" id="shodan_rescan_cooldown_hours" name="shodan_rescan_cooldown_hours" class="form-control" value="<?php echo e($shodanConfig['rescan_cooldown_hours'] ?? '24'); ?>" min="0" max="720" style="max-width: 200px;">
+            <div class="form-help">Suppress duplicate rescan requests for IPs already rescanned within this window. Each rescan debits Shodan scan credits, so this prevents accidental repeat charges from double-clicks or back-to-back manual rescans. Set to 0 to disable cooldown (every click rescans every IP). Default: 24 hours.</div>
         </div>
 
         <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;">Grade Scoring Configuration</h4>

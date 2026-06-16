@@ -1665,6 +1665,14 @@ function generateAiAnalysis() {
             return;
         }
 
+        // Synchronous success response from generate-detailed-summary.php
+        if (data.success && data.summary) {
+            if (spinner) spinner.classList.remove('active');
+            if (results) results.innerHTML = data.summary;
+            if (btn) { btn.disabled = false; btn.innerHTML = origText; }
+            return;
+        }
+
         if (data.queued && data.job_id) {
             var pollInterval = setInterval(function() {
                 fetch('api/ai-job-status.php?id=' + data.job_id)

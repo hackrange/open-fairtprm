@@ -61,9 +61,15 @@ $successHtml = '';
 // We validate CSRF tokens first because we're not savages.
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['create_assessment'])) {
+        // The "Download Fillable PDF" button reuses this handler but asks us
+        // to redirect to the PDF endpoint instead of emailing and rendering a
+        // success card. This lets a single code path own vendor/validation
+        // logic so the two buttons can't drift.
+        $pdfDownloadMode = !empty($_POST['download_pdf']);
+
         // Procurement cannot create assessments -- read-only access for them
         if ($isProcurement && !$isAdmin && !$isCyberTPRM) {
             $error = 'Access denied. Procurement users cannot create assessments.';
@@ -140,6 +146,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Build the magic link URL using the admin-configured Application URL
                 $assessmentUrl = baseUrl('vendor-assessment.php?token=' . $result['uuid']);
+
+                // PDF download mode: create + audit exactly like the normal
+                // flow, but skip email and redirect straight to the PDF
+                // endpoint so the user receives the fillable document.
+                if (!empty($pdfDownloadMode) && !empty($result['id'])) {
+                    $auth->audit($user['id'], 'assessment_create', 'vendor_assessments', $result['id'], [
+                        'new' => ['vendor_name' => $vendorName, 'vendor_email' => $vendorEmail, 'template_id' => $templateId, 'vendor_request_id' => $vendorRequestId, 'via' => 'pdf_download']
+                    ]);
+                    header('Location: api/assessment-download-pdf.php?assessment_id=' . (int)$result['id']);
+                    exit;
+                }
 
                 // Auto-send email to the contact person if email is enabled
                 $emailSent = false;
@@ -803,6 +820,9 @@ try {
                                 </td>
                                 <td style="white-space: nowrap;">
                                     <a href="vendor-assessment-view.php?id=<?php echo (int)$a['id']; ?>" class="btn btn-sm btn-secondary" target="_blank">View</a>
+                                    <?php if (!$isExpired): ?>
+                                    <a href="api/assessment-download-pdf.php?assessment_id=<?php echo (int)$a['id']; ?>" class="btn btn-sm" style="background:#b91c1c;color:white;" title="Download fillable PDF version">PDF</a>
+                                    <?php endif; ?>
                                     <?php if (!$isAuditor): ?>
                                     <?php if ($a['status'] !== 'completed'): ?>
                                     <button class="btn btn-sm" style="background:#3b82f6;color:white;" data-action="copyLink" data-arg="<?php echo e($a['uuid']); ?>">Copy</button>
@@ -979,8 +999,12 @@ try {
                     Please select a valid vendor from the search results.
                 </div>
 
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <input type="hidden" name="download_pdf" id="downloadPdfFlag" value="0">
+                <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
                     <button type="submit" name="create_assessment" class="btn btn-primary" id="createAssessmentBtn">Create Assessment</button>
+                    <button type="submit" name="create_assessment" class="btn" id="downloadPdfBtn" style="background:#b91c1c;color:white;" title="Create this assessment and download a fillable PDF. No email is sent.">
+                        <span style="display:inline-block;margin-right:6px;font-weight:700;">PDF</span> Download Fillable PDF
+                    </button>
                     <button type="button" class="btn btn-secondary" data-close="createModal">Cancel</button>
                 </div>
             </form>
@@ -1190,6 +1214,26 @@ try {
                     if (!validateVendorSelection()) {
                         e.preventDefault();
                     }
+                });
+            }
+
+            // Download Fillable PDF button -- same creation flow as
+            // "Create Assessment" (all required fields enforced + audit
+            // trail written) but the server redirects to the PDF endpoint
+            // instead of sending email.
+            var pdfBtn = document.getElementById('downloadPdfBtn');
+            var pdfFlag = document.getElementById('downloadPdfFlag');
+            if (pdfBtn && pdfFlag) {
+                pdfBtn.addEventListener('click', function() {
+                    pdfFlag.value = '1';
+                });
+            }
+            // If user clicks the normal Create button afterwards, make sure
+            // we don't still have the download flag set from a previous click.
+            var createBtn = document.getElementById('createAssessmentBtn');
+            if (createBtn && pdfFlag) {
+                createBtn.addEventListener('click', function() {
+                    pdfFlag.value = '0';
                 });
             }
         });

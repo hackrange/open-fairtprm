@@ -888,12 +888,15 @@ class VendorAssessmentService {
                 }
             }
 
-            // Only sync field_name-mapped responses to vendor_onboarding_requests for onboarding templates
+            // Sync field_name-mapped responses to vendor_onboarding_requests for
+            // onboarding AND vendor_assessment templates. Vendor assessments can also
+            // map to onboarding-category fields (e.g. vendor_use_ai) so the linked
+            // onboarding request stays in sync as the assessment is filled out.
             $template = $this->db->fetchOne(
                 'SELECT category FROM assessment_templates WHERE id = :id',
                 [':id' => $assessment['template_id']]
             );
-            if (!$template || $template['category'] !== 'onboarding') {
+            if (!$template || !in_array($template['category'], ['onboarding', 'vendor_assessment'], true)) {
                 return;
             }
 
@@ -916,6 +919,7 @@ class VendorAssessmentService {
                 'saml_sso_support', 'is_saas', 'vendor_use_ai',
                 'pii_record_count', 'spii_record_count', 'sox_record_count',
                 'business_impact', 'additional_information',
+                'cost_center', 'project',
             ];
 
             // Fields that use ENUM('yes','no','') -- need lowercase normalization
@@ -937,7 +941,7 @@ class VendorAssessmentService {
             ];
 
             // Integer fields
-            $intFields = ['pii_record_count', 'spii_record_count', 'sox_record_count'];
+            $intFields = ['pii_record_count', 'spii_record_count', 'sox_record_count', 'cost_center'];
 
             // Decimal fields
             $decimalFields = ['business_impact'];
@@ -978,7 +982,10 @@ class VendorAssessmentService {
                 'SELECT status, vendor_name FROM vendor_onboarding_requests WHERE id = :id',
                 [':id' => $assessment['vendor_request_id']]
             );
-            if ($currentRequest && $currentRequest['status'] === 'draft') {
+            // Only onboarding-category assessments should advance the request
+            // out of draft. A completed vendor assessment must not flip the
+            // workflow status of the underlying onboarding request.
+            if ($template['category'] === 'onboarding' && $currentRequest && $currentRequest['status'] === 'draft') {
                 $updateData['status'] = 'submitted';
                 $updateData['submitted_at'] = date('Y-m-d H:i:s');
             }
@@ -1014,12 +1021,12 @@ class VendorAssessmentService {
             $assessment = $this->getAssessmentById($assessmentId);
             if (!$assessment || !$assessment['vendor_request_id']) return;
 
-            // Only sync for onboarding templates
+            // Sync for onboarding AND vendor_assessment templates (see syncAssessmentToVendor)
             $template = $this->db->fetchOne(
                 'SELECT category FROM assessment_templates WHERE id = :id',
                 [':id' => $assessment['template_id']]
             );
-            if (!$template || $template['category'] !== 'onboarding') return;
+            if (!$template || !in_array($template['category'], ['onboarding', 'vendor_assessment'], true)) return;
 
             // Get the field_name for this question
             $question = $this->db->fetchOne(
@@ -1049,6 +1056,7 @@ class VendorAssessmentService {
                 'saml_sso_support', 'is_saas', 'vendor_use_ai',
                 'pii_record_count', 'spii_record_count', 'sox_record_count',
                 'business_impact', 'additional_information',
+                'cost_center', 'project',
             ];
             if (!in_array($field, $allowedFields, true)) return;
 
@@ -1056,7 +1064,7 @@ class VendorAssessmentService {
             $yesNoFields = ['nda_in_place', 'vsu_onboarded', 'confidential_info_shared', 'cross_border_transfer', 'offsite_data_hosting', 'remote_network_access', 'source_code_access', 'critical_business_function', 'is_saas', 'vendor_use_ai'];
             $yesNoUnknownFields = ['saml_sso_support'];
             $impactFields = ['unauthorized_disclosure_impact', 'unauthorized_modification_impact', 'disruption_impact'];
-            $intFields = ['pii_record_count', 'spii_record_count', 'sox_record_count'];
+            $intFields = ['pii_record_count', 'spii_record_count', 'sox_record_count', 'cost_center'];
             $decimalFields = ['business_impact'];
 
             if ($value === null || $value === '') {

@@ -124,7 +124,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"]) && $acl-
     $messageType = "error";
 } elseif ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"])) {
     // CSRF check -- because we're not animals
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $message = 'Invalid request. Please try again.';
         $messageType = 'error';
     } else {
@@ -444,7 +444,6 @@ $isProcurement = hasGroup('procurement');
         </footer>
     </div>
     <script src="app/js/core.min.js"></script>
-    <script src="app/js/vendor/select2-4.0.13.min.js"></script>
     <script src="app/js/script.js"></script>
     <script src="app/js/vendor-search.js?v=2.5.5b"></script>
     <script src="app/js/mobile-nav.js"></script>

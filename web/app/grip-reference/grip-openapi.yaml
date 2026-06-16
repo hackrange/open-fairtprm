@@ -1,0 +1,262 @@
+openapi: 3.0.3
+info:
+  title: Grip Security Public API
+  description: |
+    Reverse-engineered reference for the Grip Security public SaaS API as
+    consumed by the FairTPRM Shadow SaaS integration. Endpoints below were
+    confirmed by live calls against the documented base URL
+    (https://hr.dep.grip.security/public/saas) using the `access-token`
+    header. The official documentation portal is at apidocs.grip.security.
+  version: "0.1"
+  contact:
+    name: Grip Security
+    url: https://apidocs.grip.security/docs/api-docs/16b5e21308a0e-grip
+servers:
+  - url: https://{tenant}.dep.grip.security/public
+    description: Tenant base URL (e.g. tenant=hr)
+    variables:
+      tenant:
+        default: hr
+        description: Grip tenant prefix (e.g. "hr", "demo")
+security:
+  - AccessToken: []
+components:
+  securitySchemes:
+    AccessToken:
+      type: apiKey
+      in: header
+      name: access-token
+      description: Administrator API key for the tenant. Pass as the `access-token` HTTP header.
+  parameters:
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+      description: Zero-based pagination offset.
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 200 }
+      description: Page size. The API caps responses at 200 items per page; iterate with offset until a page returns fewer items than the limit.
+  schemas:
+    SaaS:
+      type: object
+      properties:
+        id:        { type: string, format: uuid, example: "0012f8ac-4673-4c06-ac63-9ddef3ec68ca" }
+        name:      { type: string, example: "ZoomInfo" }
+        url:       { type: string, example: "http://www.zoominfo.com" }
+        logoUrl:   { type: string, nullable: true }
+        gripData:
+          type: object
+          properties:
+            numberOfUsers:            { type: integer }
+            numberOfOnboardedUsers:   { type: integer }
+            numberOfOffboardedUsers:  { type: integer }
+            SSOPercentage:            { type: integer }
+            accessRemovalSupport:     { type: string, enum: [supported, experimental, unsupported] }
+            riskScore:                { type: integer }
+            sanctionTag:              { type: string, example: sanctioned }
+            labels:                   { type: array, items: { type: string } }
+            buisnessOwner:            { type: string, format: uuid, description: "Note: API field name is misspelled — it is buisnessOwner, not businessOwner." }
+            category:                 { type: string }
+            appInstancesCount:        { type: integer }
+            sourcePlatforms:          { type: array, items: { type: string } }
+            lastKnownUsage:           { type: string, format: date-time, nullable: true }
+            assets:                   { type: array, items: { type: string } }
+            compliances:              { type: array, items: { type: string } }
+            primaryContact:
+              type: object
+              properties:
+                email:  { type: string, format: email }
+                userId: { type: string, format: uuid }
+                name:   { type: string }
+            oauthScopes:
+              type: object
+              properties:
+                high:   { $ref: '#/components/schemas/OAuthBucket' }
+                medium: { $ref: '#/components/schemas/OAuthBucket' }
+                low:    { $ref: '#/components/schemas/OAuthBucket' }
+                total:  { type: integer }
+            saasUsersRoles:           { type: array, items: { type: object } }
+            firstEventTime:           { type: string, format: date-time, nullable: true }
+            latestEventTime:          { type: string, format: date-time, nullable: true }
+            uniqueScopesCount:        { type: integer }
+            samlSupported:            { type: object, additionalProperties: { type: string } }
+            mfaSupported:             { type: string, nullable: true }
+            termsAndConditions:
+              type: object
+              properties:
+                questions:  { nullable: true }
+                references: { nullable: true }
+            aiDepth:
+              type: object
+              properties:
+                level:       { type: string, example: "AI Copilot Experience" }
+                description: { type: string }
+    OAuthBucket:
+      type: object
+      properties:
+        scopes:
+          type: array
+          items:
+            type: object
+            properties:
+              scope:      { type: string }
+              type:       { type: string, example: "Delegated" }
+              delegation: { type: string, example: "Specific" }
+        count: { type: integer }
+    User:
+      type: object
+      properties:
+        id:                  { type: string, format: uuid }
+        mail:                { type: string, format: email }
+        aliases:             { type: array, items: { type: string } }
+        fullName:            { type: string }
+        displayName:         { type: string }
+        organizationalUnit:  { type: string, nullable: true }
+        managerEmail:        { type: string, format: email, nullable: true }
+        type:                { type: string, example: User }
+        customFields:        { type: object, nullable: true }
+        gripData:
+          type: object
+          properties:
+            numberOfSaas:                   { type: integer }
+            SSOPercentage:                  { type: integer }
+            activity:
+              type: object
+              properties:
+                platformsActivity:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      platform: { type: string }
+                      status:   { type: string }
+                hasActiveMailbox: { type: boolean }
+            labels:                         { type: array, items: { type: string } }
+            firstEventTime:                 { type: string, format: date-time, nullable: true }
+            latestEventTime:                { type: string, format: date-time, nullable: true }
+            lastUsage:                      { type: string, format: date-time, nullable: true }
+            offboardingWorkflowStatus:      { type: string, nullable: true }
+            offboardingWorkflowTimestamp:   { type: string, format: date-time, nullable: true }
+            roles:                          { type: array, items: { type: object } }
+    Alert:
+      type: object
+      properties:
+        alertId:          { type: string, example: "HER-1" }
+        alertType:        { type: string }
+        alertSeverity:    { type: string, enum: [Low, Medium, High, Critical] }
+        category:         { type: string }
+        status:           { type: string, enum: [open, closed, in_progress] }
+        description:      { type: string }
+        mitigationSteps:
+          type: object
+          properties:
+            header: { type: string }
+            steps:  { type: array, items: { type: string } }
+        potentialImpacts: { type: array, items: { type: string } }
+        uniqueFieldsData: { type: object }
+        relatedEntity:
+          type: object
+          properties:
+            id:         { type: string }
+            name:       { type: string }
+            entityType: { type: string, example: saas_application }
+        alertUrl:         { type: string, format: uri }
+        createdAt:        { type: string, format: date-time }
+        updatedAt:        { type: string, format: date-time }
+paths:
+  /saas:
+    get:
+      summary: List SaaS applications
+      description: |
+        Returns a paginated array of SaaS applications discovered by Grip.
+        Iterate with `offset`/`limit`; the response also exposes a `next`
+        HTTP header containing the URL for the next page (offset advanced
+        by `limit`). When a page returns fewer rows than `limit`, the
+        caller has reached the end.
+      operationId: listSaas
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Array of SaaS apps
+          headers:
+            next:
+              description: URL of the next page (omitted when this is the last page).
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SaaS' }
+        '401': { description: Unauthorized — missing or invalid access-token. }
+  /saas/{id}:
+    get:
+      summary: Get a SaaS application by Grip id
+      operationId: getSaas
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: A single SaaS app
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaaS' }
+        '404': { description: Not found }
+  /saas/name/{name}:
+    get:
+      summary: Look up SaaS apps by display name
+      description: Returns an array of SaaS apps whose name matches `{name}`.
+      operationId: getSaasIdByName
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Array of matching SaaS apps
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SaaS' }
+  /users:
+    get:
+      summary: List users
+      description: |
+        Paginated list of users discovered across all integrated platforms.
+        Use the same offset/limit pattern as /saas.
+      operationId: listUsers
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Array of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+  /alerts:
+    get:
+      summary: List alerts
+      description: Paginated list of security alerts raised by Grip.
+      operationId: listAlerts
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Array of alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Alert' }

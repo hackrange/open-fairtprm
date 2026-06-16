@@ -8,18 +8,6 @@
 (function() {
     'use strict';
 
-    // Reject javascript:, data:, vbscript:, etc. before assigning to location.href.
-    // Allows relative URLs and http(s)/mailto/tel — the only schemes the app emits.
-    function isSafeNavigationUrl(url) {
-        if (typeof url !== 'string') return false;
-        var trimmed = url.trim();
-        if (trimmed === '' || /[\x00-\x1F\x7F]/.test(trimmed)) return false;
-        var m = trimmed.match(/^([a-z][a-z0-9+\-.]*):/i);
-        if (!m) return true;
-        var s = m[1].toLowerCase();
-        return s === 'http' || s === 'https' || s === 'mailto' || s === 'tel';
-    }
-
     // Wait for DOM to be ready
     document.addEventListener('DOMContentLoaded', function() {
         initMobileNav();
@@ -86,7 +74,7 @@
             var link = e.target.closest('a');
             if (link) {
                 var href = link.getAttribute('href');
-                if (href && href !== '#' && href !== '' && isSafeNavigationUrl(href)) {
+                if (href && href !== '#' && href !== '') {
                     // Navigate to the link
                     closeMenu();
                     window.location.href = href;

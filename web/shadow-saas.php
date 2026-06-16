@@ -95,6 +95,99 @@ function computeAvgScore($entry, $shodanColumnsExist, $upguardMaxScore): ?int
     return null;
 }
 
+/**
+ * Onboard a shadow_saas row into vendor_onboarding_requests, deleting the
+ * shadow_saas row on success. Mirrors the long-form logic from the
+ * onboard_selected POST handler so the Allow button and bulk Onboard share
+ * one code path. Caller is expected to have already verified $entry is a
+ * non-empty row from shadow_saas. Returns the new vendor_onboarding_requests
+ * id, or throws on insert failure.
+ */
+function onboardShadowSaasRow($db, array $entry, int $userId): int
+{
+    $onboardData = [
+        'status' => 'draft',
+        'created_by' => $userId,
+        'vendor_name' => $entry['vendor_name'],
+        'vendor_domain' => $entry['vendor_domain'],
+        'relationship_manager' => $entry['relationship_manager'],
+        'vendor_tier' => '3',
+        'rescore_status' => 'rescoring',
+        'rescore_started_at' => date('Y-m-d H:i:s'),
+    ];
+
+    if (!empty($entry['description'])) {
+        $onboardData['product_service_description'] = $entry['description'];
+    }
+    if (!empty($entry['number_of_users'])) {
+        $onboardData['target_user_count'] = (int)$entry['number_of_users'];
+    }
+
+    if (!empty($entry['risk_type'])) {
+        $riskTypes = array_map('trim', explode(';', $entry['risk_type']));
+        foreach ($riskTypes as $rt) {
+            $rtLower = strtolower($rt);
+            if ($rtLower === 'shadow it') {
+                $onboardData['is_saas'] = 'yes';
+            } elseif ($rtLower === 'data leakage') {
+                $onboardData['confidential_info_shared'] = 'yes';
+                $onboardData['confidential_info_justification'] = 'Shadow SaaS risk assessment identified data leakage risk.';
+            } elseif ($rtLower === 'account takeover risk') {
+                $onboardData['remote_network_access'] = 'yes';
+                $onboardData['remote_access_justification'] = 'Shadow SaaS risk assessment identified account takeover risk.';
+            } elseif ($rtLower === 'intellectual property exposure') {
+                $onboardData['source_code_access'] = 'yes';
+                $onboardData['source_code_justification'] = 'Shadow SaaS risk assessment identified intellectual property exposure risk.';
+            } elseif ($rtLower === 'third-party breach risk') {
+                $onboardData['offsite_data_hosting'] = 'yes';
+                $onboardData['offsite_data_justification'] = 'Shadow SaaS risk assessment identified third-party breach risk.';
+            }
+        }
+    }
+
+    if (!empty($entry['breaches_in_three_years']) && (int)$entry['breaches_in_three_years'] > 0) {
+        $breachCount = (int)$entry['breaches_in_three_years'];
+        $onboardData['pii_phi_exchange'] = 'yes';
+        $onboardData['pii_phi_justification'] = "Vendor has had {$breachCount} breach(es) in the past 3 years.";
+    }
+
+    if (!empty($entry['filesharing']) && strtolower($entry['filesharing']) === 'yes') {
+        if (empty($onboardData['confidential_info_shared'])) {
+            $onboardData['confidential_info_shared'] = 'yes';
+        }
+    }
+
+    if (!empty($entry['mfasupport'])) {
+        $mfaLower = strtolower($entry['mfasupport']);
+        if ($mfaLower === 'no') {
+            $onboardData['saml_sso_support'] = 'no';
+        } elseif ($mfaLower === 'yes') {
+            $onboardData['saml_sso_support'] = 'yes';
+        }
+    }
+
+    $vendorId = $db->insert('vendor_onboarding_requests', $onboardData);
+    $db->query("DELETE FROM shadow_saas WHERE id = ?", [(int)$entry['id']]);
+
+    if (!empty($entry['vendor_domain'])) {
+        try {
+            require_once __DIR__ . '/includes/classes/FaviconService.php';
+            $favService = new FaviconService();
+            $favicon = $favService->fetchFavicon($entry['vendor_domain']);
+            if ($favicon) {
+                $db->query(
+                    'UPDATE vendor_onboarding_requests SET vendor_favicon = ?, vendor_favicon_mime = ? WHERE id = ?',
+                    [$favicon['data'], $favicon['mime'], $vendorId]
+                );
+            }
+        } catch (Exception $e) {
+            // Non-critical
+        }
+    }
+
+    return (int)$vendorId;
+}
+
 // Ensure shadow_saas table exists (auto-create if missing)
 $tableExists = true;
 try {
@@ -162,6 +255,8 @@ if ($tableExists) {
         'rescore_status'           => "ALTER TABLE shadow_saas ADD COLUMN rescore_status VARCHAR(30) DEFAULT NULL AFTER last_shodan_score_at",
         'rescore_started_at'       => "ALTER TABLE shadow_saas ADD COLUMN rescore_started_at DATETIME DEFAULT NULL AFTER rescore_status",
         'rescore_result'           => "ALTER TABLE shadow_saas ADD COLUMN rescore_result TEXT DEFAULT NULL AFTER rescore_started_at",
+        'grip_id'                  => "ALTER TABLE shadow_saas ADD COLUMN grip_id VARCHAR(64) DEFAULT NULL AFTER id, ADD INDEX idx_grip_id (grip_id)",
+        'source'                   => "ALTER TABLE shadow_saas ADD COLUMN source VARCHAR(20) DEFAULT 'csv' AFTER grip_id",
     ];
     foreach ($missingCols as $col => $alterSql) {
         try {
@@ -174,17 +269,8 @@ if ($tableExists) {
 
 // Handle POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
-    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
-
-    } elseif (!$isAdmin && !$isCyberTPRM) {
-        // Auditors get read-only access. The UI hides these controls but the
-        // backend must enforce the same rule.
-        http_response_code(403);
-        $error = 'You do not have permission to perform this action.';
-        $auth->audit($user['id'], 'bfla_attempt', 'shadow_saas_apps', null, [
-            'new' => ['page' => 'shadow-saas.php', 'action' => $_POST['action'] ?? '(none)']
-        ]);
 
     } elseif (isset($_POST['action']) && $_POST['action'] === 'import_csv' && isset($_FILES['csv_file'])) {
         // CSV Import
@@ -399,98 +485,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
             if (!$entry) continue;
 
             try {
-                // Build onboarding data with risk assessment mapping
-                $onboardData = [
-                    'status' => 'draft',
-                    'created_by' => $user['id'],
-                    'vendor_name' => $entry['vendor_name'],
-                    'vendor_domain' => $entry['vendor_domain'],
-                    'relationship_manager' => $entry['relationship_manager'],
-                    'vendor_tier' => '3',
-                    'rescore_status' => 'rescoring',
-                    'rescore_started_at' => date('Y-m-d H:i:s'),
-                ];
-
-                // Populate description and user count
-                if (!empty($entry['description'])) {
-                    $onboardData['product_service_description'] = $entry['description'];
-                }
-                if (!empty($entry['number_of_users'])) {
-                    $onboardData['target_user_count'] = (int)$entry['number_of_users'];
-                }
-
-                // Parse risk_type semicolon-delimited values for Data & Security fields
-                if (!empty($entry['risk_type'])) {
-                    $riskTypes = array_map('trim', explode(';', $entry['risk_type']));
-                    foreach ($riskTypes as $rt) {
-                        $rtLower = strtolower($rt);
-                        if ($rtLower === 'shadow it') {
-                            $onboardData['is_saas'] = 'yes';
-                        } elseif ($rtLower === 'data leakage') {
-                            $onboardData['confidential_info_shared'] = 'yes';
-                            $onboardData['confidential_info_justification'] = 'Shadow SaaS risk assessment identified data leakage risk.';
-                        } elseif ($rtLower === 'account takeover risk') {
-                            $onboardData['remote_network_access'] = 'yes';
-                            $onboardData['remote_access_justification'] = 'Shadow SaaS risk assessment identified account takeover risk.';
-                        } elseif ($rtLower === 'intellectual property exposure') {
-                            $onboardData['source_code_access'] = 'yes';
-                            $onboardData['source_code_justification'] = 'Shadow SaaS risk assessment identified intellectual property exposure risk.';
-                        } elseif ($rtLower === 'third-party breach risk') {
-                            $onboardData['offsite_data_hosting'] = 'yes';
-                            $onboardData['offsite_data_justification'] = 'Shadow SaaS risk assessment identified third-party breach risk.';
-                        }
-                    }
-                }
-
-                // Breach history mapping
-                if (!empty($entry['breaches_in_three_years']) && (int)$entry['breaches_in_three_years'] > 0) {
-                    $breachCount = (int)$entry['breaches_in_three_years'];
-                    $onboardData['pii_phi_exchange'] = 'yes';
-                    $onboardData['pii_phi_justification'] = "Vendor has had {$breachCount} breach(es) in the past 3 years.";
-                }
-
-                // File sharing mapping
-                if (!empty($entry['filesharing']) && strtolower($entry['filesharing']) === 'yes') {
-                    if (empty($onboardData['confidential_info_shared'])) {
-                        $onboardData['confidential_info_shared'] = 'yes';
-                    }
-                }
-
-                // MFA support mapping
-                if (!empty($entry['mfasupport'])) {
-                    $mfaLower = strtolower($entry['mfasupport']);
-                    if ($mfaLower === 'no') {
-                        $onboardData['saml_sso_support'] = 'no';
-                    } elseif ($mfaLower === 'yes') {
-                        $onboardData['saml_sso_support'] = 'yes';
-                    }
-                }
-
-                $vendorId = $db->insert('vendor_onboarding_requests', $onboardData);
-
-                $db->query("DELETE FROM shadow_saas WHERE id = ?", [$sid]);
-
-                // Fetch favicon immediately so icon shows in vendor lists
-                if (!empty($entry['vendor_domain'])) {
-                    try {
-                        require_once __DIR__ . '/includes/classes/FaviconService.php';
-                        $favService = new FaviconService();
-                        $favicon = $favService->fetchFavicon($entry['vendor_domain']);
-                        if ($favicon) {
-                            $db->query(
-                                'UPDATE vendor_onboarding_requests SET vendor_favicon = ?, vendor_favicon_mime = ? WHERE id = ?',
-                                [$favicon['data'], $favicon['mime'], $vendorId]
-                            );
-                        }
-                    } catch (Exception $e) {
-                        // Non-critical
-                    }
-                }
-
+                $vendorId = onboardShadowSaasRow($db, $entry, (int)$user['id']);
                 $auth->audit($user['id'], 'shadow_saas_onboard', 'shadow_saas', $sid, [
                     'new' => ['vendor_onboarding_id' => $vendorId, 'vendor_name' => $entry['vendor_name']]
                 ]);
-
                 $onboarded++;
             } catch (Exception $e) {
                 error_log("Shadow SaaS onboard #{$sid}: " . $e->getMessage());
@@ -510,13 +508,142 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
         $dismissId = intval($_POST['dismiss_id']);
         try {
             $db->query(
-                "UPDATE shadow_saas SET status = 'dismissed' WHERE id = ? AND status = 'pending'",
+                "UPDATE shadow_saas SET status = 'dismissed' WHERE id = ? AND status IN ('pending', 'unsanctioned')",
                 [$dismissId]
             );
             $auth->audit($user['id'], 'shadow_saas_dismiss', 'shadow_saas', $dismissId, []);
             $success = 'Entry dismissed.';
         } catch (Exception $e) {
             $error = 'Failed to dismiss entry.';
+        }
+
+    } elseif (isset($_POST['action']) && $_POST['action'] === 'deny_zscaler' && !empty($_POST['deny_id'])) {
+        // Deny: always flips the shadow_saas row to status='unsanctioned' (the
+        // local equivalent of Grip's Unsanctioned sanctionTag — Grip has no
+        // write endpoint to push this back, so we just keep our own copy).
+        // When Zscaler is configured, also push the domain into the URL Category
+        // and stamp is_zscaler_blocked = 1 so the Allow button renders.
+        $denyId = intval($_POST['deny_id']);
+        try {
+            $entry = $db->fetchOne(
+                "SELECT id, vendor_name, vendor_domain FROM shadow_saas WHERE id = :id",
+                [':id' => $denyId]
+            );
+            if (!$entry) {
+                $error = 'Entry not found.';
+            } else {
+                $db->query(
+                    "UPDATE shadow_saas SET status = 'unsanctioned' WHERE id = ?",
+                    [$denyId]
+                );
+                $auth->audit($user['id'], 'shadow_saas_unsanction', 'shadow_saas', $denyId, [
+                    'vendor_name' => $entry['vendor_name'],
+                ]);
+
+                require_once __DIR__ . '/includes/classes/ZscalerService.php';
+                $zsvc = new ZscalerService();
+                if (empty($entry['vendor_domain'])) {
+                    $success = 'Marked unsanctioned. Zscaler skipped — vendor has no domain.';
+                } elseif (!$zsvc->isEnabled()) {
+                    $success = 'Marked unsanctioned. Zscaler integration is not enabled; domain was not blocked.';
+                } else {
+                    $result = $zsvc->denyDomain($entry['vendor_domain']);
+                    if ($result['success']) {
+                        $db->query(
+                            "UPDATE shadow_saas SET is_zscaler_blocked = 1, zscaler_blocked_at = NOW() WHERE id = ?",
+                            [$denyId]
+                        );
+                        $auth->audit($user['id'], 'shadow_saas_zscaler_deny', 'shadow_saas', $denyId, [
+                            'domain' => $entry['vendor_domain'],
+                            'category' => $zsvc->getUrlCategory(),
+                        ]);
+                        $success = 'Marked unsanctioned. Zscaler: ' . $result['message'];
+                    } else {
+                        $error = 'Marked unsanctioned, but Zscaler deny failed: ' . $result['message'];
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            error_log('Shadow SaaS deny_zscaler error: ' . $e->getMessage());
+            $error = 'Failed to deny entry: ' . $e->getMessage();
+        }
+
+    } elseif (isset($_POST['action']) && in_array($_POST['action'], ['deny_zscaler_oneoff', 'allow_zscaler_oneoff'], true)) {
+        // One-off domain push/pull against the Zscaler URL Category — not tied to a shadow_saas row.
+        $oneoffDomain = trim((string)($_POST['oneoff_domain'] ?? ''));
+        $isDeny = ($_POST['action'] === 'deny_zscaler_oneoff');
+        if ($oneoffDomain === '') {
+            $error = 'Domain is required.';
+        } else {
+            try {
+                require_once __DIR__ . '/includes/classes/ZscalerService.php';
+                $zsvc = new ZscalerService();
+                if (!$zsvc->isEnabled()) {
+                    $error = 'Zscaler integration is not enabled. Configure it under Admin → Shadow SaaS → Zscaler Connection.';
+                } else {
+                    $result = $isDeny ? $zsvc->denyDomain($oneoffDomain) : $zsvc->allowDomain($oneoffDomain);
+                    if ($result['success']) {
+                        $auth->audit($user['id'], $isDeny ? 'shadow_saas_zscaler_deny_oneoff' : 'shadow_saas_zscaler_allow_oneoff', 'shadow_saas', null, [
+                            'domain' => $oneoffDomain,
+                            'category' => $zsvc->getUrlCategory(),
+                        ]);
+                        $success = 'Zscaler: ' . $result['message'];
+                    } else {
+                        $error = 'Zscaler ' . ($isDeny ? 'deny' : 'allow') . ' failed: ' . $result['message'];
+                    }
+                }
+            } catch (Exception $e) {
+                error_log('Shadow SaaS one-off Zscaler error: ' . $e->getMessage());
+                $error = 'Failed to update Zscaler: ' . $e->getMessage();
+            }
+        }
+
+    } elseif (isset($_POST['action']) && $_POST['action'] === 'allow_zscaler' && !empty($_POST['allow_id'])) {
+        // Allow: onboard the vendor into TPRM (same logic as Onboard Selected)
+        // AND, if the domain was Zscaler-blocked, pull it out of the URL Category.
+        // Capture domain/is_zscaler_blocked before onboarding because the helper
+        // deletes the shadow_saas row on success.
+        $allowId = intval($_POST['allow_id']);
+        try {
+            $entry = $db->fetchOne(
+                "SELECT * FROM shadow_saas WHERE id = :id",
+                [':id' => $allowId]
+            );
+            if (!$entry) {
+                $error = 'Entry not found.';
+            } else {
+                $vendorDomain = $entry['vendor_domain'] ?? '';
+                $wasBlocked = !empty($entry['is_zscaler_blocked']);
+
+                $vendorId = onboardShadowSaasRow($db, $entry, (int)$user['id']);
+                $auth->audit($user['id'], 'shadow_saas_onboard', 'shadow_saas', $allowId, [
+                    'new' => ['vendor_onboarding_id' => $vendorId, 'vendor_name' => $entry['vendor_name']],
+                    'via' => 'allow',
+                ]);
+                $success = 'Vendor onboarded to TPRM.';
+
+                if ($wasBlocked && $vendorDomain !== '') {
+                    require_once __DIR__ . '/includes/classes/ZscalerService.php';
+                    $zsvc = new ZscalerService();
+                    if ($zsvc->isEnabled()) {
+                        $result = $zsvc->allowDomain($vendorDomain);
+                        if ($result['success']) {
+                            $auth->audit($user['id'], 'shadow_saas_zscaler_allow', 'shadow_saas', $allowId, [
+                                'domain' => $vendorDomain,
+                                'category' => $zsvc->getUrlCategory(),
+                            ]);
+                            $success .= ' Zscaler: ' . $result['message'];
+                        } else {
+                            $error = 'Vendor onboarded, but Zscaler allow failed: ' . $result['message'];
+                        }
+                    } else {
+                        $success .= ' Zscaler integration is not enabled; domain not removed from URL Category.';
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            error_log('Shadow SaaS allow_zscaler error: ' . $e->getMessage());
+            $error = 'Failed to allow entry: ' . $e->getMessage();
         }
 
     } elseif (isset($_POST['action']) && $_POST['action'] === 'undismiss' && !empty($_POST['undismiss_id'])) {
@@ -581,7 +708,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
         $dismissed = 0;
         foreach ($selectedIds as $sid) {
             try {
-                $db->query("UPDATE shadow_saas SET status = 'dismissed' WHERE id = ? AND status = 'pending'", [$sid]);
+                $db->query("UPDATE shadow_saas SET status = 'dismissed' WHERE id = ? AND status IN ('pending', 'unsanctioned')", [$sid]);
                 $dismissed++;
             } catch (Exception $e) {
                 error_log("Shadow SaaS dismiss #{$sid}: " . $e->getMessage());
@@ -619,7 +746,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
         $deleted = 0;
         foreach ($selectedIds as $sid) {
             try {
-                $db->query("DELETE FROM shadow_saas WHERE id = ? AND status IN ('pending', 'dismissed')", [$sid]);
+                $db->query("DELETE FROM shadow_saas WHERE id = ? AND status IN ('pending', 'dismissed', 'unsanctioned')", [$sid]);
                 $deleted++;
             } catch (Exception $e) {
                 error_log("Shadow SaaS delete #{$sid}: " . $e->getMessage());
@@ -766,20 +893,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
 $csrfToken = $security->generateCSRFToken();
 
 // Stats
-$stats = ['pending' => 0, 'dismissed' => 0, 'total' => 0];
+$stats = ['pending' => 0, 'dismissed' => 0, 'unsanctioned' => 0, 'total' => 0];
 if ($tableExists) {
     try {
         $statsRow = $db->fetchOne("
             SELECT
                 COUNT(*) AS total,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
-                SUM(CASE WHEN status = 'dismissed' THEN 1 ELSE 0 END) AS dismissed
+                SUM(CASE WHEN status = 'dismissed' THEN 1 ELSE 0 END) AS dismissed,
+                SUM(CASE WHEN status = 'unsanctioned' THEN 1 ELSE 0 END) AS unsanctioned
             FROM shadow_saas
         ");
         $stats = [
             'total' => (int)($statsRow['total'] ?? 0),
             'pending' => (int)($statsRow['pending'] ?? 0),
             'dismissed' => (int)($statsRow['dismissed'] ?? 0),
+            'unsanctioned' => (int)($statsRow['unsanctioned'] ?? 0),
         ];
     } catch (Exception $e) {}
 }
@@ -839,7 +968,7 @@ $currentPageNum = $pgParams['page'];
 // Build query
 $whereConditions = [];
 $params = [];
-if (!empty($statusFilter) && in_array($statusFilter, ['pending', 'dismissed'])) {
+if (!empty($statusFilter) && in_array($statusFilter, ['pending', 'dismissed', 'unsanctioned'])) {
     $whereConditions[] = "s.status = :status";
     $params[':status'] = $statusFilter;
 }
@@ -867,6 +996,15 @@ if ($mfaFilter !== '') {
     $whereConditions[] = "s.mfasupport = :mfa";
     $params[':mfa'] = $mfaFilter;
 }
+// Hide rows whose domain matches an active onboarded vendor — by definition
+// an onboarded vendor is not Shadow SaaS. Match the "active" rule used
+// elsewhere in the app (status != 'inactive').
+$whereConditions[] = "NOT EXISTS (
+    SELECT 1 FROM vendor_onboarding_requests v
+    WHERE v.vendor_domain = s.vendor_domain
+      AND v.vendor_domain IS NOT NULL AND v.vendor_domain != ''
+      AND v.status != 'inactive'
+)";
 $whereClause = !empty($whereConditions) ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
 
 $entries = [];
@@ -1063,6 +1201,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         .status-badge { padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; }
         .status-pending { background: #fef3c7; color: #92400e; }
         .status-dismissed { background: #f3f4f6; color: #6b7280; }
+        .status-unsanctioned { background: #fee2e2; color: #991b1b; }
         .score-grade { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; font-size: 11px; margin-left: 3px; }
         .grade-a { background: #dcfce7; color: #166534; }
         .grade-b { background: #d1fae5; color: #065f46; }
@@ -1159,6 +1298,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 <?php if (!$isAuditor): ?>
                 <a href="data:text/csv;charset=utf-8,vendor_name,vendor_domain,description,risk,type%20of%20risk,relationship_manager,number_of_users,application_category,breaches_in_three_years,downloadbytes,uploadbytes,filesharing,mfasupport%0AExample%20Corp,example.com,Cloud%20CRM%20platform,3,Shadow%20IT%3B%20Data%20Leakage,John%20Doe,50,CRM,0,1024,512,Yes,Yes" download="shadow-saas-template.csv" class="btn-sm btn-secondary" style="padding: 8px 16px;">Download Template</a>
                 <button type="button" id="importToggleBtn" class="btn-sm btn-primary" style="padding: 8px 16px;">Import CSV</button>
+                <button type="button" id="zscalerToggleBtn" class="btn-sm btn-secondary" style="padding: 8px 16px;">Zscaler</button>
                 <button type="button" id="addEntryBtn" class="btn-sm btn-success" style="padding: 8px 16px;">Add</button>
                 <?php endif; ?>
                 <a href="?export=csv<?php echo $statusFilter !== '' ? '&status=' . urlencode($statusFilter) : '&status=all'; ?><?php echo $searchQuery !== '' ? '&search=' . urlencode($searchQuery) : ''; ?><?php echo $riskFilter !== '' ? '&risk=' . urlencode($riskFilter) : ''; ?><?php echo $riskTypeFilter !== '' ? '&risk_type=' . urlencode($riskTypeFilter) : ''; ?><?php echo $mfaFilter !== '' ? '&mfa=' . urlencode($mfaFilter) : ''; ?>" class="btn-sm btn-secondary" style="padding: 8px 16px;">Export CSV</a>
@@ -1186,6 +1326,26 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         </div>
         <?php endif; ?>
 
+        <?php if (!$isAuditor): ?>
+        <!-- Zscaler one-off URL Category Management (hidden by default) -->
+        <div id="zscalerSection" style="display: none;">
+            <div class="import-card">
+                <h3>Zscaler URL Category — One-Off</h3>
+                <p style="font-size: 13px; color: #6b7280; margin: 0 0 15px 0;">
+                    Add or remove an arbitrary domain from the configured Zscaler URL Category without it being tied to a vendor row.
+                    Scheme and path are stripped automatically (<code>https://example.com/foo</code> → <code>example.com</code>).
+                </p>
+                <form method="POST" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                    <input type="hidden" name="action" id="zscalerOneoffAction" value="">
+                    <input type="text" name="oneoff_domain" id="zscalerOneoffDomain" placeholder="example.com" required style="font-size: 13px; padding: 6px 10px; min-width: 280px; border: 1px solid #d1d5db; border-radius: 4px;">
+                    <button type="submit" class="btn-sm" style="padding: 8px 16px; background: #b91c1c; color: white;" data-action="deny_zscaler_oneoff">Deny</button>
+                    <button type="submit" class="btn-sm" style="padding: 8px 16px; background: #15803d; color: white;" data-action="allow_zscaler_oneoff">Allow</button>
+                </form>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- Stats Tiles -->
         <div class="stats-grid">
             <a href="shadow-saas.php?status=all" class="stat-card<?php echo empty($statusFilter) ? ' stat-active' : ''; ?>">
@@ -1195,6 +1355,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <a href="shadow-saas.php?status=pending" class="stat-card warning<?php echo $statusFilter === 'pending' ? ' stat-active' : ''; ?>">
                 <div class="value"><?php echo $stats['pending']; ?></div>
                 <div class="label">Pending</div>
+            </a>
+            <a href="shadow-saas.php?status=unsanctioned" class="stat-card<?php echo $statusFilter === 'unsanctioned' ? ' stat-active' : ''; ?>">
+                <div class="value"><?php echo $stats['unsanctioned']; ?></div>
+                <div class="label">Unsanctioned</div>
             </a>
             <a href="shadow-saas.php?status=dismissed" class="stat-card<?php echo $statusFilter === 'dismissed' ? ' stat-active' : ''; ?>">
                 <div class="value"><?php echo $stats['dismissed']; ?></div>
@@ -1213,6 +1377,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 <select name="status">
                     <option value="all" <?php echo empty($statusFilter) ? 'selected' : ''; ?>>All</option>
                     <option value="pending" <?php echo $statusFilter === 'pending' ? 'selected' : ''; ?>>Pending</option>
+                    <option value="unsanctioned" <?php echo $statusFilter === 'unsanctioned' ? 'selected' : ''; ?>>Unsanctioned</option>
                     <option value="dismissed" <?php echo $statusFilter === 'dismissed' ? 'selected' : ''; ?>>Dismissed</option>
                 </select>
             </div>
@@ -1360,6 +1525,15 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <?php if ($entry['risk_score'] !== null): ?>
                                 <?php
                                     $rs = (int)$entry['risk_score'];
+                                    // Grip-sourced rows store a 0-100 score; bucket to a 1-5 scale for display.
+                                    if (($entry['source'] ?? '') === 'grip') {
+                                        if      ($rs <= 0)  { $rs = 0; }
+                                        elseif  ($rs <= 20) { $rs = 1; }
+                                        elseif  ($rs <= 40) { $rs = 2; }
+                                        elseif  ($rs <= 60) { $rs = 3; }
+                                        elseif  ($rs <= 80) { $rs = 4; }
+                                        else                { $rs = 5; }
+                                    }
                                     $riskColor = $rs <= 2 ? '#059669' : ($rs <= 3 ? '#d97706' : '#dc2626');
                                     $riskBg = $rs <= 2 ? '#d1fae5' : ($rs <= 3 ? '#fef3c7' : '#fee2e2');
                                 ?>
@@ -1368,7 +1542,13 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <span style="color: #9ca3af; font-size: 11px;">—</span>
                                 <?php endif; ?>
                             </td>
-                            <td style="font-size: 12px; color: #374151; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?php echo e($entry['risk_type'] ?? ''); ?>"><?php echo e($entry['risk_type'] ?? '—'); ?></td>
+                            <?php
+                                // Strip the "Sanction:" label from the displayed Risk Type (data is unchanged).
+                                $rtRaw = $entry['risk_type'] ?? '';
+                                $rtClean = trim(preg_replace('/\bSanction:\s*/i', '', $rtRaw));
+                                if ($rtClean === '') { $rtClean = '—'; }
+                            ?>
+                            <td style="font-size: 12px; color: #374151; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?php echo e($rtClean); ?>"><?php echo e($rtClean); ?></td>
                             <td style="font-size: 12px; color: #374151;"><?php echo e($entry['application_category'] ?? '—'); ?></td>
                             <td style="text-align: center; font-size: 13px; color: #374151;"><?php echo $entry['number_of_users'] !== null ? number_format((int)$entry['number_of_users']) : '—'; ?></td>
                             <td style="text-align: center;">
@@ -1406,6 +1586,14 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     data-mfa="<?php echo e($entry['mfasupport'] ?? ''); ?>">Edit</button>
                                 <?php endif; ?>
                                 <?php if ($entry['status'] === 'pending'): ?>
+                                <?php if (!empty($entry['is_zscaler_blocked'])): ?>
+                                <button type="button" class="btn-sm allow-btn" style="padding: 4px 8px; font-size: 11px; background: #15803d; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="Onboard to TPRM and remove the domain from the Zscaler URL Category">Allow</button>
+                                <?php else: ?>
+                                <button type="button" class="btn-sm deny-btn" style="padding: 4px 8px; font-size: 11px; background: #b91c1c; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="Mark unsanctioned and (if Zscaler is configured) block the domain">Deny</button>
+                                <?php endif; ?>
+                                <button type="button" class="btn-sm btn-danger dismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>">Dismiss</button>
+                                <?php elseif ($entry['status'] === 'unsanctioned'): ?>
+                                <button type="button" class="btn-sm allow-btn" style="padding: 4px 8px; font-size: 11px; background: #15803d; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="Onboard to TPRM and (if Zscaler-blocked) remove the domain from the URL Category">Allow</button>
                                 <button type="button" class="btn-sm btn-danger dismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>">Dismiss</button>
                                 <?php elseif ($entry['status'] === 'dismissed'): ?>
                                 <button type="button" class="btn-sm btn-secondary undismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>">Restore</button>
@@ -1548,6 +1736,8 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <input type="hidden" name="action" id="rowAction" value="">
             <input type="hidden" name="dismiss_id" id="rowDismissId" value="">
             <input type="hidden" name="undismiss_id" id="rowUndismissId" value="">
+            <input type="hidden" name="deny_id" id="rowDenyId" value="">
+            <input type="hidden" name="allow_id" id="rowAllowId" value="">
         </form>
 
             </main>
@@ -1745,6 +1935,29 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
         });
 
+        // Zscaler one-off toggle
+        document.getElementById('zscalerToggleBtn')?.addEventListener('click', function() {
+            var el = document.getElementById('zscalerSection');
+            if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // Zscaler one-off Deny/Allow: stamp the action on the hidden input before submit,
+        // and confirm with the user what's about to happen.
+        document.querySelectorAll('#zscalerSection button[data-action]').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                var act = this.dataset.action;
+                var domain = (document.getElementById('zscalerOneoffDomain').value || '').trim();
+                if (!domain) return; // required attribute will catch
+                var verb = act === 'deny_zscaler_oneoff' ? 'Add' : 'Remove';
+                var prep = act === 'deny_zscaler_oneoff' ? 'to'  : 'from';
+                if (!confirm(verb + " '" + domain + "' " + prep + " the configured Zscaler URL Category?")) {
+                    e.preventDefault();
+                    return;
+                }
+                document.getElementById('zscalerOneoffAction').value = act;
+            });
+        });
+
         // Select all checkbox
         document.getElementById('selectAll')?.addEventListener('change', function() {
             document.querySelectorAll('.row-checkbox').forEach(function(cb) {
@@ -1843,6 +2056,34 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     var form = document.getElementById('rowActionForm');
                     document.getElementById('rowAction').value = 'undismiss';
                     document.getElementById('rowUndismissId').value = entryId;
+                    form.submit();
+                }
+            });
+        });
+
+        // Deny buttons — mark the row Unsanctioned and (when Zscaler is enabled)
+        // push the vendor domain into the URL Category.
+        document.querySelectorAll('.deny-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var entryId = this.dataset.id;
+                if (confirm('Mark this vendor as Unsanctioned? If Zscaler is configured, the domain will also be added to the URL Category.')) {
+                    var form = document.getElementById('rowActionForm');
+                    document.getElementById('rowAction').value = 'deny_zscaler';
+                    document.getElementById('rowDenyId').value = entryId;
+                    form.submit();
+                }
+            });
+        });
+
+        // Allow buttons — onboard the vendor to TPRM (same as Onboard Selected)
+        // and, if the domain was Zscaler-blocked, remove it from the URL Category.
+        document.querySelectorAll('.allow-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var entryId = this.dataset.id;
+                if (confirm('Onboard this vendor to TPRM? If the domain was Zscaler-blocked, it will also be removed from the URL Category.')) {
+                    var form = document.getElementById('rowActionForm');
+                    document.getElementById('rowAction').value = 'allow_zscaler';
+                    document.getElementById('rowAllowId').value = entryId;
                     form.submit();
                 }
             });

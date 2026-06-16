@@ -3,18 +3,16 @@
 # Auto-generated — do not edit manually
 # =============================================================================
 
-CRON_TZ=UTC
+CRON_TZ=America/New_York
 
-* * * * * www-data /usr/bin/php /var/www/html/cron/rescore-queue.php >> /var/log/php/cron-rescore-queue.log 2>&1
 * * * * * www-data /usr/bin/php /var/www/html/cron/ai-queue.php >> /var/log/php/cron-ai-queue.log 2>&1
+* * * * * www-data /usr/bin/php /var/www/html/cron/rescore-queue.php >> /var/log/php/cron-rescore-queue.log 2>&1
 * * * * * www-data /usr/bin/timeout --signal=TERM --kill-after=30 1800 /usr/bin/php /var/www/html/cron/breach-scan-queue.php >> /var/log/php/cron-breach-scan-queue.log 2>&1
 0 * * * * www-data /usr/bin/php /var/www/html/cron/srs-rescore.php >> /var/log/php/cron-srs-rescore.log 2>&1
 0 2 * * * www-data /usr/bin/php /var/www/html/cron/annual-review-reminders.php >> /var/log/php/cron-annual-review.log 2>&1
 0 3 * * * www-data /usr/bin/php /var/www/html/cron/contract-expiry-reminders.php >> /var/log/php/cron-contract-expiry.log 2>&1
 0 4 * * * www-data /usr/bin/php /var/www/html/cron/assessment-reminders.php >> /var/log/php/cron-assessment-reminders.log 2>&1
-0 5 * * * www-data /usr/bin/php /var/www/html/cron/grc-policy-reminders.php >> /var/log/php/cron-grc-policy-reminders.log 2>&1
-*/5 * * * * www-data /usr/bin/php /var/www/html/cron/grc-continuous-monitors.php >> /var/log/php/cron-grc-monitors.log 2>&1
-0 6 * * * www-data /usr/bin/php /var/www/html/cron/grc-task-digest.php >> /var/log/php/cron-grc-task-digest.log 2>&1
+0 14 * * * www-data /usr/bin/php /var/www/html/cron/grc-policy-reminders.php >> /var/log/php/cron-grc-policy-reminders.log 2>&1
+0 12 * * * www-data /usr/bin/php /var/www/html/cron/grc-task-digest.php >> /var/log/php/cron-grc-task-digest.log 2>&1
 0 7 * * * www-data /usr/bin/timeout --signal=TERM --kill-after=30 1800 /usr/bin/php /var/www/html/cron/breach-monitor.php >> /var/log/php/cron-breach-monitor.log 2>&1
 0 8 * * * www-data /usr/bin/timeout --signal=TERM --kill-after=30 600 /usr/bin/php /var/www/html/cron/osint-company.php >> /var/log/php/cron-osint-company.log 2>&1
-0 2 * * 0 www-data /usr/bin/timeout --signal=TERM --kill-after=30 7200 /usr/bin/php /var/www/html/cron/osint-vendors.php >> /var/log/php/cron-osint-vendors.log 2>&1

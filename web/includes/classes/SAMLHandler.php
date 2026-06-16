@@ -132,69 +132,120 @@ XML;
             throw new Exception('Invalid base64 in SAMLResponse');
         }
 
-        $doc = $this->parseXml($xml);
-
-        // Check top-level status
-        $this->validateStatus($doc);
-
-        // Find the Assertion (may be inside EncryptedAssertion, but we only handle plain)
-        $assertions = $doc->getElementsByTagNameNS('urn:oasis:names:tc:SAML:2.0:assertion', 'Assertion');
-        if ($assertions->length === 0) {
-            throw new Exception('No Assertion found in SAML Response');
-        }
-        $assertion = $assertions->item(0);
-
-        // Validate XML signature on Response or Assertion
-        $this->validateSignature($doc);
-
-        // Validate conditions (time window, audience)
-        $this->validateConditions($assertion);
-
-        // Validate Destination attribute on Response
-        $responseEl = $doc->getElementsByTagNameNS('urn:oasis:names:tc:SAML:2.0:protocol', 'Response');
-        if ($responseEl->length > 0) {
-            $destination = $responseEl->item(0)->getAttribute('Destination');
-            if (!empty($destination) && $destination !== $this->spAcsUrl) {
-                throw new Exception('Response Destination mismatch: expected ' . $this->spAcsUrl);
-            }
-
-            // Validate InResponseTo
-            $inResponseTo = $responseEl->item(0)->getAttribute('InResponseTo');
-            if (!empty($inResponseTo)) {
-                $session = Session::getInstance();
-                $expectedId = $session->get('saml_request_id');
-                if ($expectedId && $inResponseTo !== $expectedId) {
-                    throw new Exception('InResponseTo mismatch');
-                }
-                $session->remove('saml_request_id');
+        // Signature, digest, XML Signature Wrapping (XSW), Conditions, Audience,
+        // Destination and InResponseTo validation are delegated to the vetted
+        // onelogin/php-saml library (backed by robrichards/xmlseclibs). The prior
+        // hand-rolled DOM/OpenSSL validator was vulnerable to signature wrapping:
+        // it verified the signature over one element but read identity from a
+        // different (attacker-controlled) element. The library binds the two.
+        if (!class_exists('OneLogin\\Saml2\\Response')) {
+            $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
+            if (is_file($autoload)) {
+                require_once $autoload;
             }
         }
-
-        // Extract NameID
-        $nameIdNodes = $assertion->getElementsByTagNameNS('urn:oasis:names:tc:SAML:2.0:assertion', 'NameID');
-        $nameId = '';
-        if ($nameIdNodes->length > 0) {
-            $nameId = trim($nameIdNodes->item(0)->textContent);
+        if (!class_exists('OneLogin\\Saml2\\Response')) {
+            throw new Exception('SAML library (onelogin/php-saml) is not installed');
         }
+
+        $settings = new \OneLogin\Saml2\Settings($this->buildOneLoginSettings(), false);
+
+        // Honour reverse-proxy headers so Destination/ACS-URL checks compare against
+        // the externally visible HTTPS URL, not the container-internal http:8080.
+        \OneLogin\Saml2\Utils::setProxyVars(true);
+
+        $response = new \OneLogin\Saml2\Response($settings, $samlResponse);
+
+        // Bind the response to our outstanding AuthnRequest (InResponseTo) if present.
+        $session = Session::getInstance();
+        $expectedId = $session->get('saml_request_id');
+
+        if (!$response->isValid($expectedId ?: null)) {
+            $err = $response->getErrorException();
+            $msg = $err ? $err->getMessage() : ($response->getError() ?: 'SAML response validation failed');
+            throw new Exception('SAML validation failed: ' . $msg);
+        }
+        $session->remove('saml_request_id');
+
+        $nameId = $response->getNameId();
         if (empty($nameId)) {
             throw new Exception('No NameID found in SAML Assertion');
         }
 
-        // Extract SessionIndex for SLO
-        $sessionIndex = null;
-        $authnStatements = $assertion->getElementsByTagNameNS('urn:oasis:names:tc:SAML:2.0:assertion', 'AuthnStatement');
-        if ($authnStatements->length > 0) {
-            $sessionIndex = $authnStatements->item(0)->getAttribute('SessionIndex') ?: null;
-        }
-
-        // Extract attributes
-        $attributes = $this->extractAttributes($assertion);
-
         return [
             'nameId'       => $nameId,
-            'attributes'   => $attributes,
-            'sessionIndex' => $sessionIndex,
+            'attributes'   => $this->normalizeAttributes($response->getAttributes()),
+            'sessionIndex' => $response->getSessionIndex(),
         ];
+    }
+
+    /**
+     * Build the onelogin/php-saml settings array from the stored saml_config row.
+     */
+    private function buildOneLoginSettings() {
+        $settings = [
+            'strict' => true,
+            'sp' => [
+                'entityId' => $this->spEntityId,
+                'assertionConsumerService' => [
+                    'url'     => $this->spAcsUrl,
+                    'binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
+                ],
+                'NameIDFormat' => 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+            ],
+            'idp' => [
+                'entityId' => $this->idpEntityId,
+                'singleSignOnService' => [
+                    'url'     => $this->idpSsoUrl,
+                    'binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect',
+                ],
+                'x509cert' => $this->idpCertificate,
+            ],
+            'security' => [
+                'wantAssertionsSigned'  => true,
+                'wantMessagesSigned'    => false,
+                'wantNameId'            => true,
+                'requestedAuthnContext' => false,
+            ],
+        ];
+
+        // Pin Destination validation to the externally visible SP origin.
+        $acsParts = parse_url($this->spAcsUrl);
+        if ($acsParts && !empty($acsParts['scheme']) && !empty($acsParts['host'])) {
+            $settings['baseurl'] = $acsParts['scheme'] . '://' . $acsParts['host']
+                . (!empty($acsParts['port']) ? ':' . $acsParts['port'] : '');
+        }
+
+        if (!empty($this->idpSloUrl)) {
+            $settings['idp']['singleLogoutService'] = [
+                'url'     => $this->idpSloUrl,
+                'binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect',
+            ];
+        }
+        if (!empty($this->spSloUrl)) {
+            $settings['sp']['singleLogoutService'] = [
+                'url'     => $this->spSloUrl,
+                'binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect',
+            ];
+        }
+
+        return $settings;
+    }
+
+    /**
+     * Normalize onelogin getAttributes() output (always arrays) to the shape the
+     * rest of this class expects: single value as scalar, multiple as array.
+     */
+    private function normalizeAttributes(array $attributes) {
+        $out = [];
+        foreach ($attributes as $name => $values) {
+            if (is_array($values)) {
+                $out[$name] = (count($values) === 1) ? $values[0] : $values;
+            } else {
+                $out[$name] = $values;
+            }
+        }
+        return $out;
     }
 
     /**
@@ -713,18 +764,21 @@ XML;
      * Parse XML with security protections against XXE.
      */
     private function parseXml($xmlString) {
+        // Reject DTDs outright. SAML never legitimately needs a DOCTYPE, and
+        // allowing one enables XXE / billion-laughs entity-expansion DoS.
+        if (preg_match('/<!DOCTYPE/i', $xmlString)) {
+            throw new Exception('DOCTYPE declarations are not allowed in SAML XML');
+        }
+
         $doc = new DOMDocument();
 
-        // Disable external entity loading (XXE protection)
+        // XXE protection: block external entity loading unconditionally (not
+        // version-gated), and parse with no DTD load and no network access.
         $previousValue = libxml_use_internal_errors(true);
-        $loadFlags = LIBXML_NONET | LIBXML_DTDLOAD | LIBXML_DTDATTR;
-
-        // Additional XXE protection for older PHP
-        if (LIBXML_VERSION < 20900) {
-            if (function_exists('libxml_disable_entity_loader')) {
-                libxml_disable_entity_loader(true);
-            }
+        if (function_exists('libxml_set_external_entity_loader')) {
+            libxml_set_external_entity_loader(function () { return null; });
         }
+        $loadFlags = LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING;
 
         if (!$doc->loadXML($xmlString, $loadFlags)) {
             $errors = libxml_get_errors();

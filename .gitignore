@@ -22,3 +22,7 @@ Thumbs.db
 
 # Claude Code
 .claude/
+
+# SQL update runtime state
+web/sql_updates/applied_updates.json
+web/sql_updates/.applied_hashes/
