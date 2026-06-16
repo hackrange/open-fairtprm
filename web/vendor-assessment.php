@@ -129,6 +129,10 @@ try { $showLangPicker = $showLangPicker && AIPlatformService::getInstance()->isE
 catch (Throwable $e) { $showLangPicker = false; }
 
 if ($translator->canTranslate($assessmentLang)) {
+    // Pre-translate every string this page needs in ONE batched AI call (then
+    // the per-string calls below are cache reads). Bounds the render to a single
+    // time-capped AI call instead of one blocking call per question/option.
+    $translator->warmAssessment($assessment, $sections, $currentSection, $currentQuestions, $assessmentLang);
     $assessment['template_name'] = $translator->translate('template_name', (int)$assessment['template_id'], $assessment['template_name'] ?? '', $assessmentLang);
     foreach ($sections as $sIdx => $sec) {
         $sections[$sIdx]['name'] = $translator->translate('section_name', (int)$sec['id'], $sec['name'] ?? '', $assessmentLang);
