@@ -849,11 +849,6 @@ $csrfToken = $security->generateCSRFToken();
         $progressHue = round(($completionStatus['percentage'] / 100) * 120);
         $progressColor = "hsl({$progressHue}, 70%, 45%)";
         ?>
-        <!-- Vendors view this in their own language via the browser's built-in
-             page translation (Chrome/Edge/Safari/Firefox); no app-side picker. -->
-        <div class="translate-hint" style="text-align:right; font-size:12px; color:#888; margin-bottom:12px;">
-            &#127760; Tip: use your browser&rsquo;s &ldquo;Translate&rdquo; feature to view this assessment in your language.
-        </div>
         <!-- Progress bar showing overall completion percentage -->
         <div class="progress-container">
             <div class="progress-header">
