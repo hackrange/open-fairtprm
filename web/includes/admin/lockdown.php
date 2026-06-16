@@ -251,8 +251,19 @@ $scannerBlocking = $lockdown->isScannerBlockingEnabled();
 
 // Count total intercepts since last Apache restart (from error log)
 // error.log is chown root:www-data in entrypoint — www-data is NOT in the adm group
-// Note: is_readable() fails due to open_basedir, but exec() is not restricted by it
-$interceptCount = (int)exec('grep -c "ModSecurity: Access denied" /var/log/apache2/error.log 2>/dev/null');
+// is_readable() fails here (open_basedir), AND exec() is disabled by the web
+// hardening (99-hardening.ini). proc_open IS permitted (as LockdownService uses
+// it), so shell out via proc_open to count blocks from the Apache error log.
+$interceptCount = 0;
+$_icDesc = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+$_icProc = @proc_open('grep -c "ModSecurity: Access denied" /var/log/apache2/error.log 2>/dev/null', $_icDesc, $_icPipes);
+if (is_resource($_icProc)) {
+    $_icOut = stream_get_contents($_icPipes[1]);
+    fclose($_icPipes[1]);
+    fclose($_icPipes[2]);
+    proc_close($_icProc);
+    $interceptCount = (int)trim($_icOut);
+}
 
 $ipFilter = trim($_GET['ip'] ?? '');
 $detailUri = $_GET['detail_uri'] ?? '';

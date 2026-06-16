@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
             if ($formId === 'connection') {
                 $rawBase = trim($_POST['grip_base_url'] ?? '');
                 if ($rawBase === '') {
-                    $rawBase = 'https://hr.dep.grip.security/public/saas';
+                    $rawBase = 'https://tenant.dep.grip.security/public/saas';
                 }
                 // Strip trailing slash; reject anything that isn't an http(s) URL.
                 $rawBase = rtrim($rawBase, '/');
@@ -218,7 +218,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_grip_now'])) {
                 (int)($user['id'] ?? 0),
                 escapeshellarg($logFile)
             );
-            @exec($cmd);
+            // exec() is disabled by the web hardening (99-hardening.ini); proc_open
+            // is permitted. $cmd already backgrounds itself (nohup … &), so the
+            // wrapping sh returns immediately.
+            $_gsProc = @proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $_gsPipes);
+            if (is_resource($_gsProc)) {
+                if (isset($_gsPipes[1])) { fclose($_gsPipes[1]); }
+                if (isset($_gsPipes[2])) { fclose($_gsPipes[2]); }
+                proc_close($_gsProc);
+            }
             $auth->audit($user['id'], 'grip_run_now', 'shadow_saas_grip_sync_log', null, ['log_file' => $logFile]);
             $success = 'Grip hydration started in the background. Refresh in a few seconds to see the latest run.';
         }
@@ -229,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_grip_now'])) {
 // Data loading
 // ============================================================================
 $encryption = new Encryption();
-$gripCfg = ['enabled' => '0', 'base_url' => 'https://hr.dep.grip.security/public/saas', 'api_token' => '', 'cron_enabled' => '0', 'cron_frequency' => 'daily'];
+$gripCfg = ['enabled' => '0', 'base_url' => 'https://tenant.dep.grip.security/public/saas', 'api_token' => '', 'cron_enabled' => '0', 'cron_frequency' => 'daily'];
 $gripRows = $db->fetchAll('SELECT config_key, config_value, is_encrypted FROM app_config WHERE config_key LIKE ?', ['grip_%']);
 foreach ($gripRows as $row) {
     $key = str_replace('grip_', '', $row['config_key']);
@@ -302,8 +310,8 @@ switch ($gripCfg['cron_frequency']) {
         <div class="form-row">
             <div class="form-group">
                 <label for="grip_base_url">Server (Tenant Base URL)</label>
-                <input type="text" id="grip_base_url" name="grip_base_url" class="form-control" value="<?php echo e($gripCfg['base_url'] ?? ''); ?>" placeholder="https://hr.dep.grip.security/public/saas">
-                <div class="form-help">Tenant-prefixed Grip URL rooted at <code>/public/saas</code> (e.g. <code>https://hr.dep.grip.security/public/saas</code>). Sibling endpoints (<code>/public/users</code>, <code>/public/alerts</code>) are derived from this host.</div>
+                <input type="text" id="grip_base_url" name="grip_base_url" class="form-control" value="<?php echo e($gripCfg['base_url'] ?? ''); ?>" placeholder="https://tenant.dep.grip.security/public/saas">
+                <div class="form-help">Tenant-prefixed Grip URL rooted at <code>/public/saas</code> (e.g. <code>https://tenant.dep.grip.security/public/saas</code>). Sibling endpoints (<code>/public/users</code>, <code>/public/alerts</code>) are derived from this host.</div>
             </div>
             <div class="form-group">
                 <label for="grip_api_token">API Token</label>
