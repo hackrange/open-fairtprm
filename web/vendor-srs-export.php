@@ -29,7 +29,7 @@ $canExport = $acl->hasGroup('administrator') || $acl->hasGroup('cyber_tprm');
 
 if (!$canExport) {
     http_response_code(403);
-    die('Access denied. Only administrators and Cyber TPRM users can export SRS data.');
+    die(e(t('vendor-srs-export.access_denied')));
 }
 
 require_once __DIR__ . '/includes/classes/SRSService.php';

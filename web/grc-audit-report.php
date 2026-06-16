@@ -28,7 +28,7 @@ $isAuditor = hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberGRC && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. GRC module requires cyber_grc, administrator, or auditor role.');
+    die(t('grc-audit-report.access_denied'));
 }
 
 $auditId = isset($_GET['audit_id']) ? (int)$_GET['audit_id'] : 0;
@@ -203,11 +203,11 @@ $currentPage = 'grc_audits';
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -215,29 +215,29 @@ $currentPage = 'grc_audits';
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <a href="grc-audits.php?view=<?php echo (int)$auditId; ?>" class="back-link">&larr; Back to Audit</a>
+            <a href="grc-audits.php?view=<?php echo (int)$auditId; ?>" class="back-link">&larr; <?php echo e(t('grc-audit-report.back_to_audit')); ?></a>
 
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">Audit Report</h1>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc-audit-report.audit_report')); ?></h1>
             <p style="color:#6b7280;margin:0 0 20px;"><?php echo e($auditDetail['audit_ref']); ?> &mdash; <?php echo e($auditDetail['title']); ?> &mdash; <?php echo e($auditDetail['framework_name'] ?? $auditDetail['framework_code']); ?></p>
 
             <div id="alertContainer"></div>
 
             <div class="report-toolbar">
-                <span class="toolbar-title">Report Editor</span>
-                <a href="grc-audits.php?view=<?php echo (int)$auditId; ?>" class="btn btn-sm btn-outline">Back to Audit</a>
-                <button type="button" class="btn btn-sm btn-primary" id="btnSavePdf" data-action="save-pdf" disabled>Save as PDF</button>
-                <button type="button" class="btn btn-sm btn-outline" id="btnDownload" data-action="download-report" style="<?php echo $hasReport ? '' : 'display:none;'; ?>background:#f0fdf4;border-color:#22c55e;color:#15803d;">Download Latest Report</button>
-                <button type="button" class="btn btn-sm btn-danger" id="btnDelete" data-action="delete-report" style="<?php echo $hasReport ? '' : 'display:none;'; ?>">Delete Report</button>
-                <button type="button" class="btn btn-sm btn-outline" data-action="print-report">Print</button>
-                <button type="button" class="btn btn-sm btn-outline" data-action="expand-all">Expand All</button>
-                <button type="button" class="btn btn-sm btn-outline" data-action="collapse-all">Collapse All</button>
+                <span class="toolbar-title"><?php echo e(t('grc-audit-report.report_editor')); ?></span>
+                <a href="grc-audits.php?view=<?php echo (int)$auditId; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc-audit-report.back_to_audit')); ?></a>
+                <button type="button" class="btn btn-sm btn-primary" id="btnSavePdf" data-action="save-pdf" disabled><?php echo e(t('grc-audit-report.save_as_pdf')); ?></button>
+                <button type="button" class="btn btn-sm btn-outline" id="btnDownload" data-action="download-report" style="<?php echo $hasReport ? '' : 'display:none;'; ?>background:#f0fdf4;border-color:#22c55e;color:#15803d;"><?php echo e(t('grc-audit-report.download_latest')); ?></button>
+                <button type="button" class="btn btn-sm btn-danger" id="btnDelete" data-action="delete-report" style="<?php echo $hasReport ? '' : 'display:none;'; ?>"><?php echo e(t('grc-audit-report.delete_report')); ?></button>
+                <button type="button" class="btn btn-sm btn-outline" data-action="print-report"><?php echo e(t('grc-audit-report.print')); ?></button>
+                <button type="button" class="btn btn-sm btn-outline" data-action="expand-all"><?php echo e(t('grc-audit-report.expand_all')); ?></button>
+                <button type="button" class="btn btn-sm btn-outline" data-action="collapse-all"><?php echo e(t('grc-audit-report.collapse_all')); ?></button>
             </div>
 
             <div id="reportContainer">
                 <div class="loading-overlay" id="loadingOverlay">
                     <div class="spinner"></div>
-                    <div>Generating report sections...</div>
-                    <div style="font-size:12px;margin-top:4px;color:#9ca3af;">This may take a moment if AI is enabled</div>
+                    <div><?php echo e(t('grc-audit-report.generating_sections')); ?></div>
+                    <div style="font-size:12px;margin-top:4px;color:#9ca3af;"><?php echo e(t('grc-audit-report.may_take_moment')); ?></div>
                 </div>
             </div>
 
@@ -259,7 +259,7 @@ $currentPage = 'grc_audits';
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-audit-report.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

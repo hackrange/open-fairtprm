@@ -120,12 +120,12 @@ $messageType = '';
 // ============================================================================
 $acl = ACL::getInstance();
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"]) && $acl->hasGroup("auditor")) {
-    $message = "Access denied. Auditors have read-only access.";
+    $message = t('fair_results.auditor_read_only');
     $messageType = "error";
 } elseif ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"])) {
     // CSRF check -- because we're not animals
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $message = 'Invalid request. Please try again.';
+        $message = t('fair_results.invalid_request');
         $messageType = 'error';
     } else {
         $deleteId = intval($_POST['delete_id']);
@@ -140,17 +140,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"]) && $acl-
             try {
                 $auth->audit($user['id'], 'fair_analysis_delete', 'tprm_results', $deleteId);
                 $db->delete('tprm_results', 'id = :id', [':id' => $deleteId]);
-                $message = 'Analysis deleted successfully.';
+                $message = t('fair_results.deleted_success');
                 $messageType = 'success';
             } catch (Exception $e) {
                 // Something went sideways. Log it and move on.
                 error_log('Failed to delete analysis: ' . $e->getMessage());
-                $message = 'Failed to delete analysis.';
+                $message = t('fair_results.delete_failed');
                 $messageType = 'error';
             }
         } else {
             // Either it doesn't exist or they're trying to delete someone else's stuff
-            $message = 'Analysis not found or access denied.';
+            $message = t('fair_results.not_found');
             $messageType = 'error';
         }
     }
@@ -201,7 +201,7 @@ $isProcurement = hasGroup('procurement');
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Results - TPRM FAIR Analysis</title>
+    <title><?php echo e(t('fair_results.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -328,13 +328,13 @@ $isProcurement = hasGroup('procurement');
     <div class="page">
         <!-- Top Bar -->
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($isAdmin): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -346,12 +346,12 @@ $isProcurement = hasGroup('procurement');
                 <!-- Welcome Header with Search -->
                 <div class="welcome-header">
                     <div>
-                        <h1 style="font-size: 18px; font-weight: 600; color: #333; margin: 0 0 5px 0;">FAIR Analysis Results</h1>
-                        <p style="color: #666; margin: 0; font-size: 14px;">Browse and manage your completed FAIR risk analyses.</p>
+                        <h1 style="font-size: 18px; font-weight: 600; color: #333; margin: 0 0 5px 0;"><?php echo e(t('fair_results.heading')); ?></h1>
+                        <p style="color: #666; margin: 0; font-size: 14px;"><?php echo e(t('fair_results.subheading')); ?></p>
                     </div>
                     <?php if ($isAdmin || $isCyberTPRM || $isProcurement): ?>
                     <div class="vendor-search-container" style="position: relative; min-width: 300px;">
-                        <input type="text" id="vendorSearchInput" placeholder="Search vendors, domains, stakeholders..."
+                        <input type="text" id="vendorSearchInput" placeholder="<?php echo e(t('fair_results.search_placeholder')); ?>"
                                class="focus-ring"
                                style="width: 100%; padding: 10px 40px 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;"
                                <?php if ($isProcurement && !$isAdmin && !$isCyberTPRM): ?>data-link-base="vendor-onboarding.php"<?php endif; ?>>
@@ -369,27 +369,27 @@ $isProcurement = hasGroup('procurement');
 
                 <!-- Action buttons -->
                 <div style="display: flex; gap: 10px; margin-bottom: 25px;">
-                    <a href="fair_import-analysis.php" style="background: #28a745; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;">Import</a>
-                    <a href="?export_csv=1" style="background: #007bff; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;">Export CSV</a>
-                    <a href="fair-analysis.php" style="background: var(--theme-button-color, #ffc211); color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;">+ New Analysis</a>
+                    <a href="fair_import-analysis.php" style="background: #28a745; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;"><?php echo e(t('fair_results.import')); ?></a>
+                    <a href="?export_csv=1" style="background: #007bff; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;"><?php echo e(t('fair_results.export_csv')); ?></a>
+                    <a href="fair-analysis.php" style="background: var(--theme-button-color, #ffc211); color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;"><?php echo e(t('fair_results.new_analysis')); ?></a>
                 </div>
 
                 <?php if (empty($analyses)): ?>
                     <div class="empty-state">
-                        <h3>No analyses yet</h3>
-                        <p style="color: #999; margin-bottom: 20px;">Get started by creating your first FAIR risk analysis.</p>
-                        <a href="fair-analysis.php" style="background: var(--theme-button-color, #ffc211); color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none;">Create Analysis</a>
+                        <h3><?php echo e(t('fair_results.empty_title')); ?></h3>
+                        <p style="color: #999; margin-bottom: 20px;"><?php echo e(t('fair_results.empty_desc')); ?></p>
+                        <a href="fair-analysis.php" style="background: var(--theme-button-color, #ffc211); color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none;"><?php echo e(t('fair_results.create_analysis')); ?></a>
                     </div>
                 <?php else: ?>
                     <div class="results-table">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Vendor Name</th>
-                                    <th>Status</th>
-                                    <th>Created</th>
-                                    <th>Last Updated</th>
-                                    <th>Actions</th>
+                                    <th><?php echo e(t('fair_results.col_vendor')); ?></th>
+                                    <th><?php echo e(t('fair_results.col_status')); ?></th>
+                                    <th><?php echo e(t('fair_results.col_created')); ?></th>
+                                    <th><?php echo e(t('fair_results.col_updated')); ?></th>
+                                    <th><?php echo e(t('fair_results.col_actions')); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -404,12 +404,12 @@ $isProcurement = hasGroup('procurement');
                                         <td><?php echo date('M d, Y', strtotime($analysis['created_at'])); ?></td>
                                         <td><?php echo date('M d, Y', strtotime($analysis['updated_at'])); ?></td>
                                         <td>
-                                            <a href="view-result.php?id=<?php echo $analysis['id']; ?>" class="btn-small btn-view">View</a>
-                                            <a href="fair-analysis.php?id=<?php echo $analysis['id']; ?>" class="btn-small btn-edit">Edit</a>
+                                            <a href="view-result.php?id=<?php echo $analysis['id']; ?>" class="btn-small btn-view"><?php echo e(t('fair_results.view')); ?></a>
+                                            <a href="fair-analysis.php?id=<?php echo $analysis['id']; ?>" class="btn-small btn-edit"><?php echo e(t('fair_results.edit')); ?></a>
                                             <form method="POST" style="display: inline;" data-confirm="Are you sure you want to delete this analysis? This action cannot be undone.">
                                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                                 <input type="hidden" name="delete_id" value="<?php echo $analysis['id']; ?>">
-                                                <button type="submit" class="btn-small btn-delete">Delete</button>
+                                                <button type="submit" class="btn-small btn-delete"><?php echo e(t('fair_results.delete')); ?></button>
                                             </form>
                                         </td>
                                     </tr>
@@ -437,7 +437,7 @@ $isProcurement = hasGroup('procurement');
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('fair_results.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>

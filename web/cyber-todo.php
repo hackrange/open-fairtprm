@@ -42,7 +42,7 @@ $isAuditor = $acl->hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberTPRM && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. You do not have permission to view the Cyber To-Do list.');
+    die(t('cyber-todo.access_denied'));
 }
 
 require_once __DIR__ . '/includes/classes/SRSService.php';
@@ -60,7 +60,7 @@ $success = '';
 // Each branch delegates to CyberTodoService for the actual DB work.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('cyber-todo.invalid_request');
     } elseif ($isAuditor && !$isAdmin && !$isCyberTPRM) {
         // Auditor is a read-only role: it may VIEW the to-do list but must not
         // drive any state-changing action (add_activity, update_tier,
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // is the matching server-side enforcement so a hand-crafted POST with a
         // scraped CSRF token cannot mutate or delete data.
         http_response_code(403);
-        $error = 'Your role has read-only access and cannot perform this action.';
+        $error = t('cyber-todo.readonly_role');
     } elseif (isset($_POST['add_activity'])) {
         $todoType = $_POST['todo_type'] ?? '';
         $referenceType = $_POST['reference_type'] ?? '';
@@ -84,11 +84,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // For custom todos, validate that a valid vendor is selected
         if ($todoType === 'custom' && $referenceType === 'vendor_onboarding_requests') {
             if ($referenceId <= 0) {
-                $error = 'Please select a valid vendor.';
+                $error = t('cyber-todo.select_valid_vendor');
             } else {
                 $vendor = $db->fetchOne("SELECT id FROM vendor_onboarding_requests WHERE id = :id AND status = 'approved'", [':id' => $referenceId]);
                 if (!$vendor) {
-                    $error = 'Please select a valid approved vendor.';
+                    $error = t('cyber-todo.select_approved_vendor');
                 }
             }
         }
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($error)) {
             // Error already set above
         } elseif (empty($description) && empty($assignedTo)) {
-            $error = 'Please enter a description or assign to someone.';
+            $error = t('cyber-todo.enter_description_or_assign');
         } else {
             // Auto-generate description for assignment-only activities
             if (empty($description) && !empty($assignedTo)) {
@@ -113,10 +113,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $auth->audit($user['id'], 'todo_add_activity', 'cyber_todo_activities', $referenceId, [
                     'new' => ['todo_type' => $todoType, 'reference_type' => $referenceType, 'activity_type' => $activityType, 'title' => $title, 'status' => $status, 'assigned_to' => $assignedTo]
                 ]);
-                $success = 'Activity added successfully.';
+                $success = t('cyber-todo.activity_added');
             } catch (Exception $e) {
                 error_log('Add activity error: ' . $e->getMessage());
-                $error = 'Failed to add activity.';
+                $error = t('cyber-todo.activity_add_failed');
             }
         }
     } elseif (isset($_POST['update_activity_status'])) {
@@ -129,9 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $auth->audit($user['id'], 'todo_update_status', 'cyber_todo_activities', $activityId, [
                     'new' => ['status' => $newStatus]
                 ]);
-                $success = 'Activity status updated.';
+                $success = t('cyber-todo.activity_status_updated');
             } catch (Exception $e) {
-                $error = 'Failed to update activity status.';
+                $error = t('cyber-todo.activity_status_failed');
             }
         }
     } elseif (isset($_POST['mark_annual_review'])) {
@@ -140,9 +140,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $todoService->markAnnualReview($vendorId);
                 $auth->audit($user['id'], 'todo_mark_annual_review', 'vendor_onboarding_requests', $vendorId);
-                $success = 'Vendor marked as reviewed.';
+                $success = t('cyber-todo.vendor_reviewed');
             } catch (Exception $e) {
-                $error = 'Failed to mark vendor as reviewed.';
+                $error = t('cyber-todo.vendor_reviewed_failed');
             }
         }
     } elseif (isset($_POST['close_todo'])) {
@@ -157,10 +157,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $auth->audit($user['id'], 'todo_close', 'cyber_todo_activities', $referenceId, [
                     'new' => ['todo_type' => $todoType, 'reference_type' => $referenceType, 'closure_note' => $closureNote]
                 ]);
-                $success = 'Todo item marked as complete.';
+                $success = t('cyber-todo.todo_completed');
             } catch (Exception $e) {
                 error_log('Close todo error: ' . $e->getMessage());
-                $error = 'Failed to close todo item.';
+                $error = t('cyber-todo.todo_close_failed');
             }
         }
     } elseif (isset($_POST['reopen_todo'])) {
@@ -174,9 +174,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $auth->audit($user['id'], 'todo_reopen', 'cyber_todo_activities', $referenceId, [
                     'new' => ['todo_type' => $todoType, 'reference_type' => $referenceType]
                 ]);
-                $success = 'Todo item reopened.';
+                $success = t('cyber-todo.todo_reopened');
             } catch (Exception $e) {
-                $error = 'Failed to reopen todo item.';
+                $error = t('cyber-todo.todo_reopen_failed');
             }
         }
     } elseif (isset($_POST['update_tier'])) {
@@ -187,9 +187,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $justification = trim($_POST['tier_justification'] ?? '');
 
         if (!in_array($newTier, ['', '1', '2', '3'])) {
-            $error = 'Invalid tier value.';
+            $error = t('cyber-todo.invalid_tier');
         } elseif (empty($justification)) {
-            $error = 'Justification is required when changing vendor tier.';
+            $error = t('cyber-todo.justification_required');
         } elseif ($vendorId) {
             try {
                 $vendor = $db->fetchOne('SELECT vendor_tier, additional_information FROM vendor_onboarding_requests WHERE id = :id', [':id' => $vendorId]);
@@ -211,10 +211,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'old' => ['vendor_tier' => $oldTier],
                     'new' => ['vendor_tier' => $newTier, 'justification' => $justification]
                 ]);
-                $success = 'Vendor tier updated successfully.';
+                $success = t('cyber-todo.tier_updated');
             } catch (Exception $e) {
                 error_log('Tier update error: ' . $e->getMessage());
-                $error = 'Failed to update vendor tier.';
+                $error = t('cyber-todo.tier_update_failed');
             }
         }
     } elseif (isset($_POST['revert_import'])) {
@@ -266,7 +266,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = 'Item snoozed for ' . $snoozeDays . ' day' . ($snoozeDays > 1 ? 's' : '') . '.';
         } catch (Exception $e) {
             error_log('Snooze error: ' . $e->getMessage());
-            $error = 'Failed to snooze item.';
+            $error = t('cyber-todo.snooze_failed');
         }
     } elseif (isset($_POST['unsnooze_todo'])) {
         try {
@@ -279,7 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':ref_id' => intval($_POST['reference_id'] ?? 0),
                 ]
             );
-            $success = 'Item unsnoozed.';
+            $success = t('cyber-todo.item_unsnoozed');
         } catch (Exception $e) {
             // Table may not exist yet
         }
@@ -717,11 +717,11 @@ foreach ($todoItems as $ti) {
         <?php renderImpersonationBanner(); ?>
 
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
-                <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 

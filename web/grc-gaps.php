@@ -72,7 +72,7 @@ $csrfToken = $security->generateCSRFToken();
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Gap Analysis - GRC Compliance Engine</title>
+    <title><?php echo e(t('grc_gaps.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style nonce="<?php echo cspNonce(); ?>">
@@ -159,11 +159,11 @@ $csrfToken = $security->generateCSRFToken();
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -171,16 +171,16 @@ $csrfToken = $security->generateCSRFToken();
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">Gap Analysis</h1>
-            <p style="color:#6b7280;margin:0 0 20px;">Non-conforming and partial compliance findings from assessment responses</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc_gaps.heading')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 20px;"><?php echo e(t('grc_gaps.subheading')); ?></p>
 
             <!-- Assessment Selector -->
             <?php if (!empty($assessments)): ?>
             <div style="margin-bottom:24px;padding:14px 20px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;">
                 <div style="display:flex;align-items:center;gap:12px;">
-                    <label style="font-size:13px;font-weight:600;color:#374151;white-space:nowrap;">Assessment:</label>
+                    <label style="font-size:13px;font-weight:600;color:#374151;white-space:nowrap;"><?php echo e(t('grc_gaps.assessment_label')); ?></label>
                     <select id="assessmentSelect" onchange="window.location='grc-gaps.php?id='+this.value" style="flex:1;max-width:500px;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                        <option value="">-- Select Assessment --</option>
+                        <option value="">-- <?php echo e(t('grc_gaps.select_assessment')); ?> --</option>
                         <?php foreach ($assessments as $a): ?>
                         <option value="<?php echo (int)$a['id']; ?>" <?php echo (int)$a['id'] === $selectedId ? 'selected' : ''; ?>>
                             <?php echo e(($a['assessment_ref'] ?? '') . ' — ' . ($a['title'] ?? '') . ' (' . ucfirst($a['status'] ?? 'draft') . ')'); ?>
@@ -194,19 +194,19 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Summary Stats -->
             <div class="stat-grid">
                 <div class="stat-card">
-                    <div class="stat-label">Total Gaps</div>
+                    <div class="stat-label"><?php echo e(t('grc_gaps.stat_total_gaps')); ?></div>
                     <div class="stat-value" style="color:#dc3545;"><?php echo $totalGaps; ?></div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Non-Conforming</div>
+                    <div class="stat-label"><?php echo e(t('grc_gaps.stat_non_conforming')); ?></div>
                     <div class="stat-value" style="color:#991b1b;"><?php echo $nonConformingCount; ?></div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Partial</div>
+                    <div class="stat-label"><?php echo e(t('grc_gaps.stat_partial')); ?></div>
                     <div class="stat-value" style="color:#92400e;"><?php echo $partialCount; ?></div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">With Linked Risk</div>
+                    <div class="stat-label"><?php echo e(t('grc_gaps.stat_with_linked_risk')); ?></div>
                     <div class="stat-value" style="color:#059669;"><?php
                         $linkedCount = 0;
                         foreach ($gaps as $g) { if (isset($risksByRef[$g['question_ref']])) $linkedCount++; }
@@ -217,20 +217,20 @@ $csrfToken = $security->generateCSRFToken();
 
             <?php if (empty($gaps)): ?>
             <div style="text-align:center;padding:60px 20px;background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                <p style="font-size:16px;color:#6b7280;margin-bottom:8px;">No gaps identified</p>
-                <p style="font-size:13px;color:#9ca3af;">All assessed requirements are conforming. Nice work!</p>
+                <p style="font-size:16px;color:#6b7280;margin-bottom:8px;"><?php echo e(t('grc_gaps.no_gaps')); ?></p>
+                <p style="font-size:13px;color:#9ca3af;"><?php echo e(t('grc_gaps.all_conforming')); ?></p>
             </div>
             <?php else: ?>
             <table class="gap-table">
                 <thead>
                     <tr>
-                        <th>Severity</th>
-                        <th>Domain</th>
-                        <th>Ref</th>
-                        <th>Finding</th>
-                        <th>Framework Impact</th>
-                        <th>Risk</th>
-                        <th>Actions</th>
+                        <th><?php echo e(t('grc_gaps.col_severity')); ?></th>
+                        <th><?php echo e(t('grc_gaps.col_domain')); ?></th>
+                        <th><?php echo e(t('grc_gaps.col_ref')); ?></th>
+                        <th><?php echo e(t('grc_gaps.col_finding')); ?></th>
+                        <th><?php echo e(t('grc_gaps.col_framework_impact')); ?></th>
+                        <th><?php echo e(t('grc_gaps.col_risk')); ?></th>
+                        <th><?php echo e(t('grc_gaps.col_actions')); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -241,7 +241,7 @@ $csrfToken = $security->generateCSRFToken();
                     <tr>
                         <td>
                             <span class="severity-<?php echo $severity; ?>">
-                                <?php echo $severity === 'non_conforming' ? 'Non-Conforming' : 'Partial'; ?>
+                                <?php echo e($severity === 'non_conforming' ? t('grc_gaps.non_conforming') : t('grc_gaps.partial')); ?>
                             </span>
                         </td>
                         <td>
@@ -264,15 +264,15 @@ $csrfToken = $security->generateCSRFToken();
                         </td>
                         <td>
                             <?php if ($hasRisk): ?>
-                            <span class="risk-badge">Risk Logged</span>
+                            <span class="risk-badge"><?php echo e(t('grc_gaps.risk_logged')); ?></span>
                             <?php else: ?>
-                            <span class="no-risk-link">No risk</span>
+                            <span class="no-risk-link"><?php echo e(t('grc_gaps.no_risk')); ?></span>
                             <?php endif; ?>
                         </td>
                         <td>
-                            <a href="grc-assessment.php?view=<?php echo $selectedId; ?>#q-<?php echo (int)$g['question_id']; ?>" class="btn btn-outline" style="font-size:11px;padding:4px 10px;">View</a>
+                            <a href="grc-assessment.php?view=<?php echo $selectedId; ?>#q-<?php echo (int)$g['question_id']; ?>" class="btn btn-outline" style="font-size:11px;padding:4px 10px;"><?php echo e(t('grc_gaps.view')); ?></a>
                             <?php if (!$hasRisk): ?>
-                            <a href="grc-risks.php" class="btn btn-outline" style="font-size:11px;padding:4px 10px;margin-top:4px;display:inline-block;">Log Risk</a>
+                            <a href="grc-risks.php" class="btn btn-outline" style="font-size:11px;padding:4px 10px;margin-top:4px;display:inline-block;"><?php echo e(t('grc_gaps.log_risk')); ?></a>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -290,7 +290,7 @@ $csrfToken = $security->generateCSRFToken();
                 <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                     <?php if (!empty($theme['footer_logo_url'])): ?>
                         <a class="brand" href="index.php">
-                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('grc_gaps.footer_logo_alt')); ?>" style="max-height: 45px;">
                         </a>
                     <?php endif; ?>
                     <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -299,7 +299,7 @@ $csrfToken = $security->generateCSRFToken();
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc_gaps.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

@@ -258,11 +258,11 @@ $csrfToken = $security->getCSRFToken();
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 

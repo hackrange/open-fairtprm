@@ -69,10 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // First things first: Origin/Referer + CSRF validation. No token, no dice.
     if (!$security->validateOrigin()) {
         http_response_code(403);
-        $error = 'Invalid request origin. Please try again.';
+        $error = t('profile.invalid_origin');
     } elseif (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         http_response_code(403);
-        $error = 'Invalid request. Please try again.';
+        $error = t('profile.invalid_request');
 
     // --- TOTP Setup: User wants to enable 2FA. Generate a secret and QR code. ---
     } elseif (isset($_POST['enable_totp'])) {
@@ -108,9 +108,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim($_POST['email'] ?? '');
 
         if (empty($fullName) || empty($email)) {
-            $error = 'Full name and email are required';
+            $error = t('profile.name_email_required');
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $error = 'Invalid email address';
+            $error = t('profile.invalid_email');
         } else {
             try {
                 $oldProfile = ['full_name' => $userDetails['full_name'], 'email' => $userDetails['email']];
@@ -122,10 +122,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'old' => $oldProfile,
                     'new' => ['full_name' => $fullName, 'email' => $email]
                 ]);
-                $success = 'Profile updated successfully';
+                $success = t('profile.profile_updated');
             } catch (Exception $e) {
                 error_log('Profile update failed: ' . $e->getMessage());
-                $error = 'Failed to update profile';
+                $error = t('profile.profile_update_failed');
             }
         }
     } elseif (isset($_POST['change_password'])) {
@@ -134,9 +134,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $confirmPassword = $_POST['confirm_password'] ?? '';
 
         if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
-            $error = 'All password fields are required';
+            $error = t('profile.all_password_required');
         } elseif ($newPassword !== $confirmPassword) {
-            $error = 'New passwords do not match';
+            $error = t('profile.passwords_mismatch');
         } else {
             $encryption = new Encryption();
 
@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $auth->audit($user['id'], 'password_change_failed', 'users', $user['id'], [
                     'new' => ['reason' => 'invalid_current_password']
                 ]);
-                $error = 'Current password is incorrect';
+                $error = t('profile.current_password_incorrect');
             } else {
                 $validation = $security->validatePassword($newPassword);
                 if (!$validation['valid']) {
@@ -153,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $newHash = $encryption->hashPassword($newPassword);
                     $db->update('users', ['password_hash' => $newHash], 'id = :id', [':id' => $user['id']]);
                     $auth->audit($user['id'], 'password_change', 'users', $user['id']);
-                    $success = 'Password changed successfully';
+                    $success = t('profile.password_changed');
                 }
             }
         }
@@ -168,16 +168,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $jsonModules = !empty($selectedModules) ? json_encode($selectedModules) : null;
         try {
             $db->update('users', ['dashboard_modules' => $jsonModules], 'id = :id', [':id' => $user['id']]);
-            $success = 'Dashboard modules updated successfully';
+            $success = t('profile.modules_updated');
         } catch (Exception $e) {
             // Column may not exist yet — try adding it
             try {
                 $db->query('ALTER TABLE users ADD COLUMN dashboard_modules TEXT DEFAULT NULL');
                 $db->update('users', ['dashboard_modules' => $jsonModules], 'id = :id', [':id' => $user['id']]);
-                $success = 'Dashboard modules updated successfully';
+                $success = t('profile.modules_updated');
             } catch (Exception $e2) {
                 error_log('Dashboard modules update failed: ' . $e2->getMessage());
-                $error = 'Failed to update dashboard modules';
+                $error = t('profile.modules_update_failed');
             }
         }
     } elseif (isset($_POST['update_theme'])) {
@@ -204,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($colorFields as $var => $label) {
                 $val = $$var;
                 if ($val !== '' && !preg_match('/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/', $val)) {
-                    $error = "$label must be a valid hex color (e.g. #35a0a3)";
+                    $error = t('profile.invalid_hex_color', $label);
                     break;
                 }
             }
@@ -212,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Validate nav width is a number between 150 and 400
         if (!$error && !empty($themeNavWidth) && (!is_numeric($themeNavWidth) || $themeNavWidth < 150 || $themeNavWidth > 400)) {
-            $error = 'Navigation width must be a number between 150 and 400 pixels';
+            $error = t('profile.invalid_nav_width');
         }
 
         if (!$error) {
@@ -245,15 +245,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 // Try to save all including nav columns
                 $db->update('users', array_merge($baseThemeData, $navThemeData), 'id = :id', [':id' => $user['id']]);
-                $success = $resetTheme ? 'Theme reset to application defaults' : 'Theme customization saved successfully';
+                $success = $resetTheme ? t('profile.theme_reset') : t('profile.theme_saved');
             } catch (Exception $e) {
                 // If that fails, try saving just the base theme (nav columns may not exist)
                 try {
                     $db->update('users', $baseThemeData, 'id = :id', [':id' => $user['id']]);
-                    $success = $resetTheme ? 'Theme reset to application defaults' : 'Theme customization saved (run nav migration for navigation settings)';
+                    $success = $resetTheme ? t('profile.theme_reset') : t('profile.theme_saved_nav_migration');
                 } catch (Exception $e2) {
                     error_log('Theme update failed: ' . $e2->getMessage());
-                    $error = 'Failed to update theme settings';
+                    $error = t('profile.theme_update_failed');
                 }
             }
         }
@@ -269,7 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newLang = $preferredLang;
         } else {
             $newLang = null;
-            $error = 'Selected language is not enabled.';
+            $error = t('profile.language_not_enabled');
         }
 
         if (!$error) {
@@ -278,10 +278,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $auth->audit($user['id'], 'language_preference_update', 'users', $user['id'], [
                     'new' => ['preferred_language' => $newLang]
                 ]);
-                $success = 'Language preference updated successfully';
+                $success = t('profile.language_updated');
             } catch (Exception $e) {
                 error_log('Language preference update failed: ' . $e->getMessage());
-                $error = 'Failed to update language preference';
+                $error = t('profile.language_update_failed');
             }
         }
     }
@@ -526,18 +526,18 @@ $theme = getUserTheme();
                                         <img class="brand-logo-dark" src="<?php echo e($theme['logo_url']); ?>" alt="" width="209" height="39"/>
                                     </a>
                                     <div style="margin-top: 5px; color: #333; font-size: 16px; font-weight: 500;">
-                                        Profile Settings
+                                        <?php echo e(t('profile.profile_settings')); ?>
                                     </div>
                                 </div>
                             </div>
                             <div style="flex: 1;"></div>
                             <div class="user-menu">
-                                <span style="color: var(--nav-font-color);">Welcome, <?php echo e($user['full_name']); ?></span>
-                                <a href="index.php">Dashboard</a>
+                                <span style="color: var(--nav-font-color);"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
+                                <a href="index.php"><?php echo e(t('profile.dashboard')); ?></a>
                                 <?php if ($auth->isAdmin()): ?>
-                                    <a href="admin.php">Admin</a>
+                                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                                 <?php endif; ?>
-                                <a href="logout.php">Logout</a>
+                                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
                             </div>
                         </div>
                     </div>
@@ -547,7 +547,7 @@ $theme = getUserTheme();
 
         <div class="profile-container" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
             <div class="container" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
-                <h1 class="page-title" style="margin-bottom: 30px;">Profile Settings</h1>
+                <h1 class="page-title" style="margin-bottom: 30px;"><?php echo e(t('profile.profile_settings')); ?></h1>
 
                 <?php if ($error): ?>
                     <div class="alert alert-danger"><?php echo e($error); ?></div>
@@ -560,40 +560,40 @@ $theme = getUserTheme();
                 <div class="row">
                     <div class="col-md-6">
                         <div class="card">
-                            <h3>User Information</h3>
+                            <h3><?php echo e(t('profile.user_information')); ?></h3>
                             <form method="POST" action="profile.php">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
 
                                 <div class="form-group">
-                                    <label for="username_display">Username</label>
+                                    <label for="username_display"><?php echo e(t('profile.username')); ?></label>
                                     <input type="text" id="username_display" class="form-control" value="<?php echo e($userDetails['username']); ?>" disabled>
-                                    <small style="color: #666;">Username cannot be changed</small>
+                                    <small style="color: #666;"><?php echo e(t('profile.username_cannot_change')); ?></small>
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="full_name">Full Name</label>
+                                    <label for="full_name"><?php echo e(t('profile.full_name')); ?></label>
                                     <input type="text" id="full_name" name="full_name" class="form-control" value="<?php echo e($userDetails['full_name']); ?>" required>
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="email">Email Address</label>
+                                    <label for="email"><?php echo e(t('profile.email_address')); ?></label>
                                     <input type="email" id="email" name="email" class="form-control" value="<?php echo e($userDetails['email']); ?>" required>
                                 </div>
 
                                 <div class="form-group">
-                                    <label>Role</label>
+                                    <label><?php echo e(t('profile.role')); ?></label>
                                     <div style="margin-top: 8px;">
-                                        <?php echo $userDetails['is_admin'] ? '<span class="badge badge-success">Administrator</span>' : '<span class="badge badge-secondary">User</span>'; ?>
+                                        <?php echo $userDetails['is_admin'] ? '<span class="badge badge-success">' . e(t('profile.administrator')) . '</span>' : '<span class="badge badge-secondary">' . e(t('profile.user')) . '</span>'; ?>
                                     </div>
-                                    <small style="color: #666;">Role can only be changed by administrators</small>
+                                    <small style="color: #666;"><?php echo e(t('profile.role_admin_only')); ?></small>
                                 </div>
 
                                 <div class="info-row" style="margin-top: 15px;">
-                                    <div class="info-label">Last Login:</div>
-                                    <div class="info-value"><?php echo $userDetails['last_login'] ? date('M d, Y H:i', strtotime($userDetails['last_login'])) : 'Never'; ?></div>
+                                    <div class="info-label"><?php echo e(t('profile.last_login')); ?></div>
+                                    <div class="info-value"><?php echo $userDetails['last_login'] ? date('M d, Y H:i', strtotime($userDetails['last_login'])) : e(t('profile.never')); ?></div>
                                 </div>
 
-                                <button type="submit" name="update_profile" class="btn btn-primary" style="margin-top: 15px;">Update Profile</button>
+                                <button type="submit" name="update_profile" class="btn btn-primary" style="margin-top: 15px;"><?php echo e(t('profile.update_profile')); ?></button>
                             </form>
                         </div>
 
@@ -621,20 +621,20 @@ $theme = getUserTheme();
                         </div>
 
                         <div class="card">
-                            <h3>Change Password</h3>
+                            <h3><?php echo e(t('profile.change_password')); ?></h3>
                             <form method="POST" action="profile.php">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
 
                                 <div class="form-group">
-                                    <label for="current_password">Current Password</label>
+                                    <label for="current_password"><?php echo e(t('profile.current_password')); ?></label>
                                     <input type="password" id="current_password" name="current_password" class="form-control" required>
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="new_password">New Password</label>
+                                    <label for="new_password"><?php echo e(t('profile.new_password')); ?></label>
                                     <div class="password-wrapper">
                                         <input type="password" id="new_password" name="new_password" class="form-control" required>
-                                        <button type="button" class="password-toggle" data-target="new_password" title="Show password">
+                                        <button type="button" class="password-toggle" data-target="new_password" title="<?php echo e(t('profile.show_password')); ?>">
                                             <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                             <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/></svg>
                                         </button>
@@ -643,46 +643,46 @@ $theme = getUserTheme();
                                     $pwReqs = $config->get('auth.password_requirements');
                                     ?>
                                     <div class="password-hints" id="password-hints">
-                                        <div class="hint" data-rule="length"><?php echo e("At least {$pwReqs['min_length']} characters"); ?></div>
+                                        <div class="hint" data-rule="length"><?php echo e(t('profile.pw_min_length', $pwReqs['min_length'])); ?></div>
                                         <?php if ($pwReqs['require_uppercase']): ?>
-                                        <div class="hint" data-rule="uppercase">At least one uppercase letter</div>
+                                        <div class="hint" data-rule="uppercase"><?php echo e(t('profile.pw_uppercase')); ?></div>
                                         <?php endif; ?>
                                         <?php if ($pwReqs['require_lowercase']): ?>
-                                        <div class="hint" data-rule="lowercase">At least one lowercase letter</div>
+                                        <div class="hint" data-rule="lowercase"><?php echo e(t('profile.pw_lowercase')); ?></div>
                                         <?php endif; ?>
                                         <?php if ($pwReqs['require_numbers']): ?>
-                                        <div class="hint" data-rule="number">At least one number</div>
+                                        <div class="hint" data-rule="number"><?php echo e(t('profile.pw_number')); ?></div>
                                         <?php endif; ?>
                                         <?php if ($pwReqs['require_special_chars']): ?>
-                                        <div class="hint" data-rule="special">At least one special character</div>
+                                        <div class="hint" data-rule="special"><?php echo e(t('profile.pw_special')); ?></div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="confirm_password">Confirm New Password</label>
+                                    <label for="confirm_password"><?php echo e(t('profile.confirm_new_password')); ?></label>
                                     <div class="password-wrapper">
                                         <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
-                                        <button type="button" class="password-toggle" data-target="confirm_password" title="Show password">
+                                        <button type="button" class="password-toggle" data-target="confirm_password" title="<?php echo e(t('profile.show_password')); ?>">
                                             <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                             <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/></svg>
                                         </button>
                                     </div>
                                 </div>
 
-                                <button type="submit" name="change_password" class="btn btn-primary">Change Password</button>
+                                <button type="submit" name="change_password" class="btn btn-primary"><?php echo e(t('profile.change_password')); ?></button>
                             </form>
                         </div>
 
                         <div class="card">
-                            <h3>Theme Customization</h3>
-                            <p style="color: #666; margin-bottom: 20px;">Customize the appearance of the application. Leave fields empty to use application defaults.</p>
+                            <h3><?php echo e(t('profile.theme_customization')); ?></h3>
+                            <p style="color: #666; margin-bottom: 20px;"><?php echo e(t('profile.theme_intro')); ?></p>
 
                             <form method="POST" action="profile.php">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
 
                                 <div class="form-group">
-                                    <label for="theme_header_color">Header Color</label>
+                                    <label for="theme_header_color"><?php echo e(t('profile.header_color')); ?></label>
                                     <div style="display: flex; gap: 10px; align-items: center;">
                                         <input type="color" id="theme_header_color" name="theme_header_color"
                                                value="<?php echo e($userDetails['theme_header_color'] ?: $defaultTheme['header_color']); ?>"
@@ -695,7 +695,7 @@ $theme = getUserTheme();
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="theme_footer_color">Footer Color</label>
+                                    <label for="theme_footer_color"><?php echo e(t('profile.footer_color')); ?></label>
                                     <div style="display: flex; gap: 10px; align-items: center;">
                                         <input type="color" id="theme_footer_color" name="theme_footer_color"
                                                value="<?php echo e($userDetails['theme_footer_color'] ?: $defaultTheme['footer_color']); ?>"
@@ -708,7 +708,7 @@ $theme = getUserTheme();
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="theme_button_color">Primary Button Color</label>
+                                    <label for="theme_button_color"><?php echo e(t('profile.button_color')); ?></label>
                                     <div style="display: flex; gap: 10px; align-items: center;">
                                         <input type="color" id="theme_button_color" name="theme_button_color"
                                                value="<?php echo e($userDetails['theme_button_color'] ?: $defaultTheme['button_color']); ?>"
@@ -721,10 +721,10 @@ $theme = getUserTheme();
                                 </div>
 
                                 <hr style="margin: 25px 0; border: none; border-top: 1px solid #e5e7eb;">
-                                <h4 style="margin-bottom: 15px; color: #333; font-size: 14px; font-weight: 600;">Navigation Settings</h4>
+                                <h4 style="margin-bottom: 15px; color: #333; font-size: 14px; font-weight: 600;"><?php echo e(t('profile.navigation_settings')); ?></h4>
 
                                 <div class="form-group">
-                                    <label for="theme_nav_fill_color">Navigation Fill Color</label>
+                                    <label for="theme_nav_fill_color"><?php echo e(t('profile.nav_fill_color')); ?></label>
                                     <div style="display: flex; gap: 10px; align-items: center;">
                                         <input type="color" id="theme_nav_fill_color" name="theme_nav_fill_color"
                                                value="<?php echo e(($userDetails['theme_nav_fill_color'] ?? '') ?: $defaultTheme['nav_fill_color']); ?>"
@@ -737,7 +737,7 @@ $theme = getUserTheme();
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="theme_nav_font_color">Navigation Font Color</label>
+                                    <label for="theme_nav_font_color"><?php echo e(t('profile.nav_font_color')); ?></label>
                                     <div style="display: flex; gap: 10px; align-items: center;">
                                         <input type="color" id="theme_nav_font_color" name="theme_nav_font_color"
                                                value="<?php echo e(($userDetails['theme_nav_font_color'] ?? '') ?: $defaultTheme['nav_font_color']); ?>"
@@ -750,7 +750,7 @@ $theme = getUserTheme();
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="theme_nav_width">Navigation Width (pixels)</label>
+                                    <label for="theme_nav_width"><?php echo e(t('profile.nav_width')); ?></label>
                                     <div style="display: flex; gap: 10px; align-items: center;">
                                         <input type="range" id="theme_nav_width_range" min="150" max="400" step="10"
                                                value="<?php echo e(($userDetails['theme_nav_width'] ?? '') ?: $defaultTheme['nav_width']); ?>"
@@ -764,8 +764,8 @@ $theme = getUserTheme();
                                 </div>
 
                                 <div style="display: flex; gap: 10px; margin-top: 20px;">
-                                    <button type="submit" name="update_theme" class="btn btn-primary">Save Theme</button>
-                                    <button type="submit" name="update_theme" value="1" id="resetThemeBtn" class="btn btn-secondary" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">Reset to Defaults</button>
+                                    <button type="submit" name="update_theme" class="btn btn-primary"><?php echo e(t('profile.save_theme')); ?></button>
+                                    <button type="submit" name="update_theme" value="1" id="resetThemeBtn" class="btn btn-secondary" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;"><?php echo e(t('profile.reset_to_defaults')); ?></button>
                                     <script nonce="<?php echo cspNonce(); ?>">document.getElementById('resetThemeBtn').addEventListener('click', function() { document.querySelector('input[name=reset_theme]').value='1'; });</script>
                                     <input type="hidden" name="reset_theme" value="0">
                                 </div>
@@ -775,36 +775,36 @@ $theme = getUserTheme();
 
                     <div class="col-md-6">
                         <div class="card">
-                            <h3>Two-Factor Authentication (TOTP)</h3>
+                            <h3><?php echo e(t('profile.totp_title')); ?></h3>
 
                             <?php if ($userDetails['totp_enabled']): ?>
                                 <p style="color: #155724; margin-bottom: 20px;">
-                                    <strong>Status:</strong> <span class="badge badge-success">Enabled</span>
+                                    <strong><?php echo e(t('profile.status')); ?></strong> <span class="badge badge-success"><?php echo e(t('profile.enabled')); ?></span>
                                 </p>
                                 <p style="color: #666; margin-bottom: 20px;">
-                                    Two-factor authentication is currently enabled on your account. You will be prompted for a TOTP code each time you log in.
+                                    <?php echo e(t('profile.totp_enabled_desc')); ?>
                                 </p>
                                 <form method="POST" action="profile.php" data-confirm="Are you sure you want to disable TOTP?">
                                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                                    <button type="submit" name="disable_totp" class="btn btn-danger">Disable TOTP</button>
+                                    <button type="submit" name="disable_totp" class="btn btn-danger"><?php echo e(t('profile.disable_totp')); ?></button>
                                 </form>
                             <?php elseif ($totpSetup): ?>
                                 <p style="color: #856404; margin-bottom: 20px;">
-                                    <strong>Status:</strong> <span class="badge" style="background: #fff3cd; color: #856404;">Setup Required</span>
+                                    <strong><?php echo e(t('profile.status')); ?></strong> <span class="badge" style="background: #fff3cd; color: #856404;"><?php echo e(t('profile.setup_required')); ?></span>
                                 </p>
                                 <p style="color: #666; margin-bottom: 20px;">
-                                    Scan the QR code below with your authenticator app (Google Authenticator, Authy, etc.), then enter the 6-digit code to complete setup.
+                                    <?php echo e(t('profile.totp_scan_desc')); ?>
                                 </p>
 
                                 <div class="qr-code">
                                     <div id="totp-qr-code" style="max-width: 200px;"></div>
                                     <noscript>
                                         <p style="margin-top: 10px; font-size: 13px; color: #856404;">
-                                            JavaScript is required to display the QR code. Please enter the secret key manually in your authenticator app.
+                                            <?php echo e(t('profile.qr_noscript')); ?>
                                         </p>
                                     </noscript>
                                     <p style="margin-top: 15px; font-size: 12px; color: #666;">
-                                        Can't scan? Enter this key manually: <code><?php echo e($totpSetup['secret']); ?></code>
+                                        <?php echo e(t('profile.totp_manual_key')); ?> <code><?php echo e($totpSetup['secret']); ?></code>
                                     </p>
                                 </div>
 
@@ -812,23 +812,23 @@ $theme = getUserTheme();
                                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
 
                                     <div class="form-group">
-                                        <label for="totp_code">Enter 6-Digit Code</label>
+                                        <label for="totp_code"><?php echo e(t('profile.enter_6_digit')); ?></label>
                                         <input type="text" id="totp_code" name="totp_code" class="form-control"
                                                pattern="[0-9]{6}" maxlength="6" required autofocus>
                                     </div>
 
-                                    <button type="submit" name="confirm_totp" class="btn btn-primary">Verify & Enable</button>
+                                    <button type="submit" name="confirm_totp" class="btn btn-primary"><?php echo e(t('profile.verify_enable')); ?></button>
                                 </form>
                             <?php else: ?>
                                 <p style="color: #666; margin-bottom: 20px;">
-                                    <strong>Status:</strong> <span class="badge badge-secondary">Disabled</span>
+                                    <strong><?php echo e(t('profile.status')); ?></strong> <span class="badge badge-secondary"><?php echo e(t('profile.disabled')); ?></span>
                                 </p>
                                 <p style="color: #666; margin-bottom: 20px;">
-                                    Enable two-factor authentication to add an extra layer of security to your account.
+                                    <?php echo e(t('profile.totp_disabled_desc')); ?>
                                 </p>
                                 <form method="POST" action="profile.php">
                                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                                    <button type="submit" name="enable_totp" class="btn btn-primary">Enable TOTP</button>
+                                    <button type="submit" name="enable_totp" class="btn btn-primary"><?php echo e(t('profile.enable_totp')); ?></button>
                                 </form>
                             <?php endif; ?>
                         </div>
@@ -934,8 +934,8 @@ $theme = getUserTheme();
                         ?>
                         <?php if (count($accessibleModules) > 0): ?>
                         <div class="card">
-                            <h3>Dashboard Modules</h3>
-                            <p style="color: #666; margin-bottom: 16px;">Choose up to 9 modules to display on your dashboard. Only modules you have access to are shown.</p>
+                            <h3><?php echo e(t('profile.dashboard_modules')); ?></h3>
+                            <p style="color: #666; margin-bottom: 16px;"><?php echo e(t('profile.dashboard_modules_intro')); ?></p>
                             <form method="POST" action="profile.php">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                 <div id="module-selector" style="display: grid; grid-template-columns: 1fr; gap: 10px;">
@@ -961,8 +961,8 @@ $theme = getUserTheme();
                                     <?php endforeach; ?>
                                 </div>
                                 <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px;">
-                                    <span id="mod-count" style="font-size: 12px; color: #6b7280;"><span id="mod-selected"><?php echo count(array_intersect($savedModules, $accessibleModules)); ?></span> / 9 selected</span>
-                                    <button type="submit" name="update_dashboard_modules" class="btn btn-primary">Save Modules</button>
+                                    <span id="mod-count" style="font-size: 12px; color: #6b7280;"><span id="mod-selected"><?php echo count(array_intersect($savedModules, $accessibleModules)); ?></span> <?php echo e(t('profile.slash_9_selected')); ?></span>
+                                    <button type="submit" name="update_dashboard_modules" class="btn btn-primary"><?php echo e(t('profile.save_modules')); ?></button>
                                 </div>
                             </form>
                         </div>
@@ -971,7 +971,7 @@ $theme = getUserTheme();
                 </div>
 
                 <div style="margin-top: 30px;">
-                    <a href="index.php" style="color: #ff6543; text-decoration: none;">&larr; Back to Dashboard</a>
+                    <a href="index.php" style="color: #ff6543; text-decoration: none;">&larr; <?php echo e(t('profile.back_to_dashboard')); ?></a>
                 </div>
             </div>
         </div>
@@ -993,7 +993,7 @@ $theme = getUserTheme();
                                 <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                                 <span class="copyright-year"><?php echo date('Y'); ?></span>
                                 <span>.&nbsp;</span>
-                                <span>All Rights Reserved</span>
+                                <span><?php echo e(t('profile.all_rights_reserved')); ?></span>
                             </p>
                         </div>
                     </div>

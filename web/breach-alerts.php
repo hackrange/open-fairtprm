@@ -30,7 +30,7 @@ $isAuditor   = hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberTPRM && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. Breach/Cyber Alerts requires cyber_tprm, administrator, or auditor role.');
+    die(t('breach-alerts.access_denied'));
 }
 
 $canManage = $isAdmin || $isCyberTPRM;
@@ -42,7 +42,7 @@ $msgType = '';
 // POST handlers
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManage) {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $msg = 'Invalid CSRF token. Please try again.';
+        $msg = t('breach-alerts.invalid_csrf');
         $msgType = 'danger';
     } else {
         $action = $_POST['action'] ?? '';
@@ -53,10 +53,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManage) {
             $notes = trim($_POST['resolution_notes'] ?? '');
             $result = $breachService->updateStatus($alertId, $newStatus, (int)$user['id'], $notes ?: null);
             if ($result['success']) {
-                $msg = 'Alert status updated.';
+                $msg = t('breach-alerts.status_updated');
                 $msgType = 'success';
             } else {
-                $msg = $result['error'] ?? 'Update failed.';
+                $msg = $result['error'] ?? t('breach-alerts.update_failed');
                 $msgType = 'danger';
             }
         } elseif ($action === 'delete_alert' && $alertId > 0 && $isAdmin) {
@@ -65,23 +65,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManage) {
                 header('Location: breach-alerts.php?deleted=1');
                 exit;
             } else {
-                $msg = $result['error'] ?? 'Delete failed.';
+                $msg = $result['error'] ?? t('breach-alerts.delete_failed');
                 $msgType = 'danger';
             }
         } elseif ($action === 'scan_company' && $isAdmin) {
             if ($breachService->queueScan((int)$user['id'], 'company')) {
-                $msg = 'Company scan queued. Breach research + company OSINT will run in the background.';
+                $msg = t('breach-alerts.company_scan_queued');
                 $msgType = 'success';
             } else {
-                $msg = 'A scan is already in progress. Please wait for it to complete.';
+                $msg = t('breach-alerts.scan_in_progress');
                 $msgType = 'danger';
             }
         } elseif ($action === 'scan_vendors' && $isAdmin) {
             if ($breachService->queueScan((int)$user['id'], 'full')) {
-                $msg = 'Full vendor scan queued. Breach research + all vendor OSINT will run in the background. This may take 20-30 minutes.';
+                $msg = t('breach-alerts.full_scan_queued');
                 $msgType = 'success';
             } else {
-                $msg = 'A scan is already in progress. Please wait for it to complete.';
+                $msg = t('breach-alerts.scan_in_progress');
                 $msgType = 'danger';
             }
         }
@@ -91,8 +91,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManage) {
 // Fetch CSRF token AFTER POST handling so it reflects any regenerated token
 $csrfToken = $security->getCSRFToken();
 
-if (isset($_GET['deleted'])) { $msg = 'Alert deleted.'; $msgType = 'success'; }
-if (isset($_GET['scan_complete'])) { $msg = $_GET['scan_result'] ?? 'Scan completed.'; $msgType = 'success'; }
+if (isset($_GET['deleted'])) { $msg = t('breach-alerts.alert_deleted'); $msgType = 'success'; }
+if (isset($_GET['scan_complete'])) { $msg = $_GET['scan_result'] ?? t('breach-alerts.scan_completed'); $msgType = 'success'; }
 
 // Check if a scan is currently running (for progress banner + polling)
 $scanStatus = $breachService->getScanStatus();
@@ -264,11 +264,11 @@ $pageKey = 'breach_alerts';
 <div class="page">
     <?php renderImpersonationBanner(); ?>
     <div class="top-bar">
-        <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
     <div class="main-layout">
@@ -284,7 +284,7 @@ $pageKey = 'breach_alerts';
             <!-- Scan in progress banner -->
             <div id="scan-progress" style="display:<?php echo $scanRunning ? 'flex' : 'none'; ?>;align-items:center;gap:10px;padding:12px 16px;border-radius:6px;margin-bottom:16px;font-size:14px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite;flex-shrink:0;"><path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83"/></svg>
-                <span id="scan-progress-text">Breach scan is running in the background. This page will update automatically when complete.</span>
+                <span id="scan-progress-text"><?php echo e(t('breach-alerts.scan_running_banner')); ?></span>
             </div>
             <style nonce="<?php echo cspNonce(); ?>">@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
 
@@ -292,19 +292,19 @@ $pageKey = 'breach_alerts';
                 <div>
                     <h1 style="font-size:24px;margin:0 0 4px;color:#333;font-weight:600;display:flex;align-items:center;gap:10px;">
                         <img src="app/icons/announcement-03.svg" alt="" width="24" height="24" style="opacity:0.7;">
-                        Breach / Cyber Alerts
+                        <?php echo e(t('breach-alerts.page_title')); ?>
                     </h1>
-                    <p style="color:#6b7280;margin:0;font-size:13px;">Breach and threat intelligence monitoring for your vendor supply chain</p>
+                    <p style="color:#6b7280;margin:0;font-size:13px;"><?php echo e(t('breach-alerts.page_subtitle')); ?></p>
                 </div>
                 <?php if ($isAdmin): ?>
                 <div style="display:flex;gap:8px;" id="scan-form">
                     <form method="POST" style="display:inline;">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                        <button type="submit" name="action" value="scan_company" class="btn btn-primary scan-btn" <?php echo $scanRunning ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''; ?> data-confirm="Run a company scan? This checks for recent threats and searches GitHub for exposed credentials related to your organization."><?php echo $scanRunning ? 'Scan Running...' : 'Scan Company'; ?></button>
+                        <button type="submit" name="action" value="scan_company" class="btn btn-primary scan-btn" <?php echo $scanRunning ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''; ?> data-confirm="Run a company scan? This checks for recent threats and searches GitHub for exposed credentials related to your organization."><?php echo e($scanRunning ? t('breach-alerts.scan_running_btn') : t('breach-alerts.scan_company_btn')); ?></button>
                     </form>
                     <form method="POST" style="display:inline;">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                        <button type="submit" name="action" value="scan_vendors" class="btn scan-btn" style="background:#6b7280;color:white;<?php echo $scanRunning ? 'opacity:0.5;cursor:not-allowed;' : ''; ?>" <?php echo $scanRunning ? 'disabled' : ''; ?> data-confirm="Run a full vendor scan? This checks for recent threats AND searches GitHub for exposed credentials across ALL vendor domains. This may take 20-30 minutes.">Scan All Vendors</button>
+                        <button type="submit" name="action" value="scan_vendors" class="btn scan-btn" style="background:#6b7280;color:white;<?php echo $scanRunning ? 'opacity:0.5;cursor:not-allowed;' : ''; ?>" <?php echo $scanRunning ? 'disabled' : ''; ?> data-confirm="Run a full vendor scan? This checks for recent threats AND searches GitHub for exposed credentials across ALL vendor domains. This may take 20-30 minutes."><?php echo e(t('breach-alerts.scan_all_vendors_btn')); ?></button>
                     </form>
                 </div>
                 <?php endif; ?>
@@ -313,22 +313,22 @@ $pageKey = 'breach_alerts';
             <!-- Stats (clickable to filter) -->
             <?php $vfParam = $vendorsOnly ? '' : '&vf=all'; ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:24px;">
-                <a href="breach-alerts.php?status=new<?php echo $vfParam; ?>" class="stat-card" style="text-decoration:none;<?php echo $statusFilter === 'new' ? 'outline:2px solid #dc2626;' : ''; ?>"><div class="stat-number" style="color:#dc2626;"><?php echo (int)($alertCounts['new'] ?? 0); ?></div><div class="stat-label">New</div></a>
-                <a href="breach-alerts.php?status=acknowledged<?php echo $vfParam; ?>" class="stat-card" style="text-decoration:none;<?php echo $statusFilter === 'acknowledged' ? 'outline:2px solid #2563eb;' : ''; ?>"><div class="stat-number" style="color:#2563eb;"><?php echo (int)($alertCounts['acknowledged'] ?? 0); ?></div><div class="stat-label">Acknowledged</div></a>
-                <a href="breach-alerts.php?status=investigating<?php echo $vfParam; ?>" class="stat-card" style="text-decoration:none;<?php echo $statusFilter === 'investigating' ? 'outline:2px solid #ea580c;' : ''; ?>"><div class="stat-number" style="color:#ea580c;"><?php echo (int)($alertCounts['investigating'] ?? 0); ?></div><div class="stat-label">Investigating</div></a>
-                <a href="breach-alerts.php?status=resolved<?php echo $vfParam; ?>" class="stat-card" style="text-decoration:none;<?php echo $statusFilter === 'resolved' ? 'outline:2px solid #16a34a;' : ''; ?>"><div class="stat-number" style="color:#16a34a;"><?php echo (int)($alertCounts['resolved'] ?? 0); ?></div><div class="stat-label">Resolved</div></a>
-                <a href="breach-alerts.php?<?php echo $vendorsOnly ? '' : 'vf=all'; ?>" class="stat-card" style="text-decoration:none;<?php echo !$statusFilter ? 'outline:2px solid #333;' : ''; ?>"><div class="stat-number"><?php echo (int)($alertCounts['total'] ?? 0); ?></div><div class="stat-label">Total</div></a>
+                <a href="breach-alerts.php?status=new<?php echo $vfParam; ?>" class="stat-card" style="text-decoration:none;<?php echo $statusFilter === 'new' ? 'outline:2px solid #dc2626;' : ''; ?>"><div class="stat-number" style="color:#dc2626;"><?php echo (int)($alertCounts['new'] ?? 0); ?></div><div class="stat-label"><?php echo e(t('breach-alerts.stat_new')); ?></div></a>
+                <a href="breach-alerts.php?status=acknowledged<?php echo $vfParam; ?>" class="stat-card" style="text-decoration:none;<?php echo $statusFilter === 'acknowledged' ? 'outline:2px solid #2563eb;' : ''; ?>"><div class="stat-number" style="color:#2563eb;"><?php echo (int)($alertCounts['acknowledged'] ?? 0); ?></div><div class="stat-label"><?php echo e(t('breach-alerts.stat_acknowledged')); ?></div></a>
+                <a href="breach-alerts.php?status=investigating<?php echo $vfParam; ?>" class="stat-card" style="text-decoration:none;<?php echo $statusFilter === 'investigating' ? 'outline:2px solid #ea580c;' : ''; ?>"><div class="stat-number" style="color:#ea580c;"><?php echo (int)($alertCounts['investigating'] ?? 0); ?></div><div class="stat-label"><?php echo e(t('breach-alerts.stat_investigating')); ?></div></a>
+                <a href="breach-alerts.php?status=resolved<?php echo $vfParam; ?>" class="stat-card" style="text-decoration:none;<?php echo $statusFilter === 'resolved' ? 'outline:2px solid #16a34a;' : ''; ?>"><div class="stat-number" style="color:#16a34a;"><?php echo (int)($alertCounts['resolved'] ?? 0); ?></div><div class="stat-label"><?php echo e(t('breach-alerts.stat_resolved')); ?></div></a>
+                <a href="breach-alerts.php?<?php echo $vendorsOnly ? '' : 'vf=all'; ?>" class="stat-card" style="text-decoration:none;<?php echo !$statusFilter ? 'outline:2px solid #333;' : ''; ?>"><div class="stat-number"><?php echo (int)($alertCounts['total'] ?? 0); ?></div><div class="stat-label"><?php echo e(t('breach-alerts.stat_total')); ?></div></a>
             </div>
 
             <!-- Vendor Filter Toggle + Status Filter Tabs -->
             <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
                 <div style="display:flex;gap:2px;background:#e5e7eb;border-radius:6px;padding:2px;">
-                    <a href="breach-alerts.php<?php echo $statusFilter ? '?status=' . e($statusFilter) : ''; ?>" class="filter-tab" style="border:none;border-radius:4px;<?php echo $vendorsOnly ? 'background:var(--theme-header-color);color:#fff;font-weight:600;' : 'background:transparent;'; ?>">Your Vendors</a>
-                    <a href="breach-alerts.php?vf=all<?php echo $statusFilter ? '&status=' . e($statusFilter) : ''; ?>" class="filter-tab" style="border:none;border-radius:4px;<?php echo !$vendorsOnly ? 'background:var(--theme-header-color);color:#fff;font-weight:600;' : 'background:transparent;'; ?>">All</a>
+                    <a href="breach-alerts.php<?php echo $statusFilter ? '?status=' . e($statusFilter) : ''; ?>" class="filter-tab" style="border:none;border-radius:4px;<?php echo $vendorsOnly ? 'background:var(--theme-header-color);color:#fff;font-weight:600;' : 'background:transparent;'; ?>"><?php echo e(t('breach-alerts.your_vendors')); ?></a>
+                    <a href="breach-alerts.php?vf=all<?php echo $statusFilter ? '&status=' . e($statusFilter) : ''; ?>" class="filter-tab" style="border:none;border-radius:4px;<?php echo !$vendorsOnly ? 'background:var(--theme-header-color);color:#fff;font-weight:600;' : 'background:transparent;'; ?>"><?php echo e(t('breach-alerts.filter_all')); ?></a>
                 </div>
                 <div style="width:1px;height:24px;background:#d1d5db;"></div>
             <div class="filter-tabs" style="margin-bottom:0;">
-                <a href="breach-alerts.php?<?php echo $vendorsOnly ? '' : 'vf=all'; ?>" class="filter-tab <?php echo !$statusFilter ? 'active' : ''; ?>">All (<?php echo (int)($alertCounts['total'] ?? 0); ?>)</a>
+                <a href="breach-alerts.php?<?php echo $vendorsOnly ? '' : 'vf=all'; ?>" class="filter-tab <?php echo !$statusFilter ? 'active' : ''; ?>"><?php echo e(t('breach-alerts.filter_all')); ?> (<?php echo (int)($alertCounts['total'] ?? 0); ?>)</a>
                 <?php foreach (['new', 'acknowledged', 'investigating', 'resolved', 'false_positive'] as $sf): ?>
                 <a href="breach-alerts.php?status=<?php echo $sf; ?><?php echo $vfParam; ?>" class="filter-tab <?php echo $statusFilter === $sf ? 'active' : ''; ?>"><?php echo $statusLabels[$sf]; ?> (<?php echo (int)($alertCounts[$sf] ?? 0); ?>)</a>
                 <?php endforeach; ?>
@@ -339,8 +339,8 @@ $pageKey = 'breach_alerts';
             <?php if (empty($alerts)): ?>
             <div style="text-align:center;padding:60px 20px;color:#6b7280;background:#fff;border:1px solid #e5e7eb;border-radius:8px;">
                 <img src="app/icons/announcement-03.svg" alt="" width="48" height="48" style="opacity:0.3;margin-bottom:12px;">
-                <p style="font-size:16px;margin:0 0 8px;">No alerts found.</p>
-                <p style="font-size:13px;margin:0;">Breach alerts are generated daily by the automated monitoring system.</p>
+                <p style="font-size:16px;margin:0 0 8px;"><?php echo e(t('breach-alerts.no_alerts')); ?></p>
+                <p style="font-size:13px;margin:0;"><?php echo e(t('breach-alerts.no_alerts_hint')); ?></p>
             </div>
             <?php else: ?>
             <?php foreach ($alerts as $alert):
@@ -354,7 +354,7 @@ $pageKey = 'breach_alerts';
                     <span style="flex:1;font-weight:600;color:#333;font-size:14px;"><?php echo e($alert['title']); ?></span>
                     <span class="entity-type-badge<?php echo ($alert['alert_type'] === 'osint_exposure') ? ' osint' : ''; ?>"><?php echo e($alertTypeLabels[$alert['alert_type']] ?? $alert['alert_type']); ?></span>
                     <?php if ($alert['vendor_count'] > 0): ?>
-                    <span class="vendor-impact"><?php echo (int)$alert['vendor_count']; ?> vendor(s)</span>
+                    <span class="vendor-impact"><?php echo (int)$alert['vendor_count']; ?> <?php echo e(t('breach-alerts.vendors_label')); ?></span>
                     <?php endif; ?>
                     <span class="status-pill" style="background:<?php echo $alert['status'] === 'new' ? '#fef2f2' : ($alert['status'] === 'resolved' ? '#dcfce7' : '#f3f4f6'); ?>;color:<?php echo $alert['status'] === 'new' ? '#991b1b' : ($alert['status'] === 'resolved' ? '#166534' : '#374151'); ?>;"><?php echo e($statusLabels[$alert['status']] ?? $alert['status']); ?></span>
                     <span style="font-size:12px;color:#9ca3af;"><?php echo date('M j, Y', strtotime($alert['created_at'])); ?></span>
@@ -364,44 +364,44 @@ $pageKey = 'breach_alerts';
                     <!-- Details Grid -->
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px 24px;margin-top:16px;padding:16px;background:#f9fafb;border-radius:8px;">
                         <div>
-                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;">Affected Entity</div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.affected_entity')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php echo e($alert['affected_entity']); ?></div>
                         </div>
                         <div>
-                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;">Entity Type</div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.entity_type')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;text-transform:capitalize;"><?php echo e($alert['affected_entity_type']); ?></div>
                         </div>
                         <?php if ($alert['affected_technology']): ?>
                         <div>
-                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;">Technology</div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.technology')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php echo e($alert['affected_technology']); ?></div>
                         </div>
                         <?php endif; ?>
                         <div>
-                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;">Detected</div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.detected')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php echo date('M j, Y g:i A', strtotime($alert['created_at'])); ?></div>
                         </div>
                         <?php if ($alert['email_sent_at']): ?>
                         <div>
-                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;">Email Sent</div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.email_sent')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php echo date('M j, Y g:i A', strtotime($alert['email_sent_at'])); ?></div>
                         </div>
                         <?php endif; ?>
                         <?php if (!empty($alert['acknowledged_by_name'])): ?>
                         <div>
-                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;">Acknowledged By</div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.acknowledged_by')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php echo e($alert['acknowledged_by_name']); ?><?php if ($alert['acknowledged_at']): ?> <span style="font-size:12px;color:#9ca3af;font-weight:400;"><?php echo date('M j, g:i A', strtotime($alert['acknowledged_at'])); ?></span><?php endif; ?></div>
                         </div>
                         <?php endif; ?>
                         <?php if (!empty($alert['investigating_by_name'])): ?>
                         <div>
-                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#ea580c;font-weight:600;margin-bottom:4px;">Investigating By</div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#ea580c;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.investigating_by')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php echo e($alert['investigating_by_name']); ?><?php if ($alert['investigating_at']): ?> <span style="font-size:12px;color:#9ca3af;font-weight:400;"><?php echo date('M j, g:i A', strtotime($alert['investigating_at'])); ?></span><?php endif; ?></div>
                         </div>
                         <?php endif; ?>
                         <?php if (!empty($alert['resolved_by_name'])): ?>
                         <div>
-                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#16a34a;font-weight:600;margin-bottom:4px;">Resolved By</div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#16a34a;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.resolved_by')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php echo e($alert['resolved_by_name']); ?><?php if ($alert['resolved_at']): ?> <span style="font-size:12px;color:#9ca3af;font-weight:400;"><?php echo date('M j, g:i A', strtotime($alert['resolved_at'])); ?></span><?php endif; ?></div>
                         </div>
                         <?php endif; ?>
@@ -410,7 +410,7 @@ $pageKey = 'breach_alerts';
                     <!-- Sources -->
                     <?php if (!empty($sources)): ?>
                     <div style="margin-top:16px;">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:8px;">Sources</div>
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:8px;"><?php echo e(t('breach-alerts.sources')); ?></div>
                         <div style="display:flex;flex-wrap:wrap;gap:6px;">
                             <?php foreach ($sources as $i => $url):
                                 $domain = parse_url($url, PHP_URL_HOST);
@@ -427,14 +427,14 @@ $pageKey = 'breach_alerts';
 
                     <!-- Summary -->
                     <div style="margin-top:16px;padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:8px;">Summary</div>
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:8px;"><?php echo e(t('breach-alerts.summary')); ?></div>
                         <p style="font-size:14px;color:#374151;line-height:1.7;margin:0;"><?php echo nl2br(e($alert['summary'])); ?></p>
                     </div>
 
                     <!-- AI Impact Analysis -->
                     <?php if ($alert['ai_analysis'] && $alert['ai_analysis'] !== $alert['summary']): ?>
                     <div style="margin-top:12px;padding:16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#1e40af;font-weight:600;margin-bottom:8px;">Impact Analysis</div>
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#1e40af;font-weight:600;margin-bottom:8px;"><?php echo e(t('breach-alerts.impact_analysis')); ?></div>
                         <p style="margin:0;color:#1e3a5f;font-size:14px;line-height:1.7;"><?php echo nl2br(e($alert['ai_analysis'])); ?></p>
                     </div>
                     <?php endif; ?>
@@ -442,7 +442,7 @@ $pageKey = 'breach_alerts';
                     <!-- Resolution Notes -->
                     <?php if ($alert['resolution_notes']): ?>
                     <div style="margin-top:12px;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#166534;font-weight:600;margin-bottom:8px;">Resolution Notes</div>
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#166534;font-weight:600;margin-bottom:8px;"><?php echo e(t('breach-alerts.resolution_notes')); ?></div>
                         <p style="margin:0;color:#14532d;font-size:14px;line-height:1.7;"><?php echo nl2br(e($alert['resolution_notes'])); ?></p>
                     </div>
                     <?php endif; ?>
@@ -450,17 +450,17 @@ $pageKey = 'breach_alerts';
                     <?php if ($canManage): ?>
                     <div style="display:flex;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid #f3f4f6;flex-wrap:wrap;align-items:center;">
                         <?php if ($alert['status'] === 'new'): ?>
-                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><input type="hidden" name="new_status" value="acknowledged"><button type="submit" name="action" value="update_status" class="btn btn-xs btn-info">Acknowledge</button></form>
-                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><input type="hidden" name="new_status" value="false_positive"><button type="submit" name="action" value="update_status" class="btn btn-xs" style="background:#6b7280;color:#fff;" data-confirm="Mark this alert as a false positive?">False Positive</button></form>
+                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><input type="hidden" name="new_status" value="acknowledged"><button type="submit" name="action" value="update_status" class="btn btn-xs btn-info"><?php echo e(t('breach-alerts.acknowledge_btn')); ?></button></form>
+                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><input type="hidden" name="new_status" value="false_positive"><button type="submit" name="action" value="update_status" class="btn btn-xs" style="background:#6b7280;color:#fff;" data-confirm="Mark this alert as a false positive?"><?php echo e(t('breach-alerts.false_positive_btn')); ?></button></form>
                         <?php endif; ?>
                         <?php if ($alert['status'] === 'acknowledged'): ?>
-                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><input type="hidden" name="new_status" value="investigating"><button type="submit" name="action" value="update_status" class="btn btn-xs btn-warning">Start Investigation</button></form>
+                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><input type="hidden" name="new_status" value="investigating"><button type="submit" name="action" value="update_status" class="btn btn-xs btn-warning"><?php echo e(t('breach-alerts.start_investigation_btn')); ?></button></form>
                         <?php endif; ?>
                         <?php if ($alert['status'] === 'investigating'): ?>
-                        <form method="POST" style="display:inline;" class="resolve-form"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><input type="hidden" name="new_status" value="resolved"><input type="hidden" name="resolution_notes" value=""><button type="submit" name="action" value="update_status" class="btn btn-xs btn-success">Resolve</button></form>
+                        <form method="POST" style="display:inline;" class="resolve-form"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><input type="hidden" name="new_status" value="resolved"><input type="hidden" name="resolution_notes" value=""><button type="submit" name="action" value="update_status" class="btn btn-xs btn-success"><?php echo e(t('breach-alerts.resolve_btn')); ?></button></form>
                         <?php endif; ?>
                         <?php if ($isAdmin): ?>
-                        <form method="POST" style="display:inline;margin-left:auto;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><button type="submit" name="action" value="delete_alert" class="btn btn-xs btn-danger" data-confirm="Permanently delete this alert?">Delete</button></form>
+                        <form method="POST" style="display:inline;margin-left:auto;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><button type="submit" name="action" value="delete_alert" class="btn btn-xs btn-danger" data-confirm="Permanently delete this alert?"><?php echo e(t('breach-alerts.delete_btn')); ?></button></form>
                         <?php endif; ?>
                     </div>
                     <?php endif; ?>
@@ -487,7 +487,7 @@ $pageKey = 'breach_alerts';
                         <span><?php $cn = getAppConfig("company_name", ""); if ($cn) echo e($cn) . " "; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date("Y"); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('breach-alerts.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>

@@ -37,7 +37,7 @@ $isAuditor = hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberTPRM && !$isProcurement && !$isAuditor) {
     http_response_code(403);
-    die('Access denied.');
+    die(e(t('vendor-assessment-view.access_denied')));
 }
 
 // Load the assessment service
@@ -295,42 +295,42 @@ $csrfToken = $security->generateCSRFToken();
     </div>
 
     <div class="container">
-        <a href="vendor-assessments.php" class="back-link">&larr; Back to Assessments</a>
+        <a href="vendor-assessments.php" class="back-link">&larr; <?php echo e(t('vendor-assessment-view.back_to_assessments')); ?></a>
 
         <!-- Summary Cards -- the TL;DR section -->
         <div class="summary-cards">
             <div class="summary-card">
-                <label>Status</label>
+                <label><?php echo e(t('vendor-assessment-view.status')); ?></label>
                 <span class="badge badge-<?php echo $isExpired ? 'expired' : $assessment['status']; ?>">
                     <?php echo ucfirst(str_replace('_', ' ', $isExpired ? 'expired' : $assessment['status'])); ?>
                 </span>
             </div>
             <div class="summary-card">
-                <label>Completion</label>
+                <label><?php echo e(t('vendor-assessment-view.completion')); ?></label>
                 <div class="value"><?php echo $completionStatus['percentage']; ?>%</div>
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: <?php echo $completionStatus['percentage']; ?>%; background: <?php echo $completionStatus['percentage'] == 100 ? '#22c55e' : '#3b82f6'; ?>;"></div>
                 </div>
             </div>
             <div class="summary-card">
-                <label>Created</label>
+                <label><?php echo e(t('vendor-assessment-view.created')); ?></label>
                 <div class="value"><?php echo date('M j, Y', strtotime($assessment['created_at'])); ?></div>
             </div>
             <div class="summary-card">
-                <label>Expires</label>
+                <label><?php echo e(t('vendor-assessment-view.expires')); ?></label>
                 <div class="value" style="<?php echo $isExpired ? 'color:#ef4444;' : ''; ?>">
-                    <?php echo $assessment['expires_at'] ? date('M j, Y', strtotime($assessment['expires_at'])) : 'Never'; ?>
+                    <?php echo $assessment['expires_at'] ? date('M j, Y', strtotime($assessment['expires_at'])) : e(t('vendor-assessment-view.never')); ?>
                 </div>
             </div>
             <?php if ($assessment['started_at']): ?>
             <div class="summary-card">
-                <label>Started</label>
+                <label><?php echo e(t('vendor-assessment-view.started')); ?></label>
                 <div class="value"><?php echo date('M j, Y g:i A', strtotime($assessment['started_at'])); ?></div>
             </div>
             <?php endif; ?>
             <?php if ($assessment['completed_at']): ?>
             <div class="summary-card">
-                <label>Completed</label>
+                <label><?php echo e(t('vendor-assessment-view.completed')); ?></label>
                 <div class="value"><?php echo date('M j, Y g:i A', strtotime($assessment['completed_at'])); ?></div>
             </div>
             <?php endif; ?>
@@ -340,29 +340,29 @@ $csrfToken = $security->generateCSRFToken();
         <!-- Submitter attestation -- recorded at final submission. Admin + cyber TPRM only. -->
         <div class="attestation-panel" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:18px 20px; margin-bottom:24px;">
             <h3 style="margin:0 0 12px 0; font-size:1.05em; display:flex; align-items:center; gap:8px;">
-                Submitter Attestation
+                <?php echo e(t('vendor-assessment-view.submitter_attestation')); ?>
                 <?php if (!empty($assessment['submitter_attested'])): ?>
-                <span class="badge badge-completed" style="font-size:0.7em;">Attested</span>
+                <span class="badge badge-completed" style="font-size:0.7em;"><?php echo e(t('vendor-assessment-view.attested')); ?></span>
                 <?php endif; ?>
             </h3>
             <?php if (!empty($assessment['submitter_name']) || !empty($assessment['submitter_attested'])): ?>
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px 24px;">
-                <div><label style="display:block; font-size:12px; color:#6b7280;">Name</label><div><?php echo e($assessment['submitter_name'] ?: '—'); ?></div></div>
-                <div><label style="display:block; font-size:12px; color:#6b7280;">Title</label><div><?php echo e($assessment['submitter_title'] ?: '—'); ?></div></div>
-                <div><label style="display:block; font-size:12px; color:#6b7280;">Email</label><div><?php echo e($assessment['submitter_email'] ?: '—'); ?></div></div>
-                <div><label style="display:block; font-size:12px; color:#6b7280;">Phone</label><div><?php echo e($assessment['submitter_phone'] ?: '—'); ?></div></div>
-                <div><label style="display:block; font-size:12px; color:#6b7280;">IP Address</label><div><?php echo e($assessment['submitter_ip_address'] ?: '—'); ?></div></div>
-                <div><label style="display:block; font-size:12px; color:#6b7280;">Attested At</label><div><?php echo $assessment['attested_at'] ? e(date('M j, Y g:i A', strtotime($assessment['attested_at']))) : '—'; ?></div></div>
+                <div><label style="display:block; font-size:12px; color:#6b7280;"><?php echo e(t('vendor-assessment-view.att_name')); ?></label><div><?php echo e($assessment['submitter_name'] ?: '—'); ?></div></div>
+                <div><label style="display:block; font-size:12px; color:#6b7280;"><?php echo e(t('vendor-assessment-view.att_title')); ?></label><div><?php echo e($assessment['submitter_title'] ?: '—'); ?></div></div>
+                <div><label style="display:block; font-size:12px; color:#6b7280;"><?php echo e(t('vendor-assessment-view.att_email')); ?></label><div><?php echo e($assessment['submitter_email'] ?: '—'); ?></div></div>
+                <div><label style="display:block; font-size:12px; color:#6b7280;"><?php echo e(t('vendor-assessment-view.att_phone')); ?></label><div><?php echo e($assessment['submitter_phone'] ?: '—'); ?></div></div>
+                <div><label style="display:block; font-size:12px; color:#6b7280;"><?php echo e(t('vendor-assessment-view.att_ip')); ?></label><div><?php echo e($assessment['submitter_ip_address'] ?: '—'); ?></div></div>
+                <div><label style="display:block; font-size:12px; color:#6b7280;"><?php echo e(t('vendor-assessment-view.att_attested_at')); ?></label><div><?php echo $assessment['attested_at'] ? e(date('M j, Y g:i A', strtotime($assessment['attested_at']))) : '—'; ?></div></div>
             </div>
             <p style="margin:14px 0 0 0; font-size:13px; color:#374151;">
                 <?php if (!empty($assessment['submitter_attested'])): ?>
-                &#10003; The submitter certified that the information provided is complete and truthful to the best of their knowledge.
+                &#10003; <?php echo e(t('vendor-assessment-view.attestation_certified')); ?>
                 <?php else: ?>
-                Attestation not yet confirmed.
+                <?php echo e(t('vendor-assessment-view.attestation_not_confirmed')); ?>
                 <?php endif; ?>
             </p>
             <?php else: ?>
-            <p style="margin:0; color:#6b7280; font-size:13px;">No submitter attestation has been recorded for this assessment yet.</p>
+            <p style="margin:0; color:#6b7280; font-size:13px;"><?php echo e(t('vendor-assessment-view.no_attestation')); ?></p>
             <?php endif; ?>
         </div>
         <?php endif; ?>
@@ -399,15 +399,15 @@ $csrfToken = $security->generateCSRFToken();
             <?php if ($showAiAutofill): ?>
             <button type="button" id="aiAutofillBtn" data-action="aiAutofillAssessment"
                     class="btn" style="background: var(--theme-header-color, #2563eb); color: white; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px;">
-                <img src="app/icons/lightning-02.svg" alt="" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"> Auto-Fill from Certifications
+                <img src="app/icons/lightning-02.svg" alt="" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"> <?php echo e(t('vendor-assessment-view.autofill_button')); ?>
             </button>
             <?php endif; ?>
 
             <?php if ($showImportPdf): ?>
             <button type="button" id="importPdfBtn"
                     class="btn" style="background:#b91c1c; color:white; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px;"
-                    title="Import answers from a completed fillable PDF. The PDF's Reference must match this assessment.">
-                <span style="display:inline-block;font-weight:700;">PDF</span> Import Fillable PDF
+                    title="<?php echo e(t('vendor-assessment-view.import_pdf_title')); ?>">
+                <span style="display:inline-block;font-weight:700;">PDF</span> <?php echo e(t('vendor-assessment-view.import_fillable_pdf')); ?>
             </button>
             <?php endif; ?>
         </div>
@@ -421,13 +421,11 @@ $csrfToken = $security->generateCSRFToken();
         <div id="importPdfModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
             <div style="background:white; padding:24px; border-radius:8px; max-width:520px; width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-                    <h3 style="margin:0; color:#333; font-size:18px;">Import Fillable PDF</h3>
+                    <h3 style="margin:0; color:#333; font-size:18px;"><?php echo e(t('vendor-assessment-view.import_fillable_pdf')); ?></h3>
                     <button type="button" id="importPdfCloseX" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1;">&times;</button>
                 </div>
                 <p style="margin:0 0 12px; color:#555; font-size:14px;">
-                    Upload a PDF previously downloaded for this assessment. Answers will be
-                    merged into the existing responses. The PDF's Reference must match
-                    this assessment's ID before anything is imported.
+                    <?php echo e(t('vendor-assessment-view.import_pdf_desc')); ?>
                 </p>
                 <form id="importPdfForm" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -436,8 +434,8 @@ $csrfToken = $security->generateCSRFToken();
                            style="display:block; width:100%; padding:10px; border:1px dashed #d1d5db; border-radius:6px; background:#f9fafb; font-size:13px;">
                     <div id="importPdfStatus" style="display:none; margin-top:12px; padding:10px; border-radius:4px; font-size:13px;"></div>
                     <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;">
-                        <button type="button" id="importPdfCancelBtn" class="btn btn-secondary" style="padding:8px 18px;">Cancel</button>
-                        <button type="submit" id="importPdfSubmitBtn" class="btn btn-primary" style="padding:8px 18px;">Import</button>
+                        <button type="button" id="importPdfCancelBtn" class="btn btn-secondary" style="padding:8px 18px;"><?php echo e(t('vendor-assessment-view.cancel')); ?></button>
+                        <button type="submit" id="importPdfSubmitBtn" class="btn btn-primary" style="padding:8px 18px;"><?php echo e(t('vendor-assessment-view.import')); ?></button>
                     </div>
                 </form>
             </div>
@@ -447,13 +445,13 @@ $csrfToken = $security->generateCSRFToken();
         <?php if ($assessment['certificate_uploaded']): ?>
         <!-- Certificate section -- vendor took the express lane with their ISO cert -->
         <div class="certificate-section">
-            <h3>&#9989; ISO 27001:2022 Certificate Uploaded</h3>
-            <p>The vendor uploaded their ISO certification instead of completing the questionnaire.</p>
+            <h3>&#9989; <?php echo e(t('vendor-assessment-view.cert_uploaded_title')); ?></h3>
+            <p><?php echo e(t('vendor-assessment-view.cert_uploaded_desc')); ?></p>
             <?php if ($assessment['certificate_path']): ?>
-            <p><a href="api/assessment-file-download.php?assessment_id=<?php echo $assessment['id']; ?>&file=<?php echo urlencode($assessment['certificate_path']); ?>" target="_blank">View Certificate</a></p>
+            <p><a href="api/assessment-file-download.php?assessment_id=<?php echo $assessment['id']; ?>&file=<?php echo urlencode($assessment['certificate_path']); ?>" target="_blank"><?php echo e(t('vendor-assessment-view.view_certificate')); ?></a></p>
             <?php endif; ?>
             <?php if ($assessment['certificate_expiry']): ?>
-            <p>Certificate Expiry: <?php echo date('M j, Y', strtotime($assessment['certificate_expiry'])); ?></p>
+            <p><?php echo e(t('vendor-assessment-view.cert_expiry', date('M j, Y', strtotime($assessment['certificate_expiry'])))); ?></p>
             <?php endif; ?>
         </div>
         <?php endif; ?>
@@ -469,7 +467,7 @@ $csrfToken = $security->generateCSRFToken();
             <div class="section-header">
                 <h3><?php echo e($section['name']); ?></h3>
                 <span class="section-status <?php echo $sectionStatus['complete'] ? 'section-complete' : 'section-incomplete'; ?>">
-                    <?php echo $sectionStatus['complete'] ? 'Complete' : 'Incomplete'; ?>
+                    <?php echo $sectionStatus['complete'] ? e(t('vendor-assessment-view.complete')) : e(t('vendor-assessment-view.incomplete')); ?>
                 </span>
             </div>
             <div class="section-body">
@@ -498,16 +496,16 @@ $csrfToken = $security->generateCSRFToken();
                     <div class="response-value <?php echo empty($filePath) ? 'empty' : ''; ?>">
                         <?php if ($filePath): ?>
                         <span class="response-file">
-                            <a href="api/assessment-file-download.php?assessment_id=<?php echo $assessment['id']; ?>&file=<?php echo urlencode($filePath); ?>" target="_blank"><?php echo e($value ?: 'View File'); ?></a>
+                            <a href="api/assessment-file-download.php?assessment_id=<?php echo $assessment['id']; ?>&file=<?php echo urlencode($filePath); ?>" target="_blank"><?php echo e($value ?: t('vendor-assessment-view.view_file')); ?></a>
                         </span>
                         <?php else: ?>
-                        No file uploaded
+                        <?php echo e(t('vendor-assessment-view.no_file_uploaded')); ?>
                         <?php endif; ?>
                     </div>
                     <?php else: ?>
                     <!-- Text/select/radio/checkbox response -->
                     <div class="response-value <?php echo empty($value) ? 'empty' : ''; ?>">
-                        <?php echo !empty($value) ? nl2br(e($value)) : 'No response'; ?>
+                        <?php echo !empty($value) ? nl2br(e($value)) : e(t('vendor-assessment-view.no_response')); ?>
                     </div>
                     <?php endif; ?>
                 </div>

@@ -28,7 +28,7 @@ $isCyberTPRM = $acl->hasGroup('cyber_tprm');
 $isAuditor = $acl->hasGroup('auditor');
 if (!$isAdmin && !$isCyberTPRM && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. You do not have permission to view SRS compliance reports.');
+    die(e(t('vendor-srs-compliance-report.access_denied')));
 }
 
 require_once __DIR__ . '/includes/classes/SRSService.php';
@@ -91,7 +91,7 @@ $tier1 = $db->fetchOne($tier1Sql, [
 // The org's own domain is configurable via the app_config key 'org_self_domain'
 // and the display label reuses 'company_name'. On fresh installs org_self_domain
 // is empty, so the breakout is simply omitted (no customer-specific hardcoding).
-$orgLabel  = 'Your Organization';
+$orgLabel  = t('vendor-srs-compliance-report.your_organization');
 $orgDomain = '';
 $cfgRow = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'company_name'");
 if ($cfgRow && !empty($cfgRow['config_value'])) { $orgLabel = $cfgRow['config_value']; }
@@ -150,7 +150,7 @@ $displayEndDate = ($quarter === 'Q4') ? $endDate : date('Y-m-d', strtotime($endD
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title><?php echo htmlspecialchars($quarter . ' ' . $year); ?> Compliance Report</title>
+    <title><?php echo htmlspecialchars($quarter . ' ' . $year); ?> <?php echo e(t('vendor-srs-compliance-report.compliance_report')); ?></title>
     <link rel="stylesheet" href="app/css/fonts.css">
     <style>
         :root {
@@ -196,7 +196,7 @@ $displayEndDate = ($quarter === 'Q4') ? $endDate : date('Y-m-d', strtotime($endD
 <body>
 <div class="report-wrap">
     <div class="report-header">
-        <h1><?php echo htmlspecialchars($quarter . ' ' . $year); ?> Compliance Report</h1>
+        <h1><?php echo htmlspecialchars($quarter . ' ' . $year); ?> <?php echo e(t('vendor-srs-compliance-report.compliance_report')); ?></h1>
         <div class="meta">
             Window: <?php echo htmlspecialchars($startDate); ?> &ndash; <?php echo htmlspecialchars($displayEndDate); ?>
             &nbsp;|&nbsp; Generated: <?php echo date('Y-m-d H:i'); ?>
@@ -207,17 +207,17 @@ $displayEndDate = ($quarter === 'Q4') ? $endDate : date('Y-m-d', strtotime($endD
     <div class="boxes">
         <!-- Tier 1 portfolio -->
         <div class="box">
-            <h2>Tier 1 Portfolio</h2>
+            <h2><?php echo e(t('vendor-srs-compliance-report.tier1_portfolio')); ?></h2>
             <?php if (!$tier1 || (int)$tier1['vendor_count'] === 0): ?>
-                <p style="color:#6b7280;font-size:13px;">No Tier 1 score data in this window.</p>
+                <p style="color:#6b7280;font-size:13px;"><?php echo e(t('vendor-srs-compliance-report.no_tier1_data')); ?></p>
             <?php else: ?>
-                <div class="row"><span class="label">Vendors with SRS scores</span><span class="value"><?php echo (int)$tier1['vendor_count']; ?></span></div>
-                <div class="row"><span class="label">Vendors with Shodan</span><span class="value"><?php echo (int)$tier1['vendors_with_shodan']; ?></span></div>
-                <div class="row"><span class="label">Avg UpGuard SRS</span><span class="value"><?php echo number_format((float)$tier1['avg_srs_raw'], 2); ?> / <?php echo $srsMax; ?> &nbsp;(<?php echo number_format((float)$tier1['avg_srs_pct'], 2); ?>%)</span></div>
-                <div class="row"><span class="label">Avg Shodan</span><span class="value"><?php echo $tier1['avg_shodan_pct'] !== null ? number_format((float)$tier1['avg_shodan_pct'], 2) . '%' : '&mdash;'; ?></span></div>
+                <div class="row"><span class="label"><?php echo e(t('vendor-srs-compliance-report.vendors_with_srs')); ?></span><span class="value"><?php echo (int)$tier1['vendor_count']; ?></span></div>
+                <div class="row"><span class="label"><?php echo e(t('vendor-srs-compliance-report.vendors_with_shodan')); ?></span><span class="value"><?php echo (int)$tier1['vendors_with_shodan']; ?></span></div>
+                <div class="row"><span class="label"><?php echo e(t('vendor-srs-compliance-report.avg_upguard_srs')); ?></span><span class="value"><?php echo number_format((float)$tier1['avg_srs_raw'], 2); ?> / <?php echo $srsMax; ?> &nbsp;(<?php echo number_format((float)$tier1['avg_srs_pct'], 2); ?>%)</span></div>
+                <div class="row"><span class="label"><?php echo e(t('vendor-srs-compliance-report.avg_shodan')); ?></span><span class="value"><?php echo $tier1['avg_shodan_pct'] !== null ? number_format((float)$tier1['avg_shodan_pct'], 2) . '%' : '&mdash;'; ?></span></div>
                 <div class="combined">
                     <div class="pct"><?php echo $tier1Combined !== null ? number_format($tier1Combined, 2) . '%' : '&mdash;'; ?></div>
-                    <div class="grade">Combined &middot; Letter grade <strong><?php echo complianceLetter($tier1Combined); ?></strong></div>
+                    <div class="grade"><?php echo e(t('vendor-srs-compliance-report.combined_letter_grade')); ?> <strong><?php echo complianceLetter($tier1Combined); ?></strong></div>
                 </div>
             <?php endif; ?>
         </div>
@@ -226,27 +226,27 @@ $displayEndDate = ($quarter === 'Q4') ? $endDate : date('Y-m-d', strtotime($endD
         <div class="box">
             <h2><?php echo e($orgLabel); ?></h2>
             <?php if ($orgDomain === ''): ?>
-                <p style="color:#6b7280;font-size:13px;">No primary-organization domain configured (set <code>org_self_domain</code> in settings to enable this breakout).</p>
+                <p style="color:#6b7280;font-size:13px;"><?php echo e(t('vendor-srs-compliance-report.no_org_domain')); ?></p>
             <?php elseif (!$org): ?>
-                <p style="color:#6b7280;font-size:13px;"><?php echo e($orgLabel); ?> (<?php echo e($orgDomain); ?>) not found in vendor list.</p>
+                <p style="color:#6b7280;font-size:13px;"><?php echo e($orgLabel); ?> (<?php echo e($orgDomain); ?>) <?php echo e(t('vendor-srs-compliance-report.not_found_in_list')); ?></p>
             <?php elseif ((int)$org['srs_samples'] === 0 && (int)$org['shodan_samples'] === 0): ?>
-                <p style="color:#6b7280;font-size:13px;">No score samples for <?php echo e($orgLabel); ?> in this window.</p>
+                <p style="color:#6b7280;font-size:13px;"><?php echo e(t('vendor-srs-compliance-report.no_samples_before')); ?> <?php echo e($orgLabel); ?> <?php echo e(t('vendor-srs-compliance-report.no_samples_after')); ?></p>
             <?php else: ?>
-                <div class="row"><span class="label">SRS samples</span><span class="value"><?php echo (int)$org['srs_samples']; ?></span></div>
-                <div class="row"><span class="label">Shodan samples</span><span class="value"><?php echo (int)$org['shodan_samples']; ?></span></div>
-                <div class="row"><span class="label">Avg UpGuard SRS</span><span class="value"><?php echo $org['srs_raw'] !== null ? number_format((float)$org['srs_raw'], 2) . ' / ' . $srsMax . ' (' . number_format((float)$org['srs_pct'], 2) . '%)' : '&mdash;'; ?></span></div>
-                <div class="row"><span class="label">Avg Shodan</span><span class="value"><?php echo $org['shodan_pct'] !== null ? number_format((float)$org['shodan_pct'], 2) . '%' : '&mdash;'; ?></span></div>
+                <div class="row"><span class="label"><?php echo e(t('vendor-srs-compliance-report.srs_samples')); ?></span><span class="value"><?php echo (int)$org['srs_samples']; ?></span></div>
+                <div class="row"><span class="label"><?php echo e(t('vendor-srs-compliance-report.shodan_samples')); ?></span><span class="value"><?php echo (int)$org['shodan_samples']; ?></span></div>
+                <div class="row"><span class="label"><?php echo e(t('vendor-srs-compliance-report.avg_upguard_srs')); ?></span><span class="value"><?php echo $org['srs_raw'] !== null ? number_format((float)$org['srs_raw'], 2) . ' / ' . $srsMax . ' (' . number_format((float)$org['srs_pct'], 2) . '%)' : '&mdash;'; ?></span></div>
+                <div class="row"><span class="label"><?php echo e(t('vendor-srs-compliance-report.avg_shodan')); ?></span><span class="value"><?php echo $org['shodan_pct'] !== null ? number_format((float)$org['shodan_pct'], 2) . '%' : '&mdash;'; ?></span></div>
                 <div class="combined">
                     <div class="pct"><?php echo $orgCombined !== null ? number_format($orgCombined, 2) . '%' : '&mdash;'; ?></div>
-                    <div class="grade">Combined &middot; Letter grade <strong><?php echo complianceLetter($orgCombined); ?></strong></div>
+                    <div class="grade"><?php echo e(t('vendor-srs-compliance-report.combined_letter_grade')); ?> <strong><?php echo complianceLetter($orgCombined); ?></strong></div>
                 </div>
             <?php endif; ?>
         </div>
     </div>
 
     <div class="actions">
-        <button type="button" data-action="printReport">Print</button>
-        <button type="button" class="btn-secondary" data-action="closeReport">Close</button>
+        <button type="button" data-action="printReport"><?php echo e(t('vendor-srs-compliance-report.print')); ?></button>
+        <button type="button" class="btn-secondary" data-action="closeReport"><?php echo e(t('vendor-srs-compliance-report.close')); ?></button>
     </div>
 </div>
 <script nonce="<?php echo cspNonce(); ?>">

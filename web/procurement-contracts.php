@@ -31,7 +31,7 @@ $isStakeholderOnly = $isStakeholderGroup && !$isAdmin && !$isProcurement && !$is
 
 if (!$isAdmin && !$isProcurement && !$isCyberTPRM && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. You do not have permission to view the contracts page.');
+    die(e(t('procurement-contracts.access_denied')));
 }
 
 // Sidebar nav flags (same pattern as index.php)
@@ -574,13 +574,13 @@ try {
     <?php renderImpersonationBanner(); ?>
     <div class="page">
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($isAdmin): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -591,12 +591,12 @@ try {
             <!-- Main Content -->
             <main class="main-content">
                 <div class="page-header-row">
-                    <h1 class="page-title">Procurement Contracts</h1>
+                    <h1 class="page-title"><?php echo e(t('procurement-contracts.page_title')); ?></h1>
                     <div class="vendor-search-container" style="position: relative; min-width: 300px;">
                         <input
                             type="text"
                             id="vendorSearchInput"
-                            placeholder="Search vendors, domains, stakeholders..."
+                            placeholder="<?php echo e(t('procurement-contracts.search_vendors_placeholder')); ?>"
                             class="focus-ring"
                             style="width: 100%; padding: 10px 40px 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;"
                             data-link-base="vendor-onboarding.php"
@@ -610,7 +610,7 @@ try {
                 <?php if (!empty($expiringContracts)): ?>
                 <div class="inbox-section">
                     <div class="inbox-title">
-                        Expiring Contracts Inbox
+                        <?php echo e(t('procurement-contracts.expiring_inbox')); ?>
                         <span class="count-badge"><?php echo count($expiringContracts); ?></span>
                     </div>
                     <div class="inbox-cards">
@@ -631,7 +631,7 @@ try {
                             <div class="card-vendor"><?php echo e($ec['vendor_name']); ?></div>
                             <div class="card-title"><?php echo e($ec['contract_name'] ?: $ec['original_filename']); ?></div>
                             <div class="card-meta">
-                                <span><?php echo e($ec['contract_type'] ?: 'Contract'); ?></span>
+                                <span><?php echo e($ec['contract_type'] ?: t('procurement-contracts.contract')); ?></span>
                                 <span class="expiry-badge <?php echo $urgencyClass; ?>"><?php echo $badgeText; ?></span>
                             </div>
                         </a>
@@ -642,36 +642,36 @@ try {
 
                 <!-- Filter Pills and Search -->
                 <div class="filter-bar">
-                    <button class="filter-pill active" data-filter="all">All</button>
+                    <button class="filter-pill active" data-filter="all"><?php echo e(t('procurement-contracts.filter_all')); ?></button>
                     <button class="filter-pill" data-filter="type-dpa">DPA</button>
                     <button class="filter-pill" data-filter="type-msa">MSA</button>
-                    <button class="filter-pill" data-filter="type-privacy">Privacy</button>
-                    <button class="filter-pill" data-filter="type-order_form">Order Form</button>
+                    <button class="filter-pill" data-filter="type-privacy"><?php echo e(t('procurement-contracts.filter_privacy')); ?></button>
+                    <button class="filter-pill" data-filter="type-order_form"><?php echo e(t('procurement-contracts.filter_order_form')); ?></button>
                     <button class="filter-pill" data-filter="type-po">PO</button>
-                    <button class="filter-pill" data-filter="status-active">Active</button>
-                    <button class="filter-pill" data-filter="status-inactive">Inactive</button>
-                    <button class="filter-pill" data-filter="expiring">Expiring</button>
-                    <input type="text" class="search-box" id="contractSearch" placeholder="Search vendor or contract name...">
+                    <button class="filter-pill" data-filter="status-active"><?php echo e(t('procurement-contracts.filter_active')); ?></button>
+                    <button class="filter-pill" data-filter="status-inactive"><?php echo e(t('procurement-contracts.filter_inactive')); ?></button>
+                    <button class="filter-pill" data-filter="expiring"><?php echo e(t('procurement-contracts.filter_expiring')); ?></button>
+                    <input type="text" class="search-box" id="contractSearch" placeholder="<?php echo e(t('procurement-contracts.search_placeholder')); ?>">
                 </div>
 
                 <!-- All Contracts Table -->
                 <?php if (empty($allContracts)): ?>
                 <div class="empty-state">
-                    <h3>No contracts found</h3>
-                    <p>Contract documents uploaded to vendor onboarding records will appear here.</p>
+                    <h3><?php echo e(t('procurement-contracts.no_contracts')); ?></h3>
+                    <p><?php echo e(t('procurement-contracts.no_contracts_desc')); ?></p>
                 </div>
                 <?php else: ?>
                 <table class="contracts-table" id="contractsTable">
                     <thead>
                         <tr>
-                            <th>Vendor</th>
-                            <th>Contract Name</th>
-                            <th>Type</th>
-                            <th>Created</th>
-                            <th>Expires</th>
-                            <th>Status</th>
-                            <th>Uploaded By</th>
-                            <th>Actions</th>
+                            <th><?php echo e(t('procurement-contracts.th_vendor')); ?></th>
+                            <th><?php echo e(t('procurement-contracts.th_contract_name')); ?></th>
+                            <th><?php echo e(t('procurement-contracts.th_type')); ?></th>
+                            <th><?php echo e(t('procurement-contracts.th_created')); ?></th>
+                            <th><?php echo e(t('procurement-contracts.th_expires')); ?></th>
+                            <th><?php echo e(t('procurement-contracts.th_status')); ?></th>
+                            <th><?php echo e(t('procurement-contracts.th_uploaded_by')); ?></th>
+                            <th><?php echo e(t('procurement-contracts.th_actions')); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -691,7 +691,7 @@ try {
                             data-search="<?php echo e(strtolower(($contract['vendor_name'] ?? '') . ' ' . ($contract['contract_name'] ?? '') . ' ' . ($contract['original_filename'] ?? ''))); ?>">
                             <td>
                                 <a href="vendor-onboarding.php?id=<?php echo (int)$contract['vendor_request_id']; ?>" class="vendor-link">
-                                    <?php echo e($contract['vendor_name'] ?: 'Unknown Vendor'); ?>
+                                    <?php echo e($contract['vendor_name'] ?: t('procurement-contracts.unknown_vendor')); ?>
                                 </a>
                             </td>
                             <td>
@@ -745,7 +745,7 @@ try {
                                             $sorScheme = $sorLink !== '' ? strtolower((string)parse_url($sorLink, PHP_URL_SCHEME)) : '';
                                         ?>
                                         <?php if (in_array($sorScheme, ['http', 'https'], true)): ?>
-                                            &middot; <a href="<?php echo e($sorLink); ?>" target="_blank" rel="noopener" style="color: #2563eb; text-decoration: none;">System of Record</a>
+                                            &middot; <a href="<?php echo e($sorLink); ?>" target="_blank" rel="noopener" style="color: #2563eb; text-decoration: none;"><?php echo e(t('procurement-contracts.system_of_record')); ?></a>
                                         <?php endif; ?>
                                     </div>
                                     <?php endif; ?>
@@ -830,18 +830,18 @@ try {
                                         <?php echo date('M j, Y', strtotime($contract['contract_expiration_date'])); ?>
                                     </span>
                                 <?php else: ?>
-                                    <span class="meta-info">No expiration</span>
+                                    <span class="meta-info"><?php echo e(t('procurement-contracts.no_expiration')); ?></span>
                                 <?php endif; ?>
                             </td>
                             <td>
                                 <?php if ($contract['is_active']): ?>
-                                <span class="status-active">Active</span>
+                                <span class="status-active"><?php echo e(t('procurement-contracts.status_active')); ?></span>
                                 <?php else: ?>
-                                <span class="status-inactive">Inactive</span>
+                                <span class="status-inactive"><?php echo e(t('procurement-contracts.status_inactive')); ?></span>
                                 <?php endif; ?>
                             </td>
                             <td class="meta-info">
-                                <?php echo e($contract['uploaded_by_name'] ?: 'Unknown'); ?>
+                                <?php echo e($contract['uploaded_by_name'] ?: t('procurement-contracts.unknown')); ?>
                                 <div><?php echo date('M j, Y', strtotime($contract['created_at'])); ?></div>
                             </td>
                             <td>
@@ -849,9 +849,9 @@ try {
                                 $viewableMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
                                 if (in_array($contract['mime_type'], $viewableMimes)):
                                 ?>
-                                <a href="api/vendor-document-download.php?uuid=<?php echo e($contract['file_uuid']); ?>&view=1" target="_blank" class="action-btn" title="View document">View</a>
+                                <a href="api/vendor-document-download.php?uuid=<?php echo e($contract['file_uuid']); ?>&view=1" target="_blank" class="action-btn" title="<?php echo e(t('procurement-contracts.view_document')); ?>"><?php echo e(t('procurement-contracts.view')); ?></a>
                                 <?php endif; ?>
-                                <a href="api/vendor-document-download.php?uuid=<?php echo e($contract['file_uuid']); ?>&download=1" class="action-btn" title="Download document">Download</a>
+                                <a href="api/vendor-document-download.php?uuid=<?php echo e($contract['file_uuid']); ?>&download=1" class="action-btn" title="<?php echo e(t('procurement-contracts.download_document')); ?>"><?php echo e(t('procurement-contracts.download')); ?></a>
                             </td>
                         </tr>
                         <?php endforeach; ?>

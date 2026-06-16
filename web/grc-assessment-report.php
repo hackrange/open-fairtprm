@@ -133,7 +133,7 @@ $csrfToken = $security->generateCSRFToken();
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title><?php echo e($orgName); ?> Cyber Report - Report Editor</title>
+    <title><?php echo e($orgName); ?> <?php echo e(t('grc-assessment-report.title_suffix')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -246,13 +246,13 @@ $csrfToken = $security->generateCSRFToken();
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <a href="grc-assessment.php?view=<?php echo $assessmentId; ?>">Assessment</a>
-            <a href="grc-fairscore.php?id=<?php echo $assessmentId; ?>">Dashboard</a>
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <a href="grc-assessment.php?view=<?php echo $assessmentId; ?>"><?php echo e(t('grc-assessment-report.nav_assessment')); ?></a>
+            <a href="grc-fairscore.php?id=<?php echo $assessmentId; ?>"><?php echo e(t('grc-assessment-report.nav_dashboard')); ?></a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
     <div class="main-layout">
@@ -261,7 +261,7 @@ $csrfToken = $security->generateCSRFToken();
 
             <div class="report-header">
                 <div>
-                    <h1 id="reportTitle"><?php echo e($orgName); ?> Cyber Report</h1>
+                    <h1 id="reportTitle"><?php echo e($orgName); ?> <?php echo e(t('grc-assessment-report.cyber_report')); ?></h1>
                     <div class="report-meta">
                         <?php echo e($assessment['assessment_ref']); ?> &mdash; <?php echo e($assessment['title']); ?>
                         &bull; <?php echo e(ucfirst(str_replace('_', ' ', $assessment['status']))); ?>
@@ -269,10 +269,10 @@ $csrfToken = $security->generateCSRFToken();
                 </div>
                 <div class="report-actions">
                     <?php if ($canEdit): ?>
-                    <button class="btn btn-success" id="btnSavePdf" data-action="save-pdf">Save &amp; Generate PDF</button>
+                    <button class="btn btn-success" id="btnSavePdf" data-action="save-pdf"><?php echo e(t('grc-assessment-report.save_generate_pdf')); ?></button>
                     <?php endif; ?>
                     <?php if ($hasReport): ?>
-                    <a href="api/grc-assessment-report.php?action=download&id=<?php echo $assessmentId; ?>" class="btn btn-primary">Download PDF</a>
+                    <a href="api/grc-assessment-report.php?action=download&id=<?php echo $assessmentId; ?>" class="btn btn-primary"><?php echo e(t('grc-assessment-report.download_pdf')); ?></a>
                     <?php endif; ?>
                 </div>
             </div>
@@ -280,11 +280,11 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Company Name -->
             <div class="section-card" style="margin-bottom:20px;">
                 <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;">
-                    <label for="companyName" style="font-size:13px;font-weight:600;color:#1e3a5f;white-space:nowrap;">Company Name</label>
+                    <label for="companyName" style="font-size:13px;font-weight:600;color:#1e3a5f;white-space:nowrap;"><?php echo e(t('grc-assessment-report.company_name')); ?></label>
                     <input type="text" id="companyName" value="<?php echo e($orgName); ?>" <?php echo $canEdit ? '' : 'readonly'; ?>
                         style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:inherit;<?php echo $canEdit ? '' : 'background:#f9fafb;color:#6b7280;cursor:not-allowed;'; ?>"
-                        placeholder="Enter company name for the report" />
-                    <span style="font-size:11px;color:#6b7280;">Used on cover page &amp; headers</span>
+                        placeholder="<?php echo e(t('grc-assessment-report.company_name_placeholder')); ?>" />
+                    <span style="font-size:11px;color:#6b7280;"><?php echo e(t('grc-assessment-report.used_on_cover')); ?></span>
                 </div>
             </div>
 
@@ -293,39 +293,39 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Overview Stats (read-only) -->
             <div class="stat-row">
                 <div class="stat-card">
-                    <div class="stat-label">CSF Maturity</div>
+                    <div class="stat-label"><?php echo e(t('grc-assessment-report.csf_maturity')); ?></div>
                     <div class="stat-value" style="color:<?php echo rptScoreColor((float)$overallScore); ?>;"><?php echo $overallScore; ?></div>
                     <div class="stat-label"><?php echo rptScoreTier((float)$overallScore); ?></div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Compliance</div>
+                    <div class="stat-label"><?php echo e(t('grc-assessment-report.compliance')); ?></div>
                     <div class="stat-value" style="color:#3b82f6;"><?php echo $compliancePct; ?>%</div>
-                    <div class="stat-label">Overall Rate</div>
+                    <div class="stat-label"><?php echo e(t('grc-assessment-report.overall_rate')); ?></div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Questions</div>
+                    <div class="stat-label"><?php echo e(t('grc-assessment-report.questions')); ?></div>
                     <div class="stat-value" style="color:#374151;"><?php echo $answered; ?>/<?php echo $totalQuestions; ?></div>
-                    <div class="stat-label">Answered</div>
+                    <div class="stat-label"><?php echo e(t('grc-assessment-report.answered')); ?></div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Gaps</div>
+                    <div class="stat-label"><?php echo e(t('grc-assessment-report.gaps')); ?></div>
                     <div class="stat-value" style="color:<?php echo $gapCount > 0 ? '#dc3545' : '#059669'; ?>;"><?php echo $gapCount; ?></div>
-                    <div class="stat-label">Non-Conformities</div>
+                    <div class="stat-label"><?php echo e(t('grc-assessment-report.non_conformities')); ?></div>
                 </div>
             </div>
 
             <!-- Section 1: Executive Summary (Editable) -->
             <div class="section-card">
                 <div class="section-header" data-toggle-section="exec-summary">
-                    <h3>1. Executive Summary</h3>
-                    <span class="section-type type-editable">Editable</span>
+                    <h3><?php echo e(t('grc-assessment-report.sec_exec_summary')); ?></h3>
+                    <span class="section-type type-editable"><?php echo e(t('grc-assessment-report.editable')); ?></span>
                 </div>
                 <div class="section-body open" id="sec-exec-summary">
                     <textarea class="section-textarea" id="section-executive_summary" <?php echo $canEdit ? '' : 'readonly'; ?>><?php echo e($defaultExecSummary); ?></textarea>
                     <?php if ($canEdit): ?>
                     <div class="section-toolbar">
-                        <button class="btn-assist" data-action="assist-propose" data-section="executive_summary">Propose Language</button>
-                        <button class="btn-assist" data-action="assist-rewrite" data-section="executive_summary">Rewrite</button>
+                        <button class="btn-assist" data-action="assist-propose" data-section="executive_summary"><?php echo e(t('grc-assessment-report.propose_language')); ?></button>
+                        <button class="btn-assist" data-action="assist-rewrite" data-section="executive_summary"><?php echo e(t('grc-assessment-report.rewrite')); ?></button>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -334,15 +334,15 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Section 2: Scope (Editable) -->
             <div class="section-card">
                 <div class="section-header" data-toggle-section="scope">
-                    <h3>2. Scope</h3>
-                    <span class="section-type type-editable">Editable</span>
+                    <h3><?php echo e(t('grc-assessment-report.sec_scope')); ?></h3>
+                    <span class="section-type type-editable"><?php echo e(t('grc-assessment-report.editable')); ?></span>
                 </div>
                 <div class="section-body" id="sec-scope">
                     <textarea class="section-textarea" id="section-scope" <?php echo $canEdit ? '' : 'readonly'; ?>><?php echo e($defaultScope); ?></textarea>
                     <?php if ($canEdit): ?>
                     <div class="section-toolbar">
-                        <button class="btn-assist" data-action="assist-propose" data-section="scope">Propose Language</button>
-                        <button class="btn-assist" data-action="assist-rewrite" data-section="scope">Rewrite</button>
+                        <button class="btn-assist" data-action="assist-propose" data-section="scope"><?php echo e(t('grc-assessment-report.propose_language')); ?></button>
+                        <button class="btn-assist" data-action="assist-rewrite" data-section="scope"><?php echo e(t('grc-assessment-report.rewrite')); ?></button>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -351,15 +351,15 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Section 3: Methodology (Editable) -->
             <div class="section-card">
                 <div class="section-header" data-toggle-section="methodology">
-                    <h3>3. Methodology</h3>
-                    <span class="section-type type-editable">Editable</span>
+                    <h3><?php echo e(t('grc-assessment-report.sec_methodology')); ?></h3>
+                    <span class="section-type type-editable"><?php echo e(t('grc-assessment-report.editable')); ?></span>
                 </div>
                 <div class="section-body" id="sec-methodology">
                     <textarea class="section-textarea" id="section-methodology" <?php echo $canEdit ? '' : 'readonly'; ?>><?php echo e($defaultMethodology); ?></textarea>
                     <?php if ($canEdit): ?>
                     <div class="section-toolbar">
-                        <button class="btn-assist" data-action="assist-propose" data-section="methodology">Propose Language</button>
-                        <button class="btn-assist" data-action="assist-rewrite" data-section="methodology">Rewrite</button>
+                        <button class="btn-assist" data-action="assist-propose" data-section="methodology"><?php echo e(t('grc-assessment-report.propose_language')); ?></button>
+                        <button class="btn-assist" data-action="assist-rewrite" data-section="methodology"><?php echo e(t('grc-assessment-report.rewrite')); ?></button>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -368,13 +368,13 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Section 4: Security Domain Scores (Data) -->
             <div class="section-card">
                 <div class="section-header" data-toggle-section="domains">
-                    <h3>4. Security Domain Scores</h3>
-                    <span class="section-type type-data">Data (auto-generated)</span>
+                    <h3><?php echo e(t('grc-assessment-report.sec_domain_scores')); ?></h3>
+                    <span class="section-type type-data"><?php echo e(t('grc-assessment-report.data_auto')); ?></span>
                 </div>
                 <div class="section-body" id="sec-domains">
                     <?php if (!empty($domainScores)): ?>
                     <table class="data-table">
-                        <thead><tr><th>Code</th><th>Domain</th><th>Score</th><th>Tier</th><th style="width:120px;">Bar</th></tr></thead>
+                        <thead><tr><th><?php echo e(t('grc-assessment-report.col_code')); ?></th><th><?php echo e(t('grc-assessment-report.col_domain')); ?></th><th><?php echo e(t('grc-assessment-report.col_score')); ?></th><th><?php echo e(t('grc-assessment-report.col_tier')); ?></th><th style="width:120px;"><?php echo e(t('grc-assessment-report.col_bar')); ?></th></tr></thead>
                         <tbody>
                         <?php foreach ($domainScores as $d):
                             $ds = (float)($d['average_score'] ?? $d['avg_score'] ?? $d['score'] ?? 0);
@@ -391,7 +391,7 @@ $csrfToken = $security->generateCSRFToken();
                         </tbody>
                     </table>
                     <?php else: ?>
-                    <p style="color:#6b7280;font-size:13px;">No domain scores calculated. Run "Recalculate" in the assessment first.</p>
+                    <p style="color:#6b7280;font-size:13px;"><?php echo e(t('grc-assessment-report.no_domain_scores')); ?></p>
                     <?php endif; ?>
                 </div>
             </div>
@@ -399,13 +399,13 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Section 5: Framework Compliance (Data) -->
             <div class="section-card">
                 <div class="section-header" data-toggle-section="frameworks">
-                    <h3>5. Framework Compliance</h3>
-                    <span class="section-type type-data">Data (auto-generated)</span>
+                    <h3><?php echo e(t('grc-assessment-report.sec_framework_compliance')); ?></h3>
+                    <span class="section-type type-data"><?php echo e(t('grc-assessment-report.data_auto')); ?></span>
                 </div>
                 <div class="section-body" id="sec-frameworks">
                     <?php if (!empty($frameworkCompliance)): ?>
                     <table class="data-table">
-                        <thead><tr><th>Framework</th><th>Requirements</th><th>Conforming</th><th>Compliance</th><th style="width:120px;">Bar</th></tr></thead>
+                        <thead><tr><th><?php echo e(t('grc-assessment-report.col_framework')); ?></th><th><?php echo e(t('grc-assessment-report.col_requirements')); ?></th><th><?php echo e(t('grc-assessment-report.col_conforming')); ?></th><th><?php echo e(t('grc-assessment-report.col_compliance')); ?></th><th style="width:120px;"><?php echo e(t('grc-assessment-report.col_bar')); ?></th></tr></thead>
                         <tbody>
                         <?php foreach ($frameworkCompliance as $fw):
                             $fwPct = (int)($fw['compliance_pct'] ?? 0);
@@ -422,7 +422,7 @@ $csrfToken = $security->generateCSRFToken();
                         </tbody>
                     </table>
                     <?php else: ?>
-                    <p style="color:#6b7280;font-size:13px;">No framework compliance data available.</p>
+                    <p style="color:#6b7280;font-size:13px;"><?php echo e(t('grc-assessment-report.no_framework_data')); ?></p>
                     <?php endif; ?>
                 </div>
             </div>
@@ -430,13 +430,13 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Section 6: Gap Analysis (Data) -->
             <div class="section-card">
                 <div class="section-header" data-toggle-section="gaps">
-                    <h3>6. Gap Analysis (<?php echo $gapCount; ?> gaps)</h3>
-                    <span class="section-type type-data">Data (auto-generated)</span>
+                    <h3><?php echo e(t('grc-assessment-report.sec_gap_analysis', $gapCount)); ?></h3>
+                    <span class="section-type type-data"><?php echo e(t('grc-assessment-report.data_auto')); ?></span>
                 </div>
                 <div class="section-body" id="sec-gaps">
                     <?php if (!empty($gaps)): ?>
                     <table class="data-table">
-                        <thead><tr><th>Ref</th><th>Question</th><th>Status</th><th>Score</th><th>Affected Frameworks</th></tr></thead>
+                        <thead><tr><th><?php echo e(t('grc-assessment-report.col_ref')); ?></th><th><?php echo e(t('grc-assessment-report.col_question')); ?></th><th><?php echo e(t('grc-assessment-report.col_status')); ?></th><th><?php echo e(t('grc-assessment-report.col_score')); ?></th><th><?php echo e(t('grc-assessment-report.col_affected_frameworks')); ?></th></tr></thead>
                         <tbody>
                         <?php foreach ($gaps as $g):
                             $gStatus = $g['conformity_status'] ?? 'partial';
@@ -455,7 +455,7 @@ $csrfToken = $security->generateCSRFToken();
                         </tbody>
                     </table>
                     <?php else: ?>
-                    <p style="color:#059669;"><strong>No gaps identified.</strong> All assessed questions are conforming or not applicable.</p>
+                    <p style="color:#059669;"><strong><?php echo e(t('grc-assessment-report.no_gaps_title')); ?></strong> <?php echo e(t('grc-assessment-report.no_gaps_desc')); ?></p>
                     <?php endif; ?>
                 </div>
             </div>
@@ -463,15 +463,15 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Section 7: Recommendations (Editable) -->
             <div class="section-card">
                 <div class="section-header" data-toggle-section="recommendations">
-                    <h3>7. Recommendations</h3>
-                    <span class="section-type type-editable">Editable</span>
+                    <h3><?php echo e(t('grc-assessment-report.sec_recommendations')); ?></h3>
+                    <span class="section-type type-editable"><?php echo e(t('grc-assessment-report.editable')); ?></span>
                 </div>
                 <div class="section-body" id="sec-recommendations">
                     <textarea class="section-textarea" id="section-recommendations" <?php echo $canEdit ? '' : 'readonly'; ?>><?php echo e($defaultRecommendations); ?></textarea>
                     <?php if ($canEdit): ?>
                     <div class="section-toolbar">
-                        <button class="btn-assist" data-action="assist-propose" data-section="recommendations">Propose Language</button>
-                        <button class="btn-assist" data-action="assist-rewrite" data-section="recommendations">Rewrite</button>
+                        <button class="btn-assist" data-action="assist-propose" data-section="recommendations"><?php echo e(t('grc-assessment-report.propose_language')); ?></button>
+                        <button class="btn-assist" data-action="assist-rewrite" data-section="recommendations"><?php echo e(t('grc-assessment-report.rewrite')); ?></button>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -480,15 +480,15 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Section 8: Conclusion (Editable) -->
             <div class="section-card">
                 <div class="section-header" data-toggle-section="conclusion">
-                    <h3>8. Conclusion</h3>
-                    <span class="section-type type-editable">Editable</span>
+                    <h3><?php echo e(t('grc-assessment-report.sec_conclusion')); ?></h3>
+                    <span class="section-type type-editable"><?php echo e(t('grc-assessment-report.editable')); ?></span>
                 </div>
                 <div class="section-body" id="sec-conclusion">
                     <textarea class="section-textarea" id="section-conclusion" <?php echo $canEdit ? '' : 'readonly'; ?>><?php echo e($defaultConclusion); ?></textarea>
                     <?php if ($canEdit): ?>
                     <div class="section-toolbar">
-                        <button class="btn-assist" data-action="assist-propose" data-section="conclusion">Propose Language</button>
-                        <button class="btn-assist" data-action="assist-rewrite" data-section="conclusion">Rewrite</button>
+                        <button class="btn-assist" data-action="assist-propose" data-section="conclusion"><?php echo e(t('grc-assessment-report.propose_language')); ?></button>
+                        <button class="btn-assist" data-action="assist-rewrite" data-section="conclusion"><?php echo e(t('grc-assessment-report.rewrite')); ?></button>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -760,7 +760,7 @@ $csrfToken = $security->generateCSRFToken();
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-assessment-report.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

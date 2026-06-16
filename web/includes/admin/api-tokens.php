@@ -26,7 +26,7 @@ $proto = (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) ? $_SERVER['HTTP_X_FORWARDE
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_api-tokens.invalid_request');
     } else {
         $action = $_POST['api_action'] ?? '';
 
@@ -42,9 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $ips = array_filter(array_map('trim', explode("\n", $_POST['allowed_ips'] ?? '')));
 
                 if (empty($name)) {
-                    $error = 'Token name is required.';
+                    $error = t('admin_api-tokens.token_name_required');
                 } elseif (empty($ips)) {
-                    $error = 'At least one whitelisted IP address is required.';
+                    $error = t('admin_api-tokens.ip_required');
                 } else {
                     // Validate all IPs are single addresses (no CIDR)
                     $invalidIps = [];
@@ -71,40 +71,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $auth->audit($user['id'], 'api_token_created', 'api_tokens', $result['token_id'], [
                             'name' => $name, 'scope' => $scope, 'ip_count' => count($ips),
                         ]);
-                        $success = 'API token created. Copy the token below -- it will only be shown once.';
+                        $success = t('admin_api-tokens.token_created');
                     }
                 }
             } catch (Exception $e) {
                 error_log('API token creation error: ' . $e->getMessage());
-                $error = 'Failed to create API token.';
+                $error = t('admin_api-tokens.token_create_failed');
             }
         } elseif ($action === 'revoke_token') {
             $tokenId = (int)($_POST['token_id'] ?? 0);
             if ($tokenId > 0) {
                 $apiService->revokeToken($tokenId);
                 $auth->audit($user['id'], 'api_token_revoked', 'api_tokens', $tokenId, []);
-                $success = 'API token revoked.';
+                $success = t('admin_api-tokens.token_revoked');
             }
         } elseif ($action === 'reactivate_token') {
             $tokenId = (int)($_POST['token_id'] ?? 0);
             if ($tokenId > 0) {
                 $apiService->reactivateToken($tokenId);
                 $auth->audit($user['id'], 'api_token_reactivated', 'api_tokens', $tokenId, []);
-                $success = 'API token reactivated.';
+                $success = t('admin_api-tokens.token_reactivated');
             }
         } elseif ($action === 'delete_token') {
             $tokenId = (int)($_POST['token_id'] ?? 0);
             if ($tokenId > 0) {
                 $apiService->deleteToken($tokenId);
                 $auth->audit($user['id'], 'api_token_deleted', 'api_tokens', $tokenId, []);
-                $success = 'API token permanently deleted.';
+                $success = t('admin_api-tokens.token_deleted');
             }
         } elseif ($action === 'edit_token') {
             $tokenId = (int)($_POST['token_id'] ?? 0);
             if ($tokenId > 0) {
                 $name = trim($_POST['token_name'] ?? '');
                 if (empty($name)) {
-                    $error = 'Token name is required.';
+                    $error = t('admin_api-tokens.token_name_required');
                 } else {
                     $apiService->updateToken($tokenId, [
                         'name' => $name,
@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'expires_at' => !empty($_POST['expires_at']) ? $_POST['expires_at'] : null,
                     ]);
                     $auth->audit($user['id'], 'api_token_updated', 'api_tokens', $tokenId, ['name' => $name]);
-                    $success = 'API token updated.';
+                    $success = t('admin_api-tokens.token_updated');
                 }
             }
         } elseif ($action === 'add_ip') {
@@ -125,22 +125,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $label = trim($_POST['ip_label'] ?? '');
 
             if (strpos($ip, '/') !== false) {
-                $error = 'CIDR ranges are not allowed. Enter a single IP address.';
+                $error = t('admin_api-tokens.cidr_not_allowed');
             } elseif (!filter_var($ip, FILTER_VALIDATE_IP)) {
-                $error = 'Invalid IP address.';
+                $error = t('admin_api-tokens.invalid_ip');
             } else {
                 if ($apiService->addTokenIp($tokenId, $ip, $label)) {
                     $auth->audit($user['id'], 'api_token_ip_added', 'api_token_ips', $tokenId, ['ip' => $ip]);
-                    $success = 'IP address added to whitelist.';
+                    $success = t('admin_api-tokens.ip_added');
                 } else {
-                    $error = 'IP already whitelisted or token not found.';
+                    $error = t('admin_api-tokens.ip_already_whitelisted');
                 }
             }
         } elseif ($action === 'remove_ip') {
             $ipId = (int)($_POST['ip_id'] ?? 0);
             if ($ipId > 0) {
                 $db->delete('api_token_ips', 'id = :id', [':id' => $ipId]);
-                $success = 'IP removed from whitelist.';
+                $success = t('admin_api-tokens.ip_removed');
             }
         }
     }
@@ -183,8 +183,8 @@ if ($editTokenId > 0) {
 // ============================================================================
 ?>
 <div class="page-header-bar">
-    <h1 class="page-title">API Management</h1>
-    <p>Manage RESTful API tokens, IP whitelists, and view request logs.</p>
+    <h1 class="page-title"><?php echo e(t('admin_api-tokens.page_title')); ?></h1>
+    <p><?php echo e(t('admin_api-tokens.page_desc')); ?></p>
 </div>
 
 <!-- Tabs -->
@@ -198,20 +198,20 @@ if ($editTokenId > 0) {
     .api-tabs a.active { background:#374151; color:#fff; border-color:#374151; }
 </style>
 <div class="api-tabs">
-    <a href="admin.php?section=api-tokens&api_tab=tokens" class="<?php echo $apiTab === 'tokens' ? 'active' : ''; ?>">Tokens</a>
-    <a href="admin.php?section=api-tokens&api_tab=create" class="<?php echo $apiTab === 'create' ? 'active' : ''; ?>">Create Token</a>
-    <a href="admin.php?section=api-tokens&api_tab=logs" class="<?php echo $apiTab === 'logs' ? 'active' : ''; ?>">Request Logs</a>
-    <a href="admin.php?section=api-tokens&api_tab=playground" class="<?php echo $apiTab === 'playground' ? 'active' : ''; ?>">API Playground</a>
-    <a href="admin.php?section=api-tokens&api_tab=docs" class="<?php echo $apiTab === 'docs' ? 'active' : ''; ?>">Swagger / Postman</a>
+    <a href="admin.php?section=api-tokens&api_tab=tokens" class="<?php echo $apiTab === 'tokens' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_tokens')); ?></a>
+    <a href="admin.php?section=api-tokens&api_tab=create" class="<?php echo $apiTab === 'create' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_create')); ?></a>
+    <a href="admin.php?section=api-tokens&api_tab=logs" class="<?php echo $apiTab === 'logs' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_logs')); ?></a>
+    <a href="admin.php?section=api-tokens&api_tab=playground" class="<?php echo $apiTab === 'playground' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_playground')); ?></a>
+    <a href="admin.php?section=api-tokens&api_tab=docs" class="<?php echo $apiTab === 'docs' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_docs')); ?></a>
 </div>
 
 <?php if ($newTokenRaw): ?>
 <div class="card" style="background:#fff3cd;border:2px solid #f59e0b;margin-bottom:20px;padding:20px;">
-    <h3 style="margin:0 0 10px;color:#92400e;">Your New API Token (shown only once)</h3>
+    <h3 style="margin:0 0 10px;color:#92400e;"><?php echo e(t('admin_api-tokens.new_token_heading')); ?></h3>
     <div style="background:#1f2937;color:#10b981;padding:16px;border-radius:8px;font-family:monospace;font-size:14px;word-break:break-all;margin-bottom:12px;">
         <?php echo e($newTokenRaw); ?>
     </div>
-    <p style="color:#92400e;font-size:13px;margin:0;">Copy this token now. It cannot be retrieved later. If lost, revoke it and create a new one.</p>
+    <p style="color:#92400e;font-size:13px;margin:0;"><?php echo e(t('admin_api-tokens.copy_token_now')); ?></p>
 </div>
 <?php endif; ?>
 
@@ -221,15 +221,15 @@ if ($editTokenId > 0) {
     <table style="width:100%;border-collapse:collapse;">
         <thead>
             <tr style="background:#f9fafb;border-bottom:2px solid #e5e7eb;">
-                <th style="padding:12px;text-align:left;font-size:12px;">Prefix</th>
-                <th style="padding:12px;text-align:left;font-size:12px;">Name</th>
-                <th style="padding:12px;text-align:left;font-size:12px;">Scope</th>
-                <th style="padding:12px;text-align:left;font-size:12px;">User</th>
-                <th style="padding:12px;text-align:left;font-size:12px;">IPs</th>
-                <th style="padding:12px;text-align:left;font-size:12px;">24h Requests</th>
-                <th style="padding:12px;text-align:left;font-size:12px;">Last Used</th>
-                <th style="padding:12px;text-align:left;font-size:12px;">Status</th>
-                <th style="padding:12px;text-align:left;font-size:12px;">Actions</th>
+                <th style="padding:12px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_prefix')); ?></th>
+                <th style="padding:12px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_name')); ?></th>
+                <th style="padding:12px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_scope')); ?></th>
+                <th style="padding:12px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_user')); ?></th>
+                <th style="padding:12px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_ips')); ?></th>
+                <th style="padding:12px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_requests_24h')); ?></th>
+                <th style="padding:12px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_last_used')); ?></th>
+                <th style="padding:12px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_status')); ?></th>
+                <th style="padding:12px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_actions')); ?></th>
             </tr>
         </thead>
         <tbody>
@@ -244,39 +244,39 @@ if ($editTokenId > 0) {
                 <td style="padding:12px;font-size:12px;"><?php echo $t['last_used_at'] ? e(date('M j, g:i A', strtotime($t['last_used_at']))) : '<span style="color:#9ca3af;">Never</span>'; ?></td>
                 <td style="padding:12px;">
                     <?php if ($t['is_active']): ?>
-                    <span style="color:#28a745;font-size:12px;">Active</span>
+                    <span style="color:#28a745;font-size:12px;"><?php echo e(t('admin_api-tokens.status_active')); ?></span>
                     <?php else: ?>
-                    <span style="color:#dc3545;font-size:12px;">Revoked</span>
+                    <span style="color:#dc3545;font-size:12px;"><?php echo e(t('admin_api-tokens.status_revoked')); ?></span>
                     <?php endif; ?>
                 </td>
                 <td style="padding:12px;white-space:nowrap;">
-                    <a href="admin.php?section=api-tokens&edit_token=<?php echo $t['id']; ?>" style="font-size:12px;margin-right:8px;">Edit</a>
+                    <a href="admin.php?section=api-tokens&edit_token=<?php echo $t['id']; ?>" style="font-size:12px;margin-right:8px;"><?php echo e(t('admin_api-tokens.action_edit')); ?></a>
                     <?php if ($t['is_active']): ?>
-                    <form method="POST" style="display:inline;" data-confirm="Revoke this token? It will stop working immediately.">
+                    <form method="POST" style="display:inline;" data-confirm="<?php echo e(t('admin_api-tokens.confirm_revoke')); ?>">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="api_action" value="revoke_token">
                         <input type="hidden" name="token_id" value="<?php echo $t['id']; ?>">
-                        <button type="submit" style="border:none;background:none;color:#d97706;cursor:pointer;font-size:12px;">Revoke</button>
+                        <button type="submit" style="border:none;background:none;color:#d97706;cursor:pointer;font-size:12px;"><?php echo e(t('admin_api-tokens.action_revoke')); ?></button>
                     </form>
                     <?php else: ?>
                     <form method="POST" style="display:inline;">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="api_action" value="reactivate_token">
                         <input type="hidden" name="token_id" value="<?php echo $t['id']; ?>">
-                        <button type="submit" style="border:none;background:none;color:#059669;cursor:pointer;font-size:12px;">Reactivate</button>
+                        <button type="submit" style="border:none;background:none;color:#059669;cursor:pointer;font-size:12px;"><?php echo e(t('admin_api-tokens.action_reactivate')); ?></button>
                     </form>
                     <?php endif; ?>
-                    <form method="POST" style="display:inline;" data-confirm="Permanently delete this token and all its request logs? This cannot be undone.">
+                    <form method="POST" style="display:inline;" data-confirm="<?php echo e(t('admin_api-tokens.confirm_delete')); ?>">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="api_action" value="delete_token">
                         <input type="hidden" name="token_id" value="<?php echo $t['id']; ?>">
-                        <button type="submit" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:12px;">Delete</button>
+                        <button type="submit" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:12px;"><?php echo e(t('admin_api-tokens.action_delete')); ?></button>
                     </form>
                 </td>
             </tr>
             <?php endforeach; ?>
             <?php if (empty($tokens)): ?>
-            <tr><td colspan="9" style="padding:40px;text-align:center;color:#9ca3af;">No API tokens created yet.</td></tr>
+            <tr><td colspan="9" style="padding:40px;text-align:center;color:#9ca3af;"><?php echo e(t('admin_api-tokens.no_tokens')); ?></td></tr>
             <?php endif; ?>
         </tbody>
     </table>
@@ -293,11 +293,11 @@ if ($editTokenId > 0) {
 
         <div class="form-row">
             <div class="form-group">
-                <label>Token Name *</label>
+                <label><?php echo e(t('admin_api-tokens.label_token_name')); ?></label>
                 <input type="text" name="token_name" class="form-control" required value="<?php echo e($editToken['name']); ?>">
             </div>
             <div class="form-group">
-                <label>API User Account</label>
+                <label><?php echo e(t('admin_api-tokens.label_api_user')); ?></label>
                 <select name="token_user_id" class="form-control">
                     <?php foreach ($activeUsers as $u): ?>
                     <option value="<?php echo $u['id']; ?>" <?php echo $u['id'] == $editToken['user_id'] ? 'selected' : ''; ?>><?php echo e($u['full_name']); ?> (<?php echo e($u['email']); ?>)</option>
@@ -306,56 +306,56 @@ if ($editTokenId > 0) {
             </div>
         </div>
         <div class="form-group">
-            <label>Description</label>
+            <label><?php echo e(t('admin_api-tokens.label_description')); ?></label>
             <textarea name="token_description" class="form-control" rows="2"><?php echo e($editToken['description'] ?? ''); ?></textarea>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>Access Scope</label>
+                <label><?php echo e(t('admin_api-tokens.label_access_scope')); ?></label>
                 <select name="token_scope" class="form-control">
-                    <option value="read" <?php echo $editToken['scope'] === 'read' ? 'selected' : ''; ?>>Read Only</option>
-                    <option value="read_write" <?php echo $editToken['scope'] === 'read_write' ? 'selected' : ''; ?>>Read & Write</option>
+                    <option value="read" <?php echo $editToken['scope'] === 'read' ? 'selected' : ''; ?>><?php echo e(t('admin_api-tokens.scope_read')); ?></option>
+                    <option value="read_write" <?php echo $editToken['scope'] === 'read_write' ? 'selected' : ''; ?>><?php echo e(t('admin_api-tokens.scope_read_write')); ?></option>
                 </select>
             </div>
             <div class="form-group">
-                <label>Module Access</label>
+                <label><?php echo e(t('admin_api-tokens.label_module_access')); ?></label>
                 <?php $currentModules = json_decode($editToken['module_access'] ?? '["both"]', true) ?: ['both']; ?>
                 <select name="module_access[]" class="form-control" multiple size="3">
-                    <option value="both" <?php echo in_array('both', $currentModules) ? 'selected' : ''; ?>>Both (TPRM + GRC)</option>
-                    <option value="tprm" <?php echo in_array('tprm', $currentModules) ? 'selected' : ''; ?>>TPRM Only</option>
-                    <option value="grc" <?php echo in_array('grc', $currentModules) ? 'selected' : ''; ?>>GRC Only</option>
+                    <option value="both" <?php echo in_array('both', $currentModules) ? 'selected' : ''; ?>><?php echo e(t('admin_api-tokens.module_both')); ?></option>
+                    <option value="tprm" <?php echo in_array('tprm', $currentModules) ? 'selected' : ''; ?>><?php echo e(t('admin_api-tokens.module_tprm')); ?></option>
+                    <option value="grc" <?php echo in_array('grc', $currentModules) ? 'selected' : ''; ?>><?php echo e(t('admin_api-tokens.module_grc')); ?></option>
                 </select>
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>Rate Limit (requests/minute)</label>
+                <label><?php echo e(t('admin_api-tokens.label_rate_limit')); ?></label>
                 <input type="number" name="rate_limit" class="form-control" value="<?php echo (int)$editToken['rate_limit_per_minute']; ?>" min="1" max="1000">
             </div>
             <div class="form-group">
-                <label>Expiration Date</label>
+                <label><?php echo e(t('admin_api-tokens.label_expiration')); ?></label>
                 <input type="datetime-local" name="expires_at" class="form-control" value="<?php echo $editToken['expires_at'] ? date('Y-m-d\TH:i', strtotime($editToken['expires_at'])) : ''; ?>">
-                <div class="form-help">Leave blank for no expiration.</div>
+                <div class="form-help"><?php echo e(t('admin_api-tokens.help_no_expiration')); ?></div>
             </div>
         </div>
 
         <div style="display:flex;gap:10px;margin-top:10px;">
-            <button type="submit" class="btn btn-primary">Save Changes</button>
-            <a href="admin.php?section=api-tokens&api_tab=tokens" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary"><?php echo e(t('admin_api-tokens.btn_save_changes')); ?></button>
+            <a href="admin.php?section=api-tokens&api_tab=tokens" class="btn btn-secondary"><?php echo e(t('admin_api-tokens.btn_cancel')); ?></a>
         </div>
     </form>
 </div>
 
 <!-- IP Whitelist -->
 <div class="card" style="margin-top:20px;">
-    <h3 style="margin:0 0 16px;">IP Whitelist</h3>
+    <h3 style="margin:0 0 16px;"><?php echo e(t('admin_api-tokens.ip_whitelist_heading')); ?></h3>
     <?php if (!empty($editTokenIps)): ?>
     <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
         <thead><tr style="background:#f9fafb;border-bottom:2px solid #e5e7eb;">
-            <th style="padding:10px;text-align:left;font-size:12px;">IP Address</th>
-            <th style="padding:10px;text-align:left;font-size:12px;">Label</th>
-            <th style="padding:10px;text-align:left;font-size:12px;">Added</th>
-            <th style="padding:10px;text-align:left;font-size:12px;">Action</th>
+            <th style="padding:10px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_ip_address')); ?></th>
+            <th style="padding:10px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_label')); ?></th>
+            <th style="padding:10px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_added')); ?></th>
+            <th style="padding:10px;text-align:left;font-size:12px;"><?php echo e(t('admin_api-tokens.col_action')); ?></th>
         </tr></thead>
         <tbody>
         <?php foreach ($editTokenIps as $tip): ?>
@@ -364,11 +364,11 @@ if ($editTokenId > 0) {
             <td style="padding:10px;"><?php echo e($tip['label'] ?? ''); ?></td>
             <td style="padding:10px;font-size:12px;"><?php echo e(date('M j, Y', strtotime($tip['created_at']))); ?></td>
             <td style="padding:10px;">
-                <form method="POST" style="display:inline;" data-confirm="Remove this IP from the whitelist?">
+                <form method="POST" style="display:inline;" data-confirm="<?php echo e(t('admin_api-tokens.confirm_remove_ip')); ?>">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="api_action" value="remove_ip">
                     <input type="hidden" name="ip_id" value="<?php echo $tip['id']; ?>">
-                    <button type="submit" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:12px;">Remove</button>
+                    <button type="submit" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:12px;"><?php echo e(t('admin_api-tokens.action_remove')); ?></button>
                 </form>
             </td>
         </tr>
@@ -376,109 +376,109 @@ if ($editTokenId > 0) {
         </tbody>
     </table>
     <?php else: ?>
-    <p style="color:#9ca3af;font-size:13px;margin-bottom:16px;">No IPs whitelisted. This token will not work until at least one IP is added.</p>
+    <p style="color:#9ca3af;font-size:13px;margin-bottom:16px;"><?php echo e(t('admin_api-tokens.no_ips')); ?></p>
     <?php endif; ?>
     <form method="POST" action="admin.php?section=api-tokens&edit_token=<?php echo $editToken['id']; ?>" style="display:flex;gap:10px;align-items:end;">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="api_action" value="add_ip">
         <input type="hidden" name="token_id" value="<?php echo $editToken['id']; ?>">
         <div style="flex:1;">
-            <label style="font-size:12px;display:block;margin-bottom:4px;">IP Address (single IP only, no CIDR)</label>
+            <label style="font-size:12px;display:block;margin-bottom:4px;"><?php echo e(t('admin_api-tokens.label_ip_single')); ?></label>
             <input type="text" name="ip_address" class="form-control" placeholder="192.168.1.100" required pattern="^[0-9a-fA-F.:]+$">
         </div>
         <div style="flex:1;">
-            <label style="font-size:12px;display:block;margin-bottom:4px;">Label (optional)</label>
-            <input type="text" name="ip_label" class="form-control" placeholder="Office gateway">
+            <label style="font-size:12px;display:block;margin-bottom:4px;"><?php echo e(t('admin_api-tokens.label_ip_label_optional')); ?></label>
+            <input type="text" name="ip_label" class="form-control" placeholder="<?php echo e(t('admin_api-tokens.placeholder_office_gateway')); ?>">
         </div>
-        <button type="submit" class="btn btn-primary" style="height:38px;">Add IP</button>
+        <button type="submit" class="btn btn-primary" style="height:38px;"><?php echo e(t('admin_api-tokens.btn_add_ip')); ?></button>
     </form>
 </div>
 
 <!-- Token Info -->
 <div class="card" style="margin-top:20px;">
-    <h3 style="margin:0 0 16px;">Token Info</h3>
+    <h3 style="margin:0 0 16px;"><?php echo e(t('admin_api-tokens.token_info_heading')); ?></h3>
     <table style="font-size:13px;">
-        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;">Status</td><td><?php echo $editToken['is_active'] ? '<span style="color:#059669;">Active</span>' : '<span style="color:#dc2626;">Revoked</span>'; ?></td></tr>
-        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;">Created</td><td><?php echo e(date('M j, Y g:i A', strtotime($editToken['created_at']))); ?></td></tr>
-        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;">Last Used</td><td><?php echo $editToken['last_used_at'] ? e(date('M j, Y g:i A', strtotime($editToken['last_used_at']))) : 'Never'; ?></td></tr>
-        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;">Last IP</td><td style="font-family:monospace;"><?php echo e($editToken['last_used_ip'] ?? 'N/A'); ?></td></tr>
-        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;">Total Requests</td><td><?php echo number_format((int)$editToken['request_count']); ?></td></tr>
+        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_status')); ?></td><td><?php echo $editToken['is_active'] ? '<span style="color:#059669;">Active</span>' : '<span style="color:#dc2626;">Revoked</span>'; ?></td></tr>
+        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_created')); ?></td><td><?php echo e(date('M j, Y g:i A', strtotime($editToken['created_at']))); ?></td></tr>
+        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_last_used')); ?></td><td><?php echo $editToken['last_used_at'] ? e(date('M j, Y g:i A', strtotime($editToken['last_used_at']))) : 'Never'; ?></td></tr>
+        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_last_ip')); ?></td><td style="font-family:monospace;"><?php echo e($editToken['last_used_ip'] ?? 'N/A'); ?></td></tr>
+        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_total_requests')); ?></td><td><?php echo number_format((int)$editToken['request_count']); ?></td></tr>
     </table>
 </div>
 
 <?php elseif ($apiTab === 'create'): ?>
 <!-- Create Token -->
 <div class="card">
-    <h3 style="margin:0 0 16px;">Create New API Token</h3>
+    <h3 style="margin:0 0 16px;"><?php echo e(t('admin_api-tokens.create_heading')); ?></h3>
     <form method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="api_action" value="create_token">
 
         <div class="form-group">
-            <label>Token Name *</label>
-            <input type="text" name="token_name" class="form-control" required placeholder="e.g., CI/CD Pipeline Read-Only">
+            <label><?php echo e(t('admin_api-tokens.label_token_name')); ?></label>
+            <input type="text" name="token_name" class="form-control" required placeholder="<?php echo e(t('admin_api-tokens.placeholder_token_name')); ?>">
         </div>
         <div class="form-group">
-            <label>Description</label>
-            <textarea name="token_description" class="form-control" rows="2" placeholder="What will this token be used for?"></textarea>
+            <label><?php echo e(t('admin_api-tokens.label_description')); ?></label>
+            <textarea name="token_description" class="form-control" rows="2" placeholder="<?php echo e(t('admin_api-tokens.placeholder_description')); ?>"></textarea>
         </div>
         <div class="form-group">
-            <label>Access Scope *</label>
+            <label><?php echo e(t('admin_api-tokens.label_access_scope')); ?></label>
             <select name="token_scope" class="form-control">
-                <option value="read">Read Only</option>
-                <option value="read_write">Read & Write</option>
+                <option value="read"><?php echo e(t('admin_api-tokens.scope_read')); ?></option>
+                <option value="read_write"><?php echo e(t('admin_api-tokens.scope_read_write')); ?></option>
             </select>
         </div>
         <div class="form-group">
-            <label>Module Access</label>
+            <label><?php echo e(t('admin_api-tokens.label_module_access')); ?></label>
             <select name="module_access[]" class="form-control" multiple size="3">
-                <option value="both" selected>Both (TPRM + GRC)</option>
-                <option value="tprm">TPRM Only</option>
-                <option value="grc">GRC Only</option>
+                <option value="both" selected><?php echo e(t('admin_api-tokens.module_both')); ?></option>
+                <option value="tprm"><?php echo e(t('admin_api-tokens.module_tprm')); ?></option>
+                <option value="grc"><?php echo e(t('admin_api-tokens.module_grc')); ?></option>
             </select>
         </div>
         <div class="form-group">
-            <label>API User Account</label>
+            <label><?php echo e(t('admin_api-tokens.label_api_user')); ?></label>
             <select name="token_user_id" class="form-control">
                 <?php foreach ($activeUsers as $u): ?>
                 <option value="<?php echo $u['id']; ?>" <?php echo $u['id'] == $user['id'] ? 'selected' : ''; ?>><?php echo e($u['full_name']); ?> (<?php echo e($u['email']); ?>)</option>
                 <?php endforeach; ?>
             </select>
-            <div class="form-help">The user account this token acts on behalf of.</div>
+            <div class="form-help"><?php echo e(t('admin_api-tokens.help_token_user')); ?></div>
         </div>
         <div class="form-group">
-            <label>Rate Limit (requests/minute)</label>
+            <label><?php echo e(t('admin_api-tokens.label_rate_limit')); ?></label>
             <input type="number" name="rate_limit" class="form-control" value="60" min="1" max="1000">
         </div>
         <div class="form-group">
-            <label>Expiration Date (optional)</label>
+            <label><?php echo e(t('admin_api-tokens.label_expiration_optional')); ?></label>
             <input type="datetime-local" name="expires_at" class="form-control">
-            <div class="form-help">Leave blank for no expiration.</div>
+            <div class="form-help"><?php echo e(t('admin_api-tokens.help_no_expiration')); ?></div>
         </div>
         <div class="form-group">
-            <label>Whitelisted IP Addresses * (one per line, single IPs only)</label>
+            <label><?php echo e(t('admin_api-tokens.label_whitelisted_ips')); ?></label>
             <textarea name="allowed_ips" class="form-control" rows="4" required placeholder="192.168.1.100&#10;10.0.0.5&#10;2001:db8::1"></textarea>
-            <div class="form-help">CIDR ranges (/24, /16, etc.) are NOT allowed. Enter individual IP addresses only.</div>
+            <div class="form-help"><?php echo e(t('admin_api-tokens.help_no_cidr')); ?></div>
         </div>
 
-        <button type="submit" class="btn btn-primary">Create API Token</button>
+        <button type="submit" class="btn btn-primary"><?php echo e(t('admin_api-tokens.btn_create_token')); ?></button>
     </form>
 </div>
 
 <?php elseif ($apiTab === 'logs'): ?>
 <!-- Request Logs -->
 <div class="card">
-    <h3 style="margin:0 0 16px;">API Request Log (Last 100)</h3>
+    <h3 style="margin:0 0 16px;"><?php echo e(t('admin_api-tokens.logs_heading')); ?></h3>
     <table style="width:100%;border-collapse:collapse;">
         <thead><tr style="background:#f9fafb;border-bottom:2px solid #e5e7eb;">
-            <th style="padding:10px;text-align:left;font-size:11px;">Time</th>
-            <th style="padding:10px;text-align:left;font-size:11px;">Token</th>
-            <th style="padding:10px;text-align:left;font-size:11px;">Method</th>
-            <th style="padding:10px;text-align:left;font-size:11px;">Endpoint</th>
-            <th style="padding:10px;text-align:left;font-size:11px;">IP</th>
-            <th style="padding:10px;text-align:left;font-size:11px;">Status</th>
-            <th style="padding:10px;text-align:left;font-size:11px;">Time (ms)</th>
-            <th style="padding:10px;text-align:left;font-size:11px;">Error</th>
+            <th style="padding:10px;text-align:left;font-size:11px;"><?php echo e(t('admin_api-tokens.log_time')); ?></th>
+            <th style="padding:10px;text-align:left;font-size:11px;"><?php echo e(t('admin_api-tokens.log_token')); ?></th>
+            <th style="padding:10px;text-align:left;font-size:11px;"><?php echo e(t('admin_api-tokens.log_method')); ?></th>
+            <th style="padding:10px;text-align:left;font-size:11px;"><?php echo e(t('admin_api-tokens.log_endpoint')); ?></th>
+            <th style="padding:10px;text-align:left;font-size:11px;"><?php echo e(t('admin_api-tokens.log_ip')); ?></th>
+            <th style="padding:10px;text-align:left;font-size:11px;"><?php echo e(t('admin_api-tokens.log_status')); ?></th>
+            <th style="padding:10px;text-align:left;font-size:11px;"><?php echo e(t('admin_api-tokens.log_time_ms')); ?></th>
+            <th style="padding:10px;text-align:left;font-size:11px;"><?php echo e(t('admin_api-tokens.log_error')); ?></th>
         </tr></thead>
         <tbody>
         <?php foreach ($requestLogs as $log): ?>
@@ -496,7 +496,7 @@ if ($editTokenId > 0) {
         </tr>
         <?php endforeach; ?>
         <?php if (empty($requestLogs)): ?>
-        <tr><td colspan="8" style="padding:40px;text-align:center;color:#9ca3af;">No API requests logged yet.</td></tr>
+        <tr><td colspan="8" style="padding:40px;text-align:center;color:#9ca3af;"><?php echo e(t('admin_api-tokens.no_logs')); ?></td></tr>
         <?php endif; ?>
         </tbody>
     </table>
@@ -564,7 +564,7 @@ if ($editTokenId > 0) {
 </style>
 
 <div class="play-auth">
-    <label>Bearer Token (required for all requests)</label>
+    <label><?php echo e(t('admin_api-tokens.bearer_token_label')); ?></label>
     <input type="password" id="playToken" placeholder="tprm_your_api_token_here">
     <div style="margin-top:8px;font-size:12px;color:#6b7280;">
         Your detected IP address: <strong style="font-family:'Roboto Mono',monospace;color:#374151;"><?php echo e($security->getClientIP()); ?></strong>
@@ -596,7 +596,7 @@ if ($editTokenId > 0) {
             <?php if (!empty($params)): ?>
             <div class="play-params">
                 <table>
-                    <thead><tr><th>Parameter</th><th>In</th><th>Required</th><th>Value</th></tr></thead>
+                    <thead><tr><th><?php echo e(t('admin_api-tokens.param_parameter')); ?></th><th><?php echo e(t('admin_api-tokens.param_in')); ?></th><th><?php echo e(t('admin_api-tokens.param_required')); ?></th><th><?php echo e(t('admin_api-tokens.param_value')); ?></th></tr></thead>
                     <tbody>
                     <?php foreach ($params as $p): ?>
                     <tr>
@@ -613,7 +613,7 @@ if ($editTokenId > 0) {
 
             <?php if ($hasBody): ?>
             <div class="play-body-input">
-                <label>Request Body (JSON) &mdash; edit the values below</label>
+                <label><?php echo e(t('admin_api-tokens.request_body_label')); ?></label>
                 <textarea id="<?php echo $uid; ?>_body"><?php
                     $rb = $ep['spec']['requestBody']['content']['application/json']['schema']['properties'] ?? null;
                     if ($rb) {
@@ -825,8 +825,8 @@ if ($editTokenId > 0) {
 <?php elseif ($apiTab === 'docs'): ?>
 <!-- Swagger / Postman Documentation -->
 <div class="card">
-    <h3 style="margin:0 0 16px;">API Documentation</h3>
-    <p style="color:#6b7280;margin-bottom:20px;">Download the API specification in Swagger (OpenAPI 3.1) or Postman Collection format.</p>
+    <h3 style="margin:0 0 16px;"><?php echo e(t('admin_api-tokens.docs_heading')); ?></h3>
+    <p style="color:#6b7280;margin-bottom:20px;"><?php echo e(t('admin_api-tokens.docs_desc')); ?></p>
 
     <div style="display:flex;gap:16px;">
         <a href="/api/v2/swagger.json" target="_blank" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:8px;">
@@ -838,14 +838,14 @@ if ($editTokenId > 0) {
     </div>
 
     <div style="margin-top:24px;">
-        <h4 style="font-size:14px;margin:0 0 8px;">Authentication</h4>
-        <p style="font-size:13px;color:#374151;">All API requests require a Bearer token in the Authorization header:</p>
+        <h4 style="font-size:14px;margin:0 0 8px;"><?php echo e(t('admin_api-tokens.docs_auth_heading')); ?></h4>
+        <p style="font-size:13px;color:#374151;"><?php echo e(t('admin_api-tokens.docs_auth_desc')); ?></p>
         <pre style="background:#1f2937;color:#a3e635;padding:12px;border-radius:6px;font-size:12px;">Authorization: Bearer tprm_your_token_here</pre>
-        <p style="font-size:13px;color:#374151;margin-top:8px;">The source IP address must be whitelisted for the token. Only single IP addresses are supported (no CIDR ranges).</p>
+        <p style="font-size:13px;color:#374151;margin-top:8px;"><?php echo e(t('admin_api-tokens.docs_ip_note')); ?></p>
     </div>
 
     <div style="margin-top:24px;">
-        <h4 style="font-size:14px;margin:0 0 8px;">Base URL</h4>
+        <h4 style="font-size:14px;margin:0 0 8px;"><?php echo e(t('admin_api-tokens.docs_base_url_heading')); ?></h4>
         <pre style="background:#f3f4f6;color:#374151;padding:12px;border-radius:6px;font-size:12px;"><?php echo e($proto . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')); ?>/api/v2</pre>
     </div>
 </div>

@@ -330,11 +330,11 @@ $csrfToken = $security->generateCSRFToken();
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -342,15 +342,15 @@ $csrfToken = $security->generateCSRFToken();
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">CSF Maturity Score</h1>
-            <p style="color:#6b7280;margin:0 0 20px;">NIST CSF-aligned maturity radar, domain scores, and compliance posture across all frameworks</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc-fairscore.title')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 20px;"><?php echo e(t('grc-fairscore.subtitle')); ?></p>
 
             <!-- Assessment Selector -->
             <div class="assessment-selector">
-                <label for="assessmentSelect">Assessment:</label>
+                <label for="assessmentSelect"><?php echo e(t('grc-fairscore.assessment')); ?></label>
                 <select id="assessmentSelect">
                     <?php if (empty($assessments)): ?>
-                    <option value="">No assessments found</option>
+                    <option value=""><?php echo e(t('grc-fairscore.no_assessments')); ?></option>
                     <?php else: ?>
                     <?php foreach ($assessments as $a): ?>
                     <option value="<?php echo (int)$a['id']; ?>" <?php echo $selectedId === (int)$a['id'] ? 'selected' : ''; ?>>
@@ -362,12 +362,12 @@ $csrfToken = $security->generateCSRFToken();
                 <?php if ($assessment): ?>
                 <div class="assessment-meta">
                     <span class="status-pill status-<?php echo e($assessment['status']); ?>"><?php echo e(ucfirst(str_replace('_', ' ', $assessment['status']))); ?></span>
-                    <span>Type: <?php echo e(ucfirst(str_replace('_', ' ', $assessment['assessment_type'] ?? 'initial'))); ?></span>
+                    <span><?php echo e(t('grc-fairscore.type', ucfirst(str_replace('_', ' ', $assessment['assessment_type'] ?? 'initial')))); ?></span>
                     <?php if (!empty($assessment['lead_auditor_name'])): ?>
-                    <span>Lead: <?php echo e($assessment['lead_auditor_name']); ?></span>
+                    <span><?php echo e(t('grc-fairscore.lead', $assessment['lead_auditor_name'])); ?></span>
                     <?php endif; ?>
                     <?php if ($isAdmin || $isCyberGRC): ?>
-                    <a href="grc-assessment-report.php?id=<?php echo $selectedId; ?>" class="btn btn-sm btn-primary" style="padding:4px 14px;font-size:12px;border-radius:6px;text-decoration:none;">Generate Report</a>
+                    <a href="grc-assessment-report.php?id=<?php echo $selectedId; ?>" class="btn btn-sm btn-primary" style="padding:4px 14px;font-size:12px;border-radius:6px;text-decoration:none;"><?php echo e(t('grc-fairscore.generate_report')); ?></a>
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
@@ -377,8 +377,8 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Empty state -->
             <div class="empty-state">
                 <div class="empty-icon">&#9776;</div>
-                <p>No assessment selected. Create an assessment to start measuring your CSF maturity.</p>
-                <a href="grc-assessment.php">Go to Assessment</a>
+                <p><?php echo e(t('grc-fairscore.no_assessment_selected')); ?></p>
+                <a href="grc-assessment.php"><?php echo e(t('grc-fairscore.go_to_assessment')); ?></a>
             </div>
             <?php else: ?>
 
@@ -386,7 +386,7 @@ $csrfToken = $security->generateCSRFToken();
             <div class="stat-grid">
                 <div class="stat-card <?php echo $overallFairScore >= 3 ? 'success' : ($overallFairScore >= 2 ? 'warning' : ($overallFairScore > 0 ? 'danger' : 'neutral')); ?>">
                     <div class="stat-value" style="color:<?php echo fairScoreColor($overallFairScore); ?>;"><?php echo number_format($overallFairScore, 2); ?></div>
-                    <div class="stat-label">CSF Maturity Score</div>
+                    <div class="stat-label"><?php echo e(t('grc-fairscore.csf_maturity_score')); ?></div>
                     <div class="stat-sub"><?php echo fairScoreLabel($overallFairScore); ?> (1-4 scale)</div>
                     <div class="fairscore-ring">
                         <?php
@@ -402,17 +402,17 @@ $csrfToken = $security->generateCSRFToken();
                 </div>
                 <div class="stat-card <?php echo $compliancePct >= 80 ? 'success' : ($compliancePct >= 50 ? 'warning' : 'danger'); ?>">
                     <div class="stat-value"><?php echo number_format($compliancePct, 1); ?>%</div>
-                    <div class="stat-label">Compliance Rate</div>
+                    <div class="stat-label"><?php echo e(t('grc-fairscore.compliance_rate')); ?></div>
                     <div class="stat-sub"><?php echo $totalConforming; ?> of <?php echo $totalApplicable; ?> applicable controls</div>
                 </div>
                 <div class="stat-card info">
                     <div class="stat-value"><?php echo number_format($answeredPct, 1); ?>%</div>
-                    <div class="stat-label">Questions Answered</div>
+                    <div class="stat-label"><?php echo e(t('grc-fairscore.questions_answered')); ?></div>
                     <div class="stat-sub"><?php echo $totalAnswered; ?> of <?php echo $totalQuestions; ?> total</div>
                 </div>
                 <div class="stat-card <?php echo $gapCount > 0 ? 'danger' : 'success'; ?>">
                     <div class="stat-value"><?php echo $gapCount; ?></div>
-                    <div class="stat-label">Gaps Found</div>
+                    <div class="stat-label"><?php echo e(t('grc-fairscore.gaps_found')); ?></div>
                     <div class="stat-sub"><?php
                         $ncCount = 0; $pCount = 0;
                         foreach ($gaps as $g) {
@@ -427,7 +427,7 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Radar Chart - Centerpiece -->
             <div class="chart-row">
                 <div class="chart-card chart-full">
-                    <h3>Security Domain Maturity Radar</h3>
+                    <h3><?php echo e(t('grc-fairscore.domain_maturity_radar')); ?></h3>
                     <div class="radar-container">
                         <div class="radar-wrap">
                             <canvas id="radarChart"></canvas>
@@ -444,7 +444,7 @@ $csrfToken = $security->generateCSRFToken();
                             </div>
                             <?php endforeach; ?>
                             <?php if (empty($domainScores)): ?>
-                            <div style="font-size:13px;color:#6b7280;">No domain scores calculated yet.</div>
+                            <div style="font-size:13px;color:#6b7280;"><?php echo e(t('grc-fairscore.no_domain_scores_yet')); ?></div>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -454,9 +454,9 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Framework Compliance + Maturity Trend -->
             <div class="chart-row">
                 <div class="chart-card">
-                    <h3>Framework Compliance</h3>
+                    <h3><?php echo e(t('grc-fairscore.framework_compliance')); ?></h3>
                     <?php if (empty($frameworkCompliance)): ?>
-                    <p style="color:#6b7280;font-size:13px;text-align:center;padding:30px 0;">No framework mappings found.</p>
+                    <p style="color:#6b7280;font-size:13px;text-align:center;padding:30px 0;"><?php echo e(t('grc-fairscore.no_framework_mappings')); ?></p>
                     <?php else: ?>
                     <div style="padding:8px 0;">
                         <?php foreach ($frameworkCompliance as $fc):
@@ -482,13 +482,13 @@ $csrfToken = $security->generateCSRFToken();
                     <?php endif; ?>
                 </div>
                 <div class="chart-card">
-                    <h3>Domain Score Distribution</h3>
+                    <h3><?php echo e(t('grc-fairscore.domain_score_distribution')); ?></h3>
                     <canvas id="domainBarChart"></canvas>
                 </div>
             </div>
 
             <!-- Domain Score Cards -->
-            <h2 class="section-header">Domain Scores</h2>
+            <h2 class="section-header"><?php echo e(t('grc-fairscore.domain_scores')); ?></h2>
             <?php if (empty($domainScores)): ?>
             <p style="color:#6b7280;font-size:13px;">No domain scores calculated. <a href="grc-assessment.php?id=<?php echo $selectedId; ?>" style="color:#3b82f6;">Complete the assessment</a> to generate scores.</p>
             <?php else: ?>
@@ -525,10 +525,10 @@ $csrfToken = $security->generateCSRFToken();
 
             <!-- Risk Heatmap -->
             <?php if ($totalRisks > 0): ?>
-            <h2 class="section-header">Risk Heatmap</h2>
+            <h2 class="section-header"><?php echo e(t('grc-fairscore.risk_heatmap')); ?></h2>
             <div class="heatmap-wrapper">
                 <h3>Likelihood x Impact (<?php echo $totalRisks; ?> active risk<?php echo $totalRisks !== 1 ? 's' : ''; ?>)</h3>
-                <div style="text-align:left;font-size:11px;color:#6b7280;margin-bottom:4px;">Impact &rarr;</div>
+                <div style="text-align:left;font-size:11px;color:#6b7280;margin-bottom:4px;"><?php echo e(t('grc-fairscore.impact')); ?> &rarr;</div>
                 <div class="heatmap">
                     <?php
                     function getHeatColor($l, $i) {
@@ -551,23 +551,23 @@ $csrfToken = $security->generateCSRFToken();
                     <div class="heatmap-label"><?php echo $i; ?></div>
                     <?php endfor; ?>
                 </div>
-                <div style="text-align:left;font-size:11px;color:#6b7280;margin-top:4px;">Likelihood &uarr;</div>
-                <p style="margin:12px 0 0;font-size:12px;"><a href="grc-risks.php" style="color:#3b82f6;text-decoration:none;">View full Risk Register &rarr;</a></p>
+                <div style="text-align:left;font-size:11px;color:#6b7280;margin-top:4px;"><?php echo e(t('grc-fairscore.likelihood')); ?> &uarr;</div>
+                <p style="margin:12px 0 0;font-size:12px;"><a href="grc-risks.php" style="color:#3b82f6;text-decoration:none;"><?php echo e(t('grc-fairscore.view_risk_register')); ?> &rarr;</a></p>
             </div>
             <?php endif; ?>
 
             <!-- Gap Analysis Summary -->
             <?php if (!empty($gaps)): ?>
-            <h2 class="section-header">Gap Analysis - Top Findings</h2>
+            <h2 class="section-header"><?php echo e(t('grc-fairscore.gap_analysis')); ?></h2>
             <div class="chart-card" style="margin-bottom:30px;">
                 <table class="gap-table">
                     <thead>
                         <tr>
-                            <th>Severity</th>
-                            <th>Domain</th>
-                            <th>Question Ref</th>
-                            <th>Finding</th>
-                            <th>Framework Impact</th>
+                            <th><?php echo e(t('grc-fairscore.severity')); ?></th>
+                            <th><?php echo e(t('grc-fairscore.domain')); ?></th>
+                            <th><?php echo e(t('grc-fairscore.question_ref')); ?></th>
+                            <th><?php echo e(t('grc-fairscore.finding')); ?></th>
+                            <th><?php echo e(t('grc-fairscore.framework_impact')); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -606,10 +606,10 @@ $csrfToken = $security->generateCSRFToken();
             }
             ?>
             <?php if ($hasTargets): ?>
-            <h2 class="section-header">Maturity Targets vs Actual</h2>
+            <h2 class="section-header"><?php echo e(t('grc-fairscore.maturity_targets')); ?></h2>
             <div class="chart-row" style="margin-bottom:10px;">
                 <div class="chart-card chart-full">
-                    <h3>Target Comparison Radar</h3>
+                    <h3><?php echo e(t('grc-fairscore.target_comparison_radar')); ?></h3>
                     <div style="max-width:520px;margin:0 auto;">
                         <canvas id="targetRadarChart"></canvas>
                     </div>
@@ -631,7 +631,7 @@ $csrfToken = $security->generateCSRFToken();
                     $targetPctOf4 = ($targetScore / 4) * 100;
                     $actualPctOf4 = ($actualScore / 4) * 100;
                     $barColor = $actualScore >= $targetScore ? '#28a745' : ($actualScore >= $targetScore * 0.75 ? '#f59e0b' : '#dc3545');
-                    $statusText = $actualScore >= $targetScore ? 'Target met' : 'Below target by ' . number_format($targetScore - $actualScore, 1);
+                    $statusText = $actualScore >= $targetScore ? t('grc-fairscore.target_met') : t('grc-fairscore.below_target', number_format($targetScore - $actualScore, 1));
                     $statusColor = $actualScore >= $targetScore ? '#065f46' : '#991b1b';
                 ?>
                 <div class="target-card">
@@ -644,12 +644,12 @@ $csrfToken = $security->generateCSRFToken();
                         <div class="target-bar-marker" style="left:<?php echo $targetPctOf4; ?>%;" title="Target: <?php echo number_format($targetScore, 1); ?>"></div>
                     </div>
                     <div class="target-values">
-                        <span class="target-actual-val" style="color:<?php echo $barColor; ?>;">Actual: <?php echo number_format($actualScore, 1); ?></span>
-                        <span class="target-target-val">Target: <?php echo number_format($targetScore, 1); ?></span>
+                        <span class="target-actual-val" style="color:<?php echo $barColor; ?>;"><?php echo e(t('grc-fairscore.actual', number_format($actualScore, 1))); ?></span>
+                        <span class="target-target-val"><?php echo e(t('grc-fairscore.target', number_format($targetScore, 1))); ?></span>
                     </div>
                     <div class="target-status" style="color:<?php echo $statusColor; ?>;"><?php echo e($statusText); ?></div>
                     <?php if (!empty($t['target_date'])): ?>
-                    <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Due: <?php echo e(date('M j, Y', strtotime($t['target_date']))); ?></div>
+                    <div style="font-size:11px;color:#9ca3af;margin-top:2px;"><?php echo e(t('grc-fairscore.due', date('M j, Y', strtotime($t['target_date'])))); ?></div>
                     <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
@@ -677,7 +677,7 @@ $csrfToken = $security->generateCSRFToken();
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-fairscore.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

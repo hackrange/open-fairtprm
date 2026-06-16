@@ -171,7 +171,7 @@ if ($originalMethod !== 'POST' || !empty($success)) {
 <!DOCTYPE html>
 <html lang="<?php echo e(currentLanguage()); ?>">
 <head>
-    <title>Administration - TPRM</title>
+    <title><?php echo e(t('admin.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="app/images/favicon.ico" type="image/x-icon">
@@ -384,23 +384,23 @@ if ($originalMethod !== 'POST' || !empty($success)) {
         <?php $impersonationInfo = $auth->getImpersonationInfo(); ?>
         <div class="impersonation-banner" style="background: linear-gradient(90deg, #f59e0b, #d97706); color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 14px;">
             <div>
-                <strong>Impersonation Active:</strong> You are viewing as <strong><?php echo e($impersonationInfo['impersonating_full_name']); ?></strong> (<?php echo e($impersonationInfo['impersonating_username']); ?>)
-                <span style="opacity: 0.8; margin-left: 10px;">| Logged in as: <?php echo e($impersonationInfo['original_full_name']); ?></span>
+                <strong><?php echo e(t('admin.impersonation_active')); ?></strong> <?php echo e(t('admin.viewing_as')); ?> <strong><?php echo e($impersonationInfo['impersonating_full_name']); ?></strong> (<?php echo e($impersonationInfo['impersonating_username']); ?>)
+                <span style="opacity: 0.8; margin-left: 10px;">| <?php echo e(t('admin.logged_in_as')); ?> <?php echo e($impersonationInfo['original_full_name']); ?></span>
             </div>
             <form method="POST" action="admin.php?section=users" style="display: inline;">
                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                 <button type="submit" name="stop_impersonation" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.5); padding: 6px 15px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                    Stop Impersonation
+                    <?php echo e(t('admin.stop_impersonation')); ?>
                 </button>
             </form>
         </div>
         <?php endif; ?>
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
-                <a href="index.php">Dashboard</a>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="index.php"><?php echo e(t('admin.dashboard')); ?></a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -408,65 +408,65 @@ if ($originalMethod !== 'POST' || !empty($success)) {
             <aside class="sidebar">
                 <div class="sidebar-brand">
                     <a href="index.php">
-                        <img src="<?php echo e($theme['logo_url']); ?>" alt="Header Logo"/>
+                        <img src="<?php echo e($theme['logo_url']); ?>" alt="<?php echo e(t('admin.header_logo_alt')); ?>"/>
                     </a>
-                    <div class="brand-title">Administration</div>
+                    <div class="brand-title"><?php echo e(t('admin.brand_title')); ?></div>
                 </div>
 
                 <div class="sidebar-content">
                     <details class="sidebar-section"<?php echo in_array($section, ['general', 'fair', 'email']) ? ' open' : ''; ?>>
-                        <summary class="sidebar-section-title">Configuration</summary>
+                        <summary class="sidebar-section-title"><?php echo e(t('admin.section_configuration')); ?></summary>
                         <ul class="sidebar-nav">
-                            <li><a href="?section=general" class="<?php echo $section === 'general' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/settings-02.svg" alt="" width="18" height="18"></span><span>General</span></a></li>
-                            <li><a href="?section=fair" class="<?php echo $section === 'fair' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/bar-chart-11.svg" alt="" width="18" height="18"></span><span>FAIR Defaults</span></a></li>
-                            <li><a href="?section=email" class="<?php echo $section === 'email' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/mail-04.svg" alt="" width="18" height="18"></span><span>Email Settings</span></a></li>
+                            <li><a href="?section=general" class="<?php echo $section === 'general' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/settings-02.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_general')); ?></span></a></li>
+                            <li><a href="?section=fair" class="<?php echo $section === 'fair' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/bar-chart-11.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_fair_defaults')); ?></span></a></li>
+                            <li><a href="?section=email" class="<?php echo $section === 'email' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/mail-04.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_email_settings')); ?></span></a></li>
                         </ul>
                     </details>
 
                     <details class="sidebar-section"<?php echo in_array($section, ['saml', 'openwebui', 'api', 'api-tokens', 'srs', 'shadow-saas']) ? ' open' : ''; ?>>
-                        <summary class="sidebar-section-title">Integrations</summary>
+                        <summary class="sidebar-section-title"><?php echo e(t('admin.section_integrations')); ?></summary>
                         <ul class="sidebar-nav">
-                            <li><a href="?section=saml" class="<?php echo $section === 'saml' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/users-01.svg" alt="" width="18" height="18"></span><span>SAML SSO</span></a></li>
-                            <li><a href="?section=api" class="<?php echo in_array($section, ['api', 'openwebui']) ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/message-text-square-02.svg" alt="" width="18" height="18"></span><span>AI Integration</span></a></li>
-                            <li><a href="?section=api-tokens" class="<?php echo $section === 'api-tokens' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/key-01.svg" alt="" width="18" height="18"></span><span>RESTful API</span></a></li>
-                            <li><a href="?section=srs" class="<?php echo $section === 'srs' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span>SRS</span></a></li>
-                            <li><a href="?section=shadow-saas" class="<?php echo $section === 'shadow-saas' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span>Shadow SaaS</span></a></li>
+                            <li><a href="?section=saml" class="<?php echo $section === 'saml' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/users-01.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_saml_sso')); ?></span></a></li>
+                            <li><a href="?section=api" class="<?php echo in_array($section, ['api', 'openwebui']) ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/message-text-square-02.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_ai_integration')); ?></span></a></li>
+                            <li><a href="?section=api-tokens" class="<?php echo $section === 'api-tokens' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/key-01.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_restful_api')); ?></span></a></li>
+                            <li><a href="?section=srs" class="<?php echo $section === 'srs' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_srs')); ?></span></a></li>
+                            <li><a href="?section=shadow-saas" class="<?php echo $section === 'shadow-saas' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_shadow_saas')); ?></span></a></li>
                         </ul>
                     </details>
 
                     <details class="sidebar-section"<?php echo in_array($section, ['users', 'groups']) ? ' open' : ''; ?>>
-                        <summary class="sidebar-section-title">Access Control</summary>
+                        <summary class="sidebar-section-title"><?php echo e(t('admin.section_access_control')); ?></summary>
                         <ul class="sidebar-nav">
-                            <li><a href="?section=users" class="<?php echo $section === 'users' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/user-03.svg" alt="" width="18" height="18"></span><span>Users</span></a></li>
-                            <li><a href="?section=groups" class="<?php echo $section === 'groups' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/users-01.svg" alt="" width="18" height="18"></span><span>ACL Groups</span></a></li>
+                            <li><a href="?section=users" class="<?php echo $section === 'users' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/user-03.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_users')); ?></span></a></li>
+                            <li><a href="?section=groups" class="<?php echo $section === 'groups' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/users-01.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_acl_groups')); ?></span></a></li>
                         </ul>
                     </details>
 
                     <details class="sidebar-section"<?php echo in_array($section, ['assessment-templates', 'field-reference', 'workflows']) ? ' open' : ''; ?>>
-                        <summary class="sidebar-section-title">Assessments</summary>
+                        <summary class="sidebar-section-title"><?php echo e(t('admin.section_assessments')); ?></summary>
                         <ul class="sidebar-nav">
-                            <li><a href="?section=assessment-templates" class="<?php echo $section === 'assessment-templates' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/layout-alt-02.svg" alt="" width="18" height="18"></span><span>Template Builder</span></a></li>
-                            <li><a href="?section=field-reference" class="<?php echo $section === 'field-reference' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/file-03.svg" alt="" width="18" height="18"></span><span>Field Reference</span></a></li>
-                            <li><a href="?section=workflows" class="<?php echo $section === 'workflows' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/dataflow-02.svg" alt="" width="18" height="18"></span><span>Workflow Rules</span></a></li>
+                            <li><a href="?section=assessment-templates" class="<?php echo $section === 'assessment-templates' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/layout-alt-02.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_template_builder')); ?></span></a></li>
+                            <li><a href="?section=field-reference" class="<?php echo $section === 'field-reference' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/file-03.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_field_reference')); ?></span></a></li>
+                            <li><a href="?section=workflows" class="<?php echo $section === 'workflows' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/dataflow-02.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_workflow_rules')); ?></span></a></li>
                         </ul>
                     </details>
 
                     <details class="sidebar-section"<?php echo in_array($section, ['scheduler', 'lockdown', 'backup', 'updates', 'activity', 'version']) ? ' open' : ''; ?>>
-                        <summary class="sidebar-section-title">Maintenance</summary>
+                        <summary class="sidebar-section-title"><?php echo e(t('admin.section_maintenance')); ?></summary>
                         <ul class="sidebar-nav">
-                            <li><a href="?section=scheduler" class="<?php echo $section === 'scheduler' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/clock.svg" alt="" width="18" height="18"></span><span>Scheduler</span></a></li>
-                            <li><a href="?section=lockdown" class="<?php echo $section === 'lockdown' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="18" height="18"></span><span>Lockdown</span></a></li>
-                            <li><a href="?section=backup" class="<?php echo $section === 'backup' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/database-01.svg" alt="" width="18" height="18"></span><span>Database Backup</span></a></li>
-                            <li><a href="?section=updates" class="<?php echo $section === 'updates' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/lightning-02.svg" alt="" width="18" height="18"></span><span>SQL Updates</span></a></li>
-                            <li><a href="?section=activity" class="<?php echo $section === 'activity' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/file-03.svg" alt="" width="18" height="18"></span><span>Activity Log</span></a></li>
-                            <li><a href="?section=version" class="<?php echo $section === 'version' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/git-branch-01.svg" alt="" width="18" height="18"></span><span>Version</span></a></li>
+                            <li><a href="?section=scheduler" class="<?php echo $section === 'scheduler' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/clock.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_scheduler')); ?></span></a></li>
+                            <li><a href="?section=lockdown" class="<?php echo $section === 'lockdown' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_lockdown')); ?></span></a></li>
+                            <li><a href="?section=backup" class="<?php echo $section === 'backup' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/database-01.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_database_backup')); ?></span></a></li>
+                            <li><a href="?section=updates" class="<?php echo $section === 'updates' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/lightning-02.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_sql_updates')); ?></span></a></li>
+                            <li><a href="?section=activity" class="<?php echo $section === 'activity' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/file-03.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_activity_log')); ?></span></a></li>
+                            <li><a href="?section=version" class="<?php echo $section === 'version' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/git-branch-01.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_version')); ?></span></a></li>
                         </ul>
                     </details>
 
                     <details class="sidebar-section" open>
-                        <summary class="sidebar-section-title">Navigation</summary>
+                        <summary class="sidebar-section-title"><?php echo e(t('admin.section_navigation')); ?></summary>
                         <ul class="sidebar-nav">
-                            <li><a href="index.php"><span class="icon"><img src="app/icons/home-03.svg" alt="" width="18" height="18"></span><span>Home</span></a></li>
+                            <li><a href="index.php"><span class="icon"><img src="app/icons/home-03.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_home')); ?></span></a></li>
                         </ul>
                     </details>
                 </div>
@@ -515,7 +515,7 @@ if ($originalMethod !== 'POST' || !empty($success)) {
                     <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                         <?php if (!empty($theme['footer_logo_url'])): ?>
                             <a class="brand" href="index.php">
-                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('admin.footer_logo_alt')); ?>" style="max-height: 45px;">
                             </a>
                         <?php endif; ?>
                         <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -524,7 +524,7 @@ if ($originalMethod !== 'POST' || !empty($success)) {
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('admin.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>

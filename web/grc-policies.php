@@ -41,7 +41,7 @@ $msgType = '';
 // POST handlers
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $msg = 'Invalid CSRF token. Please try again.';
+        $msg = t('grc_policies.invalid_csrf');
         $msgType = 'danger';
     } else {
         $action = $_POST['action'] ?? '';
@@ -59,12 +59,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'acknowledgment_deadline_days' => (int)($_POST['acknowledgment_deadline_days'] ?? 30),
                     'content' => $_POST['content'] ?? '',
                 ], (int)$user['id']);
-                $msg = 'Policy created successfully.';
+                $msg = t('grc_policies.policy_created');
                 $msgType = 'success';
                 header('Location: grc-policies.php?view=' . $policyId . '&msg=created');
                 exit;
             } else {
-                $msg = 'Title is required.';
+                $msg = t('grc_policies.title_required');
                 $msgType = 'danger';
             }
         } elseif ($action === 'new_version' && !$readOnly) {
@@ -73,21 +73,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $changeSummary = trim($_POST['change_summary'] ?? 'Updated policy content');
             if ($policyId > 0) {
                 $policyService->createVersion($policyId, $content, $changeSummary, (int)$user['id']);
-                $msg = 'New version created.';
+                $msg = t('grc_policies.version_created');
                 $msgType = 'success';
             }
         } elseif ($action === 'approve' && !$readOnly) {
             $versionId = (int)($_POST['version_id'] ?? 0);
             if ($versionId > 0) {
                 $policyService->approveVersion($versionId, (int)$user['id']);
-                $msg = 'Version approved.';
+                $msg = t('grc_policies.version_approved');
                 $msgType = 'success';
             }
         } elseif ($action === 'publish' && !$readOnly) {
             $versionId = (int)($_POST['version_id'] ?? 0);
             if ($versionId > 0) {
                 $policyService->publishVersion($versionId);
-                $msg = 'Version published.';
+                $msg = t('grc_policies.version_published');
                 $msgType = 'success';
             }
         } elseif ($action === 'acknowledge') {
@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SERVER['REMOTE_ADDR'] ?? '',
                     $_SERVER['HTTP_USER_AGENT'] ?? ''
                 );
-                $msg = 'Policy acknowledged.';
+                $msg = t('grc_policies.policy_acknowledged');
                 $msgType = 'success';
             }
         }
@@ -113,7 +113,7 @@ if (!isset($csrfToken)) {
 }
 
 if (isset($_GET['msg']) && $_GET['msg'] === 'created') {
-    $msg = 'Policy created successfully.';
+    $msg = t('grc_policies.policy_created');
     $msgType = 'success';
 }
 
@@ -148,7 +148,7 @@ $currentPage = 'grc_policies';
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Policies - GRC Compliance Engine</title>
+    <title><?php echo e(t('grc_policies.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -273,11 +273,11 @@ $currentPage = 'grc_policies';
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -285,8 +285,8 @@ $currentPage = 'grc_policies';
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">Policy Management</h1>
-            <p style="color:#6b7280;margin:0 0 30px;">Create, review, approve, and publish organizational policies</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc_policies.heading')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 30px;"><?php echo e(t('grc_policies.subheading')); ?></p>
 
             <?php if ($msg): ?>
             <div class="alert alert-<?php echo e($msgType); ?>"><?php echo e($msg); ?></div>
@@ -294,24 +294,24 @@ $currentPage = 'grc_policies';
 
             <?php if ($policyDetail): ?>
             <!-- Policy Detail -->
-            <a href="grc-policies.php" class="back-link">&larr; Back to policies</a>
+            <a href="grc-policies.php" class="back-link">&larr; <?php echo e(t('grc_policies.back_to_policies')); ?></a>
 
             <div class="detail-card">
                 <h3><?php echo e($policyDetail['policy_ref']); ?> - <?php echo e($policyDetail['title']); ?></h3>
                 <div class="detail-grid">
-                    <div class="detail-item"><div class="label">Status</div><div class="value"><span class="status-badge status-<?php echo e($policyDetail['status']); ?>"><?php echo e(ucfirst($policyDetail['status'])); ?></span></div></div>
-                    <div class="detail-item"><div class="label">Category</div><div class="value"><?php echo e(ucfirst($policyDetail['category'] ?? '-')); ?></div></div>
-                    <div class="detail-item"><div class="label">Owner</div><div class="value"><?php echo e($policyDetail['owner_name'] ?? '-'); ?></div></div>
-                    <div class="detail-item"><div class="label">Current Version</div><div class="value">v<?php echo (int)$policyDetail['current_version']; ?></div></div>
-                    <div class="detail-item"><div class="label">Next Review</div><div class="value"><?php echo $policyDetail['next_review_date'] ? e(date('M j, Y', strtotime($policyDetail['next_review_date']))) : '-'; ?></div></div>
-                    <div class="detail-item"><div class="label">Approver</div><div class="value"><?php echo e($policyDetail['approver_name'] ?? '-'); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc_policies.label_status')); ?></div><div class="value"><span class="status-badge status-<?php echo e($policyDetail['status']); ?>"><?php echo e(ucfirst($policyDetail['status'])); ?></span></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc_policies.label_category')); ?></div><div class="value"><?php echo e(ucfirst($policyDetail['category'] ?? '-')); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc_policies.label_owner')); ?></div><div class="value"><?php echo e($policyDetail['owner_name'] ?? '-'); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc_policies.label_current_version')); ?></div><div class="value">v<?php echo (int)$policyDetail['current_version']; ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc_policies.label_next_review')); ?></div><div class="value"><?php echo $policyDetail['next_review_date'] ? e(date('M j, Y', strtotime($policyDetail['next_review_date']))) : '-'; ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc_policies.label_approver')); ?></div><div class="value"><?php echo e($policyDetail['approver_name'] ?? '-'); ?></div></div>
                 </div>
                 <?php if (!empty($policyDetail['description'])): ?>
                 <p style="font-size:13px;color:#374151;"><?php echo e($policyDetail['description']); ?></p>
                 <?php endif; ?>
                 <?php if (!$readOnly): ?>
                 <div style="margin-top:12px;">
-                    <a href="grc-policies.php?edit=<?php echo (int)$policyDetail['id']; ?>" class="btn btn-sm btn-outline">Edit / New Version</a>
+                    <a href="grc-policies.php?edit=<?php echo (int)$policyDetail['id']; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc_policies.edit_new_version')); ?></a>
                 </div>
                 <?php endif; ?>
             </div>
@@ -335,7 +335,7 @@ $currentPage = 'grc_policies';
 
             <!-- Version History -->
             <div class="detail-card">
-                <h3>Version History</h3>
+                <h3><?php echo e(t('grc_policies.version_history')); ?></h3>
                 <?php if (!empty($policyDetail['versions'])): ?>
                 <ul class="version-list">
                     <?php foreach ($policyDetail['versions'] as $v): ?>
@@ -361,7 +361,7 @@ $currentPage = 'grc_policies';
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                 <input type="hidden" name="action" value="approve">
                                 <input type="hidden" name="version_id" value="<?php echo (int)$v['id']; ?>">
-                                <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                                <button type="submit" class="btn btn-sm btn-success"><?php echo e(t('grc_policies.approve')); ?></button>
                             </form>
                             <?php endif; ?>
                             <?php if ($v['status'] === 'approved'): ?>
@@ -369,7 +369,7 @@ $currentPage = 'grc_policies';
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                 <input type="hidden" name="action" value="publish">
                                 <input type="hidden" name="version_id" value="<?php echo (int)$v['id']; ?>">
-                                <button type="submit" class="btn btn-sm btn-info">Publish</button>
+                                <button type="submit" class="btn btn-sm btn-info"><?php echo e(t('grc_policies.publish')); ?></button>
                             </form>
                             <?php endif; ?>
                         </div>
@@ -378,14 +378,14 @@ $currentPage = 'grc_policies';
                     <?php endforeach; ?>
                 </ul>
                 <?php else: ?>
-                <p style="color:#6b7280;font-size:13px;">No versions yet.</p>
+                <p style="color:#6b7280;font-size:13px;"><?php echo e(t('grc_policies.no_versions')); ?></p>
                 <?php endif; ?>
             </div>
 
             <!-- Acknowledgment Tracking -->
             <?php if ($policyDetail['requires_acknowledgment'] ?? false): ?>
             <div class="detail-card">
-                <h3>Acknowledgment Tracking</h3>
+                <h3><?php echo e(t('grc_policies.acknowledgment_tracking')); ?></h3>
                 <?php
                 $ackCount = count($policyDetail['acknowledgments'] ?? []);
                 $totalUsers = (int)($policyDetail['versions'][0]['total_users'] ?? 0);
@@ -414,17 +414,17 @@ $currentPage = 'grc_policies';
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="action" value="acknowledge">
                     <input type="hidden" name="policy_id" value="<?php echo (int)$policyDetail['id']; ?>">
-                    <button type="submit" class="btn btn-success">I have read and accept this policy</button>
+                    <button type="submit" class="btn btn-success"><?php echo e(t('grc_policies.acknowledge_button')); ?></button>
                 </form>
                 <?php elseif ($userHasAcked): ?>
-                <p style="color:#065f46;font-size:13px;margin-top:8px;">You have acknowledged this policy.</p>
+                <p style="color:#065f46;font-size:13px;margin-top:8px;"><?php echo e(t('grc_policies.you_acknowledged')); ?></p>
                 <?php endif; ?>
 
                 <?php if (!empty($policyDetail['acknowledgments'])): ?>
                 <details style="margin-top:16px;">
-                    <summary style="cursor:pointer;font-size:13px;font-weight:500;color:#374151;">View Acknowledgments</summary>
+                    <summary style="cursor:pointer;font-size:13px;font-weight:500;color:#374151;"><?php echo e(t('grc_policies.view_acknowledgments')); ?></summary>
                     <table class="grc-table" style="margin-top:8px;">
-                        <thead><tr><th>User</th><th>Email</th><th>Acknowledged At</th></tr></thead>
+                        <thead><tr><th><?php echo e(t('grc_policies.col_user')); ?></th><th><?php echo e(t('grc_policies.col_email')); ?></th><th><?php echo e(t('grc_policies.col_acknowledged_at')); ?></th></tr></thead>
                         <tbody>
                         <?php foreach ($policyDetail['acknowledgments'] as $ack): ?>
                         <tr>
@@ -442,7 +442,7 @@ $currentPage = 'grc_policies';
                 <details style="margin-top:8px;">
                     <summary style="cursor:pointer;font-size:13px;font-weight:500;color:#374151;">Pending Acknowledgments (<?php echo count($policyDetail['pending_ack_users']); ?>)</summary>
                     <table class="grc-table" style="margin-top:8px;">
-                        <thead><tr><th>User</th><th>Email</th></tr></thead>
+                        <thead><tr><th><?php echo e(t('grc_policies.col_user')); ?></th><th><?php echo e(t('grc_policies.col_email')); ?></th></tr></thead>
                         <tbody>
                         <?php foreach ($policyDetail['pending_ack_users'] as $pu): ?>
                         <tr>
@@ -459,10 +459,10 @@ $currentPage = 'grc_policies';
 
             <?php elseif ($editPolicy && !$readOnly): ?>
             <!-- Edit / New Version -->
-            <a href="grc-policies.php?view=<?php echo (int)$editPolicy['id']; ?>" class="back-link">&larr; Back to policy</a>
+            <a href="grc-policies.php?view=<?php echo (int)$editPolicy['id']; ?>" class="back-link">&larr; <?php echo e(t('grc_policies.back_to_policy')); ?></a>
 
             <div class="grc-form">
-                <h3 style="margin:0 0 16px;font-size:16px;color:#333;">Edit Policy - New Version<span class="autosave-status"></span></h3>
+                <h3 style="margin:0 0 16px;font-size:16px;color:#333;"><?php echo e(t('grc_policies.edit_policy_new_version')); ?><span class="autosave-status"></span></h3>
                 <?php
                 $latestContent = '';
                 if (!empty($editPolicy['versions'])) {
@@ -474,38 +474,38 @@ $currentPage = 'grc_policies';
                     <input type="hidden" name="action" value="new_version">
                     <input type="hidden" name="policy_id" value="<?php echo (int)$editPolicy['id']; ?>">
 
-                    <label for="change_summary">Change Summary</label>
-                    <input type="text" id="change_summary" name="change_summary" placeholder="Describe what changed in this version" required>
+                    <label for="change_summary"><?php echo e(t('grc_policies.change_summary')); ?></label>
+                    <input type="text" id="change_summary" name="change_summary" placeholder="<?php echo e(t('grc_policies.change_summary_placeholder')); ?>" required>
 
-                    <label for="content">Policy Content (Markdown)</label>
+                    <label for="content"><?php echo e(t('grc_policies.policy_content')); ?></label>
                     <textarea id="content" name="content"><?php echo e($latestContent); ?></textarea>
 
                     <div style="margin-top:8px;">
-                        <button type="submit" class="btn btn-primary">Save New Version</button>
-                        <a href="grc-policies.php?view=<?php echo (int)$editPolicy['id']; ?>" class="btn btn-outline">Cancel</a>
+                        <button type="submit" class="btn btn-primary"><?php echo e(t('grc_policies.save_new_version')); ?></button>
+                        <a href="grc-policies.php?view=<?php echo (int)$editPolicy['id']; ?>" class="btn btn-outline"><?php echo e(t('grc_policies.cancel')); ?></a>
                     </div>
                 </form>
             </div>
 
             <?php elseif (isset($_GET['new']) && !$readOnly): ?>
             <!-- Create Policy -->
-            <a href="grc-policies.php" class="back-link">&larr; Back to policies</a>
+            <a href="grc-policies.php" class="back-link">&larr; <?php echo e(t('grc_policies.back_to_policies')); ?></a>
 
             <div class="grc-form">
-                <h3 style="margin:0 0 16px;font-size:16px;color:#333;">Create Policy<span class="autosave-status"></span></h3>
+                <h3 style="margin:0 0 16px;font-size:16px;color:#333;"><?php echo e(t('grc_policies.create_policy')); ?><span class="autosave-status"></span></h3>
                 <form method="post" class="grc-autosave-form" data-form-type="policy_edit" data-form-id="new">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="action" value="create">
 
-                    <label for="title">Title</label>
-                    <input type="text" id="title" name="title" required placeholder="Policy title">
+                    <label for="title"><?php echo e(t('grc_policies.title')); ?></label>
+                    <input type="text" id="title" name="title" required placeholder="<?php echo e(t('grc_policies.title_placeholder')); ?>">
 
-                    <label for="description">Description</label>
-                    <input type="text" id="description" name="description" placeholder="Brief description">
+                    <label for="description"><?php echo e(t('grc_policies.description')); ?></label>
+                    <input type="text" id="description" name="description" placeholder="<?php echo e(t('grc_policies.description_placeholder')); ?>">
 
                     <div class="form-row-3">
                         <div>
-                            <label for="category">Category</label>
+                            <label for="category"><?php echo e(t('grc_policies.category')); ?></label>
                             <select id="category" name="category">
                                 <?php foreach (['security', 'privacy', 'compliance', 'hr', 'it', 'operations', 'other'] as $cat): ?>
                                 <option value="<?php echo e($cat); ?>"><?php echo e(ucfirst($cat)); ?></option>
@@ -513,7 +513,7 @@ $currentPage = 'grc_policies';
                             </select>
                         </div>
                         <div>
-                            <label for="owner_user_id">Owner</label>
+                            <label for="owner_user_id"><?php echo e(t('grc_policies.owner')); ?></label>
                             <select id="owner_user_id" name="owner_user_id">
                                 <?php foreach ($users as $u): ?>
                                 <option value="<?php echo (int)$u['id']; ?>" <?php echo ((int)$user['id']) === (int)$u['id'] ? 'selected' : ''; ?>><?php echo e($u['full_name']); ?></option>
@@ -521,7 +521,7 @@ $currentPage = 'grc_policies';
                             </select>
                         </div>
                         <div>
-                            <label for="review_frequency_months">Review Frequency (months)</label>
+                            <label for="review_frequency_months"><?php echo e(t('grc_policies.review_frequency')); ?></label>
                             <input type="number" id="review_frequency_months" name="review_frequency_months" value="12" min="1" max="60">
                         </div>
                     </div>
@@ -530,21 +530,21 @@ $currentPage = 'grc_policies';
                         <div>
                             <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
                                 <input type="checkbox" name="requires_acknowledgment" checked style="width:auto;margin:0;">
-                                Require Acknowledgment
+                                <?php echo e(t('grc_policies.require_acknowledgment')); ?>
                             </label>
                         </div>
                         <div>
-                            <label for="acknowledgment_deadline_days">Acknowledgment Deadline (days)</label>
+                            <label for="acknowledgment_deadline_days"><?php echo e(t('grc_policies.acknowledgment_deadline')); ?></label>
                             <input type="number" id="acknowledgment_deadline_days" name="acknowledgment_deadline_days" value="30" min="1" max="365">
                         </div>
                     </div>
 
-                    <label for="content">Policy Content (Markdown)</label>
-                    <textarea id="content" name="content" placeholder="Write your policy content here..."></textarea>
+                    <label for="content"><?php echo e(t('grc_policies.policy_content')); ?></label>
+                    <textarea id="content" name="content" placeholder="<?php echo e(t('grc_policies.content_placeholder')); ?>"></textarea>
 
                     <div style="margin-top:8px;">
-                        <button type="submit" class="btn btn-primary">Create Policy</button>
-                        <a href="grc-policies.php" class="btn btn-outline">Cancel</a>
+                        <button type="submit" class="btn btn-primary"><?php echo e(t('grc_policies.create_policy')); ?></button>
+                        <a href="grc-policies.php" class="btn btn-outline"><?php echo e(t('grc_policies.cancel')); ?></a>
                     </div>
                 </form>
             </div>
@@ -554,51 +554,51 @@ $currentPage = 'grc_policies';
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                 <form method="get" class="filter-bar">
                     <div>
-                        <label>Status</label>
+                        <label><?php echo e(t('grc_policies.filter_status')); ?></label>
                         <select name="status" onchange="this.form.submit()">
-                            <option value="">All Statuses</option>
+                            <option value=""><?php echo e(t('grc_policies.all_statuses')); ?></option>
                             <?php foreach (['draft', 'approved', 'published', 'retired'] as $s): ?>
                             <option value="<?php echo e($s); ?>" <?php echo ($filters['status'] ?? '') === $s ? 'selected' : ''; ?>><?php echo e(ucfirst($s)); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div>
-                        <label>Category</label>
+                        <label><?php echo e(t('grc_policies.filter_category')); ?></label>
                         <select name="category" onchange="this.form.submit()">
-                            <option value="">All Categories</option>
+                            <option value=""><?php echo e(t('grc_policies.all_categories')); ?></option>
                             <?php foreach (['security', 'privacy', 'compliance', 'hr', 'it', 'operations', 'other'] as $cat): ?>
                             <option value="<?php echo e($cat); ?>" <?php echo ($filters['category'] ?? '') === $cat ? 'selected' : ''; ?>><?php echo e(ucfirst($cat)); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div>
-                        <label>Search</label>
-                        <input type="text" name="search" value="<?php echo e($filters['search'] ?? ''); ?>" placeholder="Title or reference...">
+                        <label><?php echo e(t('grc_policies.filter_search')); ?></label>
+                        <input type="text" name="search" value="<?php echo e($filters['search'] ?? ''); ?>" placeholder="<?php echo e(t('grc_policies.search_placeholder')); ?>">
                     </div>
-                    <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;">Filter</button>
-                    <a href="grc-policies.php?needs_review=1" class="btn btn-sm <?php echo !empty($filters['needs_review']) ? 'btn-primary' : 'btn-outline'; ?>" style="margin-bottom:0;">Due for Review</a>
+                    <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;"><?php echo e(t('grc_policies.filter_button')); ?></button>
+                    <a href="grc-policies.php?needs_review=1" class="btn btn-sm <?php echo !empty($filters['needs_review']) ? 'btn-primary' : 'btn-outline'; ?>" style="margin-bottom:0;"><?php echo e(t('grc_policies.due_for_review')); ?></a>
                 </form>
                 <?php if (!$readOnly): ?>
-                <a href="grc-policies.php?new=1" class="btn btn-primary">+ New Policy</a>
+                <a href="grc-policies.php?new=1" class="btn btn-primary">+ <?php echo e(t('grc_policies.new_policy')); ?></a>
                 <?php endif; ?>
             </div>
 
             <table class="grc-table">
                 <thead>
                     <tr>
-                        <th>Reference</th>
-                        <th>Title</th>
-                        <th>Status</th>
-                        <th>Category</th>
-                        <th>Owner</th>
-                        <th>Version</th>
-                        <th>Next Review</th>
-                        <th>Acknowledged</th>
+                        <th><?php echo e(t('grc_policies.col_reference')); ?></th>
+                        <th><?php echo e(t('grc_policies.col_title')); ?></th>
+                        <th><?php echo e(t('grc_policies.col_status')); ?></th>
+                        <th><?php echo e(t('grc_policies.col_category')); ?></th>
+                        <th><?php echo e(t('grc_policies.col_owner')); ?></th>
+                        <th><?php echo e(t('grc_policies.col_version')); ?></th>
+                        <th><?php echo e(t('grc_policies.col_next_review')); ?></th>
+                        <th><?php echo e(t('grc_policies.col_acknowledged')); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($policies)): ?>
-                    <tr><td colspan="8" style="text-align:center;color:#6b7280;padding:30px;">No policies found.</td></tr>
+                    <tr><td colspan="8" style="text-align:center;color:#6b7280;padding:30px;"><?php echo e(t('grc_policies.no_policies')); ?></td></tr>
                     <?php else: ?>
                     <?php foreach ($policies as $p):
                         $isOverdue = !empty($p['next_review_date']) && strtotime($p['next_review_date']) < time();
@@ -615,7 +615,7 @@ $currentPage = 'grc_policies';
                         <td>v<?php echo (int)$p['current_version']; ?></td>
                         <td style="<?php echo $isOverdue ? 'color:#dc3545;font-weight:600;' : ''; ?>">
                             <?php echo $p['next_review_date'] ? e(date('M j, Y', strtotime($p['next_review_date']))) : '-'; ?>
-                            <?php if ($isOverdue): ?> (Overdue)<?php endif; ?>
+                            <?php if ($isOverdue): ?> (<?php echo e(t('grc_policies.overdue')); ?>)<?php endif; ?>
                         </td>
                         <td><?php echo e($ackRatio); ?></td>
                     </tr>
@@ -634,7 +634,7 @@ $currentPage = 'grc_policies';
                 <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                     <?php if (!empty($theme['footer_logo_url'])): ?>
                         <a class="brand" href="index.php">
-                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('grc_policies.footer_logo_alt')); ?>" style="max-height: 45px;">
                         </a>
                     <?php endif; ?>
                     <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -643,7 +643,7 @@ $currentPage = 'grc_policies';
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc_policies.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

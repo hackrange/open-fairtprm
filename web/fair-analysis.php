@@ -638,16 +638,16 @@ if ($editMode = ($analysisId > 0)) {
 $acl = ACL::getInstance();
 if ($_SERVER["REQUEST_METHOD"] === "POST" && !$acl->hasPermission("analysis.create")) {
     http_response_code(403);
-    $error = "Access denied. You do not have permission to create or edit analyses.";
+    $error = t('fair-analysis.access_denied');
 } elseif ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please refresh the page and try again.';
+        $error = t('fair-analysis.invalid_request');
     } else {
         $vendorName = $security->cleanInput($_POST['vendor_name'] ?? '');
         $vendorDomain = $security->cleanInput($_POST['vendor_domain'] ?? '');
 
         if (empty($vendorName)) {
-            $error = 'Vendor name is required';
+            $error = t('fair-analysis.vendor_name_required');
         } else {
             try {
                 // Fields that need encryption
@@ -777,13 +777,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !$acl->hasPermission("analysis.crea
                     $auth->audit($user['id'], 'fair_analysis_update', 'tprm_results', $analysisId, [
                         'new' => ['vendor_name' => $vendorName ?? '', 'status' => $status]
                     ]);
-                    $success = 'Analysis updated successfully';
+                    $success = t('fair-analysis.update_success');
                 } else {
                     $db->insert('tprm_results', $encryptedData);
                     $auth->audit($user['id'], 'fair_analysis_create', 'tprm_results', null, [
                         'new' => ['vendor_name' => $vendorName ?? '', 'status' => $status]
                     ]);
-                    $success = 'Analysis saved successfully';
+                    $success = t('fair-analysis.save_success');
                 }
 
                 if ($status === 'completed') {
@@ -809,7 +809,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !$acl->hasPermission("analysis.crea
             } catch (Exception $e) {
                 error_log('Error saving analysis: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
                 error_log('Stack trace: ' . $e->getTraceAsString());
-                $error = 'Failed to save analysis. Please try again.';
+                $error = t('fair-analysis.save_failed');
             }
         }
     }
@@ -832,7 +832,7 @@ $isProcurement = hasGroup('procurement');
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>FAIR Analysis - TPRM</title>
+    <title><?php echo e(t('fair-analysis.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -993,13 +993,13 @@ $isProcurement = hasGroup('procurement');
     <div class="page">
         <!-- Top Bar -->
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($isAdmin): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -1011,12 +1011,12 @@ $isProcurement = hasGroup('procurement');
                 <!-- Welcome Header with Search -->
                 <div class="welcome-header">
                     <div>
-                        <h1 style="font-size: 18px; font-weight: 600; color: #333; margin: 0 0 5px 0;">FAIR Risk Analysis</h1>
-                        <p style="color: #666; margin: 0; font-size: 14px;">Complete the form below for a comprehensive FAIR assessment.</p>
+                        <h1 style="font-size: 18px; font-weight: 600; color: #333; margin: 0 0 5px 0;"><?php echo e(t('fair-analysis.heading')); ?></h1>
+                        <p style="color: #666; margin: 0; font-size: 14px;"><?php echo e(t('fair-analysis.subheading')); ?></p>
                     </div>
                     <?php if ($isAdmin || $isCyberTPRM || $isProcurement): ?>
                     <div class="vendor-search-container" style="position: relative; min-width: 300px;">
-                        <input type="text" id="vendorSearchInput" placeholder="Search vendors, domains, stakeholders..."
+                        <input type="text" id="vendorSearchInput" placeholder="<?php echo e(t('fair-analysis.search_placeholder')); ?>"
                                class="focus-ring"
                                style="width: 100%; padding: 10px 40px 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;"
                                <?php if ($isProcurement && !$isAdmin && !$isCyberTPRM): ?>data-link-base="vendor-onboarding.php"<?php endif; ?>>
@@ -1032,7 +1032,7 @@ $isProcurement = hasGroup('procurement');
                 <!-- Security Intelligence Summary (populated via JS after vendor enrichment) -->
                 <div id="securityIntelCard" style="display: none; margin-bottom: 20px;">
                     <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px 20px;">
-                        <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #0c4a6e; font-weight: 600;">Security Intelligence Summary</h4>
+                        <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #0c4a6e; font-weight: 600;"><?php echo e(t('fair-analysis.security_intel_summary')); ?></h4>
                         <div style="display: flex; gap: 24px; flex-wrap: wrap; font-size: 13px; color: #334155;">
                             <div id="intelShodanSection" style="display: none;">
                                 <strong style="color: #0c4a6e;">Shodan:</strong>
@@ -1046,7 +1046,7 @@ $isProcurement = hasGroup('procurement');
                                 <div id="intelUpguardRisks" style="margin-top: 4px;"></div>
                             </div>
                             <div id="intelRevCapSection" style="display: none;">
-                                <strong style="color: #0c4a6e;">Revenue Cap:</strong>
+                                <strong style="color: #0c4a6e;"><?php echo e(t('fair-analysis.revenue_cap')); ?></strong>
                                 <span id="intelRevCap"></span>
                             </div>
                         </div>
@@ -1076,22 +1076,22 @@ $isProcurement = hasGroup('procurement');
 
                     <!-- Vendor Information -->
                     <div class="section-header">
-                        <h3>Vendor Information</h3>
+                        <h3><?php echo e(t('fair-analysis.section_vendor_info')); ?></h3>
                     </div>
                     <div class="section-content">
                         <div class="form-row-2">
                             <div class="form-group">
-                                <label for="vendor_name" class="required">Vendor Name</label>
+                                <label for="vendor_name" class="required"><?php echo e(t('fair-analysis.lbl_vendor_name')); ?></label>
                                 <div class="autocomplete-container" style="position: relative;">
                                     <input type="text" id="vendor_name" name="vendor_name" class="form-control"
                                            value="<?php echo e($analysis['vendor_name'] ?? ''); ?>"
                                            autocomplete="off" required>
                                     <div id="vendor_name_results" class="autocomplete-results"></div>
                                 </div>
-                                <small style="color: #666; font-size: 12px;">Type to search existing vendors</small>
+                                <small style="color: #666; font-size: 12px;"><?php echo e(t('fair-analysis.hint_type_search')); ?></small>
                             </div>
                             <div class="form-group">
-                                <label for="vendor_domain">Vendor Domain Name</label>
+                                <label for="vendor_domain"><?php echo e(t('fair-analysis.lbl_vendor_domain')); ?></label>
                                 <div class="autocomplete-container" style="position: relative;">
                                     <input type="text" id="vendor_domain" name="vendor_domain" class="form-control"
                                            placeholder="example.com"
@@ -1099,302 +1099,302 @@ $isProcurement = hasGroup('procurement');
                                            autocomplete="off">
                                     <div id="vendor_domain_results" class="autocomplete-results"></div>
                                 </div>
-                                <small style="color: #666; font-size: 12px;">Enter domain (e.g., example.com) - type to search</small>
+                                <small style="color: #666; font-size: 12px;"><?php echo e(t('fair-analysis.hint_enter_domain')); ?></small>
                             </div>
                         </div>
                     </div>
 
                     <!-- Cyber Security Section -->
                     <div class="section-header">
-                        <h3>Cyber Security</h3>
+                        <h3><?php echo e(t('fair-analysis.section_cyber_security')); ?></h3>
                     </div>
                     <div class="section-content">
                         <div class="form-group">
-                            <label for="msa">1. MSA (Master Services Agreement)</label>
+                            <label for="msa"><?php echo e(t('fair-analysis.lbl_msa')); ?></label>
                             <textarea id="msa" name="msa" class="form-control"
-                                      placeholder="Contract between the organization and the vendor"><?php echo e($analysis['msa'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_msa')); ?>"><?php echo e($analysis['msa'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="scope_of_work">2. Scope of Work</label>
+                            <label for="scope_of_work"><?php echo e(t('fair-analysis.lbl_scope_of_work')); ?></label>
                             <textarea id="scope_of_work" name="scope_of_work" class="form-control"
-                                      placeholder="Description of the work to be performed by the vendor"><?php echo e($analysis['scope_of_work'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_scope_of_work')); ?>"><?php echo e($analysis['scope_of_work'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="medium_of_data">3. Medium of Data</label>
+                            <label for="medium_of_data"><?php echo e(t('fair-analysis.lbl_medium_of_data')); ?></label>
                             <textarea id="medium_of_data" name="medium_of_data" class="form-control"
-                                      placeholder="Method of data transfer (e.g. cloud, on-premises)"><?php echo e($analysis['medium_of_data'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_medium_of_data')); ?>"><?php echo e($analysis['medium_of_data'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="certifications">4. Certifications</label>
+                            <label for="certifications"><?php echo e(t('fair-analysis.lbl_certifications')); ?></label>
                             <textarea id="certifications" name="certifications" class="form-control"
-                                      placeholder="Vendor's security certifications (e.g. ISO 27001, SOC 2 Type 2, HiTrust)"><?php echo e($analysis['certifications'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_certifications')); ?>"><?php echo e($analysis['certifications'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="compliance">5. Compliance</label>
+                            <label for="compliance"><?php echo e(t('fair-analysis.lbl_compliance')); ?></label>
                             <textarea id="compliance" name="compliance" class="form-control"
-                                      placeholder="Vendor's compliance with relevant regulations (e.g. GDPR, HIPAA, PCI-DSS)"><?php echo e($analysis['compliance'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_compliance')); ?>"><?php echo e($analysis['compliance'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="security_governance">6. Security Governance</label>
+                            <label for="security_governance"><?php echo e(t('fair-analysis.lbl_security_governance')); ?></label>
                             <textarea id="security_governance" name="security_governance" class="form-control"
-                                      placeholder="Vendor's security governance structure and policies"><?php echo e($analysis['security_governance'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_security_governance')); ?>"><?php echo e($analysis['security_governance'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="incident_response_plan">7. Incident Response Plan</label>
+                            <label for="incident_response_plan"><?php echo e(t('fair-analysis.lbl_incident_response')); ?></label>
                             <textarea id="incident_response_plan" name="incident_response_plan" class="form-control"
-                                      placeholder="Vendor's plan for responding to security incidents"><?php echo e($analysis['incident_response_plan'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_incident_response')); ?>"><?php echo e($analysis['incident_response_plan'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="continuous_monitoring">8. Continuous Monitoring</label>
+                            <label for="continuous_monitoring"><?php echo e(t('fair-analysis.lbl_continuous_monitoring')); ?></label>
                             <textarea id="continuous_monitoring" name="continuous_monitoring" class="form-control"
-                                      placeholder="Vendor's program for monitoring their security controls and detecting security incidents"><?php echo e($analysis['continuous_monitoring'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_continuous_monitoring')); ?>"><?php echo e($analysis['continuous_monitoring'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="supply_chain_risk_mgmt">9. Supply Chain Risk Management</label>
+                            <label for="supply_chain_risk_mgmt"><?php echo e(t('fair-analysis.lbl_supply_chain')); ?></label>
                             <textarea id="supply_chain_risk_mgmt" name="supply_chain_risk_mgmt" class="form-control"
-                                      placeholder="Vendor's program for managing the risks associated with their third-party vendors"><?php echo e($analysis['supply_chain_risk_mgmt'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_supply_chain')); ?>"><?php echo e($analysis['supply_chain_risk_mgmt'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="security_awareness_training">10. Security Awareness Training</label>
+                            <label for="security_awareness_training"><?php echo e(t('fair-analysis.lbl_security_awareness')); ?></label>
                             <textarea id="security_awareness_training" name="security_awareness_training" class="form-control"
-                                      placeholder="Vendor's program for training their employees on security best practices"><?php echo e($analysis['security_awareness_training'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_security_awareness')); ?>"><?php echo e($analysis['security_awareness_training'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="vulnerability_management">11. Vulnerability Management</label>
+                            <label for="vulnerability_management"><?php echo e(t('fair-analysis.lbl_vuln_management')); ?></label>
                             <textarea id="vulnerability_management" name="vulnerability_management" class="form-control"
-                                      placeholder="Vendor's program for identifying, classifying, and remediating vulnerabilities"><?php echo e($analysis['vulnerability_management'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_vuln_management')); ?>"><?php echo e($analysis['vulnerability_management'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="patch_management">12. Patch Management</label>
+                            <label for="patch_management"><?php echo e(t('fair-analysis.lbl_patch_management')); ?></label>
                             <textarea id="patch_management" name="patch_management" class="form-control"
-                                      placeholder="Vendor's program for applying security patches to their systems"><?php echo e($analysis['patch_management'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_patch_management')); ?>"><?php echo e($analysis['patch_management'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="access_controls">13. Access Controls</label>
+                            <label for="access_controls"><?php echo e(t('fair-analysis.lbl_access_controls')); ?></label>
                             <textarea id="access_controls" name="access_controls" class="form-control"
-                                      placeholder="Vendor's controls for managing access to their systems and data"><?php echo e($analysis['access_controls'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_access_controls')); ?>"><?php echo e($analysis['access_controls'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="data_encryption">14. Data Encryption</label>
+                            <label for="data_encryption"><?php echo e(t('fair-analysis.lbl_data_encryption')); ?></label>
                             <textarea id="data_encryption" name="data_encryption" class="form-control"
-                                      placeholder="Vendor's use of encryption to protect data"><?php echo e($analysis['data_encryption'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_data_encryption')); ?>"><?php echo e($analysis['data_encryption'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="network_security">15. Network Security</label>
+                            <label for="network_security"><?php echo e(t('fair-analysis.lbl_network_security')); ?></label>
                             <textarea id="network_security" name="network_security" class="form-control"
-                                      placeholder="Vendor's controls for securing their network infrastructure"><?php echo e($analysis['network_security'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_network_security')); ?>"><?php echo e($analysis['network_security'] ?? ''); ?></textarea>
                         </div>
 
                     </div>
 
                     <!-- Vendor Risk Section -->
                     <div class="section-header">
-                        <h3>Vendor Risk</h3>
+                        <h3><?php echo e(t('fair-analysis.section_vendor_risk')); ?></h3>
                     </div>
                     <div class="section-content">
                         <div class="form-row-2">
                             <div class="form-group">
-                                <label for="security_score" class="required">1. Security Score</label>
+                                <label for="security_score" class="required"><?php echo e(t('fair-analysis.lbl_security_score')); ?></label>
                                 <select id="security_score" name="security_score" class="form-control" required>
-                                    <option value="">Select a grade...</option>
-                                    <option value="A" <?php echo (($analysis['security_score'] ?? '') === 'A') ? 'selected' : ''; ?>>A - Excellent</option>
-                                    <option value="B" <?php echo (($analysis['security_score'] ?? '') === 'B') ? 'selected' : ''; ?>>B - Good</option>
-                                    <option value="C" <?php echo (($analysis['security_score'] ?? '') === 'C') ? 'selected' : ''; ?>>C - Average</option>
-                                    <option value="D" <?php echo (($analysis['security_score'] ?? '') === 'D') ? 'selected' : ''; ?>>D - Below Average (5x Risk)</option>
-                                    <option value="F" <?php echo (($analysis['security_score'] ?? '') === 'F') ? 'selected' : ''; ?>>F - Failing (15x Risk)</option>
+                                    <option value=""><?php echo e(t('fair-analysis.opt_select_grade')); ?></option>
+                                    <option value="A" <?php echo (($analysis['security_score'] ?? '') === 'A') ? 'selected' : ''; ?>><?php echo e(t('fair-analysis.opt_grade_a')); ?></option>
+                                    <option value="B" <?php echo (($analysis['security_score'] ?? '') === 'B') ? 'selected' : ''; ?>><?php echo e(t('fair-analysis.opt_grade_b')); ?></option>
+                                    <option value="C" <?php echo (($analysis['security_score'] ?? '') === 'C') ? 'selected' : ''; ?>><?php echo e(t('fair-analysis.opt_grade_c')); ?></option>
+                                    <option value="D" <?php echo (($analysis['security_score'] ?? '') === 'D') ? 'selected' : ''; ?>><?php echo e(t('fair-analysis.opt_grade_d')); ?></option>
+                                    <option value="F" <?php echo (($analysis['security_score'] ?? '') === 'F') ? 'selected' : ''; ?>><?php echo e(t('fair-analysis.opt_grade_f')); ?></option>
                                 </select>
                                 <small style="color: #666; font-size: 12px;">
-                                    D/F grades apply enhanced risk multipliers.
+                                    <?php echo e(t('fair-analysis.hint_grade_multipliers')); ?>
                                     <?php if ($srsAvailable): ?>
-                                    <span style="color: #28a745;">SRS active - auto-populates from scores.</span>
+                                    <span style="color: #28a745;"><?php echo e(t('fair-analysis.hint_srs_active')); ?></span>
                                     <?php endif; ?>
                                 </small>
                             </div>
                             <div class="form-group">
-                                <label for="iso_27001_certified">2. ISO 27001 Certification</label>
+                                <label for="iso_27001_certified"><?php echo e(t('fair-analysis.lbl_iso_cert')); ?></label>
                                 <div style="padding: 10px 0;">
                                     <input type="checkbox" id="iso_27001_certified" name="iso_27001_certified" value="1" <?php echo isset($analysis['iso_27001_certified']) && $analysis['iso_27001_certified'] ? 'checked' : ''; ?>>
                                     <label for="iso_27001_certified" style="display: inline; margin-left: 8px; font-weight: normal;">
-                                        Vendor is ISO 27001 certified (reduces breach probability by 35-55%)
+                                        <?php echo e(t('fair-analysis.lbl_iso_certified_check')); ?>
                                     </label>
                                 </div>
-                                <small style="color: #666; font-size: 12px;">Indicates formal risk management and security operations controls</small>
+                                <small style="color: #666; font-size: 12px;"><?php echo e(t('fair-analysis.hint_iso_indicates')); ?></small>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="vulnerability_data">3. Vulnerability Data</label>
+                            <label for="vulnerability_data"><?php echo e(t('fair-analysis.lbl_vuln_data')); ?></label>
                             <textarea id="vulnerability_data" name="vulnerability_data" class="form-control"
                                       placeholder="Vendor's vulnerability data, including the number and severity of vulnerabilities<?php echo $srsAvailable ? ' (Auto-populated from SRS)' : ''; ?>"><?php echo e($analysis['vulnerability_data'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="configuration_data">4. Configuration Data</label>
+                            <label for="configuration_data"><?php echo e(t('fair-analysis.lbl_config_data')); ?></label>
                             <textarea id="configuration_data" name="configuration_data" class="form-control"
                                       placeholder="Vendor's configuration data<?php echo $srsAvailable ? ' (Auto-populated from SRS)' : ''; ?>"><?php echo e($analysis['configuration_data'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="compliance_data">5. Compliance Data</label>
+                            <label for="compliance_data"><?php echo e(t('fair-analysis.lbl_compliance_data')); ?></label>
                             <textarea id="compliance_data" name="compliance_data" class="form-control"
-                                      placeholder="Vendor's compliance data, including compliance with relevant regulations"><?php echo e($analysis['compliance_data'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_compliance_data')); ?>"><?php echo e($analysis['compliance_data'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="risk_assessment">6. Risk Assessment</label>
+                            <label for="risk_assessment"><?php echo e(t('fair-analysis.lbl_risk_assessment')); ?></label>
                             <textarea id="risk_assessment" name="risk_assessment" class="form-control"
-                                      placeholder="Vendor's risk assessment, including risk score and rating"><?php echo e($analysis['risk_assessment'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_risk_assessment')); ?>"><?php echo e($analysis['risk_assessment'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="threat_intelligence">7. Threat Intelligence</label>
+                            <label for="threat_intelligence"><?php echo e(t('fair-analysis.lbl_threat_intel')); ?></label>
                             <textarea id="threat_intelligence" name="threat_intelligence" class="form-control"
-                                      placeholder="Threat intelligence, including potential threats to systems and data"><?php echo e($analysis['threat_intelligence'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_threat_intel')); ?>"><?php echo e($analysis['threat_intelligence'] ?? ''); ?></textarea>
                         </div>
 
                     </div>
 
                     <!-- SRS Input Section -->
                     <div class="section-header">
-                        <h3>SRS Input</h3>
+                        <h3><?php echo e(t('fair-analysis.section_srs_input')); ?></h3>
                     </div>
                     <div class="section-content">
                         <div class="form-group">
-                            <label for="vendor_risk_assessment">1. Vendor Risk Assessment</label>
+                            <label for="vendor_risk_assessment"><?php echo e(t('fair-analysis.lbl_vendor_risk_assessment')); ?></label>
                             <textarea id="vendor_risk_assessment" name="vendor_risk_assessment" class="form-control"
-                                      placeholder="Customer's assessment of the vendor's risk"><?php echo e($analysis['vendor_risk_assessment'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_vendor_risk_assessment')); ?>"><?php echo e($analysis['vendor_risk_assessment'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="security_questionnaire">2. Security Questionnaire</label>
+                            <label for="security_questionnaire"><?php echo e(t('fair-analysis.lbl_security_questionnaire')); ?></label>
                             <textarea id="security_questionnaire" name="security_questionnaire" class="form-control"
-                                      placeholder="Security questionnaire responses"><?php echo e($analysis['security_questionnaire'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_security_questionnaire')); ?>"><?php echo e($analysis['security_questionnaire'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="compliance_questionnaire">3. Compliance Questionnaire</label>
+                            <label for="compliance_questionnaire"><?php echo e(t('fair-analysis.lbl_compliance_questionnaire')); ?></label>
                             <textarea id="compliance_questionnaire" name="compliance_questionnaire" class="form-control"
-                                      placeholder="Compliance questionnaire responses"><?php echo e($analysis['compliance_questionnaire'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_compliance_questionnaire')); ?>"><?php echo e($analysis['compliance_questionnaire'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-row-3">
                             <div class="form-group">
-                                <label for="pii_record_count">4. PII Records</label>
+                                <label for="pii_record_count"><?php echo e(t('fair-analysis.lbl_pii_records')); ?></label>
                                 <input type="number" id="pii_record_count" name="pii_record_count" class="form-control" min="0"
                                        value="<?php echo e($analysis['pii_record_count'] ?? '0'); ?>"
-                                       placeholder="PII count">
+                                       placeholder="<?php echo e(t('fair-analysis.ph_pii_count')); ?>">
                                 <small style="color: #666; font-size: 12px;">$<?php echo number_format($calculationDefaults['pii_breach_cost_per_record'], 2); ?>/record</small>
                             </div>
                             <div class="form-group">
-                                <label for="spii_record_count">5. SPII Records</label>
+                                <label for="spii_record_count"><?php echo e(t('fair-analysis.lbl_spii_records')); ?></label>
                                 <input type="number" id="spii_record_count" name="spii_record_count" class="form-control" min="0"
                                        value="<?php echo e($analysis['spii_record_count'] ?? '0'); ?>"
-                                       placeholder="SPII count">
+                                       placeholder="<?php echo e(t('fair-analysis.ph_spii_count')); ?>">
                                 <small style="color: #666; font-size: 12px;">$<?php echo number_format($calculationDefaults['spii_breach_cost_per_record'], 2); ?>/record</small>
                             </div>
                             <div class="form-group">
-                                <label for="sox_record_count">6. SOX Records</label>
+                                <label for="sox_record_count"><?php echo e(t('fair-analysis.lbl_sox_records')); ?></label>
                                 <input type="number" id="sox_record_count" name="sox_record_count" class="form-control" min="0"
                                        value="<?php echo e($analysis['sox_record_count'] ?? '0'); ?>"
-                                       placeholder="SOX count">
+                                       placeholder="<?php echo e(t('fair-analysis.ph_sox_count')); ?>">
                                 <small style="color: #666; font-size: 12px;">$<?php echo number_format($calculationDefaults['sox_breach_penalty'], 2); ?> flat fine</small>
                             </div>
                         </div>
 
                         <div class="form-row-2">
                             <div class="form-group">
-                                <label for="business_impact">7. Business Impact (USD)</label>
+                                <label for="business_impact"><?php echo e(t('fair-analysis.lbl_business_impact')); ?></label>
                                 <input type="number" id="business_impact" name="business_impact" class="form-control"
                                        min="0" step="0.01"
                                        value="<?php echo e($analysis['business_impact'] ?? ''); ?>"
                                        placeholder="e.g., 100000">
-                                <small style="color: #666; font-size: 12px;">Estimated impact if vendor fails or has a breach</small>
+                                <small style="color: #666; font-size: 12px;"><?php echo e(t('fair-analysis.hint_business_impact')); ?></small>
                             </div>
                             <div class="form-group">
-                                <label for="vendor_cyber_insurance_coverage">8. Cyber Insurance Coverage (USD)</label>
+                                <label for="vendor_cyber_insurance_coverage"><?php echo e(t('fair-analysis.lbl_cyber_insurance')); ?></label>
                                 <input type="number" id="vendor_cyber_insurance_coverage" name="vendor_cyber_insurance_coverage"
                                        class="form-control" min="0" step="0.01"
                                        value="<?php echo e($analysis['vendor_cyber_insurance_coverage'] ?? ''); ?>"
                                        placeholder="e.g., 1000000">
-                                <small style="color: #666; font-size: 12px;">Current cyber insurance coverage amount</small>
+                                <small style="color: #666; font-size: 12px;"><?php echo e(t('fair-analysis.hint_cyber_insurance')); ?></small>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="vendor_performance">9. Vendor Performance</label>
+                            <label for="vendor_performance"><?php echo e(t('fair-analysis.lbl_vendor_performance')); ?></label>
                             <textarea id="vendor_performance" name="vendor_performance" class="form-control"
-                                      placeholder="Assessment of vendor's performance, satisfaction, and security/compliance posture"><?php echo e($analysis['vendor_performance'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_vendor_performance')); ?>"><?php echo e($analysis['vendor_performance'] ?? ''); ?></textarea>
                         </div>
                     </div>
 
                     <!-- Vendor's Third-Party Vendors Section -->
                     <div class="section-header">
-                        <h3>Vendor's Third-Party Vendors</h3>
+                        <h3><?php echo e(t('fair-analysis.section_third_party')); ?></h3>
                     </div>
                     <div class="section-content">
                         <div class="form-group">
-                            <label for="third_party_vendor_list">1. Third-Party Vendor List</label>
+                            <label for="third_party_vendor_list"><?php echo e(t('fair-analysis.lbl_tp_vendor_list')); ?></label>
                             <textarea id="third_party_vendor_list" name="third_party_vendor_list" class="form-control"
-                                      placeholder="List of the vendor's third-party vendors (auto-populated from Shodan technologies)"><?php echo e($analysis['third_party_vendor_list'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_tp_vendor_list')); ?>"><?php echo e($analysis['third_party_vendor_list'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="third_party_risk_assessment">2. Third-Party Vendor Risk Assessment</label>
+                            <label for="third_party_risk_assessment"><?php echo e(t('fair-analysis.lbl_tp_risk_assessment')); ?></label>
                             <textarea id="third_party_risk_assessment" name="third_party_risk_assessment" class="form-control"
-                                      placeholder="Risk assessment of the vendor's third-party vendors"><?php echo e($analysis['third_party_risk_assessment'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_tp_risk_assessment')); ?>"><?php echo e($analysis['third_party_risk_assessment'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="third_party_security_questionnaire">3. Third-Party Security Questionnaire</label>
+                            <label for="third_party_security_questionnaire"><?php echo e(t('fair-analysis.lbl_tp_security_q')); ?></label>
                             <textarea id="third_party_security_questionnaire" name="third_party_security_questionnaire" class="form-control"
-                                      placeholder="Security questionnaire for third-party vendors"><?php echo e($analysis['third_party_security_questionnaire'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_tp_security_q')); ?>"><?php echo e($analysis['third_party_security_questionnaire'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label for="third_party_compliance_questionnaire">4. Third-Party Compliance Questionnaire</label>
+                            <label for="third_party_compliance_questionnaire"><?php echo e(t('fair-analysis.lbl_tp_compliance_q')); ?></label>
                             <textarea id="third_party_compliance_questionnaire" name="third_party_compliance_questionnaire" class="form-control"
-                                      placeholder="Compliance questionnaire for third-party vendors"><?php echo e($analysis['third_party_compliance_questionnaire'] ?? ''); ?></textarea>
+                                      placeholder="<?php echo e(t('fair-analysis.ph_tp_compliance_q')); ?>"><?php echo e($analysis['third_party_compliance_questionnaire'] ?? ''); ?></textarea>
                         </div>
                     </div>
 
                     <!-- AI-Assisted FAIR Analysis Section (only shown when enabled) -->
                     <?php if ($fairAiAvailable): ?>
                     <div class="section-header" id="aiAnalysisSection">
-                        <h3>Assisted Analysis</h3>
+                        <h3><?php echo e(t('fair-analysis.section_assisted')); ?></h3>
                     </div>
                     <div class="section-content">
-                        <p style="color: #64748b; font-size: 13px; margin-bottom: 12px;">Estimate realistic FAIR financial risk values based on all available vendor security intelligence (Shodan, UpGuard, CVEs, certifications). The FAIR model methodology will be applied and estimates returned for you to review before accepting.</p>
+                        <p style="color: #64748b; font-size: 13px; margin-bottom: 12px;"><?php echo e(t('fair-analysis.assisted_desc')); ?></p>
                         <button type="button" id="aiAnalysisBtn" class="btn btn-secondary" style="margin-bottom: 15px;">
-                            <img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);">Run Assisted Analysis
+                            <img src="app/icons/lightning-02.svg" alt="" width="16" height="16" style="vertical-align: middle; margin-right: 6px; filter: brightness(0) invert(0.3);"><?php echo e(t('fair-analysis.btn_run_assisted')); ?>
                         </button>
                         <div id="aiAnalysisLoading" style="display: none; padding: 20px; text-align: center; color: #64748b;">
                             <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid #e2e8f0; border-top: 3px solid #1e3a5f; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 8px;"></div>
-                            <p style="margin: 0; font-size: 13px;">Analyzing vendor security data using the FAIR model...</p>
+                            <p style="margin: 0; font-size: 13px;"><?php echo e(t('fair-analysis.analyzing')); ?></p>
                             <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
                         </div>
                         <div id="aiResultsPanel" style="display: none;">
                             <div style="background: #fefce8; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin-bottom: 15px;">
-                                <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #92400e;">FAIR Analysis Results</h4>
+                                <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #92400e;"><?php echo e(t('fair-analysis.results_title')); ?></h4>
                                 <div style="overflow-x: auto;">
                                     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                                         <thead>
                                             <tr style="border-bottom: 2px solid #fde68a;">
-                                                <th style="text-align: left; padding: 6px 8px; color: #78716c;">Metric</th>
-                                                <th style="text-align: right; padding: 6px 8px; color: #78716c;">Estimate</th>
+                                                <th style="text-align: left; padding: 6px 8px; color: #78716c;"><?php echo e(t('fair-analysis.th_metric')); ?></th>
+                                                <th style="text-align: right; padding: 6px 8px; color: #78716c;"><?php echo e(t('fair-analysis.th_estimate')); ?></th>
                                             </tr>
                                         </thead>
                                         <tbody id="aiResultsBody">
@@ -1403,14 +1403,14 @@ $isProcurement = hasGroup('procurement');
                                     </table>
                                 </div>
                                 <div id="aiConfidenceRow" style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #fde68a; font-size: 13px;">
-                                    <strong>Confidence:</strong> <span id="aiConfidence"></span>
+                                    <strong><?php echo e(t('fair-analysis.lbl_confidence')); ?></strong> <span id="aiConfidence"></span>
                                 </div>
                                 <div id="aiReasoningRow" style="margin-top: 8px; font-size: 13px; color: #57534e;">
-                                    <strong>Reasoning:</strong> <span id="aiReasoning"></span>
+                                    <strong><?php echo e(t('fair-analysis.lbl_reasoning')); ?></strong> <span id="aiReasoning"></span>
                                 </div>
                                 <div style="margin-top: 15px; display: flex; gap: 10px;">
-                                    <button type="button" id="aiApplyBtn" class="btn btn-primary" style="font-size: 13px;">Apply FAIR Estimates</button>
-                                    <button type="button" id="aiDismissBtn" class="btn btn-outline" style="font-size: 13px;">Dismiss</button>
+                                    <button type="button" id="aiApplyBtn" class="btn btn-primary" style="font-size: 13px;"><?php echo e(t('fair-analysis.btn_apply_estimates')); ?></button>
+                                    <button type="button" id="aiDismissBtn" class="btn btn-outline" style="font-size: 13px;"><?php echo e(t('fair-analysis.btn_dismiss')); ?></button>
                                 </div>
                             </div>
                         </div>
@@ -1419,9 +1419,9 @@ $isProcurement = hasGroup('procurement');
 
                     <!-- Form Actions -->
                     <div class="form-actions">
-                        <a href="fair_results.php" class="btn btn-outline">Cancel</a>
-                        <button type="submit" name="save_draft" class="btn btn-secondary">Save Draft</button>
-                        <button type="submit" name="submit" class="btn btn-primary">Submit Analysis</button>
+                        <a href="fair_results.php" class="btn btn-outline"><?php echo e(t('fair-analysis.btn_cancel')); ?></a>
+                        <button type="submit" name="save_draft" class="btn btn-secondary"><?php echo e(t('fair-analysis.btn_save_draft')); ?></button>
+                        <button type="submit" name="submit" class="btn btn-primary"><?php echo e(t('fair-analysis.btn_submit')); ?></button>
                     </div>
                 </form>
             </main>
@@ -1457,25 +1457,25 @@ $isProcurement = hasGroup('procurement');
             <div style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
                 <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">
                     <span style="font-size: 24px;">&#9888;</span>
-                    Data Storage Warning
+                    <?php echo e(t('fair-analysis.modal_warning_title')); ?>
                 </h3>
             </div>
             <div style="padding: 25px;">
                 <p style="font-size: 16px; color: #333; margin: 0 0 15px 0;">
-                    <strong>This vendor stores and/or processes our data.</strong>
+                    <strong><?php echo e(t('fair-analysis.modal_warning_strong')); ?></strong>
                 </p>
                 <p style="color: #666; margin: 0 0 20px 0;">
-                    Based on the completed Tier 2 Vendor Assessment, this vendor has indicated they will store or process organizational data. Please ensure appropriate due diligence is performed and data protection requirements are addressed in any agreements.
+                    <?php echo e(t('fair-analysis.modal_warning_body')); ?>
                 </p>
                 <?php if (!empty($analysis['medium_of_data'])): ?>
                 <p style="background: #fef3c7; padding: 12px; border-radius: 6px; color: #92400e; margin: 0 0 20px 0;">
-                    <strong>Data Storage Location:</strong> <?php echo e($analysis['medium_of_data']); ?>
+                    <strong><?php echo e(t('fair-analysis.modal_data_location')); ?></strong> <?php echo e($analysis['medium_of_data']); ?>
                 </p>
                 <?php endif; ?>
                 <div style="text-align: right;">
                     <button data-close="dataWarningModal"
                             style="background: #f59e0b; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;">
-                        I Understand
+                        <?php echo e(t('fair-analysis.modal_understand')); ?>
                     </button>
                 </div>
             </div>

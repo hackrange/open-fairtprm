@@ -90,7 +90,7 @@ $pendingUserId = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF check first -- if someone tries to replay this form, they can go pound sand
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('login.invalid_request');
 
     // TOTP verification step -- user already passed username/password, now prove you have your phone
     } elseif (isset($_POST['totp_code'])) {
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // The POST field is untrusted -- an attacker could change it to target any user.
         $userId = intval($session->get('pending_totp_user_id', 0));
         if ($userId <= 0) {
-            $error = 'Invalid request. Please start the login process again.';
+            $error = t('login.invalid_request_restart');
         } else {
             // Strip anything that isn't a digit because people love pasting spaces
             $totpCode = preg_replace('/[^0-9]/', '', $_POST['totp_code']);
@@ -126,9 +126,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($samlOnly && strcasecmp($username, $breakGlassUser) !== 0) {
             // SAML-only mode: reject local password auth for everyone except the
             // break-glass admin. Enforced server-side, not just hidden in the UI.
-            $error = 'Local login is disabled. Please sign in with SSO.';
+            $error = t('login.local_disabled');
         } elseif (empty($username) || empty($password)) {
-            $error = 'Please enter both username and password';
+            $error = t('login.enter_both');
         } else {
             // Let the Auth class do the heavy lifting -- password hashing, lockout checks, etc.
             $result = $auth->login($username, $password);
@@ -309,9 +309,9 @@ $csrfToken = $security->generateCSRFToken();
 
         <div class="login-container">
             <div class="login-header">
-                <h2><?php echo $requiresTOTP ? 'Two-Factor Authentication' : 'Sign In'; ?></h2>
+                <h2><?php echo e($requiresTOTP ? t('login.two_factor_auth') : t('login.sign_in')); ?></h2>
                 <p style="color: #777; font-size: 14px;">
-                    <?php echo $requiresTOTP ? 'Enter your 6-digit TOTP code' : 'Enter your credentials to continue'; ?>
+                    <?php echo e($requiresTOTP ? t('login.enter_totp') : t('login.enter_credentials')); ?>
                 </p>
             </div>
 
@@ -331,31 +331,31 @@ $csrfToken = $security->generateCSRFToken();
                     <?php endif; ?>
 
                     <div class="form-group">
-                        <label for="totp_code">TOTP Code</label>
+                        <label for="totp_code"><?php echo e(t('login.totp_code')); ?></label>
                         <input type="text" id="totp_code" name="totp_code" class="form-control"
                                pattern="[0-9]{6}" maxlength="6" required autofocus
                                placeholder="000000">
                     </div>
 
-                    <button type="submit" class="btn-login">Verify</button>
+                    <button type="submit" class="btn-login"><?php echo e(t('login.verify')); ?></button>
 
                     <div style="text-align: center; margin-top: 15px;">
-                        <a href="login.php" style="color: var(--theme-button-color); text-decoration: none;">Back to Login</a>
+                        <a href="login.php" style="color: var(--theme-button-color); text-decoration: none;"><?php echo e(t('login.back_to_login')); ?></a>
                     </div>
                 </form>
             <?php elseif ($samlEnabled): ?>
                 <a href="saml/login<?php echo !empty($returnTo) ? '?return_to=' . urlencode($returnTo) : ''; ?>"
                    class="btn-login" style="display: block; text-align: center; text-decoration: none; background: var(--theme-header-color);">
-                    Sign in with SSO
+                    <?php echo e(t('login.sign_in_sso')); ?>
                 </a>
 
                 <div style="text-align: center; margin-top: 20px;">
-                    <a href="#" id="localSigninToggle" style="color: #999; font-size: 12px; text-decoration: none;"><?php echo $samlOnly ? 'Administrator (break-glass) login' : 'Local Sign In'; ?></a>
+                    <a href="#" id="localSigninToggle" style="color: #999; font-size: 12px; text-decoration: none;"><?php echo e($samlOnly ? t('login.break_glass_login') : t('login.local_sign_in')); ?></a>
                 </div>
 
                 <div id="localSigninForm" style="display: <?php echo $error && !$samlError ? '' : 'none'; ?>; margin-top: 20px;">
                     <div style="position: relative; margin: 15px 0; border-top: 1px solid #ddd;">
-                        <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 12px; color: #999; font-size: 13px;">or</span>
+                        <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 12px; color: #999; font-size: 13px;"><?php echo e(t('login.or')); ?></span>
                     </div>
                     <form method="POST" action="login.php" autocomplete="off" style="margin-top: 20px;">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -364,18 +364,18 @@ $csrfToken = $security->generateCSRFToken();
                         <?php endif; ?>
 
                         <div class="form-group">
-                            <label for="username">Username</label>
+                            <label for="username"><?php echo e(t('login.username')); ?></label>
                             <input type="text" id="username" name="username" class="form-control"
                                    required autocomplete="username">
                         </div>
 
                         <div class="form-group">
-                            <label for="password">Password</label>
+                            <label for="password"><?php echo e(t('login.password')); ?></label>
                             <input type="password" id="password" name="password" class="form-control"
                                    required autocomplete="current-password">
                         </div>
 
-                        <button type="submit" class="btn-login">Sign In</button>
+                        <button type="submit" class="btn-login"><?php echo e(t('login.sign_in')); ?></button>
                     </form>
                 </div>
 
@@ -394,18 +394,18 @@ $csrfToken = $security->generateCSRFToken();
                     <?php endif; ?>
 
                     <div class="form-group">
-                        <label for="username">Username</label>
+                        <label for="username"><?php echo e(t('login.username')); ?></label>
                         <input type="text" id="username" name="username" class="form-control"
                                required autofocus autocomplete="username">
                     </div>
 
                     <div class="form-group">
-                        <label for="password">Password</label>
+                        <label for="password"><?php echo e(t('login.password')); ?></label>
                         <input type="password" id="password" name="password" class="form-control"
                                required autocomplete="current-password">
                     </div>
 
-                    <button type="submit" class="btn-login">Sign In</button>
+                    <button type="submit" class="btn-login"><?php echo e(t('login.sign_in')); ?></button>
                 </form>
             <?php endif; ?>
         </div>
@@ -427,7 +427,7 @@ $csrfToken = $security->generateCSRFToken();
                                 <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                                 <span class="copyright-year"><?php echo date('Y'); ?></span>
                                 <span>.&nbsp;</span>
-                                <span>All Rights Reserved</span>
+                                <span><?php echo e(t('login.all_rights_reserved')); ?></span>
                             </p>
                         </div>
                     </div>

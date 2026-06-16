@@ -34,7 +34,7 @@ $isAuditor = $acl->hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberTPRM && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. You do not have permission to view SRS scoring.');
+    die(e(t('vendor-srs-list.access_denied')));
 }
 
 // Fire up the SRS (Security Rating Service) -- our connection to the UpGuard API
@@ -1155,7 +1155,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>SRS Vendor Scoring - TPRM</title>
+    <title><?php echo e(t('vendor-srs-list.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="app/images/favicon.ico" type="image/x-icon">
@@ -1541,14 +1541,14 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <?php renderImpersonationBanner(); ?>
 
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($isAdmin): ?>
-                    <a href="admin.php">Admin</a>
-                    <a href="admin.php?section=srs" class="btn-configure">Configure SRS</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
+                    <a href="admin.php?section=srs" class="btn-configure"><?php echo e(t('vendor-srs-list.configure_srs')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -1558,11 +1558,11 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <main class="main-content">
         <?php if (!$srsAvailable && !$shodanAvailable): ?>
         <div class="alert alert-warning">
-            <strong>No Scoring Providers Configured</strong> - Neither UpGuard nor Shodan API integration is enabled.
+            <strong><?php echo e(t('vendor-srs-list.no_providers_title')); ?></strong> <?php echo e(t('vendor-srs-list.no_providers_desc')); ?>
             <?php if ($isAdmin): ?>
-            <a href="admin.php?section=srs">Configure SRS settings</a> to enable vendor security scoring.
+            <a href="admin.php?section=srs"><?php echo e(t('vendor-srs-list.configure_srs_settings')); ?></a> <?php echo e(t('vendor-srs-list.to_enable_scoring')); ?>
             <?php else: ?>
-            Contact an administrator to enable scoring integration.
+            <?php echo e(t('vendor-srs-list.contact_admin')); ?>
             <?php endif; ?>
         </div>
         <?php endif; ?>
@@ -1577,18 +1577,18 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <!-- Page Header Row -->
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
             <div>
-                <h1 class="page-title" style="margin: 0 0 10px 0;">SRS Vendor Scoring</h1>
+                <h1 class="page-title" style="margin: 0 0 10px 0;"><?php echo e(t('vendor-srs-list.heading')); ?></h1>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                    <a href="vendor-srs-export.php<?php echo (!empty($tierFilter) || !empty($gradeFilter) || !empty($searchQuery)) ? '?' . http_build_query(array_filter(['tier' => $tierFilter, 'grade' => $gradeFilter, 'search' => $searchQuery])) : ''; ?>" class="btn" style="background: #6b7280; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px;">Export CSV</a>
-                    <a href="vendor-srs-import.php" class="btn" style="background: #059669; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px;">Import CSV</a>
-                    <button type="button" data-action="openComplianceReportModal" class="btn" style="background: var(--theme-button-color); color: white; padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer;">Compliance Report</button>
+                    <a href="vendor-srs-export.php<?php echo (!empty($tierFilter) || !empty($gradeFilter) || !empty($searchQuery)) ? '?' . http_build_query(array_filter(['tier' => $tierFilter, 'grade' => $gradeFilter, 'search' => $searchQuery])) : ''; ?>" class="btn" style="background: #6b7280; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px;"><?php echo e(t('vendor-srs-list.export_csv')); ?></a>
+                    <a href="vendor-srs-import.php" class="btn" style="background: #059669; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px;"><?php echo e(t('vendor-srs-list.import_csv')); ?></a>
+                    <button type="button" data-action="openComplianceReportModal" class="btn" style="background: var(--theme-button-color); color: white; padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer;"><?php echo e(t('vendor-srs-list.compliance_report')); ?></button>
                 </div>
             </div>
             <div class="vendor-search-container" style="position: relative; min-width: 375px;">
                 <input
                     type="text"
                     id="vendorSearchInput"
-                    placeholder="Search vendors, domains, shadow SaaS..."
+                    placeholder="<?php echo e(t('vendor-srs-list.search_placeholder')); ?>"
                     class="focus-ring"
                     style="width: 100%; padding: 10px 40px 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;"
                 >
@@ -1601,27 +1601,27 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <div class="stats-grid">
             <a href="vendor-srs-list.php" class="stat-card<?php echo empty($statFilter) && !$showNeedsRescore && empty($gradeFilter) ? ' stat-active' : ''; ?>" style="text-decoration: none; cursor: pointer;">
                 <div class="value"><?php echo $stats['total']; ?></div>
-                <div class="label">Total Vendors</div>
+                <div class="label"><?php echo e(t('vendor-srs-list.stat_total')); ?></div>
             </a>
             <a href="vendor-srs-list.php?filter=scored" class="stat-card success<?php echo $statFilter === 'scored' ? ' stat-active' : ''; ?>" style="text-decoration: none; cursor: pointer;">
                 <div class="value"><?php echo $stats['scored']; ?></div>
-                <div class="label">Scored</div>
+                <div class="label"><?php echo e(t('vendor-srs-list.stat_scored')); ?></div>
             </a>
             <a href="vendor-srs-list.php?filter=not_scored" class="stat-card<?php echo $statFilter === 'not_scored' ? ' stat-active' : ''; ?>" style="text-decoration: none; cursor: pointer;">
                 <div class="value"><?php echo $stats['unscored']; ?></div>
-                <div class="label">Not Scored</div>
+                <div class="label"><?php echo e(t('vendor-srs-list.stat_not_scored')); ?></div>
             </a>
             <a href="vendor-srs-list.php?filter=needs_rescore" class="stat-card warning<?php echo $statFilter === 'needs_rescore' || ($showNeedsRescore && empty($statFilter)) ? ' stat-active' : ''; ?>" style="text-decoration: none; cursor: pointer;">
                 <div class="value"><?php echo $stats['needs_rescore']; ?></div>
-                <div class="label">Needs Rescore</div>
+                <div class="label"><?php echo e(t('vendor-srs-list.stat_needs_rescore')); ?></div>
             </a>
             <a href="vendor-srs-list.php?filter=evaluation" class="stat-card info<?php echo $statFilter === 'evaluation' ? ' stat-active' : ''; ?>" style="text-decoration: none; cursor: pointer;">
                 <div class="value"><?php echo $stats['eval']; ?></div>
-                <div class="label">Eval</div>
+                <div class="label"><?php echo e(t('vendor-srs-list.stat_eval')); ?></div>
             </a>
             <a href="vendor-srs-list.php?filter=in_review" class="stat-card<?php echo $statFilter === 'in_review' ? ' stat-active' : ''; ?>" style="text-decoration: none; cursor: pointer;">
                 <div class="value" style="color: #8b5cf6;"><?php echo $stats['in_review']; ?></div>
-                <div class="label">In Review</div>
+                <div class="label"><?php echo e(t('vendor-srs-list.stat_in_review')); ?></div>
             </a>
             <div class="stat-card">
                 <div class="value"><?php echo $filteredAvgScore; ?>%</div>
@@ -1630,7 +1630,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <?php if ($shadowSaasTotal > 0): ?>
             <a href="shadow-saas.php" class="stat-card warning" style="text-decoration: none; cursor: pointer;">
                 <div class="value"><?php echo $shadowSaasTotal; ?></div>
-                <div class="label">Shadow SaaS</div>
+                <div class="label"><?php echo e(t('vendor-srs-list.stat_shadow_saas')); ?></div>
             </a>
             <?php endif; ?>
         </div>
@@ -1638,23 +1638,23 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <!-- Filters -->
         <form method="GET" class="filters-bar">
             <div class="filter-group">
-                <label>Search:</label>
-                <input type="text" name="search" value="<?php echo e($searchQuery); ?>" placeholder="Vendor, domain, project, cost center, or CVE-ID...">
+                <label><?php echo e(t('vendor-srs-list.filter_search')); ?></label>
+                <input type="text" name="search" value="<?php echo e($searchQuery); ?>" placeholder="<?php echo e(t('vendor-srs-list.filter_search_placeholder')); ?>">
             </div>
             <div class="filter-group">
-                <label>Tier:</label>
+                <label><?php echo e(t('vendor-srs-list.filter_tier')); ?></label>
                 <select name="tier">
-                    <option value="">All Tiers</option>
+                    <option value=""><?php echo e(t('vendor-srs-list.all_tiers')); ?></option>
                     <option value="1" <?php echo $tierFilter === '1' ? 'selected' : ''; ?>>Tier 1 (<?php echo $scoringConfig['tier1_days']; ?> days)</option>
                     <option value="2" <?php echo $tierFilter === '2' ? 'selected' : ''; ?>>Tier 2 (<?php echo $scoringConfig['tier2_days']; ?> days)</option>
                     <option value="3" <?php echo $tierFilter === '3' ? 'selected' : ''; ?>>Tier 3 (<?php echo $scoringConfig['tier3_days']; ?> days)</option>
-                    <option value="none" <?php echo $tierFilter === 'none' ? 'selected' : ''; ?>>No Tier</option>
+                    <option value="none" <?php echo $tierFilter === 'none' ? 'selected' : ''; ?>><?php echo e(t('vendor-srs-list.no_tier')); ?></option>
                 </select>
             </div>
             <div class="filter-group">
-                <label>Grade:</label>
+                <label><?php echo e(t('vendor-srs-list.filter_grade')); ?></label>
                 <select name="grade">
-                    <option value="">All Grades</option>
+                    <option value=""><?php echo e(t('vendor-srs-list.all_grades')); ?></option>
                     <option value="A" <?php echo $gradeFilter === 'A' ? 'selected' : ''; ?>>A (<?php echo $scoringConfig['grade_a_min']; ?>+)</option>
                     <option value="B" <?php echo $gradeFilter === 'B' ? 'selected' : ''; ?>>B (<?php echo $scoringConfig['grade_b_min']; ?>+)</option>
                     <option value="C" <?php echo $gradeFilter === 'C' ? 'selected' : ''; ?>>C (<?php echo $scoringConfig['grade_c_min']; ?>+)</option>
@@ -1665,44 +1665,44 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <div class="filter-group">
                 <label>
                     <input type="checkbox" name="needs_rescore" value="1" <?php echo $showNeedsRescore ? 'checked' : ''; ?>>
-                    Needs Rescore Only
+                    <?php echo e(t('vendor-srs-list.needs_rescore_only')); ?>
                 </label>
             </div>
             <div class="filter-group">
                 <label>
                     <input type="checkbox" name="uses_ai" value="1" <?php echo $showUsesAi ? 'checked' : ''; ?>>
-                    Uses AI
+                    <?php echo e(t('vendor-srs-list.uses_ai')); ?>
                 </label>
             </div>
             <?php if ($shadowSaasTableExists): ?>
             <div class="filter-group">
                 <label>
                     <input type="checkbox" name="show_shadow_saas" value="1" <?php echo $showShadowSaas ? 'checked' : ''; ?>>
-                    Include Shadow SaaS
+                    <?php echo e(t('vendor-srs-list.include_shadow_saas')); ?>
                 </label>
             </div>
             <?php endif; ?>
-            <button type="submit" class="btn btn-primary">Filter</button>
-            <a href="vendor-srs-list.php" class="btn btn-secondary">Reset</a>
+            <button type="submit" class="btn btn-primary"><?php echo e(t('vendor-srs-list.filter_button')); ?></button>
+            <a href="vendor-srs-list.php" class="btn btn-secondary"><?php echo e(t('vendor-srs-list.reset')); ?></a>
 
             <div class="per-page-group">
-                <label>Show:</label>
+                <label><?php echo e(t('vendor-srs-list.show')); ?></label>
                 <select data-action="changePerPage">
                     <option value="25" <?php echo $perPage == 25 ? 'selected' : ''; ?>>25</option>
                     <option value="50" <?php echo $perPage == 50 ? 'selected' : ''; ?>>50</option>
                     <option value="100" <?php echo $perPage == 100 ? 'selected' : ''; ?>>100</option>
                     <option value="500" <?php echo $perPage == 500 ? 'selected' : ''; ?>>500</option>
                 </select>
-                <label>per page</label>
+                <label><?php echo e(t('vendor-srs-list.per_page')); ?></label>
             </div>
         </form>
 
         <!-- Grade Distribution -->
         <div class="card" style="margin-bottom: 20px;">
             <div class="card-header">
-                <h2>Grade Distribution</h2>
+                <h2><?php echo e(t('vendor-srs-list.grade_distribution')); ?></h2>
                 <?php if (!empty($gradeFilter)): ?>
-                <a href="vendor-srs-list.php<?php echo !empty($tierFilter) || !empty($searchQuery) ? '?' . http_build_query(array_filter(['tier' => $tierFilter, 'search' => $searchQuery])) : ''; ?>" style="font-size: 13px; color: #6b7280; text-decoration: none;">Clear grade filter</a>
+                <a href="vendor-srs-list.php<?php echo !empty($tierFilter) || !empty($searchQuery) ? '?' . http_build_query(array_filter(['tier' => $tierFilter, 'search' => $searchQuery])) : ''; ?>" style="font-size: 13px; color: #6b7280; text-decoration: none;"><?php echo e(t('vendor-srs-list.clear_grade_filter')); ?></a>
                 <?php endif; ?>
             </div>
             <div style="padding: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
@@ -1710,7 +1710,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 <a href="vendor-srs-list.php?grade=<?php echo $grade; ?><?php echo !empty($tierFilter) ? '&tier=' . urlencode($tierFilter) : ''; ?><?php echo !empty($searchQuery) ? '&search=' . urlencode($searchQuery) : ''; ?>"
                    style="text-align: center; min-width: 60px; text-decoration: none; padding: 10px; border-radius: 8px; transition: background 0.2s; <?php echo $gradeFilter === $grade ? 'background: #e5e7eb;' : ''; ?>"
                    class="grade-filter-item"
-                   title="Filter by Grade <?php echo $grade; ?>">
+                   title="<?php echo e(t('vendor-srs-list.filter_by_grade', $grade)); ?>">
                     <div class="score-grade grade-<?php echo strtolower($grade); ?>" style="width: 40px; height: 40px; font-size: 18px; margin: 0 auto 5px;">
                         <?php echo $grade; ?>
                     </div>
@@ -1740,7 +1740,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <div id="complianceReportModal" data-modal-backdrop style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
             <div style="background: white; border-radius: 12px; padding: 0; width: 460px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.3);" data-stop-propagation>
                 <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #333;">90-Day Compliance Report</h3>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #333;"><?php echo e(t('vendor-srs-list.compliance_modal_title')); ?></h3>
                     <button type="button" data-close="compliance" style="background: none; border: none; font-size: 20px; color: #9ca3af; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
                 </div>
                 <form id="complianceReportForm" method="GET" action="vendor-srs-compliance-report.php" target="_blank">
@@ -1749,7 +1749,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             Generates a fiscal-quarter compliance summary showing the average UpGuard SRS, Shodan, and combined scores for all Tier&nbsp;1 vendors and for FairTPRM.
                         </p>
                         <div style="margin-bottom: 18px;">
-                            <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;">Fiscal Quarter</label>
+                            <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;"><?php echo e(t('vendor-srs-list.fiscal_quarter')); ?></label>
                             <select name="quarter" required style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
                                 <option value="Q1">Q1 &mdash; Jan 1 to Apr 1</option>
                                 <option value="Q2">Q2 &mdash; Apr 1 to Jul 1</option>
@@ -1758,13 +1758,13 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             </select>
                         </div>
                         <div style="margin-bottom: 0;">
-                            <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;">Year</label>
+                            <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;"><?php echo e(t('vendor-srs-list.year')); ?></label>
                             <input type="number" name="year" required min="2020" max="2099" value="<?php echo (int)date('Y'); ?>" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
                         </div>
                     </div>
                     <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; background: #f9fafb; border-radius: 0 0 12px 12px;">
-                        <button type="button" data-close="compliance" style="padding: 8px 18px; border: 1px solid #d1d5db; border-radius: 6px; background: white; font-size: 13px; cursor: pointer; color: #374151;">Cancel</button>
-                        <button type="submit" style="padding: 8px 18px; border: none; border-radius: 6px; background: var(--theme-button-color); color: white; font-size: 13px; font-weight: 500; cursor: pointer;">Generate Report</button>
+                        <button type="button" data-close="compliance" style="padding: 8px 18px; border: 1px solid #d1d5db; border-radius: 6px; background: white; font-size: 13px; cursor: pointer; color: #374151;"><?php echo e(t('vendor-srs-list.cancel')); ?></button>
+                        <button type="submit" style="padding: 8px 18px; border: none; border-radius: 6px; background: var(--theme-button-color); color: white; font-size: 13px; font-weight: 500; cursor: pointer;"><?php echo e(t('vendor-srs-list.generate_report')); ?></button>
                     </div>
                 </form>
             </div>
@@ -1774,7 +1774,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <div id="retierModal" data-modal-backdrop style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
             <div style="background: white; border-radius: 12px; padding: 0; width: 460px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.3);" data-stop-propagation>
                 <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #333;">Re-Tier Selected Vendors</h3>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #333;"><?php echo e(t('vendor-srs-list.retier_modal_title')); ?></h3>
                     <button type="button" data-action="closeRetierModal" style="background: none; border: none; font-size: 20px; color: #9ca3af; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
                 </div>
                 <form id="retierForm" method="POST">
@@ -1784,22 +1784,22 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     <div style="padding: 24px;">
                         <p id="retierCountLabel" style="margin: 0 0 20px; font-size: 13px; color: #666;">0 vendor(s) will be updated.</p>
                         <div style="margin-bottom: 18px;">
-                            <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;">New Tier</label>
+                            <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;"><?php echo e(t('vendor-srs-list.new_tier')); ?></label>
                             <select name="new_tier" id="retierTierSelect" required style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
-                                <option value="">-- Select Tier --</option>
+                                <option value=""><?php echo e(t('vendor-srs-list.select_tier')); ?></option>
                                 <option value="1">Tier 1 (<?php echo $scoringConfig['tier1_days']; ?>-day rescore)</option>
                                 <option value="2">Tier 2 (<?php echo $scoringConfig['tier2_days']; ?>-day rescore)</option>
                                 <option value="3">Tier 3 (<?php echo $scoringConfig['tier3_days']; ?>-day rescore)</option>
                             </select>
                         </div>
                         <div style="margin-bottom: 0;">
-                            <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;">Justification</label>
-                            <textarea name="tier_justification" id="retierJustification" required rows="3" placeholder="Reason for tier change..." style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; resize: vertical; font-family: inherit;"></textarea>
+                            <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;"><?php echo e(t('vendor-srs-list.justification')); ?></label>
+                            <textarea name="tier_justification" id="retierJustification" required rows="3" placeholder="<?php echo e(t('vendor-srs-list.justification_placeholder')); ?>" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; resize: vertical; font-family: inherit;"></textarea>
                         </div>
                     </div>
                     <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; background: #f9fafb; border-radius: 0 0 12px 12px;">
-                        <button type="button" data-action="closeRetierModal" style="padding: 8px 18px; border: 1px solid #d1d5db; border-radius: 6px; background: white; font-size: 13px; cursor: pointer; color: #374151;">Cancel</button>
-                        <button type="submit" style="padding: 8px 18px; border: none; border-radius: 6px; background: #6366f1; color: white; font-size: 13px; font-weight: 500; cursor: pointer;">Apply Tier Change</button>
+                        <button type="button" data-action="closeRetierModal" style="padding: 8px 18px; border: 1px solid #d1d5db; border-radius: 6px; background: white; font-size: 13px; cursor: pointer; color: #374151;"><?php echo e(t('vendor-srs-list.cancel')); ?></button>
+                        <button type="submit" style="padding: 8px 18px; border: none; border-radius: 6px; background: #6366f1; color: white; font-size: 13px; font-weight: 500; cursor: pointer;"><?php echo e(t('vendor-srs-list.apply_tier_change')); ?></button>
                     </div>
                 </form>
             </div>
@@ -1808,14 +1808,14 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <!-- Vendors Table -->
         <div class="card">
             <div class="card-header">
-                <h2>Vendors (<?php echo $displayTotalVendors; ?>)</h2>
+                <h2><?php echo e(t('vendor-srs-list.vendors')); ?> (<?php echo $displayTotalVendors; ?>)</h2>
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span id="selectedCount" style="font-size: 13px; color: #666; display: none;">0 selected</span>
                     <?php if (!$isAuditor): ?>
-                    <button type="button" id="evalSelectedBtn" style="display: none; background: #0ea5e9; color: white; padding: 6px 14px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer;" data-action="evalSelected">Mark as Eval</button>
-                    <button type="button" id="retierSelectedBtn" style="display: none; background: #6366f1; color: white; padding: 6px 14px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer;" data-action="openRetierModal">Re-Tier Selected</button>
+                    <button type="button" id="evalSelectedBtn" style="display: none; background: #0ea5e9; color: white; padding: 6px 14px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer;" data-action="evalSelected"><?php echo e(t('vendor-srs-list.mark_as_eval')); ?></button>
+                    <button type="button" id="retierSelectedBtn" style="display: none; background: #6366f1; color: white; padding: 6px 14px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer;" data-action="openRetierModal"><?php echo e(t('vendor-srs-list.retier_selected')); ?></button>
                     <?php if ($srsAvailable || $shodanAvailable): ?>
-                    <button type="button" id="scoreSelectedBtn" style="display: none; background: #059669; color: white; padding: 6px 14px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer;" data-action="scoreSelected">Score Selected</button>
+                    <button type="button" id="scoreSelectedBtn" style="display: none; background: #059669; color: white; padding: 6px 14px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer;" data-action="scoreSelected"><?php echo e(t('vendor-srs-list.score_selected')); ?></button>
                     <?php endif; ?>
                     <?php endif; ?>
                 </div>
@@ -1823,30 +1823,30 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <?php if (empty($paginatedVendors)): ?>
             <div class="empty-state">
                 <div class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="32" height="32"></div>
-                <p>No vendors found with domains configured.</p>
-                <p style="margin-top: 8px; font-size: 13px;">Add vendor domains in the onboarding requests to enable SRS scoring.</p>
+                <p><?php echo e(t('vendor-srs-list.empty_no_vendors')); ?></p>
+                <p style="margin-top: 8px; font-size: 13px;"><?php echo e(t('vendor-srs-list.empty_add_domains')); ?></p>
             </div>
             <?php else: ?>
             <?php if ($isCveSearch): ?>
             <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; font-size: 13px; color: #991b1b; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <span><strong>CVE Search:</strong> <?php echo count($vendors); ?> vendor(s) affected by <?php echo e($cveSearchQuery); ?></span>
                 <?php if (preg_match('/^CVE-\d{4}-\d+$/', $cveSearchQuery)): ?>
-                <a href="https://nvd.nist.gov/vuln/detail/<?php echo urlencode($cveSearchQuery); ?>" target="_blank" rel="noopener" style="padding: 4px 12px; background: #991b1b; color: white; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600;">View on NVD</a>
+                <a href="https://nvd.nist.gov/vuln/detail/<?php echo urlencode($cveSearchQuery); ?>" target="_blank" rel="noopener" style="padding: 4px 12px; background: #991b1b; color: white; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600;"><?php echo e(t('vendor-srs-list.view_on_nvd')); ?></a>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 30px; text-align: center;"><input type="checkbox" id="selectAllVendors" title="Select all"></th>
+                        <th style="width: 30px; text-align: center;"><input type="checkbox" id="selectAllVendors" title="<?php echo e(t('vendor-srs-list.select_all')); ?>"></th>
                         <th class="sortable <?php echo $sortColumn === 'vendor_name' ? 'active' : ''; ?>">
                             <a href="<?php echo buildSortUrl('vendor_name', $sortColumn, $sortOrder); ?>">
-                                Vendor<span class="sort-icon"><?php echo getSortIndicator('vendor_name', $sortColumn, $sortOrder); ?></span>
+                                <?php echo e(t('vendor-srs-list.col_vendor')); ?><span class="sort-icon"><?php echo getSortIndicator('vendor_name', $sortColumn, $sortOrder); ?></span>
                             </a>
                         </th>
                         <th class="sortable <?php echo $sortColumn === 'vendor_tier' ? 'active' : ''; ?>">
                             <a href="<?php echo buildSortUrl('vendor_tier', $sortColumn, $sortOrder); ?>">
-                                Tier<span class="sort-icon"><?php echo getSortIndicator('vendor_tier', $sortColumn, $sortOrder); ?></span>
+                                <?php echo e(t('vendor-srs-list.col_tier')); ?><span class="sort-icon"><?php echo getSortIndicator('vendor_tier', $sortColumn, $sortOrder); ?></span>
                             </a>
                         </th>
                         <th class="sortable <?php echo $sortColumn === 'current_srs_score' ? 'active' : ''; ?>">
@@ -1863,21 +1863,21 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         <?php endif; ?>
                         <th class="sortable <?php echo $sortColumn === 'avg_score' ? 'active' : ''; ?>">
                             <a href="<?php echo buildSortUrl('avg_score', $sortColumn, $sortOrder); ?>">
-                                Avg Score<span class="sort-icon"><?php echo getSortIndicator('avg_score', $sortColumn, $sortOrder); ?></span>
+                                <?php echo e(t('vendor-srs-list.col_avg_score')); ?><span class="sort-icon"><?php echo getSortIndicator('avg_score', $sortColumn, $sortOrder); ?></span>
                             </a>
                         </th>
                         <th class="sortable <?php echo $sortColumn === 'last_srs_score_at' ? 'active' : ''; ?>">
                             <a href="<?php echo buildSortUrl('last_srs_score_at', $sortColumn, $sortOrder); ?>">
-                                Last Scored<span class="sort-icon"><?php echo getSortIndicator('last_srs_score_at', $sortColumn, $sortOrder); ?></span>
+                                <?php echo e(t('vendor-srs-list.col_last_scored')); ?><span class="sort-icon"><?php echo getSortIndicator('last_srs_score_at', $sortColumn, $sortOrder); ?></span>
                             </a>
                         </th>
                         <th class="sortable <?php echo $sortColumn === 'scheduled_score_at' ? 'active' : ''; ?>">
                             <a href="<?php echo buildSortUrl('scheduled_score_at', $sortColumn, $sortOrder); ?>">
-                                Scheduled Score<span class="sort-icon"><?php echo getSortIndicator('scheduled_score_at', $sortColumn, $sortOrder); ?></span>
+                                <?php echo e(t('vendor-srs-list.col_scheduled_score')); ?><span class="sort-icon"><?php echo getSortIndicator('scheduled_score_at', $sortColumn, $sortOrder); ?></span>
                             </a>
                         </th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th><?php echo e(t('vendor-srs-list.col_status')); ?></th>
+                        <th><?php echo e(t('vendor-srs-list.col_actions')); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1897,7 +1897,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             <div class="vendor-name">
                                 <?php if ($isShadowSaas): ?>
                                 <img src="app/icons/alert-square.svg"
-                                     alt="Shadow SaaS" width="16" height="16"
+                                     alt="<?php echo e(t('vendor-srs-list.shadow_saas_alt')); ?>" width="16" height="16"
                                      style="vertical-align: middle; margin-right: 4px; opacity: 0.7;">
                                 <?php else: ?>
                                 <img src="api/vendor-favicon.php?vendor_id=<?php echo (int)$vendor['id']; ?>"
@@ -1907,16 +1907,16 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <?php endif; ?>
                                 <?php echo e($vendor['vendor_name'] ?? 'Unnamed'); ?>
                                 <?php if (($vendor['status'] ?? '') === 'evaluation'): ?>
-                                <span style="font-size: 10px; background: #e0f2fe; color: #0369a1; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 500;">Eval</span>
+                                <span style="font-size: 10px; background: #e0f2fe; color: #0369a1; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 500;"><?php echo e(t('vendor-srs-list.badge_eval')); ?></span>
                                 <?php endif; ?>
                                 <?php if (($vendor['vendor_use_ai'] ?? '') === 'yes'): ?>
-                                <span title="Services Use AI" style="display: inline-flex; align-items: center; gap: 2px; font-size: 10px; background: linear-gradient(135deg, #ede9fe, #fce7f3); color: #6d28d9; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 600; vertical-align: middle;"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2zm6 10l.9 2.6L21.5 15.5l-2.6.9L18 19l-.9-2.6L14.5 15.5l2.6-.9L18 12zM6 14l.7 2L8.5 16.5l-1.8.5L6 19l-.7-2L3.5 16.5l1.8-.5L6 14z"/></svg>AI</span>
+                                <span title="<?php echo e(t('vendor-srs-list.services_use_ai')); ?>" style="display: inline-flex; align-items: center; gap: 2px; font-size: 10px; background: linear-gradient(135deg, #ede9fe, #fce7f3); color: #6d28d9; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 600; vertical-align: middle;"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2zm6 10l.9 2.6L21.5 15.5l-2.6.9L18 19l-.9-2.6L14.5 15.5l2.6-.9L18 12zM6 14l.7 2L8.5 16.5l-1.8.5L6 19l-.7-2L3.5 16.5l1.8-.5L6 14z"/></svg>AI</span>
                                 <?php endif; ?>
                                 <?php if ($isShadowSaas): ?>
-                                <span style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 500;">Shadow</span>
+                                <span style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 500;"><?php echo e(t('vendor-srs-list.badge_shadow')); ?></span>
                                 <?php endif; ?>
                                 <?php if (!empty($subprocessorVendorIds[(int)$vendor['id']])): ?>
-                                <span style="font-size: 10px; background: #f3e8ff; color: #7c3aed; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 500;">Subprocessor</span>
+                                <span style="font-size: 10px; background: #f3e8ff; color: #7c3aed; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 500;"><?php echo e(t('vendor-srs-list.badge_subprocessor')); ?></span>
                                 <?php endif; ?>
                             </div>
                             <div class="vendor-domain"><?php echo e($vendor['vendor_domain']); ?></div>
@@ -1927,7 +1927,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <?php echo e($srsService->getTierDisplayName($vendor['vendor_tier'])); ?>
                             </span>
                             <?php else: ?>
-                            <span class="tier-badge tier-none">No Tier</span>
+                            <span class="tier-badge tier-none"><?php echo e(t('vendor-srs-list.no_tier_badge')); ?></span>
                             <?php endif; ?>
                         </td>
                         <td>
@@ -1937,7 +1937,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <span class="score-grade grade-<?php echo strtolower($grade); ?>"><?php echo $grade; ?></span>
                             </div>
                             <?php else: ?>
-                            <span class="no-score">Not scored</span>
+                            <span class="no-score"><?php echo e(t('vendor-srs-list.not_scored')); ?></span>
                             <?php endif; ?>
                         </td>
                         <?php if ($shodanColumnsExist): ?>
@@ -1972,14 +1972,14 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <span class="score-grade grade-<?php echo strtolower($avgGrade); ?>"><?php echo $avgGrade; ?></span>
                             </div>
                             <?php else: ?>
-                            <span class="no-score">Not scored</span>
+                            <span class="no-score"><?php echo e(t('vendor-srs-list.not_scored')); ?></span>
                             <?php endif; ?>
                         </td>
                         <td>
                             <?php if (!empty($vendor['last_srs_score_at'])): ?>
                             <?php echo date('M j, Y', strtotime($vendor['last_srs_score_at'])); ?>
                             <?php else: ?>
-                            <span style="color: #9ca3af;">Never</span>
+                            <span style="color: #9ca3af;"><?php echo e(t('vendor-srs-list.never')); ?></span>
                             <?php endif; ?>
                         </td>
                         <td>
@@ -1992,31 +1992,31 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     <?php echo date('M j, Y', $scheduledDate); ?>
                                 </span>
                             <?php elseif (empty($vendor['vendor_tier'])): ?>
-                                <span style="color: #9ca3af;">No tier set</span>
+                                <span style="color: #9ca3af;"><?php echo e(t('vendor-srs-list.no_tier_set')); ?></span>
                             <?php elseif (empty($vendor['last_srs_score_at'])): ?>
-                                <span style="color: #9ca3af;">Not yet scored</span>
+                                <span style="color: #9ca3af;"><?php echo e(t('vendor-srs-list.not_yet_scored')); ?></span>
                             <?php else: ?>
                                 <span style="color: #9ca3af;">—</span>
                             <?php endif; ?>
                         </td>
                         <td>
                             <?php if ($isShadowSaas): ?>
-                            <span class="status-badge" style="background: #fef3c7; color: #92400e;">Shadow SaaS</span>
+                            <span class="status-badge" style="background: #fef3c7; color: #92400e;"><?php echo e(t('vendor-srs-list.status_shadow_saas')); ?></span>
                             <?php elseif (($vendor['status'] ?? '') === 'inactive'): ?>
-                            <span class="status-badge" style="background: #f3f4f6; color: #6b7280;">Inactive</span>
+                            <span class="status-badge" style="background: #f3f4f6; color: #6b7280;"><?php echo e(t('vendor-srs-list.status_inactive')); ?></span>
                             <?php elseif (($vendor['status'] ?? '') === 'in_review'): ?>
-                            <span class="status-badge" style="background: #ede9fe; color: #6d28d9;">In Review</span>
+                            <span class="status-badge" style="background: #ede9fe; color: #6d28d9;"><?php echo e(t('vendor-srs-list.status_in_review')); ?></span>
                             <?php elseif ($needsRescore): ?>
-                            <span class="status-badge status-needs-rescore">Needs Rescore</span>
+                            <span class="status-badge status-needs-rescore"><?php echo e(t('vendor-srs-list.status_needs_rescore')); ?></span>
                             <?php elseif ($hasScore): ?>
-                            <span class="status-badge status-current">Current</span>
+                            <span class="status-badge status-current"><?php echo e(t('vendor-srs-list.status_current')); ?></span>
                             <?php endif; ?>
                         </td>
                         <td onclick="event.stopPropagation();">
                             <?php if ($isShadowSaas): ?>
-                            <a href="shadow-saas.php?search=<?php echo urlencode($vendor['vendor_domain']); ?>" class="btn-sm btn-view">Manage</a>
+                            <a href="shadow-saas.php?search=<?php echo urlencode($vendor['vendor_domain']); ?>" class="btn-sm btn-view"><?php echo e(t('vendor-srs-list.manage')); ?></a>
                             <?php else: ?>
-                            <a href="vendor-srs-details.php?id=<?php echo $vendor['id']; ?>" class="btn-sm btn-view">View</a>
+                            <a href="vendor-srs-details.php?id=<?php echo $vendor['id']; ?>" class="btn-sm btn-view"><?php echo e(t('vendor-srs-list.view')); ?></a>
                             <?php endif; ?>
                             <?php if (!$isShadowSaas && ($vendor['vendor_use_ai'] ?? '') === 'yes' && ($isAdmin || $isCyberTPRM || $acl->hasGroup('cyber_grc'))): ?>
                             <?php $existingAiBtn = $aiRiskMap[(int)$vendor['id']] ?? null; ?>
@@ -2039,7 +2039,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     <form method="POST">
                                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                         <input type="hidden" name="rescore_vendor_id" value="<?php echo $vendor['id']; ?>">
-                                        <button type="submit" name="rescore_provider" value="all" data-confirm="Score <?php echo e($vendor['vendor_name']); ?> with all providers?" style="display: block; width: 100%; padding: 6px 12px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; color: #374151; border-bottom: 1px solid #f3f4f6;" class="hover-bg-gray">Score All</button>
+                                        <button type="submit" name="rescore_provider" value="all" data-confirm="Score <?php echo e($vendor['vendor_name']); ?> with all providers?" style="display: block; width: 100%; padding: 6px 12px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; color: #374151; border-bottom: 1px solid #f3f4f6;" class="hover-bg-gray"><?php echo e(t('vendor-srs-list.score_all')); ?></button>
                                         <button type="submit" name="rescore_provider" value="upguard" data-confirm="Score <?php echo e($vendor['vendor_name']); ?> with <?php echo e($upguardName); ?>?" style="display: block; width: 100%; padding: 6px 12px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; color: #374151; border-bottom: 1px solid #f3f4f6;" class="hover-bg-gray"><?php echo e($upguardName); ?></button>
                                         <button type="submit" name="rescore_provider" value="shodan" data-confirm="Score <?php echo e($vendor['vendor_name']); ?> with <?php echo e($shodanName); ?>?" style="display: block; width: 100%; padding: 6px 12px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; color: #374151;" class="hover-bg-gray"><?php echo e($shodanName); ?></button>
                                     </form>
@@ -2050,7 +2050,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                 <input type="hidden" name="rescore_vendor_id" value="<?php echo $vendor['id']; ?>">
                                 <input type="hidden" name="rescore_provider" value="all">
-                                <button type="submit" class="btn-sm btn-rescore" data-confirm="Score <?php echo e($vendor['vendor_name']); ?>?">Score</button>
+                                <button type="submit" class="btn-sm btn-rescore" data-confirm="Score <?php echo e($vendor['vendor_name']); ?>?"><?php echo e(t('vendor-srs-list.score')); ?></button>
                             </form>
                             <?php endif; ?>
                             <?php endif; ?>
@@ -2072,10 +2072,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         <td colspan="<?php echo $colCount; ?>">
                             <div class="detail-panel">
                                 <div class="detail-item">
-                                    <div class="detail-label">Domain</div>
-                                    <div class="detail-value<?php echo empty($vendor['vendor_domain']) ? ' empty' : ''; ?>"><?php echo !empty($vendor['vendor_domain']) ? e($vendor['vendor_domain']) : 'Not set'; ?></div>
+                                    <div class="detail-label"><?php echo e(t('vendor-srs-list.detail_domain')); ?></div>
+                                    <div class="detail-value<?php echo empty($vendor['vendor_domain']) ? ' empty' : ''; ?>"><?php echo !empty($vendor['vendor_domain']) ? e($vendor['vendor_domain']) : e(t('vendor-srs-list.not_set')); ?></div>
                                     <?php if ($isAdmin || $isCyberTPRM): ?>
-                                    <a href="#" class="add-case-link" data-vendor-id="<?php echo (int)$vendor['id']; ?>" data-vendor-name="<?php echo e($vendor['vendor_name'] ?? ''); ?>" style="display: inline-block; margin-top: 6px; font-size: 12px; color: var(--theme-header-color, #35a0a3); text-decoration: none; font-weight: 500;">+ Add Case</a>
+                                    <a href="#" class="add-case-link" data-vendor-id="<?php echo (int)$vendor['id']; ?>" data-vendor-name="<?php echo e($vendor['vendor_name'] ?? ''); ?>" style="display: inline-block; margin-top: 6px; font-size: 12px; color: var(--theme-header-color, #35a0a3); text-decoration: none; font-weight: 500;">+ <?php echo e(t('vendor-srs-list.add_case')); ?></a>
                                     <?php endif; ?>
                                     <?php if (($vendor['vendor_use_ai'] ?? '') === 'yes' && ($isAdmin || $isCyberTPRM || $acl->hasGroup('cyber_grc'))): ?>
                                     <?php $existingAi = $aiRiskMap[(int)$vendor['id']] ?? null; ?>
@@ -2083,18 +2083,18 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     <?php endif; ?>
                                 </div>
                                 <div class="detail-item">
-                                    <div class="detail-label">Stakeholder</div>
+                                    <div class="detail-label"><?php echo e(t('vendor-srs-list.detail_stakeholder')); ?></div>
                                     <div class="detail-value<?php echo empty($stk) ? ' empty' : ''; ?>">
                                         <?php if (!empty($stk)): ?>
                                             <?php echo e($stk); ?>
                                             <?php if (!empty($stkEmail)): ?><br><span style="font-size: 12px; color: #6b7280;"><?php echo e($stkEmail); ?></span><?php endif; ?>
                                         <?php else: ?>
-                                            Not assigned
+                                            <?php echo e(t('vendor-srs-list.not_assigned')); ?>
                                         <?php endif; ?>
                                     </div>
                                 </div>
                                 <div class="detail-item">
-                                    <div class="detail-label">Contact Information</div>
+                                    <div class="detail-label"><?php echo e(t('vendor-srs-list.detail_contact')); ?></div>
                                     <div class="detail-value<?php echo (empty($contactName) && empty($contactEmail)) ? ' empty' : ''; ?>">
                                         <?php if (!empty($contactName) || !empty($contactEmail)): ?>
                                             <?php if (!empty($contactName)): ?><?php echo e($contactName); ?><?php endif; ?>
@@ -2102,13 +2102,13 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                             <?php if (!empty($contactEmail)): ?><br><span style="font-size: 12px; color: #6b7280;"><?php echo e($contactEmail); ?></span><?php endif; ?>
                                             <?php if (!empty($contactPhone)): ?><br><span style="font-size: 12px; color: #6b7280;"><?php echo e($contactPhone); ?></span><?php endif; ?>
                                         <?php else: ?>
-                                            Not provided
+                                            <?php echo e(t('vendor-srs-list.not_provided')); ?>
                                         <?php endif; ?>
                                     </div>
                                 </div>
                                 <div class="detail-item">
-                                    <div class="detail-label">Product / Service</div>
-                                    <div class="detail-value scrollable<?php echo empty($productService) ? ' empty' : ''; ?>"><?php echo !empty($productService) ? e($productService) : 'Not provided'; ?></div>
+                                    <div class="detail-label"><?php echo e(t('vendor-srs-list.detail_product')); ?></div>
+                                    <div class="detail-value scrollable<?php echo empty($productService) ? ' empty' : ''; ?>"><?php echo !empty($productService) ? e($productService) : e(t('vendor-srs-list.not_provided')); ?></div>
                                 </div>
                             </div>
                         </td>
@@ -2176,7 +2176,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <!-- Add Case Modal -->
             <div id="addCaseModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
                 <div style="background: white; padding: 30px; border-radius: 8px; max-width: 550px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto;">
-                    <h3 style="margin: 0 0 5px 0; color: #333; font-size: 20px;">Create Case</h3>
+                    <h3 style="margin: 0 0 5px 0; color: #333; font-size: 20px;"><?php echo e(t('vendor-srs-list.create_case')); ?></h3>
                     <div id="addCaseVendorLabel" style="margin-bottom: 20px; font-size: 13px; color: #666;"></div>
                     <form method="POST" action="vendor-srs-list.php" id="addCaseForm">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -2185,32 +2185,32 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         <input type="hidden" name="case_assigned_to" id="addCaseAssignedTo" value="">
 
                         <div style="margin-bottom: 16px;">
-                            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: #333;">Title <span style="color: #dc3545;">*</span></label>
-                            <input type="text" name="case_title" id="addCaseTitle" required placeholder="Case title..." style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.case_title')); ?> <span style="color: #dc3545;">*</span></label>
+                            <input type="text" name="case_title" id="addCaseTitle" required placeholder="<?php echo e(t('vendor-srs-list.case_title_placeholder')); ?>" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
                         </div>
 
                         <div style="margin-bottom: 16px;">
-                            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: #333;">Description</label>
-                            <textarea name="case_description" id="addCaseDescription" rows="3" placeholder="Add details..." style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
+                            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.case_description')); ?></label>
+                            <textarea name="case_description" id="addCaseDescription" rows="3" placeholder="<?php echo e(t('vendor-srs-list.case_description_placeholder')); ?>" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
                         </div>
 
                         <div style="margin-bottom: 16px;">
-                            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: #333;">Due Date</label>
+                            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.due_date')); ?></label>
                             <input type="date" name="case_due_date" id="addCaseDueDate" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
                         </div>
 
                         <div style="margin-bottom: 16px;">
-                            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: #333;">Assign To</label>
+                            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.assign_to')); ?></label>
                             <div class="autocomplete-wrapper" style="position: relative;">
-                                <input type="text" id="addCaseAssigneeInput" placeholder="Search by name or username..." autocomplete="off" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                                <input type="text" id="addCaseAssigneeInput" placeholder="<?php echo e(t('vendor-srs-list.assignee_placeholder')); ?>" autocomplete="off" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
                                 <div id="addCaseAssigneeSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
                             </div>
-                            <div style="font-size: 11px; color: #999; margin-top: 4px;">Start typing to search for a user to assign this case to.</div>
+                            <div style="font-size: 11px; color: #999; margin-top: 4px;"><?php echo e(t('vendor-srs-list.assignee_hint')); ?></div>
                         </div>
 
                         <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                            <button type="button" id="addCaseCancelBtn" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 13px;">Cancel</button>
-                            <button type="submit" style="padding: 10px 20px; border: none; background: var(--theme-button-color, #35a0a3); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">Create Case</button>
+                            <button type="button" id="addCaseCancelBtn" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 13px;"><?php echo e(t('vendor-srs-list.cancel')); ?></button>
+                            <button type="submit" style="padding: 10px 20px; border: none; background: var(--theme-button-color, #35a0a3); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;"><?php echo e(t('vendor-srs-list.create_case')); ?></button>
                         </div>
                     </form>
                 </div>
@@ -2222,8 +2222,8 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <div id="aiRiskModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center;">
                 <div style="background: white; padding: 28px 32px; border-radius: 8px; max-width: 720px; width: 92%; box-shadow: 0 4px 24px rgba(0,0,0,0.3); max-height: 92vh; overflow-y: auto;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
-                        <h3 id="aiRiskModalTitle" style="margin: 0; color: #333; font-size: 20px;">Add AI Risk to Register</h3>
-                        <button type="button" id="aiRiskCloseX" aria-label="Close" style="background: none; border: none; font-size: 22px; color: #9ca3af; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                        <h3 id="aiRiskModalTitle" style="margin: 0; color: #333; font-size: 20px;"><?php echo e(t('vendor-srs-list.ai_modal_title')); ?></h3>
+                        <button type="button" id="aiRiskCloseX" aria-label="<?php echo e(t('vendor-srs-list.close')); ?>" style="background: none; border: none; font-size: 22px; color: #9ca3af; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
                     </div>
                     <div id="aiRiskVendorLabel" style="margin-bottom: 18px; font-size: 13px; color: #666;"></div>
                     <form method="POST" action="vendor-srs-list.php" id="aiRiskForm">
@@ -2235,110 +2235,110 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         <input type="hidden" name="ai_risk_owner_id" id="aiRiskOwnerId" value="">
 
                         <div style="margin-bottom: 14px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Risk Title <span style="color: #dc3545;">*</span></label>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.risk_title')); ?> <span style="color: #dc3545;">*</span></label>
                             <input type="text" name="ai_risk_title" id="aiRiskTitle" required style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box; background: #f9fafb;">
                         </div>
 
                         <div style="margin-bottom: 14px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Description</label>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.description')); ?></label>
                             <textarea name="ai_risk_description" id="aiRiskDescription" rows="2" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
                         </div>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
                             <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Category</label>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.category')); ?></label>
                                 <select name="ai_risk_category" id="aiRiskCategory" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
-                                    <option value="strategic">Strategic</option>
-                                    <option value="operational">Operational</option>
-                                    <option value="financial">Financial</option>
-                                    <option value="compliance">Compliance</option>
-                                    <option value="reputational">Reputational</option>
-                                    <option value="technology" selected>Technology</option>
-                                    <option value="third_party">Third Party</option>
+                                    <option value="strategic"><?php echo e(t('vendor-srs-list.cat_strategic')); ?></option>
+                                    <option value="operational"><?php echo e(t('vendor-srs-list.cat_operational')); ?></option>
+                                    <option value="financial"><?php echo e(t('vendor-srs-list.cat_financial')); ?></option>
+                                    <option value="compliance"><?php echo e(t('vendor-srs-list.cat_compliance')); ?></option>
+                                    <option value="reputational"><?php echo e(t('vendor-srs-list.cat_reputational')); ?></option>
+                                    <option value="technology" selected><?php echo e(t('vendor-srs-list.cat_technology')); ?></option>
+                                    <option value="third_party"><?php echo e(t('vendor-srs-list.cat_third_party')); ?></option>
                                 </select>
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Risk Owner</label>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.risk_owner')); ?></label>
                                 <div style="position: relative;">
-                                    <input type="text" id="aiRiskOwnerInput" placeholder="Search cyber_grc / cyber_tprm..." autocomplete="off" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                                    <input type="text" id="aiRiskOwnerInput" placeholder="<?php echo e(t('vendor-srs-list.risk_owner_placeholder')); ?>" autocomplete="off" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
                                     <div id="aiRiskOwnerSuggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 220px; overflow-y: auto; z-index: 10; margin-top: 2px;"></div>
                                 </div>
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Status</label>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.status')); ?></label>
                                 <select name="ai_risk_status" id="aiRiskStatus" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
-                                    <option value="identified">Identified</option>
-                                    <option value="assessing">Assessing</option>
-                                    <option value="treating">Treating</option>
-                                    <option value="monitoring">Monitoring</option>
-                                    <option value="closed">Closed</option>
+                                    <option value="identified"><?php echo e(t('vendor-srs-list.st_identified')); ?></option>
+                                    <option value="assessing"><?php echo e(t('vendor-srs-list.st_assessing')); ?></option>
+                                    <option value="treating"><?php echo e(t('vendor-srs-list.st_treating')); ?></option>
+                                    <option value="monitoring"><?php echo e(t('vendor-srs-list.st_monitoring')); ?></option>
+                                    <option value="closed"><?php echo e(t('vendor-srs-list.st_closed')); ?></option>
                                 </select>
                             </div>
                         </div>
 
-                        <h4 style="font-size: 13px; color: #555; margin: 16px 0 8px; border-top: 1px solid #e5e7eb; padding-top: 14px;">Risk Assessment</h4>
+                        <h4 style="font-size: 13px; color: #555; margin: 16px 0 8px; border-top: 1px solid #e5e7eb; padding-top: 14px;"><?php echo e(t('vendor-srs-list.risk_assessment')); ?></h4>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
                             <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Likelihood</label>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.likelihood')); ?></label>
                                 <select name="ai_risk_likelihood" id="aiRiskLikelihood" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
-                                    <option value="rare">Rare (1)</option>
-                                    <option value="unlikely">Unlikely (2)</option>
-                                    <option value="possible" selected>Possible (3)</option>
-                                    <option value="likely">Likely (4)</option>
-                                    <option value="almost_certain">Almost Certain (5)</option>
+                                    <option value="rare"><?php echo e(t('vendor-srs-list.lk_rare')); ?></option>
+                                    <option value="unlikely"><?php echo e(t('vendor-srs-list.lk_unlikely')); ?></option>
+                                    <option value="possible" selected><?php echo e(t('vendor-srs-list.lk_possible')); ?></option>
+                                    <option value="likely"><?php echo e(t('vendor-srs-list.lk_likely')); ?></option>
+                                    <option value="almost_certain"><?php echo e(t('vendor-srs-list.lk_almost_certain')); ?></option>
                                 </select>
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Impact</label>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.impact')); ?></label>
                                 <select name="ai_risk_impact" id="aiRiskImpact" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
-                                    <option value="insignificant">Insignificant (1)</option>
-                                    <option value="minor">Minor (2)</option>
-                                    <option value="moderate" selected>Moderate (3)</option>
-                                    <option value="major">Major (4)</option>
-                                    <option value="catastrophic">Catastrophic (5)</option>
+                                    <option value="insignificant"><?php echo e(t('vendor-srs-list.im_insignificant')); ?></option>
+                                    <option value="minor"><?php echo e(t('vendor-srs-list.im_minor')); ?></option>
+                                    <option value="moderate" selected><?php echo e(t('vendor-srs-list.im_moderate')); ?></option>
+                                    <option value="major"><?php echo e(t('vendor-srs-list.im_major')); ?></option>
+                                    <option value="catastrophic"><?php echo e(t('vendor-srs-list.im_catastrophic')); ?></option>
                                 </select>
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Residual Score</label>
-                                <input type="number" name="ai_risk_residual" id="aiRiskResidual" min="0" max="25" step="0.01" placeholder="Auto" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.residual_score')); ?></label>
+                                <input type="number" name="ai_risk_residual" id="aiRiskResidual" min="0" max="25" step="0.01" placeholder="<?php echo e(t('vendor-srs-list.auto')); ?>" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
                             </div>
                         </div>
 
-                        <h4 style="font-size: 13px; color: #555; margin: 16px 0 8px; border-top: 1px solid #e5e7eb; padding-top: 14px;">Treatment</h4>
+                        <h4 style="font-size: 13px; color: #555; margin: 16px 0 8px; border-top: 1px solid #e5e7eb; padding-top: 14px;"><?php echo e(t('vendor-srs-list.treatment')); ?></h4>
                         <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 14px;">
                             <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Treatment Strategy</label>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.treatment_strategy')); ?></label>
                                 <select name="ai_risk_treatment" id="aiRiskTreatment" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
-                                    <option value="accept">Accept</option>
-                                    <option value="mitigate" selected>Mitigate</option>
-                                    <option value="transfer">Transfer</option>
-                                    <option value="avoid">Avoid</option>
+                                    <option value="accept"><?php echo e(t('vendor-srs-list.tr_accept')); ?></option>
+                                    <option value="mitigate" selected><?php echo e(t('vendor-srs-list.tr_mitigate')); ?></option>
+                                    <option value="transfer"><?php echo e(t('vendor-srs-list.tr_transfer')); ?></option>
+                                    <option value="avoid"><?php echo e(t('vendor-srs-list.tr_avoid')); ?></option>
                                 </select>
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Treatment Plan</label>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.treatment_plan')); ?></label>
                                 <textarea name="ai_risk_treatment_plan" id="aiRiskTreatmentPlan" rows="2" style="width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
                             </div>
                         </div>
 
                         <div style="margin-bottom: 14px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Mitigating Controls</label>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.mitigating_controls')); ?></label>
                             <select name="ai_risk_control_ids[]" id="aiRiskControls" multiple style="width: 100%; min-height: 110px; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; box-sizing: border-box;">
                                 <?php foreach ($aiAllControls as $ac): ?>
                                 <option value="<?php echo (int)$ac['id']; ?>"><?php echo e($ac['control_ref']); ?> - <?php echo e($ac['title']); ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <div style="font-size: 11px; color: #9ca3af; margin-top: 3px;">Hold Ctrl/Cmd to select multiple.</div>
+                            <div style="font-size: 11px; color: #9ca3af; margin-top: 3px;"><?php echo e(t('vendor-srs-list.multiselect_hint')); ?></div>
                         </div>
 
                         <div style="margin-bottom: 18px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;">Next Review Date</label>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; color: #333;"><?php echo e(t('vendor-srs-list.next_review_date')); ?></label>
                             <input type="date" name="ai_risk_review_date" id="aiRiskReviewDate" style="width: 200px; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
                         </div>
 
                         <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #e5e7eb; padding-top: 16px;">
-                            <button type="button" id="aiRiskCancelBtn" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 13px;">Cancel</button>
-                            <button type="submit" id="aiRiskSubmitBtn" style="padding: 10px 22px; border: none; background: #6d28d9; color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">Create Risk</button>
+                            <button type="button" id="aiRiskCancelBtn" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #666; border-radius: 6px; cursor: pointer; font-size: 13px;"><?php echo e(t('vendor-srs-list.cancel')); ?></button>
+                            <button type="submit" id="aiRiskSubmitBtn" style="padding: 10px 22px; border: none; background: #6d28d9; color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;"><?php echo e(t('vendor-srs-list.create_risk')); ?></button>
                         </div>
                     </form>
                 </div>
@@ -2354,7 +2354,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                         <?php if (!empty($theme['footer_logo_url'])): ?>
                             <a class="brand" href="index.php">
-                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('vendor-srs-list.footer_logo_alt')); ?>" style="max-height: 45px;">
                             </a>
                         <?php endif; ?>
                         <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -2363,7 +2363,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('vendor-srs-list.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>

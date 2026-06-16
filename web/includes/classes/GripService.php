@@ -21,7 +21,7 @@
 
 class GripService
 {
-    private const DEFAULT_BASE_URL = 'https://hr.dep.grip.security/public/saas';
+    private const DEFAULT_BASE_URL = 'https://tenant.dep.grip.security/public/saas';
     private const PAGE_SIZE = 200;
     private const REQUEST_TIMEOUT = 30;
 

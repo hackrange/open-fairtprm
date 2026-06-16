@@ -28,7 +28,7 @@ $isAuditor = hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberGRC && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. GRC module requires cyber_grc, administrator, or auditor role.');
+    die(t('grc-controls.access_denied'));
 }
 
 $readOnly = $isAuditor && !$isAdmin && !$isCyberGRC;
@@ -40,7 +40,7 @@ $msgType = '';
 // POST handlers
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $msg = 'Invalid CSRF token. Please try again.';
+        $msg = t('grc-controls.invalid_csrf');
         $msgType = 'danger';
     } else {
         $action = $_POST['action'] ?? '';
@@ -59,10 +59,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'risk_level' => $_POST['risk_level'] ?? 'medium',
                     'notes' => trim($_POST['notes'] ?? ''),
                 ], (int)$user['id']);
-                $msg = 'Control created successfully.';
+                $msg = t('grc-controls.control_created');
                 $msgType = 'success';
             } else {
-                $msg = 'Title is required.';
+                $msg = t('grc-controls.title_required');
                 $msgType = 'danger';
             }
         } elseif ($action === 'update') {
@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'risk_level' => $_POST['risk_level'] ?? 'medium',
                     'notes' => trim($_POST['notes'] ?? ''),
                 ]);
-                $msg = 'Control updated successfully.';
+                $msg = t('grc-controls.control_updated');
                 $msgType = 'success';
             }
         } elseif ($action === 'map') {
@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
             $coverage = $_POST['coverage'] ?? 'full';
             if ($controlId > 0 && $requirementId > 0) {
                 $grc->mapControlToRequirement($controlId, $requirementId, ['coverage' => $coverage], (int)$user['id']);
-                $msg = 'Mapping added successfully.';
+                $msg = t('grc-controls.mapping_added');
                 $msgType = 'success';
             }
         } elseif ($action === 'bulk_map') {
@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                         $added++;
                     }
                 }
-                $msg = $added > 0 ? $added . ' requirement mapping(s) added.' : 'All requirements were already mapped.';
+                $msg = $added > 0 ? $added . ' requirement mapping(s) added.' : t('grc-controls.all_already_mapped');
                 $msgType = $added > 0 ? 'success' : 'info';
             }
         } elseif ($action === 'update_coverage') {
@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'UPDATE grc_control_requirement_map SET coverage = :cov WHERE control_id = :cid AND requirement_id = :rid',
                     [':cov' => $coverage, ':cid' => $controlId, ':rid' => $requirementId]
                 );
-                $msg = 'Coverage updated.';
+                $msg = t('grc-controls.coverage_updated');
                 $msgType = 'success';
             }
         } elseif ($action === 'unmap') {
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
             $requirementId = (int)($_POST['requirement_id'] ?? 0);
             if ($controlId > 0 && $requirementId > 0) {
                 $grc->unmapControlFromRequirement($controlId, $requirementId);
-                $msg = 'Mapping removed.';
+                $msg = t('grc-controls.mapping_removed');
                 $msgType = 'success';
             }
         } elseif ($action === 'link_evidence') {
@@ -142,9 +142,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                         'control_id' => $controlId,
                         'linked_by' => (int)$user['id'],
                     ]);
-                    $msg = 'Evidence linked successfully.';
+                    $msg = t('grc-controls.evidence_linked');
                 } else {
-                    $msg = 'Evidence is already linked to this control.';
+                    $msg = t('grc-controls.evidence_already_linked');
                 }
                 $msgType = 'success';
             }
@@ -156,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'DELETE FROM grc_evidence_control_map WHERE evidence_id = :eid AND control_id = :cid',
                     [':eid' => $evidenceId, ':cid' => $controlId]
                 );
-                $msg = 'Evidence unlinked.';
+                $msg = t('grc-controls.evidence_unlinked');
                 $msgType = 'success';
             }
         } elseif ($action === 'upload_evidence') {
@@ -212,10 +212,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'linked_by' => (int)$user['id'],
                 ]);
 
-                $msg = 'Evidence created and linked successfully.';
+                $msg = t('grc-controls.evidence_created_linked');
                 $msgType = 'success';
             } else {
-                $msg = 'Title is required for evidence.';
+                $msg = t('grc-controls.evidence_title_required');
                 $msgType = 'danger';
             }
         }
@@ -430,11 +430,11 @@ $showForm = isset($_GET['new']) || $editId > 0;
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -442,8 +442,8 @@ $showForm = isset($_GET['new']) || $editId > 0;
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">Internal Controls</h1>
-            <p style="color:#6b7280;margin:0 0 30px;">Manage controls, map to framework requirements, and track evidence</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc-controls.internal_controls')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 30px;"><?php echo e(t('grc-controls.intro')); ?></p>
 
             <?php if ($msg): ?>
             <div class="alert alert-<?php echo e($msgType); ?>"><?php echo e($msg); ?></div>
@@ -451,34 +451,34 @@ $showForm = isset($_GET['new']) || $editId > 0;
 
             <?php if ($controlDetail && $viewId > 0): ?>
             <!-- Control Detail View -->
-            <a href="grc-controls.php" class="back-link">&larr; Back to controls</a>
+            <a href="grc-controls.php" class="back-link">&larr; <?php echo e(t('grc-controls.back_to_controls')); ?></a>
 
             <div class="detail-card">
                 <h3><?php echo e($controlDetail['control_ref']); ?> - <?php echo e($controlDetail['title']); ?></h3>
                 <div class="detail-grid">
-                    <div class="detail-item"><div class="label">Status</div><div class="value"><span class="status-badge status-<?php echo e($controlDetail['implementation_status']); ?>"><?php echo e(str_replace('_', ' ', $controlDetail['implementation_status'])); ?></span></div></div>
-                    <div class="detail-item"><div class="label">Type</div><div class="value"><?php echo e(ucfirst($controlDetail['control_type'] ?? '-')); ?></div></div>
-                    <div class="detail-item"><div class="label">Category</div><div class="value"><?php echo e(ucfirst($controlDetail['control_category'] ?? '-')); ?></div></div>
-                    <div class="detail-item"><div class="label">Owner</div><div class="value"><?php echo e($controlDetail['owner_name'] ?? 'Unassigned'); ?></div></div>
-                    <div class="detail-item"><div class="label">Frequency</div><div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $controlDetail['frequency'] ?? '-'))); ?></div></div>
-                    <div class="detail-item"><div class="label">Risk Level</div><div class="value"><?php echo e(ucfirst($controlDetail['risk_level'] ?? '-')); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.status')); ?></div><div class="value"><span class="status-badge status-<?php echo e($controlDetail['implementation_status']); ?>"><?php echo e(str_replace('_', ' ', $controlDetail['implementation_status'])); ?></span></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.type')); ?></div><div class="value"><?php echo e(ucfirst($controlDetail['control_type'] ?? '-')); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.category')); ?></div><div class="value"><?php echo e(ucfirst($controlDetail['control_category'] ?? '-')); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.owner')); ?></div><div class="value"><?php echo e($controlDetail['owner_name'] ?? t('grc-controls.unassigned')); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.frequency')); ?></div><div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $controlDetail['frequency'] ?? '-'))); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.risk_level')); ?></div><div class="value"><?php echo e(ucfirst($controlDetail['risk_level'] ?? '-')); ?></div></div>
                 </div>
                 <?php if (!empty($controlDetail['description'])): ?>
                 <p style="font-size:13px;color:#374151;margin:0;"><?php echo e($controlDetail['description']); ?></p>
                 <?php endif; ?>
                 <?php if (!$readOnly): ?>
                 <div style="margin-top:16px;">
-                    <a href="grc-controls.php?edit=<?php echo (int)$controlDetail['id']; ?>" class="btn btn-sm btn-outline">Edit Control</a>
+                    <a href="grc-controls.php?edit=<?php echo (int)$controlDetail['id']; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc-controls.edit_control')); ?></a>
                 </div>
                 <?php endif; ?>
             </div>
 
             <!-- Mapped Requirements -->
             <div class="detail-card">
-                <h3>Mapped Requirements (<?php echo count($controlDetail['requirements']); ?>)</h3>
+                <h3><?php echo e(t('grc-controls.mapped_requirements')); ?> (<?php echo count($controlDetail['requirements']); ?>)</h3>
                 <?php if (!empty($controlDetail['requirements'])): ?>
                 <table class="grc-table">
-                    <thead><tr><th>Framework</th><th>Requirement</th><th>Coverage</th><?php if (!$readOnly): ?><th>Actions</th><?php endif; ?></tr></thead>
+                    <thead><tr><th><?php echo e(t('grc-controls.framework')); ?></th><th><?php echo e(t('grc-controls.requirement')); ?></th><th><?php echo e(t('grc-controls.coverage')); ?></th><?php if (!$readOnly): ?><th><?php echo e(t('grc-controls.actions')); ?></th><?php endif; ?></tr></thead>
                     <tbody>
                     <?php foreach ($controlDetail['requirements'] as $req): ?>
                     <tr>
@@ -492,8 +492,8 @@ $showForm = isset($_GET['new']) || $editId > 0;
                                 <input type="hidden" name="control_id" value="<?php echo (int)$controlDetail['id']; ?>">
                                 <input type="hidden" name="requirement_id" value="<?php echo (int)$req['requirement_id']; ?>">
                                 <select name="coverage" onchange="this.form.submit()" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;cursor:pointer;background:#fff;">
-                                    <option value="full" <?php echo ($req['coverage'] ?? 'full') === 'full' ? 'selected' : ''; ?>>Full</option>
-                                    <option value="partial" <?php echo ($req['coverage'] ?? '') === 'partial' ? 'selected' : ''; ?>>Partial</option>
+                                    <option value="full" <?php echo ($req['coverage'] ?? 'full') === 'full' ? 'selected' : ''; ?>><?php echo e(t('grc-controls.full')); ?></option>
+                                    <option value="partial" <?php echo ($req['coverage'] ?? '') === 'partial' ? 'selected' : ''; ?>><?php echo e(t('grc-controls.partial')); ?></option>
                                 </select>
                             </form>
                             <?php else: ?>
@@ -507,7 +507,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                                 <input type="hidden" name="action" value="unmap">
                                 <input type="hidden" name="control_id" value="<?php echo (int)$controlDetail['id']; ?>">
                                 <input type="hidden" name="requirement_id" value="<?php echo (int)$req['requirement_id']; ?>">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this mapping?')">Unmap</button>
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this mapping?')"><?php echo e(t('grc-controls.unmap')); ?></button>
                             </form>
                         </td>
                         <?php endif; ?>
@@ -516,15 +516,15 @@ $showForm = isset($_GET['new']) || $editId > 0;
                     </tbody>
                 </table>
                 <?php else: ?>
-                <p style="color:#6b7280;font-size:13px;">No requirements mapped yet.</p>
+                <p style="color:#6b7280;font-size:13px;"><?php echo e(t('grc-controls.no_requirements_mapped')); ?></p>
                 <?php endif; ?>
 
                 <?php if (!$readOnly): ?>
                 <!-- Typeahead: search by requirement OR question -->
                 <div style="margin-top:12px;">
-                    <label style="font-size:12px;color:#6b7280;">Add Mapping — search by requirement or assessment question (e.g. "IAM-05" or "access reviews")</label>
+                    <label style="font-size:12px;color:#6b7280;"><?php echo e(t('grc-controls.add_mapping_label')); ?></label>
                     <div style="position:relative;">
-                        <input type="text" id="req_map_search" autocomplete="off" placeholder="Type to search requirements or questions..." style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;box-sizing:border-box;">
+                        <input type="text" id="req_map_search" autocomplete="off" placeholder="<?php echo e(t('grc-controls.search_req_or_q_ph')); ?>" style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;box-sizing:border-box;">
                         <div id="req_map_dropdown" style="display:none;position:absolute;z-index:1000;top:100%;left:0;right:0;max-height:300px;overflow-y:auto;background:#fff;border:1px solid #d1d5db;border-top:none;border-radius:0 0 6px 6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
                     </div>
                 </div>
@@ -532,10 +532,10 @@ $showForm = isset($_GET['new']) || $editId > 0;
                 <div id="bulk_map_preview" style="display:none;margin-top:12px;border:1px solid #d1d5db;border-radius:8px;padding:16px;background:#f9fafb;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
                         <strong id="bulk_map_title" style="font-size:13px;color:#333;"></strong>
-                        <button type="button" id="bulk_map_cancel" class="btn btn-sm btn-outline" style="font-size:11px;">Cancel</button>
+                        <button type="button" id="bulk_map_cancel" class="btn btn-sm btn-outline" style="font-size:11px;"><?php echo e(t('grc-controls.cancel')); ?></button>
                     </div>
                     <table class="grc-table" style="margin-bottom:12px;">
-                        <thead><tr><th style="width:30px;"><input type="checkbox" id="bulk_check_all" checked></th><th>Framework</th><th>Requirement</th><th>Strength</th><th>Coverage</th></tr></thead>
+                        <thead><tr><th style="width:30px;"><input type="checkbox" id="bulk_check_all" checked></th><th><?php echo e(t('grc-controls.framework')); ?></th><th><?php echo e(t('grc-controls.requirement')); ?></th><th><?php echo e(t('grc-controls.strength')); ?></th><th><?php echo e(t('grc-controls.coverage')); ?></th></tr></thead>
                         <tbody id="bulk_map_body"></tbody>
                     </table>
                     <form method="post" id="bulk_map_form">
@@ -544,7 +544,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                         <input type="hidden" name="control_id" value="<?php echo (int)$controlDetail['id']; ?>">
                         <input type="hidden" name="requirement_ids" id="bulk_req_ids">
                         <input type="hidden" name="coverages" id="bulk_coverages">
-                        <button type="submit" class="btn btn-primary" id="bulk_map_submit">Map Selected Requirements</button>
+                        <button type="submit" class="btn btn-primary" id="bulk_map_submit"><?php echo e(t('grc-controls.map_selected')); ?></button>
                     </form>
                 </div>
                 <!-- Single requirement mapping form (hidden, used when a single requirement is picked) -->
@@ -560,10 +560,10 @@ $showForm = isset($_GET['new']) || $editId > 0;
 
             <!-- Linked Evidence -->
             <div class="detail-card">
-                <h3>Linked Evidence (<?php echo count($controlDetail['evidence']); ?>)</h3>
+                <h3><?php echo e(t('grc-controls.linked_evidence')); ?> (<?php echo count($controlDetail['evidence']); ?>)</h3>
                 <?php if (!empty($controlDetail['evidence'])): ?>
                 <table class="grc-table">
-                    <thead><tr><th>Reference</th><th>Title</th><th>Type</th><th>Status</th><th>Valid Until</th><?php if (!$readOnly): ?><th>Actions</th><?php endif; ?></tr></thead>
+                    <thead><tr><th><?php echo e(t('grc-controls.reference')); ?></th><th><?php echo e(t('grc-controls.title')); ?></th><th><?php echo e(t('grc-controls.type')); ?></th><th><?php echo e(t('grc-controls.status')); ?></th><th><?php echo e(t('grc-controls.valid_until')); ?></th><?php if (!$readOnly): ?><th><?php echo e(t('grc-controls.actions')); ?></th><?php endif; ?></tr></thead>
                     <tbody>
                     <?php foreach ($controlDetail['evidence'] as $ev): ?>
                     <tr>
@@ -579,7 +579,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                                 <input type="hidden" name="action" value="unlink_evidence">
                                 <input type="hidden" name="control_id" value="<?php echo (int)$controlDetail['id']; ?>">
                                 <input type="hidden" name="evidence_id" value="<?php echo (int)$ev['id']; ?>">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Unlink this evidence from the control?')">Unlink</button>
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Unlink this evidence from the control?')"><?php echo e(t('grc-controls.unlink')); ?></button>
                             </form>
                         </td>
                         <?php endif; ?>
@@ -588,7 +588,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                     </tbody>
                 </table>
                 <?php else: ?>
-                <p style="color:#6b7280;font-size:13px;">No evidence linked yet.</p>
+                <p style="color:#6b7280;font-size:13px;"><?php echo e(t('grc-controls.no_evidence_linked')); ?></p>
                 <?php endif; ?>
 
                 <?php if (!$readOnly): ?>
@@ -599,21 +599,21 @@ $showForm = isset($_GET['new']) || $editId > 0;
                     <input type="hidden" name="action" value="link_evidence">
                     <input type="hidden" name="control_id" value="<?php echo (int)$controlDetail['id']; ?>">
                     <div style="flex:1;">
-                        <label style="font-size:12px;color:#6b7280;">Link Existing Evidence</label>
+                        <label style="font-size:12px;color:#6b7280;"><?php echo e(t('grc-controls.link_existing_evidence')); ?></label>
                         <select name="evidence_id" required style="width:100%;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                            <option value="">-- Select Evidence --</option>
+                            <option value=""><?php echo e(t('grc-controls.select_evidence')); ?></option>
                             <?php foreach ($availableEvidence as $ae): ?>
                             <option value="<?php echo (int)$ae['id']; ?>"><?php echo e($ae['evidence_ref'] . ' - ' . $ae['title'] . ' (' . ucfirst($ae['evidence_type']) . ')'); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary">Link</button>
+                    <button type="submit" class="btn btn-primary"><?php echo e(t('grc-controls.link')); ?></button>
                 </form>
                 <?php endif; ?>
 
                 <!-- Create New Evidence -->
                 <div style="margin-top:16px;border-top:1px solid #e5e7eb;padding-top:16px;">
-                    <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('newEvidenceForm').style.display = document.getElementById('newEvidenceForm').style.display === 'none' ? 'block' : 'none';">+ New Evidence</button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('newEvidenceForm').style.display = document.getElementById('newEvidenceForm').style.display === 'none' ? 'block' : 'none';">+ <?php echo e(t('grc-controls.new_evidence')); ?></button>
                     <form method="post" enctype="multipart/form-data" id="newEvidenceForm" style="display:none;margin-top:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="action" value="upload_evidence">
@@ -621,48 +621,48 @@ $showForm = isset($_GET['new']) || $editId > 0;
 
                         <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div>
-                                <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;">Title *</label>
-                                <input type="text" name="title" required placeholder="Evidence title" style="width:100%;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+                                <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;"><?php echo e(t('grc-controls.title_required_label')); ?></label>
+                                <input type="text" name="title" required placeholder="<?php echo e(t('grc-controls.evidence_title_ph')); ?>" style="width:100%;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
                             </div>
                             <div>
-                                <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;">Type</label>
+                                <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;"><?php echo e(t('grc-controls.type')); ?></label>
                                 <select name="evidence_type" style="width:100%;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                                    <option value="document">Document</option>
-                                    <option value="screenshot">Screenshot</option>
-                                    <option value="report">Report</option>
-                                    <option value="configuration">Configuration</option>
-                                    <option value="certificate">Certificate</option>
-                                    <option value="policy">Policy</option>
-                                    <option value="api_log">API Log</option>
-                                    <option value="manual_upload">Manual Upload</option>
+                                    <option value="document"><?php echo e(t('grc-controls.ev_document')); ?></option>
+                                    <option value="screenshot"><?php echo e(t('grc-controls.ev_screenshot')); ?></option>
+                                    <option value="report"><?php echo e(t('grc-controls.ev_report')); ?></option>
+                                    <option value="configuration"><?php echo e(t('grc-controls.ev_configuration')); ?></option>
+                                    <option value="certificate"><?php echo e(t('grc-controls.ev_certificate')); ?></option>
+                                    <option value="policy"><?php echo e(t('grc-controls.ev_policy')); ?></option>
+                                    <option value="api_log"><?php echo e(t('grc-controls.ev_api_log')); ?></option>
+                                    <option value="manual_upload"><?php echo e(t('grc-controls.ev_manual_upload')); ?></option>
                                 </select>
                             </div>
                         </div>
 
                         <div style="margin-top:8px;">
-                            <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;">Description</label>
-                            <textarea name="evidence_description" placeholder="Optional description" rows="2" style="width:100%;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
+                            <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;"><?php echo e(t('grc-controls.description')); ?></label>
+                            <textarea name="evidence_description" placeholder="<?php echo e(t('grc-controls.optional_description_ph')); ?>" rows="2" style="width:100%;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
                         </div>
 
                         <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
                             <div>
-                                <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;">Upload File</label>
+                                <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;"><?php echo e(t('grc-controls.upload_file')); ?></label>
                                 <input type="file" name="evidence_file" style="width:100%;font-size:13px;">
                             </div>
                             <div>
-                                <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;">Valid Until</label>
+                                <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;"><?php echo e(t('grc-controls.valid_until')); ?></label>
                                 <input type="date" name="valid_until" style="width:100%;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
                             </div>
                         </div>
 
                         <div style="margin-top:8px;">
-                            <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;">External URL (optional)</label>
+                            <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;"><?php echo e(t('grc-controls.external_url_optional')); ?></label>
                             <input type="url" name="external_url" placeholder="https://..." style="width:100%;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
                         </div>
 
                         <div style="margin-top:12px;">
-                            <button type="submit" class="btn btn-primary">Create &amp; Link Evidence</button>
-                            <button type="button" class="btn btn-outline" onclick="document.getElementById('newEvidenceForm').style.display='none';">Cancel</button>
+                            <button type="submit" class="btn btn-primary"><?php echo e(t('grc-controls.create_link_evidence')); ?></button>
+                            <button type="button" class="btn btn-outline" onclick="document.getElementById('newEvidenceForm').style.display='none';"><?php echo e(t('grc-controls.cancel')); ?></button>
                         </div>
                     </form>
                 </div>
@@ -671,10 +671,10 @@ $showForm = isset($_GET['new']) || $editId > 0;
 
             <?php elseif ($showForm && !$readOnly): ?>
             <!-- Create/Edit Form -->
-            <a href="grc-controls.php" class="back-link">&larr; Back to controls</a>
+            <a href="grc-controls.php" class="back-link">&larr; <?php echo e(t('grc-controls.back_to_controls')); ?></a>
 
             <div class="grc-form">
-                <h3 style="margin:0 0 16px;font-size:16px;color:#333;"><?php echo $editId > 0 ? 'Edit Control' : 'Create Control'; ?><span class="autosave-status"></span></h3>
+                <h3 style="margin:0 0 16px;font-size:16px;color:#333;"><?php echo $editId > 0 ? e(t('grc-controls.edit_control')) : e(t('grc-controls.create_control')); ?><span class="autosave-status"></span></h3>
                 <form method="post" class="grc-autosave-form" data-form-type="control_edit" data-form-id="<?php echo $editId > 0 ? (int)$controlDetail['id'] : 'new'; ?>">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="action" value="<?php echo $editId > 0 ? 'update' : 'create'; ?>">
@@ -682,15 +682,15 @@ $showForm = isset($_GET['new']) || $editId > 0;
                     <input type="hidden" name="control_id" value="<?php echo (int)$controlDetail['id']; ?>">
                     <?php endif; ?>
 
-                    <label for="title">Title</label>
-                    <input type="text" id="title" name="title" value="<?php echo e($controlDetail['title'] ?? ''); ?>" required placeholder="Control title">
+                    <label for="title"><?php echo e(t('grc-controls.title')); ?></label>
+                    <input type="text" id="title" name="title" value="<?php echo e($controlDetail['title'] ?? ''); ?>" required placeholder="<?php echo e(t('grc-controls.control_title_ph')); ?>">
 
-                    <label for="description">Description</label>
-                    <textarea id="description" name="description" placeholder="Describe the control"><?php echo e($controlDetail['description'] ?? ''); ?></textarea>
+                    <label for="description"><?php echo e(t('grc-controls.description')); ?></label>
+                    <textarea id="description" name="description" placeholder="<?php echo e(t('grc-controls.describe_control_ph')); ?>"><?php echo e($controlDetail['description'] ?? ''); ?></textarea>
 
                     <div class="form-row-3">
                         <div>
-                            <label for="control_type">Type</label>
+                            <label for="control_type"><?php echo e(t('grc-controls.type')); ?></label>
                             <select id="control_type" name="control_type">
                                 <?php foreach (['preventive', 'detective', 'corrective', 'directive'] as $t): ?>
                                 <option value="<?php echo e($t); ?>" <?php echo ($controlDetail['control_type'] ?? '') === $t ? 'selected' : ''; ?>><?php echo e(ucfirst($t)); ?></option>
@@ -698,7 +698,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                             </select>
                         </div>
                         <div>
-                            <label for="control_category">Category</label>
+                            <label for="control_category"><?php echo e(t('grc-controls.category')); ?></label>
                             <select id="control_category" name="control_category">
                                 <?php foreach (['technical', 'administrative', 'physical'] as $c): ?>
                                 <option value="<?php echo e($c); ?>" <?php echo ($controlDetail['control_category'] ?? '') === $c ? 'selected' : ''; ?>><?php echo e(ucfirst($c)); ?></option>
@@ -706,7 +706,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                             </select>
                         </div>
                         <div>
-                            <label for="implementation_status">Status</label>
+                            <label for="implementation_status"><?php echo e(t('grc-controls.status')); ?></label>
                             <select id="implementation_status" name="implementation_status">
                                 <?php foreach (['planned', 'in_progress', 'implemented', 'not_applicable'] as $s): ?>
                                 <option value="<?php echo e($s); ?>" <?php echo ($controlDetail['implementation_status'] ?? '') === $s ? 'selected' : ''; ?>><?php echo e(ucfirst(str_replace('_', ' ', $s))); ?></option>
@@ -717,16 +717,16 @@ $showForm = isset($_GET['new']) || $editId > 0;
 
                     <div class="form-row-3">
                         <div>
-                            <label for="owner_user_id">Owner</label>
+                            <label for="owner_user_id"><?php echo e(t('grc-controls.owner')); ?></label>
                             <select id="owner_user_id" name="owner_user_id">
-                                <option value="">-- Select Owner --</option>
+                                <option value=""><?php echo e(t('grc-controls.select_owner')); ?></option>
                                 <?php foreach ($users as $u): ?>
                                 <option value="<?php echo (int)$u['id']; ?>" <?php echo ((int)($controlDetail['owner_user_id'] ?? 0)) === (int)$u['id'] ? 'selected' : ''; ?>><?php echo e($u['full_name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div>
-                            <label for="frequency">Frequency</label>
+                            <label for="frequency"><?php echo e(t('grc-controls.frequency')); ?></label>
                             <select id="frequency" name="frequency">
                                 <?php foreach (['ad_hoc', 'daily', 'weekly', 'monthly', 'quarterly', 'annually', 'continuous'] as $f): ?>
                                 <option value="<?php echo e($f); ?>" <?php echo ($controlDetail['frequency'] ?? '') === $f ? 'selected' : ''; ?>><?php echo e(ucfirst(str_replace('_', ' ', $f))); ?></option>
@@ -734,7 +734,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                             </select>
                         </div>
                         <div>
-                            <label for="risk_level">Risk Level</label>
+                            <label for="risk_level"><?php echo e(t('grc-controls.risk_level')); ?></label>
                             <select id="risk_level" name="risk_level">
                                 <?php foreach (['low', 'medium', 'high', 'critical'] as $rl): ?>
                                 <option value="<?php echo e($rl); ?>" <?php echo ($controlDetail['risk_level'] ?? '') === $rl ? 'selected' : ''; ?>><?php echo e(ucfirst($rl)); ?></option>
@@ -743,11 +743,11 @@ $showForm = isset($_GET['new']) || $editId > 0;
                         </div>
                     </div>
 
-                    <label for="notes">Notes</label>
-                    <textarea id="notes" name="notes" placeholder="Additional notes"><?php echo e($controlDetail['notes'] ?? ''); ?></textarea>
+                    <label for="notes"><?php echo e(t('grc-controls.notes')); ?></label>
+                    <textarea id="notes" name="notes" placeholder="<?php echo e(t('grc-controls.additional_notes_ph')); ?>"><?php echo e($controlDetail['notes'] ?? ''); ?></textarea>
 
-                    <button type="submit" class="btn btn-primary"><?php echo $editId > 0 ? 'Update Control' : 'Create Control'; ?></button>
-                    <a href="grc-controls.php" class="btn btn-outline">Cancel</a>
+                    <button type="submit" class="btn btn-primary"><?php echo $editId > 0 ? e(t('grc-controls.update_control')) : e(t('grc-controls.create_control')); ?></button>
+                    <a href="grc-controls.php" class="btn btn-outline"><?php echo e(t('grc-controls.cancel')); ?></a>
                 </form>
             </div>
 
@@ -756,59 +756,59 @@ $showForm = isset($_GET['new']) || $editId > 0;
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                 <form method="get" class="filter-bar">
                     <div>
-                        <label>Status</label>
+                        <label><?php echo e(t('grc-controls.status')); ?></label>
                         <select name="status" onchange="this.form.submit()">
-                            <option value="">All Statuses</option>
+                            <option value=""><?php echo e(t('grc-controls.all_statuses')); ?></option>
                             <?php foreach (['planned', 'in_progress', 'implemented', 'not_applicable'] as $s): ?>
                             <option value="<?php echo e($s); ?>" <?php echo ($filters['status'] ?? '') === $s ? 'selected' : ''; ?>><?php echo e(ucfirst(str_replace('_', ' ', $s))); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div>
-                        <label>Type</label>
+                        <label><?php echo e(t('grc-controls.type')); ?></label>
                         <select name="type" onchange="this.form.submit()">
-                            <option value="">All Types</option>
+                            <option value=""><?php echo e(t('grc-controls.all_types')); ?></option>
                             <?php foreach (['preventive', 'detective', 'corrective', 'directive'] as $t): ?>
                             <option value="<?php echo e($t); ?>" <?php echo ($filters['type'] ?? '') === $t ? 'selected' : ''; ?>><?php echo e(ucfirst($t)); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div>
-                        <label>Framework</label>
+                        <label><?php echo e(t('grc-controls.framework')); ?></label>
                         <select name="framework_id" onchange="this.form.submit()">
-                            <option value="">All Frameworks</option>
+                            <option value=""><?php echo e(t('grc-controls.all_frameworks')); ?></option>
                             <?php foreach ($frameworks as $fw): ?>
                             <option value="<?php echo (int)$fw['id']; ?>" <?php echo ((int)($filters['framework_id'] ?? 0)) === (int)$fw['id'] ? 'selected' : ''; ?>><?php echo e($fw['code']); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div>
-                        <label>Search</label>
-                        <input type="text" name="search" value="<?php echo e($filters['search'] ?? ''); ?>" placeholder="Reference or title...">
+                        <label><?php echo e(t('grc-controls.search')); ?></label>
+                        <input type="text" name="search" value="<?php echo e($filters['search'] ?? ''); ?>" placeholder="<?php echo e(t('grc-controls.ref_or_title_ph')); ?>">
                     </div>
-                    <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;">Filter</button>
+                    <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;"><?php echo e(t('grc-controls.filter')); ?></button>
                 </form>
                 <?php if (!$readOnly): ?>
-                <a href="grc-controls.php?new=1" class="btn btn-primary">+ New Control</a>
+                <a href="grc-controls.php?new=1" class="btn btn-primary">+ <?php echo e(t('grc-controls.new_control')); ?></a>
                 <?php endif; ?>
             </div>
 
             <table class="grc-table">
                 <thead>
                     <tr>
-                        <th>Reference</th>
-                        <th>Title</th>
-                        <th>Status</th>
-                        <th>Type</th>
-                        <th>Owner</th>
-                        <th>Requirements</th>
-                        <th>Evidence</th>
-                        <th>Frameworks</th>
+                        <th><?php echo e(t('grc-controls.reference')); ?></th>
+                        <th><?php echo e(t('grc-controls.title')); ?></th>
+                        <th><?php echo e(t('grc-controls.status')); ?></th>
+                        <th><?php echo e(t('grc-controls.type')); ?></th>
+                        <th><?php echo e(t('grc-controls.owner')); ?></th>
+                        <th><?php echo e(t('grc-controls.requirements')); ?></th>
+                        <th><?php echo e(t('grc-controls.evidence')); ?></th>
+                        <th><?php echo e(t('grc-controls.frameworks')); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($controls)): ?>
-                    <tr><td colspan="8" style="text-align:center;color:#6b7280;padding:30px;">No controls found.</td></tr>
+                    <tr><td colspan="8" style="text-align:center;color:#6b7280;padding:30px;"><?php echo e(t('grc-controls.no_controls_found')); ?></td></tr>
                     <?php else: ?>
                     <?php foreach ($controls as $c): ?>
                     <tr>
@@ -845,7 +845,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-controls.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

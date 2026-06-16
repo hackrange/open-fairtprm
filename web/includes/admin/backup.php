@@ -44,7 +44,7 @@ if (!empty($_SESSION['flash_needs_key'])) {
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_backup.invalid_request');
     } elseif (isset($_POST['create_backup'])) {
         try {
             $dbConfig = $config->get('database');
@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = 'Database backup created successfully: ' . $filename . ' (' . $formattedSize . ')';
         } catch (Exception $e) {
             error_log('Error creating database backup: ' . $e->getMessage());
-            $error = 'Failed to create database backup. Check the error log for details.';
+            $error = t('admin_backup.create_failed');
         }
     } elseif (isset($_POST['delete_backup'])) {
         try {
@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = 'Backup deleted: ' . $requestedFile;
         } catch (Exception $e) {
             error_log('Error deleting backup: ' . $e->getMessage());
-            $error = 'Failed to delete backup. Check the error log for details.';
+            $error = t('admin_backup.delete_failed');
         }
     } elseif (isset($_POST['restore_backup'])) {
         try {
@@ -399,12 +399,12 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
 // ============================================================================
 ?>
 <div class="page-header-bar">
-    <h1 class="page-title">Database Backup</h1>
-    <p>Create and download complete database backups including all data.</p>
+    <h1 class="page-title"><?php echo e(t('admin_backup.page_title')); ?></h1>
+    <p><?php echo e(t('admin_backup.page_desc')); ?></p>
 </div>
 
 <div class="card">
-    <h3>Create New Backup</h3>
+    <h3><?php echo e(t('admin_backup.create_heading')); ?></h3>
     <p style="color: #666; margin-bottom: 15px;">
         Generate a complete database dump of the <strong>tprm</strong> database including all table structures, data, routines, and triggers.
         Backups are saved to a secure directory on the server and can be downloaded below.
@@ -412,12 +412,12 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
     <form method="POST" action="admin.php?section=backup">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="create_backup" value="1">
-        <button type="submit" class="btn btn-primary" data-disable-on-click="Creating backup...">Create Database Backup</button>
+        <button type="submit" class="btn btn-primary" data-disable-on-click="Creating backup..."><?php echo e(t('admin_backup.btn_create')); ?></button>
     </form>
 </div>
 
 <div class="card">
-    <h3>Existing Backups</h3>
+    <h3><?php echo e(t('admin_backup.existing_heading')); ?></h3>
     <?php
     $backups = [];
     if (is_dir($backupDir)) {
@@ -436,7 +436,7 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
     }
     ?>
     <?php if (empty($backups)): ?>
-        <p style="color: #999;">No backups found. Create your first backup above.</p>
+        <p style="color: #999;"><?php echo e(t('admin_backup.no_backups')); ?></p>
     <?php else: ?>
         <p style="color: #666; margin-bottom: 15px;">
             Backups are stored in <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">db_backup/</code> on the server with restricted permissions.
@@ -444,10 +444,10 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
         <table>
             <thead>
                 <tr>
-                    <th>Filename</th>
-                    <th>Size</th>
-                    <th>Created</th>
-                    <th>Actions</th>
+                    <th><?php echo e(t('admin_backup.col_filename')); ?></th>
+                    <th><?php echo e(t('admin_backup.col_size')); ?></th>
+                    <th><?php echo e(t('admin_backup.col_created')); ?></th>
+                    <th><?php echo e(t('admin_backup.col_actions')); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -465,12 +465,12 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
                     </td>
                     <td><?php echo date('M j, Y g:i A', $backup['created']); ?></td>
                     <td style="white-space: nowrap;">
-                        <a href="admin.php?section=backup&download_backup=<?php echo urlencode($backup['filename']); ?>" class="btn btn-primary btn-sm">Download</a>
-                        <button type="button" class="btn btn-sm" style="background: #f59e0b; color: white;" data-action="confirmRestore" data-arg="<?php echo e($backup['filename']); ?>">Restore</button>
+                        <a href="admin.php?section=backup&download_backup=<?php echo urlencode($backup['filename']); ?>" class="btn btn-primary btn-sm"><?php echo e(t('admin_backup.action_download')); ?></a>
+                        <button type="button" class="btn btn-sm" style="background: #f59e0b; color: white;" data-action="confirmRestore" data-arg="<?php echo e($backup['filename']); ?>"><?php echo e(t('admin_backup.action_restore')); ?></button>
                         <form method="POST" action="admin.php?section=backup" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="backup_filename" value="<?php echo e($backup['filename']); ?>">
-                            <button type="submit" name="delete_backup" class="btn btn-sm" style="background: #dc2626; color: white;" data-confirm="Are you sure you want to delete this backup?">Delete</button>
+                            <button type="submit" name="delete_backup" class="btn btn-sm" style="background: #dc2626; color: white;" data-confirm="<?php echo e(t('admin_backup.confirm_delete')); ?>"><?php echo e(t('admin_backup.action_delete')); ?></button>
                         </form>
                     </td>
                 </tr>
@@ -481,57 +481,57 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
 </div>
 
 <div class="card">
-    <h3>Upload &amp; Restore</h3>
+    <h3><?php echo e(t('admin_backup.upload_heading')); ?></h3>
     <p style="color: #666; margin-bottom: 15px;">
         Upload a <code>.sql</code> backup file from your computer to restore the database. The uploaded file will be saved to the server and then applied.
     </p>
     <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
-        <strong style="color: #92400e;">Warning:</strong>
+        <strong style="color: #92400e;"><?php echo e(t('admin_backup.warning_label')); ?></strong>
         <span style="font-size: 13px; color: #78350f;">
-            Restoring will overwrite the current database. A safety backup is automatically created before any restore operation.
+            <?php echo e(t('admin_backup.upload_warning')); ?>
         </span>
     </div>
     <form method="POST" action="admin.php?section=backup" enctype="multipart/form-data" id="uploadRestoreForm">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" id="upload_source_key_hidden" name="source_encryption_key" value="">
         <div class="form-group">
-            <label for="backup_upload">Select SQL Backup File</label>
+            <label for="backup_upload"><?php echo e(t('admin_backup.label_select_file')); ?></label>
             <input type="file" id="backup_upload" name="backup_upload" class="form-control" accept=".sql" required
                    style="padding: 8px; border: 2px dashed #ddd; border-radius: 6px; cursor: pointer;"
                    data-file-display="uploadFileName">
             <div id="uploadFileName" style="margin-top: 8px; font-size: 13px; color: #666;"></div>
             <div class="form-help">Only <code>.sql</code> backup files are supported</div>
         </div>
-        <button type="button" class="btn" style="background: #f59e0b; color: white;" data-action="confirmUploadRestore">Upload &amp; Restore Database</button>
+        <button type="button" class="btn" style="background: #f59e0b; color: white;" data-action="confirmUploadRestore"><?php echo e(t('admin_backup.btn_upload_restore')); ?></button>
     </form>
 </div>
 
 <div class="card">
-    <h3>Backup &amp; Restore Information</h3>
+    <h3><?php echo e(t('admin_backup.info_heading')); ?></h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
         <div>
-            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;">Storage Location</h4>
+            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;"><?php echo e(t('admin_backup.info_storage_heading')); ?></h4>
             <p style="font-size: 13px; color: #666; margin: 0;">
                 Backups are saved to <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;"><?php echo e($backupDir); ?></code>
                 on the server. This directory is protected from web access via <code>.htaccess</code> rules.
             </p>
         </div>
         <div>
-            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;">Backup Contents</h4>
+            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;"><?php echo e(t('admin_backup.info_contents_heading')); ?></h4>
             <p style="font-size: 13px; color: #666; margin: 0;">
-                Each backup is a complete database dump including all table structures, data, stored procedures, and triggers.
+                <?php echo e(t('admin_backup.info_contents_desc')); ?>
             </p>
         </div>
         <div>
-            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;">Safety Backups</h4>
+            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;"><?php echo e(t('admin_backup.info_safety_heading')); ?></h4>
             <p style="font-size: 13px; color: #666; margin: 0;">
-                Before any restore operation, a safety backup of the current database state is automatically created. This allows you to roll back if anything goes wrong.
+                <?php echo e(t('admin_backup.info_safety_desc')); ?>
             </p>
         </div>
         <div>
-            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;">Restore Method</h4>
+            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;"><?php echo e(t('admin_backup.info_method_heading')); ?></h4>
             <p style="font-size: 13px; color: #666; margin: 0;">
-                Use the Upload &amp; Restore feature above to restore from a backup file. The restore is performed entirely through PHP/PDO &mdash; no external CLI tools are required.
+                <?php echo e(t('admin_backup.info_method_desc')); ?>
             </p>
         </div>
     </div>
@@ -541,13 +541,13 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
 <div id="restoreBackupModal" class="modal">
     <div class="modal-content" style="max-width: 550px;">
         <span class="close" data-action="closeRestoreModal">&times;</span>
-        <h3 style="margin-top: 0; color: #dc2626;">Restore Database</h3>
+        <h3 style="margin-top: 0; color: #dc2626;"><?php echo e(t('admin_backup.restore_modal_title')); ?></h3>
 
         <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
             <div style="display: flex; align-items: start; gap: 10px;">
                 <span style="font-size: 20px;">&#9888;</span>
                 <div>
-                    <strong style="color: #991b1b;">This is a destructive operation</strong>
+                    <strong style="color: #991b1b;"><?php echo e(t('admin_backup.destructive_op')); ?></strong>
                     <p style="margin: 5px 0 0; font-size: 13px; color: #991b1b;">
                         Restoring a backup will <strong>overwrite all current data</strong> in the database. A safety backup of the current state will be created automatically before restoring.
                     </p>
@@ -562,13 +562,13 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
 
         <div class="form-group" style="margin-bottom: 20px;">
             <label for="restore_source_key" style="font-weight: 500;">Source Encryption Key <span style="font-weight: normal; color: #666;">(optional)</span></label>
-            <input type="text" id="restore_source_key" class="form-control" placeholder="Base64-encoded key from the source instance" autocomplete="off" style="font-family: monospace; font-size: 13px;">
+            <input type="text" id="restore_source_key" class="form-control" placeholder="<?php echo e(t('admin_backup.placeholder_source_key')); ?>" autocomplete="off" style="font-family: monospace; font-size: 13px;">
             <div class="form-help">Only needed when restoring a backup from a different instance. Found in the source instance's <code>config.php</code> under <code>encryption.key</code>.</div>
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
             <label for="restore_confirm_input" style="font-weight: 500;">Type <strong>RESTORE</strong> to confirm:</label>
-            <input type="text" id="restore_confirm_input" class="form-control" placeholder="Type RESTORE to confirm" autocomplete="off">
+            <input type="text" id="restore_confirm_input" class="form-control" placeholder="<?php echo e(t('admin_backup.placeholder_type_restore')); ?>" autocomplete="off">
         </div>
 
         <form method="POST" action="admin.php?section=backup" id="restoreBackupForm">
@@ -578,8 +578,8 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
             <input type="hidden" id="restore_source_key_hidden" name="source_encryption_key" value="">
 
             <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-                <button type="button" class="btn btn-secondary" data-action="closeRestoreModal">Cancel</button>
-                <button type="button" id="confirmRestoreBtn" class="btn" style="background: #f59e0b; color: white;" disabled>Restore Database</button>
+                <button type="button" class="btn btn-secondary" data-action="closeRestoreModal"><?php echo e(t('admin_backup.btn_cancel')); ?></button>
+                <button type="button" id="confirmRestoreBtn" class="btn" style="background: #f59e0b; color: white;" disabled><?php echo e(t('admin_backup.btn_restore_database')); ?></button>
             </div>
         </form>
     </div>
@@ -589,13 +589,13 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
 <div id="uploadRestoreModal" class="modal">
     <div class="modal-content" style="max-width: 550px;">
         <span class="close" data-action="closeUploadRestoreModal">&times;</span>
-        <h3 style="margin-top: 0; color: #dc2626;">Restore from Uploaded File</h3>
+        <h3 style="margin-top: 0; color: #dc2626;"><?php echo e(t('admin_backup.upload_modal_title')); ?></h3>
 
         <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
             <div style="display: flex; align-items: start; gap: 10px;">
                 <span style="font-size: 20px;">&#9888;</span>
                 <div>
-                    <strong style="color: #991b1b;">This is a destructive operation</strong>
+                    <strong style="color: #991b1b;"><?php echo e(t('admin_backup.destructive_op')); ?></strong>
                     <p style="margin: 5px 0 0; font-size: 13px; color: #991b1b;">
                         The uploaded SQL file will <strong>overwrite all current data</strong> in the database. A safety backup of the current state will be created automatically before restoring.
                     </p>
@@ -609,18 +609,18 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
 
         <div class="form-group" style="margin-bottom: 20px;">
             <label for="upload_restore_source_key" style="font-weight: 500;">Source Encryption Key <span style="font-weight: normal; color: #666;">(optional)</span></label>
-            <input type="text" id="upload_restore_source_key" class="form-control" placeholder="Base64-encoded key from the source instance" autocomplete="off" style="font-family: monospace; font-size: 13px;">
+            <input type="text" id="upload_restore_source_key" class="form-control" placeholder="<?php echo e(t('admin_backup.placeholder_source_key')); ?>" autocomplete="off" style="font-family: monospace; font-size: 13px;">
             <div class="form-help">Only needed when restoring a backup from a different instance. Found in the source instance's <code>config.php</code> under <code>encryption.key</code>.</div>
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
             <label for="upload_restore_confirm_input" style="font-weight: 500;">Type <strong>RESTORE</strong> to confirm:</label>
-            <input type="text" id="upload_restore_confirm_input" class="form-control" placeholder="Type RESTORE to confirm" autocomplete="off">
+            <input type="text" id="upload_restore_confirm_input" class="form-control" placeholder="<?php echo e(t('admin_backup.placeholder_type_restore')); ?>" autocomplete="off">
         </div>
 
         <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-            <button type="button" class="btn btn-secondary" data-action="closeUploadRestoreModal">Cancel</button>
-            <button type="button" id="confirmUploadRestoreBtn" class="btn" style="background: #f59e0b; color: white;" disabled>Upload &amp; Restore</button>
+            <button type="button" class="btn btn-secondary" data-action="closeUploadRestoreModal"><?php echo e(t('admin_backup.btn_cancel')); ?></button>
+            <button type="button" id="confirmUploadRestoreBtn" class="btn" style="background: #f59e0b; color: white;" disabled><?php echo e(t('admin_backup.btn_upload_restore_short')); ?></button>
         </div>
     </div>
 </div>

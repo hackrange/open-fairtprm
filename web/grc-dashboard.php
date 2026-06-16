@@ -354,11 +354,11 @@ $csrfToken = $security->generateCSRFToken();
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -366,8 +366,8 @@ $csrfToken = $security->generateCSRFToken();
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">GRC Compliance Dashboard</h1>
-            <p style="color:#6b7280;margin:0 0 20px;">Unified compliance posture across all frameworks</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc-dashboard.title')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 20px;"><?php echo e(t('grc-dashboard.subtitle')); ?></p>
 
             <!-- Year, Scope & Audit Filters -->
             <div class="filter-bar">
@@ -381,9 +381,9 @@ $csrfToken = $security->generateCSRFToken();
                 </div>
                 <?php if (!empty($scopes)): ?>
                 <div class="scope-filter-wrap">
-                    <label>Scope:</label>
+                    <label><?php echo e(t('grc-dashboard.scope')); ?></label>
                     <select id="scopeFilter" data-year="<?php echo $filterYear; ?>">
-                        <option value="">All Scopes</option>
+                        <option value=""><?php echo e(t('grc-dashboard.all_scopes')); ?></option>
                         <?php foreach ($scopes as $s): ?>
                         <option value="<?php echo (int)$s['id']; ?>" <?php echo $filterScopeId === (int)$s['id'] ? 'selected' : ''; ?>><?php echo e($s['name']); ?></option>
                         <?php endforeach; ?>
@@ -392,9 +392,9 @@ $csrfToken = $security->generateCSRFToken();
                 <?php endif; ?>
                 <?php if (!empty($availableAudits)): ?>
                 <div class="scope-filter-wrap">
-                    <label>Audit:</label>
+                    <label><?php echo e(t('grc-dashboard.audit')); ?></label>
                     <select id="auditFilter" data-year="<?php echo $filterYear; ?>" data-scope="<?php echo $filterScopeId; ?>">
-                        <option value="">All Audits</option>
+                        <option value=""><?php echo e(t('grc-dashboard.all_audits')); ?></option>
                         <?php foreach ($availableAudits as $aa): ?>
                         <option value="<?php echo (int)$aa['id']; ?>" <?php echo $filterAuditId === (int)$aa['id'] ? 'selected' : ''; ?>><?php echo e($aa['audit_ref'] . ' - ' . $aa['title']); ?></option>
                         <?php endforeach; ?>
@@ -408,32 +408,32 @@ $csrfToken = $security->generateCSRFToken();
             <div class="stat-grid">
                 <div class="stat-card info">
                     <div class="stat-value"><?php echo $stats['controls_total']; ?></div>
-                    <div class="stat-label">Internal Controls</div>
+                    <div class="stat-label"><?php echo e(t('grc-dashboard.internal_controls')); ?></div>
                 </div>
                 <div class="stat-card success">
                     <div class="stat-value"><?php echo $stats['evidence_current']; ?></div>
-                    <div class="stat-label">Current Evidence</div>
+                    <div class="stat-label"><?php echo e(t('grc-dashboard.current_evidence')); ?></div>
                 </div>
                 <div class="stat-card <?php echo $stats['evidence_expiring_30d'] > 0 ? 'warning' : 'success'; ?>">
                     <div class="stat-value"><?php echo $stats['evidence_expiring_30d']; ?></div>
-                    <div class="stat-label">Evidence Expiring (30d)</div>
+                    <div class="stat-label"><?php echo e(t('grc-dashboard.evidence_expiring')); ?></div>
                 </div>
                 <div class="stat-card <?php echo $stats['open_findings'] > 0 ? 'danger' : 'success'; ?>">
                     <div class="stat-value"><?php echo $stats['open_findings']; ?></div>
-                    <div class="stat-label">Open Findings</div>
+                    <div class="stat-label"><?php echo e(t('grc-dashboard.open_findings')); ?></div>
                 </div>
                 <div class="stat-card <?php echo $stats['policies_due_review'] > 0 ? 'warning' : 'success'; ?>">
                     <div class="stat-value"><?php echo $stats['policies_due_review']; ?></div>
-                    <div class="stat-label">Policies Due Review</div>
+                    <div class="stat-label"><?php echo e(t('grc-dashboard.policies_due_review')); ?></div>
                 </div>
                 <div class="stat-card <?php echo $stats['overdue_remediation'] > 0 ? 'danger' : 'success'; ?>">
                     <div class="stat-value"><?php echo $stats['overdue_remediation']; ?></div>
-                    <div class="stat-label">Overdue Remediation</div>
+                    <div class="stat-label"><?php echo e(t('grc-dashboard.overdue_remediation')); ?></div>
                 </div>
             </div>
 
             <!-- Framework Compliance -->
-            <h2 class="section-header">Framework Readiness</h2>
+            <h2 class="section-header"><?php echo e(t('grc-dashboard.framework_readiness')); ?></h2>
             <?php if (empty($frameworkStatus)): ?>
             <div style="text-align:center;padding:40px 20px;color:#6b7280;">
                 <p style="font-size:15px;margin:0;">No audited frameworks found for <?php echo (int)$filterYear; ?><?php echo $filterScopeId > 0 ? ' in this scope' : ''; ?>. Create an audit to see framework tiles here.</p>
@@ -485,38 +485,38 @@ $csrfToken = $security->generateCSRFToken();
                     <div class="fw-card-metrics">
                         <div class="fw-metric">
                             <div class="fw-metric-val green"><?php echo $fs['conforming']; ?></div>
-                            <div class="fw-metric-lbl">Conforming</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc-dashboard.conforming')); ?></div>
                         </div>
                         <div class="fw-metric">
                             <div class="fw-metric-val amber"><?php echo $fs['partial']; ?></div>
-                            <div class="fw-metric-lbl">Partial</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc-dashboard.partial')); ?></div>
                         </div>
                         <div class="fw-metric">
                             <div class="fw-metric-val <?php echo $fs['non_conforming'] > 0 ? 'red' : 'gray'; ?>"><?php echo $fs['non_conforming']; ?></div>
-                            <div class="fw-metric-lbl">Non-Conform</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc-dashboard.non_conform')); ?></div>
                         </div>
                         <div class="fw-metric">
                             <div class="fw-metric-val gray"><?php echo $fs['not_assessed']; ?></div>
-                            <div class="fw-metric-lbl">Not Assessed</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc-dashboard.not_assessed')); ?></div>
                         </div>
                     </div>
                     <?php else: ?>
                     <div class="fw-card-metrics">
                         <div class="fw-metric">
                             <div class="fw-metric-val green"><?php echo $fs['implemented']; ?></div>
-                            <div class="fw-metric-lbl">Ready</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc-dashboard.ready')); ?></div>
                         </div>
                         <div class="fw-metric">
                             <div class="fw-metric-val amber"><?php echo $fs['partial']; ?></div>
-                            <div class="fw-metric-lbl">Partial</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc-dashboard.partial')); ?></div>
                         </div>
                         <div class="fw-metric">
                             <div class="fw-metric-val gray"><?php echo ($fs['in_progress'] ?? 0) + ($fs['planned'] ?? 0); ?></div>
-                            <div class="fw-metric-lbl">In Progress</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc-dashboard.in_progress')); ?></div>
                         </div>
                         <div class="fw-metric">
                             <div class="fw-metric-val <?php echo ($fs['no_control'] ?? 0) > 0 ? 'red' : 'gray'; ?>"><?php echo $fs['no_control'] ?? 0; ?></div>
-                            <div class="fw-metric-lbl">Unmapped</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc-dashboard.unmapped')); ?></div>
                         </div>
                     </div>
                     <?php endif; ?>
@@ -528,18 +528,18 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Charts -->
             <div class="chart-row">
                 <div class="chart-card">
-                    <h3>Control Implementation Status</h3>
+                    <h3><?php echo e(t('grc-dashboard.control_impl_status')); ?></h3>
                     <canvas id="controlStatusChart"></canvas>
                 </div>
                 <div class="chart-card">
-                    <h3>Framework Compliance Overview</h3>
+                    <h3><?php echo e(t('grc-dashboard.framework_compliance_overview')); ?></h3>
                     <canvas id="frameworkChart"></canvas>
                 </div>
             </div>
 
             <!-- Continuous Monitors -->
             <?php if (!empty($monitors)): ?>
-            <h2 class="section-header">Continuous Monitor Health</h2>
+            <h2 class="section-header"><?php echo e(t('grc-dashboard.monitor_health')); ?></h2>
             <div class="monitor-grid">
                 <?php foreach ($monitors as $mon): ?>
                 <div class="monitor-card">
@@ -576,7 +576,7 @@ $csrfToken = $security->generateCSRFToken();
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-dashboard.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

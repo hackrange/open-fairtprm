@@ -28,7 +28,7 @@ $isAuditor = hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberGRC && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. GRC module requires cyber_grc, administrator, or auditor role.');
+    die(t('grc-audits.access_denied'));
 }
 
 $readOnly = $isAuditor && !$isAdmin && !$isCyberGRC;
@@ -202,7 +202,7 @@ if (isset($_GET['export']) && (int)$_GET['export'] > 0) {
 // POST handlers
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $msg = 'Invalid CSRF token. Please try again.';
+        $msg = t('grc-audits.invalid_csrf');
         $msgType = 'danger';
     } else {
         $action = $_POST['action'] ?? '';
@@ -227,10 +227,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'planned_end' => !empty($_POST['planned_end_date']) ? $_POST['planned_end_date'] : null,
                     'created_by' => (int)$user['id'],
                 ]);
-                $msg = 'Audit created successfully.';
+                $msg = t('grc-audits.audit_created');
                 $msgType = 'success';
             } else {
-                $msg = 'Title is required.';
+                $msg = t('grc-audits.title_required');
                 $msgType = 'danger';
             }
         } elseif ($action === 'update_audit') {
@@ -253,7 +253,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     $updateData['actual_end'] = date('Y-m-d');
                 }
                 $db->update('grc_audits', $updateData, 'id = :id', [':id' => $auditId]);
-                $msg = 'Audit updated.';
+                $msg = t('grc-audits.audit_updated');
                 $msgType = 'success';
             }
         } elseif ($action === 'add_finding') {
@@ -275,7 +275,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'remediation_plan' => trim($_POST['recommendation'] ?? '') ?: null,
                     'assigned_to' => !empty($_POST['assigned_to_finding']) ? (int)$_POST['assigned_to_finding'] : null,
                 ]);
-                $msg = 'Finding recorded.';
+                $msg = t('grc-audits.finding_recorded');
                 $msgType = 'success';
             }
         } elseif ($action === 'update_finding') {
@@ -290,7 +290,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     $fUpdate['closed_by'] = (int)$user['id'];
                 }
                 $db->update('grc_audit_findings', $fUpdate, 'id = :id', [':id' => $findingId]);
-                $msg = 'Finding updated.';
+                $msg = t('grc-audits.finding_updated');
                 $msgType = 'success';
             }
         } elseif ($action === 'add_remediation') {
@@ -307,7 +307,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'created_by' => (int)$user['id'],
                 ]);
                 $db->update('grc_audit_findings', ['status' => 'in_remediation'], 'id = :id', [':id' => $findingId]);
-                $msg = 'Remediation plan added.';
+                $msg = t('grc-audits.remediation_added');
                 $msgType = 'success';
             }
         } elseif ($action === 'request_evidence') {
@@ -323,7 +323,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'status' => 'requested',
                     'requested_by' => (int)$user['id'],
                 ]);
-                $msg = 'Evidence request created.';
+                $msg = t('grc-audits.evidence_request_created');
                 $msgType = 'success';
             }
         } elseif ($action === 'save_requirement_assessments') {
@@ -369,12 +369,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                 $db->query('DELETE FROM grc_audit_evidence_requests WHERE audit_id = :id', [':id' => $auditId]);
                 $db->query('DELETE FROM grc_audit_findings WHERE audit_id = :id', [':id' => $auditId]);
                 $db->query('DELETE FROM grc_audits WHERE id = :id', [':id' => $auditId]);
-                $msg = 'Audit deleted.';
+                $msg = t('grc-audits.audit_deleted');
                 $msgType = 'success';
                 header('Location: grc-audits.php?deleted=1');
                 exit;
             } else {
-                $msg = 'Only administrators can delete audits.';
+                $msg = t('grc-audits.only_admins_delete');
                 $msgType = 'danger';
             }
         }
@@ -384,7 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
 
 // Handle deleted redirect
 if (isset($_GET['deleted'])) {
-    $msg = 'Audit deleted.';
+    $msg = t('grc-audits.audit_deleted');
     $msgType = 'success';
 }
 
@@ -722,11 +722,11 @@ $currentPage = 'grc_audits';
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -734,8 +734,8 @@ $currentPage = 'grc_audits';
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">Audit Management</h1>
-            <p style="color:#6b7280;margin:0 0 30px;">Plan audits, record findings, and track remediation</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc-audits.audit_management')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 30px;"><?php echo e(t('grc-audits.intro')); ?></p>
 
             <?php if ($msg): ?>
             <div class="alert alert-<?php echo e($msgType); ?>"><?php echo e($msg); ?></div>
@@ -743,17 +743,17 @@ $currentPage = 'grc_audits';
 
             <?php if ($auditDetail): ?>
             <!-- Audit Detail -->
-            <a href="grc-audits.php" class="back-link">&larr; Back to audits</a>
+            <a href="grc-audits.php" class="back-link">&larr; <?php echo e(t('grc-audits.back_to_audits')); ?></a>
 
             <div class="detail-card">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                     <h3><?php echo e($auditDetail['audit_ref']); ?> - <?php echo e($auditDetail['title']); ?></h3>
                     <div style="display:flex;gap:8px;">
                         <?php if (!$readOnly): ?>
-                        <a href="grc-audits.php?edit=<?php echo (int)$auditDetail['id']; ?>" class="btn btn-sm btn-outline">Edit</a>
+                        <a href="grc-audits.php?edit=<?php echo (int)$auditDetail['id']; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc-audits.edit')); ?></a>
                         <?php endif; ?>
                         <div class="export-dropdown" style="position:relative;display:inline-block;">
-                            <button type="button" class="btn btn-sm btn-info" data-action="toggle-export">Export &#9662;</button>
+                            <button type="button" class="btn btn-sm btn-info" data-action="toggle-export"><?php echo e(t('grc-audits.export')); ?> &#9662;</button>
                             <div class="export-menu">
                                 <a href="grc-audits.php?export=<?php echo (int)$auditDetail['id']; ?>&amp;format=pdf">PDF</a>
                                 <a href="grc-audits.php?export=<?php echo (int)$auditDetail['id']; ?>&amp;format=rtf">RTF</a>
@@ -764,24 +764,24 @@ $currentPage = 'grc_audits';
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="action" value="delete_audit">
                             <input type="hidden" name="audit_id" value="<?php echo (int)$auditDetail['id']; ?>">
-                            <button type="submit" class="btn btn-sm btn-danger">Delete Entire Audit</button>
+                            <button type="submit" class="btn btn-sm btn-danger"><?php echo e(t('grc-audits.delete_entire_audit')); ?></button>
                         </form>
                         <?php endif; ?>
                         <?php $hasReport = !empty($auditDetail['report_file_name']); ?>
-                        <a href="grc-audit-report.php?audit_id=<?php echo (int)$auditDetail['id']; ?>" class="btn btn-sm btn-outline" style="background:#eef2ff;border-color:#6366f1;color:#4338ca;"><?php echo $hasReport ? 'Recreate Report' : 'Generate Report'; ?></a>
+                        <a href="grc-audit-report.php?audit_id=<?php echo (int)$auditDetail['id']; ?>" class="btn btn-sm btn-outline" style="background:#eef2ff;border-color:#6366f1;color:#4338ca;"><?php echo $hasReport ? e(t('grc-audits.recreate_report')) : e(t('grc-audits.generate_report')); ?></a>
                         <?php if ($hasReport): ?>
-                        <a href="api/grc-report-download.php?audit_id=<?php echo (int)$auditDetail['id']; ?>" class="btn btn-sm btn-outline" style="background:#f0fdf4;border-color:#22c55e;color:#15803d;">Download Latest Report</a>
+                        <a href="api/grc-report-download.php?audit_id=<?php echo (int)$auditDetail['id']; ?>" class="btn btn-sm btn-outline" style="background:#f0fdf4;border-color:#22c55e;color:#15803d;"><?php echo e(t('grc-audits.download_latest')); ?></a>
                         <?php endif; ?>
                     </div>
                 </div>
                 <div class="detail-grid">
-                    <div class="detail-item"><div class="label">Status</div><div class="value"><span class="status-badge status-<?php echo e($auditDetail['status']); ?>"><?php echo e(ucfirst(str_replace('_', ' ', $auditDetail['status']))); ?></span></div></div>
-                    <div class="detail-item"><div class="label">Type</div><div class="value"><?php echo e(ucfirst($auditDetail['audit_type'] ?? '-')); ?></div></div>
-                    <div class="detail-item"><div class="label">Framework</div><div class="value"><?php echo e($auditDetail['framework_name'] ?? ($auditDetail['framework_code'] ?? 'N/A')); ?></div></div>
-                    <div class="detail-item"><div class="label">Scope</div><div class="value"><?php echo e($auditDetail['scope_name'] ?? '-'); ?></div></div>
-                    <div class="detail-item"><div class="label">Lead Auditor</div><div class="value"><?php echo e($auditDetail['lead_auditor_name'] ?? '-'); ?></div></div>
-                    <div class="detail-item"><div class="label">Planned Dates</div><div class="value"><?php echo $auditDetail['planned_start'] ? e($auditDetail['planned_start'] . ' to ' . ($auditDetail['planned_end'] ?? '?')) : '-'; ?></div></div>
-                    <div class="detail-item"><div class="label">Actual Dates</div><div class="value"><?php echo $auditDetail['actual_start'] ? e($auditDetail['actual_start'] . ' to ' . ($auditDetail['actual_end'] ?? 'ongoing')) : '-'; ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-audits.status')); ?></div><div class="value"><span class="status-badge status-<?php echo e($auditDetail['status']); ?>"><?php echo e(ucfirst(str_replace('_', ' ', $auditDetail['status']))); ?></span></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-audits.type')); ?></div><div class="value"><?php echo e(ucfirst($auditDetail['audit_type'] ?? '-')); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-audits.framework')); ?></div><div class="value"><?php echo e($auditDetail['framework_name'] ?? ($auditDetail['framework_code'] ?? 'N/A')); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-audits.scope')); ?></div><div class="value"><?php echo e($auditDetail['scope_name'] ?? '-'); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-audits.lead_auditor')); ?></div><div class="value"><?php echo e($auditDetail['lead_auditor_name'] ?? '-'); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-audits.planned_dates')); ?></div><div class="value"><?php echo $auditDetail['planned_start'] ? e($auditDetail['planned_start'] . ' to ' . ($auditDetail['planned_end'] ?? '?')) : '-'; ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-audits.actual_dates')); ?></div><div class="value"><?php echo $auditDetail['actual_start'] ? e($auditDetail['actual_start'] . ' to ' . ($auditDetail['actual_end'] ?? 'ongoing')) : '-'; ?></div></div>
                 </div>
                 <?php if (!empty($auditDetail['description'])): ?>
                 <p style="font-size:13px;color:#374151;"><?php echo e($auditDetail['description']); ?></p>
@@ -820,10 +820,10 @@ $currentPage = 'grc_audits';
                 <table class="grc-table" style="margin-bottom:0;">
                     <thead>
                         <tr>
-                            <th>Ref</th>
-                            <th>Requirement</th>
-                            <th>Status</th>
-                            <th>Notes</th>
+                            <th><?php echo e(t('grc-audits.ref')); ?></th>
+                            <th><?php echo e(t('grc-audits.requirement')); ?></th>
+                            <th><?php echo e(t('grc-audits.status')); ?></th>
+                            <th><?php echo e(t('grc-audits.notes')); ?></th>
                             <th style="width:36px;"></th>
                         </tr>
                     </thead>
@@ -839,7 +839,7 @@ $currentPage = 'grc_audits';
                             <td>
                                 <?php if (!$readOnly): ?>
                                 <select name="assessments[<?php echo (int)$fr['id']; ?>]" style="padding:3px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;width:auto;">
-                                    <?php foreach (['not_assessed' => 'Not Assessed', 'conforming' => 'Conforming', 'non_conforming' => 'Non-Conforming', 'partially_conforming' => 'Partial', 'not_applicable' => 'N/A'] as $sv => $sl): ?>
+                                    <?php foreach (['not_assessed' => t('grc-audits.not_assessed'), 'conforming' => t('grc-audits.conforming'), 'non_conforming' => t('grc-audits.non_conforming'), 'partially_conforming' => t('grc-audits.partial'), 'not_applicable' => t('grc-audits.na')] as $sv => $sl): ?>
                                     <option value="<?php echo e($sv); ?>" <?php echo $currentStatus === $sv ? 'selected' : ''; ?>><?php echo e($sl); ?></option>
                                     <?php endforeach; ?>
                                 </select>
@@ -850,17 +850,17 @@ $currentPage = 'grc_audits';
                             <td>
                                 <input type="hidden" name="assessment_notes[<?php echo (int)$fr['id']; ?>]" id="notes-val-<?php echo (int)$fr['id']; ?>" value="<?php echo e($currentNotes); ?>">
                                 <?php if (!$readOnly): ?>
-                                <button type="button" class="btn-notes <?php echo $currentNotes ? 'has-notes' : ''; ?>" data-action="open-notes" data-req-id="<?php echo (int)$fr['id']; ?>" data-req-ref="<?php echo e($fr['requirement_ref']); ?>" data-req-title="<?php echo e($fr['title']); ?>" title="<?php echo $currentNotes ? e($currentNotes) : 'Add notes'; ?>"><?php echo $currentNotes ? 'Edit Notes' : 'Add Notes'; ?></button>
+                                <button type="button" class="btn-notes <?php echo $currentNotes ? 'has-notes' : ''; ?>" data-action="open-notes" data-req-id="<?php echo (int)$fr['id']; ?>" data-req-ref="<?php echo e($fr['requirement_ref']); ?>" data-req-title="<?php echo e($fr['title']); ?>" title="<?php echo $currentNotes ? e($currentNotes) : e(t('grc-audits.add_notes_title')); ?>"><?php echo $currentNotes ? e(t('grc-audits.edit_notes')) : e(t('grc-audits.add_notes')); ?></button>
                                 <?php else: ?>
                                 <?php if ($currentNotes): ?>
-                                <button type="button" class="btn-notes has-notes" data-action="open-notes" data-req-id="<?php echo (int)$fr['id']; ?>" data-req-ref="<?php echo e($fr['requirement_ref']); ?>" data-req-title="<?php echo e($fr['title']); ?>" title="<?php echo e($currentNotes); ?>">View Notes</button>
+                                <button type="button" class="btn-notes has-notes" data-action="open-notes" data-req-id="<?php echo (int)$fr['id']; ?>" data-req-ref="<?php echo e($fr['requirement_ref']); ?>" data-req-title="<?php echo e($fr['title']); ?>" title="<?php echo e($currentNotes); ?>"><?php echo e(t('grc-audits.view_notes')); ?></button>
                                 <?php else: ?>
                                 <span style="color:#9ca3af;font-size:11px;">—</span>
                                 <?php endif; ?>
                                 <?php endif; ?>
                             </td>
                             <td style="text-align:center;">
-                                <button type="button" class="btn-req-info" data-action="open-req-detail" data-req-id="<?php echo (int)$fr['id']; ?>" data-req-ref="<?php echo e($fr['requirement_ref']); ?>" data-req-title="<?php echo e($fr['title']); ?>" data-req-desc="<?php echo e($fr['description'] ?? ''); ?>" title="View requirement details">?</button>
+                                <button type="button" class="btn-req-info" data-action="open-req-detail" data-req-id="<?php echo (int)$fr['id']; ?>" data-req-ref="<?php echo e($fr['requirement_ref']); ?>" data-req-title="<?php echo e($fr['title']); ?>" data-req-desc="<?php echo e($fr['description'] ?? ''); ?>" title="<?php echo e(t('grc-audits.view_req_details')); ?>">?</button>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -869,7 +869,7 @@ $currentPage = 'grc_audits';
                 </div>
 
                 <?php if (!$readOnly): ?>
-                    <button type="submit" class="btn btn-primary" style="margin-top:12px;">Save Assessments</button>
+                    <button type="submit" class="btn btn-primary" style="margin-top:12px;"><?php echo e(t('grc-audits.save_assessments')); ?></button>
                 </form>
                 <?php endif; ?>
             </div>
@@ -877,10 +877,10 @@ $currentPage = 'grc_audits';
 
             <!-- Findings -->
             <div class="detail-card">
-                <h3>Findings (<?php echo count($findings); ?>)</h3>
+                <h3><?php echo e(t('grc-audits.findings')); ?> (<?php echo count($findings); ?>)</h3>
                 <?php if (!empty($findings)): ?>
                 <table class="grc-table">
-                    <thead><tr><th>Ref</th><th>Title</th><th>Severity</th><th>Status</th><th>Control / Requirement</th><?php if (!$readOnly): ?><th>Actions</th><?php endif; ?></tr></thead>
+                    <thead><tr><th><?php echo e(t('grc-audits.ref')); ?></th><th><?php echo e(t('grc-audits.title')); ?></th><th><?php echo e(t('grc-audits.severity')); ?></th><th><?php echo e(t('grc-audits.status')); ?></th><th><?php echo e(t('grc-audits.control_requirement')); ?></th><?php if (!$readOnly): ?><th><?php echo e(t('grc-audits.actions')); ?></th><?php endif; ?></tr></thead>
                     <tbody>
                     <?php foreach ($findings as $f): ?>
                     <tr>
@@ -909,57 +909,57 @@ $currentPage = 'grc_audits';
                     </tbody>
                 </table>
                 <?php else: ?>
-                <p style="color:#6b7280;font-size:13px;">No findings recorded yet.</p>
+                <p style="color:#6b7280;font-size:13px;"><?php echo e(t('grc-audits.no_findings')); ?></p>
                 <?php endif; ?>
 
                 <?php if (!$readOnly): ?>
                 <details style="margin-top:16px;">
-                    <summary style="cursor:pointer;font-size:13px;font-weight:500;color:#374151;">Add Finding</summary>
+                    <summary style="cursor:pointer;font-size:13px;font-weight:500;color:#374151;"><?php echo e(t('grc-audits.add_finding')); ?></summary>
                     <form method="post" style="margin-top:12px;">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="action" value="add_finding">
                         <input type="hidden" name="audit_id" value="<?php echo (int)$auditDetail['id']; ?>">
                         <div class="form-row">
                             <div>
-                                <label>Finding Title</label>
-                                <input type="text" name="finding_title" required placeholder="Finding title">
+                                <label><?php echo e(t('grc-audits.finding_title')); ?></label>
+                                <input type="text" name="finding_title" required placeholder="<?php echo e(t('grc-audits.finding_title_ph')); ?>">
                             </div>
                             <div>
-                                <label>Severity</label>
+                                <label><?php echo e(t('grc-audits.severity')); ?></label>
                                 <select name="severity">
-                                    <option value="critical">Critical</option>
-                                    <option value="high">High</option>
-                                    <option value="medium" selected>Medium</option>
-                                    <option value="low">Low</option>
-                                    <option value="informational">Informational</option>
+                                    <option value="critical"><?php echo e(t('grc-audits.critical')); ?></option>
+                                    <option value="high"><?php echo e(t('grc-audits.high')); ?></option>
+                                    <option value="medium" selected><?php echo e(t('grc-audits.medium')); ?></option>
+                                    <option value="low"><?php echo e(t('grc-audits.low')); ?></option>
+                                    <option value="informational"><?php echo e(t('grc-audits.informational')); ?></option>
                                 </select>
                             </div>
                         </div>
-                        <label>Description</label>
-                        <textarea name="finding_description" placeholder="Provide a detailed description of the finding, including the condition observed, the criteria or standard it was measured against, the cause of the deviation, and the effect or potential risk to the organization." style="min-height:200px;resize:vertical;"></textarea>
+                        <label><?php echo e(t('grc-audits.description')); ?></label>
+                        <textarea name="finding_description" placeholder="<?php echo e(t('grc-audits.finding_desc_ph')); ?>" style="min-height:200px;resize:vertical;"></textarea>
                         <div class="form-row">
                             <div>
-                                <label>Related Control</label>
+                                <label><?php echo e(t('grc-audits.related_control')); ?></label>
                                 <select name="control_id">
-                                    <option value="">-- None --</option>
+                                    <option value=""><?php echo e(t('grc-audits.none')); ?></option>
                                     <?php foreach ($allControls as $ac): ?>
                                     <option value="<?php echo (int)$ac['id']; ?>"><?php echo e($ac['control_ref']); ?> - <?php echo e($ac['title']); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                             <div>
-                                <label>Related Requirement</label>
+                                <label><?php echo e(t('grc-audits.related_requirement')); ?></label>
                                 <select name="requirement_id">
-                                    <option value="">-- None --</option>
+                                    <option value=""><?php echo e(t('grc-audits.none')); ?></option>
                                     <?php foreach ($findingRequirements as $afr): ?>
                                     <option value="<?php echo (int)$afr['id']; ?>"><?php echo e($afr['requirement_ref']); ?> - <?php echo e($afr['title']); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                         </div>
-                        <label>Recommendation</label>
-                        <textarea name="recommendation" placeholder="Provide the recommended corrective action, including specific steps management should take to remediate the finding, the expected timeline, and any compensating controls to consider in the interim." style="min-height:200px;resize:vertical;"></textarea>
-                        <button type="submit" class="btn btn-primary">Add Finding</button>
+                        <label><?php echo e(t('grc-audits.recommendation')); ?></label>
+                        <textarea name="recommendation" placeholder="<?php echo e(t('grc-audits.recommendation_ph')); ?>" style="min-height:200px;resize:vertical;"></textarea>
+                        <button type="submit" class="btn btn-primary"><?php echo e(t('grc-audits.add_finding')); ?></button>
                     </form>
                 </details>
                 <?php endif; ?>
@@ -968,9 +968,9 @@ $currentPage = 'grc_audits';
             <!-- Remediation Plans -->
             <?php if (!empty($remediationPlans)): ?>
             <div class="detail-card">
-                <h3>Remediation Plans</h3>
+                <h3><?php echo e(t('grc-audits.remediation_plans')); ?></h3>
                 <table class="grc-table">
-                    <thead><tr><th>Title</th><th>Assigned To</th><th>Target Date</th><th>Status</th></tr></thead>
+                    <thead><tr><th><?php echo e(t('grc-audits.title')); ?></th><th><?php echo e(t('grc-audits.assigned_to')); ?></th><th><?php echo e(t('grc-audits.target_date')); ?></th><th><?php echo e(t('grc-audits.status')); ?></th></tr></thead>
                     <tbody>
                     <?php foreach ($remediationPlans as $rp):
                         $isOverdue = !empty($rp['planned_completion']) && strtotime($rp['planned_completion']) < time() && $rp['status'] !== 'completed';
@@ -978,7 +978,7 @@ $currentPage = 'grc_audits';
                     <tr>
                         <td><?php echo e($rp['title']); ?></td>
                         <td><?php echo e($rp['assigned_to_name'] ?? '-'); ?></td>
-                        <td style="<?php echo $isOverdue ? 'color:#dc3545;font-weight:600;' : ''; ?>"><?php echo $rp['planned_completion'] ? e(date('M j, Y', strtotime($rp['planned_completion']))) : '-'; ?><?php if ($isOverdue): ?> (Overdue)<?php endif; ?></td>
+                        <td style="<?php echo $isOverdue ? 'color:#dc3545;font-weight:600;' : ''; ?>"><?php echo $rp['planned_completion'] ? e(date('M j, Y', strtotime($rp['planned_completion']))) : '-'; ?><?php if ($isOverdue): ?> (<?php echo e(t('grc-audits.overdue')); ?>)<?php endif; ?></td>
                         <td><?php echo e(ucfirst(str_replace('_', ' ', $rp['status']))); ?></td>
                     </tr>
                     <?php endforeach; ?>
@@ -993,13 +993,13 @@ $currentPage = 'grc_audits';
             <?php if (!empty($openFindings)): ?>
             <div class="detail-card">
                 <details>
-                    <summary style="cursor:pointer;font-size:14px;font-weight:500;color:#333;">Add Remediation Plan</summary>
+                    <summary style="cursor:pointer;font-size:14px;font-weight:500;color:#333;"><?php echo e(t('grc-audits.add_remediation_plan')); ?></summary>
                     <form method="post" style="margin-top:12px;">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="action" value="add_remediation">
                         <div class="form-row">
                             <div>
-                                <label>Finding</label>
+                                <label><?php echo e(t('grc-audits.finding')); ?></label>
                                 <select name="finding_id" required>
                                     <?php foreach ($openFindings as $of): ?>
                                     <option value="<?php echo (int)$of['id']; ?>"><?php echo e($of['finding_ref']); ?> - <?php echo e($of['title']); ?></option>
@@ -1007,28 +1007,28 @@ $currentPage = 'grc_audits';
                                 </select>
                             </div>
                             <div>
-                                <label>Plan Title</label>
-                                <input type="text" name="plan_title" required placeholder="Remediation plan title">
+                                <label><?php echo e(t('grc-audits.plan_title')); ?></label>
+                                <input type="text" name="plan_title" required placeholder="<?php echo e(t('grc-audits.plan_title_ph')); ?>">
                             </div>
                         </div>
-                        <label>Description</label>
-                        <textarea name="plan_description" placeholder="Describe the remediation steps"></textarea>
+                        <label><?php echo e(t('grc-audits.description')); ?></label>
+                        <textarea name="plan_description" placeholder="<?php echo e(t('grc-audits.plan_desc_ph')); ?>"></textarea>
                         <div class="form-row">
                             <div>
-                                <label>Assigned To</label>
+                                <label><?php echo e(t('grc-audits.assigned_to')); ?></label>
                                 <select name="assigned_to">
-                                    <option value="">-- Select --</option>
+                                    <option value=""><?php echo e(t('grc-audits.select')); ?></option>
                                     <?php foreach ($users_list as $u): ?>
                                     <option value="<?php echo (int)$u['id']; ?>"><?php echo e($u['full_name']); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                             <div>
-                                <label>Target Completion</label>
+                                <label><?php echo e(t('grc-audits.target_completion')); ?></label>
                                 <input type="date" name="planned_completion">
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary">Add Remediation Plan</button>
+                        <button type="submit" class="btn btn-primary"><?php echo e(t('grc-audits.add_remediation_plan')); ?></button>
                     </form>
                 </details>
             </div>
@@ -1037,10 +1037,10 @@ $currentPage = 'grc_audits';
 
             <!-- Evidence Requests -->
             <div class="detail-card">
-                <h3>Evidence Requests</h3>
+                <h3><?php echo e(t('grc-audits.evidence_requests')); ?></h3>
                 <?php if (!empty($evidenceRequests)): ?>
                 <table class="grc-table">
-                    <thead><tr><th>Description</th><th>Assigned To</th><th>Due Date</th><th>Status</th><th>Requested By</th></tr></thead>
+                    <thead><tr><th><?php echo e(t('grc-audits.description')); ?></th><th><?php echo e(t('grc-audits.assigned_to')); ?></th><th><?php echo e(t('grc-audits.due_date')); ?></th><th><?php echo e(t('grc-audits.status')); ?></th><th><?php echo e(t('grc-audits.requested_by')); ?></th></tr></thead>
                     <tbody>
                     <?php foreach ($evidenceRequests as $er): ?>
                     <tr>
@@ -1054,25 +1054,25 @@ $currentPage = 'grc_audits';
                     </tbody>
                 </table>
                 <?php else: ?>
-                <p style="color:#6b7280;font-size:13px;">No evidence requests.</p>
+                <p style="color:#6b7280;font-size:13px;"><?php echo e(t('grc-audits.no_evidence_requests')); ?></p>
                 <?php endif; ?>
 
                 <?php if (!$readOnly): ?>
                 <details style="margin-top:12px;">
-                    <summary style="cursor:pointer;font-size:13px;font-weight:500;color:#374151;">Request Evidence</summary>
+                    <summary style="cursor:pointer;font-size:13px;font-weight:500;color:#374151;"><?php echo e(t('grc-audits.request_evidence')); ?></summary>
                     <form method="post" style="margin-top:12px;">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="action" value="request_evidence">
                         <input type="hidden" name="audit_id" value="<?php echo (int)$auditDetail['id']; ?>">
                         <div class="form-row">
                             <div>
-                                <label>Description <span style="color:#dc3545;">*</span></label>
-                                <textarea name="request_description" required placeholder="What evidence is needed?"></textarea>
+                                <label><?php echo e(t('grc-audits.description')); ?> <span style="color:#dc3545;">*</span></label>
+                                <textarea name="request_description" required placeholder="<?php echo e(t('grc-audits.what_evidence_ph')); ?>"></textarea>
                             </div>
                             <div>
-                                <label>Related Control</label>
+                                <label><?php echo e(t('grc-audits.related_control')); ?></label>
                                 <select name="control_id">
-                                    <option value="">-- Select Control --</option>
+                                    <option value=""><?php echo e(t('grc-audits.select_control')); ?></option>
                                     <?php foreach ($allControls as $ctrl): ?>
                                     <option value="<?php echo (int)$ctrl['id']; ?>"><?php echo e($ctrl['control_ref'] . ' - ' . $ctrl['title']); ?></option>
                                     <?php endforeach; ?>
@@ -1081,20 +1081,20 @@ $currentPage = 'grc_audits';
                         </div>
                         <div class="form-row">
                             <div>
-                                <label>Assign To</label>
+                                <label><?php echo e(t('grc-audits.assign_to')); ?></label>
                                 <select name="request_assigned_to">
-                                    <option value="">-- Select --</option>
+                                    <option value=""><?php echo e(t('grc-audits.select')); ?></option>
                                     <?php foreach ($users_list as $u): ?>
                                     <option value="<?php echo (int)$u['id']; ?>"><?php echo e($u['full_name']); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                             <div>
-                                <label>Due Date</label>
+                                <label><?php echo e(t('grc-audits.due_date')); ?></label>
                                 <input type="date" name="request_due_date">
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary">Submit Request</button>
+                        <button type="submit" class="btn btn-primary"><?php echo e(t('grc-audits.submit_request')); ?></button>
                     </form>
                 </details>
                 <?php endif; ?>
@@ -1102,10 +1102,10 @@ $currentPage = 'grc_audits';
 
             <?php elseif (($editAudit || isset($_GET['new'])) && !$readOnly): ?>
             <!-- Create/Edit Audit -->
-            <a href="grc-audits.php" class="back-link">&larr; Back to audits</a>
+            <a href="grc-audits.php" class="back-link">&larr; <?php echo e(t('grc-audits.back_to_audits')); ?></a>
 
             <div class="grc-form">
-                <h3 style="margin:0 0 16px;font-size:16px;color:#333;"><?php echo $editAudit ? 'Edit Audit' : 'Create Audit'; ?></h3>
+                <h3 style="margin:0 0 16px;font-size:16px;color:#333;"><?php echo $editAudit ? e(t('grc-audits.edit_audit')) : e(t('grc-audits.create_audit')); ?></h3>
                 <form method="post">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="action" value="<?php echo $editAudit ? 'update_audit' : 'create_audit'; ?>">
@@ -1113,19 +1113,19 @@ $currentPage = 'grc_audits';
                     <input type="hidden" name="audit_id" value="<?php echo (int)$editAudit['id']; ?>">
                     <?php endif; ?>
 
-                    <label for="title">Audit Title</label>
+                    <label for="title"><?php echo e(t('grc-audits.audit_title')); ?></label>
                     <input type="text" id="title" name="title" value="<?php echo e($editAudit['title'] ?? ''); ?>" required>
 
-                    <label for="description">Description
+                    <label for="description"><?php echo e(t('grc-audits.description')); ?>
                         <?php if ($aiEnabled): ?>
-                        <button type="button" class="btn-ai" data-action="ai-suggest-description" style="font-size:10px;padding:2px 8px;margin-left:8px;vertical-align:middle;">Suggest with AI</button>
+                        <button type="button" class="btn-ai" data-action="ai-suggest-description" style="font-size:10px;padding:2px 8px;margin-left:8px;vertical-align:middle;"><?php echo e(t('grc-audits.suggest_with_ai')); ?></button>
                         <?php endif; ?>
                     </label>
                     <textarea id="description" name="description" style="min-height:100px;resize:vertical;"><?php echo e($editAudit['description'] ?? ''); ?></textarea>
 
                     <div class="form-row">
                         <div>
-                            <label for="audit_type">Type</label>
+                            <label for="audit_type"><?php echo e(t('grc-audits.type')); ?></label>
                             <select id="audit_type" name="audit_type">
                                 <?php foreach (['internal', 'external', 'certification', 'surveillance', 'readiness'] as $at): ?>
                                 <option value="<?php echo e($at); ?>" <?php echo ($editAudit['audit_type'] ?? '') === $at ? 'selected' : ''; ?>><?php echo e(ucfirst($at)); ?></option>
@@ -1133,9 +1133,9 @@ $currentPage = 'grc_audits';
                             </select>
                         </div>
                         <div>
-                            <label for="framework_id">Framework</label>
+                            <label for="framework_id"><?php echo e(t('grc-audits.framework')); ?></label>
                             <select id="framework_id" name="framework_id">
-                                <option value="">-- None --</option>
+                                <option value=""><?php echo e(t('grc-audits.none')); ?></option>
                                 <?php foreach ($frameworks as $fw): ?>
                                 <option value="<?php echo (int)$fw['id']; ?>" <?php echo ((int)($editAudit['framework_id'] ?? 0)) === (int)$fw['id'] ? 'selected' : ''; ?>><?php echo e($fw['code']); ?> - <?php echo e($fw['name']); ?></option>
                                 <?php endforeach; ?>
@@ -1144,18 +1144,18 @@ $currentPage = 'grc_audits';
                     </div>
                     <div class="form-row">
                         <div>
-                            <label for="scope_id">Scope</label>
+                            <label for="scope_id"><?php echo e(t('grc-audits.scope')); ?></label>
                             <select id="scope_id" name="scope_id">
-                                <option value="">-- Select Scope --</option>
+                                <option value=""><?php echo e(t('grc-audits.select_scope')); ?></option>
                                 <?php foreach ($scopes as $s): ?>
                                 <option value="<?php echo (int)$s['id']; ?>" <?php echo ((int)($editAudit['scope_id'] ?? 0)) === (int)$s['id'] ? 'selected' : ''; ?>><?php echo e($s['name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div>
-                            <label for="lead_auditor_id">Lead Auditor</label>
+                            <label for="lead_auditor_id"><?php echo e(t('grc-audits.lead_auditor')); ?></label>
                             <select id="lead_auditor_id" name="lead_auditor_id">
-                                <option value="">-- Select --</option>
+                                <option value=""><?php echo e(t('grc-audits.select')); ?></option>
                                 <?php foreach ($users_list as $u): ?>
                                 <option value="<?php echo (int)$u['id']; ?>" <?php echo ((int)($editAudit['lead_auditor_user_id'] ?? 0)) === (int)$u['id'] ? 'selected' : ''; ?>><?php echo e($u['full_name']); ?></option>
                                 <?php endforeach; ?>
@@ -1165,7 +1165,7 @@ $currentPage = 'grc_audits';
 
                     <?php if ($editAudit): ?>
                     <div>
-                        <label for="status">Status</label>
+                        <label for="status"><?php echo e(t('grc-audits.status')); ?></label>
                         <select id="status" name="status">
                             <?php foreach (['planning', 'fieldwork', 'reporting', 'remediation', 'closed'] as $as): ?>
                             <option value="<?php echo e($as); ?>" <?php echo ($editAudit['status'] ?? '') === $as ? 'selected' : ''; ?>><?php echo e(ucfirst(str_replace('_', ' ', $as))); ?></option>
@@ -1176,17 +1176,17 @@ $currentPage = 'grc_audits';
 
                     <div class="form-row">
                         <div>
-                            <label for="planned_start_date">Planned Start</label>
+                            <label for="planned_start_date"><?php echo e(t('grc-audits.planned_start')); ?></label>
                             <input type="date" id="planned_start_date" name="planned_start_date" value="<?php echo e($editAudit['planned_start'] ?? ''); ?>">
                         </div>
                         <div>
-                            <label for="planned_end_date">Planned End</label>
+                            <label for="planned_end_date"><?php echo e(t('grc-audits.planned_end')); ?></label>
                             <input type="date" id="planned_end_date" name="planned_end_date" value="<?php echo e($editAudit['planned_end'] ?? ''); ?>">
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary"><?php echo $editAudit ? 'Update Audit' : 'Create Audit'; ?></button>
-                    <a href="grc-audits.php" class="btn btn-outline">Cancel</a>
+                    <button type="submit" class="btn btn-primary"><?php echo $editAudit ? e(t('grc-audits.update_audit')) : e(t('grc-audits.create_audit')); ?></button>
+                    <a href="grc-audits.php" class="btn btn-outline"><?php echo e(t('grc-audits.cancel')); ?></a>
                 </form>
             </div>
 
@@ -1263,47 +1263,47 @@ $currentPage = 'grc_audits';
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                 <form method="get" class="filter-bar">
                     <div>
-                        <label>Status</label>
+                        <label><?php echo e(t('grc-audits.status')); ?></label>
                         <select name="status" class="auto-submit">
-                            <option value="">All Statuses</option>
+                            <option value=""><?php echo e(t('grc-audits.all_statuses')); ?></option>
                             <?php foreach (['planning', 'fieldwork', 'reporting', 'remediation', 'closed'] as $s): ?>
                             <option value="<?php echo e($s); ?>" <?php echo ($_GET['status'] ?? '') === $s ? 'selected' : ''; ?>><?php echo e(ucfirst(str_replace('_', ' ', $s))); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div>
-                        <label>Framework</label>
+                        <label><?php echo e(t('grc-audits.framework')); ?></label>
                         <select name="framework_id" class="auto-submit">
-                            <option value="">All Frameworks</option>
+                            <option value=""><?php echo e(t('grc-audits.all_frameworks')); ?></option>
                             <?php foreach ($frameworks as $fw): ?>
                             <option value="<?php echo (int)$fw['id']; ?>" <?php echo ((int)($_GET['framework_id'] ?? 0)) === (int)$fw['id'] ? 'selected' : ''; ?>><?php echo e($fw['code']); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;">Filter</button>
+                    <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;"><?php echo e(t('grc-audits.filter')); ?></button>
                 </form>
                 <?php if (!$readOnly): ?>
-                <a href="grc-audits.php?new=1" class="btn btn-primary">+ New Audit</a>
+                <a href="grc-audits.php?new=1" class="btn btn-primary">+ <?php echo e(t('grc-audits.new_audit')); ?></a>
                 <?php endif; ?>
             </div>
 
             <table class="grc-table">
                 <thead>
                     <tr>
-                        <th>Reference</th>
-                        <th>Title</th>
-                        <th>Status</th>
-                        <th>Type</th>
-                        <th>Framework</th>
-                        <th>Scope</th>
-                        <th>Lead Auditor</th>
-                        <th>Findings</th>
-                        <th>Open</th>
+                        <th><?php echo e(t('grc-audits.reference')); ?></th>
+                        <th><?php echo e(t('grc-audits.title')); ?></th>
+                        <th><?php echo e(t('grc-audits.status')); ?></th>
+                        <th><?php echo e(t('grc-audits.type')); ?></th>
+                        <th><?php echo e(t('grc-audits.framework')); ?></th>
+                        <th><?php echo e(t('grc-audits.scope')); ?></th>
+                        <th><?php echo e(t('grc-audits.lead_auditor')); ?></th>
+                        <th><?php echo e(t('grc-audits.findings')); ?></th>
+                        <th><?php echo e(t('grc-audits.open')); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($audits)): ?>
-                    <tr><td colspan="9" style="text-align:center;color:#6b7280;padding:30px;">No audits found.</td></tr>
+                    <tr><td colspan="9" style="text-align:center;color:#6b7280;padding:30px;"><?php echo e(t('grc-audits.no_audits_found')); ?></td></tr>
                     <?php else: ?>
                     <?php foreach ($audits as $a): ?>
                     <tr>
@@ -1341,7 +1341,7 @@ $currentPage = 'grc_audits';
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-audits.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>
@@ -1352,58 +1352,58 @@ $currentPage = 'grc_audits';
 <div class="grc-modal-overlay" id="notesModal">
     <div class="grc-modal">
         <div class="grc-modal-header">
-            <h4 id="notesModalTitle">Requirement Notes</h4>
+            <h4 id="notesModalTitle"><?php echo e(t('grc-audits.requirement_notes')); ?></h4>
             <button type="button" class="grc-modal-close" data-action="close-notes">&times;</button>
         </div>
         <div class="grc-modal-body">
             <div style="font-size:12px;color:#6b7280;margin-bottom:10px;" id="notesModalRef"></div>
-            <textarea class="notes-textarea" id="notesTextarea" placeholder="Enter auditor notes for this requirement..."></textarea>
+            <textarea class="notes-textarea" id="notesTextarea" placeholder="<?php echo e(t('grc-audits.notes_ph')); ?>"></textarea>
             <div class="refine-preview" id="refinePreview">
-                <div class="refine-preview-label">AI-Refined Version (Preview)</div>
+                <div class="refine-preview-label"><?php echo e(t('grc-audits.ai_refined_preview')); ?></div>
                 <div id="refinePreviewText"></div>
                 <div style="margin-top:10px;display:flex;gap:8px;">
-                    <button type="button" class="btn btn-sm btn-primary" data-action="accept-refine">Accept</button>
-                    <button type="button" class="btn btn-sm btn-outline" data-action="reject-refine">Reject</button>
+                    <button type="button" class="btn btn-sm btn-primary" data-action="accept-refine"><?php echo e(t('grc-audits.accept')); ?></button>
+                    <button type="button" class="btn btn-sm btn-outline" data-action="reject-refine"><?php echo e(t('grc-audits.reject')); ?></button>
                 </div>
             </div>
             <!-- Linked Controls section -->
             <div class="evidence-section">
-                <div class="evidence-section-label">Linked Controls</div>
+                <div class="evidence-section-label"><?php echo e(t('grc-audits.linked_controls')); ?></div>
                 <ul class="evidence-list" id="controlList">
-                    <li style="color:#9ca3af;border:none;background:none;padding:4px 0;font-style:italic;">No controls linked</li>
+                    <li style="color:#9ca3af;border:none;background:none;padding:4px 0;font-style:italic;"><?php echo e(t('grc-audits.no_controls_linked')); ?></li>
                 </ul>
                 <div class="evidence-upload-row" id="controlActionRow">
                     <select id="linkControlSelect" style="flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
-                        <option value="">-- Link existing control --</option>
+                        <option value=""><?php echo e(t('grc-audits.link_existing_control')); ?></option>
                     </select>
-                    <button type="button" class="btn-upload" data-action="link-control">Link</button>
-                    <button type="button" class="btn-upload" data-action="open-create-control" style="background:#f0fdf4;border-color:#22c55e;color:#15803d;">+ Create</button>
+                    <button type="button" class="btn-upload" data-action="link-control"><?php echo e(t('grc-audits.link')); ?></button>
+                    <button type="button" class="btn-upload" data-action="open-create-control" style="background:#f0fdf4;border-color:#22c55e;color:#15803d;">+ <?php echo e(t('grc-audits.create')); ?></button>
                 </div>
             </div>
             <!-- Evidence section -->
             <div class="evidence-section">
-                <div class="evidence-section-label">Evidence Attachments</div>
+                <div class="evidence-section-label"><?php echo e(t('grc-audits.evidence_attachments')); ?></div>
                 <ul class="evidence-list" id="evidenceList">
-                    <li style="color:#9ca3af;border:none;background:none;padding:4px 0;font-style:italic;">No evidence attached</li>
+                    <li style="color:#9ca3af;border:none;background:none;padding:4px 0;font-style:italic;"><?php echo e(t('grc-audits.no_evidence_attached')); ?></li>
                 </ul>
                 <div class="evidence-upload-row" id="evidenceUploadRow">
                     <input type="file" id="evidenceFileInput" accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.csv,.json,.xml,.txt">
-                    <button type="button" class="btn-upload" data-action="upload-evidence">Upload File</button>
+                    <button type="button" class="btn-upload" data-action="upload-evidence"><?php echo e(t('grc-audits.upload_file')); ?></button>
                 </div>
                 <div class="evidence-upload-row" id="evidenceLinkRow" style="margin-top:6px;">
                     <input type="text" id="evidenceLinkUrl" placeholder="https://..." style="flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
-                    <input type="text" id="evidenceLinkTitle" placeholder="Title (optional)" style="width:140px;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
-                    <button type="button" class="btn-upload" data-action="link-evidence-url">Add Link</button>
+                    <input type="text" id="evidenceLinkTitle" placeholder="<?php echo e(t('grc-audits.title_optional_ph')); ?>" style="width:140px;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
+                    <button type="button" class="btn-upload" data-action="link-evidence-url"><?php echo e(t('grc-audits.add_link')); ?></button>
                 </div>
             </div>
         </div>
         <div class="grc-modal-footer">
             <?php if ($aiEnabled): ?>
-            <button type="button" class="btn-ai" id="refineBtn" data-action="refine-notes" title="Use AI to rewrite in auditor-friendly language">Refine with AI</button>
+            <button type="button" class="btn-ai" id="refineBtn" data-action="refine-notes" title="<?php echo e(t('grc-audits.refine_ai_title')); ?>"><?php echo e(t('grc-audits.refine_with_ai')); ?></button>
             <?php endif; ?>
-            <button type="button" class="btn btn-outline" data-action="open-create-finding" style="background:#fef3c7;border-color:#f59e0b;color:#92400e;" id="createFindingBtn">Create Finding</button>
-            <button type="button" class="btn btn-primary" data-action="save-notes">Save</button>
-            <button type="button" class="btn btn-outline" data-action="close-notes">Cancel</button>
+            <button type="button" class="btn btn-outline" data-action="open-create-finding" style="background:#fef3c7;border-color:#f59e0b;color:#92400e;" id="createFindingBtn"><?php echo e(t('grc-audits.create_finding')); ?></button>
+            <button type="button" class="btn btn-primary" data-action="save-notes"><?php echo e(t('grc-audits.save')); ?></button>
+            <button type="button" class="btn btn-outline" data-action="close-notes"><?php echo e(t('grc-audits.cancel')); ?></button>
         </div>
     </div>
 </div>
@@ -1412,60 +1412,60 @@ $currentPage = 'grc_audits';
 <div class="grc-modal-overlay" id="createFindingModal" style="z-index:10001;">
     <div class="grc-modal" style="width:700px;">
         <div class="grc-modal-header">
-            <h4 id="createFindingTitle">Create Finding</h4>
+            <h4 id="createFindingTitle"><?php echo e(t('grc-audits.create_finding')); ?></h4>
             <button type="button" class="grc-modal-close" data-action="close-create-finding">&times;</button>
         </div>
         <div class="grc-modal-body">
             <div style="font-size:12px;color:#6b7280;margin-bottom:10px;" id="createFindingContext"></div>
             <div style="margin-bottom:10px;">
-                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Finding Title <span style="color:#dc3545;">*</span></label>
-                <input type="text" id="cfTitle" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;" placeholder="e.g., Missing Access Review Documentation">
+                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.finding_title')); ?> <span style="color:#dc3545;">*</span></label>
+                <input type="text" id="cfTitle" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;" placeholder="<?php echo e(t('grc-audits.finding_title_eg_ph')); ?>">
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Severity</label>
+                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.severity')); ?></label>
                     <select id="cfSeverity" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                        <option value="critical">Critical</option>
-                        <option value="high">High</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="low">Low</option>
-                        <option value="informational">Informational</option>
+                        <option value="critical"><?php echo e(t('grc-audits.critical')); ?></option>
+                        <option value="high"><?php echo e(t('grc-audits.high')); ?></option>
+                        <option value="medium" selected><?php echo e(t('grc-audits.medium')); ?></option>
+                        <option value="low"><?php echo e(t('grc-audits.low')); ?></option>
+                        <option value="informational"><?php echo e(t('grc-audits.informational')); ?></option>
                     </select>
                 </div>
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Finding Type</label>
+                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.finding_type')); ?></label>
                     <select id="cfType" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                        <option value="nonconformity" selected>Nonconformity</option>
-                        <option value="observation">Observation</option>
-                        <option value="opportunity">Opportunity for Improvement</option>
-                        <option value="strength">Strength</option>
+                        <option value="nonconformity" selected><?php echo e(t('grc-audits.nonconformity')); ?></option>
+                        <option value="observation"><?php echo e(t('grc-audits.observation')); ?></option>
+                        <option value="opportunity"><?php echo e(t('grc-audits.opportunity')); ?></option>
+                        <option value="strength"><?php echo e(t('grc-audits.strength')); ?></option>
                     </select>
                 </div>
             </div>
             <div style="margin-bottom:10px;">
-                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Description</label>
-                <textarea id="cfDescription" style="width:100%;min-height:150px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="Describe the condition observed, the criteria or standard it was measured against, the cause of the deviation, and the effect or potential risk to the organization."></textarea>
+                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.description')); ?></label>
+                <textarea id="cfDescription" style="width:100%;min-height:150px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="<?php echo e(t('grc-audits.cf_desc_ph')); ?>"></textarea>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Related Control</label>
+                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.related_control')); ?></label>
                     <select id="cfControlId" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                        <option value="">-- None --</option>
+                        <option value=""><?php echo e(t('grc-audits.none')); ?></option>
                     </select>
                 </div>
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Due Date</label>
+                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.due_date')); ?></label>
                     <input type="date" id="cfDueDate" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
                 </div>
             </div>
             <div style="margin-bottom:10px;">
-                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Recommendation</label>
-                <textarea id="cfRecommendation" style="width:100%;min-height:150px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="Provide the recommended corrective action, including specific steps management should take to remediate the finding."></textarea>
+                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.recommendation')); ?></label>
+                <textarea id="cfRecommendation" style="width:100%;min-height:150px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="<?php echo e(t('grc-audits.cf_recommendation_ph')); ?>"></textarea>
             </div>
         </div>
         <div class="grc-modal-footer">
-            <button type="button" class="btn btn-primary" data-action="save-create-finding" id="cfSaveBtn">Create Finding</button>
-            <button type="button" class="btn btn-outline" data-action="close-create-finding">Cancel</button>
+            <button type="button" class="btn btn-primary" data-action="save-create-finding" id="cfSaveBtn"><?php echo e(t('grc-audits.create_finding')); ?></button>
+            <button type="button" class="btn btn-outline" data-action="close-create-finding"><?php echo e(t('grc-audits.cancel')); ?></button>
         </div>
     </div>
 </div>
@@ -1474,7 +1474,7 @@ $currentPage = 'grc_audits';
 <div class="grc-modal-overlay" id="reqDetailModal">
     <div class="grc-modal">
         <div class="grc-modal-header">
-            <h4 id="reqDetailTitle">Requirement Detail</h4>
+            <h4 id="reqDetailTitle"><?php echo e(t('grc-audits.requirement_detail')); ?></h4>
             <button type="button" class="grc-modal-close" data-action="close-req-detail">&times;</button>
         </div>
         <div class="grc-modal-body">
@@ -1485,12 +1485,12 @@ $currentPage = 'grc_audits';
             <div style="font-size:13px;color:#6b7280;margin-bottom:14px;padding:10px;background:#f9fafb;border-radius:6px;" id="reqDetailDesc"></div>
             <div class="req-detail-content" id="reqDetailContent">
                 <div style="text-align:center;padding:30px;color:#6b7280;">
-                    <span class="spinner-sm" style="border-color:#6b7280;border-top-color:transparent;"></span> Loading requirement details...
+                    <span class="spinner-sm" style="border-color:#6b7280;border-top-color:transparent;"></span> <?php echo e(t('grc-audits.loading_req_details')); ?>
                 </div>
             </div>
         </div>
         <div class="grc-modal-footer">
-            <button type="button" class="btn btn-outline" data-action="close-req-detail">Close</button>
+            <button type="button" class="btn btn-outline" data-action="close-req-detail"><?php echo e(t('grc-audits.close')); ?></button>
         </div>
     </div>
 </div>
@@ -1499,79 +1499,79 @@ $currentPage = 'grc_audits';
 <div class="grc-modal-overlay" id="createControlModal" style="z-index:10001;">
     <div class="grc-modal" style="width:600px;">
         <div class="grc-modal-header">
-            <h4 id="createControlTitle">Create Control</h4>
+            <h4 id="createControlTitle"><?php echo e(t('grc-audits.create_control')); ?></h4>
             <button type="button" class="grc-modal-close" data-action="close-create-control">&times;</button>
         </div>
         <div class="grc-modal-body">
             <div style="font-size:12px;color:#6b7280;margin-bottom:6px;" id="createControlContext"></div>
-            <div id="ccAiStatus" style="font-size:11px;color:#6366f1;margin-bottom:10px;display:none;"><span class="spinner-sm" style="border-color:#6366f1;border-top-color:transparent;"></span> AI is generating control suggestions...</div>
+            <div id="ccAiStatus" style="font-size:11px;color:#6366f1;margin-bottom:10px;display:none;"><span class="spinner-sm" style="border-color:#6366f1;border-top-color:transparent;"></span> <?php echo e(t('grc-audits.ai_generating_controls')); ?></div>
             <div style="margin-bottom:10px;">
-                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Suggested Title</label>
-                <input type="text" id="ccTitle" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;" placeholder="Control title">
+                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.suggested_title')); ?></label>
+                <input type="text" id="ccTitle" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;" placeholder="<?php echo e(t('grc-audits.control_title_ph')); ?>">
             </div>
             <div style="margin-bottom:10px;">
-                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Suggested Description</label>
-                <textarea id="ccDescription" style="width:100%;min-height:120px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="Describe the control"></textarea>
+                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.suggested_description')); ?></label>
+                <textarea id="ccDescription" style="width:100%;min-height:120px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="<?php echo e(t('grc-audits.describe_control_ph')); ?>"></textarea>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Type</label>
+                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.type')); ?></label>
                     <select id="ccType" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                        <option value="preventive">Preventive</option>
-                        <option value="detective">Detective</option>
-                        <option value="corrective">Corrective</option>
-                        <option value="directive">Directive</option>
+                        <option value="preventive"><?php echo e(t('grc-audits.preventive')); ?></option>
+                        <option value="detective"><?php echo e(t('grc-audits.detective')); ?></option>
+                        <option value="corrective"><?php echo e(t('grc-audits.corrective')); ?></option>
+                        <option value="directive"><?php echo e(t('grc-audits.directive')); ?></option>
                     </select>
                 </div>
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Category</label>
+                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.category')); ?></label>
                     <select id="ccCategory" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                        <option value="technical">Technical</option>
-                        <option value="administrative">Administrative</option>
-                        <option value="physical">Physical</option>
+                        <option value="technical"><?php echo e(t('grc-audits.technical')); ?></option>
+                        <option value="administrative"><?php echo e(t('grc-audits.administrative')); ?></option>
+                        <option value="physical"><?php echo e(t('grc-audits.physical')); ?></option>
                     </select>
                 </div>
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Status</label>
+                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.status')); ?></label>
                     <select id="ccStatus" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                        <option value="planned">Planned</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="implemented">Implemented</option>
-                        <option value="not_applicable">Not Applicable</option>
+                        <option value="planned"><?php echo e(t('grc-audits.planned')); ?></option>
+                        <option value="in_progress"><?php echo e(t('grc-audits.in_progress')); ?></option>
+                        <option value="implemented"><?php echo e(t('grc-audits.implemented')); ?></option>
+                        <option value="not_applicable"><?php echo e(t('grc-audits.not_applicable')); ?></option>
                     </select>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Frequency</label>
+                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.frequency')); ?></label>
                     <select id="ccFrequency" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                        <option value="continuous">Continuous</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="quarterly">Quarterly</option>
-                        <option value="annually">Annually</option>
-                        <option value="ad_hoc" selected>Ad Hoc</option>
+                        <option value="continuous"><?php echo e(t('grc-audits.continuous')); ?></option>
+                        <option value="daily"><?php echo e(t('grc-audits.daily')); ?></option>
+                        <option value="weekly"><?php echo e(t('grc-audits.weekly')); ?></option>
+                        <option value="monthly"><?php echo e(t('grc-audits.monthly')); ?></option>
+                        <option value="quarterly"><?php echo e(t('grc-audits.quarterly')); ?></option>
+                        <option value="annually"><?php echo e(t('grc-audits.annually')); ?></option>
+                        <option value="ad_hoc" selected><?php echo e(t('grc-audits.ad_hoc')); ?></option>
                     </select>
                 </div>
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Risk Level</label>
+                    <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.risk_level')); ?></label>
                     <select id="ccRiskLevel" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                        <option value="low">Low</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="high">High</option>
-                        <option value="critical">Critical</option>
+                        <option value="low"><?php echo e(t('grc-audits.low')); ?></option>
+                        <option value="medium" selected><?php echo e(t('grc-audits.medium')); ?></option>
+                        <option value="high"><?php echo e(t('grc-audits.high')); ?></option>
+                        <option value="critical"><?php echo e(t('grc-audits.critical')); ?></option>
                     </select>
                 </div>
             </div>
             <div style="margin-bottom:10px;">
-                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;">Notes (optional)</label>
-                <textarea id="ccNotes" style="width:100%;min-height:50px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="Additional notes"></textarea>
+                <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:3px;"><?php echo e(t('grc-audits.notes_optional')); ?></label>
+                <textarea id="ccNotes" style="width:100%;min-height:50px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="<?php echo e(t('grc-audits.additional_notes_ph')); ?>"></textarea>
             </div>
         </div>
         <div class="grc-modal-footer">
-            <button type="button" class="btn btn-primary" data-action="save-create-control" id="ccSaveBtn">Create &amp; Link</button>
-            <button type="button" class="btn btn-outline" data-action="close-create-control">Cancel</button>
+            <button type="button" class="btn btn-primary" data-action="save-create-control" id="ccSaveBtn"><?php echo e(t('grc-audits.create_and_link')); ?></button>
+            <button type="button" class="btn btn-outline" data-action="close-create-control"><?php echo e(t('grc-audits.cancel')); ?></button>
         </div>
     </div>
 </div>

@@ -38,12 +38,12 @@ $acl = ACL::getInstance();
 // that everyone accidentally clicks "yes" on and deletes things twice.
 $acl = ACL::getInstance();
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"]) && $acl->hasGroup("auditor")) {
-    $_SESSION["error_message"] = "Access denied. Auditors have read-only access.";
+    $_SESSION["error_message"] = t('fair_dashboard.access_denied_auditor');
     header("Location: fair_dashboard.php");
     exit;
 } elseif ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $_SESSION['error_message'] = 'Invalid request.';
+        $_SESSION['error_message'] = t('fair_dashboard.invalid_request');
         header('Location: fair_dashboard.php');
         exit;
     }
@@ -59,9 +59,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"]) && $acl-
     if ($analysis && ($auth->isAdmin() || $analysis['user_id'] == $user['id'])) {
         $auth->audit($user['id'], 'fair_analysis_delete', 'tprm_results', $deleteId);
         $db->delete('tprm_results', 'id = :id', [':id' => $deleteId]);
-        $_SESSION['success_message'] = 'Analysis deleted successfully.';
+        $_SESSION['success_message'] = t('fair_dashboard.delete_success');
     } else {
-        $_SESSION['error_message'] = 'You do not have permission to delete this analysis.';
+        $_SESSION['error_message'] = t('fair_dashboard.delete_no_permission');
     }
 
     // Redirect to avoid the dreaded form resubmission on refresh
@@ -181,7 +181,7 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>FAIR Analysis Module - TPRM</title>
+    <title><?php echo e(t('fair_dashboard.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -695,13 +695,13 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
     <div class="page">
         <!-- Top Bar with User Menu -->
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($isAdmin): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -752,13 +752,13 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                 ?>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 20px;">
-                    <h1 class="page-title" style="margin: 0;">FAIR Dashboard</h1>
+                    <h1 class="page-title" style="margin: 0;"><?php echo e(t('fair_dashboard.heading')); ?></h1>
                     <?php if ($isAdmin || hasGroup('cyber_tprm')): ?>
                     <div class="vendor-search-container" style="position: relative; min-width: 300px;">
                         <input
                             type="text"
                             id="vendorSearchInput"
-                            placeholder="Search vendors, domains, stakeholders..."
+                            placeholder="<?php echo e(t('fair_dashboard.search_placeholder')); ?>"
                             style="width: 100%; padding: 10px 40px 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;"
                             class="focus-ring"
                         >
@@ -783,48 +783,48 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                 <div class="stats-row">
                     <a href="fair_results.php" class="stat-card">
                         <div class="number"><?php echo $totalAnalyses['count'] ?? 0; ?></div>
-                        <div class="label">Total Vendors</div>
+                        <div class="label"><?php echo e(t('fair_dashboard.total_vendors')); ?></div>
                     </a>
                     <a href="fair_results.php?status=draft" class="stat-card">
                         <div class="number"><?php echo $draftCount['count'] ?? 0; ?></div>
-                        <div class="label">Draft Vendors</div>
+                        <div class="label"><?php echo e(t('fair_dashboard.draft_vendors')); ?></div>
                     </a>
                     <a href="fair_results.php?status=completed" class="stat-card">
                         <div class="number"><?php echo $completedCount['count'] ?? 0; ?></div>
-                        <div class="label">Completed Vendors</div>
+                        <div class="label"><?php echo e(t('fair_dashboard.completed_vendors')); ?></div>
                     </a>
                 </div>
 
                 <!-- Quick Actions -->
                 <div class="quick-actions" style="display: flex; gap: 12px; margin-bottom: 30px; flex-wrap: wrap;">
                     <a href="fair-analysis.php" class="btn btn-primary">
-                        <span>➕</span> New Analysis
+                        <span>➕</span> <?php echo e(t('fair_dashboard.btn_new_analysis')); ?>
                     </a>
                     <a href="fair_import-analysis.php" class="btn btn-success">
-                        <span>📥</span> Import CSV
+                        <span>📥</span> <?php echo e(t('fair_dashboard.btn_import_csv')); ?>
                     </a>
                     <a href="?export_csv=1" class="btn btn-info">
-                        <span>📤</span> Export CSV
+                        <span>📤</span> <?php echo e(t('fair_dashboard.btn_export_csv')); ?>
                     </a>
                 </div>
 
                 <div class="action-grid">
                     <a href="fair-analysis.php" class="action-card">
                         <div class="icon"><img src="app/icons/bar-chart-square-02.svg" alt="" width="32" height="32"></div>
-                        <h3>New FAIR Analysis</h3>
-                        <p>Create a new risk assessment for a vendor using the FAIR methodology.</p>
+                        <h3><?php echo e(t('fair_dashboard.card_new_title')); ?></h3>
+                        <p><?php echo e(t('fair_dashboard.card_new_desc')); ?></p>
                     </a>
 
                     <a href="reports.php" class="action-card">
                         <div class="icon"><img src="app/icons/file-03.svg" alt="" width="32" height="32"></div>
-                        <h3>Reports</h3>
-                        <p>Generate comprehensive reports for stakeholders and management.</p>
+                        <h3><?php echo e(t('fair_dashboard.card_reports_title')); ?></h3>
+                        <p><?php echo e(t('fair_dashboard.card_reports_desc')); ?></p>
                     </a>
 
                     <a href="fair_import-analysis.php" class="action-card">
                         <div class="icon"><img src="app/icons/upload-cloud-01.svg" alt="" width="32" height="32"></div>
-                        <h3>Import Data</h3>
-                        <p>Bulk import vendor data from CSV files.</p>
+                        <h3><?php echo e(t('fair_dashboard.card_import_title')); ?></h3>
+                        <p><?php echo e(t('fair_dashboard.card_import_desc')); ?></p>
                     </a>
                 </div>
 
@@ -832,24 +832,24 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                 <?php if (!empty($recentAnalyses)): ?>
                 <div class="recent-section">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px;">
-                        <h2 style="margin: 0;">Recent Vendor Analyses</h2>
+                        <h2 style="margin: 0;"><?php echo e(t('fair_dashboard.recent_heading')); ?></h2>
                         <input
                             type="text"
                             id="recentAnalysesSearch"
-                            placeholder="Search by vendor name..."
+                            placeholder="<?php echo e(t('fair_dashboard.recent_search_placeholder')); ?>"
                             style="padding: 8px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s; min-width: 200px;"
                             class="focus-ring"
                         >
-                        <a href="reports.php" style="color: var(--theme-button-color); text-decoration: none; font-size: 13px; font-weight: 500; white-space: nowrap;">View All →</a>
+                        <a href="reports.php" style="color: var(--theme-button-color); text-decoration: none; font-size: 13px; font-weight: 500; white-space: nowrap;"><?php echo e(t('fair_dashboard.view_all')); ?> →</a>
                     </div>
                     <table class="recent-table">
                         <thead>
                             <tr>
-                                <th>Vendor Name</th>
-                                <th>Status</th>
-                                <th>Risk Level</th>
-                                <th>Created</th>
-                                <th>Actions</th>
+                                <th><?php echo e(t('fair_dashboard.th_vendor_name')); ?></th>
+                                <th><?php echo e(t('fair_dashboard.th_status')); ?></th>
+                                <th><?php echo e(t('fair_dashboard.th_risk_level')); ?></th>
+                                <th><?php echo e(t('fair_dashboard.th_created')); ?></th>
+                                <th><?php echo e(t('fair_dashboard.th_actions')); ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -868,9 +868,9 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                                     <td><strong><?php echo e($analysis['vendor_name']); ?></strong></td>
                                     <td>
                                         <?php if ($analysis['status'] === 'completed'): ?>
-                                            <span style="color: #28a745;">✓ Completed</span>
+                                            <span style="color: #28a745;">✓ <?php echo e(t('fair_dashboard.status_completed')); ?></span>
                                         <?php else: ?>
-                                            <span style="color: #ffc107;">⚠ Draft</span>
+                                            <span style="color: #ffc107;">⚠ <?php echo e(t('fair_dashboard.status_draft')); ?></span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -879,17 +879,17 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                                                 <?php echo e($analysis['risk_output']); ?>
                                             </span>
                                         <?php else: ?>
-                                            <span style="color: #999;">N/A</span>
+                                            <span style="color: #999;"><?php echo e(t('fair_dashboard.na')); ?></span>
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo date('M d, Y', strtotime($analysis['created_at'])); ?></td>
                                     <td style="white-space: nowrap;">
-                                        <a href="view-result.php?id=<?php echo $analysis['id']; ?>" style="color: #ff6543; text-decoration: none; font-weight: 500; margin-right: 12px;">View →</a>
+                                        <a href="view-result.php?id=<?php echo $analysis['id']; ?>" style="color: #ff6543; text-decoration: none; font-weight: 500; margin-right: 12px;"><?php echo e(t('fair_dashboard.view')); ?> →</a>
                                         <?php if ($isAdmin || $analysis['user_id'] == $user['id']): ?>
                                         <form method="POST" style="display: inline;" data-confirm="Are you sure you want to delete this analysis for <?php echo e($analysis['vendor_name']); ?>? This action cannot be undone.">
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                             <input type="hidden" name="delete_id" value="<?php echo $analysis['id']; ?>">
-                                            <button type="submit" class="btn-delete">🗑 Delete</button>
+                                            <button type="submit" class="btn-delete">🗑 <?php echo e(t('fair_dashboard.delete')); ?></button>
                                         </form>
                                         <?php endif; ?>
                                     </td>

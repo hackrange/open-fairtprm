@@ -22,11 +22,11 @@ $templateId = isset($_GET['template_id']) ? intval($_GET['template_id']) : 0;
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_assessment-templates.invalid_request');
     } elseif (isset($_POST['create_template'])) {
         $name = trim($_POST['name'] ?? '');
         if (empty($name)) {
-            $error = 'Template name is required.';
+            $error = t('admin_assessment-templates.name_required');
         } else {
             try {
                 $newId = $assessmentService->createTemplate([
@@ -39,14 +39,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $success = 'Template created. <a href="?section=assessment-templates&action=edit&template_id=' . $newId . '">Edit it now</a>';
             } catch (Exception $e) {
                 error_log('Create template error: ' . $e->getMessage());
-                $error = 'Failed to create template.';
+                $error = t('admin_assessment-templates.create_failed');
             }
         }
     } elseif (isset($_POST['update_template'])) {
         $tid = intval($_POST['template_id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
         if (!$tid || empty($name)) {
-            $error = 'Template ID and name are required.';
+            $error = t('admin_assessment-templates.id_name_required');
         } else {
             try {
                 $assessmentService->updateTemplate($tid, [
@@ -56,12 +56,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'allow_certificate_upload' => !empty($_POST['allow_certificate_upload']),
                     'certificate_upload_prompt' => trim($_POST['certificate_upload_prompt'] ?? ''),
                 ]);
-                $success = 'Template updated.';
+                $success = t('admin_assessment-templates.updated');
                 $templateId = $tid;
                 $action = 'edit';
             } catch (Exception $e) {
                 error_log('Update template error: ' . $e->getMessage());
-                $error = 'Failed to update template.';
+                $error = t('admin_assessment-templates.update_failed');
                 $templateId = $tid;
                 $action = 'edit';
             }
@@ -70,16 +70,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tid = intval($_POST['template_id'] ?? 0);
         if ($tid) {
             $assessmentService->toggleTemplate($tid);
-            $success = 'Template status toggled.';
+            $success = t('admin_assessment-templates.status_toggled');
         }
     } elseif (isset($_POST['delete_template'])) {
         $tid = intval($_POST['template_id'] ?? 0);
         if ($tid) {
             if (!$assessmentService->canDeleteTemplate($tid)) {
-                $error = 'Cannot delete: this template has linked assessments. Deactivate it instead.';
+                $error = t('admin_assessment-templates.cannot_delete_linked');
             } else {
                 $assessmentService->deleteTemplate($tid);
-                $success = 'Template deleted.';
+                $success = t('admin_assessment-templates.deleted');
             }
         }
     } elseif (isset($_POST['duplicate_template'])) {
@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $success = 'Template duplicated. <a href="?section=assessment-templates&action=edit&template_id=' . $newId . '">Edit the copy</a>';
             } catch (Exception $e) {
                 error_log('Duplicate template error: ' . $e->getMessage());
-                $error = 'Failed to duplicate template.';
+                $error = t('admin_assessment-templates.duplicate_failed');
             }
         }
     }
@@ -104,15 +104,15 @@ $editTemplate = null;
 if ($action === 'edit' && $templateId) {
     $editTemplate = $assessmentService->getTemplateWithSectionsAndQuestions($templateId);
     if (!$editTemplate) {
-        $error = 'Template not found.';
+        $error = t('admin_assessment-templates.not_found');
         $action = 'list';
     }
 }
 
 $categoryLabels = [
-    'vendor_assessment' => 'Vendor Assessment',
-    'procurement' => 'Procurement',
-    'onboarding' => 'Onboarding',
+    'vendor_assessment' => t('admin_assessment-templates.cat_vendor_assessment'),
+    'procurement' => t('admin_assessment-templates.cat_procurement'),
+    'onboarding' => t('admin_assessment-templates.cat_onboarding'),
 ];
 ?>
 
@@ -121,32 +121,32 @@ $categoryLabels = [
 <!-- LIST VIEW -->
 <!-- ============================================================ -->
 <div class="page-header-bar">
-    <h1>Assessment Template Builder</h1>
-    <p>Create and manage assessment templates for vendor questionnaires.</p>
+    <h1><?php echo e(t('admin_assessment-templates.builder_title')); ?></h1>
+    <p><?php echo e(t('admin_assessment-templates.builder_desc')); ?></p>
 </div>
 
 <div style="margin-bottom: 20px; display: flex; gap: 10px;">
-    <button class="btn btn-primary" data-toggle="createTemplateModal">+ New Template</button>
-    <a href="?section=field-reference" class="btn btn-secondary">Field Reference</a>
+    <button class="btn btn-primary" data-toggle="createTemplateModal"><?php echo e(t('admin_assessment-templates.btn_new_template')); ?></button>
+    <a href="?section=field-reference" class="btn btn-secondary"><?php echo e(t('admin_assessment-templates.field_reference')); ?></a>
 </div>
 
 <div class="card">
     <?php if (empty($allTemplates)): ?>
     <div style="text-align:center; padding:40px; color:#666;">
         <div style="font-size:40px; margin-bottom:10px;">&#128221;</div>
-        <h3>No templates yet</h3>
-        <p>Create your first assessment template to get started.</p>
+        <h3><?php echo e(t('admin_assessment-templates.no_templates')); ?></h3>
+        <p><?php echo e(t('admin_assessment-templates.no_templates_desc')); ?></p>
     </div>
     <?php else: ?>
     <table>
         <thead>
             <tr>
-                <th>Template</th>
-                <th>Category</th>
-                <th>Sections</th>
-                <th>Questions</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th><?php echo e(t('admin_assessment-templates.col_template')); ?></th>
+                <th><?php echo e(t('admin_assessment-templates.col_category')); ?></th>
+                <th><?php echo e(t('admin_assessment-templates.col_sections')); ?></th>
+                <th><?php echo e(t('admin_assessment-templates.col_questions')); ?></th>
+                <th><?php echo e(t('admin_assessment-templates.col_status')); ?></th>
+                <th><?php echo e(t('admin_assessment-templates.col_actions')); ?></th>
             </tr>
         </thead>
         <tbody>
@@ -165,31 +165,31 @@ $categoryLabels = [
                 <td><?php echo (int)($t['question_count'] ?? 0); ?></td>
                 <td>
                     <?php if ($t['is_active']): ?>
-                    <span class="badge badge-success">Active</span>
+                    <span class="badge badge-success"><?php echo e(t('admin_assessment-templates.status_active')); ?></span>
                     <?php else: ?>
-                    <span class="badge badge-danger">Inactive</span>
+                    <span class="badge badge-danger"><?php echo e(t('admin_assessment-templates.status_inactive')); ?></span>
                     <?php endif; ?>
                 </td>
                 <td style="white-space:nowrap;">
-                    <a href="?section=assessment-templates&action=edit&template_id=<?php echo $t['id']; ?>" class="btn btn-sm btn-primary">Edit</a>
+                    <a href="?section=assessment-templates&action=edit&template_id=<?php echo $t['id']; ?>" class="btn btn-sm btn-primary"><?php echo e(t('admin_assessment-templates.action_edit')); ?></a>
                     <form method="POST" style="display:inline;">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="template_id" value="<?php echo $t['id']; ?>">
                         <button type="submit" name="toggle_template" class="btn btn-sm btn-secondary">
-                            <?php echo $t['is_active'] ? 'Deactivate' : 'Activate'; ?>
+                            <?php echo $t['is_active'] ? e(t('admin_assessment-templates.action_deactivate')) : e(t('admin_assessment-templates.action_activate')); ?>
                         </button>
                     </form>
                     <form method="POST" style="display:inline;">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="template_id" value="<?php echo $t['id']; ?>">
-                        <button type="submit" name="duplicate_template" class="btn btn-sm" style="background:#8b5cf6;color:white;">Duplicate</button>
+                        <button type="submit" name="duplicate_template" class="btn btn-sm" style="background:#8b5cf6;color:white;"><?php echo e(t('admin_assessment-templates.action_duplicate')); ?></button>
                     </form>
                     <?php $builtinSlugs = ['iso-27001-2022','tier-2-vendor','vendor-onboarding','ai-usage'];
                     if (!in_array($t['slug'], $builtinSlugs) && $assessmentService->canDeleteTemplate($t['id'])): ?>
-                    <form method="POST" style="display:inline;" data-confirm="Delete this template? This cannot be undone.">
+                    <form method="POST" style="display:inline;" data-confirm="<?php echo e(t('admin_assessment-templates.confirm_delete')); ?>">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="template_id" value="<?php echo $t['id']; ?>">
-                        <button type="submit" name="delete_template" class="btn btn-sm" style="background:#ef4444;color:white;">Delete</button>
+                        <button type="submit" name="delete_template" class="btn btn-sm" style="background:#ef4444;color:white;"><?php echo e(t('admin_assessment-templates.action_delete')); ?></button>
                     </form>
                     <?php endif; ?>
                 </td>
@@ -204,40 +204,40 @@ $categoryLabels = [
 <div id="createTemplateModal" class="modal">
     <div class="modal-content">
         <span class="close" data-close="createTemplateModal">&times;</span>
-        <h3 style="margin-top:0; color:var(--theme-header-color);">Create New Template</h3>
+        <h3 style="margin-top:0; color:var(--theme-header-color);"><?php echo e(t('admin_assessment-templates.create_modal_title')); ?></h3>
         <form method="POST">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <div class="form-group">
-                <label>Template Name <span style="color:#ef4444;">*</span></label>
-                <input type="text" name="name" class="form-control" required placeholder="e.g., SOC 2 Type II Assessment">
+                <label><?php echo e(t('admin_assessment-templates.label_template_name')); ?> <span style="color:#ef4444;">*</span></label>
+                <input type="text" name="name" class="form-control" required placeholder="<?php echo e(t('admin_assessment-templates.placeholder_template_name')); ?>">
             </div>
             <div class="form-group">
-                <label>Description</label>
-                <textarea name="description" class="form-control" rows="3" placeholder="Brief description of this template..."></textarea>
+                <label><?php echo e(t('admin_assessment-templates.label_description')); ?></label>
+                <textarea name="description" class="form-control" rows="3" placeholder="<?php echo e(t('admin_assessment-templates.placeholder_description')); ?>"></textarea>
             </div>
             <div class="form-group">
-                <label>Category</label>
+                <label><?php echo e(t('admin_assessment-templates.label_category')); ?></label>
                 <select name="category" class="form-control">
-                    <option value="vendor_assessment">Vendor Assessment</option>
-                    <option value="procurement">Procurement</option>
-                    <option value="onboarding">Onboarding</option>
+                    <option value="vendor_assessment"><?php echo e(t('admin_assessment-templates.cat_vendor_assessment')); ?></option>
+                    <option value="procurement"><?php echo e(t('admin_assessment-templates.cat_procurement')); ?></option>
+                    <option value="onboarding"><?php echo e(t('admin_assessment-templates.cat_onboarding')); ?></option>
                 </select>
             </div>
             <div id="certUploadGroup">
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="allow_certificate_upload" value="1">
-                        Allow certificate upload (skip assessment)
+                        <?php echo e(t('admin_assessment-templates.allow_cert_upload')); ?>
                     </label>
                 </div>
                 <div class="form-group" id="certPromptGroup" style="display:none;">
-                    <label>Certificate Upload Instructions</label>
-                    <textarea name="certificate_upload_prompt" class="form-control" rows="3" placeholder="Instructions shown to the vendor on the certificate upload, e.g. &quot;Upload your detailed SOC 2 Type 2 certificate to bypass the rest of the questions.&quot;"></textarea>
+                    <label><?php echo e(t('admin_assessment-templates.label_cert_instructions')); ?></label>
+                    <textarea name="certificate_upload_prompt" class="form-control" rows="3" placeholder="<?php echo e(t('admin_assessment-templates.placeholder_cert_instructions')); ?>"></textarea>
                 </div>
             </div>
             <div style="display:flex; gap:10px; margin-top:20px;">
-                <button type="submit" name="create_template" class="btn btn-primary">Create Template</button>
-                <button type="button" class="btn btn-secondary" data-close="createTemplateModal">Cancel</button>
+                <button type="submit" name="create_template" class="btn btn-primary"><?php echo e(t('admin_assessment-templates.btn_create_template')); ?></button>
+                <button type="button" class="btn btn-secondary" data-close="createTemplateModal"><?php echo e(t('admin_assessment-templates.btn_cancel')); ?></button>
             </div>
         </form>
     </div>
@@ -337,47 +337,47 @@ foreach ($editTemplate['sections'] as $sec) {
 
 <!-- Template Metadata Card -->
 <div class="card">
-    <h3>Template Settings</h3>
+    <h3><?php echo e(t('admin_assessment-templates.template_settings')); ?></h3>
     <form method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="template_id" value="<?php echo $editTemplate['id']; ?>">
         <div class="form-row">
             <div class="form-group">
-                <label>Template Name <span style="color:#ef4444;">*</span></label>
+                <label><?php echo e(t('admin_assessment-templates.label_template_name')); ?> <span style="color:#ef4444;">*</span></label>
                 <input type="text" name="name" class="form-control" required value="<?php echo e($editTemplate['name']); ?>">
             </div>
             <div class="form-group">
-                <label>Category</label>
+                <label><?php echo e(t('admin_assessment-templates.label_category')); ?></label>
                 <select name="category" class="form-control">
-                    <option value="vendor_assessment" <?php echo ($editTemplate['category'] ?? '') === 'vendor_assessment' ? 'selected' : ''; ?>>Vendor Assessment</option>
-                    <option value="procurement" <?php echo ($editTemplate['category'] ?? '') === 'procurement' ? 'selected' : ''; ?>>Procurement</option>
-                    <option value="onboarding" <?php echo ($editTemplate['category'] ?? '') === 'onboarding' ? 'selected' : ''; ?>>Onboarding</option>
+                    <option value="vendor_assessment" <?php echo ($editTemplate['category'] ?? '') === 'vendor_assessment' ? 'selected' : ''; ?>><?php echo e(t('admin_assessment-templates.cat_vendor_assessment')); ?></option>
+                    <option value="procurement" <?php echo ($editTemplate['category'] ?? '') === 'procurement' ? 'selected' : ''; ?>><?php echo e(t('admin_assessment-templates.cat_procurement')); ?></option>
+                    <option value="onboarding" <?php echo ($editTemplate['category'] ?? '') === 'onboarding' ? 'selected' : ''; ?>><?php echo e(t('admin_assessment-templates.cat_onboarding')); ?></option>
                 </select>
             </div>
         </div>
         <div class="form-group">
-            <label>Description</label>
+            <label><?php echo e(t('admin_assessment-templates.label_description')); ?></label>
             <textarea name="description" class="form-control" rows="2"><?php echo e($editTemplate['description'] ?? ''); ?></textarea>
         </div>
         <div id="editCertUploadGroup" style="<?php echo ($editTemplate['category'] ?? '') === 'vendor_assessment' ? '' : 'display:none;'; ?>">
             <div class="form-group">
                 <label class="checkbox-label">
                     <input type="checkbox" name="allow_certificate_upload" value="1" <?php echo $editTemplate['allow_certificate_upload'] ? 'checked' : ''; ?> id="editCertToggle">
-                    Allow certificate upload (skip assessment)
+                    <?php echo e(t('admin_assessment-templates.allow_cert_upload')); ?>
                 </label>
             </div>
             <div class="form-group" id="editCertPromptGroup" style="<?php echo $editTemplate['allow_certificate_upload'] ? '' : 'display:none;'; ?>">
-                <label>Certificate Upload Instructions</label>
-                <textarea name="certificate_upload_prompt" class="form-control" rows="3" placeholder="Instructions shown to the vendor on the certificate upload, e.g. &quot;Upload your detailed SOC 2 Type 2 certificate to bypass the rest of the questions.&quot;"><?php echo e($editTemplate['certificate_upload_prompt'] ?? ''); ?></textarea>
+                <label><?php echo e(t('admin_assessment-templates.label_cert_instructions')); ?></label>
+                <textarea name="certificate_upload_prompt" class="form-control" rows="3" placeholder="<?php echo e(t('admin_assessment-templates.placeholder_cert_instructions')); ?>"><?php echo e($editTemplate['certificate_upload_prompt'] ?? ''); ?></textarea>
             </div>
         </div>
-        <button type="submit" name="update_template" class="btn btn-primary">Save Settings</button>
+        <button type="submit" name="update_template" class="btn btn-primary"><?php echo e(t('admin_assessment-templates.btn_save_settings')); ?></button>
     </form>
 </div>
 
 <!-- Sections & Questions Builder -->
 <div class="card" id="builderCard">
-    <h3>Sections & Questions</h3>
+    <h3><?php echo e(t('admin_assessment-templates.sections_questions')); ?></h3>
     <div id="sectionsContainer">
         <?php foreach ($editTemplate['sections'] as $sIdx => $sec): ?>
         <div class="builder-section" data-section-id="<?php echo $sec['id']; ?>">
@@ -388,13 +388,13 @@ foreach ($editTemplate['sections'] as $sec) {
                 </div>
                 <div class="section-header-right">
                     <?php if ($sIdx > 0): ?>
-                    <button type="button" class="btn btn-sm btn-secondary" data-action="reorderSection" data-args="<?php echo e(json_encode([$sec['id'], 'up'])); ?>" title="Move up">&#9650;</button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-action="reorderSection" data-args="<?php echo e(json_encode([$sec['id'], 'up'])); ?>" title="<?php echo e(t('admin_assessment-templates.title_move_up')); ?>">&#9650;</button>
                     <?php endif; ?>
                     <?php if ($sIdx < count($editTemplate['sections']) - 1): ?>
-                    <button type="button" class="btn btn-sm btn-secondary" data-action="reorderSection" data-args="<?php echo e(json_encode([$sec['id'], 'down'])); ?>" title="Move down">&#9660;</button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-action="reorderSection" data-args="<?php echo e(json_encode([$sec['id'], 'down'])); ?>" title="<?php echo e(t('admin_assessment-templates.title_move_down')); ?>">&#9660;</button>
                     <?php endif; ?>
-                    <button type="button" class="btn btn-sm btn-primary" data-action="editSection" data-args="<?php echo e(json_encode([$sec['id'], $sec['name'], $sec['description'] ?? ''])); ?>">Edit</button>
-                    <button type="button" class="btn btn-sm" style="background:#ef4444;color:white;" data-action="deleteSection" data-arg="<?php echo $sec['id']; ?>">Delete</button>
+                    <button type="button" class="btn btn-sm btn-primary" data-action="editSection" data-args="<?php echo e(json_encode([$sec['id'], $sec['name'], $sec['description'] ?? ''])); ?>"><?php echo e(t('admin_assessment-templates.action_edit')); ?></button>
+                    <button type="button" class="btn btn-sm" style="background:#ef4444;color:white;" data-action="deleteSection" data-arg="<?php echo $sec['id']; ?>"><?php echo e(t('admin_assessment-templates.action_delete')); ?></button>
                 </div>
             </div>
             <?php if ($sec['description']): ?>
@@ -408,34 +408,34 @@ foreach ($editTemplate['sections'] as $sec) {
                         <span class="q-type-badge"><?php echo e($q['question_type']); ?></span>
                         <span class="q-text"><?php echo e(mb_strimwidth($q['question_text'], 0, 70, '...')); ?></span>
                         <?php if ($q['is_required']): ?>
-                        <span class="badge badge-danger" style="font-size:10px;">Required</span>
+                        <span class="badge badge-danger" style="font-size:10px;"><?php echo e(t('admin_assessment-templates.badge_required')); ?></span>
                         <?php endif; ?>
                         <?php if (!empty($q['field_name'])): ?>
                         <span class="badge" style="font-size:10px; background:#dbeafe; color:#1e40af;" title="Maps to vendor field: <?php echo e($q['field_name']); ?>"><?php echo e($q['field_name']); ?></span>
                         <?php endif; ?>
                         <?php if (!empty($q['depends_on_question_id'])): ?>
-                        <span class="badge badge-purple" style="font-size:10px;" title="Conditional">Conditional</span>
+                        <span class="badge badge-purple" style="font-size:10px;" title="<?php echo e(t('admin_assessment-templates.badge_conditional')); ?>"><?php echo e(t('admin_assessment-templates.badge_conditional')); ?></span>
                         <?php endif; ?>
                     </div>
                     <div class="question-row-right">
                         <?php if ($qIdx > 0): ?>
-                        <button type="button" class="btn btn-sm btn-secondary" data-action="reorderQuestion" data-args="<?php echo e(json_encode([$q['id'], $sec['id'], 'up'])); ?>" title="Move up">&#9650;</button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-action="reorderQuestion" data-args="<?php echo e(json_encode([$q['id'], $sec['id'], 'up'])); ?>" title="<?php echo e(t('admin_assessment-templates.title_move_up')); ?>">&#9650;</button>
                         <?php endif; ?>
                         <?php if ($qIdx < count($sec['questions']) - 1): ?>
-                        <button type="button" class="btn btn-sm btn-secondary" data-action="reorderQuestion" data-args="<?php echo e(json_encode([$q['id'], $sec['id'], 'down'])); ?>" title="Move down">&#9660;</button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-action="reorderQuestion" data-args="<?php echo e(json_encode([$q['id'], $sec['id'], 'down'])); ?>" title="<?php echo e(t('admin_assessment-templates.title_move_down')); ?>">&#9660;</button>
                         <?php endif; ?>
-                        <button type="button" class="btn btn-sm btn-primary" data-action="editQuestion" data-arg="<?php echo $q['id']; ?>">Edit</button>
-                        <button type="button" class="btn btn-sm" style="background:#ef4444;color:white;" data-action="deleteQuestion" data-args="<?php echo e(json_encode([$q['id'], $sec['id']])); ?>">Delete</button>
+                        <button type="button" class="btn btn-sm btn-primary" data-action="editQuestion" data-arg="<?php echo $q['id']; ?>"><?php echo e(t('admin_assessment-templates.action_edit')); ?></button>
+                        <button type="button" class="btn btn-sm" style="background:#ef4444;color:white;" data-action="deleteQuestion" data-args="<?php echo e(json_encode([$q['id'], $sec['id']])); ?>"><?php echo e(t('admin_assessment-templates.action_delete')); ?></button>
                     </div>
                 </div>
                 <?php endforeach; ?>
             </div>
-            <button type="button" class="btn btn-sm" style="background:#10b981;color:white; margin-top:10px;" data-action="addQuestion" data-arg="<?php echo $sec['id']; ?>">+ Add Question</button>
+            <button type="button" class="btn btn-sm" style="background:#10b981;color:white; margin-top:10px;" data-action="addQuestion" data-arg="<?php echo $sec['id']; ?>"><?php echo e(t('admin_assessment-templates.btn_add_question')); ?></button>
         </div>
         <?php endforeach; ?>
     </div>
     <div style="margin-top:20px; padding-top:15px; border-top:1px solid #e5e7eb;">
-        <button type="button" class="btn btn-primary" data-action="addSection">+ Add Section</button>
+        <button type="button" class="btn btn-primary" data-action="addSection"><?php echo e(t('admin_assessment-templates.btn_add_section')); ?></button>
     </div>
 </div>
 
@@ -443,19 +443,19 @@ foreach ($editTemplate['sections'] as $sec) {
 <div id="sectionModal" class="modal">
     <div class="modal-content">
         <span class="close" data-close="sectionModal">&times;</span>
-        <h3 style="margin-top:0; color:var(--theme-header-color);" id="sectionModalTitle">Add Section</h3>
+        <h3 style="margin-top:0; color:var(--theme-header-color);" id="sectionModalTitle"><?php echo e(t('admin_assessment-templates.add_section_title')); ?></h3>
         <input type="hidden" id="sectionModalId" value="">
         <div class="form-group">
-            <label>Section Name <span style="color:#ef4444;">*</span></label>
+            <label><?php echo e(t('admin_assessment-templates.label_section_name')); ?> <span style="color:#ef4444;">*</span></label>
             <input type="text" id="sectionModalName" class="form-control" required>
         </div>
         <div class="form-group">
-            <label>Description</label>
+            <label><?php echo e(t('admin_assessment-templates.label_description')); ?></label>
             <textarea id="sectionModalDesc" class="form-control" rows="2"></textarea>
         </div>
         <div style="display:flex; gap:10px; margin-top:20px;">
-            <button type="button" class="btn btn-primary" data-action="saveSection">Save Section</button>
-            <button type="button" class="btn btn-secondary" data-close="sectionModal">Cancel</button>
+            <button type="button" class="btn btn-primary" data-action="saveSection"><?php echo e(t('admin_assessment-templates.btn_save_section')); ?></button>
+            <button type="button" class="btn btn-secondary" data-close="sectionModal"><?php echo e(t('admin_assessment-templates.btn_cancel')); ?></button>
         </div>
     </div>
 </div>
@@ -464,48 +464,48 @@ foreach ($editTemplate['sections'] as $sec) {
 <div id="questionModal" class="modal">
     <div class="modal-content" style="max-width:650px;">
         <span class="close" data-close="questionModal">&times;</span>
-        <h3 style="margin-top:0; color:var(--theme-header-color);" id="questionModalTitle">Add Question</h3>
+        <h3 style="margin-top:0; color:var(--theme-header-color);" id="questionModalTitle"><?php echo e(t('admin_assessment-templates.add_question_title')); ?></h3>
         <input type="hidden" id="qModalId" value="">
         <input type="hidden" id="qModalSectionId" value="">
         <div class="form-group">
-            <label>Question Text <span style="color:#ef4444;">*</span></label>
+            <label><?php echo e(t('admin_assessment-templates.label_question_text')); ?> <span style="color:#ef4444;">*</span></label>
             <textarea id="qModalText" class="form-control" rows="2" required></textarea>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>Question Type</label>
+                <label><?php echo e(t('admin_assessment-templates.label_question_type')); ?></label>
                 <select id="qModalType" class="form-control" data-action="toggleOptionsEditor">
-                    <option value="text">Text</option>
-                    <option value="textarea">Textarea</option>
-                    <option value="number">Number</option>
-                    <option value="date">Date</option>
-                    <option value="email">Email</option>
-                    <option value="select">Dropdown</option>
-                    <option value="radio">Radio Buttons</option>
-                    <option value="checkbox">Checkboxes</option>
-                    <option value="button_group">Button Group</option>
-                    <option value="button_group_multi">Button Group (Multi)</option>
-                    <option value="file">File Upload</option>
+                    <option value="text"><?php echo e(t('admin_assessment-templates.qtype_text')); ?></option>
+                    <option value="textarea"><?php echo e(t('admin_assessment-templates.qtype_textarea')); ?></option>
+                    <option value="number"><?php echo e(t('admin_assessment-templates.qtype_number')); ?></option>
+                    <option value="date"><?php echo e(t('admin_assessment-templates.qtype_date')); ?></option>
+                    <option value="email"><?php echo e(t('admin_assessment-templates.qtype_email')); ?></option>
+                    <option value="select"><?php echo e(t('admin_assessment-templates.qtype_dropdown')); ?></option>
+                    <option value="radio"><?php echo e(t('admin_assessment-templates.qtype_radio')); ?></option>
+                    <option value="checkbox"><?php echo e(t('admin_assessment-templates.qtype_checkbox')); ?></option>
+                    <option value="button_group"><?php echo e(t('admin_assessment-templates.qtype_button_group')); ?></option>
+                    <option value="button_group_multi"><?php echo e(t('admin_assessment-templates.qtype_button_group_multi')); ?></option>
+                    <option value="file"><?php echo e(t('admin_assessment-templates.qtype_file')); ?></option>
                 </select>
             </div>
             <div class="form-group">
-                <label>Required?</label>
+                <label><?php echo e(t('admin_assessment-templates.label_required')); ?></label>
                 <select id="qModalRequired" class="form-control">
-                    <option value="1">Yes</option>
-                    <option value="0">No</option>
+                    <option value="1"><?php echo e(t('admin_assessment-templates.opt_yes')); ?></option>
+                    <option value="0"><?php echo e(t('admin_assessment-templates.opt_no')); ?></option>
                 </select>
             </div>
         </div>
         <div class="form-group">
-            <label>Help Text</label>
-            <input type="text" id="qModalHelp" class="form-control" placeholder="Optional help text shown below the question">
+            <label><?php echo e(t('admin_assessment-templates.label_help_text')); ?></label>
+            <input type="text" id="qModalHelp" class="form-control" placeholder="<?php echo e(t('admin_assessment-templates.placeholder_help_text')); ?>">
         </div>
         <div class="form-group">
-            <label>Field Name <small style="color:#666;">(maps to vendor data field)</small>
-                <a href="admin.php?section=field-reference" target="_blank" style="margin-left:8px; font-size:12px; font-weight:normal;">View Field Reference</a>
+            <label><?php echo e(t('admin_assessment-templates.label_field_name')); ?> <small style="color:#666;"><?php echo e(t('admin_assessment-templates.field_name_hint')); ?></small>
+                <a href="admin.php?section=field-reference" target="_blank" style="margin-left:8px; font-size:12px; font-weight:normal;"><?php echo e(t('admin_assessment-templates.view_field_reference')); ?></a>
             </label>
             <select id="qModalFieldName" class="form-control">
-                <option value="">-- None --</option>
+                <option value=""><?php echo e(t('admin_assessment-templates.opt_none')); ?></option>
                 <?php
                 $lastSection = '';
                 foreach ($fieldReferences as $fr):
@@ -522,16 +522,16 @@ foreach ($editTemplate['sections'] as $sec) {
             <span id="fieldNameWarning" style="display:none; color:#b45309; font-size:12px; margin-top:4px;"></span>
         </div>
         <div class="form-group" id="optionsEditorGroup" style="display:none;">
-            <label>Options <small style="color:#666;">(one per line)</small></label>
+            <label><?php echo e(t('admin_assessment-templates.label_options')); ?> <small style="color:#666;"><?php echo e(t('admin_assessment-templates.options_hint')); ?></small></label>
             <textarea id="qModalOptions" class="form-control" rows="4" placeholder="Yes&#10;No&#10;Not Applicable"></textarea>
         </div>
         <div style="border-top:1px solid #e5e7eb; padding-top:15px; margin-top:15px;">
-            <label style="font-weight:600; font-size:13px; margin-bottom:10px; display:block;">Conditional Logic (optional)</label>
+            <label style="font-weight:600; font-size:13px; margin-bottom:10px; display:block;"><?php echo e(t('admin_assessment-templates.conditional_logic')); ?></label>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Show when question:</label>
+                    <label><?php echo e(t('admin_assessment-templates.label_show_when')); ?></label>
                     <select id="qModalDependsOn" class="form-control" data-action="loadDependsOnValues">
-                        <option value="">-- Always visible --</option>
+                        <option value=""><?php echo e(t('admin_assessment-templates.opt_always_visible')); ?></option>
                         <?php foreach ($allQuestionsFlat as $aq): ?>
                         <option value="<?php echo $aq['id']; ?>" data-type="<?php echo e($aq['type']); ?>" data-options="<?php echo e(json_encode($aq['options'])); ?>">
                             [<?php echo e($aq['section_name']); ?>] <?php echo e(mb_strimwidth($aq['text'], 0, 50, '...')); ?>
@@ -540,7 +540,7 @@ foreach ($editTemplate['sections'] as $sec) {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Equals value:</label>
+                    <label><?php echo e(t('admin_assessment-templates.label_equals_value')); ?></label>
                     <select id="qModalDependsValue" class="form-control">
                         <option value="">--</option>
                     </select>
@@ -548,8 +548,8 @@ foreach ($editTemplate['sections'] as $sec) {
             </div>
         </div>
         <div style="display:flex; gap:10px; margin-top:20px;">
-            <button type="button" class="btn btn-primary" data-action="saveQuestion">Save Question</button>
-            <button type="button" class="btn btn-secondary" data-close="questionModal">Cancel</button>
+            <button type="button" class="btn btn-primary" data-action="saveQuestion"><?php echo e(t('admin_assessment-templates.btn_save_question')); ?></button>
+            <button type="button" class="btn btn-secondary" data-close="questionModal"><?php echo e(t('admin_assessment-templates.btn_cancel')); ?></button>
         </div>
     </div>
 </div>

@@ -61,7 +61,7 @@ $showOnboarding = $canReadAll || $canReadAssigned;
 // If you can't read any reviews at all, you're in the wrong place
 if (!$canReadAll && !$canReadAssigned) {
     http_response_code(403);
-    die('Access denied. You do not have permission to view annual reviews.');
+    die(e(t('vendor-annual-reviews-list.access_denied')));
 }
 
 // ============================================================================
@@ -73,17 +73,17 @@ $error = '';
 if (isset($_GET['success'])) {
     switch ($_GET['success']) {
         case 'reviewed':
-            $success = 'Annual review completed successfully!';
+            $success = t('vendor-annual-reviews-list.success_reviewed');
             break;
     }
 }
 if (isset($_GET['error'])) {
     switch ($_GET['error']) {
         case 'not_found':
-            $error = 'The requested vendor was not found.';
+            $error = t('vendor-annual-reviews-list.error_not_found');
             break;
         case 'permission_denied':
-            $error = 'You do not have permission to review this vendor.';
+            $error = t('vendor-annual-reviews-list.error_permission');
             break;
     }
 }
@@ -733,13 +733,13 @@ function getStakeholderNames($stakeholdersString) {
     <div class="page">
         <!-- Top Bar -- welcome message and quick links -->
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($isAdmin): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -754,8 +754,8 @@ function getStakeholderNames($stakeholdersString) {
             <main class="main-content">
                 <div class="page-header-row">
                     <div>
-                        <h1 class="page-title">Annual Vendor Reviews</h1>
-                        <p class="page-subtitle">Review vendors every 365 days from approval date</p>
+                        <h1 class="page-title"><?php echo e(t('vendor-annual-reviews-list.page_title')); ?></h1>
+                        <p class="page-subtitle"><?php echo e(t('vendor-annual-reviews-list.page_subtitle')); ?></p>
                     </div>
                 </div>
 
@@ -772,44 +772,44 @@ function getStakeholderNames($stakeholdersString) {
                 <div class="filter-bar">
                     <div class="filter-tabs">
                         <a href="?filter=overdue" class="filter-tab <?php echo $statusFilter === 'overdue' ? 'active' : ''; ?>">
-                            Overdue
+                            <?php echo e(t('vendor-annual-reviews-list.filter_overdue')); ?>
                             <span class="count"><?php echo $overdueCount; ?></span>
                         </a>
                         <a href="?filter=due_soon" class="filter-tab <?php echo $statusFilter === 'due_soon' ? 'active' : ''; ?>">
-                            Due Soon
+                            <?php echo e(t('vendor-annual-reviews-list.filter_due_soon')); ?>
                             <span class="count"><?php echo $dueSoonCount; ?></span>
                         </a>
                         <a href="?filter=all" class="filter-tab <?php echo $statusFilter === 'all' ? 'active' : ''; ?>">
-                            All Action Needed
+                            <?php echo e(t('vendor-annual-reviews-list.filter_all')); ?>
                             <span class="count"><?php echo $totalActionableCount; ?></span>
                         </a>
                         <a href="?filter=completed" class="filter-tab <?php echo $statusFilter === 'completed' ? 'active' : ''; ?>">
-                            Recently Completed
+                            <?php echo e(t('vendor-annual-reviews-list.filter_completed')); ?>
                             <span class="count"><?php echo $completedRecentCount; ?></span>
                         </a>
                     </div>
 
                     <form method="GET" class="search-bar">
                         <input type="hidden" name="filter" value="<?php echo e($statusFilter); ?>">
-                        <input type="text" name="search" placeholder="Search by vendor name or type..."
+                        <input type="text" name="search" placeholder="<?php echo e(t('vendor-annual-reviews-list.search_placeholder')); ?>"
                                value="<?php echo e($searchQuery); ?>">
-                        <button type="submit">Search</button>
+                        <button type="submit"><?php echo e(t('vendor-annual-reviews-list.search')); ?></button>
                     </form>
                 </div>
 
                 <?php if (empty($requests)): ?>
                     <!-- Empty state -- different messages for each filter tab -->
                     <div class="empty-state">
-                        <h3>No vendors to review</h3>
+                        <h3><?php echo e(t('vendor-annual-reviews-list.empty_title')); ?></h3>
                         <p>
                             <?php if ($statusFilter === 'overdue'): ?>
-                                There are no overdue vendor reviews at this time.
+                                <?php echo e(t('vendor-annual-reviews-list.empty_overdue')); ?>
                             <?php elseif ($statusFilter === 'due_soon'): ?>
-                                There are no vendor reviews due in the next 30 days.
+                                <?php echo e(t('vendor-annual-reviews-list.empty_due_soon')); ?>
                             <?php elseif ($statusFilter === 'completed'): ?>
-                                No reviews have been completed in the last 30 days.
+                                <?php echo e(t('vendor-annual-reviews-list.empty_completed')); ?>
                             <?php else: ?>
-                                All vendors are up to date with their annual reviews.
+                                <?php echo e(t('vendor-annual-reviews-list.empty_all')); ?>
                             <?php endif; ?>
                         </p>
                     </div>
@@ -818,11 +818,11 @@ function getStakeholderNames($stakeholdersString) {
                     <table class="reviews-table">
                         <thead>
                             <tr>
-                                <th>Vendor Name</th>
-                                <th>Stakeholder(s)</th>
-                                <th>Last Review</th>
-                                <th>Review Status</th>
-                                <th>Actions</th>
+                                <th><?php echo e(t('vendor-annual-reviews-list.th_vendor_name')); ?></th>
+                                <th><?php echo e(t('vendor-annual-reviews-list.th_stakeholders')); ?></th>
+                                <th><?php echo e(t('vendor-annual-reviews-list.th_last_review')); ?></th>
+                                <th><?php echo e(t('vendor-annual-reviews-list.th_review_status')); ?></th>
+                                <th><?php echo e(t('vendor-annual-reviews-list.th_actions')); ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -846,9 +846,9 @@ function getStakeholderNames($stakeholdersString) {
                                             <?php if (!empty($request['last_review_date'])): ?>
                                                 <?php echo date('M j, Y', strtotime($request['last_review_date'])); ?>
                                             <?php elseif (!empty($request['submitted_at'])): ?>
-                                                Approved: <?php echo date('M j, Y', strtotime($request['submitted_at'])); ?>
+                                                <?php echo e(t('vendor-annual-reviews-list.approved_date', date('M j, Y', strtotime($request['submitted_at'])))); ?>
                                             <?php else: ?>
-                                                Never reviewed
+                                                <?php echo e(t('vendor-annual-reviews-list.never_reviewed')); ?>
                                             <?php endif; ?>
                                         </div>
                                     </td>
@@ -859,10 +859,10 @@ function getStakeholderNames($stakeholdersString) {
                                     </td>
                                     <td class="action-links">
                                         <?php if ($canCreate): ?>
-                                            <a href="vendor-annual-review.php?id=<?php echo $request['id']; ?>">Complete Review</a>
+                                            <a href="vendor-annual-review.php?id=<?php echo $request['id']; ?>"><?php echo e(t('vendor-annual-reviews-list.complete_review')); ?></a>
                                         <?php endif; ?>
                                         <?php if (!$isStakeholderOnly): ?>
-                                        <a href="vendor-annual-review-history.php?id=<?php echo $request['id']; ?>">View History</a>
+                                        <a href="vendor-annual-review-history.php?id=<?php echo $request['id']; ?>"><?php echo e(t('vendor-annual-reviews-list.view_history')); ?></a>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -889,7 +889,7 @@ function getStakeholderNames($stakeholdersString) {
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('vendor-annual-reviews-list.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>

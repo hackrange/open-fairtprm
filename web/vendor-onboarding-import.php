@@ -35,7 +35,7 @@ $canImport = $acl->hasGroup('administrator') || $acl->hasGroup('cyber_tprm');
 
 if (!$canImport) {
     http_response_code(403);
-    die('Access denied. Only administrators and Cyber TPRM users can import data.');
+    die(e(t('vendor-onboarding-import.access_denied')));
 }
 
 // Get theme for the page styling
@@ -168,7 +168,7 @@ if (isset($_GET['download_template'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
     // CSRF validation -- because we're responsible adults
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Invalid or expired security token. Please refresh the page and try again.';
+        $error = t('vendor-onboarding-import.invalid_token');
         goto render;
     }
 
@@ -176,11 +176,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
 
     // Basic file validation -- check for upload errors, size, and type
     if ($file['error'] !== UPLOAD_ERR_OK) {
-        $error = 'File upload error. Please try again.';
+        $error = t('vendor-onboarding-import.upload_error');
     } elseif ($file['size'] > 10485760) { // 10MB -- if your CSV is bigger than this, something's wrong
-        $error = 'File is too large. Maximum size is 10MB.';
+        $error = t('vendor-onboarding-import.file_too_large');
     } elseif (!in_array(pathinfo($file['name'], PATHINFO_EXTENSION), ['csv', 'txt'])) {
-        $error = 'Invalid file type. Only CSV files are allowed.';
+        $error = t('vendor-onboarding-import.invalid_file_type');
     } else {
         // Open the file and start processing
         $handle = fopen($file['tmp_name'], 'r');
@@ -553,7 +553,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
 
             fclose($handle);
         } else {
-            $error = 'Unable to read CSV file.';
+            $error = t('vendor-onboarding-import.unable_to_read');
         }
     }
 }
@@ -563,7 +563,7 @@ render:
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Import / Update Vendor Onboarding - TPRM</title>
+    <title><?php echo e(t('vendor-onboarding-import.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -732,19 +732,19 @@ render:
                                         <img class="brand-logo-dark" src="<?php echo e($theme['logo_url']); ?>" alt="" width="209" height="39"/>
                                     </a>
                                     <div style="margin-top: 5px; color: #333; font-size: 16px; font-weight: 500;">
-                                        Import / Update Vendor Onboarding
+                                        <?php echo e(t('vendor-onboarding-import.brand_subtitle')); ?>
                                     </div>
                                 </div>
                             </div>
                             <div style="flex: 1;"></div>
                             <div class="user-menu">
-                                <span style="color: #333;">Welcome, <?php echo e($user['full_name']); ?></span>
-                                <a href="index.php">Dashboard</a>
+                                <span style="color: #333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
+                                <a href="index.php"><?php echo e(t('vendor-onboarding-import.dashboard')); ?></a>
                                 <?php if ($auth->isAdmin()): ?>
-                                    <a href="admin.php">Admin</a>
+                                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                                 <?php endif; ?>
-                                <a href="vendor-onboarding-list.php">Onboarding List</a>
-                                <a href="logout.php">Logout</a>
+                                <a href="vendor-onboarding-list.php"><?php echo e(t('vendor-onboarding-import.onboarding_list')); ?></a>
+                                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
                             </div>
                         </div>
                     </div>
@@ -755,9 +755,9 @@ render:
         <div class="import-container" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
             <div class="container" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                    <h1 class="page-title">Bulk Import / Update Vendor Onboarding Requests</h1>
+                    <h1 class="page-title"><?php echo e(t('vendor-onboarding-import.heading')); ?></h1>
                     <a href="vendor-onboarding-list.php" class="btn-secondary">
-                        &larr; Back to List
+                        &larr; <?php echo e(t('vendor-onboarding-import.back_to_list')); ?>
                     </a>
                 </div>
 
@@ -777,46 +777,46 @@ render:
                 <!-- Instructions Card -- how to use the import feature -->
                 <div class="card">
                     <h4 class="card-title">
-                        How to Import / Update Vendor Onboarding Requests
+                        <?php echo e(t('vendor-onboarding-import.how_to_title')); ?>
                     </h4>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
                         <div>
-                            <h5 style="font-size: 16px; margin-bottom: 10px;">Step 1: Download Template</h5>
-                            <p style="color: #666; margin-bottom: 15px;">Download the CSV template with sample data to understand the required format.</p>
+                            <h5 style="font-size: 16px; margin-bottom: 10px;"><?php echo e(t('vendor-onboarding-import.step1_title')); ?></h5>
+                            <p style="color: #666; margin-bottom: 15px;"><?php echo e(t('vendor-onboarding-import.step1_desc')); ?></p>
 
                             <a href="?download_template=1" class="btn-success" style="display: inline-block; margin-bottom: 20px;">
-                                Download CSV Template
+                                <?php echo e(t('vendor-onboarding-import.download_template')); ?>
                             </a>
 
-                            <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;">Step 2: Fill in Your Data</h5>
+                            <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;"><?php echo e(t('vendor-onboarding-import.step2_title')); ?></h5>
                             <ul style="color: #666; line-height: 1.8;">
-                                <li>Open the template in Excel or Google Sheets</li>
-                                <li>Review the sample data row (row 2)</li>
-                                <li>Delete the sample row or keep it as reference</li>
-                                <li>Add your vendor data (one vendor per row)</li>
-                                <li>Save as CSV format</li>
+                                <li><?php echo e(t('vendor-onboarding-import.step2_open')); ?></li>
+                                <li><?php echo e(t('vendor-onboarding-import.step2_review')); ?></li>
+                                <li><?php echo e(t('vendor-onboarding-import.step2_delete')); ?></li>
+                                <li><?php echo e(t('vendor-onboarding-import.step2_add')); ?></li>
+                                <li><?php echo e(t('vendor-onboarding-import.step2_save')); ?></li>
                             </ul>
                         </div>
 
                         <div>
-                            <h5 style="font-size: 16px; margin-bottom: 10px;">Required Fields</h5>
+                            <h5 style="font-size: 16px; margin-bottom: 10px;"><?php echo e(t('vendor-onboarding-import.required_fields')); ?></h5>
                             <ul style="color: #666; line-height: 1.8;">
                                 <li><strong>vendor_name</strong> - Vendor company name</li>
                             </ul>
 
-                            <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;">Optional Fields</h5>
+                            <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;"><?php echo e(t('vendor-onboarding-import.optional_fields')); ?></h5>
                             <ul style="color: #666; line-height: 1.8;">
                                 <li><strong>stakeholder_username</strong> - Username of user to assign as stakeholder. If left blank, you (the importer) will be assigned as stakeholder.</li>
                             </ul>
 
-                            <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;">Mass Update Behavior</h5>
+                            <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;"><?php echo e(t('vendor-onboarding-import.mass_update_behavior')); ?></h5>
                             <ul style="color: #666; line-height: 1.8; font-size: 13px;">
                                 <li><strong>Duplicate detection:</strong> If a vendor with the same <strong>vendor_domain</strong> already exists, the record will be <strong>updated</strong> instead of duplicated</li>
                                 <li><strong>New vendors:</strong> Vendors with a new or empty domain will be created as new records</li>
                             </ul>
 
-                            <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;">Valid Values</h5>
+                            <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;"><?php echo e(t('vendor-onboarding-import.valid_values')); ?></h5>
                             <ul style="color: #666; line-height: 1.8; font-size: 13px;">
                                 <li><strong>Yes/No fields:</strong> yes, no, or empty</li>
                                 <li><strong>Impact levels:</strong> low, moderate, high, severe</li>
@@ -826,12 +826,12 @@ render:
                                 <li><strong>Dates:</strong> YYYY-MM-DD format (e.g., 2025-06-01)</li>
                             </ul>
 
-                            <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;">Important Notes</h5>
+                            <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;"><?php echo e(t('vendor-onboarding-import.important_notes')); ?></h5>
                             <ul style="color: #666; line-height: 1.8;">
-                                <li>File size limit: 10MB</li>
-                                <li>Format: CSV (comma-separated values)</li>
-                                <li>New records will be created by you</li>
-                                <li>Updated records preserve the original creator</li>
+                                <li><?php echo e(t('vendor-onboarding-import.note_file_size')); ?></li>
+                                <li><?php echo e(t('vendor-onboarding-import.note_format')); ?></li>
+                                <li><?php echo e(t('vendor-onboarding-import.note_new_records')); ?></li>
+                                <li><?php echo e(t('vendor-onboarding-import.note_updated_records')); ?></li>
                             </ul>
                         </div>
                     </div>
@@ -840,22 +840,22 @@ render:
                 <!-- Upload Form Card -->
                 <div class="card">
                     <h4 class="card-title">
-                        Upload CSV File
+                        <?php echo e(t('vendor-onboarding-import.upload_csv_file')); ?>
                     </h4>
 
                     <form method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="<?php echo e($security->getCSRFToken()); ?>">
 
                         <div style="margin-bottom: 20px;">
-                            <label for="csv_file" style="display: block; margin-bottom: 8px; font-weight: 500;">Select CSV File</label>
+                            <label for="csv_file" style="display: block; margin-bottom: 8px; font-weight: 500;"><?php echo e(t('vendor-onboarding-import.select_csv_file')); ?></label>
                             <input type="file" id="csv_file" name="csv_file"
                                    accept=".csv,text/csv" required
                                    style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; max-width: 500px;">
-                            <div style="margin-top: 5px; font-size: 14px; color: #666;">Upload a CSV file containing your vendor onboarding data</div>
+                            <div style="margin-top: 5px; font-size: 14px; color: #666;"><?php echo e(t('vendor-onboarding-import.upload_hint')); ?></div>
                         </div>
 
                         <button type="submit" class="btn-primary" style="font-size: 16px;">
-                            Import / Update Vendor Onboarding Requests
+                            <?php echo e(t('vendor-onboarding-import.submit_button')); ?>
                         </button>
                     </form>
                 </div>
@@ -864,17 +864,17 @@ render:
                 <?php if (!empty($importResults)): ?>
                 <div class="card">
                     <h4 class="card-title">
-                        Import Results
+                        <?php echo e(t('vendor-onboarding-import.import_results')); ?>
                     </h4>
 
                     <div style="overflow-x: auto;">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Row</th>
-                                    <th>Vendor Name</th>
-                                    <th>Status</th>
-                                    <th>Message</th>
+                                    <th><?php echo e(t('vendor-onboarding-import.col_row')); ?></th>
+                                    <th><?php echo e(t('vendor-onboarding-import.col_vendor_name')); ?></th>
+                                    <th><?php echo e(t('vendor-onboarding-import.col_status')); ?></th>
+                                    <th><?php echo e(t('vendor-onboarding-import.col_message')); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -884,9 +884,9 @@ render:
                                     <td><?php echo e($result['vendor']); ?></td>
                                     <td>
                                         <?php if ($result['status'] === 'success'): ?>
-                                            <span class="badge bg-success">Success</span>
+                                            <span class="badge bg-success"><?php echo e(t('vendor-onboarding-import.status_success')); ?></span>
                                         <?php else: ?>
-                                            <span class="badge bg-danger">Error</span>
+                                            <span class="badge bg-danger"><?php echo e(t('vendor-onboarding-import.status_error')); ?></span>
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo e($result['message']); ?></td>

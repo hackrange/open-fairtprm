@@ -29,62 +29,62 @@ $modSecAvailable = $lockdown->isModSecurityAvailable();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wafAction = $_POST['waf_action'] ?? '';
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('lockdown.invalid_request');
     } elseif (!$modSecAvailable) {
-        $error = 'ModSecurity is not available. Cannot perform WAF operations.';
+        $error = t('lockdown.modsec_unavailable_op');
     } elseif ($wafAction === 'start_learning') {
         if ($lockdown->setMode('learning')) {
-            $success = 'WAF learning mode activated. ModSecurity is now logging all traffic patterns.';
+            $success = t('lockdown.learning_activated');
             $auth->audit($user['id'], 'waf_mode_change', 'app_config', null, [
                 'new' => ['mode' => 'learning'],
             ]);
         } else {
-            $error = 'Failed to activate learning mode. Check Apache/ModSecurity configuration.';
+            $error = t('lockdown.activate_learning_failed');
         }
     } elseif ($wafAction === 'stop_learning') {
         if ($lockdown->setMode('disabled')) {
-            $success = 'WAF learning stopped. ModSecurity is now disabled.';
+            $success = t('lockdown.learning_stopped');
             $auth->audit($user['id'], 'waf_mode_change', 'app_config', null, [
                 'new' => ['mode' => 'disabled'],
             ]);
         } else {
-            $error = 'Failed to stop learning mode.';
+            $error = t('lockdown.stop_learning_failed');
         }
     } elseif ($wafAction === 'ingest_logs') {
         $count = $lockdown->ingestAuditLog();
-        $success = "Ingested {$count} traffic pattern(s) from the audit log.";
+        $success = t('lockdown.logs_ingested', $count);
         $auth->audit($user['id'], 'waf_ingest_logs', 'waf_learned_patterns', null, [
             'new' => ['patterns_ingested' => $count],
         ]);
     } elseif ($wafAction === 'generate_whitelist') {
         $count = $lockdown->generateWhitelistRules();
-        $success = "Generated {$count} whitelist rule(s) from learned patterns.";
+        $success = t('lockdown.whitelist_generated', $count);
         $auth->audit($user['id'], 'waf_generate_whitelist', 'waf_whitelist_rules', null, [
             'new' => ['rules_generated' => $count],
         ]);
     } elseif ($wafAction === 'enable_enforcement') {
         if ($lockdown->setMode('enforcing')) {
-            $success = 'WAF enforcement enabled. Requests not in the whitelist will be blocked.';
+            $success = t('lockdown.enforcement_enabled');
             $auth->audit($user['id'], 'waf_mode_change', 'app_config', null, [
                 'new' => ['mode' => 'enforcing'],
             ]);
         } else {
-            $error = 'Failed to enable enforcement mode.';
+            $error = t('lockdown.enable_enforcement_failed');
         }
     } elseif ($wafAction === 'disable_waf') {
         if ($lockdown->setMode('disabled')) {
-            $success = 'WAF disabled. ModSecurity is now off.';
+            $success = t('lockdown.waf_disabled');
             $auth->audit($user['id'], 'waf_mode_change', 'app_config', null, [
                 'new' => ['mode' => 'disabled'],
             ]);
         } else {
-            $error = 'Failed to disable WAF.';
+            $error = t('lockdown.disable_waf_failed');
         }
     } elseif ($wafAction === 'add_exception') {
         $exUri = trim($_POST['exception_uri'] ?? '');
         $exMethod = strtoupper(trim($_POST['exception_method'] ?? 'GET'));
         if (empty($exUri)) {
-            $error = 'URI is required for adding an exception.';
+            $error = t('lockdown.uri_required');
         } else {
             if ($lockdown->addException($exUri, $exMethod)) {
                 $success = "Exception added for {$exMethod} {$exUri}. Apache reloaded.";
@@ -92,25 +92,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'new' => ['uri' => $exUri, 'method' => $exMethod],
                 ]);
             } else {
-                $error = 'Failed to add exception.';
+                $error = t('lockdown.add_exception_failed');
             }
         }
     } elseif ($wafAction === 'remove_rule') {
         $ruleId = (int)($_POST['rule_id'] ?? 0);
         if ($ruleId > 0 && $lockdown->removeRule($ruleId)) {
-            $success = "Rule #{$ruleId} removed. Apache reloaded.";
+            $success = t('lockdown.rule_removed', $ruleId);
             $auth->audit($user['id'], 'waf_remove_rule', 'waf_whitelist_rules', null, [
                 'new' => ['rule_id' => $ruleId],
             ]);
         } else {
-            $error = 'Failed to remove rule.';
+            $error = t('lockdown.remove_rule_failed');
         }
     } elseif ($wafAction === 'clear_patterns') {
         if ($lockdown->clearLearnedPatterns()) {
-            $success = 'All learned patterns cleared.';
+            $success = t('lockdown.patterns_cleared');
             $auth->audit($user['id'], 'waf_clear_patterns', 'waf_learned_patterns', null, []);
         } else {
-            $error = 'Failed to clear learned patterns.';
+            $error = t('lockdown.clear_patterns_failed');
         }
     } elseif ($wafAction === 'export_rules') {
         $export = $lockdown->exportRules();
@@ -126,22 +126,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $newState = !$scannerEnabled;
         if ($lockdown->setScannerBlocking($newState)) {
             $success = $newState
-                ? 'Automated scanner blocking enabled. Requests from known scanners will be denied.'
-                : 'Automated scanner blocking disabled.';
+                ? t('lockdown.scanner_blocking_enabled')
+                : t('lockdown.scanner_blocking_disabled');
             $auth->audit($user['id'], 'waf_scanner_blocking', 'app_config', null, [
                 'new' => ['scanner_blocking' => $newState ? 'enabled' : 'disabled'],
             ]);
         } else {
-            $error = 'Failed to toggle scanner blocking. Check Apache/ModSecurity configuration.';
+            $error = t('lockdown.toggle_scanner_failed');
         }
     } elseif ($wafAction === 'import_rules') {
         if (!isset($_FILES['import_file']) || $_FILES['import_file']['error'] !== UPLOAD_ERR_OK) {
-            $error = 'No file uploaded or upload error occurred.';
+            $error = t('lockdown.no_file_uploaded');
         } else {
             $raw = file_get_contents($_FILES['import_file']['tmp_name']);
             $data = json_decode($raw, true);
             if (!is_array($data) || !isset($data['rules'])) {
-                $error = 'Invalid import file. Must be a JSON file exported from this system.';
+                $error = t('lockdown.invalid_import_file');
             } else {
                 [$rulesImported, $patternsImported] = $lockdown->importRules($data);
                 $success = "Imported {$rulesImported} rule(s) and {$patternsImported} pattern(s).";
@@ -155,10 +155,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $db->query("DELETE FROM waf_block_events");
             @unlink('/tmp/.waf_block_ingest_offset');
-            $success = 'Block log cleared.';
+            $success = t('lockdown.block_log_cleared');
             $auth->audit($user['id'], 'waf_clear_block_log', 'waf_block_events', null, []);
         } catch (Exception $e) {
-            $error = 'Failed to clear block log.';
+            $error = t('lockdown.clear_block_log_failed');
         }
     }
 }
@@ -186,9 +186,9 @@ if ($isDetailView) {
 
 // Mode badge config
 $modeBadges = [
-    'disabled'  => ['label' => 'Disabled',  'bg' => '#f3f4f6', 'color' => '#6b7280'],
-    'learning'  => ['label' => 'Learning',  'bg' => '#fef3c7', 'color' => '#92400e'],
-    'enforcing' => ['label' => 'Enforcing', 'bg' => '#dcfce7', 'color' => '#166534'],
+    'disabled'  => ['label' => t('lockdown.mode_disabled'),  'bg' => '#f3f4f6', 'color' => '#6b7280'],
+    'learning'  => ['label' => t('lockdown.mode_learning'),  'bg' => '#fef3c7', 'color' => '#92400e'],
+    'enforcing' => ['label' => t('lockdown.mode_enforcing'), 'bg' => '#dcfce7', 'color' => '#166534'],
 ];
 $badge = $modeBadges[$status['mode']] ?? $modeBadges['disabled'];
 
@@ -204,13 +204,13 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
 // ============================================================================
 ?>
 <div class="page-header-bar">
-    <h1 class="page-title">Lockdown</h1>
-    <p>Web Application Firewall — learn traffic patterns, generate a whitelist, then enforce it.</p>
+    <h1 class="page-title"><?php echo e(t('lockdown.heading')); ?></h1>
+    <p><?php echo e(t('lockdown.subtitle')); ?></p>
 </div>
 
 <?php if (!$modSecAvailable): ?>
 <div class="alert alert-danger">
-    <strong>ModSecurity Not Available</strong> — The <code>security2_module</code> is not loaded in Apache.
+    <strong><?php echo e(t('lockdown.modsec_not_available')); ?></strong> — The <code>security2_module</code> is not loaded in Apache.
     WAF features require the <code>libapache2-mod-security2</code> package. All controls are disabled.
 </div>
 <?php endif; ?>
@@ -222,7 +222,7 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
         <div>
-            <h3 style="margin: 0;">Request Detail</h3>
+            <h3 style="margin: 0;"><?php echo e(t('lockdown.request_detail')); ?></h3>
             <p style="color: #666; margin: 5px 0 0; font-size: 13px;">
                 Individual requests for <strong><code><?php echo e($detailMethod); ?> <?php echo e($detailUri); ?></code></strong>
                 <?php if ($ipFilter !== ''): ?>
@@ -230,12 +230,12 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
                 <?php endif; ?>
             </p>
         </div>
-        <a href="<?php echo e($lockdownUrl()); ?>" class="btn btn-secondary">&laquo; Back to Patterns</a>
+        <a href="<?php echo e($lockdownUrl()); ?>" class="btn btn-secondary">&laquo; <?php echo e(t('lockdown.back_to_patterns')); ?></a>
     </div>
 
     <!-- IP Filter for detail view -->
     <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-        <label for="detail-ip-filter" style="font-size: 12px; color: #666; white-space: nowrap;">Filter by IP:</label>
+        <label for="detail-ip-filter" style="font-size: 12px; color: #666; white-space: nowrap;"><?php echo e(t('lockdown.filter_by_ip')); ?></label>
         <select id="detail-ip-filter" style="font-size: 12px; padding: 3px 6px; border: 1px solid #d1d5db; border-radius: 4px;"
                 data-url-with-ip="<?php echo e($lockdownUrl(['detail_uri' => $detailUri, 'detail_method' => $detailMethod])); ?>&ip="
                 data-url-no-ip="<?php echo e('admin.php?' . http_build_query(['section' => 'lockdown', 'detail_uri' => $detailUri, 'detail_method' => $detailMethod])); ?>">

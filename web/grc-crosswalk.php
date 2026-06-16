@@ -29,7 +29,7 @@ $isAuditor = hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberGRC && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. GRC module requires cyber_grc, administrator, or auditor role.');
+    die(t('grc-crosswalk.access_denied'));
 }
 
 $readOnly = $isAuditor && !$isAdmin && !$isCyberGRC;
@@ -186,11 +186,11 @@ $currentPage = 'grc_crosswalk';
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -198,15 +198,15 @@ $currentPage = 'grc_crosswalk';
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">Framework Crosswalk</h1>
-            <p style="color:#6b7280;margin:0 0 30px;">See how controls shared between frameworks provide coverage across both</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc-crosswalk.framework_crosswalk')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 30px;"><?php echo e(t('grc-crosswalk.intro')); ?></p>
 
             <!-- Framework Selector -->
             <form method="get" class="selector-bar">
                 <div>
-                    <label for="source">Source Framework</label>
+                    <label for="source"><?php echo e(t('grc-crosswalk.source_framework')); ?></label>
                     <select id="source" name="source">
-                        <option value="">-- Select Source --</option>
+                        <option value=""><?php echo e(t('grc-crosswalk.select_source')); ?></option>
                         <?php foreach ($frameworks as $fw): ?>
                         <option value="<?php echo (int)$fw['id']; ?>" <?php echo $sourceId === (int)$fw['id'] ? 'selected' : ''; ?>><?php echo e($fw['code']); ?> - <?php echo e($fw['name']); ?></option>
                         <?php endforeach; ?>
@@ -214,15 +214,15 @@ $currentPage = 'grc_crosswalk';
                 </div>
                 <div style="font-size:20px;color:#6b7280;padding-bottom:8px;">&rarr;</div>
                 <div>
-                    <label for="target">Target Framework</label>
+                    <label for="target"><?php echo e(t('grc-crosswalk.target_framework')); ?></label>
                     <select id="target" name="target">
-                        <option value="">-- Select Target --</option>
+                        <option value=""><?php echo e(t('grc-crosswalk.select_target')); ?></option>
                         <?php foreach ($frameworks as $fw): ?>
                         <option value="<?php echo (int)$fw['id']; ?>" <?php echo $targetId === (int)$fw['id'] ? 'selected' : ''; ?>><?php echo e($fw['code']); ?> - <?php echo e($fw['name']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary">Generate Crosswalk</button>
+                <button type="submit" class="btn btn-primary"><?php echo e(t('grc-crosswalk.generate_crosswalk')); ?></button>
             </form>
 
             <?php if ($sourceFramework && $targetFramework): ?>
@@ -240,19 +240,19 @@ $currentPage = 'grc_crosswalk';
             <div class="stat-grid">
                 <div class="stat-card info">
                     <div class="stat-value"><?php echo count($crosswalk); ?></div>
-                    <div class="stat-label">Crosswalk Mappings</div>
+                    <div class="stat-label"><?php echo e(t('grc-crosswalk.crosswalk_mappings')); ?></div>
                 </div>
                 <div class="stat-card success">
                     <div class="stat-value"><?php echo $coveredCount; ?></div>
-                    <div class="stat-label"><?php echo e($targetFramework['code']); ?> Requirements Covered</div>
+                    <div class="stat-label"><?php echo e($targetFramework['code']); ?> <?php echo e(t('grc-crosswalk.requirements_covered')); ?></div>
                 </div>
                 <div class="stat-card <?php echo $gapCount > 0 ? 'danger' : 'success'; ?>">
                     <div class="stat-value"><?php echo $gapCount; ?></div>
-                    <div class="stat-label">Coverage Gaps</div>
+                    <div class="stat-label"><?php echo e(t('grc-crosswalk.coverage_gaps')); ?></div>
                 </div>
                 <div class="stat-card <?php echo $coveragePct >= 80 ? 'success' : ($coveragePct >= 50 ? 'warning' : 'danger'); ?>">
                     <div class="stat-value"><?php echo $coveragePct; ?>%</div>
-                    <div class="stat-label">Target Coverage</div>
+                    <div class="stat-label"><?php echo e(t('grc-crosswalk.target_coverage')); ?></div>
                 </div>
             </div>
 
@@ -268,13 +268,13 @@ $currentPage = 'grc_crosswalk';
             <table class="grc-table">
                 <thead>
                     <tr>
-                        <th><?php echo e($sourceFramework['code']); ?> Req</th>
-                        <th>Source Title</th>
-                        <th>Control</th>
-                        <th>Status</th>
-                        <th><?php echo e($targetFramework['code']); ?> Req</th>
-                        <th>Target Title</th>
-                        <th>Coverage</th>
+                        <th><?php echo e($sourceFramework['code']); ?> <?php echo e(t('grc-crosswalk.req')); ?></th>
+                        <th><?php echo e(t('grc-crosswalk.source_title')); ?></th>
+                        <th><?php echo e(t('grc-crosswalk.control')); ?></th>
+                        <th><?php echo e(t('grc-crosswalk.status')); ?></th>
+                        <th><?php echo e($targetFramework['code']); ?> <?php echo e(t('grc-crosswalk.req')); ?></th>
+                        <th><?php echo e(t('grc-crosswalk.target_title')); ?></th>
+                        <th><?php echo e(t('grc-crosswalk.coverage')); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -293,7 +293,7 @@ $currentPage = 'grc_crosswalk';
             </table>
             <?php else: ?>
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:40px;text-align:center;color:#6b7280;">
-                No shared controls found between these frameworks. Map controls to requirements in both frameworks to see crosswalk data.
+                <?php echo e(t('grc-crosswalk.no_shared_controls')); ?>
             </div>
             <?php endif; ?>
 
@@ -319,15 +319,15 @@ $currentPage = 'grc_crosswalk';
             <?php elseif ($sourceId > 0 || $targetId > 0): ?>
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:40px;text-align:center;color:#6b7280;">
                 <?php if ($sourceId === $targetId): ?>
-                Please select two different frameworks to compare.
+                <?php echo e(t('grc-crosswalk.select_two_different')); ?>
                 <?php else: ?>
-                Select both a source and target framework to generate the crosswalk.
+                <?php echo e(t('grc-crosswalk.select_both')); ?>
                 <?php endif; ?>
             </div>
             <?php else: ?>
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:40px;text-align:center;color:#6b7280;">
-                <p style="font-size:15px;margin:0 0 8px;">Select two frameworks above to generate a crosswalk analysis.</p>
-                <p style="font-size:13px;margin:0;">The crosswalk shows which controls satisfy requirements in both frameworks, helping you identify existing coverage when adopting a new standard.</p>
+                <p style="font-size:15px;margin:0 0 8px;"><?php echo e(t('grc-crosswalk.select_two_above')); ?></p>
+                <p style="font-size:13px;margin:0;"><?php echo e(t('grc-crosswalk.crosswalk_explainer')); ?></p>
             </div>
             <?php endif; ?>
 
@@ -349,7 +349,7 @@ $currentPage = 'grc_crosswalk';
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-crosswalk.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

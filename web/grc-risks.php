@@ -28,7 +28,7 @@ $isAuditor = hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberGRC && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. GRC module requires cyber_grc, administrator, or auditor role.');
+    die(e(t('grc-risks.access_denied')));
 }
 
 $readOnly = $isAuditor && !$isAdmin && !$isCyberGRC;
@@ -62,7 +62,7 @@ $treatmentOptions = ['accept', 'mitigate', 'transfer', 'avoid'];
 // POST handlers
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $msg = 'Invalid CSRF token. Please try again.';
+        $msg = t('grc-risks.invalid_csrf');
         $msgType = 'danger';
     } else {
         $action = $_POST['action'] ?? '';
@@ -108,10 +108,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'created_by' => (int)$user['id'],
                 ]);
 
-                $msg = 'Risk created successfully.';
+                $msg = t('grc-risks.risk_created');
                 $msgType = 'success';
             } else {
-                $msg = 'Title is required.';
+                $msg = t('grc-risks.title_required');
                 $msgType = 'danger';
             }
         } elseif ($action === 'delete_risk') {
@@ -120,10 +120,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                 $risk = $db->fetchOne('SELECT id FROM grc_risk_register WHERE id = :id', [':id' => $riskId]);
                 if ($risk) {
                     $db->delete('grc_risk_register', 'id = :id', [':id' => $riskId]);
-                    $msg = 'Risk deleted.';
+                    $msg = t('grc-risks.risk_deleted');
                     $msgType = 'success';
                 } else {
-                    $msg = 'Risk not found.';
+                    $msg = t('grc-risks.risk_not_found');
                     $msgType = 'danger';
                 }
             }
@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'review_date' => !empty($_POST['review_date']) ? $_POST['review_date'] : null,
                 ], 'id = :id', [':id' => $riskId]);
 
-                $msg = 'Risk updated.';
+                $msg = t('grc-risks.risk_updated');
                 $msgType = 'success';
             }
         }
@@ -254,7 +254,7 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Risk Register - GRC Compliance Engine</title>
+    <title><?php echo e(t('grc-risks.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -413,11 +413,11 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -425,8 +425,8 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">Risk Register</h1>
-            <p style="color:#6b7280;margin:0 0 30px;">Identify, assess, and track organizational risks with treatment plans</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc-risks.heading')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 30px;"><?php echo e(t('grc-risks.subtitle')); ?></p>
 
             <?php if ($msg): ?>
             <div class="alert alert-<?php echo e($msgType); ?>"><?php echo e($msg); ?></div>
@@ -434,25 +434,25 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
 
             <?php if ($riskDetail && $viewId > 0): ?>
             <!-- Risk Detail -->
-            <a href="grc-risks.php" class="back-link">&larr; Back to risk register</a>
+            <a href="grc-risks.php" class="back-link">&larr; <?php echo e(t('grc-risks.back_to_register')); ?></a>
 
             <div class="detail-card">
                 <h3><?php echo e($riskDetail['risk_ref']); ?> - <?php echo e($riskDetail['title']); ?></h3>
                 <div class="detail-grid">
-                    <div class="detail-item"><div class="label">Category</div><div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $riskDetail['risk_category'] ?? '-'))); ?></div></div>
-                    <div class="detail-item"><div class="label">Status</div><div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $riskDetail['status'] ?? '-'))); ?></div></div>
-                    <div class="detail-item"><div class="label">Owner</div><div class="value"><?php echo e($riskDetail['owner_name'] ?? '-'); ?></div></div>
-                    <div class="detail-item"><div class="label">Treatment</div><div class="value"><?php echo e(ucfirst($riskDetail['risk_treatment'] ?? '-')); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-risks.category')); ?></div><div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $riskDetail['risk_category'] ?? '-'))); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-risks.status')); ?></div><div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $riskDetail['status'] ?? '-'))); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-risks.owner')); ?></div><div class="value"><?php echo e($riskDetail['owner_name'] ?? '-'); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-risks.treatment')); ?></div><div class="value"><?php echo e(ucfirst($riskDetail['risk_treatment'] ?? '-')); ?></div></div>
                     <div class="detail-item">
-                        <div class="label">Likelihood</div>
+                        <div class="label"><?php echo e(t('grc-risks.likelihood')); ?></div>
                         <div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $riskDetail['likelihood'] ?? '-'))); ?></div>
                     </div>
                     <div class="detail-item">
-                        <div class="label">Impact</div>
+                        <div class="label"><?php echo e(t('grc-risks.impact')); ?></div>
                         <div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $riskDetail['impact'] ?? '-'))); ?></div>
                     </div>
                     <div class="detail-item">
-                        <div class="label">Inherent Risk Score</div>
+                        <div class="label"><?php echo e(t('grc-risks.inherent_risk_score')); ?></div>
                         <div class="value">
                             <?php
                             $iScore = (float)($riskDetail['inherent_risk_score'] ?? 0);
@@ -462,7 +462,7 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                         </div>
                     </div>
                     <div class="detail-item">
-                        <div class="label">Residual Risk Score</div>
+                        <div class="label"><?php echo e(t('grc-risks.residual_risk_score')); ?></div>
                         <div class="value">
                             <?php
                             $rScore = (float)($riskDetail['residual_risk_score'] ?? 0);
@@ -472,7 +472,7 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                         </div>
                     </div>
                     <?php if (!empty($riskDetail['review_date'])): ?>
-                    <div class="detail-item"><div class="label">Review Date</div><div class="value"><?php echo e($riskDetail['review_date']); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-risks.review_date')); ?></div><div class="value"><?php echo e($riskDetail['review_date']); ?></div></div>
                     <?php endif; ?>
                 </div>
                 <?php if (!empty($riskDetail['description'])): ?>
@@ -480,23 +480,23 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                 <?php endif; ?>
                 <?php if (!empty($riskDetail['treatment_plan'])): ?>
                 <div style="margin-top:12px;padding:12px 16px;background:#f3f4f6;border-radius:6px;">
-                    <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:4px;">Treatment Plan</div>
+                    <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:4px;"><?php echo e(t('grc-risks.treatment_plan')); ?></div>
                     <div style="font-size:13px;color:#374151;"><?php echo nl2br(e($riskDetail['treatment_plan'])); ?></div>
                 </div>
                 <?php endif; ?>
                 <?php if (!$readOnly): ?>
                 <div style="margin-top:16px;">
-                    <a href="grc-risks.php?edit=<?php echo (int)$riskDetail['id']; ?>" class="btn btn-sm btn-outline">Edit Risk</a>
+                    <a href="grc-risks.php?edit=<?php echo (int)$riskDetail['id']; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc-risks.edit_risk')); ?></a>
                 </div>
                 <?php endif; ?>
             </div>
 
             <!-- Linked Controls -->
             <div class="detail-card">
-                <h3>Mitigating Controls (<?php echo count($riskControls); ?>)</h3>
+                <h3><?php echo e(t('grc-risks.mitigating_controls')); ?> (<?php echo count($riskControls); ?>)</h3>
                 <?php if (!empty($riskControls)): ?>
                 <table class="grc-table">
-                    <thead><tr><th>Reference</th><th>Title</th><th>Status</th></tr></thead>
+                    <thead><tr><th><?php echo e(t('grc-risks.col_reference')); ?></th><th><?php echo e(t('grc-risks.col_title')); ?></th><th><?php echo e(t('grc-risks.col_status')); ?></th></tr></thead>
                     <tbody>
                     <?php foreach ($riskControls as $rc): ?>
                     <tr>
@@ -508,16 +508,16 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                     </tbody>
                 </table>
                 <?php else: ?>
-                <p style="color:#6b7280;font-size:13px;">No controls linked to this risk.</p>
+                <p style="color:#6b7280;font-size:13px;"><?php echo e(t('grc-risks.no_controls_linked')); ?></p>
                 <?php endif; ?>
             </div>
 
             <?php elseif ($showForm && !$readOnly): ?>
             <!-- Create/Edit Risk -->
-            <a href="grc-risks.php" class="back-link">&larr; Back to risk register</a>
+            <a href="grc-risks.php" class="back-link">&larr; <?php echo e(t('grc-risks.back_to_register')); ?></a>
 
             <div class="grc-form">
-                <h3 style="margin:0 0 16px;font-size:16px;color:#333;"><?php echo $editId > 0 ? 'Edit Risk' : 'Create Risk'; ?><span class="autosave-status"></span></h3>
+                <h3 style="margin:0 0 16px;font-size:16px;color:#333;"><?php echo e($editId > 0 ? t('grc-risks.edit_risk') : t('grc-risks.create_risk')); ?><span class="autosave-status"></span></h3>
                 <form method="post" class="grc-autosave-form" data-form-type="risk_edit" data-form-id="<?php echo $editId > 0 ? (int)$riskDetail['id'] : 'new'; ?>">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="action" value="<?php echo $editId > 0 ? 'update_risk' : 'create_risk'; ?>">
@@ -525,15 +525,15 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                     <input type="hidden" name="risk_id" value="<?php echo (int)$riskDetail['id']; ?>">
                     <?php endif; ?>
 
-                    <label for="title">Risk Title</label>
+                    <label for="title"><?php echo e(t('grc-risks.risk_title')); ?></label>
                     <input type="text" id="title" name="title" value="<?php echo e($riskDetail['title'] ?? ''); ?>" required>
 
-                    <label for="description">Description</label>
+                    <label for="description"><?php echo e(t('grc-risks.description')); ?></label>
                     <textarea id="description" name="description"><?php echo e($riskDetail['description'] ?? ''); ?></textarea>
 
                     <div class="form-row-3">
                         <div>
-                            <label for="risk_category">Category</label>
+                            <label for="risk_category"><?php echo e(t('grc-risks.category')); ?></label>
                             <select id="risk_category" name="risk_category">
                                 <?php foreach ($categoryOptions as $cat): ?>
                                 <option value="<?php echo e($cat); ?>" <?php echo ($riskDetail['risk_category'] ?? 'compliance') === $cat ? 'selected' : ''; ?>><?php echo e(ucfirst(str_replace('_', ' ', $cat))); ?></option>
@@ -541,16 +541,16 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                             </select>
                         </div>
                         <div>
-                            <label for="owner_user_id">Risk Owner</label>
+                            <label for="owner_user_id"><?php echo e(t('grc-risks.risk_owner')); ?></label>
                             <select id="owner_user_id" name="owner_user_id">
-                                <option value="">-- Select --</option>
+                                <option value=""><?php echo e(t('grc-risks.select_option')); ?></option>
                                 <?php foreach ($users_list as $u): ?>
                                 <option value="<?php echo (int)$u['id']; ?>" <?php echo ((int)($riskDetail['owner_user_id'] ?? 0)) === (int)$u['id'] ? 'selected' : ''; ?>><?php echo e($u['full_name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div>
-                            <label for="status">Status</label>
+                            <label for="status"><?php echo e(t('grc-risks.status')); ?></label>
                             <select id="status" name="status">
                                 <?php foreach ($statusOptions as $s): ?>
                                 <option value="<?php echo e($s); ?>" <?php echo ($riskDetail['status'] ?? 'identified') === $s ? 'selected' : ''; ?>><?php echo e(ucfirst(str_replace('_', ' ', $s))); ?></option>
@@ -559,10 +559,10 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                         </div>
                     </div>
 
-                    <h4 style="font-size:14px;color:#333;margin:16px 0 8px;border-top:1px solid #e5e7eb;padding-top:16px;">Risk Assessment</h4>
+                    <h4 style="font-size:14px;color:#333;margin:16px 0 8px;border-top:1px solid #e5e7eb;padding-top:16px;"><?php echo e(t('grc-risks.risk_assessment')); ?></h4>
                     <div class="form-row">
                         <div>
-                            <label for="likelihood">Likelihood</label>
+                            <label for="likelihood"><?php echo e(t('grc-risks.likelihood')); ?></label>
                             <select id="likelihood" name="likelihood">
                                 <?php foreach ($likelihoodOptions as $val => $label): ?>
                                 <option value="<?php echo e($val); ?>" <?php echo ($riskDetail['likelihood'] ?? 'possible') === $val ? 'selected' : ''; ?>><?php echo e($label); ?></option>
@@ -570,7 +570,7 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                             </select>
                         </div>
                         <div>
-                            <label for="impact">Impact</label>
+                            <label for="impact"><?php echo e(t('grc-risks.impact')); ?></label>
                             <select id="impact" name="impact">
                                 <?php foreach ($impactOptions as $val => $label): ?>
                                 <option value="<?php echo e($val); ?>" <?php echo ($riskDetail['impact'] ?? 'moderate') === $val ? 'selected' : ''; ?>><?php echo e($label); ?></option>
@@ -581,7 +581,7 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
 
                     <div class="form-row-3">
                         <div>
-                            <label>Inherent Risk Score</label>
+                            <label><?php echo e(t('grc-risks.inherent_risk_score')); ?></label>
                             <div id="inherent-score-display" style="padding:8px 12px;background:#f3f4f6;border-radius:6px;font-size:14px;font-weight:600;margin-bottom:12px;">
                                 <?php
                                 $lNum = $likelihoodNumeric[$riskDetail['likelihood'] ?? 'possible'] ?? 3;
@@ -591,19 +591,19 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                             </div>
                         </div>
                         <div>
-                            <label for="residual_risk_score">Residual Risk Score</label>
-                            <input type="number" id="residual_risk_score" name="residual_risk_score" min="0" max="25" step="0.01" value="<?php echo e($riskDetail['residual_risk_score'] ?? ''); ?>" placeholder="Auto = same as inherent">
+                            <label for="residual_risk_score"><?php echo e(t('grc-risks.residual_risk_score')); ?></label>
+                            <input type="number" id="residual_risk_score" name="residual_risk_score" min="0" max="25" step="0.01" value="<?php echo e($riskDetail['residual_risk_score'] ?? ''); ?>" placeholder="<?php echo e(t('grc-risks.residual_placeholder')); ?>">
                         </div>
                         <div>
-                            <label for="review_date">Review Date</label>
+                            <label for="review_date"><?php echo e(t('grc-risks.review_date')); ?></label>
                             <input type="date" id="review_date" name="review_date" value="<?php echo e($riskDetail['review_date'] ?? ''); ?>">
                         </div>
                     </div>
 
-                    <h4 style="font-size:14px;color:#333;margin:16px 0 8px;border-top:1px solid #e5e7eb;padding-top:16px;">Treatment</h4>
+                    <h4 style="font-size:14px;color:#333;margin:16px 0 8px;border-top:1px solid #e5e7eb;padding-top:16px;"><?php echo e(t('grc-risks.treatment')); ?></h4>
                     <div class="form-row">
                         <div>
-                            <label for="risk_treatment">Treatment Strategy</label>
+                            <label for="risk_treatment"><?php echo e(t('grc-risks.treatment_strategy')); ?></label>
                             <select id="risk_treatment" name="risk_treatment">
                                 <?php foreach ($treatmentOptions as $ts): ?>
                                 <option value="<?php echo e($ts); ?>" <?php echo ($riskDetail['risk_treatment'] ?? 'mitigate') === $ts ? 'selected' : ''; ?>><?php echo e(ucfirst($ts)); ?></option>
@@ -611,12 +611,12 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                             </select>
                         </div>
                         <div>
-                            <label for="treatment_plan">Treatment Plan</label>
+                            <label for="treatment_plan"><?php echo e(t('grc-risks.treatment_plan')); ?></label>
                             <textarea id="treatment_plan" name="treatment_plan" style="min-height:60px;"><?php echo e($riskDetail['treatment_plan'] ?? ''); ?></textarea>
                         </div>
                     </div>
 
-                    <label>Mitigating Controls</label>
+                    <label><?php echo e(t('grc-risks.mitigating_controls')); ?></label>
                     <select name="control_ids[]" multiple style="min-height:100px;">
                         <?php foreach ($allControls as $ac): ?>
                         <option value="<?php echo (int)$ac['id']; ?>" <?php echo in_array((int)$ac['id'], $selectedControlIds) ? 'selected' : ''; ?>><?php echo e($ac['control_ref']); ?> - <?php echo e($ac['title']); ?></option>
@@ -624,8 +624,8 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                     </select>
 
                     <div style="margin-top:8px;">
-                        <button type="submit" class="btn btn-primary"><?php echo $editId > 0 ? 'Update Risk' : 'Create Risk'; ?></button>
-                        <a href="grc-risks.php" class="btn btn-outline">Cancel</a>
+                        <button type="submit" class="btn btn-primary"><?php echo e($editId > 0 ? t('grc-risks.update_risk') : t('grc-risks.create_risk')); ?></button>
+                        <a href="grc-risks.php" class="btn btn-outline"><?php echo e(t('grc-risks.cancel')); ?></a>
                     </div>
                 </form>
             </div>
@@ -634,8 +634,8 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
             <!-- Risk Heatmap -->
             <?php if (!empty($risks)): ?>
             <div class="heatmap-wrapper">
-                <h3>Risk Heatmap (Likelihood x Impact)</h3>
-                <div style="text-align:center;font-size:11px;color:#6b7280;margin-bottom:4px;">Impact &rarr;</div>
+                <h3><?php echo e(t('grc-risks.heatmap_title')); ?></h3>
+                <div style="text-align:center;font-size:11px;color:#6b7280;margin-bottom:4px;"><?php echo e(t('grc-risks.impact')); ?> &rarr;</div>
                 <div class="heatmap">
                     <?php
                     function getHeatColor($l, $i) {
@@ -658,44 +658,44 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                     <div class="heatmap-label"><?php echo $i; ?></div>
                     <?php endfor; ?>
                 </div>
-                <div style="text-align:left;font-size:11px;color:#6b7280;margin-top:4px;">Likelihood &uarr;</div>
+                <div style="text-align:left;font-size:11px;color:#6b7280;margin-top:4px;"><?php echo e(t('grc-risks.likelihood')); ?> &uarr;</div>
             </div>
             <?php endif; ?>
 
             <!-- Risk List -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                <h2 class="section-header" style="margin:0;border:none;padding:0;">Risk Register</h2>
+                <h2 class="section-header" style="margin:0;border:none;padding:0;"><?php echo e(t('grc-risks.heading')); ?></h2>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <button type="button" class="btn-clear" id="clearFiltersBtn">Clear Filters</button>
-                    <button type="button" class="btn btn-outline" id="downloadCsvBtn" title="Download CSV"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>CSV</button>
+                    <button type="button" class="btn-clear" id="clearFiltersBtn"><?php echo e(t('grc-risks.clear_filters')); ?></button>
+                    <button type="button" class="btn btn-outline" id="downloadCsvBtn" title="<?php echo e(t('grc-risks.download_csv')); ?>"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><?php echo e(t('grc-risks.csv')); ?></button>
                     <?php if (!$readOnly): ?>
-                    <a href="grc-risks.php?new=1" class="btn btn-primary">+ New Risk</a>
+                    <a href="grc-risks.php?new=1" class="btn btn-primary"><?php echo e(t('grc-risks.new_risk')); ?></a>
                     <?php endif; ?>
                 </div>
             </div>
             <div class="risk-filter-bar" id="riskFilterBar">
-                <input type="text" id="searchTitle" placeholder="Search by risk title...">
-                <input type="text" id="searchControls" placeholder="Search by mitigating controls...">
+                <input type="text" id="searchTitle" placeholder="<?php echo e(t('grc-risks.search_by_title')); ?>">
+                <input type="text" id="searchControls" placeholder="<?php echo e(t('grc-risks.search_by_controls')); ?>">
                 <select id="filterCategory">
-                    <option value="">All Categories</option>
+                    <option value=""><?php echo e(t('grc-risks.all_categories')); ?></option>
                     <?php foreach ($categoryOptions as $cat): ?>
                     <option value="<?php echo e($cat); ?>"><?php echo e(ucfirst(str_replace('_', ' ', $cat))); ?></option>
                     <?php endforeach; ?>
                 </select>
                 <select id="filterLikelihood">
-                    <option value="">All Likelihoods</option>
+                    <option value=""><?php echo e(t('grc-risks.all_likelihoods')); ?></option>
                     <?php foreach ($likelihoodOptions as $val => $label): ?>
                     <option value="<?php echo $likelihoodNumeric[$val]; ?>"><?php echo e($label); ?></option>
                     <?php endforeach; ?>
                 </select>
                 <select id="filterImpact">
-                    <option value="">All Impacts</option>
+                    <option value=""><?php echo e(t('grc-risks.all_impacts')); ?></option>
                     <?php foreach ($impactOptions as $val => $label): ?>
                     <option value="<?php echo $impactNumeric[$val]; ?>"><?php echo e($label); ?></option>
                     <?php endforeach; ?>
                 </select>
                 <select id="filterTreatment">
-                    <option value="">All Treatments</option>
+                    <option value=""><?php echo e(t('grc-risks.all_treatments')); ?></option>
                     <?php foreach ($treatmentOptions as $ts): ?>
                     <option value="<?php echo e($ts); ?>"><?php echo e(ucfirst($ts)); ?></option>
                     <?php endforeach; ?>
@@ -706,22 +706,22 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
             <table class="grc-table">
                 <thead>
                     <tr>
-                        <th class="sortable" data-sort-key="ref">Reference</th>
-                        <th class="sortable" data-sort-key="title">Title</th>
-                        <th class="sortable" data-sort-key="category">Category</th>
-                        <th class="sortable" data-sort-key="owner">Owner</th>
-                        <th class="sortable" data-sort-key="likelihood">Likelihood</th>
-                        <th class="sortable" data-sort-key="impact">Impact</th>
-                        <th class="sortable" data-sort-key="inherent">Inherent Score</th>
-                        <th class="sortable" data-sort-key="residual">Residual Score</th>
-                        <th class="sortable" data-sort-key="treatment">Treatment</th>
-                        <th class="sortable" data-sort-key="status">Status</th>
-                        <?php if (!$readOnly): ?><th>Actions</th><?php endif; ?>
+                        <th class="sortable" data-sort-key="ref"><?php echo e(t('grc-risks.col_reference')); ?></th>
+                        <th class="sortable" data-sort-key="title"><?php echo e(t('grc-risks.col_title')); ?></th>
+                        <th class="sortable" data-sort-key="category"><?php echo e(t('grc-risks.category')); ?></th>
+                        <th class="sortable" data-sort-key="owner"><?php echo e(t('grc-risks.owner')); ?></th>
+                        <th class="sortable" data-sort-key="likelihood"><?php echo e(t('grc-risks.likelihood')); ?></th>
+                        <th class="sortable" data-sort-key="impact"><?php echo e(t('grc-risks.impact')); ?></th>
+                        <th class="sortable" data-sort-key="inherent"><?php echo e(t('grc-risks.inherent_score')); ?></th>
+                        <th class="sortable" data-sort-key="residual"><?php echo e(t('grc-risks.residual_score')); ?></th>
+                        <th class="sortable" data-sort-key="treatment"><?php echo e(t('grc-risks.treatment')); ?></th>
+                        <th class="sortable" data-sort-key="status"><?php echo e(t('grc-risks.status')); ?></th>
+                        <?php if (!$readOnly): ?><th><?php echo e(t('grc-risks.actions')); ?></th><?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($risks)): ?>
-                    <tr><td colspan="<?php echo $readOnly ? 10 : 11; ?>" style="text-align:center;color:#6b7280;padding:30px;">No risks recorded.</td></tr>
+                    <tr><td colspan="<?php echo $readOnly ? 10 : 11; ?>" style="text-align:center;color:#6b7280;padding:30px;"><?php echo e(t('grc-risks.no_risks_recorded')); ?></td></tr>
                     <?php else: ?>
                     <?php foreach ($risks as $r):
                         $iScore = (float)($r['inherent_risk_score'] ?? 0);
@@ -754,12 +754,12 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                         <td><?php echo e(ucfirst(str_replace('_', ' ', $r['status'] ?? '-'))); ?></td>
                         <?php if (!$readOnly): ?>
                         <td style="white-space:nowrap;">
-                            <a href="grc-risks.php?edit=<?php echo (int)$r['id']; ?>" class="btn btn-sm btn-outline" style="margin-right:4px;">Edit</a>
+                            <a href="grc-risks.php?edit=<?php echo (int)$r['id']; ?>" class="btn btn-sm btn-outline" style="margin-right:4px;"><?php echo e(t('grc-risks.edit')); ?></a>
                             <form method="post" style="display:inline;" class="delete-risk-form" data-risk-ref="<?php echo e($r['risk_ref']); ?>">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                 <input type="hidden" name="action" value="delete_risk">
                                 <input type="hidden" name="risk_id" value="<?php echo (int)$r['id']; ?>">
-                                <button type="submit" class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;">Delete</button>
+                                <button type="submit" class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;"><?php echo e(t('grc-risks.delete')); ?></button>
                             </form>
                         </td>
                         <?php endif; ?>
@@ -773,7 +773,7 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
             <div class="pagination-bar" id="paginationBar">
                 <div class="page-info" id="pageInfo"></div>
                 <div style="display:flex;align-items:center;gap:12px;">
-                    <label style="font-size:13px;color:#6b7280;">Per page:</label>
+                    <label style="font-size:13px;color:#6b7280;"><?php echo e(t('grc-risks.per_page')); ?></label>
                     <select id="perPageSelect">
                         <option value="10">10</option>
                         <option value="25" selected>25</option>
@@ -796,7 +796,7 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                 <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                     <?php if (!empty($theme['footer_logo_url'])): ?>
                         <a class="brand" href="index.php">
-                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('grc-risks.footer_logo_alt')); ?>" style="max-height: 45px;">
                         </a>
                     <?php endif; ?>
                     <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -805,7 +805,7 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-risks.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

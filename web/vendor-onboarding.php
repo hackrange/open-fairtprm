@@ -2204,13 +2204,13 @@ function getFieldValue($request, $field, $default = '') {
     <div class="page">
         <!-- Top Bar with Search and User Menu -->
         <div class="top-bar">
-            <span style="color: #666; margin-right: auto;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: auto;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($isAdmin): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 

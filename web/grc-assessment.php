@@ -43,7 +43,7 @@ $msgType = '';
 // POST handlers
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $msg = 'Invalid CSRF token. Please try again.';
+        $msg = t('grc-assessment.invalid_csrf');
         $msgType = 'danger';
     } else {
         $action = $_POST['action'] ?? '';
@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     $msgType = 'danger';
                 }
             } else {
-                $msg = 'Title is required.';
+                $msg = t('grc-assessment.title_required');
                 $msgType = 'danger';
             }
         } elseif ($action === 'update_assessment' && $canManage) {
@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
             if ($assessmentId > 0) {
                 $result = $uas->updateAssessment($assessmentId, $_POST);
                 if ($result['success']) {
-                    $msg = 'Assessment updated.';
+                    $msg = t('grc-assessment.assessment_updated');
                     $msgType = 'success';
                 } else {
                     $msg = $result['error'];
@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     header('Location: grc-assessment.php?view=' . $newId . '&' . $dupFlag . '=1');
                     exit;
                 } else {
-                    $msg = 'Source assessment not found.';
+                    $msg = t('grc-assessment.source_not_found');
                     $msgType = 'danger';
                 }
             }
@@ -219,10 +219,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
 }
 
 // Handle redirect messages
-if (isset($_GET['created'])) { $msg = 'Assessment created.'; $msgType = 'success'; }
-if (isset($_GET['duplicated_full'])) { $msg = 'Assessment duplicated with all responses and evidence links copied.'; $msgType = 'success'; }
-if (isset($_GET['duplicated_template'])) { $msg = 'Assessment duplicated as a blank template. All questions are ready to be assessed.'; $msgType = 'success'; }
-if (isset($_GET['deleted'])) { $msg = 'Assessment deleted.'; $msgType = 'success'; }
+if (isset($_GET['created'])) { $msg = t('grc-assessment.assessment_created'); $msgType = 'success'; }
+if (isset($_GET['duplicated_full'])) { $msg = t('grc-assessment.duplicated_full'); $msgType = 'success'; }
+if (isset($_GET['duplicated_template'])) { $msg = t('grc-assessment.duplicated_template'); $msgType = 'success'; }
+if (isset($_GET['deleted'])) { $msg = t('grc-assessment.assessment_deleted'); $msgType = 'success'; }
 
 if (!isset($csrfToken)) {
     $csrfToken = $security->generateCSRFToken();
@@ -289,7 +289,7 @@ $_page = 'grc_assessment';
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>CSF Maturity Assessment - GRC Compliance Engine</title>
+    <title><?php echo e(t('grc-assessment.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -478,11 +478,11 @@ $_page = 'grc_assessment';
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -490,8 +490,8 @@ $_page = 'grc_assessment';
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">CSF Maturity Assessment</h1>
-            <p style="color:#6b7280;margin:0 0 30px;">Single questionnaire covering all major cybersecurity frameworks with zero duplicates</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc-assessment.heading')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 30px;"><?php echo e(t('grc-assessment.subheading')); ?></p>
 
             <?php if ($msg): ?>
             <div class="alert alert-<?php echo e($msgType); ?>"><?php echo e($msg); ?></div>
@@ -507,7 +507,7 @@ $_page = 'grc_assessment';
             <div style="display:flex;gap:8px;align-items:center;">
                 <span class="status-badge status-<?php echo e($assessmentDetail['status']); ?>"><?php echo ucfirst(str_replace('_', ' ', e($assessmentDetail['status']))); ?></span>
                 <?php if ($canManage): ?>
-                <button class="btn btn-sm btn-outline" data-action="open-edit-assessment">Edit</button>
+                <button class="btn btn-sm btn-outline" data-action="open-edit-assessment"><?php echo e(t('grc-assessment.edit')); ?></button>
                 <?php endif; ?>
             </div>
         </div>
@@ -515,10 +515,10 @@ $_page = 'grc_assessment';
         <p style="color:#6b7280;font-size:13px;margin:0 0 12px;"><?php echo e($assessmentDetail['description']); ?></p>
         <?php endif; ?>
         <div class="detail-grid">
-            <div class="detail-item"><div class="label">Type</div><div class="value"><?php echo ucfirst(str_replace('_', ' ', e($assessmentDetail['assessment_type']))); ?></div></div>
-            <div class="detail-item"><div class="label">Lead Auditor</div><div class="value"><?php echo e($assessmentDetail['lead_auditor_name'] ?? 'Unassigned'); ?></div></div>
-            <div class="detail-item"><div class="label">Planned Period</div><div class="value"><?php echo e($assessmentDetail['planned_start'] ?? '—'); ?> to <?php echo e($assessmentDetail['planned_end'] ?? '—'); ?></div></div>
-            <div class="detail-item"><div class="label">Scope</div><div class="value"><?php echo e($assessmentDetail['scope'] ?? 'Full Organization'); ?></div></div>
+            <div class="detail-item"><div class="label"><?php echo e(t('grc-assessment.type')); ?></div><div class="value"><?php echo ucfirst(str_replace('_', ' ', e($assessmentDetail['assessment_type']))); ?></div></div>
+            <div class="detail-item"><div class="label"><?php echo e(t('grc-assessment.lead_auditor')); ?></div><div class="value"><?php echo e($assessmentDetail['lead_auditor_name'] ?? 'Unassigned'); ?></div></div>
+            <div class="detail-item"><div class="label"><?php echo e(t('grc-assessment.planned_period')); ?></div><div class="value"><?php echo e($assessmentDetail['planned_start'] ?? '—'); ?> to <?php echo e($assessmentDetail['planned_end'] ?? '—'); ?></div></div>
+            <div class="detail-item"><div class="label"><?php echo e(t('grc-assessment.scope')); ?></div><div class="value"><?php echo e($assessmentDetail['scope'] ?? 'Full Organization'); ?></div></div>
         </div>
     </div>
 
@@ -527,31 +527,31 @@ $_page = 'grc_assessment';
     <div class="detail-card">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:24px;align-items:center;">
             <div>
-                <div class="label" style="font-size:11px;font-weight:600;text-transform:uppercase;color:#6b7280;margin-bottom:6px;">Progress</div>
+                <div class="label" style="font-size:11px;font-weight:600;text-transform:uppercase;color:#6b7280;margin-bottom:6px;"><?php echo e(t('grc-assessment.progress')); ?></div>
                 <div class="progress-bar-custom">
                     <div class="progress-bar-fill" id="progressBar" style="width:<?php echo $progress['progress_pct']; ?>%"><?php echo $progress['progress_pct']; ?>%</div>
                 </div>
-                <div style="font-size:11px;color:#6b7280;margin-top:4px;"><?php echo $progress['answered']; ?> of <?php echo $progress['total_questions']; ?> answered</div>
+                <div style="font-size:11px;color:#6b7280;margin-top:4px;"><?php echo $progress['answered']; ?> <?php echo e(t('grc-assessment.of')); ?> <?php echo $progress['total_questions']; ?> <?php echo e(t('grc-assessment.answered_lc')); ?></div>
             </div>
             <div style="text-align:center;">
-                <div class="label" style="font-size:11px;font-weight:600;text-transform:uppercase;color:#6b7280;margin-bottom:6px;">CSF Maturity</div>
+                <div class="label" style="font-size:11px;font-weight:600;text-transform:uppercase;color:#6b7280;margin-bottom:6px;"><?php echo e(t('grc-assessment.csf_maturity')); ?></div>
                 <?php $fs = (float)($assessmentDetail['overall_fairscore'] ?? 0); ?>
                 <span id="csfMaturityScore" class="fairscore-big <?php echo $fs >= 3 ? 'fairscore-good' : ($fs >= 2 ? 'fairscore-ok' : 'fairscore-low'); ?>"><?php echo $assessmentDetail['overall_fairscore'] ?? '—'; ?></span>
                 <span style="font-size:14px;color:#6b7280;"> / 4.00</span>
             </div>
             <div style="text-align:center;">
-                <div class="label" style="font-size:11px;font-weight:600;text-transform:uppercase;color:#6b7280;margin-bottom:6px;">Compliance</div>
+                <div class="label" style="font-size:11px;font-weight:600;text-transform:uppercase;color:#6b7280;margin-bottom:6px;"><?php echo e(t('grc-assessment.compliance')); ?></div>
                 <span id="compliancePct" class="fairscore-big" style="color:#3b82f6;"><?php echo $assessmentDetail['overall_compliance_pct'] ?? '—'; ?></span>
                 <span style="font-size:14px;color:#6b7280;">%</span>
             </div>
             <div>
-                <button class="btn btn-sm btn-primary" data-action="generate-report">Generate Report</button>
+                <button class="btn btn-sm btn-primary" data-action="generate-report"><?php echo e(t('grc-assessment.generate_report')); ?></button>
                 <?php
                 $hasReport = !empty($assessmentDetail['report_file_name']);
                 if ($hasReport): ?>
-                <a href="api/grc-assessment-report.php?action=download&id=<?php echo $viewId; ?>" class="btn btn-sm btn-success">Download PDF</a>
+                <a href="api/grc-assessment-report.php?action=download&id=<?php echo $viewId; ?>" class="btn btn-sm btn-success"><?php echo e(t('grc-assessment.download_pdf')); ?></a>
                 <?php endif; ?>
-                <span class="autosave-indicator" id="autosaveIndicator" style="opacity:0.5;">Auto-save active</span>
+                <span class="autosave-indicator" id="autosaveIndicator" style="opacity:0.5;"><?php echo e(t('grc-assessment.autosave_active')); ?></span>
             </div>
         </div>
     </div>
@@ -561,7 +561,7 @@ $_page = 'grc_assessment';
     <?php if ($myTasksFilter): ?>
     <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
         <span style="font-size:14px;font-weight:500;color:#1e40af;">Showing only questions with tasks assigned to you (<?php echo count($responses); ?> question<?php echo count($responses) !== 1 ? 's' : ''; ?>)</span>
-        <a href="grc-assessment.php?view=<?php echo $viewId; ?>" class="btn btn-sm btn-outline" style="color:#1e40af;border-color:#93c5fd;">Show All Questions</a>
+        <a href="grc-assessment.php?view=<?php echo $viewId; ?>" class="btn btn-sm btn-outline" style="color:#1e40af;border-color:#93c5fd;"><?php echo e(t('grc-assessment.show_all_questions')); ?></a>
     </div>
     <?php endif; ?>
 
@@ -578,15 +578,15 @@ $_page = 'grc_assessment';
                 if (!$rAnswered) $unansweredCount++;
             }
             if ($unansweredCount > 0): ?>
-            <button type="button" id="showUnansweredBtn" class="btn btn-sm btn-warning" data-action="show-unanswered">Show Unanswered Questions (<?php echo $unansweredCount; ?>)</button>
+            <button type="button" id="showUnansweredBtn" class="btn btn-sm btn-warning" data-action="show-unanswered"><?php echo e(t('grc-assessment.show_unanswered', $unansweredCount)); ?></button>
             <?php endif; ?>
-            <button type="button" id="toggleAnsweredBtn" class="btn btn-sm btn-outline" data-action="toggle-answered">Show Audited Questions</button>
+            <button type="button" id="toggleAnsweredBtn" class="btn btn-sm btn-outline" data-action="toggle-answered"><?php echo e(t('grc-assessment.show_audited')); ?></button>
         </div>
     </div>
 
     <!-- Domain Tabs -->
     <div style="overflow-x:auto;white-space:nowrap;margin-bottom:20px;">
-        <a href="grc-assessment.php?view=<?php echo $viewId; ?><?php echo $myTasksFilter ? '&my_tasks=1' : ''; ?>" class="domain-tab <?php echo !$activeDomain ? 'active' : ''; ?>">All Domains</a>
+        <a href="grc-assessment.php?view=<?php echo $viewId; ?><?php echo $myTasksFilter ? '&my_tasks=1' : ''; ?>" class="domain-tab <?php echo !$activeDomain ? 'active' : ''; ?>"><?php echo e(t('grc-assessment.all_domains')); ?></a>
         <?php foreach ($domains as $dom): ?>
         <a href="grc-assessment.php?view=<?php echo $viewId; ?>&domain=<?php echo $dom['id']; ?>"
            class="domain-tab <?php echo $activeDomain === (int)$dom['id'] ? 'active' : ''; ?>"
@@ -631,9 +631,9 @@ $_page = 'grc_assessment';
                         <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#1f2937;color:#fff;margin-right:6px;"><?php echo e($r['question_ref']); ?></span>
                         <span style="font-size:14px;font-weight:500;color:#333;"><?php echo e($r['question_text']); ?></span>
                         <?php if ($r['validation_status'] === 'validated'): ?>
-                            <span class="validated-badge">Validated</span>
+                            <span class="validated-badge"><?php echo e(t('grc-assessment.validated')); ?></span>
                         <?php elseif ($r['validation_status'] === 'rejected'): ?>
-                            <span class="rejected-badge">Rejected</span>
+                            <span class="rejected-badge"><?php echo e(t('grc-assessment.rejected')); ?></span>
                         <?php endif; ?>
                         <?php
                         $qTasks = $tasksByQuestion[(int)$r['question_id']] ?? [];
@@ -646,22 +646,22 @@ $_page = 'grc_assessment';
                             }
                         ?>
                             <?php if ($hasLate): ?>
-                            <span class="assigned-late-badge">Assigned - Past Due</span>
+                            <span class="assigned-late-badge"><?php echo e(t('grc-assessment.assigned_past_due')); ?></span>
                             <?php else: ?>
-                            <span class="assigned-badge">Assigned</span>
+                            <span class="assigned-badge"><?php echo e(t('grc-assessment.assigned')); ?></span>
                             <?php endif; ?>
                         <?php endif; ?>
                     </div>
                     <?php if ($r['guidance']): ?>
                     <details style="margin-top:4px;">
-                        <summary style="font-size:12px;color:#6b7280;cursor:pointer;">Guidance &amp; Examples</summary>
+                        <summary style="font-size:12px;color:#6b7280;cursor:pointer;"><?php echo e(t('grc-assessment.guidance_examples')); ?></summary>
                         <div style="margin-top:6px;padding:8px;background:#f9fafb;border-radius:6px;font-size:12px;color:#374151;">
                             <p style="margin:0 0 4px;"><?php echo nl2br(e($r['guidance'])); ?></p>
                             <?php if ($r['control_examples']): ?>
                             <p style="margin:0;color:#6b7280;font-style:italic;"><?php echo e($r['control_examples']); ?></p>
                             <?php endif; ?>
                             <div style="margin-top:8px;border-top:1px solid #e5e7eb;padding-top:8px;">
-                                <button class="btn btn-xs btn-outline assistant-btn" data-action="explain-further" data-question-id="<?php echo (int)$r['question_id']; ?>" style="font-size:11px;">Explain Further</button>
+                                <button class="btn btn-xs btn-outline assistant-btn" data-action="explain-further" data-question-id="<?php echo (int)$r['question_id']; ?>" style="font-size:11px;"><?php echo e(t('grc-assessment.explain_further')); ?></button>
                                 <div class="explain-further-content" id="explain-<?php echo (int)$r['question_id']; ?>" style="display:none;margin-top:8px;"></div>
                             </div>
                         </div>
@@ -671,7 +671,7 @@ $_page = 'grc_assessment';
                 <div>
                     <!-- Maturity Rating -->
                     <div style="margin-bottom:8px;">
-                        <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:4px;">Maturity</div>
+                        <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:4px;"><?php echo e(t('grc-assessment.maturity')); ?></div>
                         <div class="maturity-btn-group">
                             <?php for ($i = 1; $i <= 4; $i++):
                                 $mField = 'maturity_' . $i . '_desc';
@@ -688,7 +688,7 @@ $_page = 'grc_assessment';
                             <button type="button" class="maturity-btn <?php echo $r['conformity_status'] === 'not_applicable' ? 'active m-na' : ''; ?>"
                                     data-rating="na"
                                     data-question="<?php echo (int)$r['question_id']; ?>"
-                                    title="Not Applicable"
+                                    title="<?php echo e(t('grc-assessment.not_applicable')); ?>"
                                     <?php echo $readOnly ? 'disabled' : ''; ?>>
                                 N/A
                             </button>
@@ -700,23 +700,23 @@ $_page = 'grc_assessment';
                         <select class="conformity-select"
                                 data-question="<?php echo (int)$r['question_id']; ?>"
                                 <?php echo $readOnly ? 'disabled' : ''; ?>>
-                            <option value="not_assessed" <?php echo $r['conformity_status'] === 'not_assessed' ? 'selected' : ''; ?>>Not Assessed</option>
-                            <option value="conforming" <?php echo $r['conformity_status'] === 'conforming' ? 'selected' : ''; ?>>Conforming</option>
-                            <option value="partial" <?php echo $r['conformity_status'] === 'partial' ? 'selected' : ''; ?>>Partial</option>
-                            <option value="non_conforming" <?php echo $r['conformity_status'] === 'non_conforming' ? 'selected' : ''; ?>>Non-Conforming</option>
-                            <option value="not_applicable" <?php echo $r['conformity_status'] === 'not_applicable' ? 'selected' : ''; ?>>Not Applicable</option>
+                            <option value="not_assessed" <?php echo $r['conformity_status'] === 'not_assessed' ? 'selected' : ''; ?>><?php echo e(t('grc-assessment.not_assessed')); ?></option>
+                            <option value="conforming" <?php echo $r['conformity_status'] === 'conforming' ? 'selected' : ''; ?>><?php echo e(t('grc-assessment.conforming')); ?></option>
+                            <option value="partial" <?php echo $r['conformity_status'] === 'partial' ? 'selected' : ''; ?>><?php echo e(t('grc-assessment.partial')); ?></option>
+                            <option value="non_conforming" <?php echo $r['conformity_status'] === 'non_conforming' ? 'selected' : ''; ?>><?php echo e(t('grc-assessment.non_conforming')); ?></option>
+                            <option value="not_applicable" <?php echo $r['conformity_status'] === 'not_applicable' ? 'selected' : ''; ?>><?php echo e(t('grc-assessment.not_applicable')); ?></option>
                         </select>
                     </div>
 
                     <!-- Actions Row -->
                     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                         <button class="btn btn-xs btn-outline notes-toggle" data-question="<?php echo (int)$r['question_id']; ?>">
-                            Notes <?php if ($r['notes']): ?><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:8px;font-size:9px;margin-left:2px;">1</span><?php endif; ?>
+                            <?php echo e(t('grc-assessment.notes')); ?> <?php if ($r['notes']): ?><span style="background:#3b82f6;color:#fff;padding:1px 5px;border-radius:8px;font-size:9px;margin-left:2px;">1</span><?php endif; ?>
                         </button>
-                        <button class="btn btn-xs btn-info" data-action="show-frameworks" data-question-id="<?php echo (int)$r['question_id']; ?>">Frameworks</button>
-                        <button class="btn btn-xs btn-outline assistant-btn" data-action="get-guidance" data-question-id="<?php echo (int)$r['question_id']; ?>">Assistant</button>
+                        <button class="btn btn-xs btn-info" data-action="show-frameworks" data-question-id="<?php echo (int)$r['question_id']; ?>"><?php echo e(t('grc-assessment.frameworks')); ?></button>
+                        <button class="btn btn-xs btn-outline assistant-btn" data-action="get-guidance" data-question-id="<?php echo (int)$r['question_id']; ?>"><?php echo e(t('grc-assessment.assistant')); ?></button>
                         <?php if ($r['conformity_status'] === 'non_conforming' || $r['conformity_status'] === 'partial'): ?>
-                        <span class="gap-badge">Gap</span>
+                        <span class="gap-badge"><?php echo e(t('grc-assessment.gap')); ?></span>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -725,11 +725,11 @@ $_page = 'grc_assessment';
             <!-- Guidance Panel (Assistant, hidden by default) -->
             <div class="guidance-panel" id="guidance-<?php echo (int)$r['question_id']; ?>" style="display:none;margin-top:12px;border-top:1px solid #e5e7eb;padding-top:12px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <span class="evidence-section-label" style="margin:0;">Assistant Guidance</span>
-                    <button class="btn btn-xs btn-outline" data-action="close-guidance" data-question-id="<?php echo (int)$r['question_id']; ?>" style="font-size:11px;">Close</button>
+                    <span class="evidence-section-label" style="margin:0;"><?php echo e(t('grc-assessment.assistant_guidance')); ?></span>
+                    <button class="btn btn-xs btn-outline" data-action="close-guidance" data-question-id="<?php echo (int)$r['question_id']; ?>" style="font-size:11px;"><?php echo e(t('grc-assessment.close')); ?></button>
                 </div>
                 <div class="guidance-content" id="guidance-content-<?php echo (int)$r['question_id']; ?>">
-                    <p style="color:#9ca3af;font-size:12px;font-style:italic;">Click "Assistant" to get guidance...</p>
+                    <p style="color:#9ca3af;font-size:12px;font-style:italic;"><?php echo e(t('grc-assessment.click_assistant')); ?></p>
                 </div>
             </div>
 
@@ -739,11 +739,11 @@ $_page = 'grc_assessment';
                     <textarea class="notes-textarea"
                               data-question="<?php echo (int)$r['question_id']; ?>"
                               rows="2"
-                              placeholder="Add notes, observations, or evidence references..."
+                              placeholder="<?php echo e(t('grc-assessment.notes_placeholder')); ?>"
                               style="flex:1;"
                               <?php echo $readOnly ? 'readonly' : ''; ?>><?php echo e($r['notes'] ?? ''); ?></textarea>
                     <?php if (!$readOnly): ?>
-                    <button class="btn-rewrite" data-action="assistant-rewrite" data-question-id="<?php echo (int)$r['question_id']; ?>" title="Assistant Rewrite">Rewrite</button>
+                    <button class="btn-rewrite" data-action="assistant-rewrite" data-question-id="<?php echo (int)$r['question_id']; ?>" title="<?php echo e(t('grc-assessment.assistant_rewrite')); ?>"><?php echo e(t('grc-assessment.rewrite')); ?></button>
                     <?php endif; ?>
                 </div>
                 <?php if ($r['assessor_name']): ?>
@@ -752,24 +752,24 @@ $_page = 'grc_assessment';
 
                 <?php if ($canManage || $isAuditor): ?>
                 <div style="margin-top:8px;display:flex;gap:6px;">
-                    <button class="btn btn-xs btn-warning" data-action="open-task" data-question-id="<?php echo (int)$r['question_id']; ?>" data-question-ref="<?php echo e($r['question_ref']); ?>">Assign Task</button>
-                    <button class="btn btn-xs btn-danger" data-action="open-risk" data-question-id="<?php echo (int)$r['question_id']; ?>" data-question-ref="<?php echo e($r['question_ref']); ?>" data-question-text="<?php echo e($r['question_text']); ?>">Log Risk</button>
-                    <button class="btn btn-xs btn-success" data-action="validate-response" data-response-id="<?php echo (int)$r['id']; ?>" data-status="validated">Validate</button>
-                    <button class="btn btn-xs btn-danger" data-action="validate-response" data-response-id="<?php echo (int)$r['id']; ?>" data-status="rejected">Reject</button>
+                    <button class="btn btn-xs btn-warning" data-action="open-task" data-question-id="<?php echo (int)$r['question_id']; ?>" data-question-ref="<?php echo e($r['question_ref']); ?>"><?php echo e(t('grc-assessment.assign_task')); ?></button>
+                    <button class="btn btn-xs btn-danger" data-action="open-risk" data-question-id="<?php echo (int)$r['question_id']; ?>" data-question-ref="<?php echo e($r['question_ref']); ?>" data-question-text="<?php echo e($r['question_text']); ?>"><?php echo e(t('grc-assessment.log_risk')); ?></button>
+                    <button class="btn btn-xs btn-success" data-action="validate-response" data-response-id="<?php echo (int)$r['id']; ?>" data-status="validated"><?php echo e(t('grc-assessment.validate')); ?></button>
+                    <button class="btn btn-xs btn-danger" data-action="validate-response" data-response-id="<?php echo (int)$r['id']; ?>" data-status="rejected"><?php echo e(t('grc-assessment.reject')); ?></button>
                 </div>
                 <?php endif; ?>
 
                 <!-- Evidence Section -->
                 <div class="evidence-section" data-response-id="<?php echo (int)$r['id']; ?>">
-                    <div class="evidence-section-label">Evidence Attachments</div>
+                    <div class="evidence-section-label"><?php echo e(t('grc-assessment.evidence_attachments')); ?></div>
                     <ul class="evidence-list" id="ev-list-<?php echo (int)$r['id']; ?>">
-                        <li style="color:#9ca3af;font-style:italic;border:none;background:none;padding:2px 0;">Loading...</li>
+                        <li style="color:#9ca3af;font-style:italic;border:none;background:none;padding:2px 0;"><?php echo e(t('grc-assessment.loading')); ?></li>
                     </ul>
                     <?php if (!$readOnly): ?>
                     <div class="evidence-upload-row">
                         <input type="file" id="ev-file-<?php echo (int)$r['id']; ?>"
                                accept=".pdf,.png,.jpg,.jpeg,.gif,.docx,.xlsx,.doc,.xls,.csv,.txt,.json,.xml">
-                        <button class="btn-upload" data-action="upload-evidence" data-response-id="<?php echo (int)$r['id']; ?>">Upload</button>
+                        <button class="btn-upload" data-action="upload-evidence" data-response-id="<?php echo (int)$r['id']; ?>"><?php echo e(t('grc-assessment.upload')); ?></button>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -792,7 +792,7 @@ $_page = 'grc_assessment';
     <?php if (!empty($displayTasks)): ?>
     <div style="margin-top:24px;">
         <h3 style="font-size:16px;font-weight:600;color:#111827;margin:0 0 12px;display:flex;align-items:center;gap:8px;">
-            <?php echo $myTasksFilter ? 'My Tasks' : 'Assigned Tasks'; ?>
+            <?php echo $myTasksFilter ? e(t('grc-assessment.my_tasks')) : e(t('grc-assessment.assigned_tasks')); ?>
             <span style="background:#3b82f6;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;"><?php echo count($displayTasks); ?></span>
         </h3>
         <div style="display:grid;gap:8px;">
@@ -815,7 +815,7 @@ $_page = 'grc_assessment';
                     <span style="font-size:10px;font-weight:600;padding:1px 8px;border-radius:10px;background:<?php echo $tk['status'] === 'in_progress' ? '#dbeafe' : ($isDone ? '#d1fae5' : '#f3f4f6'); ?>;color:<?php echo $tk['status'] === 'in_progress' ? '#1e40af' : ($isDone ? '#065f46' : '#374151'); ?>;"><?php echo ucfirst(str_replace('_', ' ', $tk['status'])); ?></span>
                     <span style="font-size:10px;font-weight:500;padding:1px 8px;border-radius:10px;background:#f3f4f6;color:#6b7280;"><?php echo $typeLabels[$tk['task_type'] ?? 'evidence_request'] ?? ucfirst(str_replace('_', ' ', $tk['task_type'] ?? '')); ?></span>
                     <?php if ($tkLate): ?>
-                    <span class="assigned-late-badge">Past Due</span>
+                    <span class="assigned-late-badge"><?php echo e(t('grc-assessment.past_due')); ?></span>
                     <?php endif; ?>
                 </div>
 
@@ -844,19 +844,19 @@ $_page = 'grc_assessment';
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-top:6px;border-top:1px solid #f3f4f6;">
                     <?php if ($isMyTask || $canManage): ?>
                     <?php if ($tk['status'] === 'open'): ?>
-                    <button data-action="update-task-status" data-task-id="<?php echo (int)$tk['id']; ?>" data-status="in_progress" class="btn btn-xs" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:#fff;border:none;border-radius:4px;cursor:pointer;">Start Working</button>
+                    <button data-action="update-task-status" data-task-id="<?php echo (int)$tk['id']; ?>" data-status="in_progress" class="btn btn-xs" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:#fff;border:none;border-radius:4px;cursor:pointer;"><?php echo e(t('grc-assessment.start_working')); ?></button>
                     <?php endif; ?>
-                    <button data-action="update-task-status" data-task-id="<?php echo (int)$tk['id']; ?>" data-status="completed" class="btn btn-xs" style="font-size:11px;padding:3px 10px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;">Mark Complete</button>
+                    <button data-action="update-task-status" data-task-id="<?php echo (int)$tk['id']; ?>" data-status="completed" class="btn btn-xs" style="font-size:11px;padding:3px 10px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;"><?php echo e(t('grc-assessment.mark_complete')); ?></button>
                     <?php endif; ?>
 
                     <?php if ($canManage): ?>
                     <select data-action="reassign-task" data-task-id="<?php echo (int)$tk['id']; ?>" style="font-size:11px;padding:2px 6px;border:1px solid #d1d5db;border-radius:4px;background:#fff;">
-                        <option value="">Reassign...</option>
+                        <option value=""><?php echo e(t('grc-assessment.reassign')); ?></option>
                         <?php foreach ($users_list as $u): ?>
                         <option value="<?php echo (int)$u['id']; ?>" <?php echo (int)$u['id'] === (int)($tk['assigned_to'] ?? 0) ? 'disabled' : ''; ?>><?php echo e($u['full_name']); ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <button data-action="delete-task" data-task-id="<?php echo (int)$tk['id']; ?>" data-task-ref="<?php echo e($tk['task_ref']); ?>" class="btn btn-xs btn-danger" style="font-size:10px;padding:3px 8px;" title="Delete task">Delete</button>
+                    <button data-action="delete-task" data-task-id="<?php echo (int)$tk['id']; ?>" data-task-ref="<?php echo e($tk['task_ref']); ?>" class="btn btn-xs btn-danger" style="font-size:10px;padding:3px 8px;" title="<?php echo e(t('grc-assessment.delete_task')); ?>"><?php echo e(t('grc-assessment.delete')); ?></button>
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
@@ -874,21 +874,21 @@ $_page = 'grc_assessment';
             <input type="hidden" name="action" value="update_assessment">
             <input type="hidden" name="assessment_id" value="<?php echo $viewId; ?>">
             <div class="grc-modal-header">
-                <h4>Edit Assessment</h4>
+                <h4><?php echo e(t('grc-assessment.edit_assessment')); ?></h4>
                 <button type="button" class="grc-modal-close" data-action="close-edit-assessment">&times;</button>
             </div>
                 <div class="grc-modal-body">
                     <div class="grc-form" style="border:none;padding:0;margin:0;">
-                        <label>Title <span style="color:#dc3545;">*</span></label>
+                        <label><?php echo e(t('grc-assessment.title')); ?> <span style="color:#dc3545;">*</span></label>
                         <input type="text" name="title" value="<?php echo e($assessmentDetail['title']); ?>" required>
-                        <label>Description</label>
+                        <label><?php echo e(t('grc-assessment.description')); ?></label>
                         <div style="display:flex;gap:6px;align-items:flex-start;">
                             <textarea name="description" id="editDescription" rows="2" style="flex:1;"><?php echo e($assessmentDetail['description'] ?? ''); ?></textarea>
-                            <button type="button" class="btn-rewrite" data-action="modal-assist" data-target="editDescription" data-field="description" title="Assistant Rewrite">Rewrite</button>
+                            <button type="button" class="btn-rewrite" data-action="modal-assist" data-target="editDescription" data-field="description" title="<?php echo e(t('grc-assessment.assistant_rewrite')); ?>"><?php echo e(t('grc-assessment.rewrite')); ?></button>
                         </div>
                         <div class="form-row">
                             <div>
-                                <label>Type</label>
+                                <label><?php echo e(t('grc-assessment.type')); ?></label>
                                 <select name="assessment_type">
                                     <?php foreach (['initial','periodic','targeted','pre_audit','certification'] as $t): ?>
                                     <option value="<?php echo $t; ?>" <?php echo $assessmentDetail['assessment_type'] === $t ? 'selected' : ''; ?>><?php echo ucfirst(str_replace('_', ' ', $t)); ?></option>
@@ -896,7 +896,7 @@ $_page = 'grc_assessment';
                                 </select>
                             </div>
                             <div>
-                                <label>Status</label>
+                                <label><?php echo e(t('grc-assessment.status')); ?></label>
                                 <select name="status">
                                     <?php foreach (['draft','in_progress','under_review','completed','archived'] as $s): ?>
                                     <option value="<?php echo $s; ?>" <?php echo $assessmentDetail['status'] === $s ? 'selected' : ''; ?>><?php echo ucfirst(str_replace('_', ' ', $s)); ?></option>
@@ -904,42 +904,42 @@ $_page = 'grc_assessment';
                                 </select>
                             </div>
                         </div>
-                        <label>Scope</label>
+                        <label><?php echo e(t('grc-assessment.scope')); ?></label>
                         <select name="scope_id" id="editScopeSelect">
-                            <option value="">-- Select Scope --</option>
+                            <option value=""><?php echo e(t('grc-assessment.select_scope')); ?></option>
                             <?php foreach ($scopes as $sc): ?>
                             <option value="<?php echo (int)$sc['id']; ?>" <?php echo (int)($assessmentDetail['scope_id'] ?? 0) === (int)$sc['id'] ? 'selected' : ''; ?>><?php echo e($sc['name']); ?></option>
                             <?php endforeach; ?>
-                            <option value="__new__">+ Add New Scope</option>
+                            <option value="__new__"><?php echo e(t('grc-assessment.add_new_scope')); ?></option>
                         </select>
                         <div id="editNewScopeFields" style="display:none;margin-top:8px;padding:10px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
-                            <label style="font-size:12px;">New Scope Name</label>
-                            <input type="text" name="new_scope_name" placeholder="e.g., Production SaaS Platform">
+                            <label style="font-size:12px;"><?php echo e(t('grc-assessment.new_scope_name')); ?></label>
+                            <input type="text" name="new_scope_name" placeholder="<?php echo e(t('grc-assessment.scope_name_placeholder')); ?>">
                         </div>
-                        <label style="margin-top:8px;">Scope Notes</label>
+                        <label style="margin-top:8px;"><?php echo e(t('grc-assessment.scope_notes')); ?></label>
                         <div style="display:flex;gap:6px;align-items:flex-start;">
                             <textarea name="scope" id="editScope" rows="2" style="flex:1;"><?php echo e($assessmentDetail['scope'] ?? ''); ?></textarea>
-                            <button type="button" class="btn-rewrite" data-action="modal-assist" data-target="editScope" data-field="scope" title="Assistant Rewrite">Rewrite</button>
+                            <button type="button" class="btn-rewrite" data-action="modal-assist" data-target="editScope" data-field="scope" title="<?php echo e(t('grc-assessment.assistant_rewrite')); ?>"><?php echo e(t('grc-assessment.rewrite')); ?></button>
                         </div>
-                        <label>Lead Auditor</label>
+                        <label><?php echo e(t('grc-assessment.lead_auditor')); ?></label>
                         <select name="lead_auditor_id">
-                            <option value="">-- Select --</option>
+                            <option value=""><?php echo e(t('grc-assessment.select')); ?></option>
                             <?php foreach ($users_list as $u): ?>
                             <option value="<?php echo $u['id']; ?>" <?php echo (int)$assessmentDetail['lead_auditor_id'] === (int)$u['id'] ? 'selected' : ''; ?>><?php echo e($u['full_name']); ?></option>
                             <?php endforeach; ?>
                         </select>
                         <div class="form-row">
-                            <div><label>Planned Start</label><input type="date" name="planned_start" value="<?php echo e($assessmentDetail['planned_start'] ?? ''); ?>"></div>
-                            <div><label>Planned End</label><input type="date" name="planned_end" value="<?php echo e($assessmentDetail['planned_end'] ?? ''); ?>"></div>
+                            <div><label><?php echo e(t('grc-assessment.planned_start')); ?></label><input type="date" name="planned_start" value="<?php echo e($assessmentDetail['planned_start'] ?? ''); ?>"></div>
+                            <div><label><?php echo e(t('grc-assessment.planned_end')); ?></label><input type="date" name="planned_end" value="<?php echo e($assessmentDetail['planned_end'] ?? ''); ?>"></div>
                         </div>
                     </div>
                 </div>
                 <div class="grc-modal-footer">
                     <?php if ($isAdmin): ?>
-                    <button type="submit" name="action" value="delete_assessment" class="btn btn-danger" style="margin-right:auto;" data-confirm="Delete this assessment and all responses?">Delete</button>
+                    <button type="submit" name="action" value="delete_assessment" class="btn btn-danger" style="margin-right:auto;" data-confirm="Delete this assessment and all responses?"><?php echo e(t('grc-assessment.delete')); ?></button>
                     <?php endif; ?>
-                    <button type="button" class="btn btn-warning" data-action="close-edit-assessment">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-warning" data-action="close-edit-assessment"><?php echo e(t('grc-assessment.cancel')); ?></button>
+                    <button type="submit" class="btn btn-primary"><?php echo e(t('grc-assessment.save_changes')); ?></button>
                 </div>
         </form>
     </div>
@@ -949,57 +949,57 @@ $_page = 'grc_assessment';
     <div class="grc-modal-overlay" id="taskOverlay">
         <div class="grc-modal">
             <div class="grc-modal-header">
-                <h4>Assign Task</h4>
+                <h4><?php echo e(t('grc-assessment.assign_task')); ?></h4>
                 <button class="grc-modal-close" data-action="close-task">&times;</button>
             </div>
             <div class="grc-modal-body">
                 <input type="hidden" id="taskQuestionId">
                 <div class="grc-form" style="border:none;padding:0;margin:0;">
-                    <label>Task Title <span style="color:#dc3545;">*</span></label>
+                    <label><?php echo e(t('grc-assessment.task_title')); ?> <span style="color:#dc3545;">*</span></label>
                     <input type="text" id="taskTitle" required>
-                    <label>Description</label>
+                    <label><?php echo e(t('grc-assessment.description')); ?></label>
                     <textarea id="taskDescription" rows="2"></textarea>
                     <div class="form-row">
                         <div>
-                            <label>Type</label>
+                            <label><?php echo e(t('grc-assessment.type')); ?></label>
                             <select id="taskType">
-                                <option value="evidence_request">Evidence Request</option>
-                                <option value="remediation">Remediation</option>
-                                <option value="review">Review</option>
-                                <option value="documentation">Documentation</option>
-                                <option value="implementation">Implementation</option>
+                                <option value="evidence_request"><?php echo e(t('grc-assessment.evidence_request')); ?></option>
+                                <option value="remediation"><?php echo e(t('grc-assessment.remediation')); ?></option>
+                                <option value="review"><?php echo e(t('grc-assessment.review')); ?></option>
+                                <option value="documentation"><?php echo e(t('grc-assessment.documentation')); ?></option>
+                                <option value="implementation"><?php echo e(t('grc-assessment.implementation')); ?></option>
                             </select>
                         </div>
                         <div>
-                            <label>Priority</label>
+                            <label><?php echo e(t('grc-assessment.priority')); ?></label>
                             <select id="taskPriority">
-                                <option value="low">Low</option>
-                                <option value="medium" selected>Medium</option>
-                                <option value="high">High</option>
-                                <option value="critical">Critical</option>
+                                <option value="low"><?php echo e(t('grc-assessment.low')); ?></option>
+                                <option value="medium" selected><?php echo e(t('grc-assessment.medium')); ?></option>
+                                <option value="high"><?php echo e(t('grc-assessment.high')); ?></option>
+                                <option value="critical"><?php echo e(t('grc-assessment.critical')); ?></option>
                             </select>
                         </div>
                     </div>
                     <div class="form-row">
                         <div>
-                            <label>Assign To</label>
+                            <label><?php echo e(t('grc-assessment.assign_to')); ?></label>
                             <select id="taskAssignedTo">
-                                <option value="">-- Select --</option>
+                                <option value=""><?php echo e(t('grc-assessment.select')); ?></option>
                                 <?php foreach ($users_list as $u): ?>
                                 <option value="<?php echo $u['id']; ?>"><?php echo e($u['full_name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div>
-                            <label>Due Date</label>
+                            <label><?php echo e(t('grc-assessment.due_date')); ?></label>
                             <input type="date" id="taskDueDate">
                         </div>
                     </div>
                 </div>
             </div>
             <div class="grc-modal-footer">
-                <button type="button" class="btn btn-outline" data-action="close-task">Cancel</button>
-                <button type="button" class="btn btn-primary" data-action="submit-task">Create Task</button>
+                <button type="button" class="btn btn-outline" data-action="close-task"><?php echo e(t('grc-assessment.cancel')); ?></button>
+                <button type="button" class="btn btn-primary" data-action="submit-task"><?php echo e(t('grc-assessment.create_task')); ?></button>
             </div>
         </div>
     </div>
@@ -1008,64 +1008,64 @@ $_page = 'grc_assessment';
     <div class="grc-modal-overlay" id="riskOverlay">
         <div class="grc-modal">
             <div class="grc-modal-header">
-                <h4>Log Risk</h4>
+                <h4><?php echo e(t('grc-assessment.log_risk')); ?></h4>
                 <button class="grc-modal-close" data-action="close-risk">&times;</button>
             </div>
             <div class="grc-modal-body">
                 <input type="hidden" id="riskQuestionId">
                 <div class="grc-form" style="border:none;padding:0;margin:0;">
-                    <label>Risk Title <span style="color:#dc3545;">*</span></label>
+                    <label><?php echo e(t('grc-assessment.risk_title')); ?> <span style="color:#dc3545;">*</span></label>
                     <input type="text" id="riskTitle" required>
-                    <label>Description</label>
+                    <label><?php echo e(t('grc-assessment.description')); ?></label>
                     <textarea id="riskDescription" rows="2"></textarea>
                     <div class="form-row">
                         <div>
-                            <label>Category <span style="color:#dc3545;">*</span></label>
+                            <label><?php echo e(t('grc-assessment.category')); ?> <span style="color:#dc3545;">*</span></label>
                             <select id="riskCategory">
-                                <option value="compliance">Compliance</option>
-                                <option value="strategic">Strategic</option>
-                                <option value="operational">Operational</option>
-                                <option value="financial">Financial</option>
-                                <option value="reputational">Reputational</option>
-                                <option value="technology">Technology</option>
-                                <option value="third_party">Third Party</option>
+                                <option value="compliance"><?php echo e(t('grc-assessment.cat_compliance')); ?></option>
+                                <option value="strategic"><?php echo e(t('grc-assessment.cat_strategic')); ?></option>
+                                <option value="operational"><?php echo e(t('grc-assessment.cat_operational')); ?></option>
+                                <option value="financial"><?php echo e(t('grc-assessment.cat_financial')); ?></option>
+                                <option value="reputational"><?php echo e(t('grc-assessment.cat_reputational')); ?></option>
+                                <option value="technology"><?php echo e(t('grc-assessment.cat_technology')); ?></option>
+                                <option value="third_party"><?php echo e(t('grc-assessment.cat_third_party')); ?></option>
                             </select>
                         </div>
                         <div>
-                            <label>Status</label>
+                            <label><?php echo e(t('grc-assessment.status')); ?></label>
                             <select id="riskStatus">
-                                <option value="identified" selected>Identified</option>
-                                <option value="assessing">Assessing</option>
-                                <option value="treating">Treating</option>
-                                <option value="monitoring">Monitoring</option>
+                                <option value="identified" selected><?php echo e(t('grc-assessment.identified')); ?></option>
+                                <option value="assessing"><?php echo e(t('grc-assessment.assessing')); ?></option>
+                                <option value="treating"><?php echo e(t('grc-assessment.treating')); ?></option>
+                                <option value="monitoring"><?php echo e(t('grc-assessment.monitoring')); ?></option>
                             </select>
                         </div>
                     </div>
                     <div class="form-row">
                         <div>
-                            <label>Likelihood <span style="color:#dc3545;">*</span></label>
+                            <label><?php echo e(t('grc-assessment.likelihood')); ?> <span style="color:#dc3545;">*</span></label>
                             <select id="riskLikelihood">
-                                <option value="rare">Rare</option>
-                                <option value="unlikely">Unlikely</option>
-                                <option value="possible" selected>Possible</option>
-                                <option value="likely">Likely</option>
-                                <option value="almost_certain">Almost Certain</option>
+                                <option value="rare"><?php echo e(t('grc-assessment.rare')); ?></option>
+                                <option value="unlikely"><?php echo e(t('grc-assessment.unlikely')); ?></option>
+                                <option value="possible" selected><?php echo e(t('grc-assessment.possible')); ?></option>
+                                <option value="likely"><?php echo e(t('grc-assessment.likely')); ?></option>
+                                <option value="almost_certain"><?php echo e(t('grc-assessment.almost_certain')); ?></option>
                             </select>
                         </div>
                         <div>
-                            <label>Impact <span style="color:#dc3545;">*</span></label>
+                            <label><?php echo e(t('grc-assessment.impact')); ?> <span style="color:#dc3545;">*</span></label>
                             <select id="riskImpact">
-                                <option value="insignificant">Insignificant</option>
-                                <option value="minor">Minor</option>
-                                <option value="moderate" selected>Moderate</option>
-                                <option value="major">Major</option>
-                                <option value="catastrophic">Catastrophic</option>
+                                <option value="insignificant"><?php echo e(t('grc-assessment.insignificant')); ?></option>
+                                <option value="minor"><?php echo e(t('grc-assessment.minor')); ?></option>
+                                <option value="moderate" selected><?php echo e(t('grc-assessment.moderate')); ?></option>
+                                <option value="major"><?php echo e(t('grc-assessment.major')); ?></option>
+                                <option value="catastrophic"><?php echo e(t('grc-assessment.catastrophic')); ?></option>
                             </select>
                         </div>
                     </div>
-                    <label>Risk Owner</label>
+                    <label><?php echo e(t('grc-assessment.risk_owner')); ?></label>
                     <select id="riskOwner">
-                        <option value="">-- Select --</option>
+                        <option value=""><?php echo e(t('grc-assessment.select')); ?></option>
                         <?php foreach ($users_list as $u): ?>
                         <option value="<?php echo $u['id']; ?>"><?php echo e($u['full_name']); ?></option>
                         <?php endforeach; ?>
@@ -1073,8 +1073,8 @@ $_page = 'grc_assessment';
                 </div>
             </div>
             <div class="grc-modal-footer">
-                <button type="button" class="btn btn-outline" data-action="close-risk">Cancel</button>
-                <button type="button" class="btn btn-danger" data-action="submit-risk">Log Risk</button>
+                <button type="button" class="btn btn-outline" data-action="close-risk"><?php echo e(t('grc-assessment.cancel')); ?></button>
+                <button type="button" class="btn btn-danger" data-action="submit-risk"><?php echo e(t('grc-assessment.log_risk')); ?></button>
             </div>
         </div>
     </div>
@@ -1083,11 +1083,11 @@ $_page = 'grc_assessment';
     <div class="grc-modal-overlay" id="frameworkOverlay">
         <div class="grc-modal modal-lg">
             <div class="grc-modal-header">
-                <h4>Framework Mappings</h4>
+                <h4><?php echo e(t('grc-assessment.framework_mappings')); ?></h4>
                 <button class="grc-modal-close" data-action="close-frameworks">&times;</button>
             </div>
             <div class="grc-modal-body" id="frameworkDetailBody">
-                <p style="color:#6b7280;">Loading...</p>
+                <p style="color:#6b7280;"><?php echo e(t('grc-assessment.loading')); ?></p>
             </div>
         </div>
     </div>
@@ -1097,38 +1097,38 @@ $_page = 'grc_assessment';
 
     <?php if ($questionCount === 0 && $isAdmin): ?>
     <div class="alert alert-warning">
-        <strong>Question bank is empty.</strong> Seed the unified questions and framework mappings to get started.
+        <strong><?php echo e(t('grc-assessment.question_bank_empty')); ?></strong> <?php echo e(t('grc-assessment.seed_to_start')); ?>
         <form method="POST" style="display:inline;">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <input type="hidden" name="action" value="seed_questions">
-            <button type="submit" class="btn btn-sm btn-success" style="margin-left:8px;">Seed Questions &amp; Mappings</button>
+            <button type="submit" class="btn btn-sm btn-success" style="margin-left:8px;"><?php echo e(t('grc-assessment.seed_questions')); ?></button>
         </form>
     </div>
     <?php endif; ?>
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
         <div style="display:flex;gap:4px;">
-            <a href="grc-assessment.php" class="domain-tab <?php echo !$statusFilter ? 'active' : ''; ?>">All</a>
+            <a href="grc-assessment.php" class="domain-tab <?php echo !$statusFilter ? 'active' : ''; ?>"><?php echo e(t('grc-assessment.all')); ?></a>
             <?php foreach (['draft','in_progress','under_review','completed'] as $sf): ?>
             <a href="grc-assessment.php?status=<?php echo $sf; ?>" class="domain-tab <?php echo $statusFilter === $sf ? 'active' : ''; ?>">
                 <?php echo ucfirst(str_replace('_', ' ', $sf)); ?>
             </a>
             <?php endforeach; ?>
-            <a href="grc-assessment.php?status=archived" class="domain-tab <?php echo $statusFilter === 'archived' ? 'active' : ''; ?>" style="margin-left:8px;">Archived</a>
+            <a href="grc-assessment.php?status=archived" class="domain-tab <?php echo $statusFilter === 'archived' ? 'active' : ''; ?>" style="margin-left:8px;"><?php echo e(t('grc-assessment.archived')); ?></a>
         </div>
         <?php if ($canManage): ?>
-        <button class="btn btn-sm btn-success" data-action="open-create-assessment">New Assessment</button>
+        <button class="btn btn-sm btn-success" data-action="open-create-assessment"><?php echo e(t('grc-assessment.new_assessment')); ?></button>
         <?php endif; ?>
     </div>
 
     <?php if (empty($assessments)): ?>
-    <div class="detail-card" style="text-align:center;padding:60px;color:#6b7280;">No assessments found. Create a new assessment to begin.</div>
+    <div class="detail-card" style="text-align:center;padding:60px;color:#6b7280;"><?php echo e(t('grc-assessment.no_assessments')); ?></div>
     <?php else: ?>
     <table class="grc-table">
         <thead>
             <tr>
-                <th>Ref</th><th>Title</th><th>Type</th><th>Status</th><th>Lead</th>
-                <th>CSF Score</th><th>Compliance</th><th>Planned</th><th>Actions</th>
+                <th><?php echo e(t('grc-assessment.col_ref')); ?></th><th><?php echo e(t('grc-assessment.col_title')); ?></th><th><?php echo e(t('grc-assessment.col_type')); ?></th><th><?php echo e(t('grc-assessment.col_status')); ?></th><th><?php echo e(t('grc-assessment.col_lead')); ?></th>
+                <th><?php echo e(t('grc-assessment.col_csf_score')); ?></th><th><?php echo e(t('grc-assessment.col_compliance')); ?></th><th><?php echo e(t('grc-assessment.col_planned')); ?></th><th><?php echo e(t('grc-assessment.col_actions')); ?></th>
             </tr>
         </thead>
         <tbody>
@@ -1145,16 +1145,16 @@ $_page = 'grc_assessment';
                 <td style="white-space:nowrap;">
                     <?php if ($a['status'] === 'archived'): ?>
                         <?php if ($canManage): ?>
-                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="assessment_id" value="<?php echo $a['id']; ?>"><button type="submit" name="action" value="unarchive_assessment" class="btn btn-xs btn-info" title="Restore from archive">Unarchive</button></form>
+                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="assessment_id" value="<?php echo $a['id']; ?>"><button type="submit" name="action" value="unarchive_assessment" class="btn btn-xs btn-info" title="<?php echo e(t('grc-assessment.restore_from_archive')); ?>"><?php echo e(t('grc-assessment.unarchive')); ?></button></form>
                         <?php endif; ?>
                         <?php if ($isAdmin): ?>
-                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="assessment_id" value="<?php echo $a['id']; ?>"><button type="submit" name="action" value="delete_assessment" class="btn btn-xs btn-danger" data-confirm="Permanently delete this assessment and all its responses? This cannot be undone." title="Permanently delete">Delete</button></form>
+                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="assessment_id" value="<?php echo $a['id']; ?>"><button type="submit" name="action" value="delete_assessment" class="btn btn-xs btn-danger" data-confirm="Permanently delete this assessment and all its responses? This cannot be undone." title="<?php echo e(t('grc-assessment.permanently_delete')); ?>"><?php echo e(t('grc-assessment.delete')); ?></button></form>
                         <?php endif; ?>
                     <?php else: ?>
-                        <a href="grc-assessment.php?view=<?php echo $a['id']; ?>" class="btn btn-xs btn-info">Open</a>
+                        <a href="grc-assessment.php?view=<?php echo $a['id']; ?>" class="btn btn-xs btn-info"><?php echo e(t('grc-assessment.open')); ?></a>
                         <?php if ($canManage): ?>
-                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="assessment_id" value="<?php echo $a['id']; ?>"><button type="submit" name="action" value="archive_assessment" class="btn btn-xs" style="background:#6b7280;color:#fff;" data-confirm="Archive this assessment? It will be hidden from reporting dropdowns." title="Archive assessment">Archive</button></form>
-                        <button class="btn btn-xs btn-warning" data-action="duplicate-assessment" data-id="<?php echo $a['id']; ?>" data-title="<?php echo e($a['title']); ?>" title="Duplicate assessment">Duplicate</button>
+                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="assessment_id" value="<?php echo $a['id']; ?>"><button type="submit" name="action" value="archive_assessment" class="btn btn-xs" style="background:#6b7280;color:#fff;" data-confirm="Archive this assessment? It will be hidden from reporting dropdowns." title="<?php echo e(t('grc-assessment.archive_assessment')); ?>"><?php echo e(t('grc-assessment.archive')); ?></button></form>
+                        <button class="btn btn-xs btn-warning" data-action="duplicate-assessment" data-id="<?php echo $a['id']; ?>" data-title="<?php echo e($a['title']); ?>" title="<?php echo e(t('grc-assessment.duplicate_assessment')); ?>"><?php echo e(t('grc-assessment.duplicate')); ?></button>
                         <?php endif; ?>
                     <?php endif; ?>
                 </td>
@@ -1171,67 +1171,67 @@ $_page = 'grc_assessment';
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <input type="hidden" name="action" value="create_assessment">
             <div class="grc-modal-header">
-                <h4>New CSF Maturity Assessment</h4>
+                <h4><?php echo e(t('grc-assessment.new_csf_assessment')); ?></h4>
                 <button type="button" class="grc-modal-close" data-action="close-create-assessment">&times;</button>
             </div>
                 <div class="grc-modal-body">
                     <div class="grc-form" style="border:none;padding:0;margin:0;">
-                        <label>Title <span style="color:#dc3545;">*</span></label>
-                        <input type="text" name="title" required placeholder="e.g., Q1 2026 Security Assessment">
-                        <label>Description</label>
+                        <label><?php echo e(t('grc-assessment.title')); ?> <span style="color:#dc3545;">*</span></label>
+                        <input type="text" name="title" required placeholder="<?php echo e(t('grc-assessment.title_placeholder')); ?>">
+                        <label><?php echo e(t('grc-assessment.description')); ?></label>
                         <div style="display:flex;gap:6px;align-items:flex-start;">
-                            <textarea name="description" id="createDescription" rows="2" placeholder="Assessment scope and objectives" style="flex:1;"></textarea>
-                            <button type="button" class="btn-rewrite" data-action="modal-assist" data-target="createDescription" data-field="description" title="Assistant Rewrite">Rewrite</button>
+                            <textarea name="description" id="createDescription" rows="2" placeholder="<?php echo e(t('grc-assessment.description_placeholder')); ?>" style="flex:1;"></textarea>
+                            <button type="button" class="btn-rewrite" data-action="modal-assist" data-target="createDescription" data-field="description" title="<?php echo e(t('grc-assessment.assistant_rewrite')); ?>"><?php echo e(t('grc-assessment.rewrite')); ?></button>
                         </div>
                         <div class="form-row">
                             <div>
-                                <label>Type</label>
+                                <label><?php echo e(t('grc-assessment.type')); ?></label>
                                 <select name="assessment_type">
-                                    <option value="initial">Initial</option>
-                                    <option value="periodic">Periodic</option>
-                                    <option value="targeted">Targeted</option>
-                                    <option value="pre_audit">Pre-Audit</option>
-                                    <option value="certification">Certification</option>
+                                    <option value="initial"><?php echo e(t('grc-assessment.type_initial')); ?></option>
+                                    <option value="periodic"><?php echo e(t('grc-assessment.type_periodic')); ?></option>
+                                    <option value="targeted"><?php echo e(t('grc-assessment.type_targeted')); ?></option>
+                                    <option value="pre_audit"><?php echo e(t('grc-assessment.type_pre_audit')); ?></option>
+                                    <option value="certification"><?php echo e(t('grc-assessment.type_certification')); ?></option>
                                 </select>
                             </div>
                             <div>
-                                <label>Lead Auditor</label>
+                                <label><?php echo e(t('grc-assessment.lead_auditor')); ?></label>
                                 <select name="lead_auditor_id">
-                                    <option value="">-- Select --</option>
+                                    <option value=""><?php echo e(t('grc-assessment.select')); ?></option>
                                     <?php foreach ($users_list as $u): ?>
                                     <option value="<?php echo $u['id']; ?>"><?php echo e($u['full_name']); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                         </div>
-                        <label>Scope</label>
+                        <label><?php echo e(t('grc-assessment.scope')); ?></label>
                         <select name="scope_id" id="createScopeSelect">
-                            <option value="">-- Select Scope --</option>
+                            <option value=""><?php echo e(t('grc-assessment.select_scope')); ?></option>
                             <?php foreach ($scopes as $s): ?>
                             <option value="<?php echo (int)$s['id']; ?>"><?php echo e($s['name']); ?></option>
                             <?php endforeach; ?>
-                            <option value="__new__">+ Add New Scope</option>
+                            <option value="__new__"><?php echo e(t('grc-assessment.add_new_scope')); ?></option>
                         </select>
                         <div id="createNewScopeFields" style="display:none;margin-top:8px;padding:10px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
-                            <label style="font-size:12px;">New Scope Name</label>
-                            <input type="text" name="new_scope_name" placeholder="e.g., Production SaaS Platform">
-                            <label style="font-size:12px;margin-top:4px;">Description (optional)</label>
-                            <input type="text" name="new_scope_description" placeholder="Scope description">
+                            <label style="font-size:12px;"><?php echo e(t('grc-assessment.new_scope_name')); ?></label>
+                            <input type="text" name="new_scope_name" placeholder="<?php echo e(t('grc-assessment.scope_name_placeholder')); ?>">
+                            <label style="font-size:12px;margin-top:4px;"><?php echo e(t('grc-assessment.description_optional')); ?></label>
+                            <input type="text" name="new_scope_description" placeholder="<?php echo e(t('grc-assessment.scope_description_placeholder')); ?>">
                         </div>
-                        <label style="margin-top:8px;">Scope Notes</label>
+                        <label style="margin-top:8px;"><?php echo e(t('grc-assessment.scope_notes')); ?></label>
                         <div style="display:flex;gap:6px;align-items:flex-start;">
-                            <textarea name="scope" id="createScope" rows="2" placeholder="Additional scope details (optional)" style="flex:1;"></textarea>
-                            <button type="button" class="btn-rewrite" data-action="modal-assist" data-target="createScope" data-field="scope" title="Assistant Rewrite">Rewrite</button>
+                            <textarea name="scope" id="createScope" rows="2" placeholder="<?php echo e(t('grc-assessment.scope_details_placeholder')); ?>" style="flex:1;"></textarea>
+                            <button type="button" class="btn-rewrite" data-action="modal-assist" data-target="createScope" data-field="scope" title="<?php echo e(t('grc-assessment.assistant_rewrite')); ?>"><?php echo e(t('grc-assessment.rewrite')); ?></button>
                         </div>
                         <div class="form-row">
-                            <div><label>Planned Start</label><input type="date" name="planned_start"></div>
-                            <div><label>Planned End</label><input type="date" name="planned_end"></div>
+                            <div><label><?php echo e(t('grc-assessment.planned_start')); ?></label><input type="date" name="planned_start"></div>
+                            <div><label><?php echo e(t('grc-assessment.planned_end')); ?></label><input type="date" name="planned_end"></div>
                         </div>
                     </div>
                 </div>
                 <div class="grc-modal-footer">
-                    <button type="button" class="btn btn-outline" data-action="close-create-assessment">Cancel</button>
-                    <button type="submit" class="btn btn-success">Create Assessment</button>
+                    <button type="button" class="btn btn-outline" data-action="close-create-assessment"><?php echo e(t('grc-assessment.cancel')); ?></button>
+                    <button type="submit" class="btn btn-success"><?php echo e(t('grc-assessment.create_assessment')); ?></button>
                 </div>
         </form>
     </div>
@@ -1242,7 +1242,7 @@ $_page = 'grc_assessment';
             <input type="hidden" name="action" value="duplicate_assessment">
             <input type="hidden" name="assessment_id" id="duplicateAssessmentId" value="">
             <div class="grc-modal-header">
-                <h4>Duplicate Assessment</h4>
+                <h4><?php echo e(t('grc-assessment.duplicate_assessment')); ?></h4>
                 <button type="button" class="grc-modal-close" data-action="close-duplicate">&times;</button>
             </div>
             <div class="grc-modal-body">
@@ -1251,22 +1251,22 @@ $_page = 'grc_assessment';
                     <label style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;transition:border-color 0.2s;" id="dupModeTemplate">
                         <input type="radio" name="duplicate_mode" value="template" checked style="margin-top:2px;">
                         <div>
-                            <strong style="font-size:13px;color:#374151;">Duplicate as Template</strong>
-                            <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">Copies assessment setup (type, scope, lead auditor, dates) with blank responses. Ideal for periodic re-assessments.</p>
+                            <strong style="font-size:13px;color:#374151;"><?php echo e(t('grc-assessment.dup_template_title')); ?></strong>
+                            <p style="margin:4px 0 0;font-size:12px;color:#6b7280;"><?php echo e(t('grc-assessment.dup_template_desc')); ?></p>
                         </div>
                     </label>
                     <label style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;transition:border-color 0.2s;" id="dupModeFull">
                         <input type="radio" name="duplicate_mode" value="full" style="margin-top:2px;">
                         <div>
-                            <strong style="font-size:13px;color:#374151;">Duplicate with Responses</strong>
-                            <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">Copies all ratings, notes, and evidence links. Validation reset to pending. Ideal for creating a baseline comparison.</p>
+                            <strong style="font-size:13px;color:#374151;"><?php echo e(t('grc-assessment.dup_full_title')); ?></strong>
+                            <p style="margin:4px 0 0;font-size:12px;color:#6b7280;"><?php echo e(t('grc-assessment.dup_full_desc')); ?></p>
                         </div>
                     </label>
                 </div>
             </div>
             <div class="grc-modal-footer">
-                <button type="button" class="btn btn-outline" data-action="close-duplicate">Cancel</button>
-                <button type="submit" class="btn btn-warning">Duplicate</button>
+                <button type="button" class="btn btn-outline" data-action="close-duplicate"><?php echo e(t('grc-assessment.cancel')); ?></button>
+                <button type="submit" class="btn btn-warning"><?php echo e(t('grc-assessment.duplicate')); ?></button>
             </div>
         </form>
     </div>
@@ -2545,7 +2545,7 @@ $_page = 'grc_assessment';
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-assessment.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

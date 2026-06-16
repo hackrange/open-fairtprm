@@ -317,14 +317,13 @@ function decryptFromSession(string $encoded): string {
 
 
 /**
- * Fetch an image manifest from a Docker registry v2 API.
- *
- * @return array|false  Decoded manifest or false on failure
+ * Fetch a single image manifest (or index/list) from a Docker registry v2 API
+ * by tag or digest. Returns the decoded JSON, or false on failure.
  */
-function fetchDockerManifest(string $registryHost, string $imageName, string $tag, ?string $username = null, ?string $password = null) {
+function fetchDockerManifestRaw(string $registryHost, string $imageName, string $ref, ?string $username = null, ?string $password = null) {
     if (!function_exists('curl_init')) return false;
 
-    $url = 'https://' . $registryHost . '/v2/' . $imageName . '/manifests/' . $tag;
+    $url = 'https://' . $registryHost . '/v2/' . $imageName . '/manifests/' . $ref;
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
@@ -332,7 +331,13 @@ function fetchDockerManifest(string $registryHost, string $imageName, string $ta
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_HTTPHEADER     => [
-            'Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json',
+            // Accept plain image manifests AND multi-arch indexes / manifest lists,
+            // so BuildKit-pushed images (which publish an attestation index by
+            // default) resolve correctly instead of 404'ing.
+            'Accept: application/vnd.docker.distribution.manifest.v2+json, '
+                  . 'application/vnd.oci.image.manifest.v1+json, '
+                  . 'application/vnd.docker.distribution.manifest.list.v2+json, '
+                  . 'application/vnd.oci.image.index.v1+json',
         ],
     ]);
     if ($username !== null && $username !== '') {
@@ -344,6 +349,42 @@ function fetchDockerManifest(string $registryHost, string $imageName, string $ta
 
     if ($httpCode !== 200 || $response === false) return false;
     $data = json_decode($response, true);
+    return is_array($data) ? $data : false;
+}
+
+/**
+ * Fetch an image manifest from a Docker registry v2 API.
+ *
+ * Handles both plain image manifests (with a `layers` array) and multi-arch
+ * indexes / manifest lists (with a `manifests` array). For an index, the
+ * linux/amd64 platform manifest is resolved by digest; attestation/unknown
+ * sub-manifests (BuildKit provenance/SBOM) are skipped.
+ *
+ * @return array|false  Decoded image manifest (with `layers`) or false on failure
+ */
+function fetchDockerManifest(string $registryHost, string $imageName, string $tag, ?string $username = null, ?string $password = null) {
+    $data = fetchDockerManifestRaw($registryHost, $imageName, $tag, $username, $password);
+    if ($data === false) return false;
+
+    // If we got an index / manifest list, resolve the concrete image manifest.
+    if (empty($data['layers']) && !empty($data['manifests']) && is_array($data['manifests'])) {
+        $chosen = null;
+        foreach ($data['manifests'] as $m) {
+            if (empty($m['digest'])) continue;
+            $plat = $m['platform'] ?? [];
+            $os   = $plat['os'] ?? '';
+            $arch = $plat['architecture'] ?? '';
+            // Skip BuildKit attestation manifests (platform "unknown/unknown").
+            if ($os === 'unknown' || $arch === 'unknown') continue;
+            // Prefer linux/amd64; otherwise fall back to the first real platform.
+            if ($os === 'linux' && $arch === 'amd64') { $chosen = $m; break; }
+            if ($chosen === null) $chosen = $m;
+        }
+        if ($chosen === null) return false;
+        $data = fetchDockerManifestRaw($registryHost, $imageName, $chosen['digest'], $username, $password);
+        if ($data === false) return false;
+    }
+
     if (!is_array($data) || empty($data['layers'])) return false;
     return $data;
 }
@@ -381,6 +422,36 @@ function downloadDockerBlob(string $registryHost, string $imageName, string $dig
         return false;
     }
     return true;
+}
+
+/**
+ * Post-upgrade refresh: flush the PHP opcode cache and gracefully reload Apache
+ * so the freshly-extracted code is actually served. Upgrade layers preserve the
+ * original file mtimes, so OPcache can otherwise keep serving the previous
+ * version's bytecode (missing pages / stale menus). This runs in the Apache
+ * SAPI, so opcache_reset() clears the web server's cache.
+ */
+function postUpgradeRefresh(array &$upgradeLog): void {
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
+        $upgradeLog[] = ['step' => 'Flush OPcache', 'status' => 'ok', 'detail' => 'PHP opcode cache reset'];
+    }
+    // Graceful reload via the same sudo mechanism LockdownService uses. Graceful
+    // means the current request finishes first, so this upgrade response still
+    // completes before workers cycle.
+    if (function_exists('proc_open') && is_callable('proc_open')) {
+        $desc = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $proc = @proc_open('sudo /usr/sbin/apachectl graceful', $desc, $pipes);
+        if (is_resource($proc)) {
+            foreach ([1, 2] as $i) {
+                if (isset($pipes[$i]) && is_resource($pipes[$i])) { stream_get_contents($pipes[$i]); fclose($pipes[$i]); }
+            }
+            $rc = proc_close($proc);
+            $upgradeLog[] = ['step' => 'Reload Apache', 'status' => $rc === 0 ? 'ok' : 'warn', 'detail' => $rc === 0 ? 'Graceful reload issued' : 'apachectl returned ' . $rc];
+        } else {
+            $upgradeLog[] = ['step' => 'Reload Apache', 'status' => 'warn', 'detail' => 'Could not invoke apachectl graceful'];
+        }
+    }
 }
 
 endif; // function guard
@@ -876,6 +947,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
 
         if (!$upgradeFailed) {
+            postUpgradeRefresh($upgradeLog);
             $success = 'Upgrade to v' . $selectedVersion . ' completed successfully.';
             $currentVersion = getAppVersion();
             $newerVersions = getNewerDockerVersions($dockerTags, $currentVersion);
@@ -1568,6 +1640,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             if (!$upgradeFailed) {
+                postUpgradeRefresh($upgradeLog);
                 $success = 'Upgrade to v' . $selectedVersion . ' completed successfully.';
             }
         }

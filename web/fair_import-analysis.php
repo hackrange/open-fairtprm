@@ -100,7 +100,7 @@ if (isset($_GET['download_template'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
     // CSRF check -- standard operating procedure
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $error = 'Invalid or expired security token. Please refresh the page and try again.';
+        $error = t('fair_import-analysis.invalid_token');
         goto render;
     }
 
@@ -108,11 +108,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
 
     // Basic file validation -- size, type, upload errors
     if ($file['error'] !== UPLOAD_ERR_OK) {
-        $error = 'File upload error. Please try again.';
+        $error = t('fair_import-analysis.upload_error');
     } elseif ($file['size'] > 10485760) { // 10MB -- if your CSV is bigger than this, we need to talk
-        $error = 'File is too large. Maximum size is 10MB.';
+        $error = t('fair_import-analysis.file_too_large');
     } elseif (!in_array(pathinfo($file['name'], PATHINFO_EXTENSION), ['csv', 'txt'])) {
-        $error = 'Invalid file type. Only CSV files are allowed.';
+        $error = t('fair_import-analysis.invalid_file_type');
     } else {
         // Alright, the file looks legit. Let's crack it open.
         $handle = fopen($file['tmp_name'], 'r');
@@ -145,12 +145,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
 
                         // vendor_name is required -- can't assess a vendor with no name
                         if (empty($row['vendor_name'])) {
-                            throw new Exception('Vendor name is required');
+                            throw new Exception(t('fair_import-analysis.vendor_name_required'));
                         }
 
                         // security_score must be a letter grade (A through F, just like school)
                         if (empty($row['security_score']) || !in_array($row['security_score'], ['A', 'B', 'C', 'D', 'F'])) {
-                            throw new Exception('Valid security score (A-F) is required');
+                            throw new Exception(t('fair_import-analysis.valid_score_required'));
                         }
 
                         // Time to encrypt all the sensitive fields. There are a LOT of them.
@@ -212,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                             'row' => $rowNumber,
                             'vendor' => $row['vendor_name'],
                             'status' => 'success',
-                            'message' => 'Imported successfully'
+                            'message' => t('fair_import-analysis.imported_successfully')
                         ];
 
                     } catch (Exception $e) {
@@ -247,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
 
             fclose($handle);
         } else {
-            $error = 'Unable to read CSV file.';
+            $error = t('fair_import-analysis.unable_to_read');
         }
     }
 }
@@ -257,7 +257,7 @@ render:
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Import FAIR Analyses - TPRM FAIR Analysis</title>
+    <title><?php echo e(t('fair_import-analysis.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -420,19 +420,19 @@ render:
                                         <img class="brand-logo-dark" src="app/images/logo-default-418x78.png" alt="" width="209" height="39"/>
                                     </a>
                                     <div style="margin-top: 5px; color: #333; font-size: 16px; font-weight: 500;">
-                                        Import FAIR Analyses
+                                        <?php echo e(t('fair_import-analysis.brand_title')); ?>
                                     </div>
                                 </div>
                             </div>
                             <div style="flex: 1;"></div>
                             <div class="user-menu">
-                                <span style="color: #333;">Welcome, <?php echo e($user['full_name']); ?></span>
-                                <a href="index.php">Dashboard</a>
+                                <span style="color: #333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
+                                <a href="index.php"><?php echo e(t('fair_import-analysis.nav_dashboard')); ?></a>
                                 <?php if ($auth->isAdmin()): ?>
-                                    <a href="admin.php">Admin</a>
+                                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                                 <?php endif; ?>
-                                <a href="profile.php">Profile</a>
-                                <a href="logout.php">Logout</a>
+                                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
                             </div>
                         </div>
                     </div>
@@ -443,9 +443,9 @@ render:
         <div class="import-container" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
             <div class="container" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                    <h1 class="page-title">Bulk Import FAIR Analyses</h1>
+                    <h1 class="page-title"><?php echo e(t('fair_import-analysis.heading')); ?></h1>
                     <a href="fair_results.php" class="btn-secondary">
-                        ← Back to Results
+                        ← <?php echo e(t('fair_import-analysis.back_to_results')); ?>
                     </a>
                 </div>
 
@@ -465,43 +465,43 @@ render:
         <!-- Instructions Card -- because nobody reads documentation, but we try anyway -->
                 <div class="card">
                     <h4 class="card-title">
-                        📖 How to Import FAIR Analyses
+                        📖 <?php echo e(t('fair_import-analysis.how_to_title')); ?>
                     </h4>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
                             <div>
-                                <h5 style="font-size: 16px; margin-bottom: 10px;">📥 Step 1: Download Template</h5>
-                                <p style="color: #666; margin-bottom: 15px;">Download the CSV template with sample data to understand the required format.</p>
+                                <h5 style="font-size: 16px; margin-bottom: 10px;">📥 <?php echo e(t('fair_import-analysis.step1_title')); ?></h5>
+                                <p style="color: #666; margin-bottom: 15px;"><?php echo e(t('fair_import-analysis.step1_desc')); ?></p>
 
                                 <a href="?download_template=1" class="btn-success" style="display: inline-block; margin-bottom: 20px;">
-                                    📥 Download CSV Template
+                                    📥 <?php echo e(t('fair_import-analysis.download_template')); ?>
                                 </a>
 
-                                <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;">✏️ Step 2: Fill in Your Data</h5>
+                                <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;">✏️ <?php echo e(t('fair_import-analysis.step2_title')); ?></h5>
                                 <ul style="color: #666; line-height: 1.8;">
-                                    <li>Open the template in Excel or Google Sheets</li>
-                                    <li>Review the sample data row (row 2)</li>
-                                    <li>Delete the sample row or keep it as reference</li>
-                                    <li>Add your vendor data (one vendor per row)</li>
-                                    <li>Save as CSV format</li>
+                                    <li><?php echo e(t('fair_import-analysis.step2_open')); ?></li>
+                                    <li><?php echo e(t('fair_import-analysis.step2_review')); ?></li>
+                                    <li><?php echo e(t('fair_import-analysis.step2_delete')); ?></li>
+                                    <li><?php echo e(t('fair_import-analysis.step2_add')); ?></li>
+                                    <li><?php echo e(t('fair_import-analysis.step2_save')); ?></li>
                                 </ul>
                             </div>
 
                             <div>
-                                <h5 style="font-size: 16px; margin-bottom: 10px;">📋 Required Fields</h5>
+                                <h5 style="font-size: 16px; margin-bottom: 10px;">📋 <?php echo e(t('fair_import-analysis.required_fields_title')); ?></h5>
                                 <ul style="color: #666; line-height: 1.8;">
-                                    <li><strong>vendor_name</strong> - Vendor company name</li>
-                                    <li><strong>security_score</strong> - A, B, C, D, or F</li>
+                                    <li><strong>vendor_name</strong> - <?php echo e(t('fair_import-analysis.req_vendor_name')); ?></li>
+                                    <li><strong>security_score</strong> - <?php echo e(t('fair_import-analysis.req_security_score')); ?></li>
                                 </ul>
 
-                                <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;">⚠️ Important Notes</h5>
+                                <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;">⚠️ <?php echo e(t('fair_import-analysis.notes_title')); ?></h5>
                                 <ul style="color: #666; line-height: 1.8;">
-                                    <li>File size limit: 10MB</li>
-                                    <li>Format: CSV (comma-separated values)</li>
-                                    <li>All sensitive data will be encrypted automatically</li>
-                                    <li>ISO 27001: Use 1 for certified, 0 for not certified</li>
-                                    <li>Numeric fields (daily_impact, costs): Enter numbers without commas or currency symbols</li>
-                                    <li>Records are imported as "draft" status</li>
+                                    <li><?php echo e(t('fair_import-analysis.note_size')); ?></li>
+                                    <li><?php echo e(t('fair_import-analysis.note_format')); ?></li>
+                                    <li><?php echo e(t('fair_import-analysis.note_encrypted')); ?></li>
+                                    <li><?php echo e(t('fair_import-analysis.note_iso')); ?></li>
+                                    <li><?php echo e(t('fair_import-analysis.note_numeric')); ?></li>
+                                    <li><?php echo e(t('fair_import-analysis.note_draft')); ?></li>
                                 </ul>
                             </div>
                         </div>
@@ -510,22 +510,22 @@ render:
         <!-- Upload Form -- the moment of truth -->
                 <div class="card">
                     <h4 class="card-title">
-                        📤 Upload CSV File
+                        📤 <?php echo e(t('fair_import-analysis.upload_title')); ?>
                     </h4>
 
                         <form method="POST" enctype="multipart/form-data">
                             <input type="hidden" name="csrf_token" value="<?php echo e($security->getCSRFToken()); ?>">
 
                             <div style="margin-bottom: 20px;">
-                                <label for="csv_file" style="display: block; margin-bottom: 8px; font-weight: 500;">Select CSV File</label>
+                                <label for="csv_file" style="display: block; margin-bottom: 8px; font-weight: 500;"><?php echo e(t('fair_import-analysis.select_file')); ?></label>
                                 <input type="file" id="csv_file" name="csv_file"
                                        accept=".csv,text/csv" required
                                        style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; max-width: 500px;">
-                                <div style="margin-top: 5px; font-size: 14px; color: #666;">Upload a CSV file containing your FAIR analysis data</div>
+                                <div style="margin-top: 5px; font-size: 14px; color: #666;"><?php echo e(t('fair_import-analysis.upload_hint')); ?></div>
                             </div>
 
                             <button type="submit" class="btn-primary" style="font-size: 16px;">
-                                📤 Import Analyses
+                                📤 <?php echo e(t('fair_import-analysis.btn_import')); ?>
                             </button>
                         </form>
                 </div>
@@ -534,17 +534,17 @@ render:
         <?php if (!empty($importResults)): ?>
                 <div class="card">
                     <h4 class="card-title">
-                        📊 Import Results
+                        📊 <?php echo e(t('fair_import-analysis.results_title')); ?>
                     </h4>
 
                         <div style="overflow-x: auto;">
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Row</th>
-                                        <th>Vendor Name</th>
-                                        <th>Status</th>
-                                        <th>Message</th>
+                                        <th><?php echo e(t('fair_import-analysis.th_row')); ?></th>
+                                        <th><?php echo e(t('fair_import-analysis.th_vendor_name')); ?></th>
+                                        <th><?php echo e(t('fair_import-analysis.th_status')); ?></th>
+                                        <th><?php echo e(t('fair_import-analysis.th_message')); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -554,9 +554,9 @@ render:
                                         <td><?php echo e($result['vendor']); ?></td>
                                         <td>
                                             <?php if ($result['status'] === 'success'): ?>
-                                                <span class="badge bg-success">Success</span>
+                                                <span class="badge bg-success"><?php echo e(t('fair_import-analysis.badge_success')); ?></span>
                                             <?php else: ?>
-                                                <span class="badge bg-danger">Error</span>
+                                                <span class="badge bg-danger"><?php echo e(t('fair_import-analysis.badge_error')); ?></span>
                                             <?php endif; ?>
                                         </td>
                                         <td><?php echo e($result['message']); ?></td>

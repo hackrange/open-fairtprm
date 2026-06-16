@@ -34,19 +34,19 @@ $assessmentService->initializeTables();
 $uuid = $_GET['token'] ?? '';
 if (empty($uuid)) {
     http_response_code(404);
-    die('Assessment not found. Please check your link and try again.');
+    die(e(t('vendor-assessment.not_found')));
 }
 
 // Look up the assessment by UUID
 $assessment = $assessmentService->getAssessmentByUUID($uuid);
 if (!$assessment) {
     http_response_code(404);
-    die('Assessment not found. Please check your link and try again.');
+    die(e(t('vendor-assessment.not_found')));
 }
 
 // Check if the link has expired -- we don't want vendors filling out stale assessments
 if ($assessmentService->isExpired($assessment)) {
-    die('This assessment link has expired. Please contact the requesting organization for a new link.');
+    die(e(t('vendor-assessment.link_expired')));
 }
 
 // Check if they already submitted this thing. If so, show a "thanks" message.
@@ -855,7 +855,7 @@ if ($translator->canTranslate($assessmentLang)) {
         </div>
         <?php endif; ?>
         <h1><?php echo htmlspecialchars($assessment['template_name']); ?></h1>
-        <p>Vendor: <?php echo htmlspecialchars($assessment['vendor_name']); ?></p>
+        <p><?php echo e(t('vendor-assessment.vendor_label', $assessment['vendor_name'])); ?></p>
     </header>
 
     <div class="container">
@@ -864,11 +864,11 @@ if ($translator->canTranslate($assessmentLang)) {
         <div class="form-card">
             <div class="completed-message">
                 <div class="icon">&#9989;</div>
-                <h2>Assessment Completed</h2>
-                <p>Thank you for completing this assessment. Your responses have been submitted successfully. The requesting organization will review your submission.</p>
+                <h2><?php echo e(t('vendor-assessment.completed_title')); ?></h2>
+                <p><?php echo e(t('vendor-assessment.completed_message')); ?></p>
                 <?php if ($assessment['certificate_uploaded']): ?>
-                <p style="margin-top: 15px; color: #22c55e;"><strong>Certificate uploaded successfully.</strong></p>
-                <p style="margin-top: 10px;"><a href="api/assessment-certificate-download.php?token=<?php echo urlencode($uuid); ?>" class="btn btn-secondary" style="display: inline-block;" target="_blank">Download Certificate</a></p>
+                <p style="margin-top: 15px; color: #22c55e;"><strong><?php echo e(t('vendor-assessment.cert_uploaded_success')); ?></strong></p>
+                <p style="margin-top: 10px;"><a href="api/assessment-certificate-download.php?token=<?php echo urlencode($uuid); ?>" class="btn btn-secondary" style="display: inline-block;" target="_blank"><?php echo e(t('vendor-assessment.download_certificate')); ?></a></p>
                 <?php endif; ?>
             </div>
         </div>
@@ -887,21 +887,21 @@ if ($translator->canTranslate($assessmentLang)) {
                 <input type="hidden" name="token" value="<?php echo htmlspecialchars($uuid); ?>">
                 <input type="hidden" name="section" value="<?php echo (int)$currentSectionIndex; ?>">
                 <?php if ($forceEdit): ?><input type="hidden" name="edit" value="1"><?php endif; ?>
-                <label for="langSelect" style="font-size:13px; color:#555;">&#127760; Language</label>
+                <label for="langSelect" style="font-size:13px; color:#555;">&#127760; <?php echo e(t('vendor-assessment.language')); ?></label>
                 <select id="langSelect" name="lang" style="padding:6px 8px; border:1px solid #ccc; border-radius:6px;">
                     <option value="en" <?php echo $assessmentLang === 'en' ? 'selected' : ''; ?>>English</option>
                     <?php foreach ($pickerLangs as $code): ?>
                     <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $assessmentLang === $code ? 'selected' : ''; ?>><?php echo htmlspecialchars($langNames[$code] ?? $code); ?></option>
                     <?php endforeach; ?>
                 </select>
-                <button type="submit" class="btn btn-secondary" style="padding:6px 12px;">Translate</button>
+                <button type="submit" class="btn btn-secondary" style="padding:6px 12px;"><?php echo e(t('vendor-assessment.translate')); ?></button>
             </form>
         </div>
         <?php endif; ?>
         <!-- Progress bar showing overall completion percentage -->
         <div class="progress-container">
             <div class="progress-header">
-                <h3>Overall Progress</h3>
+                <h3><?php echo e(t('vendor-assessment.overall_progress')); ?></h3>
                 <span class="progress-percentage" style="color: <?php echo $progressColor; ?>"><?php echo $completionStatus['percentage']; ?>%</span>
             </div>
             <div class="progress-bar">
@@ -911,7 +911,7 @@ if ($translator->canTranslate($assessmentLang)) {
 
         <!-- Section navigation -- jump between sections without losing your place -->
         <div class="section-nav">
-            <h3>Sections</h3>
+            <h3><?php echo e(t('vendor-assessment.sections')); ?></h3>
             <div class="section-list">
                 <?php if ($assessment['allow_certificate_upload']): ?>
                 <a href="?token=<?php echo urlencode($uuid); ?>&section=-1"
@@ -919,7 +919,7 @@ if ($translator->canTranslate($assessmentLang)) {
                     <?php if ($assessment['certificate_uploaded']): ?>
                     <span class="check">&#10003;</span>
                     <?php endif; ?>
-                    Upload Certificate
+                    <?php echo e(t('vendor-assessment.upload_certificate')); ?>
                 </a>
                 <?php endif; ?>
 
@@ -944,7 +944,7 @@ if ($translator->canTranslate($assessmentLang)) {
             <?php if ($showCertificateUpload): ?>
             <!-- Certificate upload section -- the "easy way out" for vendors with ISO certs -->
             <div class="certificate-section">
-                <h2>Upload ISO 27001:2022 Certificate</h2>
+                <h2><?php echo e(t('vendor-assessment.upload_iso_title')); ?></h2>
                 <p><?php echo htmlspecialchars($assessment['certificate_upload_prompt']); ?></p>
 
                 <form id="certificateForm" enctype="multipart/form-data">
@@ -955,48 +955,48 @@ if ($translator->canTranslate($assessmentLang)) {
                         <input type="file" name="certificate" id="certificateFile" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
                         <div class="file-upload-icon">&#128196;</div>
                         <div class="file-upload-text">
-                            <strong>Click to upload</strong> or drag and drop<br>
-                            <small>PDF, DOC, JPG, or PNG (max 10MB)</small>
+                            <strong><?php echo e(t('vendor-assessment.click_to_upload')); ?></strong> <?php echo e(t('vendor-assessment.or_drag_drop')); ?><br>
+                            <small><?php echo e(t('vendor-assessment.file_types_hint')); ?></small>
                         </div>
                     </div>
 
                     <div class="question" style="margin-top: 20px; text-align: left;">
-                        <label class="question-label">Certificate Expiry Date</label>
+                        <label class="question-label"><?php echo e(t('vendor-assessment.cert_expiry_date')); ?></label>
                         <input type="date" name="certificate_expiry" id="certExpiry">
                     </div>
 
                     <div class="question" style="margin-top: 16px; text-align: left;">
-                        <label class="question-label">Full Name <span class="required">*</span></label>
+                        <label class="question-label"><?php echo e(t('vendor-assessment.full_name')); ?> <span class="required">*</span></label>
                         <input type="text" name="submitter_name" class="form-control" required autocomplete="name">
                     </div>
                     <div class="question" style="margin-top: 16px; text-align: left;">
-                        <label class="question-label">Title <span class="required">*</span></label>
+                        <label class="question-label"><?php echo e(t('vendor-assessment.title')); ?> <span class="required">*</span></label>
                         <input type="text" name="submitter_title" class="form-control" required autocomplete="organization-title">
                     </div>
                     <div class="question" style="margin-top: 16px; text-align: left;">
-                        <label class="question-label">Email Address <span class="required">*</span></label>
+                        <label class="question-label"><?php echo e(t('vendor-assessment.email_address')); ?> <span class="required">*</span></label>
                         <input type="email" name="submitter_email" class="form-control" required autocomplete="email" value="<?php echo htmlspecialchars(($assessment['vendor_contact_email'] ?? '') ?: ($assessment['vendor_email'] ?? '')); ?>">
                     </div>
                     <div class="question" style="margin-top: 16px; text-align: left;">
-                        <label class="question-label">Phone Number <span class="required">*</span></label>
+                        <label class="question-label"><?php echo e(t('vendor-assessment.phone_number')); ?> <span class="required">*</span></label>
                         <input type="tel" name="submitter_phone" class="form-control" required autocomplete="tel">
                     </div>
                     <label style="display:flex; align-items:flex-start; gap:8px; margin-top:16px; text-align:left; font-size:14px; line-height:1.4;">
                         <input type="checkbox" name="submitter_attested" value="1" required style="margin-top:3px; flex-shrink:0;">
-                        <span>I certify that the information provided is complete and truthful to the best of my knowledge.</span>
+                        <span><?php echo e(t('vendor-assessment.attestation_certify')); ?></span>
                     </label>
 
                     <button type="submit" class="btn btn-success" style="margin-top: 20px;">
-                        Upload Certificate
+                        <?php echo e(t('vendor-assessment.upload_certificate')); ?>
                     </button>
                 </form>
 
                 <div class="or-divider">
-                    <span>OR</span>
+                    <span><?php echo e(t('vendor-assessment.or')); ?></span>
                 </div>
 
                 <a href="?token=<?php echo urlencode($uuid); ?>&section=0" class="btn btn-secondary">
-                    Complete Full Assessment Instead
+                    <?php echo e(t('vendor-assessment.complete_full_assessment')); ?>
                 </a>
             </div>
 
@@ -1083,7 +1083,7 @@ if ($translator->canTranslate($assessmentLang)) {
                     <div class="input-wrapper">
                         <select id="<?php echo $questionId; ?>" name="responses[<?php echo $q['id']; ?>]"
                                 class="autosave-input" data-qid="<?php echo $q['id']; ?>">
-                            <option value="">-- Select --</option>
+                            <option value=""><?php echo e(t('vendor-assessment.select_option')); ?></option>
                             <?php foreach ($q['options'] as $opt): ?>
                             <option value="<?php echo htmlspecialchars($opt); ?>" <?php echo $response === $opt ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars($q['option_labels'][$opt] ?? $opt); ?>
@@ -1168,9 +1168,9 @@ if ($translator->canTranslate($assessmentLang)) {
                             <div class="file-upload-icon">&#128196;</div>
                             <div class="file-upload-text">
                                 <?php if (!empty($responses[$q['id']]['file_path'])): ?>
-                                <strong>File uploaded</strong> - Click to replace
+                                <strong><?php echo e(t('vendor-assessment.file_uploaded')); ?></strong> <?php echo e(t('vendor-assessment.click_to_replace')); ?>
                                 <?php else: ?>
-                                <strong>Click to upload</strong> or drag and drop
+                                <strong><?php echo e(t('vendor-assessment.click_to_upload')); ?></strong> <?php echo e(t('vendor-assessment.or_drag_drop')); ?>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -1185,7 +1185,7 @@ if ($translator->canTranslate($assessmentLang)) {
                     <?php if ($currentSectionIndex > 0 || $assessment['allow_certificate_upload']): ?>
                     <a href="?token=<?php echo urlencode($uuid); ?>&section=<?php echo $currentSectionIndex - 1; ?>"
                        class="btn btn-secondary">
-                        &larr; Previous
+                        &larr; <?php echo e(t('vendor-assessment.previous')); ?>
                     </a>
                     <?php else: ?>
                     <div></div>
@@ -1194,11 +1194,11 @@ if ($translator->canTranslate($assessmentLang)) {
                     <?php if ($currentSectionIndex < count($sections) - 1): ?>
                     <a href="?token=<?php echo urlencode($uuid); ?>&section=<?php echo $currentSectionIndex + 1; ?>"
                        class="btn btn-primary">
-                        Next &rarr;
+                        <?php echo e(t('vendor-assessment.next')); ?> &rarr;
                     </a>
                     <?php else: ?>
                     <button type="button" id="submitAssessment" class="btn btn-success">
-                        Submit Assessment &#10003;
+                        <?php echo e(t('vendor-assessment.submit_assessment')); ?> &#10003;
                     </button>
                     <?php endif; ?>
                 </div>
@@ -1212,12 +1212,12 @@ if ($translator->canTranslate($assessmentLang)) {
     <!-- Certificate upload modal -- shown on first visit to ask if they have an ISO cert -->
     <div class="cert-modal-overlay" id="certModalOverlay">
         <div class="cert-modal">
-            <h2>Do you have an ISO 27001:2022 Certificate?</h2>
-            <p>If your organization holds a valid ISO 27001:2022 certification, you can upload it now to complete this assessment immediately.</p>
+            <h2><?php echo e(t('vendor-assessment.modal_cert_question')); ?></h2>
+            <p><?php echo e(t('vendor-assessment.modal_cert_desc')); ?></p>
 
             <div class="cert-modal-buttons" id="certModalButtons">
-                <button type="button" class="btn btn-success" id="certYesBtn">Yes, Upload Certificate</button>
-                <button type="button" class="btn btn-secondary" id="certNoBtn">No, Complete Assessment</button>
+                <button type="button" class="btn btn-success" id="certYesBtn"><?php echo e(t('vendor-assessment.modal_yes_upload')); ?></button>
+                <button type="button" class="btn btn-secondary" id="certNoBtn"><?php echo e(t('vendor-assessment.modal_no_complete')); ?></button>
             </div>
 
             <div class="cert-modal-upload" id="certModalUpload">
@@ -1229,18 +1229,18 @@ if ($translator->canTranslate($assessmentLang)) {
                         <input type="file" name="certificate" id="modalCertificateFile" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
                         <div class="file-upload-icon">&#128196;</div>
                         <div class="file-upload-text">
-                            <strong>Click to upload</strong> or drag and drop<br>
-                            <small>PDF, DOC, JPG, or PNG (max 10MB)</small>
+                            <strong><?php echo e(t('vendor-assessment.click_to_upload')); ?></strong> <?php echo e(t('vendor-assessment.or_drag_drop')); ?><br>
+                            <small><?php echo e(t('vendor-assessment.file_types_hint')); ?></small>
                         </div>
                     </div>
 
                     <div class="question" style="text-align: left; margin-bottom: 15px;">
-                        <label class="question-label">Certificate Expiry Date (Optional)</label>
+                        <label class="question-label"><?php echo e(t('vendor-assessment.cert_expiry_date_optional')); ?></label>
                         <input type="date" name="certificate_expiry" id="modalCertExpiry" style="width: 100%;">
                     </div>
 
-                    <button type="submit" class="btn btn-success" style="width: 100%;">Upload Certificate</button>
-                    <button type="button" class="btn btn-secondary" id="certBackBtn" style="width: 100%; margin-top: 10px;">Back</button>
+                    <button type="submit" class="btn btn-success" style="width: 100%;"><?php echo e(t('vendor-assessment.upload_certificate')); ?></button>
+                    <button type="button" class="btn btn-secondary" id="certBackBtn" style="width: 100%; margin-top: 10px;"><?php echo e(t('vendor-assessment.back')); ?></button>
                 </form>
             </div>
         </div>
@@ -1256,34 +1256,34 @@ if ($translator->canTranslate($assessmentLang)) {
     <!-- Submit confirmation modal -->
     <div class="incomplete-modal-overlay" id="submitConfirmOverlay">
         <div class="incomplete-modal" style="max-width: 480px;">
-            <h2>Submit Assessment</h2>
-            <p style="color: #666; margin: 0 0 16px 0; font-size: 0.95em;">Please provide your details and confirm the attestation. You will not be able to make changes after submission.</p>
+            <h2><?php echo e(t('vendor-assessment.submit_assessment')); ?></h2>
+            <p style="color: #666; margin: 0 0 16px 0; font-size: 0.95em;"><?php echo e(t('vendor-assessment.submit_modal_desc')); ?></p>
             <div style="text-align:left; display:grid; gap:12px;">
                 <div>
-                    <label for="att_name" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Full Name <span style="color:#ef4444;">*</span></label>
+                    <label for="att_name" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;"><?php echo e(t('vendor-assessment.full_name')); ?> <span style="color:#ef4444;">*</span></label>
                     <input type="text" id="att_name" class="form-control" style="width:100%;" autocomplete="name">
                 </div>
                 <div>
-                    <label for="att_title" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Title <span style="color:#ef4444;">*</span></label>
+                    <label for="att_title" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;"><?php echo e(t('vendor-assessment.title')); ?> <span style="color:#ef4444;">*</span></label>
                     <input type="text" id="att_title" class="form-control" style="width:100%;" autocomplete="organization-title">
                 </div>
                 <div>
-                    <label for="att_email" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Email Address <span style="color:#ef4444;">*</span></label>
+                    <label for="att_email" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;"><?php echo e(t('vendor-assessment.email_address')); ?> <span style="color:#ef4444;">*</span></label>
                     <input type="email" id="att_email" class="form-control" style="width:100%;" autocomplete="email" value="<?php echo htmlspecialchars(($assessment['vendor_contact_email'] ?? '') ?: ($assessment['vendor_email'] ?? '')); ?>">
                 </div>
                 <div>
-                    <label for="att_phone" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Phone Number <span style="color:#ef4444;">*</span></label>
+                    <label for="att_phone" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;"><?php echo e(t('vendor-assessment.phone_number')); ?> <span style="color:#ef4444;">*</span></label>
                     <input type="tel" id="att_phone" class="form-control" style="width:100%;" autocomplete="tel">
                 </div>
                 <label style="display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:1.4;">
                     <input type="checkbox" id="att_agree" style="margin-top:3px; flex-shrink:0;">
-                    <span>I certify that the information provided in this assessment is complete and truthful to the best of my knowledge.</span>
+                    <span><?php echo e(t('vendor-assessment.attestation_certify_assessment')); ?></span>
                 </label>
                 <div id="attError" style="display:none; color:#ef4444; font-size:13px;"></div>
             </div>
             <div class="modal-footer" style="margin-top:18px;">
-                <button type="button" class="btn btn-secondary" id="cancelSubmitBtn">Cancel</button>
-                <button type="button" class="btn btn-success" id="confirmSubmitBtn">Submit</button>
+                <button type="button" class="btn btn-secondary" id="cancelSubmitBtn"><?php echo e(t('vendor-assessment.cancel')); ?></button>
+                <button type="button" class="btn btn-success" id="confirmSubmitBtn"><?php echo e(t('vendor-assessment.submit')); ?></button>
             </div>
         </div>
     </div>
@@ -1291,12 +1291,12 @@ if ($translator->canTranslate($assessmentLang)) {
     <!-- Incomplete questions modal -->
     <div class="incomplete-modal-overlay" id="incompleteModalOverlay">
         <div class="incomplete-modal">
-            <h2>Required Questions Missing</h2>
+            <h2><?php echo e(t('vendor-assessment.required_missing_title')); ?></h2>
             <p class="modal-subtitle" id="incompleteModalSubtitle"></p>
             <div class="modal-body" id="incompleteModalBody"></div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="incompleteModalClose">Close</button>
-                <button type="button" class="btn btn-primary" id="incompleteModalGoFirst">Go to First Question &rarr;</button>
+                <button type="button" class="btn btn-secondary" id="incompleteModalClose"><?php echo e(t('vendor-assessment.close')); ?></button>
+                <button type="button" class="btn btn-primary" id="incompleteModalGoFirst"><?php echo e(t('vendor-assessment.go_to_first_question')); ?> &rarr;</button>
             </div>
         </div>
     </div>

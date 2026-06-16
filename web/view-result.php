@@ -230,19 +230,19 @@ foreach ($analysis as $key => $value) {
                                         <img class="brand-logo-dark" src="app/images/logo-default-418x78.png" alt="" width="209" height="39"/>
                                     </a>
                                     <div style="margin-top: 5px; color: #333; font-size: 16px; font-weight: 500;">
-                                        View Analysis
+                                        <?php echo e(t('view-result.view_analysis')); ?>
                                     </div>
                                 </div>
                             </div>
                             <div style="flex: 1;"></div>
                             <div class="user-menu">
-                                <span style="color: #333;">Welcome, <?php echo e($user['full_name']); ?></span>
-                                <a href="index.php">Dashboard</a>
+                                <span style="color: #333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
+                                <a href="index.php"><?php echo e(t('view-result.dashboard')); ?></a>
                                 <?php if ($auth->isAdmin()): ?>
-                                    <a href="admin.php">Admin</a>
+                                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                                 <?php endif; ?>
-                                <a href="profile.php">Profile</a>
-                                <a href="logout.php">Logout</a>
+                                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
                             </div>
                         </div>
                     </div>
@@ -254,46 +254,46 @@ foreach ($analysis as $key => $value) {
             <div class="container" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;" class="no-print">
                     <div>
-                        <h1 class="page-title" style="margin: 0;">FAIR Analysis</h1>
-                        <p style="color: #666; margin: 5px 0 0 0;">Vendor: <?php echo e($analysis['vendor_name']); ?></p>
+                        <h1 class="page-title" style="margin: 0;"><?php echo e(t('view-result.fair_analysis')); ?></h1>
+                        <p style="color: #666; margin: 5px 0 0 0;"><?php echo e(t('view-result.vendor')); ?> <?php echo e($analysis['vendor_name']); ?></p>
                     </div>
                     <div>
-                        <a href="fair-analysis.php?id=<?php echo $analysisId; ?>" class="btn btn-primary">Edit</a>
-                        <a href="download-pdf.php?id=<?php echo $analysisId; ?>" class="btn btn-primary" style="background: #28a745;" target="_blank">📄 Download PDF</a>
-                        <button type="button" class="btn print-btn" data-print>Print</button>
-                        <a href="fair_results.php" class="btn btn-secondary">Back to Results</a>
+                        <a href="fair-analysis.php?id=<?php echo $analysisId; ?>" class="btn btn-primary"><?php echo e(t('view-result.edit')); ?></a>
+                        <a href="download-pdf.php?id=<?php echo $analysisId; ?>" class="btn btn-primary" style="background: #28a745;" target="_blank">📄 <?php echo e(t('view-result.download_pdf')); ?></a>
+                        <button type="button" class="btn print-btn" data-print><?php echo e(t('view-result.print')); ?></button>
+                        <a href="fair_results.php" class="btn btn-secondary"><?php echo e(t('view-result.back_to_results')); ?></a>
                     </div>
                 </div>
 
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <strong>Status:</strong>
+                            <strong><?php echo e(t('view-result.status')); ?></strong>
                             <span class="status-badge status-<?php echo e($analysis['status']); ?>">
                                 <?php echo ucfirst($analysis['status']); ?>
                             </span>
                         </div>
                         <div>
-                            <strong>Created:</strong> <?php echo date('M d, Y H:i', strtotime($analysis['created_at'])); ?>
+                            <strong><?php echo e(t('view-result.created')); ?></strong> <?php echo date('M d, Y H:i', strtotime($analysis['created_at'])); ?>
                         </div>
                         <div>
-                            <strong>Last Updated:</strong> <?php echo date('M d, Y H:i', strtotime($analysis['updated_at'])); ?>
+                            <strong><?php echo e(t('view-result.last_updated')); ?></strong> <?php echo date('M d, Y H:i', strtotime($analysis['updated_at'])); ?>
                         </div>
                     </div>
                 </div>
 
                 <!-- Vendor Information Section -->
                 <div class="section-header">
-                    <h3>Vendor Information</h3>
+                    <h3><?php echo e(t('view-result.vendor_information')); ?></h3>
                 </div>
                 <div class="section-content">
                     <div class="field-row">
-                        <div class="field-label">Vendor Name</div>
+                        <div class="field-label"><?php echo e(t('view-result.vendor_name')); ?></div>
                         <div class="field-value"><?php echo e($analysis['vendor_name'] ?? 'N/A'); ?></div>
                     </div>
                     <?php if (!empty($analysis['vendor_domain'])): ?>
                     <div class="field-row">
-                        <div class="field-label">Vendor Domain</div>
+                        <div class="field-label"><?php echo e(t('view-result.vendor_domain')); ?></div>
                         <div class="field-value"><?php echo e($analysis['vendor_domain']); ?></div>
                     </div>
                     <?php endif; ?>
@@ -301,7 +301,7 @@ foreach ($analysis as $key => $value) {
 
                 <!-- Cyber Security Section -->
                 <div class="section-header">
-                    <h3>Cyber Security</h3>
+                    <h3><?php echo e(t('view-result.cyber_security')); ?></h3>
                 </div>
                 <div class="section-content">
                     <?php
@@ -330,7 +330,7 @@ foreach ($analysis as $key => $value) {
                         <div class="field-row">
                             <div class="field-label"><?php echo e($label); ?></div>
                             <div class="field-value <?php echo empty($value) ? 'empty-value' : ''; ?>">
-                                <?php echo !empty($value) ? e($value) : 'No data provided'; ?>
+                                <?php echo !empty($value) ? e($value) : e(t('view-result.no_data_provided')); ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -338,12 +338,12 @@ foreach ($analysis as $key => $value) {
 
                 <!-- Vendor Risk Section -->
                 <div class="section-header">
-                    <h3>Vendor Risk</h3>
+                    <h3><?php echo e(t('view-result.vendor_risk')); ?></h3>
                 </div>
                 <div class="section-content">
                     <!-- Security Score (Not Encrypted) -->
                     <div class="field-row">
-                        <div class="field-label">Security Score</div>
+                        <div class="field-label"><?php echo e(t('view-result.security_score')); ?></div>
                         <div class="field-value <?php echo empty($analysis['security_score']) ? 'empty-value' : ''; ?>">
                             <?php
                             if (!empty($analysis['security_score'])) {
@@ -378,14 +378,14 @@ foreach ($analysis as $key => $value) {
                         <div class="field-row">
                             <div class="field-label"><?php echo e($label); ?></div>
                             <div class="field-value <?php echo empty($value) ? 'empty-value' : ''; ?>">
-                                <?php echo !empty($value) ? e($value) : 'No data provided'; ?>
+                                <?php echo !empty($value) ? e($value) : e(t('view-result.no_data_provided')); ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
 
                     <!-- ISO 27001 Certification -->
                     <div class="field-row">
-                        <div class="field-label">ISO 27001 Certification</div>
+                        <div class="field-label"><?php echo e(t('view-result.iso_27001_certification')); ?></div>
                         <div class="field-value">
                             <?php
                             if (isset($analysis['iso_27001_certified']) && $analysis['iso_27001_certified']) {
@@ -401,7 +401,7 @@ foreach ($analysis as $key => $value) {
 
                 <!-- SRS Input Section -->
                 <div class="section-header">
-                    <h3>SRS Input</h3>
+                    <h3><?php echo e(t('view-result.srs_input')); ?></h3>
                 </div>
                 <div class="section-content">
                     <?php
@@ -421,7 +421,7 @@ foreach ($analysis as $key => $value) {
                         <div class="field-row">
                             <div class="field-label"><?php echo e($label); ?></div>
                             <div class="field-value <?php echo empty($value) ? 'empty-value' : ''; ?>">
-                                <?php echo !empty($value) ? e($value) : 'No data provided'; ?>
+                                <?php echo !empty($value) ? e($value) : e(t('view-result.no_data_provided')); ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -429,7 +429,7 @@ foreach ($analysis as $key => $value) {
 
                 <!-- Vendor's Third-Party Vendors Section -->
                 <div class="section-header">
-                    <h3>Vendor's Third-Party Vendors</h3>
+                    <h3><?php echo e(t('view-result.third_party_vendors')); ?></h3>
                 </div>
                 <div class="section-content">
                     <?php
@@ -446,7 +446,7 @@ foreach ($analysis as $key => $value) {
                         <div class="field-row">
                             <div class="field-label"><?php echo e($label); ?></div>
                             <div class="field-value <?php echo empty($value) ? 'empty-value' : ''; ?>">
-                                <?php echo !empty($value) ? e($value) : 'No data provided'; ?>
+                                <?php echo !empty($value) ? e($value) : e(t('view-result.no_data_provided')); ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -454,7 +454,7 @@ foreach ($analysis as $key => $value) {
 
                 <!-- Cost and Financial Information Section -->
                 <div class="section-header">
-                    <h3>Cost and Financial Information</h3>
+                    <h3><?php echo e(t('view-result.cost_financial_info')); ?></h3>
                 </div>
                 <div class="section-content">
                     <?php
@@ -472,7 +472,7 @@ foreach ($analysis as $key => $value) {
                         <div class="field-row">
                             <div class="field-label"><?php echo e($label); ?></div>
                             <div class="field-value <?php echo empty($value) ? 'empty-value' : ''; ?>">
-                                <?php echo !empty($value) ? e($value) : 'No data provided'; ?>
+                                <?php echo !empty($value) ? e($value) : e(t('view-result.no_data_provided')); ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -481,8 +481,8 @@ foreach ($analysis as $key => $value) {
                 <!-- FAIR Analysis Results Section -->
                 <?php if (!empty($analysis['ale']) || !empty($analysis['loss_event_frequency'])): ?>
                     <div class="section-header" style="margin-top: 30px; background: linear-gradient(135deg, #ff6543 0%, #ffc211 100%); color: white; padding: 15px 20px; border-radius: 8px;">
-                        <h3 style="margin: 0; color: white;">📊 FAIR Risk Analysis Results</h3>
-                        <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Quantified risk assessment based on FAIR methodology</p>
+                        <h3 style="margin: 0; color: white;">📊 <?php echo e(t('view-result.fair_results_title')); ?></h3>
+                        <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;"><?php echo e(t('view-result.fair_results_subtitle')); ?></p>
                     </div>
                     <div class="section-content" style="background: #f8f9fa; padding: 25px; border-radius: 8px; margin-top: 10px;">
                         <?php
@@ -535,7 +535,7 @@ foreach ($analysis as $key => $value) {
                         <?php endforeach; ?>
 
                         <div style="margin-top: 25px; padding: 15px; background: white; border-radius: 6px; border: 2px solid #ff6543;">
-                            <h4 style="margin: 0 0 10px 0; color: #ff6543;">💡 FAIR Methodology</h4>
+                            <h4 style="margin: 0 0 10px 0; color: #ff6543;">💡 <?php echo e(t('view-result.fair_methodology')); ?></h4>
                             <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #666;">
                                 <strong>Risk = Loss Event Frequency (LEF) × Loss Magnitude (LM)</strong><br>
                                 • LEF = Threat Event Frequency × Vulnerability (probability of successful attack)<br>
@@ -549,7 +549,7 @@ foreach ($analysis as $key => $value) {
                 <?php endif; ?>
 
                 <div style="margin-top: 30px;" class="no-print">
-                    <a href="fair_results.php" style="color: #ff6543; text-decoration: none;">&larr; Back to Results</a>
+                    <a href="fair_results.php" style="color: #ff6543; text-decoration: none;">&larr; <?php echo e(t('view-result.back_to_results')); ?></a>
                 </div>
             </div>
         </div>
@@ -563,7 +563,7 @@ foreach ($analysis as $key => $value) {
                                 <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                                 <span class="copyright-year"><?php echo date('Y'); ?></span>
                                 <span>.&nbsp;</span>
-                                <span>All Rights Reserved</span>
+                                <span><?php echo e(t('view-result.all_rights_reserved')); ?></span>
                             </p>
                         </div>
                     </div>

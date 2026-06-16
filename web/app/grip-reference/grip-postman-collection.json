@@ -2,7 +2,7 @@
   "info": {
     "name": "Grip Security Public API (FairTPRM Reference)",
     "_postman_id": "f9af6c7d-3a30-4ff0-b1a0-fairtprm-grip",
-    "description": "Reverse-engineered reference for the Grip Security public SaaS API used by the FairTPRM Shadow SaaS integration. Set the `tenant` and `accessToken` collection variables before sending requests. Confirmed against https://hr.dep.grip.security/public.",
+    "description": "Reverse-engineered reference for the Grip Security public SaaS API used by the FairTPRM Shadow SaaS integration. Set the `tenant` and `accessToken` collection variables before sending requests. Confirmed against https://tenant.dep.grip.security/public.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {

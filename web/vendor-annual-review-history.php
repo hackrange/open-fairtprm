@@ -34,7 +34,7 @@ $canReadAssigned = $acl->hasPermission('annual_review.read_assigned');
 
 if (!$canReadAll && !$canReadAssigned) {
     http_response_code(403);
-    die('Access denied.');
+    die(e(t('vendor-annual-review-history.access_denied')));
 }
 
 // Grab the vendor request ID from the URL -- no ID means something went wrong
@@ -285,18 +285,18 @@ $reviews = $db->fetchAll(
 <body>
     <div class="container">
         <!-- Back link -- the exit from the time machine -->
-        <a href="vendor-annual-reviews-list.php" class="back-link">&larr; Back to Annual Reviews</a>
+        <a href="vendor-annual-reviews-list.php" class="back-link">&larr; <?php echo e(t('vendor-annual-review-history.back')); ?></a>
 
         <div class="page-header">
-            <h1 class="page-title">Review History</h1>
+            <h1 class="page-title"><?php echo e(t('vendor-annual-review-history.heading')); ?></h1>
             <p class="page-subtitle"><?= htmlspecialchars($request['vendor_name']) ?></p>
         </div>
 
         <?php if (empty($reviews)): ?>
             <!-- No reviews yet -- the vendor has a clean slate -->
             <div class="empty-state">
-                <h3>No Reviews Yet</h3>
-                <p>This vendor has not been reviewed yet.</p>
+                <h3><?php echo e(t('vendor-annual-review-history.no_reviews')); ?></h3>
+                <p><?php echo e(t('vendor-annual-review-history.no_reviews_desc')); ?></p>
             </div>
         <?php else: ?>
             <!-- The timeline of reviews, newest first -->
@@ -325,17 +325,17 @@ $reviews = $db->fetchAll(
                                 </div>
                             </div>
                             <span class="review-badge <?= $isLate ? 'badge-late' : 'badge-on-time' ?>">
-                                <?= $isLate ? 'Late' : 'On Time' ?>
+                                <?= $isLate ? e(t('vendor-annual-review-history.badge_late')) : e(t('vendor-annual-review-history.badge_on_time')) ?>
                             </span>
                         </div>
 
                         <div class="review-body">
                             <!-- Stakeholder status -- confirmed or reassigned -->
                             <div class="review-section">
-                                <div class="section-label">Stakeholder Status</div>
+                                <div class="section-label"><?php echo e(t('vendor-annual-review-history.stakeholder_status')); ?></div>
                                 <div class="section-value">
                                     <?php if ($review['is_still_stakeholder'] === 'yes'): ?>
-                                        ✓ Confirmed as current stakeholder
+                                        ✓ <?php echo e(t('vendor-annual-review-history.confirmed_stakeholder')); ?>
                                     <?php else: ?>
                                         ↻ Reassigned to <?= htmlspecialchars($review['new_stakeholder_name'] ?? 'Unknown') ?>
                                     <?php endif; ?>
@@ -345,7 +345,7 @@ $reviews = $db->fetchAll(
                             <!-- Scope changes -- what changed with the vendor's services -->
                             <?php if (!empty($review['scope_changes'])): ?>
                                 <div class="review-section">
-                                    <div class="section-label">Scope Changes</div>
+                                    <div class="section-label"><?php echo e(t('vendor-annual-review-history.scope_changes')); ?></div>
                                     <div class="section-value">
                                         <?= nl2br(htmlspecialchars($review['scope_changes'])) ?>
                                     </div>
@@ -355,11 +355,11 @@ $reviews = $db->fetchAll(
                             <!-- Contact info updates -- if any fields were changed during the review -->
                             <?php if ($contactUpdates && is_array($contactUpdates)): ?>
                                 <div class="review-section">
-                                    <div class="section-label">Contact Information Updated</div>
+                                    <div class="section-label"><?php echo e(t('vendor-annual-review-history.contact_updated')); ?></div>
                                     <div class="contact-grid">
                                         <?php if (!empty($contactUpdates['contact_name'])): ?>
                                             <div class="contact-item">
-                                                <div class="contact-label">Name</div>
+                                                <div class="contact-label"><?php echo e(t('vendor-annual-review-history.contact_name')); ?></div>
                                                 <div class="contact-value">
                                                     <?= htmlspecialchars($contactUpdates['contact_name']) ?>
                                                 </div>
@@ -367,7 +367,7 @@ $reviews = $db->fetchAll(
                                         <?php endif; ?>
                                         <?php if (!empty($contactUpdates['contact_email'])): ?>
                                             <div class="contact-item">
-                                                <div class="contact-label">Email</div>
+                                                <div class="contact-label"><?php echo e(t('vendor-annual-review-history.contact_email')); ?></div>
                                                 <div class="contact-value">
                                                     <?= htmlspecialchars($contactUpdates['contact_email']) ?>
                                                 </div>
@@ -375,7 +375,7 @@ $reviews = $db->fetchAll(
                                         <?php endif; ?>
                                         <?php if (!empty($contactUpdates['contact_phone'])): ?>
                                             <div class="contact-item">
-                                                <div class="contact-label">Phone</div>
+                                                <div class="contact-label"><?php echo e(t('vendor-annual-review-history.contact_phone')); ?></div>
                                                 <div class="contact-value">
                                                     <?= htmlspecialchars($contactUpdates['contact_phone']) ?>
                                                 </div>
@@ -388,7 +388,7 @@ $reviews = $db->fetchAll(
                             <!-- Additional reviewer notes -- free-form comments -->
                             <?php if (!empty($review['review_notes'])): ?>
                                 <div class="review-section">
-                                    <div class="section-label">Additional Notes</div>
+                                    <div class="section-label"><?php echo e(t('vendor-annual-review-history.additional_notes')); ?></div>
                                     <div class="section-value">
                                         <?= nl2br(htmlspecialchars($review['review_notes'])) ?>
                                     </div>

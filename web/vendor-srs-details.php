@@ -52,7 +52,7 @@ if (!$canView) {
 
 if (!$canView) {
     http_response_code(403);
-    die('Access denied.');
+    die(e(t('vendor-srs-details.access_denied')));
 }
 
 $canDelete = !$isStakeholderView && ($acl->hasPermission('onboarding.delete') || $acl->hasGroup('administrator') || $acl->hasGroup('cyber_tprm'));
@@ -1265,14 +1265,14 @@ $csrfToken = $security->generateCSRFToken();
         <?php renderImpersonationBanner(); ?>
 
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($acl->hasGroup('administrator')): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                     <a href="admin.php?section=srs" class="btn-configure">Configure SRS</a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -1280,12 +1280,12 @@ $csrfToken = $security->generateCSRFToken();
             <?php $currentPage = 'srs'; include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
             <main class="main-content">
-        <a href="<?php echo e($backUrl); ?>" class="back-link">&larr; Back to <?php echo e($backTitle); ?></a>
+        <a href="<?php echo e($backUrl); ?>" class="back-link">&larr; <?php echo e(t('vendor-srs-details.back_to', $backTitle)); ?></a>
 
         <!-- Page Header Row -->
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
             <div>
-                <h1 class="page-title" style="margin: 0 0 10px 0;">Security Rating Service (SRS)</h1>
+                <h1 class="page-title" style="margin: 0 0 10px 0;"><?php echo e(t('vendor-srs-details.heading')); ?></h1>
                 <div class="subtitle">
                     <?php echo e($vendor['vendor_name'] ?? 'Unknown Vendor'); ?>
                     <?php if (!empty($vendor['vendor_domain'])): ?>
@@ -1308,7 +1308,7 @@ $csrfToken = $security->generateCSRFToken();
                 <input
                     type="text"
                     id="vendorSearchInput"
-                    placeholder="Search vendors, domains, stakeholders..."
+                    placeholder="<?php echo e(t('vendor-srs-details.search_placeholder')); ?>"
                     style="width: 100%; padding: 10px 40px 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;"
                     class="focus-ring"
                 >
@@ -1359,7 +1359,7 @@ $csrfToken = $security->generateCSRFToken();
                 <?php if (!$isProcessing && !$isStakeholderView): ?>
                 <form method="POST" style="margin-left: auto;">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                    <button type="submit" name="cancel_rescore" id="cancelRescoreBtn" class="btn" style="padding: 4px 12px; font-size: 12px; background: #fff; color: #dc2626; border: 1px solid #fca5a5; border-radius: 4px; cursor: pointer;">Cancel</button>
+                    <button type="submit" name="cancel_rescore" id="cancelRescoreBtn" class="btn" style="padding: 4px 12px; font-size: 12px; background: #fff; color: #dc2626; border: 1px solid #fca5a5; border-radius: 4px; cursor: pointer;"><?php echo e(t('vendor-srs-details.cancel')); ?></button>
                 </form>
                 <?php endif; ?>
             </div>
@@ -1396,7 +1396,7 @@ $csrfToken = $security->generateCSRFToken();
                     <form method="POST">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <button type="submit" name="rescore" style="display: block; width: 100%; padding: 8px 14px; border: none; background: none; text-align: left; cursor: pointer; font-size: 13px; color: #374151; border-bottom: 1px solid #f3f4f6;" class="hover-bg-gray">
-                            Score All
+                            <?php echo e(t('vendor-srs-details.score_all')); ?>
                         </button>
                         <button type="submit" name="rescore_upguard" style="display: block; width: 100%; padding: 8px 14px; border: none; background: none; text-align: left; cursor: pointer; font-size: 13px; color: #374151; border-bottom: 1px solid #f3f4f6;" class="hover-bg-gray">
                             <?php echo e($upguardName); ?>
@@ -1417,37 +1417,37 @@ $csrfToken = $security->generateCSRFToken();
             <?php endif; ?>
             <?php if ($fairAnalysis): ?>
                 <a href="download-pdf.php?id=<?php echo intval($fairAnalysis['id']); ?>" class="btn btn-secondary" target="_blank">
-                    <img src="app/icons/bar-chart-square-02.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Review FAIR Assessment
+                    <img src="app/icons/bar-chart-square-02.svg" alt="" width="16" height="16" style="vertical-align: middle;"> <?php echo e(t('vendor-srs-details.review_fair')); ?>
                 </a>
             <?php elseif (!$isAuditor): ?>
                 <a href="fair-analysis.php?from_onboarding=<?php echo $vendorId; ?>" class="btn btn-secondary">
-                    <img src="app/icons/plus-square.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Create FAIR Assessment
+                    <img src="app/icons/plus-square.svg" alt="" width="16" height="16" style="vertical-align: middle;"> <?php echo e(t('vendor-srs-details.create_fair')); ?>
                 </a>
             <?php endif; ?>
             <?php if ($aiEnabled && ($latestScore || $shodanLatestScore)): ?>
                 <button type="button" class="btn btn-secondary" data-action="generateExecSummary" id="execSummaryBtn">
-                    <img src="app/icons/file-check-02.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Executive Summary
+                    <img src="app/icons/file-check-02.svg" alt="" width="16" height="16" style="vertical-align: middle;"> <?php echo e(t('vendor-srs-details.executive_summary')); ?>
                 </button>
             <?php endif; ?>
             <?php endif; ?>
             <?php if ($latestScore || $shodanLatestScore): ?>
                 <a href="vendor-detailed-summary.php?id=<?php echo $vendorId; ?>" class="btn btn-secondary" target="_blank">
-                    <img src="app/icons/file-06.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Detailed Summary
+                    <img src="app/icons/file-06.svg" alt="" width="16" height="16" style="vertical-align: middle;"> <?php echo e(t('vendor-srs-details.detailed_summary')); ?>
                 </a>
                 <button type="button" data-action="exportRawData" class="btn btn-secondary" style="margin-left: 4px;">
-                    <img src="app/icons/dataflow-02.svg" alt="" width="14" height="14" style="vertical-align: middle;"> Export Raw Data
+                    <img src="app/icons/dataflow-02.svg" alt="" width="14" height="14" style="vertical-align: middle;"> <?php echo e(t('vendor-srs-details.export_raw_data')); ?>
                 </button>
             <?php endif; ?>
             <?php if (!$isStakeholderView && !$isAuditor): ?>
                 <a href="vendor-assessments.php?link_vendor=<?php echo (int)$vendorId; ?>" class="btn btn-secondary">
-                    <img src="app/icons/mail-01.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Send Assessment
+                    <img src="app/icons/mail-01.svg" alt="" width="16" height="16" style="vertical-align: middle;"> <?php echo e(t('vendor-srs-details.send_assessment')); ?>
                 </a>
             <?php if ($canDelete && ($latestScore || $shodanLatestScore)): ?>
                 <form id="clearScoreHistoryForm" method="POST" style="display: inline;">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="clear_score_history" value="1">
                     <button type="button" class="btn btn-secondary" data-action="clearScoreHistory" style="margin-left: 4px;">
-                        <img src="app/icons/trash-01.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Clear Score History
+                        <img src="app/icons/trash-01.svg" alt="" width="16" height="16" style="vertical-align: middle;"> <?php echo e(t('vendor-srs-details.clear_score_history')); ?>
                     </button>
                 </form>
             <?php endif; ?>
@@ -1456,7 +1456,7 @@ $csrfToken = $security->generateCSRFToken();
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="delete_vendor" value="1">
                     <button type="button" class="btn btn-danger" data-action="deleteVendor">
-                        <img src="app/icons/trash-01.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Delete Vendor
+                        <img src="app/icons/trash-01.svg" alt="" width="16" height="16" style="vertical-align: middle;"> <?php echo e(t('vendor-srs-details.delete_vendor')); ?>
                     </button>
                 </form>
             <?php endif; ?>
@@ -1515,7 +1515,7 @@ $csrfToken = $security->generateCSRFToken();
                     if (!empty($categoryScores)):
                     ?>
                     <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
-                        <h4 style="font-size: 11px; color: #666; margin: 0 0 8px 0; font-weight: 600;">Category Scores</h4>
+                        <h4 style="font-size: 11px; color: #666; margin: 0 0 8px 0; font-weight: 600;"><?php echo e(t('vendor-srs-details.category_scores')); ?></h4>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 6px;">
                             <?php foreach ($categoryScores as $category => $catScore): ?>
                                 <?php
@@ -1604,7 +1604,7 @@ $csrfToken = $security->generateCSRFToken();
                         }
                     ?>
                     <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid #f0f0f0;">
-                        <h4 style="font-size: 12px; color: #666; margin: 0 0 10px 0; font-weight: 600;">Category Scores</h4>
+                        <h4 style="font-size: 12px; color: #666; margin: 0 0 10px 0; font-weight: 600;"><?php echo e(t('vendor-srs-details.category_scores')); ?></h4>
                         <?php foreach ($shodanCategoryScores as $catKey => $catScore):
                             $catScoreInt = intval($catScore);
                             $barColor = '#6b7280';
@@ -1731,7 +1731,7 @@ $csrfToken = $security->generateCSRFToken();
                 ?>
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h3 style="margin: 0;">Custom Score</h3>
+                        <h3 style="margin: 0;"><?php echo e(t('vendor-srs-details.custom_score')); ?></h3>
                     </div>
                     <?php if ($customScore !== null && (int)$customScore > 0): ?>
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
@@ -1749,12 +1749,12 @@ $csrfToken = $security->generateCSRFToken();
                         <input type="hidden" name="_scroll" value="0" class="scroll-tracker">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <input type="number" name="custom_score" min="1" max="100" class="form-control" style="width: 100px;" value="<?php echo $customScore !== null ? (int)$customScore : ''; ?>" placeholder="1-100">
-                            <button type="submit" name="update_custom_score" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px;">Save</button>
+                            <button type="submit" name="update_custom_score" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px;"><?php echo e(t('vendor-srs-details.save')); ?></button>
                             <?php if ($customScore !== null): ?>
-                            <button type="submit" name="update_custom_score" class="btn btn-secondary" style="padding: 6px 14px; font-size: 12px;" onclick="this.form.querySelector('input[name=custom_score]').value='null';">Un-Score</button>
+                            <button type="submit" name="update_custom_score" class="btn btn-secondary" style="padding: 6px 14px; font-size: 12px;" onclick="this.form.querySelector('input[name=custom_score]').value='null';"><?php echo e(t('vendor-srs-details.un_score')); ?></button>
                             <?php endif; ?>
                         </div>
-                        <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">Enter a score between 1-100 from your external security rating tool.</div>
+                        <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;"><?php echo e(t('vendor-srs-details.custom_score_hint')); ?></div>
                     </form>
                     <?php endif; ?>
                 </div>
@@ -1776,7 +1776,7 @@ $csrfToken = $security->generateCSRFToken();
                     if (!empty($vendor['custom_score']) && (int)$vendor['custom_score'] > 0) $sources[] = 'Custom';
                 ?>
                 <div class="card" style="background: linear-gradient(135deg, #f8fafc 0%, #f0f4ff 100%); border: 1px solid #c7d2fe;">
-                    <h3 style="margin: 0 0 12px 0;">Combined SRS Score</h3>
+                    <h3 style="margin: 0 0 12px 0;"><?php echo e(t('vendor-srs-details.combined_srs_score')); ?></h3>
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
                         <span style="font-size: 36px; font-weight: 700; color: #1f2937;"><?php echo $combScore; ?>%</span>
                         <span style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; font-weight: 700; font-size: 18px; background: <?php echo $combBg; ?>; color: <?php echo $combColor; ?>;"><?php echo $combGrade; ?></span>
@@ -1787,65 +1787,65 @@ $csrfToken = $security->generateCSRFToken();
 
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3 style="margin: 0;">Vendor Information</h3>
-                        <a href="vendor-onboarding.php?id=<?php echo $vendorId; ?>" class="btn btn-secondary" style="padding: 5px 14px; font-size: 12px; text-decoration: none;">View</a>
+                        <h3 style="margin: 0;"><?php echo e(t('vendor-srs-details.vendor_information')); ?></h3>
+                        <a href="vendor-onboarding.php?id=<?php echo $vendorId; ?>" class="btn btn-secondary" style="padding: 5px 14px; font-size: 12px; text-decoration: none;"><?php echo e(t('vendor-srs-details.view')); ?></a>
                     </div>
                     <div class="info-grid" style="margin-top: 12px;">
                         <div class="info-item">
-                            <label>Vendor Name</label>
+                            <label><?php echo e(t('vendor-srs-details.lbl_vendor_name')); ?></label>
                             <div class="value">
                                 <?php echo e($vendor['vendor_name'] ?? 'Not specified'); ?>
-                                <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openVendorNameModal" style="margin-left: 8px; color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="Edit vendor name">Edit</a><?php endif; ?>
+                                <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openVendorNameModal" style="margin-left: 8px; color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="<?php echo e(t('vendor-srs-details.edit_vendor_name')); ?>"><?php echo e(t('vendor-srs-details.edit')); ?></a><?php endif; ?>
                             </div>
                         </div>
                         <div class="info-item">
-                            <label>Domain</label>
+                            <label><?php echo e(t('vendor-srs-details.lbl_domain')); ?></label>
                             <div class="value"><?php echo e($vendor['vendor_domain'] ?? 'Not specified'); ?></div>
                         </div>
                         <div class="info-item">
-                            <label>Vendor Tier</label>
+                            <label><?php echo e(t('vendor-srs-details.lbl_vendor_tier')); ?></label>
                             <div class="value">
                                 <?php if (!empty($vendor['vendor_tier'])): ?>
                                     <?php echo e($srsService->getTierDisplayName($vendor['vendor_tier'])); ?>
                                 <?php else: ?>
-                                    <span style="color: #dc3545; font-weight: 600;">NOT TIERED YET</span>
+                                    <span style="color: #dc3545; font-weight: 600;"><?php echo e(t('vendor-srs-details.not_tiered_yet')); ?></span>
                                 <?php endif; ?>
-                                <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openTierModal" style="margin-left: 8px; color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="Edit vendor tier">Edit</a><?php endif; ?>
+                                <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openTierModal" style="margin-left: 8px; color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="<?php echo e(t('vendor-srs-details.edit_vendor_tier')); ?>"><?php echo e(t('vendor-srs-details.edit')); ?></a><?php endif; ?>
                             </div>
                         </div>
                         <div class="info-item">
-                            <label>Rescore Schedule</label>
+                            <label><?php echo e(t('vendor-srs-details.lbl_rescore_schedule')); ?></label>
                             <div class="value">
                                 <?php if (!empty($vendor['vendor_tier'])): ?>
                                     <?php echo e($srsService->getTierIntervalDescription($vendor['vendor_tier'])); ?>
                                 <?php else: ?>
-                                    <span style="color: #999;">No automatic rescoring</span>
+                                    <span style="color: #999;"><?php echo e(t('vendor-srs-details.no_auto_rescore')); ?></span>
                                 <?php endif; ?>
                             </div>
                         </div>
                         <div class="info-item">
-                            <label>Vendor Type</label>
+                            <label><?php echo e(t('vendor-srs-details.lbl_vendor_type')); ?></label>
                             <div class="value">
                                 <?php echo e($vendor['vendor_type'] ?? 'Not specified'); ?>
-                                <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openVendorTypeModal" style="margin-left: 8px; color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="Edit vendor type">Edit</a><?php endif; ?>
+                                <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openVendorTypeModal" style="margin-left: 8px; color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="<?php echo e(t('vendor-srs-details.edit_vendor_type')); ?>"><?php echo e(t('vendor-srs-details.edit')); ?></a><?php endif; ?>
                             </div>
                         </div>
                         <div class="info-item">
-                            <label>Status</label>
+                            <label><?php echo e(t('vendor-srs-details.lbl_status')); ?></label>
                             <div class="value">
                                 <?php echo e(ucfirst(str_replace('_', ' ', $vendor['status'] ?? 'Unknown'))); ?>
-                                <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openStatusModal" style="margin-left: 8px; color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="Edit vendor status">Edit</a><?php endif; ?>
+                                <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openStatusModal" style="margin-left: 8px; color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="<?php echo e(t('vendor-srs-details.edit_vendor_status')); ?>"><?php echo e(t('vendor-srs-details.edit')); ?></a><?php endif; ?>
                             </div>
                         </div>
                         <div class="info-item">
-                            <label>Stakeholder</label>
+                            <label><?php echo e(t('vendor-srs-details.lbl_stakeholder')); ?></label>
                             <div class="value">
                                 <?php if ($assignedStakeholder): ?>
                                     <?php echo e($assignedStakeholder['full_name'] ?? $assignedStakeholder['username']); ?>
                                 <?php else: ?>
-                                    <span style="color: #999;">Not assigned</span>
+                                    <span style="color: #999;"><?php echo e(t('vendor-srs-details.not_assigned')); ?></span>
                                 <?php endif; ?>
-                                <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openStakeholderModal" style="margin-left: 8px; color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="Edit stakeholder">Edit</a><?php endif; ?>
+                                <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openStakeholderModal" style="margin-left: 8px; color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="<?php echo e(t('vendor-srs-details.edit_stakeholder')); ?>"><?php echo e(t('vendor-srs-details.edit')); ?></a><?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -1853,29 +1853,29 @@ $csrfToken = $security->generateCSRFToken();
                     <?php if (true): // Contact Information - always show ?>
                     <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h4 style="font-size: 14px; color: #666; margin: 0 0 10px 0;">Contact Information</h4>
-                            <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openContactModal" style="color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="Edit contact information">Edit</a><?php endif; ?>
+                            <h4 style="font-size: 14px; color: #666; margin: 0 0 10px 0;"><?php echo e(t('vendor-srs-details.contact_information')); ?></h4>
+                            <?php if (!$isStakeholderView && !$isAuditor): ?><a href="#" data-action="openContactModal" style="color: var(--theme-header-color); text-decoration: none; font-size: 12px; font-weight: 500;" title="<?php echo e(t('vendor-srs-details.edit_contact')); ?>"><?php echo e(t('vendor-srs-details.edit')); ?></a><?php endif; ?>
                         </div>
                         <div class="info-grid">
                             <div class="info-item">
-                                <label>Primary Contact</label>
-                                <div class="value"><?php echo e($vendor['primary_contact_details'] ?? ''); ?><?php if (empty($vendor['primary_contact_details'])): ?><span style="color: #999;">Not specified</span><?php endif; ?></div>
+                                <label><?php echo e(t('vendor-srs-details.lbl_primary_contact')); ?></label>
+                                <div class="value"><?php echo e($vendor['primary_contact_details'] ?? ''); ?><?php if (empty($vendor['primary_contact_details'])): ?><span style="color: #999;"><?php echo e(t('vendor-srs-details.not_specified')); ?></span><?php endif; ?></div>
                             </div>
                             <div class="info-item">
-                                <label>Title</label>
-                                <div class="value"><?php echo e($vendor['primary_contact_title'] ?? ''); ?><?php if (empty($vendor['primary_contact_title'])): ?><span style="color: #999;">Not specified</span><?php endif; ?></div>
+                                <label><?php echo e(t('vendor-srs-details.lbl_title')); ?></label>
+                                <div class="value"><?php echo e($vendor['primary_contact_title'] ?? ''); ?><?php if (empty($vendor['primary_contact_title'])): ?><span style="color: #999;"><?php echo e(t('vendor-srs-details.not_specified')); ?></span><?php endif; ?></div>
                             </div>
                             <div class="info-item">
-                                <label>Email</label>
-                                <div class="value"><?php if (!empty($vendor['primary_contact_email'])): ?><a href="mailto:<?php echo e($vendor['primary_contact_email']); ?>" style="color: var(--theme-header-color); text-decoration: none;"><?php echo e($vendor['primary_contact_email']); ?></a><?php else: ?><span style="color: #999;">Not specified</span><?php endif; ?></div>
+                                <label><?php echo e(t('vendor-srs-details.lbl_email')); ?></label>
+                                <div class="value"><?php if (!empty($vendor['primary_contact_email'])): ?><a href="mailto:<?php echo e($vendor['primary_contact_email']); ?>" style="color: var(--theme-header-color); text-decoration: none;"><?php echo e($vendor['primary_contact_email']); ?></a><?php else: ?><span style="color: #999;"><?php echo e(t('vendor-srs-details.not_specified')); ?></span><?php endif; ?></div>
                             </div>
                             <div class="info-item">
-                                <label>Phone</label>
-                                <div class="value"><?php echo e($vendor['primary_contact_phone'] ?? ''); ?><?php if (empty($vendor['primary_contact_phone'])): ?><span style="color: #999;">Not specified</span><?php endif; ?></div>
+                                <label><?php echo e(t('vendor-srs-details.lbl_phone')); ?></label>
+                                <div class="value"><?php echo e($vendor['primary_contact_phone'] ?? ''); ?><?php if (empty($vendor['primary_contact_phone'])): ?><span style="color: #999;"><?php echo e(t('vendor-srs-details.not_specified')); ?></span><?php endif; ?></div>
                             </div>
                             <?php if (!empty($vendor['relationship_manager'])): ?>
                             <div class="info-item">
-                                <label>Relationship Manager</label>
+                                <label><?php echo e(t('vendor-srs-details.lbl_relationship_manager')); ?></label>
                                 <div class="value"><?php echo e($vendor['relationship_manager']); ?></div>
                             </div>
                             <?php endif; ?>
@@ -1885,14 +1885,14 @@ $csrfToken = $security->generateCSRFToken();
 
                     <?php if (!empty($vendorAssessments)): ?>
                     <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-                        <h4 style="font-size: 14px; color: #666; margin: 0 0 10px 0;">Recent Vendor Assessments/Onboarding</h4>
+                        <h4 style="font-size: 14px; color: #666; margin: 0 0 10px 0;"><?php echo e(t('vendor-srs-details.recent_assessments')); ?></h4>
                         <table style="font-size: 12px;">
                             <thead>
                                 <tr>
-                                    <th>Template</th>
-                                    <th>Status</th>
-                                    <th>Completed</th>
-                                    <th>Action</th>
+                                    <th><?php echo e(t('vendor-srs-details.col_template')); ?></th>
+                                    <th><?php echo e(t('vendor-srs-details.col_status')); ?></th>
+                                    <th><?php echo e(t('vendor-srs-details.col_completed')); ?></th>
+                                    <th><?php echo e(t('vendor-srs-details.col_action')); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1906,7 +1906,7 @@ $csrfToken = $security->generateCSRFToken();
                                     </td>
                                     <td><?php echo $assessment['completed_at'] ? date('M j, Y', strtotime($assessment['completed_at'])) : '-'; ?></td>
                                     <td>
-                                        <a href="vendor-assessment-view.php?id=<?php echo $assessment['id']; ?>" target="_blank" style="color: var(--theme-header-color); text-decoration: none; font-weight: 500;">View</a>
+                                        <a href="vendor-assessment-view.php?id=<?php echo $assessment['id']; ?>" target="_blank" style="color: var(--theme-header-color); text-decoration: none; font-weight: 500;"><?php echo e(t('vendor-srs-details.view')); ?></a>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
@@ -1921,21 +1921,21 @@ $csrfToken = $security->generateCSRFToken();
             <?php if ($fairAnalysis): ?>
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0;">FAIR Analysis</h3>
+                    <h3 style="margin: 0;"><?php echo e(t('vendor-srs-details.fair_analysis')); ?></h3>
                     <div style="display: flex; gap: 8px;">
-                        <a href="download-pdf.php?id=<?php echo intval($fairAnalysis['id']); ?>" target="_blank" class="btn btn-secondary" style="padding: 5px 14px; font-size: 12px; text-decoration: none;">View PDF</a>
-                        <?php if (!$isStakeholderView && !$isAuditor): ?><a href="fair-analysis.php?id=<?php echo intval($fairAnalysis['id']); ?>" target="_blank" class="btn btn-secondary" style="padding: 5px 14px; font-size: 12px; text-decoration: none;">Edit</a><?php endif; ?>
+                        <a href="download-pdf.php?id=<?php echo intval($fairAnalysis['id']); ?>" target="_blank" class="btn btn-secondary" style="padding: 5px 14px; font-size: 12px; text-decoration: none;"><?php echo e(t('vendor-srs-details.view_pdf')); ?></a>
+                        <?php if (!$isStakeholderView && !$isAuditor): ?><a href="fair-analysis.php?id=<?php echo intval($fairAnalysis['id']); ?>" target="_blank" class="btn btn-secondary" style="padding: 5px 14px; font-size: 12px; text-decoration: none;"><?php echo e(t('vendor-srs-details.edit')); ?></a><?php endif; ?>
                     </div>
                 </div>
                 <table style="font-size: 12px; margin-top: 12px;">
                     <thead>
                         <tr>
-                            <th>Status</th>
-                            <th>Risk Level</th>
-                            <th>LEF</th>
-                            <th>ALE</th>
-                            <th>ISO 27001</th>
-                            <th>Created</th>
+                            <th><?php echo e(t('vendor-srs-details.col_status')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_risk_level')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_lef')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_ale')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_iso27001')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_created')); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1963,9 +1963,9 @@ $csrfToken = $security->generateCSRFToken();
                             <td><?php echo !empty($fairAnalysis['ale']) ? '$' . e(number_format((float)$fairAnalysis['ale'], 0)) : '-'; ?></td>
                             <td>
                                 <?php if ($fairAnalysis['iso_27001_certified']): ?>
-                                    <span style="color: #166534;">&#10003; Yes</span>
+                                    <span style="color: #166534;">&#10003; <?php echo e(t('vendor-srs-details.yes')); ?></span>
                                 <?php else: ?>
-                                    <span style="color: #999;">No</span>
+                                    <span style="color: #999;"><?php echo e(t('vendor-srs-details.no')); ?></span>
                                 <?php endif; ?>
                             </td>
                             <td><?php echo date('M j, Y', strtotime($fairAnalysis['created_at'])); ?></td>
@@ -1994,12 +1994,12 @@ $csrfToken = $security->generateCSRFToken();
                 <table>
                     <thead>
                         <tr>
-                            <th>Severity</th>
-                            <th>Risk Name</th>
-                            <th>Host</th>
-                            <th>Category</th>
-                            <th>Description</th>
-                            <th>First Seen</th>
+                            <th><?php echo e(t('vendor-srs-details.col_severity')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_risk_name')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_host')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_category')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_description')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_first_seen')); ?></th>
                         </tr>
                     </thead>
                     <tbody id="identifiedRisksTbody"></tbody>
@@ -2070,21 +2070,21 @@ $csrfToken = $security->generateCSRFToken();
                 <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" data-action="toggleVendorDomains">
                     <h3 style="margin: 0;">Vendor Domains (<span id="vdCountDisplay"><?php echo count($vendorSubdomains); ?></span>)</h3>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <button type="button" data-action="exportVendorDomainsCSV" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Export CSV</button>
+                        <button type="button" data-action="exportVendorDomainsCSV" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;"><?php echo e(t('vendor-srs-details.export_csv')); ?></button>
                         <span id="vendorDomainsArrow" style="color: #9ca3af; font-size: 14px; transition: transform 0.2s;">&#9660;</span>
                     </div>
                 </div>
                 <div id="vendorDomainsBody" style="display: none; margin-top: 12px;">
                     <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px;">
-                        <input type="text" id="vdSearch" placeholder="Search subdomain..." style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; width: 220px;">
+                        <input type="text" id="vdSearch" placeholder="<?php echo e(t('vendor-srs-details.search_subdomain')); ?>" style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; width: 220px;">
                         <select id="vdStatusFilter" style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; cursor: pointer;">
-                            <option value="">All Status</option>
-                            <option value="1">Active</option>
-                            <option value="0">Inactive</option>
+                            <option value=""><?php echo e(t('vendor-srs-details.all_status')); ?></option>
+                            <option value="1"><?php echo e(t('vendor-srs-details.active')); ?></option>
+                            <option value="0"><?php echo e(t('vendor-srs-details.inactive')); ?></option>
                         </select>
                         <div style="display: flex; gap: 4px; align-items: center;">
                             <span style="font-size: 11px; color: #6b7280; margin-right: 2px;">Grade:</span>
-                            <button type="button" class="vd-grade-btn" data-grade="" style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid var(--theme-header-color,#2563eb);background:var(--theme-header-color,#2563eb);color:white;cursor:pointer;">All</button>
+                            <button type="button" class="vd-grade-btn" data-grade="" style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid var(--theme-header-color,#2563eb);background:var(--theme-header-color,#2563eb);color:white;cursor:pointer;"><?php echo e(t('vendor-srs-details.all')); ?></button>
                             <button type="button" class="vd-grade-btn" data-grade="A" style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid #166534;background:transparent;color:#166534;cursor:pointer;">A</button>
                             <button type="button" class="vd-grade-btn" data-grade="B" style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid #1e40af;background:transparent;color:#1e40af;cursor:pointer;">B</button>
                             <button type="button" class="vd-grade-btn" data-grade="C" style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid #92400e;background:transparent;color:#92400e;cursor:pointer;">C</button>
@@ -2095,11 +2095,11 @@ $csrfToken = $security->generateCSRFToken();
                     <table>
                         <thead>
                             <tr>
-                                <th data-action="vdSort" data-arg="domain" style="cursor:pointer;user-select:none;">Subdomain <span id="vdSort_domain" style="font-size:10px;color:#9ca3af;"></span></th>
-                                <th data-action="vdSort" data-arg="score" style="cursor:pointer;user-select:none;">Score <span id="vdSort_score" style="font-size:10px;color:#9ca3af;"></span></th>
-                                <th data-action="vdSort" data-arg="grade" style="cursor:pointer;user-select:none;">Grade <span id="vdSort_grade" style="font-size:10px;color:#9ca3af;"></span></th>
-                                <th data-action="vdSort" data-arg="active" style="cursor:pointer;user-select:none;">Status <span id="vdSort_active" style="font-size:10px;color:#9ca3af;"></span></th>
-                                <th data-action="vdSort" data-arg="last_scanned" style="cursor:pointer;user-select:none;">Last Scanned <span id="vdSort_last_scanned" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vdSort" data-arg="domain" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_subdomain')); ?> <span id="vdSort_domain" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vdSort" data-arg="score" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_score')); ?> <span id="vdSort_score" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vdSort" data-arg="grade" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_grade')); ?> <span id="vdSort_grade" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vdSort" data-arg="active" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_status')); ?> <span id="vdSort_active" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vdSort" data-arg="last_scanned" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_last_scanned')); ?> <span id="vdSort_last_scanned" style="font-size:10px;color:#9ca3af;"></span></th>
                             </tr>
                         </thead>
                         <tbody id="vendorDomainsTbody"></tbody>
@@ -2309,28 +2309,28 @@ $csrfToken = $security->generateCSRFToken();
                     <h3 style="margin: 0;">4th Party Technologies (<span id="vtCountDisplay"><?php echo count($vendorTechnologies); ?></span>)</h3>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <a href="fourth-party-risk.php" style="padding: 4px 12px; background: var(--theme-header-color, #2563eb); color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; text-decoration: none;">4th Party Risk</a>
-                        <button type="button" data-action="exportVendorTechCSV" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Export CSV</button>
+                        <button type="button" data-action="exportVendorTechCSV" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;"><?php echo e(t('vendor-srs-details.export_csv')); ?></button>
                         <span id="vendorTechArrow" style="color: #9ca3af; font-size: 14px; transition: transform 0.2s;">&#9660;</span>
                     </div>
                 </div>
                 <div id="vendorTechBody" style="display: none; margin-top: 12px;">
                     <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px;">
-                        <input type="text" id="vtSearch" placeholder="Search technology..." style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; width: 220px;">
+                        <input type="text" id="vtSearch" placeholder="<?php echo e(t('vendor-srs-details.search_technology')); ?>" style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; width: 220px;">
                         <select id="vtCategoryFilter" style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; cursor: pointer;">
-                            <option value="">All Categories</option>
+                            <option value=""><?php echo e(t('vendor-srs-details.all_categories')); ?></option>
                         </select>
                     </div>
                     <table>
                         <thead>
                             <tr>
-                                <th data-action="vtSort" data-arg="name" style="cursor:pointer;user-select:none;">Technology <span id="vtSort_name" style="font-size:10px;color:#9ca3af;"></span></th>
-                                <th data-action="vtSort" data-arg="version" style="cursor:pointer;user-select:none;">Version <span id="vtSort_version" style="font-size:10px;color:#9ca3af;"></span></th>
-                                <th data-action="vtSort" data-arg="category" style="cursor:pointer;user-select:none;">Category <span id="vtSort_category" style="font-size:10px;color:#9ca3af;"></span></th>
-                                <th data-action="vtSort" data-arg="detected_on" style="cursor:pointer;user-select:none;">Detected On <span id="vtSort_detected_on" style="font-size:10px;color:#9ca3af;"></span></th>
-                                <th data-action="vtSort" data-arg="port" style="cursor:pointer;user-select:none;">Port <span id="vtSort_port" style="font-size:10px;color:#9ca3af;"></span></th>
-                                <th data-action="vtSort" data-arg="confidence" style="cursor:pointer;user-select:none;">Confidence <span id="vtSort_confidence" style="font-size:10px;color:#9ca3af;"></span></th>
-                                <th data-action="vtSort" data-arg="cve_count" style="cursor:pointer;user-select:none;">CVEs <span id="vtSort_cve_count" style="font-size:10px;color:#9ca3af;"></span></th>
-                                <th data-action="vtSort" data-arg="last_seen" style="cursor:pointer;user-select:none;">Last Seen <span id="vtSort_last_seen" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vtSort" data-arg="name" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_technology')); ?> <span id="vtSort_name" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vtSort" data-arg="version" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_version')); ?> <span id="vtSort_version" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vtSort" data-arg="category" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_category')); ?> <span id="vtSort_category" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vtSort" data-arg="detected_on" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_detected_on')); ?> <span id="vtSort_detected_on" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vtSort" data-arg="port" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_port')); ?> <span id="vtSort_port" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vtSort" data-arg="confidence" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_confidence')); ?> <span id="vtSort_confidence" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vtSort" data-arg="cve_count" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_cves')); ?> <span id="vtSort_cve_count" style="font-size:10px;color:#9ca3af;"></span></th>
+                                <th data-action="vtSort" data-arg="last_seen" style="cursor:pointer;user-select:none;"><?php echo e(t('vendor-srs-details.col_last_seen')); ?> <span id="vtSort_last_seen" style="font-size:10px;color:#9ca3af;"></span></th>
                             </tr>
                         </thead>
                         <tbody id="vendorTechTbody"></tbody>
@@ -2570,11 +2570,11 @@ $csrfToken = $security->generateCSRFToken();
                                     style="padding: 6px 14px; background: #0891b2; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;"
                                     data-confirm="Request Shodan to rescan <?php echo count($shodanIPs); ?> IP<?php echo count($shodanIPs) !== 1 ? 's' : ''; ?>? This uses scan credits."
                                     title="Request Shodan to rescan all <?php echo count($shodanIPs); ?> IP(s) — uses scan credits">
-                                &#8635; Request Rescan
+                                &#8635; <?php echo e(t('vendor-srs-details.request_rescan')); ?>
                             </button>
                         </form>
                         <?php endif; ?>
-                        <button type="button" data-action="exportShodanSignals" style="padding: 6px 14px; background: #6b7280; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">Export CSV</button>
+                        <button type="button" data-action="exportShodanSignals" style="padding: 6px 14px; background: #6b7280; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;"><?php echo e(t('vendor-srs-details.export_csv')); ?></button>
                     </div>
                 </div>
                 <?php foreach ($categoryNames as $catKey => $catLabel):
@@ -2646,19 +2646,19 @@ $csrfToken = $security->generateCSRFToken();
                     </div>
                     <?php if (!empty($catSubdomains)): ?>
                     <div id="catSubs_<?php echo $catKey; ?>" style="display: none; padding: 6px 10px; background: #f0f4ff; border-bottom: 1px solid #e5e7eb; font-size: 11px;">
-                        <span style="color: #6b7280; font-weight: 600;">Subdomains:</span>
+                        <span style="color: #6b7280; font-weight: 600;"><?php echo e(t('vendor-srs-details.subdomains_label')); ?></span>
                         <span style="font-family: monospace; color: #333;"><?php echo e(implode(', ', $catSubdomains)); ?></span>
                     </div>
                     <?php endif; ?>
                     <table style="font-size: 12px;">
                         <thead>
                             <tr>
-                                <th style="width: 70px;">Signal</th>
-                                <th>Finding</th>
-                                <th style="width: 60px;">Points</th>
-                                <th style="width: 80px;">Confidence</th>
-                                <th style="width: 100px;">IP</th>
-                                <th style="width: 130px;">Subdomain</th>
+                                <th style="width: 70px;"><?php echo e(t('vendor-srs-details.col_signal')); ?></th>
+                                <th><?php echo e(t('vendor-srs-details.col_finding')); ?></th>
+                                <th style="width: 60px;"><?php echo e(t('vendor-srs-details.col_points')); ?></th>
+                                <th style="width: 80px;"><?php echo e(t('vendor-srs-details.col_confidence')); ?></th>
+                                <th style="width: 100px;"><?php echo e(t('vendor-srs-details.col_ip')); ?></th>
+                                <th style="width: 130px;"><?php echo e(t('vendor-srs-details.col_subdomain')); ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2760,17 +2760,17 @@ $csrfToken = $security->generateCSRFToken();
                                         <?php endif; ?>
                                         <?php if ($isWaived): ?>
                                         <div style="margin-top: <?php echo $hasProof ? '10px; padding-top: 8px; border-top: 1px solid #e2e8f0' : '0'; ?>;">
-                                            <div style="font-weight: 600; color: #3730a3; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Waiver Information</div>
+                                            <div style="font-weight: 600; color: #3730a3; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;"><?php echo e(t('vendor-srs-details.waiver_information')); ?></div>
                                             <div style="font-size: 11px; color: #555;">
-                                                <strong>Reason:</strong> <?php echo e($waiverInfo['reason'] ?? 'No reason provided'); ?><br>
-                                                <strong>Waived by:</strong> <?php echo e($waiverInfo['waived_by'] ?? 'Unknown'); ?> on <?php echo e(date('M j, Y', strtotime($waiverInfo['created_at'] ?? 'now'))); ?>
+                                                <strong><?php echo e(t('vendor-srs-details.reason_label')); ?></strong> <?php echo e($waiverInfo['reason'] ?? 'No reason provided'); ?><br>
+                                                <strong><?php echo e(t('vendor-srs-details.waived_by_label')); ?></strong> <?php echo e($waiverInfo['waived_by'] ?? 'Unknown'); ?> on <?php echo e(date('M j, Y', strtotime($waiverInfo['created_at'] ?? 'now'))); ?>
                                             </div>
                                             <?php if (!$isStakeholderView): ?>
                                             <form method="POST" style="display: inline; margin-top: 6px;" data-stop-propagation class="scroll-preserve-form">
                                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                                 <input type="hidden" name="waiver_id" value="<?php echo intval($waiverInfo['id']); ?>">
                                                 <input type="hidden" name="_scroll" value="0">
-                                                <button type="submit" name="unwaive_risk" style="margin-top: 6px; padding: 3px 10px; background: #dc2626; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;" data-confirm="Remove this waiver? The finding will be included in future scoring.">Remove Waiver</button>
+                                                <button type="submit" name="unwaive_risk" style="margin-top: 6px; padding: 3px 10px; background: #dc2626; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;" data-confirm="Remove this waiver? The finding will be included in future scoring."><?php echo e(t('vendor-srs-details.remove_waiver')); ?></button>
                                             </form>
                                             <?php endif; ?>
                                         </div>
@@ -2785,10 +2785,10 @@ $csrfToken = $security->generateCSRFToken();
                                                 <input type="hidden" name="_scroll" value="0">
                                                 <div style="display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap;">
                                                     <div style="flex: 1; min-width: 200px;">
-                                                        <label style="font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Justification for waiver</label>
-                                                        <input type="text" name="waive_reason" required placeholder="e.g. False positive - port is behind firewall" style="width: 100%; padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; margin-top: 2px;">
+                                                        <label style="font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;"><?php echo e(t('vendor-srs-details.justification_for_waiver')); ?></label>
+                                                        <input type="text" name="waive_reason" required placeholder="<?php echo e(t('vendor-srs-details.waiver_placeholder')); ?>" style="width: 100%; padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; margin-top: 2px;">
                                                     </div>
-                                                    <button type="submit" name="waive_risk" style="padding: 5px 12px; background: #4f46e5; color: white; border: none; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;" title="Waive this risk for <?php echo e($findingSubdomain); ?> only">Waive Risk</button>
+                                                    <button type="submit" name="waive_risk" style="padding: 5px 12px; background: #4f46e5; color: white; border: none; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;" title="Waive this risk for <?php echo e($findingSubdomain); ?> only"><?php echo e(t('vendor-srs-details.waive_risk')); ?></button>
                                                 </div>
                                                 <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">This waiver applies only to <strong><?php echo e($findingSubdomain); ?></strong>. The finding will be excluded from future scoring for this subdomain.</div>
                                             </form>
@@ -2918,7 +2918,7 @@ $csrfToken = $security->generateCSRFToken();
                             </button>
                         </form>
                         <?php endif; ?>
-                        <button type="button" data-action="exportRawFindings" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Export CSV</button>
+                        <button type="button" data-action="exportRawFindings" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;"><?php echo e(t('vendor-srs-details.export_csv')); ?></button>
                         <span id="rawFindingsArrow" style="color: #9ca3af; font-size: 14px; transition: transform 0.2s;">&#9660;</span>
                     </div>
                 </div>
@@ -2926,12 +2926,12 @@ $csrfToken = $security->generateCSRFToken();
                     <table style="font-size: 12px;">
                         <thead>
                             <tr>
-                                <th>Type</th>
-                                <th>IP Address</th>
-                                <th>Subdomain</th>
-                                <th>Port</th>
-                                <th>Details</th>
-                                <th>CVSS</th>
+                                <th><?php echo e(t('vendor-srs-details.col_type')); ?></th>
+                                <th><?php echo e(t('vendor-srs-details.col_ip_address')); ?></th>
+                                <th><?php echo e(t('vendor-srs-details.col_subdomain')); ?></th>
+                                <th><?php echo e(t('vendor-srs-details.col_port')); ?></th>
+                                <th><?php echo e(t('vendor-srs-details.col_details')); ?></th>
+                                <th><?php echo e(t('vendor-srs-details.col_cvss')); ?></th>
                             </tr>
                         </thead>
                         <tbody id="rawFindingsTbody"></tbody>
@@ -3058,7 +3058,7 @@ $csrfToken = $security->generateCSRFToken();
                 <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" data-action="toggleOldFindings">
                     <h3 style="margin: 0;"><?php echo e($shodanName); ?> Findings (<?php echo count($shodanFindings); ?>)</h3>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <button type="button" data-action="exportOldFindings" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Export CSV</button>
+                        <button type="button" data-action="exportOldFindings" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;"><?php echo e(t('vendor-srs-details.export_csv')); ?></button>
                         <span id="oldFindingsArrow" style="color: #9ca3af; font-size: 14px; transition: transform 0.2s;">&#9660;</span>
                     </div>
                 </div>
@@ -3066,12 +3066,12 @@ $csrfToken = $security->generateCSRFToken();
                     <table style="font-size: 12px;">
                         <thead>
                             <tr>
-                                <th>Type</th>
-                                <th>IP Address</th>
-                                <th>Subdomain</th>
-                                <th>Port</th>
-                                <th>Details</th>
-                                <th>CVSS</th>
+                                <th><?php echo e(t('vendor-srs-details.col_type')); ?></th>
+                                <th><?php echo e(t('vendor-srs-details.col_ip_address')); ?></th>
+                                <th><?php echo e(t('vendor-srs-details.col_subdomain')); ?></th>
+                                <th><?php echo e(t('vendor-srs-details.col_port')); ?></th>
+                                <th><?php echo e(t('vendor-srs-details.col_details')); ?></th>
+                                <th><?php echo e(t('vendor-srs-details.col_cvss')); ?></th>
                             </tr>
                         </thead>
                         <tbody id="oldFindingsTbody"></tbody>
@@ -3189,9 +3189,9 @@ $csrfToken = $security->generateCSRFToken();
             <?php if (count($scoreHistory) > 1 || count($shodanScoreHistory) > 1): ?>
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" data-action="toggleScoreHistory">
-                    <h3 style="margin: 0;">Score History</h3>
+                    <h3 style="margin: 0;"><?php echo e(t('vendor-srs-details.score_history')); ?></h3>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <button type="button" data-action="exportScoreHistory" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Export CSV</button>
+                        <button type="button" data-action="exportScoreHistory" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;"><?php echo e(t('vendor-srs-details.export_csv')); ?></button>
                         <span id="scoreHistArrow" style="color: #9ca3af; font-size: 14px; transition: transform 0.2s;">&#9660;</span>
                     </div>
                 </div>
@@ -3209,14 +3209,14 @@ $csrfToken = $security->generateCSRFToken();
                 <table style="font-size: 12px;">
                     <thead>
                         <tr>
-                            <th>Date</th>
+                            <th><?php echo e(t('vendor-srs-details.col_date')); ?></th>
                             <th><?php echo e($upguardName); ?> Score</th>
-                            <th>Grade</th>
-                            <th>Critical</th>
-                            <th>High</th>
-                            <th>Medium</th>
-                            <th>Low</th>
-                            <th>Info</th>
+                            <th><?php echo e(t('vendor-srs-details.col_grade')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_critical')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_high')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_medium')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_low')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_info')); ?></th>
                         </tr>
                     </thead>
                     <tbody id="ugHistTbody"></tbody>
@@ -3230,16 +3230,16 @@ $csrfToken = $security->generateCSRFToken();
                 <table style="font-size: 12px;">
                     <thead>
                         <tr>
-                            <th>Date</th>
+                            <th><?php echo e(t('vendor-srs-details.col_date')); ?></th>
                             <th><?php echo e($shodanName); ?> Score</th>
-                            <th>Grade</th>
+                            <th><?php echo e(t('vendor-srs-details.col_grade')); ?></th>
                             <?php if ($shodanScoreHistory[0]['traffic_light'] ?? null): ?>
-                            <th>Risk</th>
+                            <th><?php echo e(t('vendor-srs-details.col_risk')); ?></th>
                             <?php endif; ?>
-                            <th>Open Ports</th>
-                            <th>Vulns</th>
-                            <th>Critical</th>
-                            <th>High</th>
+                            <th><?php echo e(t('vendor-srs-details.col_open_ports')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_vulns')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_critical')); ?></th>
+                            <th><?php echo e(t('vendor-srs-details.col_high')); ?></th>
                         </tr>
                     </thead>
                     <tbody id="shHistTbody"></tbody>
@@ -3658,10 +3658,10 @@ $csrfToken = $security->generateCSRFToken();
             <div class="card">
                 <div class="no-data">
                     <div class="icon"><img src="app/icons/bar-chart-square-02.svg" alt="" width="32" height="32"></div>
-                    <h3>No Score Data Available</h3>
-                    <p>This vendor has not been scored yet. Click "Score Now" to get the initial security rating.</p>
+                    <h3><?php echo e(t('vendor-srs-details.no_score_data')); ?></h3>
+                    <p><?php echo e(t('vendor-srs-details.no_score_data_desc')); ?></p>
                     <?php if (empty($vendor['vendor_domain'])): ?>
-                        <p style="color: #dc2626;">Note: A vendor domain must be specified before scoring.</p>
+                        <p style="color: #dc2626;"><?php echo e(t('vendor-srs-details.domain_required_note')); ?></p>
                     <?php endif; ?>
                 </div>
             </div>
@@ -3895,7 +3895,7 @@ $csrfToken = $security->generateCSRFToken();
                     <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                         <?php if (!empty($theme['footer_logo_url'])): ?>
                             <a class="brand" href="index.php">
-                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('vendor-srs-details.footer_logo_alt')); ?>" style="max-height: 45px;">
                             </a>
                         <?php endif; ?>
                         <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -3904,7 +3904,7 @@ $csrfToken = $security->generateCSRFToken();
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('vendor-srs-details.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>

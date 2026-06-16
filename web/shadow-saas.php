@@ -27,7 +27,7 @@ $isAuditor = $acl->hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberTPRM && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. You do not have permission to view Shadow SaaS.');
+    die(e(t('shadow-saas.access_denied')));
 }
 
 $error = '';
@@ -270,24 +270,24 @@ if ($tableExists) {
 // Handle POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('shadow-saas.invalid_request');
 
     } elseif (isset($_POST['action']) && $_POST['action'] === 'import_csv' && isset($_FILES['csv_file'])) {
         // CSV Import
         $file = $_FILES['csv_file'];
         if ($file['error'] !== UPLOAD_ERR_OK) {
-            $error = 'File upload failed. Please try again.';
+            $error = t('shadow-saas.file_upload_failed');
         } elseif ($file['size'] > 5 * 1024 * 1024) {
-            $error = 'File too large. Maximum size is 5MB.';
+            $error = t('shadow-saas.file_too_large');
         } else {
             $handle = fopen($file['tmp_name'], 'r');
             if (!$handle) {
-                $error = 'Could not read uploaded file.';
+                $error = t('shadow-saas.could_not_read');
             } else {
                 // Read header row
                 $header = fgetcsv($handle);
                 if (!$header) {
-                    $error = 'CSV file is empty.';
+                    $error = t('shadow-saas.csv_empty');
                 } else {
                     $header = array_map(function($h) { return strtolower(trim($h)); }, $header);
                     $nameIdx = array_search('vendor_name', $header);
@@ -305,7 +305,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
                     $riskTypeIdx = array_search('type of risk', $header);
 
                     if ($nameIdx === false || $domainIdx === false || $riskIdx === false) {
-                        $error = 'CSV must have "vendor_name", "vendor_domain", and "risk" columns.';
+                        $error = t('shadow-saas.csv_missing_columns');
                     } else {
                         $imported = 0;
                         $updated = 0;
@@ -512,9 +512,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
                 [$dismissId]
             );
             $auth->audit($user['id'], 'shadow_saas_dismiss', 'shadow_saas', $dismissId, []);
-            $success = 'Entry dismissed.';
+            $success = t('shadow-saas.entry_dismissed');
         } catch (Exception $e) {
-            $error = 'Failed to dismiss entry.';
+            $error = t('shadow-saas.dismiss_failed');
         }
 
     } elseif (isset($_POST['action']) && $_POST['action'] === 'deny_zscaler' && !empty($_POST['deny_id'])) {
@@ -530,7 +530,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
                 [':id' => $denyId]
             );
             if (!$entry) {
-                $error = 'Entry not found.';
+                $error = t('shadow-saas.entry_not_found');
             } else {
                 $db->query(
                     "UPDATE shadow_saas SET status = 'unsanctioned' WHERE id = ?",
@@ -543,9 +543,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
                 require_once __DIR__ . '/includes/classes/ZscalerService.php';
                 $zsvc = new ZscalerService();
                 if (empty($entry['vendor_domain'])) {
-                    $success = 'Marked unsanctioned. Zscaler skipped — vendor has no domain.';
+                    $success = t('shadow-saas.unsanctioned_no_domain');
                 } elseif (!$zsvc->isEnabled()) {
-                    $success = 'Marked unsanctioned. Zscaler integration is not enabled; domain was not blocked.';
+                    $success = t('shadow-saas.unsanctioned_zscaler_off');
                 } else {
                     $result = $zsvc->denyDomain($entry['vendor_domain']);
                     if ($result['success']) {
@@ -573,13 +573,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
         $oneoffDomain = trim((string)($_POST['oneoff_domain'] ?? ''));
         $isDeny = ($_POST['action'] === 'deny_zscaler_oneoff');
         if ($oneoffDomain === '') {
-            $error = 'Domain is required.';
+            $error = t('shadow-saas.domain_required');
         } else {
             try {
                 require_once __DIR__ . '/includes/classes/ZscalerService.php';
                 $zsvc = new ZscalerService();
                 if (!$zsvc->isEnabled()) {
-                    $error = 'Zscaler integration is not enabled. Configure it under Admin → Shadow SaaS → Zscaler Connection.';
+                    $error = t('shadow-saas.zscaler_not_enabled_config');
                 } else {
                     $result = $isDeny ? $zsvc->denyDomain($oneoffDomain) : $zsvc->allowDomain($oneoffDomain);
                     if ($result['success']) {
@@ -610,7 +610,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
                 [':id' => $allowId]
             );
             if (!$entry) {
-                $error = 'Entry not found.';
+                $error = t('shadow-saas.entry_not_found');
             } else {
                 $vendorDomain = $entry['vendor_domain'] ?? '';
                 $wasBlocked = !empty($entry['is_zscaler_blocked']);
@@ -620,7 +620,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
                     'new' => ['vendor_onboarding_id' => $vendorId, 'vendor_name' => $entry['vendor_name']],
                     'via' => 'allow',
                 ]);
-                $success = 'Vendor onboarded to TPRM.';
+                $success = t('shadow-saas.vendor_onboarded');
 
                 if ($wasBlocked && $vendorDomain !== '') {
                     require_once __DIR__ . '/includes/classes/ZscalerService.php';
@@ -654,9 +654,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
                 "UPDATE shadow_saas SET status = 'pending' WHERE id = ? AND status = 'dismissed'",
                 [$undismissId]
             );
-            $success = 'Entry restored to pending.';
+            $success = t('shadow-saas.entry_restored');
         } catch (Exception $e) {
-            $error = 'Failed to restore entry.';
+            $error = t('shadow-saas.restore_failed');
         }
 
     } elseif (isset($_POST['action']) && $_POST['action'] === 'scan_selected' && !empty($_POST['selected'])) {
@@ -777,7 +777,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
         $editRiskType = trim($_POST['edit_risk_type'] ?? '');
 
         if ($editName === '') {
-            $error = 'Vendor name is required.';
+            $error = t('shadow-saas.vendor_name_required');
         } else {
             // Clean domain
             if ($editDomain !== '') {
@@ -805,9 +805,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
                         $editId
                     ]
                 );
-                $success = 'Entry updated.';
+                $success = t('shadow-saas.entry_updated');
             } catch (Exception $e) {
-                $error = 'Failed to update entry.';
+                $error = t('shadow-saas.update_failed');
             }
         }
 
@@ -828,7 +828,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
         $addRiskType = trim($_POST['add_risk_type'] ?? '');
 
         if ($addName === '') {
-            $error = 'Vendor name is required.';
+            $error = t('shadow-saas.vendor_name_required');
         } else {
             // Clean domain
             if ($addDomain !== '') {
@@ -844,7 +844,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
                     [':domain' => $addDomain]
                 );
                 if ($existingVendor) {
-                    $error = 'An active vendor already exists with this domain.';
+                    $error = t('shadow-saas.active_vendor_exists');
                 }
                 if (empty($error)) {
                     $existingShadow = $db->fetchOne(
@@ -852,7 +852,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
                         [':domain' => $addDomain]
                     );
                     if ($existingShadow) {
-                        $error = 'A Shadow SaaS entry already exists with this domain.';
+                        $error = t('shadow-saas.shadow_entry_exists');
                     }
                 }
             }
@@ -880,10 +880,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
                     $auth->audit($user['id'], 'shadow_saas_add', 'shadow_saas', null, [
                         'new' => ['vendor_name' => $addName, 'vendor_domain' => $addDomain]
                     ]);
-                    $success = 'Shadow SaaS entry added successfully. Use Scan Selected to score it.';
+                    $success = t('shadow-saas.entry_added');
                 } catch (Exception $e) {
                     error_log('Shadow SaaS add entry: ' . $e->getMessage());
-                    $error = 'Failed to add entry.';
+                    $error = t('shadow-saas.add_failed');
                 }
             }
         }
@@ -1128,7 +1128,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Shadow SaaS - TPRM</title>
+    <title><?php echo e(t('shadow-saas.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="app/images/favicon.ico" type="image/x-icon">
@@ -1261,13 +1261,13 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <?php renderImpersonationBanner(); ?>
 
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($isAdmin): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -1277,7 +1277,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <main class="main-content">
         <?php if (!$tableExists): ?>
         <div class="alert alert-warning">
-            <strong>Shadow SaaS table not found.</strong> The database migration may not have been applied yet. Please run the v2.5.5 migration.
+            <strong><?php echo e(t('shadow-saas.table_not_found')); ?></strong> <?php echo e(t('shadow-saas.table_not_found_desc')); ?>
         </div>
         <?php endif; ?>
 
@@ -1291,17 +1291,17 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <!-- Page Header -->
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
             <div>
-                <h1 class="page-title" style="margin: 0 0 10px 0;">Shadow SaaS</h1>
-                <p style="margin: 0; font-size: 13px; color: #6b7280;">Track unmanaged SaaS applications and onboard them as vendors.</p>
+                <h1 class="page-title" style="margin: 0 0 10px 0;"><?php echo e(t('shadow-saas.heading')); ?></h1>
+                <p style="margin: 0; font-size: 13px; color: #6b7280;"><?php echo e(t('shadow-saas.subtitle')); ?></p>
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                 <?php if (!$isAuditor): ?>
-                <a href="data:text/csv;charset=utf-8,vendor_name,vendor_domain,description,risk,type%20of%20risk,relationship_manager,number_of_users,application_category,breaches_in_three_years,downloadbytes,uploadbytes,filesharing,mfasupport%0AExample%20Corp,example.com,Cloud%20CRM%20platform,3,Shadow%20IT%3B%20Data%20Leakage,John%20Doe,50,CRM,0,1024,512,Yes,Yes" download="shadow-saas-template.csv" class="btn-sm btn-secondary" style="padding: 8px 16px;">Download Template</a>
-                <button type="button" id="importToggleBtn" class="btn-sm btn-primary" style="padding: 8px 16px;">Import CSV</button>
-                <button type="button" id="zscalerToggleBtn" class="btn-sm btn-secondary" style="padding: 8px 16px;">Zscaler</button>
-                <button type="button" id="addEntryBtn" class="btn-sm btn-success" style="padding: 8px 16px;">Add</button>
+                <a href="data:text/csv;charset=utf-8,vendor_name,vendor_domain,description,risk,type%20of%20risk,relationship_manager,number_of_users,application_category,breaches_in_three_years,downloadbytes,uploadbytes,filesharing,mfasupport%0AExample%20Corp,example.com,Cloud%20CRM%20platform,3,Shadow%20IT%3B%20Data%20Leakage,John%20Doe,50,CRM,0,1024,512,Yes,Yes" download="shadow-saas-template.csv" class="btn-sm btn-secondary" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.download_template')); ?></a>
+                <button type="button" id="importToggleBtn" class="btn-sm btn-primary" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.import_csv')); ?></button>
+                <button type="button" id="zscalerToggleBtn" class="btn-sm btn-secondary" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.zscaler')); ?></button>
+                <button type="button" id="addEntryBtn" class="btn-sm btn-success" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.add')); ?></button>
                 <?php endif; ?>
-                <a href="?export=csv<?php echo $statusFilter !== '' ? '&status=' . urlencode($statusFilter) : '&status=all'; ?><?php echo $searchQuery !== '' ? '&search=' . urlencode($searchQuery) : ''; ?><?php echo $riskFilter !== '' ? '&risk=' . urlencode($riskFilter) : ''; ?><?php echo $riskTypeFilter !== '' ? '&risk_type=' . urlencode($riskTypeFilter) : ''; ?><?php echo $mfaFilter !== '' ? '&mfa=' . urlencode($mfaFilter) : ''; ?>" class="btn-sm btn-secondary" style="padding: 8px 16px;">Export CSV</a>
+                <a href="?export=csv<?php echo $statusFilter !== '' ? '&status=' . urlencode($statusFilter) : '&status=all'; ?><?php echo $searchQuery !== '' ? '&search=' . urlencode($searchQuery) : ''; ?><?php echo $riskFilter !== '' ? '&risk=' . urlencode($riskFilter) : ''; ?><?php echo $riskTypeFilter !== '' ? '&risk_type=' . urlencode($riskTypeFilter) : ''; ?><?php echo $mfaFilter !== '' ? '&mfa=' . urlencode($mfaFilter) : ''; ?>" class="btn-sm btn-secondary" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.export_csv')); ?></a>
             </div>
         </div>
 
@@ -1309,7 +1309,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <!-- Import Section (hidden by default) -->
         <div id="importSection" style="display: none;">
             <div class="import-card">
-                <h3>Import Shadow SaaS from CSV</h3>
+                <h3><?php echo e(t('shadow-saas.import_heading')); ?></h3>
                 <p style="font-size: 13px; color: #6b7280; margin: 0 0 15px 0;">
                     Upload a CSV with columns: <code>vendor_name</code> (required), <code>vendor_domain</code> (required), <code>risk</code> (required, 1-5),
                     <code>description</code>, <code>type of risk</code> (semicolon-separated), <code>relationship_manager</code>, <code>number_of_users</code>,
@@ -1320,7 +1320,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="action" value="import_csv">
                     <input type="file" name="csv_file" accept=".csv" required style="font-size: 13px;">
-                    <button type="submit" class="btn-sm btn-success" style="padding: 8px 16px;">Upload &amp; Import</button>
+                    <button type="submit" class="btn-sm btn-success" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.upload_import')); ?></button>
                 </form>
             </div>
         </div>
@@ -1330,7 +1330,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <!-- Zscaler one-off URL Category Management (hidden by default) -->
         <div id="zscalerSection" style="display: none;">
             <div class="import-card">
-                <h3>Zscaler URL Category — One-Off</h3>
+                <h3><?php echo e(t('shadow-saas.zscaler_oneoff_heading')); ?></h3>
                 <p style="font-size: 13px; color: #6b7280; margin: 0 0 15px 0;">
                     Add or remove an arbitrary domain from the configured Zscaler URL Category without it being tied to a vendor row.
                     Scheme and path are stripped automatically (<code>https://example.com/foo</code> → <code>example.com</code>).
@@ -1339,8 +1339,8 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="action" id="zscalerOneoffAction" value="">
                     <input type="text" name="oneoff_domain" id="zscalerOneoffDomain" placeholder="example.com" required style="font-size: 13px; padding: 6px 10px; min-width: 280px; border: 1px solid #d1d5db; border-radius: 4px;">
-                    <button type="submit" class="btn-sm" style="padding: 8px 16px; background: #b91c1c; color: white;" data-action="deny_zscaler_oneoff">Deny</button>
-                    <button type="submit" class="btn-sm" style="padding: 8px 16px; background: #15803d; color: white;" data-action="allow_zscaler_oneoff">Allow</button>
+                    <button type="submit" class="btn-sm" style="padding: 8px 16px; background: #b91c1c; color: white;" data-action="deny_zscaler_oneoff"><?php echo e(t('shadow-saas.deny')); ?></button>
+                    <button type="submit" class="btn-sm" style="padding: 8px 16px; background: #15803d; color: white;" data-action="allow_zscaler_oneoff"><?php echo e(t('shadow-saas.allow')); ?></button>
                 </form>
             </div>
         </div>
@@ -1350,54 +1350,54 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         <div class="stats-grid">
             <a href="shadow-saas.php?status=all" class="stat-card<?php echo empty($statusFilter) ? ' stat-active' : ''; ?>">
                 <div class="value"><?php echo $stats['total']; ?></div>
-                <div class="label">Total</div>
+                <div class="label"><?php echo e(t('shadow-saas.stat_total')); ?></div>
             </a>
             <a href="shadow-saas.php?status=pending" class="stat-card warning<?php echo $statusFilter === 'pending' ? ' stat-active' : ''; ?>">
                 <div class="value"><?php echo $stats['pending']; ?></div>
-                <div class="label">Pending</div>
+                <div class="label"><?php echo e(t('shadow-saas.stat_pending')); ?></div>
             </a>
             <a href="shadow-saas.php?status=unsanctioned" class="stat-card<?php echo $statusFilter === 'unsanctioned' ? ' stat-active' : ''; ?>">
                 <div class="value"><?php echo $stats['unsanctioned']; ?></div>
-                <div class="label">Unsanctioned</div>
+                <div class="label"><?php echo e(t('shadow-saas.stat_unsanctioned')); ?></div>
             </a>
             <a href="shadow-saas.php?status=dismissed" class="stat-card<?php echo $statusFilter === 'dismissed' ? ' stat-active' : ''; ?>">
                 <div class="value"><?php echo $stats['dismissed']; ?></div>
-                <div class="label">Dismissed</div>
+                <div class="label"><?php echo e(t('shadow-saas.stat_dismissed')); ?></div>
             </a>
         </div>
 
         <!-- Filters -->
         <form method="GET" class="filters-bar">
             <div class="filter-group">
-                <label>Search:</label>
-                <input type="text" name="search" value="<?php echo e($searchQuery); ?>" placeholder="Vendor name, domain...">
+                <label><?php echo e(t('shadow-saas.search_label')); ?></label>
+                <input type="text" name="search" value="<?php echo e($searchQuery); ?>" placeholder="<?php echo e(t('shadow-saas.search_placeholder')); ?>">
             </div>
             <div class="filter-group">
-                <label>Status:</label>
+                <label><?php echo e(t('shadow-saas.status_label')); ?></label>
                 <select name="status">
-                    <option value="all" <?php echo empty($statusFilter) ? 'selected' : ''; ?>>All</option>
-                    <option value="pending" <?php echo $statusFilter === 'pending' ? 'selected' : ''; ?>>Pending</option>
-                    <option value="unsanctioned" <?php echo $statusFilter === 'unsanctioned' ? 'selected' : ''; ?>>Unsanctioned</option>
-                    <option value="dismissed" <?php echo $statusFilter === 'dismissed' ? 'selected' : ''; ?>>Dismissed</option>
+                    <option value="all" <?php echo empty($statusFilter) ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.opt_all')); ?></option>
+                    <option value="pending" <?php echo $statusFilter === 'pending' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.opt_pending')); ?></option>
+                    <option value="unsanctioned" <?php echo $statusFilter === 'unsanctioned' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.opt_unsanctioned')); ?></option>
+                    <option value="dismissed" <?php echo $statusFilter === 'dismissed' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.opt_dismissed')); ?></option>
                 </select>
             </div>
             <div class="filter-group">
-                <label>Risk:</label>
+                <label><?php echo e(t('shadow-saas.risk_label')); ?></label>
                 <select name="risk">
-                    <option value="" <?php echo $riskFilter === '' ? 'selected' : ''; ?>>All</option>
-                    <option value="1" <?php echo $riskFilter === '1' ? 'selected' : ''; ?>>1 - Very Low</option>
-                    <option value="2" <?php echo $riskFilter === '2' ? 'selected' : ''; ?>>2 - Low</option>
-                    <option value="3" <?php echo $riskFilter === '3' ? 'selected' : ''; ?>>3 - Medium</option>
-                    <option value="4" <?php echo $riskFilter === '4' ? 'selected' : ''; ?>>4 - High</option>
-                    <option value="5" <?php echo $riskFilter === '5' ? 'selected' : ''; ?>>5 - Critical</option>
-                    <option value="unscored" <?php echo $riskFilter === 'unscored' ? 'selected' : ''; ?>>Unscored</option>
+                    <option value="" <?php echo $riskFilter === '' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.opt_all')); ?></option>
+                    <option value="1" <?php echo $riskFilter === '1' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.risk_1')); ?></option>
+                    <option value="2" <?php echo $riskFilter === '2' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.risk_2')); ?></option>
+                    <option value="3" <?php echo $riskFilter === '3' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.risk_3')); ?></option>
+                    <option value="4" <?php echo $riskFilter === '4' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.risk_4')); ?></option>
+                    <option value="5" <?php echo $riskFilter === '5' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.risk_5')); ?></option>
+                    <option value="unscored" <?php echo $riskFilter === 'unscored' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.risk_unscored')); ?></option>
                 </select>
             </div>
             <?php if (!empty($allRiskTypes)): ?>
             <div class="filter-group">
-                <label>Risk Type:</label>
+                <label><?php echo e(t('shadow-saas.risk_type_label')); ?></label>
                 <select name="risk_type">
-                    <option value="">All</option>
+                    <option value=""><?php echo e(t('shadow-saas.opt_all')); ?></option>
                     <?php foreach ($allRiskTypes as $rt): ?>
                     <option value="<?php echo e($rt); ?>" <?php echo $riskTypeFilter === $rt ? 'selected' : ''; ?>><?php echo e($rt); ?></option>
                     <?php endforeach; ?>
@@ -1406,17 +1406,17 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <?php endif; ?>
             <?php if (!empty($allMfaValues)): ?>
             <div class="filter-group">
-                <label>MFA:</label>
+                <label><?php echo e(t('shadow-saas.mfa_label')); ?></label>
                 <select name="mfa">
-                    <option value="">All</option>
+                    <option value=""><?php echo e(t('shadow-saas.opt_all')); ?></option>
                     <?php foreach ($allMfaValues as $mv): ?>
                     <option value="<?php echo e($mv); ?>" <?php echo $mfaFilter === $mv ? 'selected' : ''; ?>><?php echo e($mv); ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
             <?php endif; ?>
-            <button type="submit" class="btn btn-primary">Filter</button>
-            <a href="shadow-saas.php" class="btn btn-secondary">Reset</a>
+            <button type="submit" class="btn btn-primary"><?php echo e(t('shadow-saas.filter')); ?></button>
+            <a href="shadow-saas.php" class="btn btn-secondary"><?php echo e(t('shadow-saas.reset')); ?></a>
         </form>
 
         <!-- Main Table -->
@@ -1426,16 +1426,16 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
 
             <div class="card">
                 <div class="card-header">
-                    <h2>Shadow SaaS Entries (<?php echo $totalEntries; ?>)</h2>
+                    <h2><?php echo e(t('shadow-saas.entries_heading')); ?> (<?php echo $totalEntries; ?>)</h2>
                     <?php if (!$isAuditor): ?>
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn-sm btn-primary" style="padding: 8px 16px;" id="scanBtn"><img src="app/icons/search-refraction.svg" alt="" width="14" height="14" style="vertical-align: middle; filter: brightness(0) invert(1); margin-right: 4px;">Scan Selected</button>
+                        <button type="button" class="btn-sm btn-primary" style="padding: 8px 16px;" id="scanBtn"><img src="app/icons/search-refraction.svg" alt="" width="14" height="14" style="vertical-align: middle; filter: brightness(0) invert(1); margin-right: 4px;"><?php echo e(t('shadow-saas.scan_selected')); ?></button>
                         <?php if ($statusFilter === 'dismissed' || $statusFilter === ''): ?>
-                        <button type="button" class="btn-sm" style="padding: 8px 16px; background: #2563eb; color: white;" id="restoreSelectedBtn">Restore Selected</button>
+                        <button type="button" class="btn-sm" style="padding: 8px 16px; background: #2563eb; color: white;" id="restoreSelectedBtn"><?php echo e(t('shadow-saas.restore_selected')); ?></button>
                         <?php endif; ?>
-                        <button type="button" class="btn-sm" style="padding: 8px 16px; background: #6b7280; color: white;" id="dismissSelectedBtn">Dismiss Selected</button>
-                        <button type="button" class="btn-sm btn-secondary" style="padding: 8px 16px;" id="deleteBtn">Delete Selected</button>
-                        <button type="button" class="btn-sm btn-success" style="padding: 8px 16px;" id="onboardBtn">Onboard Selected</button>
+                        <button type="button" class="btn-sm" style="padding: 8px 16px; background: #6b7280; color: white;" id="dismissSelectedBtn"><?php echo e(t('shadow-saas.dismiss_selected')); ?></button>
+                        <button type="button" class="btn-sm btn-secondary" style="padding: 8px 16px;" id="deleteBtn"><?php echo e(t('shadow-saas.delete_selected')); ?></button>
+                        <button type="button" class="btn-sm btn-success" style="padding: 8px 16px;" id="onboardBtn"><?php echo e(t('shadow-saas.onboard_selected')); ?></button>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -1445,8 +1445,8 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     <div style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;">
                         <img src="app/icons/alert-square.svg" alt="" width="32" height="32">
                     </div>
-                    <p style="margin: 0; font-size: 14px;">No shadow SaaS entries found.</p>
-                    <p style="margin-top: 8px; font-size: 13px;">Import a CSV to get started.</p>
+                    <p style="margin: 0; font-size: 14px;"><?php echo e(t('shadow-saas.no_entries')); ?></p>
+                    <p style="margin-top: 8px; font-size: 13px;"><?php echo e(t('shadow-saas.no_entries_hint')); ?></p>
                 </div>
                 <?php else: ?>
                 <table>
@@ -1455,41 +1455,41 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             <?php if (!$isAuditor): ?><th style="width: 40px;"><input type="checkbox" id="selectAll"></th><?php endif; ?>
                             <th class="sortable <?php echo $sortColumn === 'vendor_name' ? 'active' : ''; ?>">
                                 <a href="<?php echo buildSortUrl('vendor_name', $sortColumn, $sortOrder); ?>">
-                                    Vendor Name<span class="sort-icon"><?php echo getSortIndicator('vendor_name', $sortColumn, $sortOrder); ?></span>
+                                    <?php echo e(t('shadow-saas.col_vendor_name')); ?><span class="sort-icon"><?php echo getSortIndicator('vendor_name', $sortColumn, $sortOrder); ?></span>
                                 </a>
                             </th>
                             <th class="sortable <?php echo $sortColumn === 'vendor_domain' ? 'active' : ''; ?>">
                                 <a href="<?php echo buildSortUrl('vendor_domain', $sortColumn, $sortOrder); ?>">
-                                    Domain<span class="sort-icon"><?php echo getSortIndicator('vendor_domain', $sortColumn, $sortOrder); ?></span>
+                                    <?php echo e(t('shadow-saas.col_domain')); ?><span class="sort-icon"><?php echo getSortIndicator('vendor_domain', $sortColumn, $sortOrder); ?></span>
                                 </a>
                             </th>
                             <th class="sortable <?php echo $sortColumn === 'risk_score' ? 'active' : ''; ?>">
                                 <a href="<?php echo buildSortUrl('risk_score', $sortColumn, $sortOrder); ?>">
-                                    Risk<span class="sort-icon"><?php echo getSortIndicator('risk_score', $sortColumn, $sortOrder); ?></span>
+                                    <?php echo e(t('shadow-saas.col_risk')); ?><span class="sort-icon"><?php echo getSortIndicator('risk_score', $sortColumn, $sortOrder); ?></span>
                                 </a>
                             </th>
                             <th class="sortable <?php echo $sortColumn === 'risk_type' ? 'active' : ''; ?>">
                                 <a href="<?php echo buildSortUrl('risk_type', $sortColumn, $sortOrder); ?>">
-                                    Risk Type<span class="sort-icon"><?php echo getSortIndicator('risk_type', $sortColumn, $sortOrder); ?></span>
+                                    <?php echo e(t('shadow-saas.col_risk_type')); ?><span class="sort-icon"><?php echo getSortIndicator('risk_type', $sortColumn, $sortOrder); ?></span>
                                 </a>
                             </th>
                             <th class="sortable <?php echo $sortColumn === 'application_category' ? 'active' : ''; ?>">
                                 <a href="<?php echo buildSortUrl('application_category', $sortColumn, $sortOrder); ?>">
-                                    Category<span class="sort-icon"><?php echo getSortIndicator('application_category', $sortColumn, $sortOrder); ?></span>
+                                    <?php echo e(t('shadow-saas.col_category')); ?><span class="sort-icon"><?php echo getSortIndicator('application_category', $sortColumn, $sortOrder); ?></span>
                                 </a>
                             </th>
                             <th class="sortable <?php echo $sortColumn === 'number_of_users' ? 'active' : ''; ?>">
                                 <a href="<?php echo buildSortUrl('number_of_users', $sortColumn, $sortOrder); ?>">
-                                    Users<span class="sort-icon"><?php echo getSortIndicator('number_of_users', $sortColumn, $sortOrder); ?></span>
+                                    <?php echo e(t('shadow-saas.col_users')); ?><span class="sort-icon"><?php echo getSortIndicator('number_of_users', $sortColumn, $sortOrder); ?></span>
                                 </a>
                             </th>
-                            <th>Avg Score</th>
+                            <th><?php echo e(t('shadow-saas.col_avg_score')); ?></th>
                             <th class="sortable <?php echo $sortColumn === 'status' ? 'active' : ''; ?>">
                                 <a href="<?php echo buildSortUrl('status', $sortColumn, $sortOrder); ?>">
-                                    Status<span class="sort-icon"><?php echo getSortIndicator('status', $sortColumn, $sortOrder); ?></span>
+                                    <?php echo e(t('shadow-saas.col_status')); ?><span class="sort-icon"><?php echo getSortIndicator('status', $sortColumn, $sortOrder); ?></span>
                                 </a>
                             </th>
-                            <th>Actions</th>
+                            <th><?php echo e(t('shadow-saas.col_actions')); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1556,7 +1556,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <span style="font-weight: 600; font-size: 13px; color: #374151;"><?php echo $avgScore; ?>%</span>
                                 <span class="score-grade grade-<?php echo strtolower($avgGrade); ?>"><?php echo $avgGrade; ?></span>
                                 <?php elseif ($isScoring): ?>
-                                <span style="color: #9ca3af; font-size: 11px; font-style: italic;">Scoring...</span>
+                                <span style="color: #9ca3af; font-size: 11px; font-style: italic;"><?php echo e(t('shadow-saas.scoring')); ?></span>
                                 <?php else: ?>
                                 <span style="color: #9ca3af; font-size: 11px;">—</span>
                                 <?php endif; ?>
@@ -1583,20 +1583,20 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     data-dl="<?php echo e($entry['downloadbytes'] ?? ''); ?>"
                                     data-ul="<?php echo e($entry['uploadbytes'] ?? ''); ?>"
                                     data-fs="<?php echo e($entry['filesharing'] ?? ''); ?>"
-                                    data-mfa="<?php echo e($entry['mfasupport'] ?? ''); ?>">Edit</button>
+                                    data-mfa="<?php echo e($entry['mfasupport'] ?? ''); ?>"><?php echo e(t('shadow-saas.edit')); ?></button>
                                 <?php endif; ?>
                                 <?php if ($entry['status'] === 'pending'): ?>
                                 <?php if (!empty($entry['is_zscaler_blocked'])): ?>
-                                <button type="button" class="btn-sm allow-btn" style="padding: 4px 8px; font-size: 11px; background: #15803d; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="Onboard to TPRM and remove the domain from the Zscaler URL Category">Allow</button>
+                                <button type="button" class="btn-sm allow-btn" style="padding: 4px 8px; font-size: 11px; background: #15803d; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="<?php echo e(t('shadow-saas.allow_title_blocked')); ?>"><?php echo e(t('shadow-saas.allow')); ?></button>
                                 <?php else: ?>
-                                <button type="button" class="btn-sm deny-btn" style="padding: 4px 8px; font-size: 11px; background: #b91c1c; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="Mark unsanctioned and (if Zscaler is configured) block the domain">Deny</button>
+                                <button type="button" class="btn-sm deny-btn" style="padding: 4px 8px; font-size: 11px; background: #b91c1c; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="<?php echo e(t('shadow-saas.deny_title')); ?>"><?php echo e(t('shadow-saas.deny')); ?></button>
                                 <?php endif; ?>
-                                <button type="button" class="btn-sm btn-danger dismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>">Dismiss</button>
+                                <button type="button" class="btn-sm btn-danger dismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>"><?php echo e(t('shadow-saas.dismiss')); ?></button>
                                 <?php elseif ($entry['status'] === 'unsanctioned'): ?>
-                                <button type="button" class="btn-sm allow-btn" style="padding: 4px 8px; font-size: 11px; background: #15803d; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="Onboard to TPRM and (if Zscaler-blocked) remove the domain from the URL Category">Allow</button>
-                                <button type="button" class="btn-sm btn-danger dismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>">Dismiss</button>
+                                <button type="button" class="btn-sm allow-btn" style="padding: 4px 8px; font-size: 11px; background: #15803d; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="<?php echo e(t('shadow-saas.allow_title_unsanctioned')); ?>"><?php echo e(t('shadow-saas.allow')); ?></button>
+                                <button type="button" class="btn-sm btn-danger dismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>"><?php echo e(t('shadow-saas.dismiss')); ?></button>
                                 <?php elseif ($entry['status'] === 'dismissed'): ?>
-                                <button type="button" class="btn-sm btn-secondary undismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>">Restore</button>
+                                <button type="button" class="btn-sm btn-secondary undismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>"><?php echo e(t('shadow-saas.restore')); ?></button>
                                 <?php endif; ?>
                                 <?php endif; ?>
                             </td>
@@ -1606,31 +1606,31 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             <td colspan="10">
                                 <div class="detail-grid">
                                     <div class="detail-item">
-                                        <span class="detail-label">Description</span>
+                                        <span class="detail-label"><?php echo e(t('shadow-saas.detail_description')); ?></span>
                                         <span class="detail-value"><?php echo e($entry['description'] ?? '—'); ?></span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">Relationship Manager</span>
+                                        <span class="detail-label"><?php echo e(t('shadow-saas.detail_rm')); ?></span>
                                         <span class="detail-value"><?php echo e($entry['relationship_manager'] ?? '—'); ?></span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">Breaches (3yr)</span>
+                                        <span class="detail-label"><?php echo e(t('shadow-saas.detail_breaches')); ?></span>
                                         <span class="detail-value"><?php echo $entry['breaches_in_three_years'] !== null ? (int)$entry['breaches_in_three_years'] : '—'; ?></span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">Download Bytes</span>
+                                        <span class="detail-label"><?php echo e(t('shadow-saas.detail_download')); ?></span>
                                         <span class="detail-value"><?php echo $entry['downloadbytes'] !== null ? formatBytes((int)$entry['downloadbytes']) : '—'; ?></span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">Upload Bytes</span>
+                                        <span class="detail-label"><?php echo e(t('shadow-saas.detail_upload')); ?></span>
                                         <span class="detail-value"><?php echo $entry['uploadbytes'] !== null ? formatBytes((int)$entry['uploadbytes']) : '—'; ?></span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">File Sharing</span>
+                                        <span class="detail-label"><?php echo e(t('shadow-saas.detail_filesharing')); ?></span>
                                         <span class="detail-value"><?php echo e($entry['filesharing'] ?? '—'); ?></span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">MFA Support</span>
+                                        <span class="detail-label"><?php echo e(t('shadow-saas.detail_mfa')); ?></span>
                                         <span class="detail-value"><?php echo e($entry['mfasupport'] ?? '—'); ?></span>
                                     </div>
                                     <div class="detail-item">
@@ -1640,7 +1640,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                             <?php echo displayUpguardScore((int)$entry['current_srs_score'], $upguardDisplayMode, $upguardMaxScore); ?>
                                             <span class="score-grade grade-<?php echo strtolower($upguardGrade); ?>"><?php echo $upguardGrade; ?></span>
                                             <?php elseif ($isScoring): ?>
-                                            <span style="color: #9ca3af; font-style: italic;">Scoring...</span>
+                                            <span style="color: #9ca3af; font-style: italic;"><?php echo e(t('shadow-saas.scoring')); ?></span>
                                             <?php else: ?>—<?php endif; ?>
                                         </span>
                                     </div>
@@ -1652,13 +1652,13 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                             <?php echo e($entry['current_shodan_score']); ?>%
                                             <span class="score-grade grade-<?php echo strtolower($shodanGrade); ?>"><?php echo $shodanGrade; ?></span>
                                             <?php elseif ($isScoring): ?>
-                                            <span style="color: #9ca3af; font-style: italic;">Scoring...</span>
+                                            <span style="color: #9ca3af; font-style: italic;"><?php echo e(t('shadow-saas.scoring')); ?></span>
                                             <?php else: ?>—<?php endif; ?>
                                         </span>
                                     </div>
                                     <?php endif; ?>
                                     <div class="detail-item">
-                                        <span class="detail-label">Date Added</span>
+                                        <span class="detail-label"><?php echo e(t('shadow-saas.detail_date_added')); ?></span>
                                         <span class="detail-value"><?php echo date('M j, Y', strtotime($entry['created_at'])); ?></span>
                                     </div>
                                 </div>
@@ -1679,7 +1679,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <option value="<?php echo $opt; ?>" <?php echo $perPage == $opt ? 'selected' : ''; ?>><?php echo $opt; ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <span style="font-size: 12px; color: #999;">per page</span>
+                            <span style="font-size: 12px; color: #999;"><?php echo e(t('shadow-saas.per_page')); ?></span>
                         </span>
                     </div>
                     <?php if ($totalPages > 1): ?>
@@ -1758,7 +1758,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('shadow-saas.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>
@@ -1768,47 +1768,47 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
     <!-- Edit Modal -->
     <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
         <div style="background: white; border-radius: 10px; padding: 25px; max-width: 550px; width: 90%; margin: auto; position: relative; top: 50%; transform: translateY(-50%); max-height: 90vh; overflow-y: auto;">
-            <h3 style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;">Edit Shadow SaaS Entry</h3>
+            <h3 style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;"><?php echo e(t('shadow-saas.edit_modal_title')); ?></h3>
             <form method="POST" id="editForm">
                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                 <input type="hidden" name="action" value="edit_entry">
                 <input type="hidden" name="edit_id" id="editId">
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Vendor Name *</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_vendor_name')); ?> *</label>
                     <input type="text" name="edit_vendor_name" id="editVendorName" required style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Domain</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_domain')); ?></label>
                     <input type="text" name="edit_vendor_domain" id="editVendorDomain" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Description</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_description')); ?></label>
                     <textarea name="edit_description" id="editDescription" rows="3" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; resize: vertical;"></textarea>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Risk Score (1-5)</label>
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_risk_score')); ?></label>
                         <input type="number" name="edit_risk_score" id="editRiskScore" min="1" max="5" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                     </div>
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Risk Type</label>
-                        <input type="text" name="edit_risk_type" id="editRiskType" placeholder="e.g. Shadow IT; Data Leakage" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_risk_type')); ?></label>
+                        <input type="text" name="edit_risk_type" id="editRiskType" placeholder="<?php echo e(t('shadow-saas.risk_type_placeholder')); ?>" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                     </div>
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Relationship Manager</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_rm')); ?></label>
                     <input type="text" name="edit_relationship_manager" id="editRm" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Number of Users</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_num_users')); ?></label>
                     <input type="number" name="edit_number_of_users" id="editUsers" min="0" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Application Category</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_app_category')); ?></label>
                     <input type="text" name="edit_application_category" id="editCategory" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Breaches in Three Years</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_breaches')); ?></label>
                     <input type="number" name="edit_breaches_in_three_years" id="editBreaches" min="0" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">

@@ -125,12 +125,12 @@ function generateExecutiveSummary($data) {
 
     // Check if OpenWebUI is enabled
     if (empty($openWebUIConfig['enabled']) || $openWebUIConfig['enabled'] !== '1') {
-        return '<p><em>AI-generated summaries are disabled. Enable OpenWebUI integration in Admin Portal → Settings to use this feature.</em></p>';
+        return t('download-pdf.ai_disabled');
     }
 
     // Validate required settings
     if (empty($openWebUIConfig['api_url']) || empty($openWebUIConfig['jwt_token'])) {
-        return '<p><em>OpenWebUI is not properly configured. Please configure API URL and JWT token in Admin Portal → Settings.</em></p>';
+        return t('download-pdf.ai_not_configured');
     }
 
     $apiUrl = $openWebUIConfig['api_url'];
@@ -240,7 +240,7 @@ function sanitizeExecutiveSummaryHtml($html) {
 // Handle Generate Summary button click
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_summary'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('download-pdf.invalid_request');
     } else {
         // Generate executive summary and sanitize HTML before storing
         $executiveSummary = sanitizeExecutiveSummaryHtml(generateExecutiveSummary($decryptedResult));
@@ -253,10 +253,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_summary'])) 
                 [':id' => $id]
             );
             $result['executive_summary'] = $executiveSummary;
-            $success = 'Executive summary generated successfully!';
+            $success = t('download-pdf.summary_generated');
         } catch (Exception $e) {
             error_log('Failed to save executive summary: ' . $e->getMessage());
-            $error = 'Failed to save executive summary.';
+            $error = t('download-pdf.summary_save_failed');
         }
     }
 }
@@ -692,17 +692,17 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
     </style>
 </head>
 <body>
-    <button class="print-button no-print" data-print>Print / Save as PDF</button>
+    <button class="print-button no-print" data-print><?php echo e(t('download-pdf.print_save')); ?></button>
 
     <a href="fair-analysis.php?id=<?php echo $id; ?>" class="no-print" style="position: fixed; top: 80px; right: 20px; padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 6px; font-size: 12pt; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3); z-index: 1000; text-decoration: none; display: inline-block;">
-        Edit FAIR Form
+        <?php echo e(t('download-pdf.edit_fair_form')); ?>
     </a>
 
     <?php if ($aiConfigured): ?>
     <form method="POST" style="display: inline;">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <button type="submit" name="generate_summary" class="generate-button no-print" style="top: 140px;">
-            <?php echo empty($executiveSummary) ? 'Generate Summary' : 'Regenerate Summary'; ?>
+            <?php echo e(empty($executiveSummary) ? t('download-pdf.generate_summary') : t('download-pdf.regenerate_summary')); ?>
         </button>
     </form>
     <?php endif; ?>
@@ -726,8 +726,8 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
                 <img src="<?php echo e($logoUrl); ?>" alt="Logo" class="logo" data-hide-on-error>
             </div>
             <div class="report-info">
-                <h1>FAIR Risk Analysis Results</h1>
-                <div class="subtitle">Executive Summary</div>
+                <h1><?php echo e(t('download-pdf.report_title')); ?></h1>
+                <div class="subtitle"><?php echo e(t('download-pdf.executive_summary')); ?></div>
                 <p><?php echo e($reportDate); ?> at <?php echo e($reportTime); ?></p>
             </div>
         </div>
@@ -736,7 +736,7 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
         <div class="vendor-title">
             <h2><?php echo e($decryptedResult['vendor_name']); ?></h2>
             <div class="subtitle">
-                Third-Party Risk Management Assessment
+                <?php echo e(t('download-pdf.tprm_assessment')); ?>
                 <?php if ($decryptedResult['vendor_domain']): ?>
                     | <?php echo e($decryptedResult['vendor_domain']); ?>
                 <?php endif; ?>
@@ -748,47 +748,47 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
             <div class="fair-grid">
                 <?php if (!empty($decryptedResult['ale'])): ?>
                 <div class="fair-metric">
-                    <div class="label">Annual Loss Expectancy (ALE)</div>
+                    <div class="label"><?php echo e(t('download-pdf.ale_label')); ?></div>
                     <div class="value">$<?php echo number_format((float)$decryptedResult['ale'], 2); ?></div>
-                    <div class="description">Expected annual financial loss from cyber risk</div>
+                    <div class="description"><?php echo e(t('download-pdf.ale_desc')); ?></div>
                 </div>
                 <?php endif; ?>
 
                 <?php if (!empty($decryptedResult['loss_event_frequency'])): ?>
                 <div class="fair-metric">
-                    <div class="label">Loss Event Frequency</div>
+                    <div class="label"><?php echo e(t('download-pdf.lef_label')); ?></div>
                     <div class="value"><?php echo number_format((float)$decryptedResult['loss_event_frequency'], 2); ?></div>
-                    <div class="description">Expected successful attacks per year</div>
+                    <div class="description"><?php echo e(t('download-pdf.lef_desc')); ?></div>
                 </div>
                 <?php endif; ?>
 
                 <?php if (!empty($decryptedResult['primary_loss_magnitude'])): ?>
                 <div class="fair-metric">
-                    <div class="label">Primary Loss Magnitude</div>
+                    <div class="label"><?php echo e(t('download-pdf.primary_loss_label')); ?></div>
                     <div class="value">$<?php echo number_format((float)$decryptedResult['primary_loss_magnitude'], 2); ?></div>
-                    <div class="description">Direct costs (response, recovery, replacement)</div>
+                    <div class="description"><?php echo e(t('download-pdf.primary_loss_desc')); ?></div>
                 </div>
                 <?php endif; ?>
 
                 <?php if (!empty($decryptedResult['secondary_loss_magnitude'])): ?>
                 <div class="fair-metric">
-                    <div class="label">Secondary Loss Magnitude</div>
+                    <div class="label"><?php echo e(t('download-pdf.secondary_loss_label')); ?></div>
                     <div class="value">$<?php echo number_format((float)$decryptedResult['secondary_loss_magnitude'], 2); ?></div>
-                    <div class="description">Indirect costs (fines, legal, reputation)</div>
+                    <div class="description"><?php echo e(t('download-pdf.secondary_loss_desc')); ?></div>
                 </div>
                 <?php endif; ?>
 
                 <?php if (!empty($decryptedResult['recommended_liability'])): ?>
                 <div class="fair-metric" style="border-left-color: #28a745;">
-                    <div class="label">Recommended Cyber Insurance Coverage</div>
+                    <div class="label"><?php echo e(t('download-pdf.recommended_coverage_label')); ?></div>
                     <div class="value" style="color: #28a745;">$<?php echo number_format((float)$decryptedResult['recommended_liability'], 2); ?></div>
-                    <div class="description">Suggested minimum liability coverage (3× ALE)</div>
+                    <div class="description"><?php echo e(t('download-pdf.recommended_coverage_desc')); ?></div>
                 </div>
                 <?php endif; ?>
 
                 <!-- Risk Level Assessment - right side -->
                 <div class="risk-level-box">
-                    <div class="label">OVERALL RISK ASSESSMENT</div>
+                    <div class="label"><?php echo e(t('download-pdf.overall_risk')); ?></div>
                     <div class="value"><?php echo e($decryptedResult['risk_output'] ?: 'N/A'); ?></div>
                 </div>
             </div>
@@ -796,36 +796,36 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
 
         <!-- Vendor Security Profile (Compact) -->
         <div class="section">
-            <div class="section-header">Vendor Security Profile</div>
+            <div class="section-header"><?php echo e(t('download-pdf.vendor_profile')); ?></div>
             <div class="vendor-profile-compact">
                 <?php if (!empty($decryptedResult['security_score'])): ?>
                 <div class="field">
-                    <div class="field-label">Security Score</div>
+                    <div class="field-label"><?php echo e(t('download-pdf.security_score')); ?></div>
                     <div class="field-value">
                         <?php
                         $scoreColors = ['A' => '#28a745', 'B' => '#5cb85c', 'C' => '#ffc107', 'D' => '#ff9800', 'F' => '#dc3545'];
                         $color = $scoreColors[$decryptedResult['security_score']] ?? '#666';
                         ?>
-                        <strong style="color: <?php echo $color; ?>; font-size: 11pt;">Grade <?php echo e($decryptedResult['security_score']); ?></strong>
+                        <strong style="color: <?php echo $color; ?>; font-size: 11pt;"><?php echo e(t('download-pdf.grade')); ?> <?php echo e($decryptedResult['security_score']); ?></strong>
                     </div>
                 </div>
                 <?php endif; ?>
 
                 <div class="field">
-                    <div class="field-label">ISO 27001 Certification</div>
+                    <div class="field-label"><?php echo e(t('download-pdf.iso_certification')); ?></div>
                     <div class="field-value">
                         <?php if ($decryptedResult['iso_27001_certified']): ?>
                             <strong style="color: #28a745; font-size: 10pt;">✓ Certified</strong>
-                            <span style="color: #666; font-size: 7pt;">(35-55% lower breach risk)</span>
+                            <span style="color: #666; font-size: 7pt;"><?php echo e(t('download-pdf.lower_breach_risk')); ?></span>
                         <?php else: ?>
-                            <span style="color: #999;">Not Certified</span>
+                            <span style="color: #999;"><?php echo e(t('download-pdf.not_certified')); ?></span>
                         <?php endif; ?>
                     </div>
                 </div>
 
                 <?php if (!empty($decryptedResult['scope_of_work'])): ?>
                 <div class="field">
-                    <div class="field-label">Scope of Work</div>
+                    <div class="field-label"><?php echo e(t('download-pdf.scope_of_work')); ?></div>
                     <div class="field-value" style="font-size: 8pt; line-height: 1.3;"><?php echo e(substr($decryptedResult['scope_of_work'], 0, 150)); ?><?php echo strlen($decryptedResult['scope_of_work']) > 150 ? '...' : ''; ?></div>
                 </div>
                 <?php endif; ?>
@@ -836,16 +836,16 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
         <!-- AI-Generated Executive Summary -->
         <div class="page-break"></div>
         <div class="executive-summary">
-            <h3>Executive Summary</h3>
+            <h3><?php echo e(t('download-pdf.executive_summary')); ?></h3>
             <?php if (!empty($executiveSummary)): ?>
                 <?php echo sanitizeExecutiveSummaryHtml($executiveSummary); ?>
             <?php else: ?>
                 <div class="summary-placeholder no-print">
-                    <h4>📝 Executive Summary Not Generated</h4>
-                    <p>Click the "Generate Summary" button above to create an AI-generated executive summary for this report.</p>
+                    <h4>📝 <?php echo e(t('download-pdf.summary_not_generated')); ?></h4>
+                    <p><?php echo e(t('download-pdf.summary_not_generated_hint')); ?></p>
                 </div>
                 <div style="display: none;" class="print-only">
-                    <p><em>Executive summary not yet generated. Please generate the summary before printing this report.</em></p>
+                    <p><em><?php echo e(t('download-pdf.summary_not_generated_print')); ?></em></p>
                 </div>
             <?php endif; ?>
         </div>
@@ -855,8 +855,7 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
         <div class="report-footer">
             <p>Generated on <?php echo e($reportDate); ?> at <?php echo e($reportTime); ?> | Confidential - For Internal Use Only</p>
             <p style="margin-top: 10px; font-size: 8pt;">
-                <em>This report follows the FAIR (Factor Analysis of Information Risk) methodology.
-                Risk = Loss Event Frequency (LEF) × Loss Magnitude (LM)</em>
+                <em><?php echo e(t('download-pdf.methodology_note')); ?></em>
             </p>
         </div>
     </div>

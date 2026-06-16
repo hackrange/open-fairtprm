@@ -310,7 +310,7 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="<?php echo e(currentLanguage()); ?>">
 <head>
-    <title>Dashboard - Third Party Risk Management</title>
+    <title><?php echo e(t('index.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -759,13 +759,13 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
     <div class="page">
         <!-- Top Bar with User Menu -->
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($isAdmin): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -777,8 +777,8 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                 <?php if ($isStakeholderOnly): ?>
                 <!-- Stakeholder-Only Dashboard -->
                 <div class="welcome-header" style="flex-direction: column; align-items: flex-start; gap: 6px;">
-                    <h1 class="page-title">Vendor Onboarding Portal</h1>
-                    <p>Submit new vendor requests and track the status of your existing submissions.</p>
+                    <h1 class="page-title"><?php echo e(t('index.onboarding_portal')); ?></h1>
+                    <p><?php echo e(t('index.onboarding_portal_desc')); ?></p>
                 </div>
 
                 <?php if ($stakeholderAnnualReviewCount > 0): ?>
@@ -786,14 +786,14 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                 <div class="annual-review-alert" style="background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%); border: 1px solid #f5c6cb; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px; margin-bottom: 25px; display: flex; align-items: flex-start; gap: 15px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);">
                     <div style="font-size: 32px; line-height: 1;">&#9888;</div>
                     <div style="flex: 1;">
-                        <h3 style="margin: 0 0 8px 0; color: #92400e; font-size: 16px; font-weight: 600;">Annual Reviews Required</h3>
+                        <h3 style="margin: 0 0 8px 0; color: #92400e; font-size: 16px; font-weight: 600;"><?php echo e(t('index.annual_reviews_required')); ?></h3>
                         <p style="margin: 0 0 12px 0; color: #78350f; font-size: 14px; line-height: 1.5;">
                             You have <strong><?php echo $stakeholderAnnualReviewCount; ?></strong> vendor<?php echo $stakeholderAnnualReviewCount > 1 ? 's' : ''; ?>
                             that <?php echo $stakeholderAnnualReviewCount > 1 ? 'require' : 'requires'; ?> an annual review.
                             Please complete these reviews to maintain vendor compliance.
                         </p>
                         <a href="vendor-annual-reviews-list.php?filter=overdue" class="hover-bg-amber" style="display: inline-flex; align-items: center; gap: 6px; background: #f59e0b; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500; transition: all 0.2s;"
-                            <img src="app/icons/calendar-check-01.svg" alt="" width="16" height="16"> Review Now
+                            <img src="app/icons/calendar-check-01.svg" alt="" width="16" height="16"> <?php echo e(t('index.review_now')); ?>
                         </a>
                     </div>
                 </div>
@@ -804,54 +804,54 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 30px;">
                     <a href="vendor-onboarding-list.php?status=draft" class="hover-card" style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: center; text-decoration: none; transition: all 0.2s; cursor: pointer;">
                         <div style="font-size: 28px; font-weight: 600; color: var(--theme-header-color);"><?php echo $draftRequestCount; ?></div>
-                        <div style="color: #666; font-size: 13px; margin-top: 4px;">Draft Requests</div>
+                        <div style="color: #666; font-size: 13px; margin-top: 4px;"><?php echo e(t('index.draft_requests')); ?></div>
                     </a>
                     <a href="vendor-onboarding-list.php?status=submitted" class="hover-card-amber" style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: center; text-decoration: none; transition: all 0.2s; cursor: pointer;">
                         <div style="font-size: 28px; font-weight: 600; color: #f59e0b;"><?php echo $pendingRequestCount; ?></div>
-                        <div style="color: #666; font-size: 13px; margin-top: 4px;">Pending Review</div>
+                        <div style="color: #666; font-size: 13px; margin-top: 4px;"><?php echo e(t('index.pending_review')); ?></div>
                     </a>
                     <a href="vendor-onboarding-list.php?status=approved" class="hover-card-green" style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: center; text-decoration: none; transition: all 0.2s; cursor: pointer;">
                         <div style="font-size: 28px; font-weight: 600; color: #28a745;"><?php echo $approvedVendorCount; ?></div>
-                        <div style="color: #666; font-size: 13px; margin-top: 4px;">Approved Vendors</div>
+                        <div style="color: #666; font-size: 13px; margin-top: 4px;"><?php echo e(t('index.approved_vendors')); ?></div>
                     </a>
                 </div>
                 <?php endif; ?>
 
                 <div class="quick-actions">
                     <a href="vendor-onboarding.php" class="quick-action-btn">
-                        <img src="app/icons/plus-square.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Submit New Vendor Request
+                        <img src="app/icons/plus-square.svg" alt="" width="16" height="16" style="vertical-align: middle;"> <?php echo e(t('index.submit_new_vendor_request')); ?>
                     </a>
                     <?php if ($totalVendorCount > 0): ?>
                     <a href="vendor-onboarding-list.php" class="quick-action-btn secondary">
-                        <img src="app/icons/book-open-01.svg" alt="" width="16" height="16" style="vertical-align: middle;"> View My Vendor Requests
+                        <img src="app/icons/book-open-01.svg" alt="" width="16" height="16" style="vertical-align: middle;"> <?php echo e(t('index.view_my_vendor_requests')); ?>
                     </a>
                     <?php endif; ?>
                 </div>
 
-                <h2 class="section-title">Quick Actions</h2>
+                <h2 class="section-title"><?php echo e(t('index.quick_actions')); ?></h2>
                 <div class="module-grid">
                     <a href="vendor-onboarding.php" class="module-card">
                         <div class="icon"><img src="app/icons/plus-square.svg" alt="" width="32" height="32"></div>
-                        <h3>New Vendor Request</h3>
-                        <p>Submit a request to onboard a new third-party vendor. Provide vendor details and business justification.</p>
-                        <span class="tag">Start Here</span>
+                        <h3><?php echo e(t('index.new_vendor_request')); ?></h3>
+                        <p><?php echo e(t('index.new_vendor_request_desc')); ?></p>
+                        <span class="tag"><?php echo e(t('index.start_here')); ?></span>
                     </a>
 
                     <?php if ($totalVendorCount > 0): ?>
                     <a href="vendor-onboarding-list.php" class="module-card">
                         <div class="icon"><img src="app/icons/book-open-01.svg" alt="" width="32" height="32"></div>
-                        <h3>My Vendor Requests</h3>
-                        <p>View and edit your submitted vendor requests. Track approval status and respond to reviewer feedback.</p>
-                        <span class="tag">My Submissions</span>
+                        <h3><?php echo e(t('index.my_vendor_requests')); ?></h3>
+                        <p><?php echo e(t('index.my_vendor_requests_desc')); ?></p>
+                        <span class="tag"><?php echo e(t('index.my_submissions')); ?></span>
                     </a>
                     <?php endif; ?>
 
                     <?php if ($draftRequestCount > 0): ?>
                     <a href="vendor-onboarding-list.php?status=draft" class="module-card" style="border-color: #fbbf24;">
                         <div class="icon"><img src="app/icons/edit-04.svg" alt="" width="32" height="32"></div>
-                        <h3>Continue Draft</h3>
+                        <h3><?php echo e(t('index.continue_draft')); ?></h3>
                         <p>You have <?php echo $draftRequestCount; ?> unfinished draft<?php echo $draftRequestCount > 1 ? 's' : ''; ?>. Continue editing and submit when ready.</p>
-                        <span class="tag" style="background: #fef3c7; color: #92400e;">In Progress</span>
+                        <span class="tag" style="background: #fef3c7; color: #92400e;"><?php echo e(t('index.in_progress')); ?></span>
                     </a>
                     <?php endif; ?>
                 </div>
@@ -862,8 +862,8 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                 <div id="setupWarningOverlay" style="background: #fef2f2; border: 2px solid #dc2626; border-radius: 10px; padding: 0; overflow: hidden; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(220,38,38,0.15);">
                     <div style="background: #dc2626; color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 22px;">&#9888;</span>
-                        <h3 style="margin: 0; font-size: 16px; font-weight: 600;">Security Warning</h3>
-                        <button type="button" data-close="setupWarningOverlay" style="margin-left: auto; background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 4px; opacity: 0.8;" title="Dismiss">&times;</button>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 600;"><?php echo e(t('index.security_warning')); ?></h3>
+                        <button type="button" data-close="setupWarningOverlay" style="margin-left: auto; background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 4px; opacity: 0.8;" title="<?php echo e(t('index.dismiss')); ?>">&times;</button>
                     </div>
                     <div style="padding: 18px 20px;">
                         <p style="color: #333; font-size: 14px; line-height: 1.6; margin: 0 0 12px;">
@@ -879,15 +879,15 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                 <!-- Full Dashboard for Admins, Procurement, Cyber TPRM -->
                 <div class="welcome-header">
                     <div style="flex: 1;">
-                        <h1 class="page-title">Welcome back, <?php echo e($user['full_name']); ?></h1>
-                        <p>Manage your third-party vendors, assess risks, and ensure compliance from one central location.</p>
+                        <h1 class="page-title"><?php echo e(t('index.welcome_back')); ?> <?php echo e($user['full_name']); ?></h1>
+                        <p><?php echo e(t('index.dashboard_intro')); ?></p>
                     </div>
                     <?php if ($isAdmin || $isCyberTPRM || $isProcurement || $isAuditor): ?>
                     <div class="vendor-search-container" style="position: relative; min-width: 300px;">
                         <input
                             type="text"
                             id="vendorSearchInput"
-                            placeholder="Search vendors, domains, stakeholders..."
+                            placeholder="<?php echo e(t('index.search_placeholder')); ?>"
                             class="focus-ring"
                             style="width: 100%; padding: 10px 40px 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;"
                             <?php if ($isProcurement && !$isAdmin && !$isCyberTPRM): ?>data-link-base="vendor-onboarding.php"<?php endif; ?>
@@ -902,56 +902,56 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                 <div class="quick-actions">
                     <?php if ($showOnboarding && hasPermission('onboarding.create')): ?>
                         <a href="vendor-onboarding.php" class="quick-action-btn">
-                            <img src="app/icons/plus-square.svg" alt="" width="16" height="16" style="vertical-align: middle;"> New Vendor Request
+                            <img src="app/icons/plus-square.svg" alt="" width="16" height="16" style="vertical-align: middle;"> <?php echo e(t('index.new_vendor_request')); ?>
                         </a>
                     <?php endif; ?>
                     <?php if ($showFairModule): ?>
                         <a href="fair-analysis.php" class="quick-action-btn secondary">
-                            <img src="app/icons/file-07.svg" alt="" width="18" height="18" style="vertical-align: middle;"> New FAIR Analysis
+                            <img src="app/icons/file-07.svg" alt="" width="18" height="18" style="vertical-align: middle;"> <?php echo e(t('index.new_fair_analysis')); ?>
                         </a>
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
 
                 <!-- Modules Section -->
-                <h2 class="section-title">Modules</h2>
+                <h2 class="section-title"><?php echo e(t('index.modules')); ?></h2>
                 <div class="module-grid">
                     <?php if ($showFairModule): ?>
                     <a href="fair_dashboard.php" class="module-card">
                         <div class="icon"><img src="app/icons/file-07.svg" alt="" width="32" height="32"></div>
-                        <h3>FAIR Risk Analysis</h3>
-                        <p>Quantify and analyze third-party vendor risks using Factor Analysis of Information Risk methodology.</p>
-                        <span class="tag">Risk Assessment</span>
+                        <h3><?php echo e(t('index.fair_risk_analysis')); ?></h3>
+                        <p><?php echo e(t('index.fair_risk_analysis_desc')); ?></p>
+                        <span class="tag"><?php echo e(t('index.risk_assessment')); ?></span>
                     </a>
                     <?php endif; ?>
 
                     <?php if ($showOnboarding): ?>
                     <a href="vendor-onboarding-list.php" class="module-card">
                         <div class="icon"><img src="app/icons/book-open-01.svg" alt="" width="32" height="32"></div>
-                        <h3>Vendor Onboarding</h3>
-                        <p>Submit and manage vendor intake requests. Track onboarding progress and ensure proper vendor vetting.</p>
-                        <span class="tag">Stakeholder Portal</span>
+                        <h3><?php echo e(t('index.vendor_onboarding')); ?></h3>
+                        <p><?php echo e(t('index.vendor_onboarding_desc')); ?></p>
+                        <span class="tag"><?php echo e(t('index.stakeholder_portal')); ?></span>
                     </a>
                     <?php endif; ?>
 
                     <?php if ($isProcurement): ?>
                     <a href="vendor-onboarding-list.php" class="module-card">
                         <div class="icon"><img src="app/icons/file-06.svg" alt="" width="32" height="32"></div>
-                        <h3>Contracts</h3>
-                        <p>View and manage vendor contracts, track procurement status, and monitor vendor onboarding progress.</p>
-                        <span class="tag">Procurement</span>
+                        <h3><?php echo e(t('index.contracts')); ?></h3>
+                        <p><?php echo e(t('index.contracts_desc')); ?></p>
+                        <span class="tag"><?php echo e(t('index.procurement')); ?></span>
                     </a>
                     <?php endif; ?>
 
                     <?php if ($showSRSModule): ?>
                     <a href="vendor-srs-list.php" class="module-card">
                         <div class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="32" height="32"></div>
-                        <h3>SRS Scoring</h3>
-                        <p>Monitor vendor security ratings using UpGuard CyberRisk. Track scores, identify risks, and manage rescoring schedules.</p>
+                        <h3><?php echo e(t('index.srs_scoring')); ?></h3>
+                        <p><?php echo e(t('index.srs_scoring_desc')); ?></p>
                         <?php if ($srsStats['vendors_with_scores'] > 0): ?>
                         <span class="tag" style="background: #ecfdf5; color: #065f46;"><?php echo $srsStats['vendors_with_scores']; ?> Vendors Scored</span>
                         <?php else: ?>
-                        <span class="tag">Security Ratings</span>
+                        <span class="tag"><?php echo e(t('index.security_ratings')); ?></span>
                         <?php endif; ?>
                     </a>
                     <?php endif; ?>
@@ -959,9 +959,9 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                     <?php if ($isAdmin || $isCyberTPRM || $isProcurement || $isAuditor): ?>
                     <a href="vendor-assessments.php" class="module-card">
                         <div class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="32" height="32"></div>
-                        <h3>Vendor Assessments</h3>
-                        <p>Send and manage security assessments for vendors. Supports ISO 27001:2022 and Tier 2 assessments with certificate upload options.</p>
-                        <span class="tag">Security Questionnaires</span>
+                        <h3><?php echo e(t('index.vendor_assessments')); ?></h3>
+                        <p><?php echo e(t('index.vendor_assessments_desc')); ?></p>
+                        <span class="tag"><?php echo e(t('index.security_questionnaires')); ?></span>
                     </a>
                     <?php endif; ?>
 
@@ -969,11 +969,11 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
 
                 <?php if (($isCyberTPRM || $isAdmin || $isAuditor) && !empty($cyberTodoItems)): ?>
                 <!-- Cyber To-Do Section -->
-                <h2 class="section-title">Cyber To-Do</h2>
+                <h2 class="section-title"><?php echo e(t('index.cyber_todo')); ?></h2>
                 <div class="cyber-todo-section" style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 30px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <p style="margin: 0; color: #666; font-size: 13px;">Items requiring attention from the Cyber TPRM team</p>
-                        <a href="cyber-todo.php" style="font-size: 13px; color: var(--theme-header-color); text-decoration: none;">View All &rarr;</a>
+                        <p style="margin: 0; color: #666; font-size: 13px;"><?php echo e(t('index.cyber_todo_desc')); ?></p>
+                        <a href="cyber-todo.php" style="font-size: 13px; color: var(--theme-header-color); text-decoration: none;"><?php echo e(t('index.view_all')); ?> &rarr;</a>
                     </div>
                     <div class="todo-list" style="display: flex; flex-direction: column; gap: 10px;">
                         <?php
@@ -990,7 +990,7 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                             </div>
                             <?php if (!$isAuditor): ?>
                             <div style="position: relative;" class="snooze-wrapper">
-                                <button type="button" class="snooze-toggle" style="padding: 5px 10px; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 4px; font-size: 11px; cursor: pointer; white-space: nowrap;" title="Snooze this item">&#9716; Snooze &#9662;</button>
+                                <button type="button" class="snooze-toggle" style="padding: 5px 10px; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 4px; font-size: 11px; cursor: pointer; white-space: nowrap;" title="<?php echo e(t('index.snooze_this_item')); ?>">&#9716; <?php echo e(t('index.snooze')); ?> &#9662;</button>
                                 <div class="snooze-dropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100; min-width: 130px;">
                                     <?php foreach ([5, 10, 30] as $days): ?>
                                     <form method="post" style="margin: 0;">
@@ -1007,7 +1007,7 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                                 </div>
                             </div>
                             <?php endif; ?>
-                            <a href="<?php echo e($item['link']); ?>" style="padding: 6px 12px; background: var(--theme-header-color); color: white; border-radius: 4px; text-decoration: none; font-size: 12px; white-space: nowrap;">View</a>
+                            <a href="<?php echo e($item['link']); ?>" style="padding: 6px 12px; background: var(--theme-header-color); color: white; border-radius: 4px; text-decoration: none; font-size: 12px; white-space: nowrap;"><?php echo e(t('index.view')); ?></a>
                         </div>
                         <?php endforeach; ?>
                         <?php if (count($cyberTodoItems) > 8): ?>
@@ -1023,13 +1023,13 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
 
                 <?php if ($isAdmin): ?>
                 <!-- Admin Section -->
-                <h2 class="section-title">Administration</h2>
+                <h2 class="section-title"><?php echo e(t('index.administration')); ?></h2>
                 <div class="module-grid">
                     <a href="admin.php" class="module-card">
                         <div class="icon"><img src="app/icons/key-01.svg" alt="" width="32" height="32"></div>
-                        <h3>System Administration</h3>
-                        <p>Manage users, configure system settings, and control access permissions.</p>
-                        <span class="tag">Admin Only</span>
+                        <h3><?php echo e(t('index.system_administration')); ?></h3>
+                        <p><?php echo e(t('index.system_administration_desc')); ?></p>
+                        <span class="tag"><?php echo e(t('index.admin_only')); ?></span>
                     </a>
                 </div>
                 <?php endif; ?>
@@ -1043,7 +1043,7 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                     <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                         <?php if (!empty($theme['footer_logo_url'])): ?>
                             <a class="brand" href="index.php">
-                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('index.footer_logo_alt')); ?>" style="max-height: 45px;">
                             </a>
                         <?php endif; ?>
                         <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -1052,7 +1052,7 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('index.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>

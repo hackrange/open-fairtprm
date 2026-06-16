@@ -510,10 +510,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                     <?php echo e($user['full_name'] ?? $user['email']); ?>
                 </span>
                 <?php if ($isAdmin): ?>
-                <a href="admin.php?section=srs" class="btn-configure">Configure</a>
+                <a href="admin.php?section=srs" class="btn-configure"><?php echo e(t('vendor-domains.configure')); ?></a>
                 <?php endif; ?>
-                <a href="index.php">Dashboard</a>
-                <a href="logout.php">Logout</a>
+                <a href="index.php"><?php echo e(t('vendor-domains.dashboard')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -525,44 +525,44 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
                     <div>
                         <h1 class="page-title" style="margin: 0 0 5px 0;"><?php echo e($displayName); ?></h1>
-                        <p style="margin: 0; color: #6b7280; font-size: 14px;">Subdomain security scores across all monitored vendors</p>
+                        <p style="margin: 0; color: #6b7280; font-size: 14px;"><?php echo e(t('vendor-domains.subtitle')); ?></p>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <a href="?export=csv<?php echo !empty($searchQuery) ? '&search=' . urlencode($searchQuery) : ''; ?>&status=<?php echo urlencode($statusFilter); ?>" class="btn-clear" style="background: #6b7280; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px;">Export CSV</a>
+                        <a href="?export=csv<?php echo !empty($searchQuery) ? '&search=' . urlencode($searchQuery) : ''; ?>&status=<?php echo urlencode($statusFilter); ?>" class="btn-clear" style="background: #6b7280; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px;"><?php echo e(t('vendor-domains.export_csv')); ?></a>
                     </div>
                 </div>
 
                 <!-- Stat Cards -->
                 <div class="stat-cards">
                     <div class="stat-card">
-                        <div class="stat-label">Total Domains</div>
+                        <div class="stat-label"><?php echo e(t('vendor-domains.stat_total_domains')); ?></div>
                         <div class="stat-value"><?php echo number_format($totalDomains); ?></div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Active Domains</div>
+                        <div class="stat-label"><?php echo e(t('vendor-domains.stat_active_domains')); ?></div>
                         <div class="stat-value" style="color: #059669;"><?php echo number_format($activeDomains); ?></div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Avg Score</div>
+                        <div class="stat-label"><?php echo e(t('vendor-domains.stat_avg_score')); ?></div>
                         <div class="stat-value" style="color: <?php echo getScoreColor4p($avgScore); ?>;"><?php echo displayScore4p($avgScore, $upguardDisplayMode, $upguardMaxScore); ?></div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Vendors</div>
+                        <div class="stat-label"><?php echo e(t('vendor-domains.stat_vendors')); ?></div>
                         <div class="stat-value"><?php echo number_format($uniqueVendors); ?></div>
                     </div>
                 </div>
 
                 <!-- Search -->
                 <form method="GET" class="search-bar">
-                    <input type="text" name="search" placeholder="Search by vendor name, parent domain, or subdomain..." value="<?php echo e($searchQuery); ?>" autofocus>
+                    <input type="text" name="search" placeholder="<?php echo e(t('vendor-domains.search_placeholder')); ?>" value="<?php echo e($searchQuery); ?>" autofocus>
                     <select name="status" style="padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; background: white;">
-                        <option value="active" <?php echo $statusFilter === 'active' ? 'selected' : ''; ?>>Active</option>
-                        <option value="inactive" <?php echo $statusFilter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
-                        <option value="all" <?php echo $statusFilter === 'all' ? 'selected' : ''; ?>>All</option>
+                        <option value="active" <?php echo $statusFilter === 'active' ? 'selected' : ''; ?>><?php echo e(t('vendor-domains.status_active')); ?></option>
+                        <option value="inactive" <?php echo $statusFilter === 'inactive' ? 'selected' : ''; ?>><?php echo e(t('vendor-domains.status_inactive')); ?></option>
+                        <option value="all" <?php echo $statusFilter === 'all' ? 'selected' : ''; ?>><?php echo e(t('vendor-domains.status_all')); ?></option>
                     </select>
-                    <button type="submit" class="btn-search">Search</button>
+                    <button type="submit" class="btn-search"><?php echo e(t('vendor-domains.btn_search')); ?></button>
                     <?php if (!empty($searchQuery) || $statusFilter !== 'active'): ?>
-                    <a href="vendor-domains.php" class="btn-clear">Clear</a>
+                    <a href="vendor-domains.php" class="btn-clear"><?php echo e(t('vendor-domains.btn_clear')); ?></a>
                     <?php endif; ?>
                 </form>
 
@@ -576,11 +576,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 <div class="empty-state">
                     <div class="icon"><img src="app/icons/globe-01.svg" alt="" width="32" height="32"></div>
                     <?php if (!empty($searchQuery)): ?>
-                    <h3>No results found</h3>
-                    <p>No vendor domains match your search. Try a different search term.</p>
+                    <h3><?php echo e(t('vendor-domains.no_results_found')); ?></h3>
+                    <p><?php echo e(t('vendor-domains.no_results_hint')); ?></p>
                     <?php else: ?>
-                    <h3>No Vendor Domain Data</h3>
-                    <p>No vendor domains have been collected yet. Score vendors with UpGuard to populate subdomain data.</p>
+                    <h3><?php echo e(t('vendor-domains.no_domain_data')); ?></h3>
+                    <p><?php echo e(t('vendor-domains.no_domain_data_hint')); ?></p>
                     <?php endif; ?>
                 </div>
                 <?php else: ?>
@@ -590,13 +590,13 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th><a href="<?php echo Pagination::buildSortUrl('vendor_name', $sortColumn, $sortOrder); ?>">Vendor<?php echo Pagination::getSortIndicator('vendor_name', $sortColumn, $sortOrder); ?></a></th>
-                                <th><a href="<?php echo Pagination::buildSortUrl('parent_domain', $sortColumn, $sortOrder); ?>">Parent Domain<?php echo Pagination::getSortIndicator('parent_domain', $sortColumn, $sortOrder); ?></a></th>
-                                <th><a href="<?php echo Pagination::buildSortUrl('subdomain', $sortColumn, $sortOrder); ?>">Subdomain<?php echo Pagination::getSortIndicator('subdomain', $sortColumn, $sortOrder); ?></a></th>
-                                <th><a href="<?php echo Pagination::buildSortUrl('score', $sortColumn, $sortOrder); ?>">Score<?php echo Pagination::getSortIndicator('score', $sortColumn, $sortOrder); ?></a></th>
-                                <th><a href="<?php echo Pagination::buildSortUrl('score_grade', $sortColumn, $sortOrder); ?>">Grade<?php echo Pagination::getSortIndicator('score_grade', $sortColumn, $sortOrder); ?></a></th>
-                                <th><a href="<?php echo Pagination::buildSortUrl('is_active', $sortColumn, $sortOrder); ?>">Status<?php echo Pagination::getSortIndicator('is_active', $sortColumn, $sortOrder); ?></a></th>
-                                <th><a href="<?php echo Pagination::buildSortUrl('last_scanned', $sortColumn, $sortOrder); ?>">Last Scanned<?php echo Pagination::getSortIndicator('last_scanned', $sortColumn, $sortOrder); ?></a></th>
+                                <th><a href="<?php echo Pagination::buildSortUrl('vendor_name', $sortColumn, $sortOrder); ?>"><?php echo e(t('vendor-domains.col_vendor')); ?><?php echo Pagination::getSortIndicator('vendor_name', $sortColumn, $sortOrder); ?></a></th>
+                                <th><a href="<?php echo Pagination::buildSortUrl('parent_domain', $sortColumn, $sortOrder); ?>"><?php echo e(t('vendor-domains.col_parent_domain')); ?><?php echo Pagination::getSortIndicator('parent_domain', $sortColumn, $sortOrder); ?></a></th>
+                                <th><a href="<?php echo Pagination::buildSortUrl('subdomain', $sortColumn, $sortOrder); ?>"><?php echo e(t('vendor-domains.col_subdomain')); ?><?php echo Pagination::getSortIndicator('subdomain', $sortColumn, $sortOrder); ?></a></th>
+                                <th><a href="<?php echo Pagination::buildSortUrl('score', $sortColumn, $sortOrder); ?>"><?php echo e(t('vendor-domains.col_score')); ?><?php echo Pagination::getSortIndicator('score', $sortColumn, $sortOrder); ?></a></th>
+                                <th><a href="<?php echo Pagination::buildSortUrl('score_grade', $sortColumn, $sortOrder); ?>"><?php echo e(t('vendor-domains.col_grade')); ?><?php echo Pagination::getSortIndicator('score_grade', $sortColumn, $sortOrder); ?></a></th>
+                                <th><a href="<?php echo Pagination::buildSortUrl('is_active', $sortColumn, $sortOrder); ?>"><?php echo e(t('vendor-domains.col_status')); ?><?php echo Pagination::getSortIndicator('is_active', $sortColumn, $sortOrder); ?></a></th>
+                                <th><a href="<?php echo Pagination::buildSortUrl('last_scanned', $sortColumn, $sortOrder); ?>"><?php echo e(t('vendor-domains.col_last_scanned')); ?><?php echo Pagination::getSortIndicator('last_scanned', $sortColumn, $sortOrder); ?></a></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -631,9 +631,9 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                 </td>
                                 <td>
                                     <?php if ($risk['is_active']): ?>
-                                    <span class="status-badge status-active">Active</span>
+                                    <span class="status-badge status-active"><?php echo e(t('vendor-domains.badge_active')); ?></span>
                                     <?php else: ?>
-                                    <span class="status-badge status-inactive">Inactive</span>
+                                    <span class="status-badge status-inactive"><?php echo e(t('vendor-domains.badge_inactive')); ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td style="font-size: 13px; color: #6b7280;">
@@ -666,7 +666,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('vendor-domains.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>

@@ -35,12 +35,12 @@ $theme = getUserTheme();
 // Handle delete request -- someone wants to nuke an analysis from orbit
 $acl = ACL::getInstance();
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"]) && $acl->hasGroup("auditor")) {
-    $_SESSION["error_message"] = "Access denied. Auditors have read-only access.";
+    $_SESSION["error_message"] = t('reports.auditor_read_only');
     header("Location: reports.php");
     exit;
 } elseif ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $_SESSION['error_message'] = 'Invalid request.';
+        $_SESSION['error_message'] = t('reports.invalid_request');
         header('Location: reports.php');
         exit;
     }
@@ -54,9 +54,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_id"]) && $acl-
 
     if ($analysis && ($auth->isAdmin() || $analysis['user_id'] == $user['id'])) {
         $db->delete('tprm_results', 'id = :id', [':id' => $deleteId]);
-        $_SESSION['success_message'] = 'Analysis deleted successfully.';
+        $_SESSION['success_message'] = t('reports.deleted_success');
     } else {
-        $_SESSION['error_message'] = 'You do not have permission to delete this analysis.';
+        $_SESSION['error_message'] = t('reports.no_delete_permission');
     }
 
     // Redirect to avoid resubmission
@@ -305,7 +305,7 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Reports - TPRM FAIR Analysis</title>
+    <title><?php echo e(t('reports.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -815,13 +815,13 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
     <div class="page">
         <!-- Top Bar with User Menu -->
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($auth->isAdmin()): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -832,14 +832,14 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
             <!-- Main Content Area -->
             <main class="main-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
-                    <h1 class="page-title">Analysis Reports & Statistics</h1>
+                    <h1 class="page-title"><?php echo e(t('reports.heading')); ?></h1>
                     <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
                         <?php if ($auth->isAdmin() || hasGroup('cyber_tprm')): ?>
                         <div class="vendor-search-container" style="position: relative; min-width: 300px;">
                             <input
                                 type="text"
                                 id="vendorSearchInput"
-                                placeholder="Search vendors, domains, stakeholders..."
+                                placeholder="<?php echo e(t('reports.search_vendors_placeholder')); ?>"
                                 style="width: 100%; padding: 10px 40px 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;"
                                 class="focus-ring"
                             >
@@ -847,7 +847,7 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                             <div id="vendorSearchResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 5px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-height: 400px; overflow-y: auto; z-index: 1000;"></div>
                         </div>
                         <?php endif; ?>
-                        <a href="reports.php?export=csv" class="btn btn-success">📊 Export to CSV</a>
+                        <a href="reports.php?export=csv" class="btn btn-success">📊 <?php echo e(t('reports.export_csv')); ?></a>
                     </div>
                 </div>
 
@@ -867,15 +867,15 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-value"><?php echo $statsTotal; ?></div>
-                        <div class="stat-label">Total Analyses</div>
+                        <div class="stat-label"><?php echo e(t('reports.stat_total')); ?></div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value"><?php echo $completedAnalyses; ?></div>
-                        <div class="stat-label">Completed</div>
+                        <div class="stat-label"><?php echo e(t('reports.stat_completed')); ?></div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value"><?php echo $draftAnalyses; ?></div>
-                        <div class="stat-label">In Progress</div>
+                        <div class="stat-label"><?php echo e(t('reports.stat_in_progress')); ?></div>
                     </div>
                 </div>
 
@@ -883,10 +883,10 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                 <?php if ($completedAnalyses > 0): ?>
                 <div class="risk-distribution">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3>Risk Level Distribution</h3>
+                        <h3><?php echo e(t('reports.risk_distribution')); ?></h3>
                         <?php if (!empty($riskFilter)): ?>
                         <a href="<?php echo buildRiskFilterUrl(''); ?>" style="font-size: 12px; color: #666; text-decoration: none; padding: 4px 8px; border-radius: 4px; background: #f3f4f6;">
-                            Clear Filter ✕
+                            <?php echo e(t('reports.clear_filter')); ?> ✕
                         </a>
                         <?php endif; ?>
                     </div>
@@ -931,37 +931,37 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                             <?php if ($sortBy !== 'created_at'): ?><input type="hidden" name="sort" value="<?php echo e($sortBy); ?>"><?php endif; ?>
                             <?php if ($sortOrder !== 'DESC'): ?><input type="hidden" name="order" value="<?php echo e($sortOrder); ?>"><?php endif; ?>
                             <?php if ($perPage !== 25): ?><input type="hidden" name="per_page" value="<?php echo $perPage; ?>"><?php endif; ?>
-                            <input type="text" name="search" placeholder="Search vendor, risk level, stakeholder..." value="<?php echo e($searchQuery); ?>">
+                            <input type="text" name="search" placeholder="<?php echo e(t('reports.search_placeholder')); ?>" value="<?php echo e($searchQuery); ?>">
                         </form>
                     </div>
 
                     <div class="filter-group">
-                        <label>Status:</label>
+                        <label><?php echo e(t('reports.status_label')); ?></label>
                         <select data-action="filterByStatus">
-                            <option value="">All Status</option>
-                            <option value="completed" <?php echo $statusFilter === 'completed' ? 'selected' : ''; ?>>Completed</option>
-                            <option value="draft" <?php echo $statusFilter === 'draft' ? 'selected' : ''; ?>>Draft</option>
+                            <option value=""><?php echo e(t('reports.all_status')); ?></option>
+                            <option value="completed" <?php echo $statusFilter === 'completed' ? 'selected' : ''; ?>><?php echo e(t('reports.opt_completed')); ?></option>
+                            <option value="draft" <?php echo $statusFilter === 'draft' ? 'selected' : ''; ?>><?php echo e(t('reports.opt_draft')); ?></option>
                         </select>
                     </div>
 
                     <?php if (!empty($riskFilter)): ?>
                     <div class="filter-group" style="background: #fef3c7; padding: 6px 12px; border-radius: 6px;">
                         <span style="font-size: 13px; color: #92400e;">
-                            Risk: <strong><?php echo e($riskFilter); ?></strong>
+                            <?php echo e(t('reports.risk_label')); ?> <strong><?php echo e($riskFilter); ?></strong>
                         </span>
                         <a href="<?php echo buildRiskFilterUrl(''); ?>" style="color: #92400e; text-decoration: none; margin-left: 8px;">✕</a>
                     </div>
                     <?php endif; ?>
 
                     <div class="per-page-group">
-                        <label>Show:</label>
+                        <label><?php echo e(t('reports.show_label')); ?></label>
                         <select data-action="changePerPage">
                             <option value="25" <?php echo $perPage == 25 ? 'selected' : ''; ?>>25</option>
                             <option value="50" <?php echo $perPage == 50 ? 'selected' : ''; ?>>50</option>
                             <option value="100" <?php echo $perPage == 100 ? 'selected' : ''; ?>>100</option>
                             <option value="500" <?php echo $perPage == 500 ? 'selected' : ''; ?>>500</option>
                         </select>
-                        <label>per page</label>
+                        <label><?php echo e(t('reports.per_page')); ?></label>
                     </div>
                 </div>
 
@@ -973,45 +973,45 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                             <tr>
                                 <th class="sortable">
                                     <a href="<?php echo getSortUrl('vendor_name', $sortBy, $sortOrder); ?>">
-                                        Vendor Name<?php echo getSortIndicator('vendor_name', $sortBy, $sortOrder); ?>
+                                        <?php echo e(t('reports.col_vendor_name')); ?><?php echo getSortIndicator('vendor_name', $sortBy, $sortOrder); ?>
                                     </a>
                                 </th>
                                 <th class="sortable">
                                     <a href="<?php echo getSortUrl('status', $sortBy, $sortOrder); ?>">
-                                        Status<?php echo getSortIndicator('status', $sortBy, $sortOrder); ?>
+                                        <?php echo e(t('reports.col_status')); ?><?php echo getSortIndicator('status', $sortBy, $sortOrder); ?>
                                     </a>
                                 </th>
                                 <th class="sortable">
                                     <a href="<?php echo getSortUrl('risk_output', $sortBy, $sortOrder); ?>">
-                                        Risk Level<?php echo getSortIndicator('risk_output', $sortBy, $sortOrder); ?>
+                                        <?php echo e(t('reports.col_risk_level')); ?><?php echo getSortIndicator('risk_output', $sortBy, $sortOrder); ?>
                                     </a>
                                 </th>
                                 <th class="sortable">
                                     <a href="<?php echo getSortUrl('loss_event_frequency', $sortBy, $sortOrder); ?>">
-                                        LEF<?php echo getSortIndicator('loss_event_frequency', $sortBy, $sortOrder); ?>
+                                        <?php echo e(t('reports.col_lef')); ?><?php echo getSortIndicator('loss_event_frequency', $sortBy, $sortOrder); ?>
                                     </a>
                                 </th>
                                 <th class="sortable">
                                     <a href="<?php echo getSortUrl('ale', $sortBy, $sortOrder); ?>">
-                                        ALE<?php echo getSortIndicator('ale', $sortBy, $sortOrder); ?>
+                                        <?php echo e(t('reports.col_ale')); ?><?php echo getSortIndicator('ale', $sortBy, $sortOrder); ?>
                                     </a>
                                 </th>
                                 <th class="sortable">
                                     <a href="<?php echo getSortUrl('security_score', $sortBy, $sortOrder); ?>">
-                                        Security Score<?php echo getSortIndicator('security_score', $sortBy, $sortOrder); ?>
+                                        <?php echo e(t('reports.col_security_score')); ?><?php echo getSortIndicator('security_score', $sortBy, $sortOrder); ?>
                                     </a>
                                 </th>
                                 <th class="sortable">
                                     <a href="<?php echo getSortUrl('iso_27001_certified', $sortBy, $sortOrder); ?>">
-                                        ISO 27001<?php echo getSortIndicator('iso_27001_certified', $sortBy, $sortOrder); ?>
+                                        <?php echo e(t('reports.col_iso_27001')); ?><?php echo getSortIndicator('iso_27001_certified', $sortBy, $sortOrder); ?>
                                     </a>
                                 </th>
                                 <th class="sortable">
                                     <a href="<?php echo getSortUrl('created_at', $sortBy, $sortOrder); ?>">
-                                        Created<?php echo getSortIndicator('created_at', $sortBy, $sortOrder); ?>
+                                        <?php echo e(t('reports.col_created')); ?><?php echo getSortIndicator('created_at', $sortBy, $sortOrder); ?>
                                     </a>
                                 </th>
-                                <th>Actions</th>
+                                <th><?php echo e(t('reports.col_actions')); ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1020,9 +1020,9 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                                     <td><strong><?php echo e($analysis['vendor_name']); ?></strong></td>
                                     <td>
                                         <?php if ($analysis['status'] === 'completed'): ?>
-                                            <span style="color: #28a745;">✓ Completed</span>
+                                            <span style="color: #28a745;">✓ <?php echo e(t('reports.status_completed')); ?></span>
                                         <?php else: ?>
-                                            <span style="color: #ffc107;">⚠ Draft</span>
+                                            <span style="color: #ffc107;">⚠ <?php echo e(t('reports.status_draft')); ?></span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -1054,26 +1054,26 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                                             $scoreColors = ['A' => '#28a745', 'B' => '#5cb85c', 'C' => '#ffc107', 'D' => '#ff9800', 'F' => '#dc3545'];
                                             $color = $scoreColors[$analysis['security_score']] ?? '#666';
                                             ?>
-                                            <span style="color: <?php echo $color; ?>; font-weight: bold;">Grade <?php echo e($analysis['security_score']); ?></span>
+                                            <span style="color: <?php echo $color; ?>; font-weight: bold;"><?php echo e(t('reports.grade')); ?> <?php echo e($analysis['security_score']); ?></span>
                                         <?php else: ?>
                                             <span style="color: #999;">N/A</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
                                         <?php if ($analysis['iso_27001_certified']): ?>
-                                            <span style="color: #28a745;">✓ Certified</span>
+                                            <span style="color: #28a745;">✓ <?php echo e(t('reports.certified')); ?></span>
                                         <?php else: ?>
-                                            <span style="color: #999;">No</span>
+                                            <span style="color: #999;"><?php echo e(t('reports.no')); ?></span>
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo date('M d, Y', strtotime($analysis['created_at'])); ?></td>
                                     <td style="white-space: nowrap;">
-                                        <a href="view-result.php?id=<?php echo $analysis['id']; ?>" style="color: #ff6543; text-decoration: none; font-weight: 500; margin-right: 12px;">View →</a>
+                                        <a href="view-result.php?id=<?php echo $analysis['id']; ?>" style="color: #ff6543; text-decoration: none; font-weight: 500; margin-right: 12px;"><?php echo e(t('reports.view')); ?> →</a>
                                         <?php if ($auth->isAdmin() || $analysis['user_id'] == $user['id']): ?>
                                         <form method="POST" style="display: inline;" data-confirm="Are you sure you want to delete this analysis for <?php echo e($analysis['vendor_name']); ?>? This action cannot be undone.">
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                             <input type="hidden" name="delete_id" value="<?php echo $analysis['id']; ?>">
-                                            <button type="submit" class="btn-delete">🗑 Delete</button>
+                                            <button type="submit" class="btn-delete">🗑 <?php echo e(t('reports.delete')); ?></button>
                                         </form>
                                         <?php endif; ?>
                                     </td>
@@ -1137,14 +1137,14 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                 </div>
                 <?php else: ?>
                 <div style="text-align: center; padding: 60px 20px; background: white; border-radius: 8px;">
-                    <h3 style="color: #666; margin-bottom: 15px;">No Analyses Yet</h3>
-                    <p style="color: #999; margin-bottom: 20px;">Create your first FAIR analysis to see reports and statistics.</p>
-                    <a href="fair-analysis.php" class="btn btn-primary">Create Analysis</a>
+                    <h3 style="color: #666; margin-bottom: 15px;"><?php echo e(t('reports.no_analyses')); ?></h3>
+                    <p style="color: #999; margin-bottom: 20px;"><?php echo e(t('reports.no_analyses_desc')); ?></p>
+                    <a href="fair-analysis.php" class="btn btn-primary"><?php echo e(t('reports.create_analysis')); ?></a>
                 </div>
                 <?php endif; ?>
 
                 <div style="margin-top: 30px;">
-                    <a href="index.php" style="color: #ff6543; text-decoration: none;">&larr; Back to Dashboard</a>
+                    <a href="index.php" style="color: #ff6543; text-decoration: none;">&larr; <?php echo e(t('reports.back_to_dashboard')); ?></a>
                 </div>
             </main>
         </div>
@@ -1164,7 +1164,7 @@ $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('reports.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>

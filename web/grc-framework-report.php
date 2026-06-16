@@ -422,11 +422,11 @@ $csrfToken = $security->getCSRFToken();
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -434,11 +434,11 @@ $csrfToken = $security->getCSRFToken();
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <a href="grc-frameworks.php?framework_id=<?php echo $frameworkId; ?>" class="back-link">&larr; Back to <?php echo e($framework['code']); ?></a>
+            <a href="grc-frameworks.php?framework_id=<?php echo $frameworkId; ?>" class="back-link">&larr; <?php echo e(t('grc-framework-report.back_to', $framework['code'])); ?></a>
 
             <div class="print-bar">
-                <button class="btn btn-primary" id="printReportBtn">Print Report</button>
-                <a href="grc-frameworks.php?framework_id=<?php echo $frameworkId; ?>" class="btn btn-outline">Back to Framework</a>
+                <button class="btn btn-primary" id="printReportBtn"><?php echo e(t('grc-framework-report.print_report')); ?></button>
+                <a href="grc-frameworks.php?framework_id=<?php echo $frameworkId; ?>" class="btn btn-outline"><?php echo e(t('grc-framework-report.back_to_framework')); ?></a>
             </div>
 
             <!-- Assessment Header -->
@@ -448,11 +448,11 @@ $csrfToken = $security->getCSRFToken();
 
                 <div class="header-grid">
                     <div class="header-field">
-                        <div class="label">Assessment Type</div>
+                        <div class="label"><?php echo e(t('grc-framework-report.assessment_type')); ?></div>
                         <div class="value"><?php echo e($typeLabels[$assessment['assessment_type']] ?? ucfirst($assessment['assessment_type'] ?? '')); ?></div>
                     </div>
                     <div class="header-field">
-                        <div class="label">Status</div>
+                        <div class="label"><?php echo e(t('grc-framework-report.status')); ?></div>
                         <div class="value">
                             <?php
                             $as = $assessmentStatusLabels[$assessment['status']] ?? ['Unknown', '#6b7280'];
@@ -461,34 +461,34 @@ $csrfToken = $security->getCSRFToken();
                         </div>
                     </div>
                     <div class="header-field">
-                        <div class="label">Scope</div>
-                        <div class="value"><?php echo e($scopeName ?: 'Not assigned'); ?></div>
+                        <div class="label"><?php echo e(t('grc-framework-report.scope')); ?></div>
+                        <div class="value"><?php echo e($scopeName ?: t('grc-framework-report.not_assigned')); ?></div>
                     </div>
                     <div class="header-field">
-                        <div class="label">Lead Auditor</div>
-                        <div class="value"><?php echo e($assessment['lead_auditor_name'] ?? 'Unassigned'); ?></div>
+                        <div class="label"><?php echo e(t('grc-framework-report.lead_auditor')); ?></div>
+                        <div class="value"><?php echo e($assessment['lead_auditor_name'] ?? t('grc-framework-report.unassigned')); ?></div>
                     </div>
                     <div class="header-field">
-                        <div class="label">Planned Start</div>
+                        <div class="label"><?php echo e(t('grc-framework-report.planned_start')); ?></div>
                         <div class="value"><?php echo !empty($assessment['planned_start']) ? date('M j, Y', strtotime($assessment['planned_start'])) : '&mdash;'; ?></div>
                     </div>
                     <div class="header-field">
-                        <div class="label">Planned End</div>
+                        <div class="label"><?php echo e(t('grc-framework-report.planned_end')); ?></div>
                         <div class="value"><?php echo !empty($assessment['planned_end']) ? date('M j, Y', strtotime($assessment['planned_end'])) : '&mdash;'; ?></div>
                     </div>
                     <div class="header-field">
-                        <div class="label">Framework Compliance</div>
+                        <div class="label"><?php echo e(t('grc-framework-report.framework_compliance')); ?></div>
                         <div class="value" style="color: <?php echo $compliancePct >= 80 ? '#059669' : ($compliancePct >= 50 ? '#d97706' : '#dc2626'); ?>; font-size: 20px; font-weight: 700;"><?php echo $compliancePct; ?>%</div>
                     </div>
                     <div class="header-field">
-                        <div class="label">Report Generated</div>
+                        <div class="label"><?php echo e(t('grc-framework-report.report_generated')); ?></div>
                         <div class="value"><?php echo date('M j, Y g:i A'); ?></div>
                     </div>
                 </div>
 
                 <?php if (!empty($assessment['scope'])): ?>
                 <div class="scope-notes">
-                    <div class="label">Scope Notes</div>
+                    <div class="label"><?php echo e(t('grc-framework-report.scope_notes')); ?></div>
                     <div class="value"><?php echo e($assessment['scope']); ?></div>
                 </div>
                 <?php endif; ?>
@@ -498,35 +498,35 @@ $csrfToken = $security->getCSRFToken();
             <div class="stats-bar" id="statsBar">
                 <div class="stat-card" data-filter="all">
                     <div class="stat-value"><?php echo $totalReqs; ?></div>
-                    <div class="stat-label">Total Requirements</div>
+                    <div class="stat-label"><?php echo e(t('grc-framework-report.total_requirements')); ?></div>
                 </div>
                 <div class="stat-card" data-filter="conforming">
                     <div class="stat-value" style="color:#059669;"><?php echo $conformingReqs; ?></div>
-                    <div class="stat-label">Conforming</div>
+                    <div class="stat-label"><?php echo e(t('grc-framework-report.conforming')); ?></div>
                 </div>
                 <div class="stat-card" data-filter="partial">
                     <div class="stat-value" style="color:#d97706;"><?php echo $partialReqs; ?></div>
-                    <div class="stat-label">Partial</div>
+                    <div class="stat-label"><?php echo e(t('grc-framework-report.partial')); ?></div>
                 </div>
                 <div class="stat-card" data-filter="non_conforming">
                     <div class="stat-value" style="color:#dc2626;"><?php echo $nonConformingReqs; ?></div>
-                    <div class="stat-label">Non-Conforming</div>
+                    <div class="stat-label"><?php echo e(t('grc-framework-report.non_conforming')); ?></div>
                 </div>
                 <div class="stat-card" data-filter="not_assessed">
                     <div class="stat-value" style="color:#9ca3af;"><?php echo $notAssessedReqs; ?></div>
-                    <div class="stat-label">Not Assessed</div>
+                    <div class="stat-label"><?php echo e(t('grc-framework-report.not_assessed')); ?></div>
                 </div>
                 <div class="stat-card" data-filter="not_applicable">
                     <div class="stat-value" style="color:#6b7280;"><?php echo $naReqs; ?></div>
-                    <div class="stat-label">N/A</div>
+                    <div class="stat-label"><?php echo e(t('grc-framework-report.na')); ?></div>
                 </div>
             </div>
 
             <!-- Risk Heatmap -->
             <?php if ($heatmapTotal > 0): ?>
             <div class="heatmap-wrapper">
-                <h3>Risk Heatmap (Likelihood x Impact)</h3>
-                <div style="text-align:center;font-size:11px;color:#6b7280;margin-bottom:4px;">Impact &rarr;</div>
+                <h3><?php echo e(t('grc-framework-report.risk_heatmap')); ?></h3>
+                <div style="text-align:center;font-size:11px;color:#6b7280;margin-bottom:4px;"><?php echo e(t('grc-framework-report.impact')); ?> &rarr;</div>
                 <div class="heatmap">
                     <?php
                     function getHeatColor($l, $i) {
@@ -549,7 +549,7 @@ $csrfToken = $security->getCSRFToken();
                     <div class="heatmap-label"><?php echo $hi; ?></div>
                     <?php endfor; ?>
                 </div>
-                <div style="text-align:left;font-size:11px;color:#6b7280;margin-top:4px;">Likelihood &uarr;</div>
+                <div style="text-align:left;font-size:11px;color:#6b7280;margin-top:4px;"><?php echo e(t('grc-framework-report.likelihood')); ?> &uarr;</div>
             </div>
             <?php endif; ?>
 
@@ -582,7 +582,7 @@ $csrfToken = $security->getCSRFToken();
                 <?php endif; ?>
 
                 <?php if (empty($req['questions'])): ?>
-                <div class="no-questions">No assessment questions mapped to this requirement.</div>
+                <div class="no-questions"><?php echo e(t('grc-framework-report.no_questions_mapped')); ?></div>
                 <?php else: ?>
                     <?php foreach ($req['questions'] as $q): ?>
                     <div class="question-block">
@@ -593,7 +593,7 @@ $csrfToken = $security->getCSRFToken();
 
                         <div class="q-details">
                             <div class="q-detail">
-                                <div class="label">Maturity Rating</div>
+                                <div class="label"><?php echo e(t('grc-framework-report.maturity_rating')); ?></div>
                                 <div class="value">
                                     <?php if ($q['maturity_rating']): ?>
                                         <strong><?php echo (int)$q['maturity_rating']; ?> / 4</strong>
@@ -603,29 +603,29 @@ $csrfToken = $security->getCSRFToken();
                                             <?php endfor; ?>
                                         </div>
                                     <?php else: ?>
-                                        <span style="color:#9ca3af;">Not rated</span>
+                                        <span style="color:#9ca3af;"><?php echo e(t('grc-framework-report.not_rated')); ?></span>
                                     <?php endif; ?>
                                 </div>
                             </div>
                             <div class="q-detail">
-                                <div class="label">Conformity Status</div>
+                                <div class="label"><?php echo e(t('grc-framework-report.conformity_status')); ?></div>
                                 <div class="value">
                                     <?php $csl = $statusLabels[$q['conformity_status'] ?? 'not_assessed']; ?>
                                     <span class="status-badge" style="background:<?php echo $csl[2]; ?>;color:<?php echo $csl[1]; ?>;"><?php echo $csl[0]; ?></span>
                                 </div>
                             </div>
                             <div class="q-detail">
-                                <div class="label">Validation</div>
+                                <div class="label"><?php echo e(t('grc-framework-report.validation')); ?></div>
                                 <div class="value">
                                     <?php $vl = $validationLabels[$q['validation_status'] ?? 'pending']; ?>
                                     <span class="validation-badge" style="background:<?php echo $vl[2]; ?>;color:<?php echo $vl[1]; ?>;"><?php echo $vl[0]; ?></span>
                                     <?php if (!empty($q['validator_name'])): ?>
-                                        <span style="font-size:11px;color:#6b7280;">by <?php echo e($q['validator_name']); ?></span>
+                                        <span style="font-size:11px;color:#6b7280;"><?php echo e(t('grc-framework-report.by', $q['validator_name'])); ?></span>
                                     <?php endif; ?>
                                 </div>
                             </div>
                             <div class="q-detail">
-                                <div class="label">Assessed By</div>
+                                <div class="label"><?php echo e(t('grc-framework-report.assessed_by')); ?></div>
                                 <div class="value"><?php echo !empty($q['assessor_name']) ? e($q['assessor_name']) : '&mdash;'; ?>
                                     <?php if ($q['assessed_at']): ?>
                                         <span style="font-size:11px;color:#6b7280;"><?php echo date('M j, Y', strtotime($q['assessed_at'])); ?></span>
@@ -633,23 +633,23 @@ $csrfToken = $security->getCSRFToken();
                                 </div>
                             </div>
                             <div class="q-detail">
-                                <div class="label">Mapping Strength</div>
+                                <div class="label"><?php echo e(t('grc-framework-report.mapping_strength')); ?></div>
                                 <div class="value"><?php echo ucfirst($q['mapping_strength'] ?? 'unknown'); ?></div>
                             </div>
                         </div>
 
                         <?php if (!empty($q['notes'])): ?>
-                        <div class="q-notes-label">Assessor Notes</div>
+                        <div class="q-notes-label"><?php echo e(t('grc-framework-report.assessor_notes')); ?></div>
                         <div class="q-notes"><?php echo e($q['notes']); ?></div>
                         <?php endif; ?>
 
                         <?php if (!empty($q['validation_notes'])): ?>
-                        <div class="q-notes-label">Validation Notes</div>
+                        <div class="q-notes-label"><?php echo e(t('grc-framework-report.validation_notes')); ?></div>
                         <div class="q-notes"><?php echo e($q['validation_notes']); ?></div>
                         <?php endif; ?>
 
                         <?php if (!empty($q['evidence'])): ?>
-                        <div class="q-notes-label">Evidence Attachments</div>
+                        <div class="q-notes-label"><?php echo e(t('grc-framework-report.evidence_attachments')); ?></div>
                         <ul class="evidence-list">
                             <?php foreach ($q['evidence'] as $ev): ?>
                             <li>
@@ -689,7 +689,7 @@ $csrfToken = $security->getCSRFToken();
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-framework-report.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

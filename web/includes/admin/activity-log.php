@@ -155,19 +155,19 @@ $users = $db->fetchAll(
 ?>
 
 <div class="page-header-bar">
-    <h1>Activity Log</h1>
-    <p>Audit trail of system actions and document operations</p>
+    <h1><?php echo e(t('admin_activity-log.activity_log')); ?></h1>
+    <p><?php echo e(t('admin_activity-log.audit_trail_desc')); ?></p>
 </div>
 
 <div class="card" style="margin-bottom: 20px;">
-    <h3>Filters</h3>
+    <h3><?php echo e(t('admin_activity-log.filters')); ?></h3>
     <form method="GET" action="admin.php" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
         <input type="hidden" name="section" value="activity">
 
         <div style="flex: 1; min-width: 150px;">
-            <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: #333;">Action</label>
+            <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: #333;"><?php echo e(t('admin_activity-log.action')); ?></label>
             <select name="action_filter" class="form-control" style="height: 38px;">
-                <option value="">All Actions</option>
+                <option value=""><?php echo e(t('admin_activity-log.all_actions')); ?></option>
                 <?php foreach ($actions as $a): ?>
                 <option value="<?php echo e($a['action']); ?>" <?php echo $filterAction === $a['action'] ? 'selected' : ''; ?>>
                     <?php echo e($a['action']); ?>
@@ -177,9 +177,9 @@ $users = $db->fetchAll(
         </div>
 
         <div style="flex: 1; min-width: 150px;">
-            <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: #333;">User</label>
+            <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: #333;"><?php echo e(t('admin_activity-log.user')); ?></label>
             <select name="user_filter" class="form-control" style="height: 38px;">
-                <option value="">All Users</option>
+                <option value=""><?php echo e(t('admin_activity-log.all_users')); ?></option>
                 <?php foreach ($users as $u): ?>
                 <option value="<?php echo intval($u['user_id']); ?>" <?php echo $filterUser == $u['user_id'] ? 'selected' : ''; ?>>
                     <?php echo e($u['full_name'] ?: $u['username'] ?: 'User #' . $u['user_id']); ?>
@@ -189,18 +189,18 @@ $users = $db->fetchAll(
         </div>
 
         <div style="flex: 1; min-width: 140px;">
-            <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: #333;">From Date</label>
+            <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: #333;"><?php echo e(t('admin_activity-log.from_date')); ?></label>
             <input type="date" name="date_from" class="form-control" value="<?php echo e($filterDateFrom); ?>" style="height: 38px;">
         </div>
 
         <div style="flex: 1; min-width: 140px;">
-            <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: #333;">To Date</label>
+            <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: #333;"><?php echo e(t('admin_activity-log.to_date')); ?></label>
             <input type="date" name="date_to" class="form-control" value="<?php echo e($filterDateTo); ?>" style="height: 38px;">
         </div>
 
         <div style="display: flex; gap: 8px;">
-            <button type="submit" class="btn btn-primary" style="height: 38px;">Filter</button>
-            <a href="admin.php?section=activity" class="btn btn-secondary" style="height: 38px; display: inline-flex; align-items: center; text-decoration: none; color: white;">Clear</a>
+            <button type="submit" class="btn btn-primary" style="height: 38px;"><?php echo e(t('admin_activity-log.filter')); ?></button>
+            <a href="admin.php?section=activity" class="btn btn-secondary" style="height: 38px; display: inline-flex; align-items: center; text-decoration: none; color: white;"><?php echo e(t('admin_activity-log.clear')); ?></a>
             <?php
             $exportParams = ['section' => 'activity', 'export' => 'csv'];
             if ($filterAction !== '') $exportParams['action_filter'] = $filterAction;
@@ -208,28 +208,28 @@ $users = $db->fetchAll(
             if ($filterDateFrom !== '') $exportParams['date_from'] = $filterDateFrom;
             if ($filterDateTo !== '') $exportParams['date_to'] = $filterDateTo;
             ?>
-            <a href="admin.php?<?php echo http_build_query($exportParams); ?>" class="btn" style="height: 38px; display: inline-flex; align-items: center; text-decoration: none; color: white; background: #059669;">Export CSV</a>
+            <a href="admin.php?<?php echo http_build_query($exportParams); ?>" class="btn" style="height: 38px; display: inline-flex; align-items: center; text-decoration: none; color: white; background: #059669;"><?php echo e(t('admin_activity-log.export_csv')); ?></a>
         </div>
     </form>
 </div>
 
 <div class="card">
-    <h3>Log Entries <span style="font-weight: 400; font-size: 13px; color: #666;">(<?php echo number_format($totalRecords); ?> total)</span></h3>
+    <h3><?php echo e(t('admin_activity-log.log_entries')); ?> <span style="font-weight: 400; font-size: 13px; color: #666;">(<?php echo number_format($totalRecords); ?> <?php echo e(t('admin_activity-log.total')); ?>)</span></h3>
 
     <?php if (empty($records)): ?>
-    <p style="color: #666; text-align: center; padding: 30px 0;">No activity log entries found.</p>
+    <p style="color: #666; text-align: center; padding: 30px 0;"><?php echo e(t('admin_activity-log.no_entries_found')); ?></p>
     <?php else: ?>
     <div style="overflow-x: auto;">
         <table>
             <thead>
                 <tr>
-                    <th>Date/Time</th>
-                    <th>User</th>
-                    <th>Action</th>
-                    <th>Table</th>
-                    <th>Record ID</th>
-                    <th>IP Address</th>
-                    <th>Details</th>
+                    <th><?php echo e(t('admin_activity-log.date_time')); ?></th>
+                    <th><?php echo e(t('admin_activity-log.user')); ?></th>
+                    <th><?php echo e(t('admin_activity-log.action')); ?></th>
+                    <th><?php echo e(t('admin_activity-log.table')); ?></th>
+                    <th><?php echo e(t('admin_activity-log.record_id')); ?></th>
+                    <th><?php echo e(t('admin_activity-log.ip_address')); ?></th>
+                    <th><?php echo e(t('admin_activity-log.details')); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -264,13 +264,13 @@ $users = $db->fetchAll(
                         <div class="audit-details" style="display: none; margin-top: 8px; font-size: 11px;">
                             <?php if ($hasOld): ?>
                             <div style="margin-bottom: 6px;">
-                                <strong style="color: #dc2626;">Old:</strong>
+                                <strong style="color: #dc2626;"><?php echo e(t('admin_activity-log.old')); ?></strong>
                                 <pre style="margin: 4px 0; padding: 6px 10px; background: #fef2f2; border-radius: 4px; font-size: 11px; white-space: pre-wrap; word-break: break-all;"><?php echo e(enrichAuditValues($record['old_values'], $_userNameCache)); ?></pre>
                             </div>
                             <?php endif; ?>
                             <?php if ($hasNew): ?>
                             <div>
-                                <strong style="color: #16a34a;">New:</strong>
+                                <strong style="color: #16a34a;"><?php echo e(t('admin_activity-log.new')); ?></strong>
                                 <pre style="margin: 4px 0; padding: 6px 10px; background: #f0fdf4; border-radius: 4px; font-size: 11px; white-space: pre-wrap; word-break: break-all;"><?php echo e(enrichAuditValues($record['new_values'], $_userNameCache)); ?></pre>
                             </div>
                             <?php endif; ?>
@@ -299,14 +299,14 @@ $users = $db->fetchAll(
 
         <?php if ($page > 1): ?>
         <a href="admin.php?<?php echo http_build_query(array_merge($queryParams, ['page' => $page - 1])); ?>"
-           style="padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 4px; text-decoration: none; color: #333; font-size: 13px;">Previous</a>
+           style="padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 4px; text-decoration: none; color: #333; font-size: 13px;"><?php echo e(t('admin_activity-log.previous')); ?></a>
         <?php endif; ?>
 
         <span style="font-size: 13px; color: #666;">Page <?php echo $page; ?> of <?php echo $totalPages; ?></span>
 
         <?php if ($page < $totalPages): ?>
         <a href="admin.php?<?php echo http_build_query(array_merge($queryParams, ['page' => $page + 1])); ?>"
-           style="padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 4px; text-decoration: none; color: #333; font-size: 13px;">Next</a>
+           style="padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 4px; text-decoration: none; color: #333; font-size: 13px;"><?php echo e(t('admin_activity-log.next')); ?></a>
         <?php endif; ?>
     </div>
     <?php endif; ?>

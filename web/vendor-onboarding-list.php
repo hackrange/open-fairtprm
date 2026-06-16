@@ -47,7 +47,7 @@ $canApprove = $acl->hasGroup('administrator') || $acl->hasGroup('cyber_tprm');
 
 if (!$canReadAll && !$canReadOwn && !$canReadAssigned) {
     http_response_code(403);
-    die('Access denied. You do not have permission to view onboarding requests.');
+    die(e(t('vendor-onboarding-list.access_denied')));
 }
 
 // ============================================================================
@@ -161,36 +161,36 @@ $error = '';
 if (isset($_GET['success'])) {
     switch ($_GET['success']) {
         case 'submitted':
-            $success = 'Vendor onboarding request submitted successfully!';
+            $success = t('vendor-onboarding-list.success_submitted');
             break;
         case 'in_review':
-            $success = 'Vendor onboarding request has been marked as In Review.';
+            $success = t('vendor-onboarding-list.success_in_review');
             break;
         case 'approved':
-            $success = 'Vendor onboarding request has been approved!';
+            $success = t('vendor-onboarding-list.success_approved');
             break;
         case 'deactivated':
-            $success = 'Request has been marked as inactive.';
+            $success = t('vendor-onboarding-list.success_deactivated');
             break;
         case 'deleted':
-            $success = 'Vendor onboarding request has been permanently deleted.';
+            $success = t('vendor-onboarding-list.success_deleted');
             break;
         case 'mass_deleted':
             $delCount = intval($_GET['count'] ?? 0);
             $success = $delCount . ' draft request(s) have been permanently deleted.';
             break;
         case 'evaluation':
-            $success = 'Vendor onboarding request has been marked as Evaluation.';
+            $success = t('vendor-onboarding-list.success_evaluation');
             break;
         case 'force_review':
-            $success = 'Vendor review date set to today.';
+            $success = t('vendor-onboarding-list.success_force_review');
             break;
     }
 }
 if (isset($_GET['error'])) {
     switch ($_GET['error']) {
         case 'not_found':
-            $error = 'The requested onboarding request was not found.';
+            $error = t('vendor-onboarding-list.error_not_found');
             break;
     }
 }
@@ -733,7 +733,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Vendor Onboarding Requests - TPRM</title>
+    <title><?php echo e(t('vendor-onboarding-list.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -1177,13 +1177,13 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
     <div class="page">
         <!-- Top Bar with User Menu -->
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($isAdmin): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -1209,14 +1209,14 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                  ============================================================= -->
             <main class="main-content">
                 <div class="page-header-row">
-                    <h1 class="page-title" style="margin: 0;">Vendor Onboarding Requests</h1>
+                    <h1 class="page-title" style="margin: 0;"><?php echo e(t('vendor-onboarding-list.page_heading')); ?></h1>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <?php if ($canExportImport): ?>
-                            <a href="vendor-onboarding-export.php<?php echo (!empty($statusFilter) || !empty($searchQuery)) ? '?' . http_build_query(array_filter(['status' => $statusFilter, 'search' => $searchQuery])) : ''; ?>" class="btn btn-outline" title="Export to CSV">Export CSV</a>
-                            <a href="vendor-onboarding-import.php" class="btn btn-outline" title="Import from CSV">Import CSV</a>
+                            <a href="vendor-onboarding-export.php<?php echo (!empty($statusFilter) || !empty($searchQuery)) ? '?' . http_build_query(array_filter(['status' => $statusFilter, 'search' => $searchQuery])) : ''; ?>" class="btn btn-outline" title="<?php echo e(t('vendor-onboarding-list.export_to_csv_title')); ?>"><?php echo e(t('vendor-onboarding-list.export_csv')); ?></a>
+                            <a href="vendor-onboarding-import.php" class="btn btn-outline" title="<?php echo e(t('vendor-onboarding-list.import_from_csv_title')); ?>"><?php echo e(t('vendor-onboarding-list.import_csv')); ?></a>
                         <?php endif; ?>
                         <?php if ($canCreate): ?>
-                            <a href="vendor-onboarding.php" class="btn btn-primary">+ New Request</a>
+                            <a href="vendor-onboarding.php" class="btn btn-primary">+ <?php echo e(t('vendor-onboarding-list.new_request')); ?></a>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -1234,7 +1234,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                 <div class="status-tabs">
                     <a href="vendor-onboarding-list.php<?php echo !empty($searchQuery) ? '?search=' . urlencode($searchQuery) : ''; ?>"
                        class="status-tab <?php echo empty($statusFilter) ? 'active' : ''; ?>">
-                        All <span class="count"><?php echo $totalCount; ?></span>
+                        <?php echo e(t('vendor-onboarding-list.tab_all')); ?> <span class="count"><?php echo $totalCount; ?></span>
                     </a>
                     <?php
                     // Only show status tabs that have records (or are currently selected)
@@ -1265,28 +1265,28 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                 <div class="status-tabs" style="margin-bottom: 20px;">
                     <a href="vendor-onboarding-list.php"
                        class="status-tab <?php echo empty($currentView) ? 'active' : ''; ?>">
-                        Vendor Requests
+                        <?php echo e(t('vendor-onboarding-list.tab_vendor_requests')); ?>
                     </a>
                     <a href="vendor-onboarding-list.php?view=tasks"
                        class="status-tab <?php echo $currentView === 'tasks' ? 'active' : ''; ?>">
-                        Vendor Tasks <span class="count"><?php echo $taskCount; ?></span>
+                        <?php echo e(t('vendor-onboarding-list.tab_vendor_tasks')); ?> <span class="count"><?php echo $taskCount; ?></span>
                     </a>
                     <a href="vendor-onboarding-list.php?view=open_cases"
                        class="status-tab <?php echo $currentView === 'open_cases' ? 'active' : ''; ?>">
-                        Open Cases <?php if ($openCasesCount > 0): ?><span class="count"><?php echo $openCasesCount; ?></span><?php endif; ?>
+                        <?php echo e(t('vendor-onboarding-list.tab_open_cases')); ?> <?php if ($openCasesCount > 0): ?><span class="count"><?php echo $openCasesCount; ?></span><?php endif; ?>
                     </a>
                     <a href="vendor-onboarding-list.php?view=assigned_to_me"
                        class="status-tab <?php echo $currentView === 'assigned_to_me' ? 'active' : ''; ?>">
-                        Assigned to Me <?php if ($assignedToMeCasesCount > 0): ?><span class="count"><?php echo $assignedToMeCasesCount; ?></span><?php endif; ?>
+                        <?php echo e(t('vendor-onboarding-list.tab_assigned_to_me')); ?> <?php if ($assignedToMeCasesCount > 0): ?><span class="count"><?php echo $assignedToMeCasesCount; ?></span><?php endif; ?>
                     </a>
                     <a href="vendor-onboarding-list.php?view=closed_cases"
                        class="status-tab <?php echo $currentView === 'closed_cases' ? 'active' : ''; ?>">
-                        Closed Cases <?php if ($closedCasesCount > 0): ?><span class="count"><?php echo $closedCasesCount; ?></span><?php endif; ?>
+                        <?php echo e(t('vendor-onboarding-list.tab_closed_cases')); ?> <?php if ($closedCasesCount > 0): ?><span class="count"><?php echo $closedCasesCount; ?></span><?php endif; ?>
                     </a>
                     <?php if ($isAdmin || $isProcurement || $isCyberTPRM): ?>
                     <a href="vendor-onboarding-list.php?view=expiring_contracts"
                        class="status-tab <?php echo $currentView === 'expiring_contracts' ? 'active' : ''; ?>">
-                        <?php echo ($isProcurement && !$isAdmin && !$isCyberTPRM) ? 'Contracts' : 'Expiring Contracts'; ?> <?php if ($expiringContractCasesCount > 0): ?><span class="count"><?php echo $expiringContractCasesCount; ?></span><?php endif; ?>
+                        <?php echo ($isProcurement && !$isAdmin && !$isCyberTPRM) ? e(t('vendor-onboarding-list.tab_contracts')) : e(t('vendor-onboarding-list.tab_expiring_contracts')); ?> <?php if ($expiringContractCasesCount > 0): ?><span class="count"><?php echo $expiringContractCasesCount; ?></span><?php endif; ?>
                     </a>
                     <?php endif; ?>
                 </div>
@@ -1311,19 +1311,19 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                         </div>
                     <?php else: ?>
                         <div style="margin-bottom: 15px;">
-                            <input type="text" id="casesSearch" placeholder="Search cases by vendor, title, assignee..." autocomplete="off"
+                            <input type="text" id="casesSearch" placeholder="<?php echo e(t('vendor-onboarding-list.cases_search_placeholder')); ?>" autocomplete="off"
                                    style="width: 100%; max-width: 400px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
                         </div>
                         <table class="requests-table" id="casesTable">
                             <thead>
                                 <tr>
-                                    <th>Vendor</th>
-                                    <th>Title</th>
-                                    <th>Opened By</th>
-                                    <th>Assigned To</th>
-                                    <th>Due Date</th>
-                                    <th>Status</th>
-                                    <th>Created</th>
+                                    <th><?php echo e(t('vendor-onboarding-list.col_vendor')); ?></th>
+                                    <th><?php echo e(t('vendor-onboarding-list.col_title')); ?></th>
+                                    <th><?php echo e(t('vendor-onboarding-list.col_opened_by')); ?></th>
+                                    <th><?php echo e(t('vendor-onboarding-list.col_assigned_to')); ?></th>
+                                    <th><?php echo e(t('vendor-onboarding-list.col_due_date')); ?></th>
+                                    <th><?php echo e(t('vendor-onboarding-list.col_status')); ?></th>
+                                    <th><?php echo e(t('vendor-onboarding-list.col_created')); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1340,17 +1340,17 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                 <tr>
                                     <td class="vendor-name">
                                         <a href="vendor-onboarding.php?id=<?php echo intval($case['vendor_id']); ?>&tab=notes">
-                                            <?php echo e($case['vendor_name'] ?: 'Unknown Vendor'); ?>
+                                            <?php echo e($case['vendor_name'] ?: t('vendor-onboarding-list.unknown_vendor')); ?>
                                         </a>
                                     </td>
                                     <td><?php echo e($case['title']); ?></td>
-                                    <td><?php echo e($case['created_by_name'] ?: 'Unknown'); ?></td>
+                                    <td><?php echo e($case['created_by_name'] ?: t('vendor-onboarding-list.unknown')); ?></td>
                                     <td><?php echo e($case['assigned_to_name'] ?: '-'); ?></td>
                                     <td>
                                         <?php if (!empty($case['due_date'])): ?>
                                             <?php echo date('M j, Y', strtotime($case['due_date'])); ?>
                                             <?php if ($isOverdue): ?>
-                                                <span style="color: #dc2626; font-weight: 500; font-size: 11px;">(overdue)</span>
+                                                <span style="color: #dc2626; font-weight: 500; font-size: 11px;"><?php echo e(t('vendor-onboarding-list.overdue_paren')); ?></span>
                                             <?php endif; ?>
                                         <?php else: ?>
                                             -
@@ -1410,30 +1410,30 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                     <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
                         <div style="background: #f3f4f6; border-radius: 8px; padding: 12px 18px; min-width: 100px; text-align: center;">
                             <div style="font-size: 22px; font-weight: 700; color: #374151;"><?php echo $ecTotal; ?></div>
-                            <div style="font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Total</div>
+                            <div style="font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;"><?php echo e(t('vendor-onboarding-list.stat_total')); ?></div>
                         </div>
                         <div style="background: #fef3c7; border-radius: 8px; padding: 12px 18px; min-width: 100px; text-align: center;">
                             <div style="font-size: 22px; font-weight: 700; color: #92400e;"><?php echo $ecExpiringSoon; ?></div>
-                            <div style="font-size: 11px; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px;">Expiring Soon</div>
+                            <div style="font-size: 11px; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px;"><?php echo e(t('vendor-onboarding-list.stat_expiring_soon')); ?></div>
                         </div>
                         <div style="background: #fee2e2; border-radius: 8px; padding: 12px 18px; min-width: 100px; text-align: center;">
                             <div style="font-size: 22px; font-weight: 700; color: #991b1b;"><?php echo $ecExpired; ?></div>
-                            <div style="font-size: 11px; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px;">Expired</div>
+                            <div style="font-size: 11px; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px;"><?php echo e(t('vendor-onboarding-list.stat_expired')); ?></div>
                         </div>
                         <div style="background: #dbeafe; border-radius: 8px; padding: 12px 18px; min-width: 100px; text-align: center;">
                             <div style="font-size: 22px; font-weight: 700; color: #1e40af;"><?php echo $ecAssigned; ?></div>
-                            <div style="font-size: 11px; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;">Assigned</div>
+                            <div style="font-size: 11px; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;"><?php echo e(t('vendor-onboarding-list.stat_assigned')); ?></div>
                         </div>
                         <div style="background: #d1fae5; border-radius: 8px; padding: 12px 18px; min-width: 100px; text-align: center;">
                             <div style="font-size: 22px; font-weight: 700; color: #065f46;"><?php echo $ecClosed; ?></div>
-                            <div style="font-size: 11px; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px;">Closed</div>
+                            <div style="font-size: 11px; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px;"><?php echo e(t('vendor-onboarding-list.stat_closed')); ?></div>
                         </div>
                     </div>
 
                     <?php if (empty($expiringContractCases)): ?>
                         <div class="empty-state">
-                            <h3>No expiring contracts</h3>
-                            <p>No contracts are expiring within the next 90 days.</p>
+                            <h3><?php echo e(t('vendor-onboarding-list.no_expiring_contracts')); ?></h3>
+                            <p><?php echo e(t('vendor-onboarding-list.no_expiring_contracts_desc')); ?></p>
                         </div>
                     <?php else: ?>
                         <!-- Contract cards -->
@@ -1451,7 +1451,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
                                 <div style="flex: 1; min-width: 200px;">
                                     <div style="font-weight: 600; font-size: 15px; color: #1f2937; margin-bottom: 4px;">
-                                        <?php echo e($ec['vendor_name'] ?? 'Unknown Vendor'); ?>
+                                        <?php echo e($ec['vendor_name'] ?? t('vendor-onboarding-list.unknown_vendor')); ?>
                                     </div>
                                     <div style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
                                         <?php echo e($ecContractName); ?>
@@ -1460,13 +1460,13 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                     </div>
                                     <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
                                         <?php if ($ecIsClosed): ?>
-                                            <span style="display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #d1fae5; color: #065f46;">Closed</span>
+                                            <span style="display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #d1fae5; color: #065f46;"><?php echo e(t('vendor-onboarding-list.badge_closed')); ?></span>
                                         <?php elseif ($ecIsExpired): ?>
-                                            <span style="display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fee2e2; color: #991b1b;">Expired <?php echo abs($ecDaysUntil); ?> days ago</span>
+                                            <span style="display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fee2e2; color: #991b1b;"><?php echo e(t('vendor-onboarding-list.expired_before')); ?> <?php echo abs($ecDaysUntil); ?> <?php echo e(t('vendor-onboarding-list.days_ago')); ?></span>
                                         <?php elseif ($ecDaysUntil <= 0): ?>
-                                            <span style="display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fee2e2; color: #991b1b;">Expires Today</span>
+                                            <span style="display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fee2e2; color: #991b1b;"><?php echo e(t('vendor-onboarding-list.expires_today')); ?></span>
                                         <?php else: ?>
-                                            <span style="display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fef3c7; color: #92400e;">Expires in <?php echo $ecDaysUntil; ?> days</span>
+                                            <span style="display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fef3c7; color: #92400e;"><?php echo e(t('vendor-onboarding-list.expires_in')); ?> <?php echo $ecDaysUntil; ?> <?php echo e(t('vendor-onboarding-list.days')); ?></span>
                                         <?php endif; ?>
 
                                         <?php if (!empty($ecExpDate)): ?>
@@ -1485,12 +1485,12 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                         <input type="hidden" name="case_id" value="<?php echo (int)$ecCaseId; ?>">
                                         <input type="hidden" name="document_id" value="<?php echo (int)$ec['document_id']; ?>">
                                         <select name="new_assignee_id" style="padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; max-width: 140px;">
-                                            <option value="">Assign to...</option>
+                                            <option value=""><?php echo e(t('vendor-onboarding-list.assign_to')); ?></option>
                                             <?php foreach ($assignUsers as $au): ?>
                                             <option value="<?php echo $au['id']; ?>" <?php echo ($ec['assigned_to'] == $au['id']) ? 'selected' : ''; ?>><?php echo e($au['full_name']); ?></option>
                                             <?php endforeach; ?>
                                         </select>
-                                        <button type="submit" name="reassign_contract_case" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;">Assign</button>
+                                        <button type="submit" name="reassign_contract_case" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;"><?php echo e(t('vendor-onboarding-list.assign')); ?></button>
                                     </form>
 
                                     <!-- Close/Reopen -->
@@ -1500,10 +1500,10 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                         <input type="hidden" name="document_id" value="<?php echo (int)$ec['document_id']; ?>">
                                         <?php if ($ecIsClosed): ?>
                                             <input type="hidden" name="new_status" value="open">
-                                            <button type="submit" name="update_contract_case_status" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px; color: #92400e; border-color: #fde68a;">Reopen</button>
+                                            <button type="submit" name="update_contract_case_status" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px; color: #92400e; border-color: #fde68a;"><?php echo e(t('vendor-onboarding-list.reopen')); ?></button>
                                         <?php else: ?>
                                             <input type="hidden" name="new_status" value="closed">
-                                            <button type="submit" name="update_contract_case_status" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px; color: #065f46; border-color: #a7f3d0;">Close</button>
+                                            <button type="submit" name="update_contract_case_status" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px; color: #065f46; border-color: #a7f3d0;"><?php echo e(t('vendor-onboarding-list.close')); ?></button>
                                         <?php endif; ?>
                                     </form>
                                 </div>
@@ -1520,27 +1520,27 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                     <?php if (!empty($statusFilter)): ?>
                         <input type="hidden" name="status" value="<?php echo e($statusFilter); ?>">
                     <?php endif; ?>
-                    <input type="text" name="search" placeholder="Search by vendor name, type, relationship manager, project, or cost center..."
+                    <input type="text" name="search" placeholder="<?php echo e(t('vendor-onboarding-list.search_placeholder')); ?>"
                            value="<?php echo e($searchQuery); ?>">
-                    <button type="submit" class="btn btn-outline">Search</button>
+                    <button type="submit" class="btn btn-outline"><?php echo e(t('vendor-onboarding-list.search')); ?></button>
                     <?php if (!empty($searchQuery) || !empty($statusFilter)): ?>
-                        <a href="vendor-onboarding-list.php" class="btn btn-outline">Clear</a>
+                        <a href="vendor-onboarding-list.php" class="btn btn-outline"><?php echo e(t('vendor-onboarding-list.clear')); ?></a>
                     <?php endif; ?>
                 </form>
 
                 <?php if (empty($requests)): ?>
                     <!-- Empty state -- no requests match the current filters -->
                     <div class="empty-state">
-                        <h3>No onboarding requests found</h3>
+                        <h3><?php echo e(t('vendor-onboarding-list.no_requests_found')); ?></h3>
                         <p>
                             <?php if (!empty($searchQuery) || !empty($statusFilter)): ?>
-                                Try adjusting your filters or search query.
+                                <?php echo e(t('vendor-onboarding-list.try_adjusting')); ?>
                             <?php else: ?>
-                                Get started by creating your first vendor onboarding request.
+                                <?php echo e(t('vendor-onboarding-list.get_started')); ?>
                             <?php endif; ?>
                         </p>
                         <?php if ($canCreate): ?>
-                            <a href="vendor-onboarding.php" class="btn btn-primary">Create New Request</a>
+                            <a href="vendor-onboarding.php" class="btn btn-primary"><?php echo e(t('vendor-onboarding-list.create_new_request')); ?></a>
                         <?php endif; ?>
                     </div>
                 <?php else: ?>
@@ -1555,20 +1555,20 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                 <?php if ($canDelete): ?>
                                 <th style="width: 40px; text-align: center;">
                                     <?php if ($hasDraftsOnPage): ?>
-                                    <input type="checkbox" id="selectAllDrafts" title="Select all drafts on this page" style="cursor: pointer;">
+                                    <input type="checkbox" id="selectAllDrafts" title="<?php echo e(t('vendor-onboarding-list.select_all_drafts_title')); ?>" style="cursor: pointer;">
                                     <?php endif; ?>
                                 </th>
                                 <?php endif; ?>
-                                <th>Vendor</th>
-                                <th>Type</th>
-                                <th>Status</th>
+                                <th><?php echo e(t('vendor-onboarding-list.col_vendor')); ?></th>
+                                <th><?php echo e(t('vendor-onboarding-list.col_type')); ?></th>
+                                <th><?php echo e(t('vendor-onboarding-list.col_status')); ?></th>
                                 <?php if ($canExportImport): ?>
-                                <th>Tier / SRS</th>
+                                <th><?php echo e(t('vendor-onboarding-list.col_tier_srs')); ?></th>
                                 <?php endif; ?>
-                                <th>Stakeholder</th>
-                                <th>Last Updated</th>
-                                <th>Annual Review</th>
-                                <th>Actions</th>
+                                <th><?php echo e(t('vendor-onboarding-list.col_stakeholder')); ?></th>
+                                <th><?php echo e(t('vendor-onboarding-list.col_last_updated')); ?></th>
+                                <th><?php echo e(t('vendor-onboarding-list.col_annual_review')); ?></th>
+                                <th><?php echo e(t('vendor-onboarding-list.col_actions')); ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1577,17 +1577,17 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                     <?php if ($canDelete): ?>
                                     <td style="text-align: center;">
                                         <?php if ($req['status'] === 'draft'): ?>
-                                        <input type="checkbox" class="draft-checkbox" value="<?php echo $req['id']; ?>" data-vendor="<?php echo e($req['vendor_name'] ?: 'Untitled'); ?>" style="cursor: pointer;">
+                                        <input type="checkbox" class="draft-checkbox" value="<?php echo $req['id']; ?>" data-vendor="<?php echo e($req['vendor_name'] ?: t('vendor-onboarding-list.untitled')); ?>" style="cursor: pointer;">
                                         <?php endif; ?>
                                     </td>
                                     <?php endif; ?>
                                     <td class="vendor-name">
                                         <a href="vendor-onboarding.php?id=<?php echo $req['id']; ?>">
-                                            <?php echo e($req['vendor_name'] ?: 'Untitled Request'); ?>
+                                            <?php echo e($req['vendor_name'] ?: t('vendor-onboarding-list.untitled_request')); ?>
                                         </a>
                                         <?php if (!empty($req['expected_procurement_date'])): ?>
                                             <div class="meta-info">
-                                                Target: <?php echo date('M j, Y', strtotime($req['expected_procurement_date'])); ?>
+                                                <?php echo e(t('vendor-onboarding-list.target')); ?> <?php echo date('M j, Y', strtotime($req['expected_procurement_date'])); ?>
                                             </div>
                                         <?php endif; ?>
                                     </td>
@@ -1629,7 +1629,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                         <div class="meta-info">
                                             <?php echo date('M j, Y g:i A', strtotime($req['updated_at'])); ?>
                                             <?php if (!empty($req['last_autosave'])): ?>
-                                                <br>Autosaved: <?php echo date('M j, g:i A', strtotime($req['last_autosave'])); ?>
+                                                <br><?php echo e(t('vendor-onboarding-list.autosaved')); ?> <?php echo date('M j, g:i A', strtotime($req['last_autosave'])); ?>
                                             <?php endif; ?>
                                         </div>
                                     </td>
@@ -1658,16 +1658,16 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                                      ($acl->hasPermission('onboarding.update_own') && $isOwner) ||
                                                      ($acl->hasPermission('onboarding.update_assigned') && $isStakeholderOnReq);
                                         ?>
-                                        <a href="vendor-onboarding.php?id=<?php echo $req['id']; ?>">View</a>
+                                        <a href="vendor-onboarding.php?id=<?php echo $req['id']; ?>"><?php echo e(t('vendor-onboarding-list.action_view')); ?></a>
                                         <?php if ($reqCanEdit && $req['status'] !== 'inactive'): ?>
-                                        <a href="vendor-onboarding.php?id=<?php echo $req['id']; ?>&edit=1">Edit</a>
+                                        <a href="vendor-onboarding.php?id=<?php echo $req['id']; ?>&edit=1"><?php echo e(t('vendor-onboarding-list.action_edit')); ?></a>
                                         <?php endif; ?>
                                         <?php if ($req['status'] === 'draft' && ($canDelete || $isOwner)): ?>
                                         <form method="POST" style="display: inline;" data-confirm="Permanently delete this draft? This cannot be undone.">
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                             <input type="hidden" name="request_id" value="<?php echo $req['id']; ?>">
                                             <input type="hidden" name="action" value="delete_draft">
-                                            <button type="submit" style="background: none; border: none; color: #ef4444; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;">Delete</button>
+                                            <button type="submit" style="background: none; border: none; color: #ef4444; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;"><?php echo e(t('vendor-onboarding-list.action_delete')); ?></button>
                                         </form>
                                         <?php endif; ?>
                                         <?php // Admins/cyber_tprm can approve directly from draft ?>
@@ -1676,7 +1676,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                             <input type="hidden" name="request_id" value="<?php echo $req['id']; ?>">
                                             <input type="hidden" name="action" value="set_approved">
-                                            <button type="submit" style="background: none; border: none; color: #28a745; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;">Approve</button>
+                                            <button type="submit" style="background: none; border: none; color: #28a745; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;"><?php echo e(t('vendor-onboarding-list.action_approve')); ?></button>
                                         </form>
                                         <?php endif; ?>
                                         <?php // Inline status change buttons for admins -- submitted can go to in_review or approved ?>
@@ -1685,13 +1685,13 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                             <input type="hidden" name="request_id" value="<?php echo $req['id']; ?>">
                                             <input type="hidden" name="action" value="set_in_review">
-                                            <button type="submit" style="background: none; border: none; color: #6f42c1; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;">In Review</button>
+                                            <button type="submit" style="background: none; border: none; color: #6f42c1; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;"><?php echo e(t('vendor-onboarding-list.action_in_review')); ?></button>
                                         </form>
                                         <form method="POST" style="display: inline;">
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                             <input type="hidden" name="request_id" value="<?php echo $req['id']; ?>">
                                             <input type="hidden" name="action" value="set_approved">
-                                            <button type="submit" style="background: none; border: none; color: #28a745; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;">Approve</button>
+                                            <button type="submit" style="background: none; border: none; color: #28a745; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;"><?php echo e(t('vendor-onboarding-list.action_approve')); ?></button>
                                         </form>
                                         <?php endif; ?>
                                         <?php // In-review can only go to approved ?>
@@ -1700,7 +1700,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                             <input type="hidden" name="request_id" value="<?php echo $req['id']; ?>">
                                             <input type="hidden" name="action" value="set_approved">
-                                            <button type="submit" style="background: none; border: none; color: #28a745; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;">Approve</button>
+                                            <button type="submit" style="background: none; border: none; color: #28a745; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;"><?php echo e(t('vendor-onboarding-list.action_approve')); ?></button>
                                         </form>
                                         <?php endif; ?>
                                         <?php // Eval link -- sets status to evaluation and vendor_id to 99999 ?>
@@ -1709,7 +1709,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                             <input type="hidden" name="request_id" value="<?php echo $req['id']; ?>">
                                             <input type="hidden" name="action" value="set_evaluation">
-                                            <button type="submit" style="background: none; border: none; color: #0ea5e9; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;">Eval</button>
+                                            <button type="submit" style="background: none; border: none; color: #0ea5e9; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;"><?php echo e(t('vendor-onboarding-list.action_eval')); ?></button>
                                         </form>
                                         <?php endif; ?>
                                         <?php // Force Review -- sets last_annual_review_due to today ?>
@@ -1718,7 +1718,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                             <input type="hidden" name="request_id" value="<?php echo $req['id']; ?>">
                                             <input type="hidden" name="action" value="force_review">
-                                            <button type="submit" style="background: none; border: none; color: #f59e0b; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;">Force Review</button>
+                                            <button type="submit" style="background: none; border: none; color: #f59e0b; font-weight: 500; cursor: pointer; padding: 0; font-size: 13px;"><?php echo e(t('vendor-onboarding-list.action_force_review')); ?></button>
                                         </form>
                                         <?php endif; ?>
                                     </td>
@@ -1737,14 +1737,14 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                         <input type="hidden" name="request_id" value="0">
                         <input type="hidden" name="delete_ids" id="massDeleteIds" value="">
                         <span style="font-size: 14px; color: #991b1b; font-weight: 500;">
-                            <span id="selectedCount">0</span> draft(s) selected
+                            <span id="selectedCount">0</span> <?php echo e(t('vendor-onboarding-list.drafts_selected')); ?>
                         </span>
                         <div style="display: flex; gap: 8px;">
                             <button type="button" id="clearSelection" style="padding: 8px 16px; border: 1px solid #d1d5db; border-radius: 6px; background: white; color: #374151; font-size: 13px; cursor: pointer;">
-                                Clear Selection
+                                <?php echo e(t('vendor-onboarding-list.clear_selection')); ?>
                             </button>
                             <button type="submit" style="padding: 8px 16px; border: none; border-radius: 6px; background: #dc2626; color: white; font-size: 13px; font-weight: 600; cursor: pointer;">
-                                Delete Selected
+                                <?php echo e(t('vendor-onboarding-list.delete_selected')); ?>
                             </button>
                         </div>
                     </form>
@@ -1756,7 +1756,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                 <?php if ($onbTotalRows > 0): ?>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-top: 1px solid #e5e7eb; flex-wrap: wrap; gap: 10px;">
                     <div style="font-size: 13px; color: #666;">
-                        Showing <?php echo $onbPg['start_row']; ?>-<?php echo $onbPg['end_row']; ?> of <?php echo $onbPg['total_rows']; ?> vendors
+                        <?php echo e(t('vendor-onboarding-list.showing')); ?> <?php echo $onbPg['start_row']; ?>-<?php echo $onbPg['end_row']; ?> <?php echo e(t('vendor-onboarding-list.of')); ?> <?php echo $onbPg['total_rows']; ?> <?php echo e(t('vendor-onboarding-list.vendors')); ?>
                     </div>
                     <?php if ($onbPg['total_pages'] > 1): ?>
                     <ul style="display: flex; gap: 4px; list-style: none; margin: 0; padding: 0;">
@@ -1781,13 +1781,13 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                     </ul>
                     <?php endif; ?>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <label style="font-size: 12px; color: #666;">Show:</label>
+                        <label style="font-size: 12px; color: #666;"><?php echo e(t('vendor-onboarding-list.show')); ?></label>
                         <select data-action="changePerPage" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
                             <option value="25" <?php echo $onbPerPage == 25 ? 'selected' : ''; ?>>25</option>
                             <option value="50" <?php echo $onbPerPage == 50 ? 'selected' : ''; ?>>50</option>
                             <option value="100" <?php echo $onbPerPage == 100 ? 'selected' : ''; ?>>100</option>
                         </select>
-                        <label style="font-size: 12px; color: #666;">per page</label>
+                        <label style="font-size: 12px; color: #666;"><?php echo e(t('vendor-onboarding-list.per_page')); ?></label>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -1804,7 +1804,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                     <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                         <?php if (!empty($theme['footer_logo_url'])): ?>
                             <a class="brand" href="index.php">
-                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('vendor-onboarding-list.footer_logo_alt')); ?>" style="max-height: 45px;">
                             </a>
                         <?php endif; ?>
                         <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -1813,7 +1813,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('vendor-onboarding-list.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>

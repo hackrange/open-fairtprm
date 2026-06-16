@@ -53,11 +53,11 @@ if (isset($_GET['download']) && is_numeric($_GET['download'])) {
             echo $decrypted;
             exit;
         } catch (Exception $ex) {
-            $msg = 'Failed to decrypt evidence file.';
+            $msg = t('grc-evidence.decrypt_failed');
             $msgType = 'danger';
         }
     } else {
-        $msg = 'Evidence file not found.';
+        $msg = t('grc-evidence.file_not_found');
         $msgType = 'danger';
     }
 }
@@ -65,7 +65,7 @@ if (isset($_GET['download']) && is_numeric($_GET['download'])) {
 // POST handlers
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $msg = 'Invalid CSRF token. Please try again.';
+        $msg = t('grc-evidence.invalid_csrf');
         $msgType = 'danger';
     } else {
         $action = $_POST['action'] ?? '';
@@ -132,10 +132,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     }
                 }
 
-                $msg = 'Evidence uploaded successfully.';
+                $msg = t('grc-evidence.upload_success');
                 $msgType = 'success';
             } else {
-                $msg = 'Title is required.';
+                $msg = t('grc-evidence.title_required');
                 $msgType = 'danger';
             }
         } elseif ($action === 'link_control') {
@@ -152,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                         'control_id' => $controlId,
                     ]);
                 }
-                $msg = 'Control linked successfully.';
+                $msg = t('grc-evidence.control_linked');
                 $msgType = 'success';
             }
         } elseif ($action === 'unlink_control') {
@@ -163,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     'evidence_id = :eid AND control_id = :cid',
                     [':eid' => $evId, ':cid' => $controlId]
                 );
-                $msg = 'Control unlinked.';
+                $msg = t('grc-evidence.control_unlinked');
                 $msgType = 'success';
             }
         } elseif ($action === 'delete') {
@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                 $db->query('DELETE FROM grc_evidence_control_map WHERE evidence_id = :eid', [':eid' => $evId]);
                 $db->query('DELETE FROM grc_assessment_evidence WHERE evidence_id = :eid', [':eid' => $evId]);
                 $db->query('DELETE FROM grc_evidence WHERE id = :eid', [':eid' => $evId]);
-                $_SESSION['flash_msg'] = 'Evidence deleted successfully.';
+                $_SESSION['flash_msg'] = t('grc-evidence.delete_success');
                 $_SESSION['flash_type'] = 'success';
                 header('Location: grc-evidence.php');
                 exit;
@@ -363,11 +363,11 @@ $currentPage = 'grc_evidence';
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -375,8 +375,8 @@ $currentPage = 'grc_evidence';
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">Evidence Library</h1>
-            <p style="color:#6b7280;margin:0 0 30px;">Upload, manage, and link evidence to internal controls</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc-evidence.title')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 30px;"><?php echo e(t('grc-evidence.subtitle')); ?></p>
 
             <?php if ($msg): ?>
             <div class="alert alert-<?php echo e($msgType); ?>"><?php echo e($msg); ?></div>
@@ -384,17 +384,17 @@ $currentPage = 'grc_evidence';
 
             <?php if ($evidenceDetail): ?>
             <!-- Evidence Detail -->
-            <a href="grc-evidence.php" class="back-link">&larr; Back to evidence library</a>
+            <a href="grc-evidence.php" class="back-link">&larr; <?php echo e(t('grc-evidence.back_to_library')); ?></a>
 
             <div class="detail-card">
                 <h3><?php echo e($evidenceDetail['evidence_ref']); ?> - <?php echo e($evidenceDetail['title']); ?></h3>
                 <div class="detail-grid">
                     <div class="detail-item">
-                        <div class="label">Type</div>
+                        <div class="label"><?php echo e(t('grc-evidence.type')); ?></div>
                         <div class="value"><?php echo e(ucfirst($evidenceDetail['evidence_type'] ?? '-')); ?></div>
                     </div>
                     <div class="detail-item">
-                        <div class="label">Status</div>
+                        <div class="label"><?php echo e(t('grc-evidence.status')); ?></div>
                         <div class="value">
                             <?php
                             $evStatus = $evidenceDetail['status'] ?? 'current';
@@ -407,19 +407,19 @@ $currentPage = 'grc_evidence';
                         </div>
                     </div>
                     <div class="detail-item">
-                        <div class="label">Collection Method</div>
+                        <div class="label"><?php echo e(t('grc-evidence.collection_method')); ?></div>
                         <div class="value"><?php echo e(ucfirst($evidenceDetail['collection_method'] ?? '-')); ?></div>
                     </div>
                     <div class="detail-item">
-                        <div class="label">Collected At</div>
+                        <div class="label"><?php echo e(t('grc-evidence.collected_at')); ?></div>
                         <div class="value"><?php echo $evidenceDetail['collected_at'] ? e(date('M j, Y g:i A', strtotime($evidenceDetail['collected_at']))) : '-'; ?></div>
                     </div>
                     <div class="detail-item">
-                        <div class="label">Valid Until</div>
-                        <div class="value"><?php echo $evidenceDetail['valid_until'] ? e(date('M j, Y', strtotime($evidenceDetail['valid_until']))) : 'No expiry'; ?></div>
+                        <div class="label"><?php echo e(t('grc-evidence.valid_until')); ?></div>
+                        <div class="value"><?php echo $evidenceDetail['valid_until'] ? e(date('M j, Y', strtotime($evidenceDetail['valid_until']))) : e(t('grc-evidence.no_expiry')); ?></div>
                     </div>
                     <div class="detail-item">
-                        <div class="label">Uploaded By</div>
+                        <div class="label"><?php echo e(t('grc-evidence.uploaded_by')); ?></div>
                         <div class="value"><?php echo e($evidenceDetail['created_by_name'] ?? '-'); ?></div>
                     </div>
                 </div>
@@ -443,13 +443,13 @@ $currentPage = 'grc_evidence';
                         <span style="font-size:12px;color:#6b7280;margin-left:8px;"><?php echo $evidenceDetail['file_size'] ? e(number_format($evidenceDetail['file_size'] / 1024, 1) . ' KB') : ''; ?></span>
                     </div>
                     <div style="display:flex;gap:8px;">
-                        <a href="grc-evidence.php?download=<?php echo (int)$evidenceDetail['id']; ?>" class="btn btn-sm btn-outline">Download</a>
+                        <a href="grc-evidence.php?download=<?php echo (int)$evidenceDetail['id']; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc-evidence.download')); ?></a>
                         <?php if (!$readOnly): ?>
                         <form method="post" style="display:inline;" data-confirm="Delete this evidence permanently? This removes all control and assessment links.">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="evidence_id" value="<?php echo (int)$evidenceDetail['id']; ?>">
-                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            <button type="submit" class="btn btn-sm btn-danger"><?php echo e(t('grc-evidence.delete')); ?></button>
                         </form>
                         <?php endif; ?>
                     </div>
@@ -459,10 +459,10 @@ $currentPage = 'grc_evidence';
 
             <!-- Linked Controls -->
             <div class="detail-card">
-                <h3>Linked Controls</h3>
+                <h3><?php echo e(t('grc-evidence.linked_controls')); ?></h3>
                 <?php if (!empty($evidenceDetail['controls'])): ?>
                 <table class="grc-table">
-                    <thead><tr><th>Reference</th><th>Title</th><th>Status</th><?php if (!$readOnly): ?><th>Actions</th><?php endif; ?></tr></thead>
+                    <thead><tr><th><?php echo e(t('grc-evidence.reference')); ?></th><th><?php echo e(t('grc-evidence.col_title')); ?></th><th><?php echo e(t('grc-evidence.status')); ?></th><?php if (!$readOnly): ?><th><?php echo e(t('grc-evidence.actions')); ?></th><?php endif; ?></tr></thead>
                     <tbody>
                     <?php foreach ($evidenceDetail['controls'] as $ctrl): ?>
                     <tr>
@@ -476,7 +476,7 @@ $currentPage = 'grc_evidence';
                                 <input type="hidden" name="action" value="unlink_control">
                                 <input type="hidden" name="evidence_id" value="<?php echo (int)$evidenceDetail['id']; ?>">
                                 <input type="hidden" name="control_id" value="<?php echo (int)$ctrl['id']; ?>">
-                                <button type="submit" class="btn btn-sm btn-danger">Unlink</button>
+                                <button type="submit" class="btn btn-sm btn-danger"><?php echo e(t('grc-evidence.unlink')); ?></button>
                             </form>
                         </td>
                         <?php endif; ?>
@@ -485,7 +485,7 @@ $currentPage = 'grc_evidence';
                     </tbody>
                 </table>
                 <?php else: ?>
-                <p style="color:#6b7280;font-size:13px;">No controls linked.</p>
+                <p style="color:#6b7280;font-size:13px;"><?php echo e(t('grc-evidence.no_controls_linked')); ?></p>
                 <?php endif; ?>
 
                 <?php if (!$readOnly): ?>
@@ -494,66 +494,66 @@ $currentPage = 'grc_evidence';
                     <input type="hidden" name="action" value="link_control">
                     <input type="hidden" name="evidence_id" value="<?php echo (int)$evidenceDetail['id']; ?>">
                     <div style="flex:1;">
-                        <label style="font-size:12px;color:#6b7280;">Link Control</label>
+                        <label style="font-size:12px;color:#6b7280;"><?php echo e(t('grc-evidence.link_control')); ?></label>
                         <select name="control_id" required style="width:100%;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                            <option value="">-- Select Control --</option>
+                            <option value=""><?php echo e(t('grc-evidence.select_control')); ?></option>
                             <?php foreach ($allControls as $ac): ?>
                             <option value="<?php echo (int)$ac['id']; ?>"><?php echo e($ac['control_ref']); ?> - <?php echo e($ac['title']); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary">Link</button>
+                    <button type="submit" class="btn btn-primary"><?php echo e(t('grc-evidence.link')); ?></button>
                 </form>
                 <?php endif; ?>
             </div>
 
             <?php elseif (isset($_GET['new']) && !$readOnly): ?>
             <!-- Upload Form -->
-            <a href="grc-evidence.php" class="back-link">&larr; Back to evidence library</a>
+            <a href="grc-evidence.php" class="back-link">&larr; <?php echo e(t('grc-evidence.back_to_library')); ?></a>
 
             <div class="grc-form">
-                <h3 style="margin:0 0 16px;font-size:16px;color:#333;">Upload Evidence</h3>
+                <h3 style="margin:0 0 16px;font-size:16px;color:#333;"><?php echo e(t('grc-evidence.upload_evidence')); ?></h3>
                 <form method="post" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="action" value="upload">
 
-                    <label for="title">Title</label>
-                    <input type="text" id="title" name="title" required placeholder="Evidence title">
+                    <label for="title"><?php echo e(t('grc-evidence.field_title')); ?></label>
+                    <input type="text" id="title" name="title" required placeholder="<?php echo e(t('grc-evidence.title_placeholder')); ?>">
 
-                    <label for="description">Description</label>
-                    <textarea id="description" name="description" placeholder="Describe this evidence"></textarea>
+                    <label for="description"><?php echo e(t('grc-evidence.description')); ?></label>
+                    <textarea id="description" name="description" placeholder="<?php echo e(t('grc-evidence.description_placeholder')); ?>"></textarea>
 
                     <div class="form-row">
                         <div>
-                            <label for="evidence_type">Evidence Type</label>
+                            <label for="evidence_type"><?php echo e(t('grc-evidence.evidence_type')); ?></label>
                             <select id="evidence_type" name="evidence_type">
-                                <option value="document">Document</option>
-                                <option value="screenshot">Screenshot</option>
-                                <option value="api_log">API Log</option>
-                                <option value="report">Report</option>
-                                <option value="configuration">Configuration</option>
-                                <option value="certificate">Certificate</option>
-                                <option value="policy">Policy</option>
-                                <option value="automated">Automated</option>
-                                <option value="manual_upload">Manual Upload</option>
+                                <option value="document"><?php echo e(t('grc-evidence.type_document')); ?></option>
+                                <option value="screenshot"><?php echo e(t('grc-evidence.type_screenshot')); ?></option>
+                                <option value="api_log"><?php echo e(t('grc-evidence.type_api_log')); ?></option>
+                                <option value="report"><?php echo e(t('grc-evidence.type_report')); ?></option>
+                                <option value="configuration"><?php echo e(t('grc-evidence.type_configuration')); ?></option>
+                                <option value="certificate"><?php echo e(t('grc-evidence.type_certificate')); ?></option>
+                                <option value="policy"><?php echo e(t('grc-evidence.type_policy')); ?></option>
+                                <option value="automated"><?php echo e(t('grc-evidence.type_automated')); ?></option>
+                                <option value="manual_upload"><?php echo e(t('grc-evidence.type_manual_upload')); ?></option>
                             </select>
                         </div>
                         <div>
-                            <label for="valid_until">Valid Until (optional)</label>
+                            <label for="valid_until"><?php echo e(t('grc-evidence.valid_until_optional')); ?></label>
                             <input type="date" id="valid_until" name="valid_until">
                         </div>
                     </div>
 
-                    <label for="external_url">External URL (optional - use instead of or in addition to file upload)</label>
+                    <label for="external_url"><?php echo e(t('grc-evidence.external_url')); ?></label>
                     <input type="url" id="external_url" name="external_url" placeholder="https://..." style="margin-bottom:12px;">
 
-                    <label for="evidence_file">Evidence File (encrypted at rest)</label>
+                    <label for="evidence_file"><?php echo e(t('grc-evidence.evidence_file')); ?></label>
                     <input type="file" id="evidence_file" name="evidence_file" style="padding:6px;">
 
-                    <label>Link to Controls (optional)</label>
+                    <label><?php echo e(t('grc-evidence.link_to_controls')); ?></label>
                     <div style="border:1px solid #d1d5db;border-radius:6px;max-height:180px;overflow-y:auto;padding:8px 12px;background:#fff;">
                         <?php if (empty($allControls)): ?>
-                        <span style="color:#6b7280;font-size:13px;">No controls available</span>
+                        <span style="color:#6b7280;font-size:13px;"><?php echo e(t('grc-evidence.no_controls_available')); ?></span>
                         <?php else: ?>
                         <?php foreach ($allControls as $ac): ?>
                         <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer;font-weight:normal;">
@@ -563,11 +563,11 @@ $currentPage = 'grc_evidence';
                         <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
-                    <small style="color:#6b7280;font-size:11px;">Select or deselect controls to link to this evidence</small>
+                    <small style="color:#6b7280;font-size:11px;"><?php echo e(t('grc-evidence.select_controls_hint')); ?></small>
 
                     <div style="margin-top:8px;">
-                        <button type="submit" class="btn btn-primary">Upload Evidence</button>
-                        <a href="grc-evidence.php" class="btn btn-outline">Cancel</a>
+                        <button type="submit" class="btn btn-primary"><?php echo e(t('grc-evidence.upload_evidence')); ?></button>
+                        <a href="grc-evidence.php" class="btn btn-outline"><?php echo e(t('grc-evidence.cancel')); ?></a>
                     </div>
                 </form>
             </div>
@@ -577,56 +577,56 @@ $currentPage = 'grc_evidence';
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                 <form method="get" class="filter-bar">
                     <div>
-                        <label>Type</label>
+                        <label><?php echo e(t('grc-evidence.type')); ?></label>
                         <select name="type" class="auto-submit">
-                            <option value="">All Types</option>
+                            <option value=""><?php echo e(t('grc-evidence.all_types')); ?></option>
                             <?php foreach (['document', 'screenshot', 'api_log', 'report', 'configuration', 'certificate', 'policy', 'automated', 'manual_upload'] as $t): ?>
                             <option value="<?php echo e($t); ?>" <?php echo ($_GET['type'] ?? '') === $t ? 'selected' : ''; ?>><?php echo e(ucfirst($t)); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div>
-                        <label>Status</label>
+                        <label><?php echo e(t('grc-evidence.status')); ?></label>
                         <select name="status" class="auto-submit">
-                            <option value="">All Statuses</option>
-                            <option value="current" <?php echo ($_GET['status'] ?? '') === 'current' ? 'selected' : ''; ?>>Current</option>
-                            <option value="expired" <?php echo ($_GET['status'] ?? '') === 'expired' ? 'selected' : ''; ?>>Expired</option>
-                            <option value="superseded" <?php echo ($_GET['status'] ?? '') === 'superseded' ? 'selected' : ''; ?>>Superseded</option>
-                            <option value="draft" <?php echo ($_GET['status'] ?? '') === 'draft' ? 'selected' : ''; ?>>Draft</option>
+                            <option value=""><?php echo e(t('grc-evidence.all_statuses')); ?></option>
+                            <option value="current" <?php echo ($_GET['status'] ?? '') === 'current' ? 'selected' : ''; ?>><?php echo e(t('grc-evidence.status_current')); ?></option>
+                            <option value="expired" <?php echo ($_GET['status'] ?? '') === 'expired' ? 'selected' : ''; ?>><?php echo e(t('grc-evidence.status_expired')); ?></option>
+                            <option value="superseded" <?php echo ($_GET['status'] ?? '') === 'superseded' ? 'selected' : ''; ?>><?php echo e(t('grc-evidence.status_superseded')); ?></option>
+                            <option value="draft" <?php echo ($_GET['status'] ?? '') === 'draft' ? 'selected' : ''; ?>><?php echo e(t('grc-evidence.status_draft')); ?></option>
                         </select>
                     </div>
                     <div>
-                        <label>Expiry</label>
+                        <label><?php echo e(t('grc-evidence.expiry')); ?></label>
                         <select name="expiry" class="auto-submit">
-                            <option value="">All</option>
-                            <option value="expired" <?php echo ($_GET['expiry'] ?? '') === 'expired' ? 'selected' : ''; ?>>Expired</option>
-                            <option value="expiring_30d" <?php echo ($_GET['expiry'] ?? '') === 'expiring_30d' ? 'selected' : ''; ?>>Expiring in 30 Days</option>
-                            <option value="valid" <?php echo ($_GET['expiry'] ?? '') === 'valid' ? 'selected' : ''; ?>>Valid</option>
+                            <option value=""><?php echo e(t('grc-evidence.all')); ?></option>
+                            <option value="expired" <?php echo ($_GET['expiry'] ?? '') === 'expired' ? 'selected' : ''; ?>><?php echo e(t('grc-evidence.status_expired')); ?></option>
+                            <option value="expiring_30d" <?php echo ($_GET['expiry'] ?? '') === 'expiring_30d' ? 'selected' : ''; ?>><?php echo e(t('grc-evidence.expiring_30')); ?></option>
+                            <option value="valid" <?php echo ($_GET['expiry'] ?? '') === 'valid' ? 'selected' : ''; ?>><?php echo e(t('grc-evidence.valid')); ?></option>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;">Filter</button>
+                    <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;"><?php echo e(t('grc-evidence.filter')); ?></button>
                 </form>
                 <?php if (!$readOnly): ?>
-                <a href="grc-evidence.php?new=1" class="btn btn-primary">+ Upload Evidence</a>
+                <a href="grc-evidence.php?new=1" class="btn btn-primary">+ <?php echo e(t('grc-evidence.upload_evidence')); ?></a>
                 <?php endif; ?>
             </div>
 
             <table class="grc-table">
                 <thead>
                     <tr>
-                        <th>Reference</th>
-                        <th>Title</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Valid Until</th>
-                        <th>Controls</th>
-                        <th>Collected</th>
-                        <?php if (!$readOnly): ?><th>Actions</th><?php endif; ?>
+                        <th><?php echo e(t('grc-evidence.reference')); ?></th>
+                        <th><?php echo e(t('grc-evidence.col_title')); ?></th>
+                        <th><?php echo e(t('grc-evidence.type')); ?></th>
+                        <th><?php echo e(t('grc-evidence.status')); ?></th>
+                        <th><?php echo e(t('grc-evidence.valid_until')); ?></th>
+                        <th><?php echo e(t('grc-evidence.controls')); ?></th>
+                        <th><?php echo e(t('grc-evidence.collected')); ?></th>
+                        <?php if (!$readOnly): ?><th><?php echo e(t('grc-evidence.actions')); ?></th><?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($evidence)): ?>
-                    <tr><td colspan="<?php echo $readOnly ? 7 : 8; ?>" style="text-align:center;color:#6b7280;padding:30px;">No evidence found.</td></tr>
+                    <tr><td colspan="<?php echo $readOnly ? 7 : 8; ?>" style="text-align:center;color:#6b7280;padding:30px;"><?php echo e(t('grc-evidence.no_evidence')); ?></td></tr>
                     <?php else: ?>
                     <?php foreach ($evidence as $ev):
                         $isExp = !empty($ev['valid_until']) && strtotime($ev['valid_until']) < time();
@@ -653,7 +653,7 @@ $currentPage = 'grc_evidence';
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="evidence_id" value="<?php echo (int)$ev['id']; ?>">
-                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                <button type="submit" class="btn btn-sm btn-danger"><?php echo e(t('grc-evidence.delete')); ?></button>
                             </form>
                         </td>
                         <?php endif; ?>
@@ -682,7 +682,7 @@ $currentPage = 'grc_evidence';
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-evidence.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

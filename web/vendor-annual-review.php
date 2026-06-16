@@ -38,7 +38,7 @@ $canReadAssigned = $acl->hasPermission('annual_review.read_assigned');
 
 if (!$canCreate) {
     http_response_code(403);
-    die('Access denied. You do not have permission to complete annual reviews.');
+    die(e(t('vendor-annual-review.access_denied')));
 }
 
 // ============================================================================
@@ -537,7 +537,7 @@ $csrfToken = $security->generateCSRFToken();
 <body>
     <div class="container">
         <!-- The escape hatch back to the list -->
-        <a href="vendor-annual-reviews-list.php" class="back-link">&larr; Back to Annual Reviews</a>
+        <a href="vendor-annual-reviews-list.php" class="back-link">&larr; <?php echo e(t('vendor-annual-review.back_to_reviews')); ?></a>
 
         <?php // Overdue/due soon alerts -- the guilt trip section ?>
         <?php if ($isOverdue): ?>
@@ -552,53 +552,53 @@ $csrfToken = $security->generateCSRFToken();
 
         <!-- Page header with the vendor name front and center -->
         <div class="page-header">
-            <h1 class="page-title">Annual Vendor Review</h1>
+            <h1 class="page-title"><?php echo e(t('vendor-annual-review.page_title')); ?></h1>
             <p class="page-subtitle"><?= htmlspecialchars($request['vendor_name']) ?></p>
         </div>
 
         <!-- Vendor context card -- at-a-glance info so you know what you're reviewing -->
         <div class="vendor-context">
-            <h3>Vendor Information</h3>
+            <h3><?php echo e(t('vendor-annual-review.vendor_information')); ?></h3>
             <div class="context-grid">
                 <div class="context-item">
-                    <div class="context-label">Vendor Name</div>
+                    <div class="context-label"><?php echo e(t('vendor-annual-review.vendor_name')); ?></div>
                     <div class="context-value"><?= htmlspecialchars($request['vendor_name']) ?></div>
                 </div>
                 <div class="context-item">
-                    <div class="context-label">Vendor Type</div>
+                    <div class="context-label"><?php echo e(t('vendor-annual-review.vendor_type')); ?></div>
                     <div class="context-value"><?= htmlspecialchars($request['vendor_type'] ?? 'N/A') ?></div>
                 </div>
                 <div class="context-item">
-                    <div class="context-label">Approval Date</div>
+                    <div class="context-label"><?php echo e(t('vendor-annual-review.approval_date')); ?></div>
                     <div class="context-value">
                         <?= !empty($request['submitted_at']) ? date('M j, Y', strtotime($request['submitted_at'])) : 'N/A' ?>
                     </div>
                 </div>
                 <div class="context-item">
-                    <div class="context-label">Last Review</div>
+                    <div class="context-label"><?php echo e(t('vendor-annual-review.last_review')); ?></div>
                     <div class="context-value">
                         <?php if ($lastReview): ?>
                             <?= date('M j, Y', strtotime($lastReview['review_date'])) ?>
                             <br><small>by <?= htmlspecialchars($lastReview['reviewer_name']) ?></small>
                         <?php else: ?>
-                            Never reviewed
+                            <?php echo e(t('vendor-annual-review.never_reviewed')); ?>
                         <?php endif; ?>
                     </div>
                 </div>
                 <div class="context-item">
-                    <div class="context-label">Current Stakeholder(s)</div>
+                    <div class="context-label"><?php echo e(t('vendor-annual-review.current_stakeholders')); ?></div>
                     <div class="context-value">
                         <?php if (!empty($stakeholders)): ?>
                             <?php foreach ($stakeholders as $idx => $sh): ?>
                                 <?= htmlspecialchars($sh['full_name']) ?><?= $idx < count($stakeholders) - 1 ? ', ' : '' ?>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            None assigned
+                            <?php echo e(t('vendor-annual-review.none_assigned')); ?>
                         <?php endif; ?>
                     </div>
                 </div>
                 <div class="context-item">
-                    <div class="context-label">Review Due Date</div>
+                    <div class="context-label"><?php echo e(t('vendor-annual-review.review_due_date')); ?></div>
                     <div class="context-value">
                         <?= $dueDate ? date('M j, Y', strtotime($dueDate)) : 'N/A' ?>
                     </div>
@@ -621,18 +621,18 @@ $csrfToken = $security->generateCSRFToken();
 
             <!-- Question 1: Still the stakeholder? Or passing the torch? -->
             <div class="form-section">
-                <h3>1. Stakeholder Confirmation</h3>
-                <p>Are you still the current stakeholder for this vendor?</p>
+                <h3><?php echo e(t('vendor-annual-review.section1_title')); ?></h3>
+                <p><?php echo e(t('vendor-annual-review.section1_question')); ?></p>
 
                 <div class="form-group">
                     <div class="radio-group">
                         <div class="radio-option">
                             <input type="radio" id="stakeholder_yes" name="is_still_stakeholder" value="yes" required>
-                            <label for="stakeholder_yes">Yes, I am still the stakeholder</label>
+                            <label for="stakeholder_yes"><?php echo e(t('vendor-annual-review.still_stakeholder_yes')); ?></label>
                         </div>
                         <div class="radio-option">
                             <input type="radio" id="stakeholder_no" name="is_still_stakeholder" value="no">
-                            <label for="stakeholder_no">No, I need to reassign this vendor</label>
+                            <label for="stakeholder_no"><?php echo e(t('vendor-annual-review.still_stakeholder_no')); ?></label>
                         </div>
                     </div>
                 </div>
@@ -641,60 +641,60 @@ $csrfToken = $security->generateCSRFToken();
                 <div id="stakeholderReassign" class="stakeholder-reassign">
                     <div class="form-group">
                         <label class="form-label" for="new_stakeholder_search">
-                            Search for New Stakeholder <span class="required">*</span>
+                            <?php echo e(t('vendor-annual-review.search_new_stakeholder')); ?> <span class="required">*</span>
                         </label>
                         <div class="autocomplete-wrapper">
                             <input type="text" id="new_stakeholder_search" class="form-control"
-                                   placeholder="Start typing name or email..." autocomplete="off">
+                                   placeholder="<?php echo e(t('vendor-annual-review.search_placeholder')); ?>" autocomplete="off">
                             <div id="stakeholderSuggestions" class="autocomplete-suggestions"></div>
                         </div>
                         <div id="selectedStakeholder" class="selected-stakeholder"></div>
-                        <div class="help-text">Type at least 2 characters to search for users</div>
+                        <div class="help-text"><?php echo e(t('vendor-annual-review.search_help')); ?></div>
                     </div>
                 </div>
             </div>
 
             <!-- Question 2: Scope of services -- has anything changed? -->
             <div class="form-section">
-                <h3>2. Scope of Services</h3>
-                <p>Has the scope of services changed since the last review or approval?</p>
+                <h3><?php echo e(t('vendor-annual-review.section2_title')); ?></h3>
+                <p><?php echo e(t('vendor-annual-review.section2_question')); ?></p>
 
                 <!-- Show the current scope so reviewers can compare without guessing -->
                 <div class="current-scope-box">
                     <div class="current-scope-header">
                         <span class="current-scope-icon">&#128196;</span>
-                        Current Scope of Services (1.5 Product/Service Description)
+                        <?php echo e(t('vendor-annual-review.current_scope_header')); ?>
                     </div>
                     <div class="current-scope-content">
                         <?php if (!empty($request['product_service_description'])): ?>
                             <?= nl2br(htmlspecialchars($request['product_service_description'])) ?>
                         <?php else: ?>
-                            <em class="no-scope">No product/service description has been documented for this vendor.</em>
+                            <em class="no-scope"><?php echo e(t('vendor-annual-review.no_scope_documented')); ?></em>
                         <?php endif; ?>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label" for="scope_changes">
-                        Describe any changes in scope (or enter "No changes") <span class="required">*</span>
+                        <?php echo e(t('vendor-annual-review.scope_changes_label')); ?> <span class="required">*</span>
                     </label>
                     <textarea id="scope_changes" name="scope_changes" class="form-control" required
-                              placeholder="Review the current scope above and describe any changes to the services provided by this vendor, data access, or relationship scope. Enter 'No changes' if scope remains the same..."><?php
+                              placeholder="<?php echo e(t('vendor-annual-review.scope_changes_placeholder')); ?>"><?php
                         // Pre-fill from last review -- saves the reviewer some typing
                         if ($lastReview && !empty($lastReview['scope_changes'])) {
                             echo htmlspecialchars($lastReview['scope_changes']);
                         }
                     ?></textarea>
                     <div class="help-text">
-                        Compare with the current scope shown above and note any additions, removals, or modifications.
+                        <?php echo e(t('vendor-annual-review.scope_changes_help')); ?>
                     </div>
                 </div>
             </div>
 
             <!-- Question 3: Contact info -- is it still current? -->
             <div class="form-section">
-                <h3>3. Vendor Contact Information</h3>
-                <p>Review and update the vendor's primary contact information.</p>
+                <h3><?php echo e(t('vendor-annual-review.section3_title')); ?></h3>
+                <p><?php echo e(t('vendor-annual-review.section3_desc')); ?></p>
 
                 <?php
                 $contactEmail = $request['primary_contact_email'] ?? '';
@@ -704,28 +704,28 @@ $csrfToken = $security->generateCSRFToken();
                 ?>
 
                 <div class="contact-field">
-                    <label class="form-label" for="contact_name">Primary Contact Name</label>
+                    <label class="form-label" for="contact_name"><?php echo e(t('vendor-annual-review.contact_name')); ?></label>
                     <input type="text" id="contact_name" name="contact_name" class="form-control"
                            value="<?= htmlspecialchars($contactName) ?>"
-                           placeholder="Full name of primary contact">
+                           placeholder="<?php echo e(t('vendor-annual-review.contact_name_placeholder')); ?>">
                 </div>
 
                 <div class="contact-field">
-                    <label class="form-label" for="contact_title">Title</label>
+                    <label class="form-label" for="contact_title"><?php echo e(t('vendor-annual-review.contact_title')); ?></label>
                     <input type="text" id="contact_title" name="contact_title" class="form-control"
                            value="<?= htmlspecialchars($contactTitle) ?>"
                            placeholder="Account Manager">
                 </div>
 
                 <div class="contact-field">
-                    <label class="form-label" for="contact_email">Primary Contact Email</label>
+                    <label class="form-label" for="contact_email"><?php echo e(t('vendor-annual-review.contact_email')); ?></label>
                     <input type="email" id="contact_email" name="contact_email" class="form-control"
                            value="<?= htmlspecialchars($contactEmail) ?>"
                            placeholder="email@vendor.com">
                 </div>
 
                 <div class="contact-field">
-                    <label class="form-label" for="contact_phone">Primary Contact Phone</label>
+                    <label class="form-label" for="contact_phone"><?php echo e(t('vendor-annual-review.contact_phone')); ?></label>
                     <input type="text" id="contact_phone" name="contact_phone" class="form-control"
                            value="<?= htmlspecialchars($contactPhone) ?>"
                            placeholder="(555) 123-4567">
@@ -734,21 +734,21 @@ $csrfToken = $security->generateCSRFToken();
 
             <!-- Additional notes -- for anything that doesn't fit the above questions -->
             <div class="form-section">
-                <h3>Additional Notes (Optional)</h3>
+                <h3><?php echo e(t('vendor-annual-review.additional_notes_title')); ?></h3>
                 <div class="form-group">
                     <label class="form-label" for="review_notes">
-                        Any additional comments or observations about this vendor?
+                        <?php echo e(t('vendor-annual-review.additional_notes_label')); ?>
                     </label>
                     <textarea id="review_notes" name="review_notes" class="form-control"
-                              placeholder="Add any additional notes about the vendor, relationship changes, concerns, or recommendations..."></textarea>
+                              placeholder="<?php echo e(t('vendor-annual-review.additional_notes_placeholder')); ?>"></textarea>
                 </div>
             </div>
 
             <div id="errorMessage" class="error-message"></div>
 
             <div class="form-actions">
-                <button type="submit" id="submitBtn" class="btn btn-primary">Submit Review</button>
-                <a href="vendor-annual-reviews-list.php" class="btn btn-secondary">Cancel</a>
+                <button type="submit" id="submitBtn" class="btn btn-primary"><?php echo e(t('vendor-annual-review.submit_review')); ?></button>
+                <a href="vendor-annual-reviews-list.php" class="btn btn-secondary"><?php echo e(t('vendor-annual-review.cancel')); ?></a>
             </div>
         </form>
     </div>

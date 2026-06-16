@@ -38,7 +38,7 @@ $msgType = '';
 // POST handlers
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $msg = 'Invalid CSRF token. Please try again.';
+        $msg = t('grc-tasks.invalid_csrf');
         $msgType = 'danger';
     } else {
         $action = $_POST['action'] ?? '';
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $update['completed_by'] = (int)$user['id'];
                     }
                     $db->update('grc_assessment_tasks', $update, 'id = :id', [':id' => $taskId]);
-                    $msg = 'Task status updated.';
+                    $msg = t('grc-tasks.status_updated');
                     $msgType = 'success';
                 }
             }
@@ -65,12 +65,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newAssignee = (int)($_POST['assigned_to'] ?? 0);
             if ($newAssignee > 0) {
                 $db->update('grc_assessment_tasks', ['assigned_to' => $newAssignee], 'id = :id', [':id' => $taskId]);
-                $msg = 'Task reassigned.';
+                $msg = t('grc-tasks.task_reassigned');
                 $msgType = 'success';
             }
         } elseif ($action === 'delete' && $taskId > 0 && $canManage) {
             $db->query('DELETE FROM grc_assessment_tasks WHERE id = :id', [':id' => $taskId]);
-            $msg = 'Task deleted.';
+            $msg = t('grc-tasks.task_deleted');
             $msgType = 'success';
         }
     }
@@ -152,7 +152,7 @@ $currentPage = 'grc_tasks';
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>GRC Task Inbox - GRC Compliance Engine</title>
+    <title><?php echo e(t('grc-tasks.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -271,11 +271,11 @@ $currentPage = 'grc_tasks';
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -283,8 +283,8 @@ $currentPage = 'grc_tasks';
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">GRC Task Inbox</h1>
-            <p style="color:#6b7280;margin:0 0 24px;">Manage assessment tasks assigned to you or your team</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc-tasks.heading')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 24px;"><?php echo e(t('grc-tasks.subtitle')); ?></p>
 
             <?php if ($msg): ?>
             <div class="alert alert-<?php echo e($msgType); ?>"><?php echo e($msg); ?></div>
@@ -294,9 +294,9 @@ $currentPage = 'grc_tasks';
             <?php if ($canViewAll): ?>
             <div class="view-toggle">
                 <a href="grc-tasks.php?view=mine<?php echo $filterStatus ? '&status=' . urlencode($filterStatus) : ''; ?><?php echo $filterPriority ? '&priority=' . urlencode($filterPriority) : ''; ?>"
-                   class="<?php echo $filterView === 'mine' ? 'active' : ''; ?>">My Tasks</a>
+                   class="<?php echo $filterView === 'mine' ? 'active' : ''; ?>"><?php echo e(t('grc-tasks.my_tasks')); ?></a>
                 <a href="grc-tasks.php?view=all<?php echo $filterStatus ? '&status=' . urlencode($filterStatus) : ''; ?><?php echo $filterPriority ? '&priority=' . urlencode($filterPriority) : ''; ?>"
-                   class="<?php echo $filterView === 'all' ? 'active' : ''; ?>">All Tasks</a>
+                   class="<?php echo $filterView === 'all' ? 'active' : ''; ?>"><?php echo e(t('grc-tasks.all_tasks')); ?></a>
             </div>
             <?php endif; ?>
 
@@ -304,11 +304,11 @@ $currentPage = 'grc_tasks';
             <div class="stat-cards">
                 <div class="stat-card">
                     <div class="value"><?php echo $totalCount; ?></div>
-                    <div class="label"><?php echo $filterView === 'all' ? 'Total Tasks' : 'Assigned to You'; ?></div>
+                    <div class="label"><?php echo e($filterView === 'all' ? t('grc-tasks.total_tasks') : t('grc-tasks.assigned_to_you')); ?></div>
                 </div>
                 <div class="stat-card">
                     <div class="value" style="color: #dc3545;"><?php echo $lateCount; ?></div>
-                    <div class="label">Past Due</div>
+                    <div class="label"><?php echo e(t('grc-tasks.past_due')); ?></div>
                 </div>
             </div>
 
@@ -316,33 +316,33 @@ $currentPage = 'grc_tasks';
             <form method="get" class="filter-bar">
                 <input type="hidden" name="view" value="<?php echo e($filterView); ?>">
                 <div>
-                    <label>Status</label>
+                    <label><?php echo e(t('grc-tasks.status')); ?></label>
                     <select name="status" onchange="this.form.submit()">
-                        <option value="">Open / In Progress</option>
-                        <option value="open" <?php echo $filterStatus === 'open' ? 'selected' : ''; ?>>Open</option>
-                        <option value="in_progress" <?php echo $filterStatus === 'in_progress' ? 'selected' : ''; ?>>In Progress</option>
-                        <option value="completed" <?php echo $filterStatus === 'completed' ? 'selected' : ''; ?>>Completed</option>
-                        <option value="cancelled" <?php echo $filterStatus === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
+                        <option value=""><?php echo e(t('grc-tasks.open_in_progress')); ?></option>
+                        <option value="open" <?php echo $filterStatus === 'open' ? 'selected' : ''; ?>><?php echo e(t('grc-tasks.open')); ?></option>
+                        <option value="in_progress" <?php echo $filterStatus === 'in_progress' ? 'selected' : ''; ?>><?php echo e(t('grc-tasks.in_progress')); ?></option>
+                        <option value="completed" <?php echo $filterStatus === 'completed' ? 'selected' : ''; ?>><?php echo e(t('grc-tasks.completed')); ?></option>
+                        <option value="cancelled" <?php echo $filterStatus === 'cancelled' ? 'selected' : ''; ?>><?php echo e(t('grc-tasks.cancelled')); ?></option>
                     </select>
                 </div>
                 <div>
-                    <label>Priority</label>
+                    <label><?php echo e(t('grc-tasks.priority')); ?></label>
                     <select name="priority" onchange="this.form.submit()">
-                        <option value="">All Priorities</option>
+                        <option value=""><?php echo e(t('grc-tasks.all_priorities')); ?></option>
                         <?php foreach (['critical', 'high', 'medium', 'low'] as $p): ?>
                         <option value="<?php echo $p; ?>" <?php echo $filterPriority === $p ? 'selected' : ''; ?>><?php echo ucfirst($p); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;">Filter</button>
+                <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;"><?php echo e(t('grc-tasks.filter')); ?></button>
             </form>
 
             <!-- Task List -->
             <?php if (empty($tasks)): ?>
             <div style="text-align:center;padding:60px 20px;color:#6b7280;">
                 <div style="font-size:48px;margin-bottom:12px;">&#9989;</div>
-                <h3 style="color:#374151;margin:0 0 6px;">No tasks found</h3>
-                <p style="margin:0;font-size:14px;"><?php echo $filterView === 'mine' ? 'You have no open tasks assigned.' : 'No tasks match your filters.'; ?></p>
+                <h3 style="color:#374151;margin:0 0 6px;"><?php echo e(t('grc-tasks.no_tasks_found')); ?></h3>
+                <p style="margin:0;font-size:14px;"><?php echo e($filterView === 'mine' ? t('grc-tasks.no_open_tasks') : t('grc-tasks.no_match_filters')); ?></p>
             </div>
             <?php else: ?>
             <?php foreach ($tasks as $task):
@@ -355,7 +355,7 @@ $currentPage = 'grc_tasks';
                     <span class="priority-badge priority-<?php echo e($task['priority']); ?>"><?php echo ucfirst($task['priority']); ?></span>
                     <span class="status-badge status-<?php echo e($task['status']); ?>"><?php echo ucfirst(str_replace('_', ' ', $task['status'])); ?></span>
                     <?php if ($isLate): ?>
-                    <span class="late-badge">Past Due</span>
+                    <span class="late-badge"><?php echo e(t('grc-tasks.past_due')); ?></span>
                     <?php endif; ?>
                     <span style="font-size:11px;color:#6b7280;padding:2px 8px;background:#f3f4f6;border-radius:10px;"><?php echo e(ucfirst(str_replace('_', ' ', $task['task_type'] ?? 'evidence_request'))); ?></span>
                 </div>
@@ -367,20 +367,20 @@ $currentPage = 'grc_tasks';
                 <?php endif; ?>
 
                 <div class="task-meta">
-                    <span>Assessment: <a href="grc-assessment.php?view=<?php echo (int)$task['assessment_id']; ?>&my_tasks=1" style="color:#3b82f6;"><?php echo e($task['assessment_title']); ?></a></span>
+                    <span><?php echo e(t('grc-tasks.assessment_label')); ?> <a href="grc-assessment.php?view=<?php echo (int)$task['assessment_id']; ?>&my_tasks=1" style="color:#3b82f6;"><?php echo e($task['assessment_title']); ?></a></span>
                     <?php if (!empty($task['question_ref'])): ?>
-                    <span>Question: <?php echo e($task['question_ref']); ?></span>
+                    <span><?php echo e(t('grc-tasks.question_label')); ?> <?php echo e($task['question_ref']); ?></span>
                     <?php endif; ?>
                     <?php if ($filterView === 'all' && !empty($task['assigned_to_name'])): ?>
-                    <span>Assigned to: <?php echo e($task['assigned_to_name']); ?></span>
+                    <span><?php echo e(t('grc-tasks.assigned_to_label')); ?> <?php echo e($task['assigned_to_name']); ?></span>
                     <?php endif; ?>
                     <?php if (!empty($task['assigned_by_name'])): ?>
-                    <span>From: <?php echo e($task['assigned_by_name']); ?></span>
+                    <span><?php echo e(t('grc-tasks.from_label')); ?> <?php echo e($task['assigned_by_name']); ?></span>
                     <?php endif; ?>
                     <?php if (!empty($task['due_date'])): ?>
-                    <span>Due: <?php echo date('M j, Y', strtotime($task['due_date'])); ?></span>
+                    <span><?php echo e(t('grc-tasks.due_label')); ?> <?php echo date('M j, Y', strtotime($task['due_date'])); ?></span>
                     <?php endif; ?>
-                    <span>Created: <?php echo date('M j, Y', strtotime($task['created_at'])); ?></span>
+                    <span><?php echo e(t('grc-tasks.created_label')); ?> <?php echo date('M j, Y', strtotime($task['created_at'])); ?></span>
                 </div>
 
                 <?php if ($isOwner || $canManage): ?>
@@ -392,9 +392,9 @@ $currentPage = 'grc_tasks';
                         <input type="hidden" name="action" value="update_status">
                         <input type="hidden" name="task_id" value="<?php echo (int)$task['id']; ?>">
                         <?php if ($task['status'] === 'open'): ?>
-                        <button type="submit" name="status" value="in_progress" class="btn btn-sm btn-warning">Start Working</button>
+                        <button type="submit" name="status" value="in_progress" class="btn btn-sm btn-warning"><?php echo e(t('grc-tasks.start_working')); ?></button>
                         <?php endif; ?>
-                        <button type="submit" name="status" value="completed" class="btn btn-sm btn-success">Mark Complete</button>
+                        <button type="submit" name="status" value="completed" class="btn btn-sm btn-success"><?php echo e(t('grc-tasks.mark_complete')); ?></button>
                     </form>
                     <?php endif; ?>
 
@@ -405,7 +405,7 @@ $currentPage = 'grc_tasks';
                         <input type="hidden" name="action" value="reassign">
                         <input type="hidden" name="task_id" value="<?php echo (int)$task['id']; ?>">
                         <select name="assigned_to" onchange="this.form.submit()" style="padding:3px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
-                            <option value="">Reassign...</option>
+                            <option value=""><?php echo e(t('grc-tasks.reassign_placeholder')); ?></option>
                             <?php foreach ($users as $u): ?>
                             <?php if ((int)$u['id'] !== (int)$task['assigned_to']): ?>
                             <option value="<?php echo (int)$u['id']; ?>"><?php echo e($u['full_name']); ?></option>
@@ -419,7 +419,7 @@ $currentPage = 'grc_tasks';
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="task_id" value="<?php echo (int)$task['id']; ?>">
-                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this task permanently?')">Delete</button>
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this task permanently?')"><?php echo e(t('grc-tasks.delete')); ?></button>
                     </form>
                     <?php endif; ?>
                 </div>
@@ -438,7 +438,7 @@ $currentPage = 'grc_tasks';
                 <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                     <?php if (!empty($theme['footer_logo_url'])): ?>
                         <a class="brand" href="index.php">
-                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('grc-tasks.footer_logo_alt')); ?>" style="max-height: 45px;">
                         </a>
                     <?php endif; ?>
                     <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -447,7 +447,7 @@ $currentPage = 'grc_tasks';
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc-tasks.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

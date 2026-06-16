@@ -62,7 +62,7 @@ $successHtml = '';
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('vendor-assessments.invalid_request');
     } elseif (isset($_POST['create_assessment'])) {
         // The "Download Fillable PDF" button reuses this handler but asks us
         // to redirect to the PDF endpoint instead of emailing and rendering a
@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Procurement cannot create assessments -- read-only access for them
         if ($isProcurement && !$isAdmin && !$isCyberTPRM) {
-            $error = 'Access denied. Procurement users cannot create assessments.';
+            $error = t('vendor-assessments.procurement_cannot_create');
         }
         // Pull all the form data out and sanitize it. Trust no one, not even Karen from Procurement.
         $templateId = intval($_POST['template_id'] ?? 0);
@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             } catch (Exception $e) {
                 error_log('Create vendor for onboarding assessment error: ' . $e->getMessage());
-                $error = 'Failed to create vendor record.';
+                $error = t('vendor-assessments.failed_create_vendor');
             }
         }
 
@@ -123,13 +123,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($error)) {
             // Error already set above -- skip creation
         } elseif (!$templateId || empty($vendorName) || empty($vendorEmail)) {
-            $error = 'Please fill in all required fields.';
+            $error = t('vendor-assessments.fill_required_fields');
         } elseif (!$vendorRequestId) {
-            $error = 'Please select a valid vendor from the existing vendor list.';
+            $error = t('vendor-assessments.select_valid_vendor_existing');
         } elseif (!$isOnboardingTemplate && !$db->fetchOne("SELECT id FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'approved')", [':id' => $vendorRequestId])) {
-            $error = 'The selected vendor is not valid. Please select a vendor from the list.';
+            $error = t('vendor-assessments.vendor_not_valid');
         } elseif (!filter_var($vendorEmail, FILTER_VALIDATE_EMAIL)) {
-            $error = 'Please enter a valid email address.';
+            $error = t('vendor-assessments.enter_valid_email');
         } else {
             // All validations passed -- let's actually create this thing
             try {
@@ -216,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                            '<br><br><button type="button" data-clipboard="' . htmlspecialchars($assessmentUrl, ENT_QUOTES, 'UTF-8') . '" class="btn btn-sm" style="background:#6b7280;color:white;">Copy Link</button>';
             } catch (Exception $e) {
                 error_log('Create assessment error: ' . $e->getMessage());
-                $error = 'Failed to create assessment.';
+                $error = t('vendor-assessments.failed_create_assessment');
             }
         }
     } elseif (isset($_POST['delete_assessment'])) {
@@ -226,10 +226,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $auth->audit($user['id'], 'assessment_delete', 'vendor_assessments', $assessmentId);
                 $assessmentService->deleteAssessment($assessmentId);
-                $success = 'Assessment deleted successfully.';
+                $success = t('vendor-assessments.deleted_success');
             } catch (Exception $e) {
                 error_log('Delete assessment error: ' . $e->getMessage());
-                $error = 'Failed to delete assessment.';
+                $error = t('vendor-assessments.failed_delete');
             }
         }
     } elseif (isset($_POST['resend_assessment'])) {
@@ -240,10 +240,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $assessmentService->resendAssessment($assessmentId, 30);
                 $auth->audit($user['id'], 'assessment_resend', 'vendor_assessments', $assessmentId);
-                $success = 'Assessment link has been reset and extended for 30 days.';
+                $success = t('vendor-assessments.link_reset_extended');
             } catch (Exception $e) {
                 error_log('Resend assessment error: ' . $e->getMessage());
-                $error = 'Failed to resend assessment.';
+                $error = t('vendor-assessments.failed_resend');
             }
         }
     }
@@ -387,7 +387,7 @@ try {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Vendor Assessments - TPRM</title>
+    <title><?php echo e(t('vendor-assessments.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="app/images/favicon.ico" type="image/x-icon">
@@ -638,13 +638,13 @@ try {
         <?php renderImpersonationBanner(); ?>
 
         <div class="top-bar">
-            <span style="color: #666; margin-right: 15px;">Welcome, <?php echo e($user['full_name']); ?></span>
+            <span style="color: #666; margin-right: 15px;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
             <div class="user-menu">
                 <?php if ($isAdmin): ?>
-                    <a href="admin.php">Admin</a>
+                    <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
                 <?php endif; ?>
-                <a href="profile.php">Profile</a>
-                <a href="logout.php">Logout</a>
+                <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+                <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
             </div>
         </div>
 
@@ -669,10 +669,10 @@ try {
 
                 <div class="page-header">
                     <div>
-                        <h1>Vendor Assessments</h1>
+                        <h1><?php echo e(t('vendor-assessments.heading')); ?></h1>
                         <?php if ((!$isProcurement || $isAdmin || $isCyberTPRM) && !$isAuditor): ?>
                         <button class="btn btn-primary" style="margin-top: 10px;" data-toggle="createModal">
-                            + <?php echo ($isStakeholder && !$isAdmin && !$isCyberTPRM) ? 'New Vendor Request' : 'New Assessment'; ?>
+                            + <?php echo ($isStakeholder && !$isAdmin && !$isCyberTPRM) ? e(t('vendor-assessments.new_vendor_request')) : e(t('vendor-assessments.new_assessment')); ?>
                         </button>
                         <?php endif; ?>
                     </div>
@@ -680,7 +680,7 @@ try {
                         <input
                             type="text"
                             id="vendorSearchInput"
-                            placeholder="Search vendors, domains, stakeholders..."
+                            placeholder="<?php echo e(t('vendor-assessments.search_vendors_placeholder')); ?>"
                             style="width: 100%; padding: 10px 40px 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;"
                             class="focus-ring"
                         >
@@ -691,10 +691,10 @@ try {
 
                 <!-- Status Filters -->
                 <div class="status-filters">
-                    <a href="vendor-assessments.php<?php echo $typeFilter ? '?type=' . $typeFilter : ''; ?>" class="<?php echo empty($statusFilter) ? 'active' : ''; ?>">All</a>
-                    <a href="vendor-assessments.php?status=pending<?php echo $typeFilter ? '&type=' . $typeFilter : ''; ?>" class="<?php echo $statusFilter === 'pending' ? 'active' : ''; ?>">Pending</a>
-                    <a href="vendor-assessments.php?status=in_progress<?php echo $typeFilter ? '&type=' . $typeFilter : ''; ?>" class="<?php echo $statusFilter === 'in_progress' ? 'active' : ''; ?>">In Progress</a>
-                    <a href="vendor-assessments.php?status=completed<?php echo $typeFilter ? '&type=' . $typeFilter : ''; ?>" class="<?php echo $statusFilter === 'completed' ? 'active' : ''; ?>">Completed</a>
+                    <a href="vendor-assessments.php<?php echo $typeFilter ? '?type=' . $typeFilter : ''; ?>" class="<?php echo empty($statusFilter) ? 'active' : ''; ?>"><?php echo e(t('vendor-assessments.filter_all')); ?></a>
+                    <a href="vendor-assessments.php?status=pending<?php echo $typeFilter ? '&type=' . $typeFilter : ''; ?>" class="<?php echo $statusFilter === 'pending' ? 'active' : ''; ?>"><?php echo e(t('vendor-assessments.filter_pending')); ?></a>
+                    <a href="vendor-assessments.php?status=in_progress<?php echo $typeFilter ? '&type=' . $typeFilter : ''; ?>" class="<?php echo $statusFilter === 'in_progress' ? 'active' : ''; ?>"><?php echo e(t('vendor-assessments.filter_in_progress')); ?></a>
+                    <a href="vendor-assessments.php?status=completed<?php echo $typeFilter ? '&type=' . $typeFilter : ''; ?>" class="<?php echo $statusFilter === 'completed' ? 'active' : ''; ?>"><?php echo e(t('vendor-assessments.filter_completed')); ?></a>
                 </div>
 
                 <!-- Search, Type Filter, and Per-Page Controls -->
@@ -706,14 +706,14 @@ try {
                             <?php if ($sortColumn !== 'created_at'): ?><input type="hidden" name="sort" value="<?php echo e($sortColumn); ?>"><?php endif; ?>
                             <?php if ($sortOrder !== 'DESC'): ?><input type="hidden" name="order" value="<?php echo e($sortOrder); ?>"><?php endif; ?>
                             <?php if ($perPage !== 25): ?><input type="hidden" name="per_page" value="<?php echo $perPage; ?>"><?php endif; ?>
-                            <input type="text" name="search" placeholder="Search vendor, email, or type..." value="<?php echo e($searchQuery); ?>">
+                            <input type="text" name="search" placeholder="<?php echo e(t('vendor-assessments.search_placeholder')); ?>" value="<?php echo e($searchQuery); ?>">
                         </form>
                     </div>
 
                     <div class="filter-group">
-                        <label>Type:</label>
+                        <label><?php echo e(t('vendor-assessments.label_type')); ?></label>
                         <select data-action="filterByType">
-                            <option value="">All Types</option>
+                            <option value=""><?php echo e(t('vendor-assessments.all_types')); ?></option>
                             <?php foreach ($templates as $t): ?>
                             <option value="<?php echo $t['id']; ?>" <?php echo $typeFilter == $t['id'] ? 'selected' : ''; ?>><?php echo e($t['name']); ?></option>
                             <?php endforeach; ?>
@@ -721,13 +721,13 @@ try {
                     </div>
 
                     <div class="per-page-group">
-                        <label>Show:</label>
+                        <label><?php echo e(t('vendor-assessments.label_show')); ?></label>
                         <select data-action="changePerPage">
                             <option value="25" <?php echo $perPage == 25 ? 'selected' : ''; ?>>25</option>
                             <option value="50" <?php echo $perPage == 50 ? 'selected' : ''; ?>>50</option>
                             <option value="100" <?php echo $perPage == 100 ? 'selected' : ''; ?>>100</option>
                         </select>
-                        <label>per page</label>
+                        <label><?php echo e(t('vendor-assessments.per_page')); ?></label>
                     </div>
                 </div>
 
@@ -736,8 +736,8 @@ try {
                     <?php if (empty($assessments)): ?>
                     <div class="empty-state">
                         <div class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="32" height="32"></div>
-                        <h3>No assessments found</h3>
-                        <p>Create a new assessment to send to a vendor.</p>
+                        <h3><?php echo e(t('vendor-assessments.no_assessments_found')); ?></h3>
+                        <p><?php echo e(t('vendor-assessments.no_assessments_hint')); ?></p>
                     </div>
                     <?php else: ?>
                     <table>
@@ -745,31 +745,31 @@ try {
                             <tr>
                                 <th class="sortable <?php echo $sortColumn === 'vendor_name' ? 'active' : ''; ?>">
                                     <a href="<?php echo buildSortUrl('vendor_name', $sortColumn, $sortOrder); ?>" style="color:inherit;text-decoration:none;">
-                                        Assessment<span class="sort-icon"><?php echo getSortIndicator('vendor_name', $sortColumn, $sortOrder); ?></span>
+                                        <?php echo e(t('vendor-assessments.col_assessment')); ?><span class="sort-icon"><?php echo getSortIndicator('vendor_name', $sortColumn, $sortOrder); ?></span>
                                     </a>
                                 </th>
                                 <th class="sortable <?php echo $sortColumn === 'template_name' ? 'active' : ''; ?>">
                                     <a href="<?php echo buildSortUrl('template_name', $sortColumn, $sortOrder); ?>" style="color:inherit;text-decoration:none;">
-                                        Type<span class="sort-icon"><?php echo getSortIndicator('template_name', $sortColumn, $sortOrder); ?></span>
+                                        <?php echo e(t('vendor-assessments.col_type')); ?><span class="sort-icon"><?php echo getSortIndicator('template_name', $sortColumn, $sortOrder); ?></span>
                                     </a>
                                 </th>
                                 <th class="sortable <?php echo $sortColumn === 'status' ? 'active' : ''; ?>">
                                     <a href="<?php echo buildSortUrl('status', $sortColumn, $sortOrder); ?>" style="color:inherit;text-decoration:none;">
-                                        Status<span class="sort-icon"><?php echo getSortIndicator('status', $sortColumn, $sortOrder); ?></span>
+                                        <?php echo e(t('vendor-assessments.col_status')); ?><span class="sort-icon"><?php echo getSortIndicator('status', $sortColumn, $sortOrder); ?></span>
                                     </a>
                                 </th>
-                                <th>Progress</th>
+                                <th><?php echo e(t('vendor-assessments.col_progress')); ?></th>
                                 <th class="sortable <?php echo $sortColumn === 'created_at' ? 'active' : ''; ?>">
                                     <a href="<?php echo buildSortUrl('created_at', $sortColumn, $sortOrder); ?>" style="color:inherit;text-decoration:none;">
-                                        Created<span class="sort-icon"><?php echo getSortIndicator('created_at', $sortColumn, $sortOrder); ?></span>
+                                        <?php echo e(t('vendor-assessments.col_created')); ?><span class="sort-icon"><?php echo getSortIndicator('created_at', $sortColumn, $sortOrder); ?></span>
                                     </a>
                                 </th>
                                 <th class="sortable <?php echo $sortColumn === 'expires_at' ? 'active' : ''; ?>">
                                     <a href="<?php echo buildSortUrl('expires_at', $sortColumn, $sortOrder); ?>" style="color:inherit;text-decoration:none;">
-                                        Expires<span class="sort-icon"><?php echo getSortIndicator('expires_at', $sortColumn, $sortOrder); ?></span>
+                                        <?php echo e(t('vendor-assessments.col_expires')); ?><span class="sort-icon"><?php echo getSortIndicator('expires_at', $sortColumn, $sortOrder); ?></span>
                                     </a>
                                 </th>
-                                <th>Actions</th>
+                                <th><?php echo e(t('vendor-assessments.col_actions')); ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -791,7 +791,7 @@ try {
                                         <?php echo ucfirst(str_replace('_', ' ', $displayStatus)); ?>
                                     </span>
                                     <?php if ($a['certificate_uploaded']): ?>
-                                    <br><small style="color: #22c55e;">Certificate uploaded</small>
+                                    <br><small style="color: #22c55e;"><?php echo e(t('vendor-assessments.certificate_uploaded')); ?></small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -814,31 +814,31 @@ try {
                                     <?php if ($a['expires_at']): ?>
                                     <?php echo date('M j, Y', strtotime($a['expires_at'])); ?>
                                     <?php if ($isExpired): ?>
-                                    <br><small style="color: #ef4444;">Expired</small>
+                                    <br><small style="color: #ef4444;"><?php echo e(t('vendor-assessments.expired')); ?></small>
                                     <?php endif; ?>
                                     <?php endif; ?>
                                 </td>
                                 <td style="white-space: nowrap;">
-                                    <a href="vendor-assessment-view.php?id=<?php echo (int)$a['id']; ?>" class="btn btn-sm btn-secondary" target="_blank">View</a>
+                                    <a href="vendor-assessment-view.php?id=<?php echo (int)$a['id']; ?>" class="btn btn-sm btn-secondary" target="_blank"><?php echo e(t('vendor-assessments.btn_view')); ?></a>
                                     <?php if (!$isExpired): ?>
-                                    <a href="api/assessment-download-pdf.php?assessment_id=<?php echo (int)$a['id']; ?>" class="btn btn-sm" style="background:#b91c1c;color:white;" title="Download fillable PDF version">PDF</a>
+                                    <a href="api/assessment-download-pdf.php?assessment_id=<?php echo (int)$a['id']; ?>" class="btn btn-sm" style="background:#b91c1c;color:white;" title="<?php echo e(t('vendor-assessments.btn_pdf_title')); ?>">PDF</a>
                                     <?php endif; ?>
                                     <?php if (!$isAuditor): ?>
                                     <?php if ($a['status'] !== 'completed'): ?>
-                                    <button class="btn btn-sm" style="background:#3b82f6;color:white;" data-action="copyLink" data-arg="<?php echo e($a['uuid']); ?>">Copy</button>
-                                    <button class="btn btn-sm" style="background:#10b981;color:white;" data-action="emailLink" data-args="<?php echo e(json_encode([$a['uuid'], $a['vendor_name'], $a['vendor_contact_email']])); ?>">Email</button>
+                                    <button class="btn btn-sm" style="background:#3b82f6;color:white;" data-action="copyLink" data-arg="<?php echo e($a['uuid']); ?>"><?php echo e(t('vendor-assessments.btn_copy')); ?></button>
+                                    <button class="btn btn-sm" style="background:#10b981;color:white;" data-action="emailLink" data-args="<?php echo e(json_encode([$a['uuid'], $a['vendor_name'], $a['vendor_contact_email']])); ?>"><?php echo e(t('vendor-assessments.btn_email')); ?></button>
                                     <?php endif; ?>
                                     <?php if ($isExpired || $a['status'] === 'pending'): ?>
                                     <form method="POST" style="display:inline;">
                                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                         <input type="hidden" name="assessment_id" value="<?php echo (int)$a['id']; ?>">
-                                        <button type="submit" name="resend_assessment" class="btn btn-sm" style="background:#f59e0b;color:white;">Resend</button>
+                                        <button type="submit" name="resend_assessment" class="btn btn-sm" style="background:#f59e0b;color:white;"><?php echo e(t('vendor-assessments.btn_resend')); ?></button>
                                     </form>
                                     <?php endif; ?>
-                                    <form method="POST" style="display:inline;" data-confirm="Are you sure you want to delete this assessment? This cannot be undone.">
+                                    <form method="POST" style="display:inline;" data-confirm="<?php echo e(t('vendor-assessments.confirm_delete')); ?>">
                                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                         <input type="hidden" name="assessment_id" value="<?php echo (int)$a['id']; ?>">
-                                        <button type="submit" name="delete_assessment" class="btn btn-sm btn-danger">Delete</button>
+                                        <button type="submit" name="delete_assessment" class="btn btn-sm btn-danger"><?php echo e(t('vendor-assessments.btn_delete')); ?></button>
                                     </form>
                                     <?php endif; ?>
                                 </td>
@@ -910,14 +910,14 @@ try {
     <div id="createModal" class="modal">
         <div class="modal-content">
             <span class="close" data-close="createModal">&times;</span>
-            <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo ($isStakeholder && !$isAdmin && !$isCyberTPRM) ? 'New Vendor Request' : 'Create New Assessment'; ?></h3>
+            <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo ($isStakeholder && !$isAdmin && !$isCyberTPRM) ? e(t('vendor-assessments.new_vendor_request')) : e(t('vendor-assessments.create_new_assessment')); ?></h3>
             <form method="POST" id="createAssessmentForm">
                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
 
                 <div class="form-group">
-                    <label>Assessment Type <span class="required">*</span></label>
+                    <label><?php echo e(t('vendor-assessments.label_assessment_type')); ?> <span class="required">*</span></label>
                     <select name="template_id" class="form-control" required>
-                        <option value="">-- Select Type --</option>
+                        <option value=""><?php echo e(t('vendor-assessments.select_type')); ?></option>
                         <?php
                         // Group templates by category
                         $categoryLabels = [
@@ -944,68 +944,68 @@ try {
 
                 <!-- Existing vendor search (shown for non-onboarding templates) -->
                 <div id="existingVendorSection" class="form-group" style="position: relative;">
-                    <label>Link to Existing Vendor <span class="required">*</span></label>
+                    <label><?php echo e(t('vendor-assessments.label_link_existing_vendor')); ?> <span class="required">*</span></label>
                     <input type="hidden" name="vendor_request_id" id="vendorRequestId" value="<?php echo $preselectedVendor ? $preselectedVendor['id'] : ''; ?>">
-                    <input type="text" class="form-control" id="vendorSearch" placeholder="Type vendor name or domain to search..." autocomplete="off" value="<?php echo $preselectedVendor ? e($preselectedVendor['vendor_name'] . ($preselectedVendor['vendor_domain'] ? ' (' . $preselectedVendor['vendor_domain'] . ')' : '')) : ''; ?>">
+                    <input type="text" class="form-control" id="vendorSearch" placeholder="<?php echo e(t('vendor-assessments.vendor_search_placeholder')); ?>" autocomplete="off" value="<?php echo $preselectedVendor ? e($preselectedVendor['vendor_name'] . ($preselectedVendor['vendor_domain'] ? ' (' . $preselectedVendor['vendor_domain'] . ')' : '')) : ''; ?>">
                     <div id="vendorSuggestions" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ddd; border-top:none; border-radius:0 0 4px 4px; max-height:200px; overflow-y:auto; z-index:100; box-shadow:0 4px 6px rgba(0,0,0,0.1);"></div>
-                    <div class="form-help">Search by vendor name or domain (e.g., "acme" or "acme.com"). You must select a vendor from the list.</div>
+                    <div class="form-help"><?php echo e(t('vendor-assessments.help_search_vendor')); ?></div>
                 </div>
 
                 <!-- New vendor fields (shown for onboarding templates) -->
                 <div id="newVendorSection" style="display: none;">
                     <div class="form-group">
-                        <label>Vendor Domain</label>
-                        <input type="text" name="vendor_domain" id="newVendorDomain" class="form-control" placeholder="e.g., acme.com">
-                        <div class="form-help">The vendor's primary domain (used for security risk scoring).</div>
+                        <label><?php echo e(t('vendor-assessments.label_vendor_domain')); ?></label>
+                        <input type="text" name="vendor_domain" id="newVendorDomain" class="form-control" placeholder="<?php echo e(t('vendor-assessments.placeholder_domain_example')); ?>">
+                        <div class="form-help"><?php echo e(t('vendor-assessments.help_vendor_domain')); ?></div>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Vendor Name <span class="required">*</span></label>
+                        <label><?php echo e(t('vendor-assessments.label_vendor_name')); ?> <span class="required">*</span></label>
                         <input type="text" name="vendor_name" id="vendorName" class="form-control" required value="<?php echo $preselectedVendor ? e($preselectedVendor['vendor_name']) : ''; ?>">
                     </div>
                     <div class="form-group">
-                        <label>Vendor Contact Name <span class="required">*</span></label>
+                        <label><?php echo e(t('vendor-assessments.label_vendor_contact_name')); ?> <span class="required">*</span></label>
                         <input type="text" name="vendor_contact" id="vendorContact" class="form-control" required value="<?php echo $preselectedVendor ? e($preselectedVendor['vendor_contact']) : ''; ?>">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Vendor Contact Email <span class="required">*</span></label>
+                        <label><?php echo e(t('vendor-assessments.label_vendor_contact_email')); ?> <span class="required">*</span></label>
                         <input type="email" name="vendor_contact_email" id="vendorContactEmail" class="form-control" required value="<?php echo $preselectedVendor ? e($preselectedVendor['vendor_contact_email']) : ''; ?>">
-                        <div class="form-help">The assessment link will be emailed to this address.</div>
+                        <div class="form-help"><?php echo e(t('vendor-assessments.help_contact_email')); ?></div>
                     </div>
                     <div class="form-group">
-                        <label>Requester Email</label>
+                        <label><?php echo e(t('vendor-assessments.label_requester_email')); ?></label>
                         <input type="email" name="vendor_email" id="vendorEmail" class="form-control" value="<?php echo $preselectedVendor ? e($preselectedVendor['vendor_email']) : e($user['email']); ?>">
-                        <div class="form-help">Internal reference only. Not sent to the vendor.</div>
+                        <div class="form-help"><?php echo e(t('vendor-assessments.help_requester_email')); ?></div>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Link Expires In</label>
+                    <label><?php echo e(t('vendor-assessments.label_link_expires_in')); ?></label>
                     <select name="expires_in_days" class="form-control">
-                        <option value="7">7 days</option>
-                        <option value="14">14 days</option>
-                        <option value="30" selected>30 days</option>
-                        <option value="60">60 days</option>
-                        <option value="90">90 days</option>
+                        <option value="7"><?php echo e(t('vendor-assessments.expires_7_days')); ?></option>
+                        <option value="14"><?php echo e(t('vendor-assessments.expires_14_days')); ?></option>
+                        <option value="30" selected><?php echo e(t('vendor-assessments.expires_30_days')); ?></option>
+                        <option value="60"><?php echo e(t('vendor-assessments.expires_60_days')); ?></option>
+                        <option value="90"><?php echo e(t('vendor-assessments.expires_90_days')); ?></option>
                     </select>
                 </div>
 
                 <div id="vendorError" style="display:none; color:#991b1b; background:#fef2f2; border:1px solid #fecaca; padding:8px 12px; border-radius:4px; margin-bottom:15px; font-size:13px;">
-                    Please select a valid vendor from the search results.
+                    <?php echo e(t('vendor-assessments.select_valid_vendor_results')); ?>
                 </div>
 
                 <input type="hidden" name="download_pdf" id="downloadPdfFlag" value="0">
                 <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
-                    <button type="submit" name="create_assessment" class="btn btn-primary" id="createAssessmentBtn">Create Assessment</button>
-                    <button type="submit" name="create_assessment" class="btn" id="downloadPdfBtn" style="background:#b91c1c;color:white;" title="Create this assessment and download a fillable PDF. No email is sent.">
-                        <span style="display:inline-block;margin-right:6px;font-weight:700;">PDF</span> Download Fillable PDF
+                    <button type="submit" name="create_assessment" class="btn btn-primary" id="createAssessmentBtn"><?php echo e(t('vendor-assessments.btn_create_assessment')); ?></button>
+                    <button type="submit" name="create_assessment" class="btn" id="downloadPdfBtn" style="background:#b91c1c;color:white;" title="<?php echo e(t('vendor-assessments.btn_download_pdf_title')); ?>">
+                        <span style="display:inline-block;margin-right:6px;font-weight:700;">PDF</span> <?php echo e(t('vendor-assessments.btn_download_fillable_pdf')); ?>
                     </button>
-                    <button type="button" class="btn btn-secondary" data-close="createModal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-close="createModal"><?php echo e(t('vendor-assessments.btn_cancel')); ?></button>
                 </div>
             </form>
         </div>
@@ -1016,21 +1016,21 @@ try {
     <div id="emailModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
         <div style="background:white; padding:30px; border-radius:8px; max-width:520px; width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h3 style="margin:0; color:#333; font-size:18px;">Send Assessment Email</h3>
+                <h3 style="margin:0; color:#333; font-size:18px;"><?php echo e(t('vendor-assessments.send_assessment_email')); ?></h3>
                 <button type="button" id="emailModalCloseX" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1;">&times;</button>
             </div>
-            <p style="margin:0 0 6px; color:#666; font-size:14px;">Vendor: <strong id="emailModalVendorName"></strong></p>
-            <label style="display:block; margin:12px 0 6px; font-weight:600; color:#333; font-size:14px;">Recipients</label>
+            <p style="margin:0 0 6px; color:#666; font-size:14px;"><?php echo e(t('vendor-assessments.vendor_label')); ?> <strong id="emailModalVendorName"></strong></p>
+            <label style="display:block; margin:12px 0 6px; font-weight:600; color:#333; font-size:14px;"><?php echo e(t('vendor-assessments.recipients')); ?></label>
             <div id="emailModalTags" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; min-height:10px;"></div>
             <div style="display:flex; gap:6px;">
-                <input type="email" id="emailModalNewAddr" placeholder="Add email address" style="flex:1; padding:8px 10px; border:1px solid #d1d5db; border-radius:4px; font-size:14px;">
-                <button type="button" id="emailModalAddBtn" class="btn btn-sm" style="background:#3b82f6; color:white; padding:8px 14px; white-space:nowrap;">Add</button>
+                <input type="email" id="emailModalNewAddr" placeholder="<?php echo e(t('vendor-assessments.add_email_placeholder')); ?>" style="flex:1; padding:8px 10px; border:1px solid #d1d5db; border-radius:4px; font-size:14px;">
+                <button type="button" id="emailModalAddBtn" class="btn btn-sm" style="background:#3b82f6; color:white; padding:8px 14px; white-space:nowrap;"><?php echo e(t('vendor-assessments.btn_add')); ?></button>
             </div>
-            <p style="margin:4px 0 0; color:#999; font-size:12px;">Separate multiple addresses with commas, semicolons, or spaces.</p>
+            <p style="margin:4px 0 0; color:#999; font-size:12px;"><?php echo e(t('vendor-assessments.separate_addresses')); ?></p>
             <div id="emailModalStatus" style="display:none; margin-top:12px; padding:8px 10px; background:#f9fafb; border-radius:4px; font-size:13px;"></div>
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-                <button type="button" id="emailModalCancelBtn" class="btn btn-sm btn-secondary" style="padding:8px 18px;">Cancel</button>
-                <button type="button" id="emailModalSendBtn" class="btn btn-sm" style="background:#10b981; color:white; padding:8px 18px;">Send</button>
+                <button type="button" id="emailModalCancelBtn" class="btn btn-sm btn-secondary" style="padding:8px 18px;"><?php echo e(t('vendor-assessments.btn_cancel')); ?></button>
+                <button type="button" id="emailModalSendBtn" class="btn btn-sm" style="background:#10b981; color:white; padding:8px 18px;"><?php echo e(t('vendor-assessments.btn_send')); ?></button>
             </div>
         </div>
     </div>
@@ -1481,7 +1481,7 @@ try {
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('vendor-assessments.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>

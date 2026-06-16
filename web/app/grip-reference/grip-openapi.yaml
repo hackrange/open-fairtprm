@@ -5,7 +5,7 @@ info:
     Reverse-engineered reference for the Grip Security public SaaS API as
     consumed by the FairTPRM Shadow SaaS integration. Endpoints below were
     confirmed by live calls against the documented base URL
-    (https://hr.dep.grip.security/public/saas) using the `access-token`
+    (https://tenant.dep.grip.security/public/saas) using the `access-token`
     header. The official documentation portal is at apidocs.grip.security.
   version: "0.1"
   contact:

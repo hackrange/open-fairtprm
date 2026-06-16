@@ -778,20 +778,20 @@ function gradeClass(string $grade): string {
 
     <!-- Action Bar (screen only) -->
     <div class="action-bar no-print">
-        <a href="<?php echo $isStakeholderAccess ? 'vendor-onboarding.php?id=' . $vendorId . '&tab=score' : 'vendor-srs-details.php?id=' . $vendorId; ?>" class="btn btn-secondary">Back to Details</a>
+        <a href="<?php echo $isStakeholderAccess ? 'vendor-onboarding.php?id=' . $vendorId . '&tab=score' : 'vendor-srs-details.php?id=' . $vendorId; ?>" class="btn btn-secondary"><?php echo e(t('vendor-detailed-summary.back_to_details')); ?></a>
         <?php if ($aiEnabled && !$isStakeholderAccess): ?>
         <button type="button" class="btn btn-primary" id="generateAiBtn">
-            Generate Commentary
+            <?php echo e(t('vendor-detailed-summary.generate_commentary')); ?>
         </button>
         <?php endif; ?>
-        <button type="button" class="btn btn-secondary" id="printBtn">Print / Save as PDF</button>
+        <button type="button" class="btn btn-secondary" id="printBtn"><?php echo e(t('vendor-detailed-summary.print_save_pdf')); ?></button>
     </div>
 
     <!-- Report Header -->
     <div class="report-header">
-        <img src="<?php echo e($logoUrl); ?>" alt="Logo" class="logo">
+        <img src="<?php echo e($logoUrl); ?>" alt="<?php echo e(t('vendor-detailed-summary.logo_alt')); ?>" class="logo">
         <div class="report-info">
-            <h1>Vendor Detailed Assessment</h1>
+            <h1><?php echo e(t('vendor-detailed-summary.report_heading')); ?></h1>
             <div class="subtitle"><?php echo e($vendor['vendor_name']); ?> | <?php echo e($vendor['vendor_domain'] ?? 'No domain'); ?></div>
             <p><?php echo e($reportDate); ?> at <?php echo e($reportTime); ?> | Confidential</p>
         </div>
@@ -805,29 +805,29 @@ function gradeClass(string $grade): string {
 
     <div class="info-grid">
         <div class="info-item">
-            <div class="label">Vendor Type</div>
+            <div class="label"><?php echo e(t('vendor-detailed-summary.label_vendor_type')); ?></div>
             <div class="value"><?php echo e($vendor['vendor_type'] ?? 'Not set'); ?></div>
         </div>
         <div class="info-item">
-            <div class="label">Tier</div>
+            <div class="label"><?php echo e(t('vendor-detailed-summary.label_tier')); ?></div>
             <div class="value"><?php echo $vendor['vendor_tier'] ? 'Tier ' . e($vendor['vendor_tier']) : 'Not tiered'; ?></div>
         </div>
         <div class="info-item">
-            <div class="label">Status</div>
+            <div class="label"><?php echo e(t('vendor-detailed-summary.label_status')); ?></div>
             <div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $vendor['status'] ?? 'Unknown'))); ?></div>
         </div>
         <div class="info-item">
-            <div class="label">Assessments</div>
-            <div class="value"><?php echo $assessmentCount; ?> completed</div>
+            <div class="label"><?php echo e(t('vendor-detailed-summary.label_assessments')); ?></div>
+            <div class="value"><?php echo $assessmentCount; ?> <?php echo e(t('vendor-detailed-summary.completed_suffix')); ?></div>
         </div>
         <div class="info-item">
-            <div class="label">Technologies</div>
-            <div class="value"><?php echo count($technologies); ?> detected</div>
+            <div class="label"><?php echo e(t('vendor-detailed-summary.label_technologies')); ?></div>
+            <div class="value"><?php echo count($technologies); ?> <?php echo e(t('vendor-detailed-summary.detected_suffix')); ?></div>
         </div>
     </div>
 
     <!-- Score Overview -->
-    <h3 class="section-title">Score Overview</h3>
+    <h3 class="section-title"><?php echo e(t('vendor-detailed-summary.score_overview')); ?></h3>
     <div class="score-grid">
         <?php if ($latestScore): ?>
         <div class="score-card">
@@ -837,7 +837,7 @@ function gradeClass(string $grade): string {
             <div class="scored-date">Scored <?php echo date('M j, Y', strtotime($latestScore['scored_at'])); ?></div>
         </div>
         <?php else: ?>
-        <div class="score-card"><div class="source"><?php echo e($upguardName); ?></div><div class="ai-placeholder">No score available</div></div>
+        <div class="score-card"><div class="source"><?php echo e($upguardName); ?></div><div class="ai-placeholder"><?php echo e(t('vendor-detailed-summary.no_score_available')); ?></div></div>
         <?php endif; ?>
 
         <?php if ($shodanLatestScore): ?>
@@ -848,23 +848,23 @@ function gradeClass(string $grade): string {
             <div class="scored-date">Scored <?php echo date('M j, Y', strtotime($shodanLatestScore['scored_at'])); ?></div>
         </div>
         <?php else: ?>
-        <div class="score-card"><div class="source"><?php echo e($shodanName); ?></div><div class="ai-placeholder">No score available</div></div>
+        <div class="score-card"><div class="source"><?php echo e($shodanName); ?></div><div class="ai-placeholder"><?php echo e(t('vendor-detailed-summary.no_score_available')); ?></div></div>
         <?php endif; ?>
 
         <div class="score-card">
-            <div class="source">Combined Score</div>
+            <div class="source"><?php echo e(t('vendor-detailed-summary.combined_score')); ?></div>
             <?php if ($combinedScore['score'] !== null): ?>
             <div class="score-value"><?php echo $combinedScore['score']; ?>%</div>
             <div class="grade" style="background: <?php echo gradeClass($combinedScore['grade']); ?>"><?php echo $combinedScore['grade']; ?></div>
             <div class="scored-date"><?php echo $combinedScore['source_count']; ?> source(s)</div>
             <?php else: ?>
-            <div class="ai-placeholder">No scores available</div>
+            <div class="ai-placeholder"><?php echo e(t('vendor-detailed-summary.no_scores_available')); ?></div>
             <?php endif; ?>
         </div>
     </div>
 
     <!-- NIST CSF 2.0 Analysis -->
-    <h3 class="section-title" style="page-break-before: always;">NIST CSF 2.0 Framework Analysis</h3>
+    <h3 class="section-title" style="page-break-before: always;"><?php echo e(t('vendor-detailed-summary.nist_framework_analysis')); ?></h3>
 
     <div class="chart-row avoid-break">
         <div class="chart-half">
@@ -873,11 +873,11 @@ function gradeClass(string $grade): string {
         <div class="chart-half">
             <table>
                 <thead>
-                    <tr><th>NIST Function</th><th>Score</th><th>Key Data Sources</th></tr>
+                    <tr><th><?php echo e(t('vendor-detailed-summary.col_nist_function')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_score')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_key_data_sources')); ?></th></tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td><strong>Identify</strong></td>
+                        <td><strong><?php echo e(t('vendor-detailed-summary.nist_identify')); ?></strong></td>
                         <td>
                             <div class="score-bar">
                                 <span><?php echo $nistScores['Identify']; ?></span>
@@ -887,27 +887,27 @@ function gradeClass(string $grade): string {
                         <td>Techs: <?php echo count($technologies); ?>, FAIR: <?php echo $fairAnalysis ? 'Yes' : 'No'; ?>, Tier: <?php echo $vendor['vendor_tier'] ?? 'N/A'; ?></td>
                     </tr>
                     <tr>
-                        <td><strong>Protect</strong></td>
+                        <td><strong><?php echo e(t('vendor-detailed-summary.nist_protect')); ?></strong></td>
                         <td>
                             <div class="score-bar">
                                 <span><?php echo $nistScores['Protect']; ?></span>
                                 <div class="score-bar-bg"><div class="score-bar-fill" style="width: <?php echo $nistScores['Protect']; ?>%"></div></div>
                             </div>
                         </td>
-                        <td>TLS, App Hardening, Email, Network</td>
+                        <td><?php echo e(t('vendor-detailed-summary.protect_sources')); ?></td>
                     </tr>
                     <tr>
-                        <td><strong>Detect</strong></td>
+                        <td><strong><?php echo e(t('vendor-detailed-summary.nist_detect')); ?></strong></td>
                         <td>
                             <div class="score-bar">
                                 <span><?php echo $nistScores['Detect']; ?></span>
                                 <div class="score-bar-bg"><div class="score-bar-fill" style="width: <?php echo $nistScores['Detect']; ?>%"></div></div>
                             </div>
                         </td>
-                        <td>Vuln Exposure, Continuous Monitoring</td>
+                        <td><?php echo e(t('vendor-detailed-summary.detect_sources')); ?></td>
                     </tr>
                     <tr>
-                        <td><strong>Respond</strong></td>
+                        <td><strong><?php echo e(t('vendor-detailed-summary.nist_respond')); ?></strong></td>
                         <td>
                             <div class="score-bar">
                                 <span><?php echo $nistScores['Respond']; ?></span>
@@ -917,7 +917,7 @@ function gradeClass(string $grade): string {
                         <td>Assessments: <?php echo $assessmentCount; ?>, Governance: <?php echo $govAnswered > 0 ? 'Yes' : 'No'; ?></td>
                     </tr>
                     <tr>
-                        <td><strong>Recover</strong></td>
+                        <td><strong><?php echo e(t('vendor-detailed-summary.nist_recover')); ?></strong></td>
                         <td>
                             <div class="score-bar">
                                 <span><?php echo $nistScores['Recover']; ?></span>
@@ -934,7 +934,7 @@ function gradeClass(string $grade): string {
     <!-- Score Trend -->
     <?php if (!empty($trendLabels)): ?>
     <div class="avoid-break">
-        <h4 class="section-title-sm">Score Trend (1 Year)</h4>
+        <h4 class="section-title-sm"><?php echo e(t('vendor-detailed-summary.score_trend_1y')); ?></h4>
         <div class="chart-container">
             <canvas id="trendChart"></canvas>
         </div>
@@ -945,13 +945,13 @@ function gradeClass(string $grade): string {
     <?php if (array_sum($severityCounts) > 0): ?>
     <div class="chart-row avoid-break">
         <div class="chart-half">
-            <h4 class="section-title-sm">Risk Severity Distribution</h4>
+            <h4 class="section-title-sm"><?php echo e(t('vendor-detailed-summary.risk_severity_distribution')); ?></h4>
             <canvas id="severityChart"></canvas>
         </div>
         <div class="chart-half">
-            <h4 class="section-title-sm">Severity Breakdown</h4>
+            <h4 class="section-title-sm"><?php echo e(t('vendor-detailed-summary.severity_breakdown')); ?></h4>
             <table>
-                <thead><tr><th>Severity</th><th>Count</th><th>Percentage</th></tr></thead>
+                <thead><tr><th><?php echo e(t('vendor-detailed-summary.col_severity')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_count')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_percentage')); ?></th></tr></thead>
                 <tbody>
                     <?php
                     $totalRisks = array_sum($severityCounts);
@@ -965,7 +965,7 @@ function gradeClass(string $grade): string {
                     </tr>
                     <?php endforeach; ?>
                     <tr style="font-weight: 700; border-top: 2px solid #d1d5db;">
-                        <td>Total</td>
+                        <td><?php echo e(t('vendor-detailed-summary.total')); ?></td>
                         <td><?php echo $totalRisks; ?></td>
                         <td>100%</td>
                     </tr>
@@ -977,21 +977,21 @@ function gradeClass(string $grade): string {
 
     <!-- AI-Generated Analysis Sections (hidden until populated) -->
     <div id="aiSection" style="display: none;">
-        <h3 class="section-title" style="page-break-before: always;">Summary</h3>
+        <h3 class="section-title" style="page-break-before: always;"><?php echo e(t('vendor-detailed-summary.summary')); ?></h3>
         <div class="ai-spinner" id="aiSpinner">
-            Generating analysis... This may take 30-60 seconds.
+            <?php echo e(t('vendor-detailed-summary.generating_analysis')); ?>
         </div>
         <div id="aiResults"></div>
     </div>
 
     <!-- Risk Findings Summary -->
-    <h3 class="section-title">Risk Findings Summary</h3>
+    <h3 class="section-title"><?php echo e(t('vendor-detailed-summary.risk_findings_summary')); ?></h3>
 
     <?php if (!empty($topRisks)): ?>
     <div class="avoid-break">
-        <h4 class="section-title-sm">Top Critical &amp; High <?php echo e($upguardName); ?> Risks</h4>
+        <h4 class="section-title-sm"><?php echo e(t('vendor-detailed-summary.top_critical_high_risks', $upguardName)); ?></h4>
         <table>
-            <thead><tr><th>Severity</th><th>Risk</th><th>Description</th></tr></thead>
+            <thead><tr><th><?php echo e(t('vendor-detailed-summary.col_severity')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_risk')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_description')); ?></th></tr></thead>
             <tbody>
                 <?php foreach (array_slice($topRisks, 0, 10) as $r): ?>
                 <tr>
@@ -1007,9 +1007,9 @@ function gradeClass(string $grade): string {
 
     <?php if (!empty($negativeSignals)): ?>
     <div class="avoid-break">
-        <h4 class="section-title-sm">Top Negative <?php echo e($shodanName); ?> Signals</h4>
+        <h4 class="section-title-sm"><?php echo e(t('vendor-detailed-summary.top_negative_signals', $shodanName)); ?></h4>
         <table>
-            <thead><tr><th>Category</th><th>Signal</th><th>Points</th></tr></thead>
+            <thead><tr><th><?php echo e(t('vendor-detailed-summary.col_category')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_signal')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_points')); ?></th></tr></thead>
             <tbody>
                 <?php foreach (array_slice($negativeSignals, 0, 10) as $f): ?>
                 <tr>
@@ -1025,9 +1025,9 @@ function gradeClass(string $grade): string {
 
     <?php if (!empty($highCVEs)): ?>
     <div class="avoid-break">
-        <h4 class="section-title-sm">High-Severity CVEs (CVSS &ge; 7.0)</h4>
+        <h4 class="section-title-sm"><?php echo e(t('vendor-detailed-summary.high_severity_cves')); ?></h4>
         <table>
-            <thead><tr><th>CVE ID</th><th>CVSS</th><th>Service</th><th>Description</th></tr></thead>
+            <thead><tr><th><?php echo e(t('vendor-detailed-summary.col_cve_id')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_cvss')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_service')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_description')); ?></th></tr></thead>
             <tbody>
                 <?php foreach (array_slice($highCVEs, 0, 10) as $c): ?>
                 <tr>
@@ -1043,43 +1043,43 @@ function gradeClass(string $grade): string {
     <?php endif; ?>
 
     <?php if (empty($topRisks) && empty($negativeSignals) && empty($highCVEs)): ?>
-    <div class="ai-placeholder">No critical or high-severity risk findings recorded.</div>
+    <div class="ai-placeholder"><?php echo e(t('vendor-detailed-summary.no_risk_findings')); ?></div>
     <?php endif; ?>
 
     <!-- Financial Impact (FAIR) -->
-    <h3 class="section-title" style="page-break-before: always;">Financial Risk Impact (FAIR)</h3>
+    <h3 class="section-title" style="page-break-before: always;"><?php echo e(t('vendor-detailed-summary.financial_risk_impact')); ?></h3>
     <?php if ($fairAnalysis): ?>
     <div class="avoid-break">
         <div class="fair-grid">
             <div class="fair-metric">
-                <div class="label">Risk Level</div>
+                <div class="label"><?php echo e(t('vendor-detailed-summary.fair_risk_level')); ?></div>
                 <div class="value"><?php echo e($fairAnalysis['risk_output'] ?? 'N/A'); ?></div>
-                <div class="desc">Overall FAIR risk output</div>
+                <div class="desc"><?php echo e(t('vendor-detailed-summary.fair_risk_level_desc')); ?></div>
             </div>
             <div class="fair-metric">
-                <div class="label">Annual Loss Expectancy</div>
+                <div class="label"><?php echo e(t('vendor-detailed-summary.fair_ale')); ?></div>
                 <div class="value"><?php echo !empty($fairAnalysis['ale']) ? '$' . number_format((float)$fairAnalysis['ale'], 0) : 'N/A'; ?></div>
-                <div class="desc">Expected annual financial loss</div>
+                <div class="desc"><?php echo e(t('vendor-detailed-summary.fair_ale_desc')); ?></div>
             </div>
             <div class="fair-metric">
-                <div class="label">Loss Event Frequency</div>
+                <div class="label"><?php echo e(t('vendor-detailed-summary.fair_lef')); ?></div>
                 <div class="value"><?php echo !empty($fairAnalysis['loss_event_frequency']) ? $fairAnalysis['loss_event_frequency'] . ' events/yr' : 'N/A'; ?></div>
-                <div class="desc">Estimated events per year</div>
+                <div class="desc"><?php echo e(t('vendor-detailed-summary.fair_lef_desc')); ?></div>
             </div>
             <div class="fair-metric">
-                <div class="label">Primary Loss Magnitude</div>
+                <div class="label"><?php echo e(t('vendor-detailed-summary.fair_primary_loss')); ?></div>
                 <div class="value"><?php echo !empty($fairAnalysis['primary_loss_magnitude']) ? '$' . number_format((float)$fairAnalysis['primary_loss_magnitude'], 0) : 'N/A'; ?></div>
-                <div class="desc">Direct financial impact</div>
+                <div class="desc"><?php echo e(t('vendor-detailed-summary.fair_primary_loss_desc')); ?></div>
             </div>
             <div class="fair-metric">
-                <div class="label">Secondary Loss Magnitude</div>
+                <div class="label"><?php echo e(t('vendor-detailed-summary.fair_secondary_loss')); ?></div>
                 <div class="value"><?php echo !empty($fairAnalysis['secondary_loss_magnitude']) ? '$' . number_format((float)$fairAnalysis['secondary_loss_magnitude'], 0) : 'N/A'; ?></div>
-                <div class="desc">Indirect/reputational costs</div>
+                <div class="desc"><?php echo e(t('vendor-detailed-summary.fair_secondary_loss_desc')); ?></div>
             </div>
             <div class="fair-metric">
-                <div class="label">Recommended Insurance</div>
+                <div class="label"><?php echo e(t('vendor-detailed-summary.fair_recommended_insurance')); ?></div>
                 <div class="value"><?php echo !empty($fairAnalysis['recommended_liability']) ? '$' . number_format((float)$fairAnalysis['recommended_liability'], 0) : 'N/A'; ?></div>
-                <div class="desc">Recommended coverage level</div>
+                <div class="desc"><?php echo e(t('vendor-detailed-summary.fair_recommended_insurance_desc')); ?></div>
             </div>
         </div>
         <?php
@@ -1090,49 +1090,49 @@ function gradeClass(string $grade): string {
             $gapPct = round(($gap / $recIns) * 100);
         ?>
         <div style="margin-top: 10px; padding: 10px; background: <?php echo $gap > 0 ? '#fef2f2' : '#f0fdf4'; ?>; border-radius: 6px; border: 1px solid <?php echo $gap > 0 ? '#fecaca' : '#bbf7d0'; ?>;">
-            <strong>Insurance Gap Analysis:</strong>
+            <strong><?php echo e(t('vendor-detailed-summary.insurance_gap_analysis')); ?></strong>
             Current coverage: $<?php echo number_format($actIns, 0); ?> |
             Recommended: $<?php echo number_format($recIns, 0); ?>
             <?php if ($gap > 0): ?>
             | <span style="color: #dc2626; font-weight: 700;">Gap: $<?php echo number_format($gap, 0); ?> (<?php echo $gapPct; ?>% undercovered)</span>
             <?php else: ?>
-            | <span style="color: #16a34a; font-weight: 700;">Adequately covered</span>
+            | <span style="color: #16a34a; font-weight: 700;"><?php echo e(t('vendor-detailed-summary.adequately_covered')); ?></span>
             <?php endif; ?>
         </div>
         <?php endif; ?>
     </div>
     <?php else: ?>
-    <div class="ai-placeholder">No FAIR analysis has been completed for this vendor.<?php if (!$isAuditor): ?> <a href="fair-analysis.php?from_onboarding=<?php echo $vendorId; ?>" class="no-print">Create FAIR Assessment</a><?php endif; ?></div>
+    <div class="ai-placeholder"><?php echo e(t('vendor-detailed-summary.no_fair_analysis')); ?><?php if (!$isAuditor): ?> <a href="fair-analysis.php?from_onboarding=<?php echo $vendorId; ?>" class="no-print"><?php echo e(t('vendor-detailed-summary.create_fair_assessment')); ?></a><?php endif; ?></div>
     <?php endif; ?>
 
     <!-- Vendor Provided Assessment Overview -->
     <?php if (!empty($certifications) || !empty($assessmentMeta) || !empty($shCategoryScores)): ?>
     <div class="avoid-break">
-        <h3 class="section-title" style="page-break-before: always;">Vendor Provided Assessment Overview</h3>
+        <h3 class="section-title" style="page-break-before: always;"><?php echo e(t('vendor-detailed-summary.vendor_provided_overview')); ?></h3>
 
         <?php if (!empty($certifications)): ?>
-        <h4 class="section-title-sm">Active Certifications</h4>
+        <h4 class="section-title-sm"><?php echo e(t('vendor-detailed-summary.active_certifications')); ?></h4>
         <table class="risk-table">
             <thead>
-                <tr><th>Certification</th><th>Expiration</th><th>Status</th><th>Document</th></tr>
+                <tr><th><?php echo e(t('vendor-detailed-summary.col_certification')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_expiration')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_status')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_document')); ?></th></tr>
             </thead>
             <tbody>
                 <?php foreach ($certifications as $cert):
                     $expDate = $cert['certification_expiration_date'] ?? null;
-                    $certStatus = 'Unknown';
+                    $certStatus = t('vendor-detailed-summary.cert_unknown');
                     $certColor = '#6b7280';
                     if ($expDate) {
                         $expTs = strtotime($expDate);
                         $now = time();
                         $daysLeft = ($expTs - $now) / 86400;
                         if ($daysLeft < 0) {
-                            $certStatus = 'Expired';
+                            $certStatus = t('vendor-detailed-summary.cert_expired');
                             $certColor = '#dc2626';
                         } elseif ($daysLeft < 30) {
-                            $certStatus = 'Expiring Soon';
+                            $certStatus = t('vendor-detailed-summary.cert_expiring_soon');
                             $certColor = '#d97706';
                         } else {
-                            $certStatus = 'Valid';
+                            $certStatus = t('vendor-detailed-summary.cert_valid');
                             $certColor = '#16a34a';
                         }
                     }
@@ -1149,10 +1149,10 @@ function gradeClass(string $grade): string {
         <?php endif; ?>
 
         <?php if (!empty($assessmentMeta)): ?>
-        <h4 class="section-title-sm" style="margin-top: 18px;">Assessment Completion Summary</h4>
+        <h4 class="section-title-sm" style="margin-top: 18px;"><?php echo e(t('vendor-detailed-summary.assessment_completion_summary')); ?></h4>
         <table class="risk-table">
             <thead>
-                <tr><th>Assessment</th><th>Completed</th><th>Sections</th><th>Questions Answered</th></tr>
+                <tr><th><?php echo e(t('vendor-detailed-summary.col_assessment')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_completed')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_sections')); ?></th><th><?php echo e(t('vendor-detailed-summary.col_questions_answered')); ?></th></tr>
             </thead>
             <tbody>
                 <?php foreach ($assessmentMeta as $am): ?>
@@ -1236,15 +1236,15 @@ function gradeClass(string $grade): string {
         ?>
 
         <?php if ($hasExternalData || $hasAnyClaims): ?>
-        <h4 class="section-title-sm" style="margin-top: 18px;">Vendor Claims vs. External Evidence</h4>
+        <h4 class="section-title-sm" style="margin-top: 18px;"><?php echo e(t('vendor-detailed-summary.claims_vs_evidence')); ?></h4>
         <table class="risk-table" style="font-size: 0.85em;">
             <thead>
                 <tr>
-                    <th style="width: 16%;">Security Domain</th>
-                    <th style="width: 10%; text-align: center;">Score</th>
-                    <th style="width: 26%;">External Evidence</th>
-                    <th style="width: 28%;">Vendor Claim</th>
-                    <th style="width: 20%; text-align: center;">Assessment</th>
+                    <th style="width: 16%;"><?php echo e(t('vendor-detailed-summary.col_security_domain')); ?></th>
+                    <th style="width: 10%; text-align: center;"><?php echo e(t('vendor-detailed-summary.col_score')); ?></th>
+                    <th style="width: 26%;"><?php echo e(t('vendor-detailed-summary.col_external_evidence')); ?></th>
+                    <th style="width: 28%;"><?php echo e(t('vendor-detailed-summary.col_vendor_claim')); ?></th>
+                    <th style="width: 20%; text-align: center;"><?php echo e(t('vendor-detailed-summary.col_assessment')); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -1345,7 +1345,7 @@ function gradeClass(string $grade): string {
 
                 <!-- Certifications row -->
                 <tr>
-                    <td style="font-weight: 600;">Certifications</td>
+                    <td style="font-weight: 600;"><?php echo e(t('vendor-detailed-summary.certifications')); ?></td>
                     <td style="text-align: center;"><span style="color: #9ca3af;">—</span></td>
                     <td style="font-size: 0.9em; color: #374151;">
                         <?php if (!empty($certifications)):
@@ -1354,7 +1354,7 @@ function gradeClass(string $grade): string {
                             if ($certExpired > 0) $certParts[] = $certExpired . ' expired';
                             echo e(implode(', ', $certParts) . ' on file');
                         else: ?>
-                        <span style="color:#9ca3af;">None on file</span>
+                        <span style="color:#9ca3af;"><?php echo e(t('vendor-detailed-summary.none_on_file')); ?></span>
                         <?php endif; ?>
                     </td>
                     <td style="font-size: 0.9em;">
@@ -1374,7 +1374,7 @@ function gradeClass(string $grade): string {
                         elseif (!empty($certTypes)):
                             echo e(implode(', ', array_slice($certTypes, 0, 3)) . ' provided');
                         else: ?>
-                        (No response)
+                        <?php echo e(t('vendor-detailed-summary.no_response')); ?>
                         <?php endif; ?>
                     </td>
                     <td style="text-align: center; font-weight: 600; color: <?php
@@ -1393,7 +1393,7 @@ function gradeClass(string $grade): string {
         </table>
 
         <div style="margin-top: 6px; font-size: 0.8em; color: #6b7280;">
-            <strong>Legend:</strong>
+            <strong><?php echo e(t('vendor-detailed-summary.legend')); ?></strong>
             <span style="color: #16a34a;">&#10003; Aligned</span> = Score &ge; 70 &amp; positive claim |
             <span style="color: #d97706;">&#9888; Discrepancy</span> = Score &lt; 50 &amp; positive claim |
             <span style="color: #dc2626;">&#10007; Contradiction</span> = Score &lt; 30 &amp; positive claim |
@@ -1406,7 +1406,7 @@ function gradeClass(string $grade): string {
     <!-- Category Scores (Horizontal Bars) -->
     <?php if (!empty($ugCategoryScores) || !empty($shCategoryScores)): ?>
     <div class="avoid-break">
-        <h3 class="section-title">Category Scores</h3>
+        <h3 class="section-title"><?php echo e(t('vendor-detailed-summary.category_scores')); ?></h3>
         <div class="chart-container">
             <canvas id="categoryChart"></canvas>
         </div>
@@ -1416,7 +1416,7 @@ function gradeClass(string $grade): string {
     <!-- Technology Inventory -->
     <?php if (!empty($technologies)): ?>
     <div class="avoid-break">
-        <h3 class="section-title">Technology Inventory (Top 20)</h3>
+        <h3 class="section-title"><?php echo e(t('vendor-detailed-summary.technology_inventory')); ?></h3>
         <?php
         $techByCategory = [];
         foreach (array_slice($technologies, 0, 20) as $tech) {
@@ -1440,7 +1440,7 @@ function gradeClass(string $grade): string {
     <!-- Footer -->
     <div class="report-footer">
         Confidential — <?php echo e($reportDate); ?> — Generated by Open TPRM<br>
-        This assessment references the NIST Cybersecurity Framework (CSF) 2.0. NIST CSF is a trademark of the National Institute of Standards and Technology.
+        <?php echo e(t('vendor-detailed-summary.nist_trademark_notice')); ?>
     </div>
 
 </div>

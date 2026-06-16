@@ -27,7 +27,7 @@
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['update_openwebui']) || isset($_POST['update_ai_settings']))) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_api-integration.invalid_request_retry');
     } else {
         try {
             $db->beginTransaction();
@@ -134,11 +134,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['update_openwebui']) 
                 $auditData['custom_secret_header_value']
             );
             $auth->audit($user['id'], 'config_update_ai_settings', 'app_config', null, ['new' => $auditData]);
-            $success = 'API integration settings saved.';
+            $success = t('admin_api-integration.settings_saved');
         } catch (Exception $e) {
             $db->rollback();
             error_log('Error updating AI config: ' . $e->getMessage());
-            $error = 'Failed to update API configuration.';
+            $error = t('admin_api-integration.update_failed');
         }
     }
 }
@@ -207,8 +207,8 @@ CURL;
 // ============================================================================
 ?>
 <div class="page-header-bar">
-    <h1 class="page-title">API Integration</h1>
-    <p>Configure the AI platform used for FAIR analysis, executive summaries, and auto-fill features. Only one platform can be active at a time.</p>
+    <h1 class="page-title"><?php echo e(t('admin_api-integration.title')); ?></h1>
+    <p><?php echo e(t('admin_api-integration.intro')); ?></p>
 </div>
 
 <form method="POST" action="admin.php?section=<?php echo e($section); ?>">
@@ -216,54 +216,54 @@ CURL;
 
     <!-- Platform Selector -->
     <div class="card" style="margin-bottom: 20px;">
-        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;">AI Platform</h3>
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;"><?php echo e(t('admin_api-integration.ai_platform')); ?></h3>
         <div style="display: flex; gap: 16px; flex-wrap: wrap;">
             <label class="api-choice <?php echo $activePlatform === 'disabled' ? 'api-choice-active' : ''; ?>">
                 <input type="radio" name="ai_platform_active" value="disabled" <?php echo $activePlatform === 'disabled' ? 'checked' : ''; ?>>
-                <span class="api-choice-label">Disabled</span>
-                <span class="api-choice-desc">No AI integration</span>
+                <span class="api-choice-label"><?php echo e(t('admin_api-integration.disabled')); ?></span>
+                <span class="api-choice-desc"><?php echo e(t('admin_api-integration.disabled_desc')); ?></span>
             </label>
             <label class="api-choice <?php echo $activePlatform === 'openwebui' ? 'api-choice-active' : ''; ?>">
                 <input type="radio" name="ai_platform_active" value="openwebui" <?php echo $activePlatform === 'openwebui' ? 'checked' : ''; ?>>
-                <span class="api-choice-label">OpenWebUI</span>
-                <span class="api-choice-desc">JWT authentication</span>
+                <span class="api-choice-label"><?php echo e(t('admin_api-integration.openwebui')); ?></span>
+                <span class="api-choice-desc"><?php echo e(t('admin_api-integration.jwt_authentication')); ?></span>
             </label>
             <label class="api-choice <?php echo $activePlatform === 'librechat' ? 'api-choice-active' : ''; ?>">
                 <input type="radio" name="ai_platform_active" value="librechat" <?php echo $activePlatform === 'librechat' ? 'checked' : ''; ?>>
-                <span class="api-choice-label">LibreChat</span>
-                <span class="api-choice-desc">API key authentication</span>
+                <span class="api-choice-label"><?php echo e(t('admin_api-integration.librechat')); ?></span>
+                <span class="api-choice-desc"><?php echo e(t('admin_api-integration.api_key_authentication')); ?></span>
             </label>
             <label class="api-choice <?php echo $activePlatform === 'custom' ? 'api-choice-active' : ''; ?>">
                 <input type="radio" name="ai_platform_active" value="custom" <?php echo $activePlatform === 'custom' ? 'checked' : ''; ?>>
-                <span class="api-choice-label">Custom</span>
-                <span class="api-choice-desc">curl-style headers</span>
+                <span class="api-choice-label"><?php echo e(t('admin_api-integration.custom')); ?></span>
+                <span class="api-choice-desc"><?php echo e(t('admin_api-integration.curl_style_headers')); ?></span>
             </label>
         </div>
     </div>
 
     <!-- OpenWebUI Settings -->
     <div class="card" id="panel-openwebui" style="margin-bottom: 20px;<?php echo $activePlatform !== 'openwebui' ? ' display:none;' : ''; ?>">
-        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;">OpenWebUI Configuration</h3>
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;"><?php echo e(t('admin_api-integration.openwebui_config')); ?></h3>
         <div class="form-group">
-            <label for="openwebui_api_url">API URL</label>
+            <label for="openwebui_api_url"><?php echo e(t('admin_api-integration.api_url')); ?></label>
             <input type="text" id="openwebui_api_url" name="openwebui_api_url" class="form-control" value="<?php echo e($owApiUrl); ?>" placeholder="https://your-openwebui.com/api/chat/completions">
         </div>
         <div class="form-group">
-            <label for="openwebui_jwt_token">JWT Authentication Token</label>
+            <label for="openwebui_jwt_token"><?php echo e(t('admin_api-integration.jwt_auth_token')); ?></label>
             <input type="password" id="openwebui_jwt_token" name="openwebui_jwt_token" class="form-control" placeholder="<?php echo !empty($owJwtToken) ? '••••••••  (leave blank to keep)' : 'Enter JWT token'; ?>">
-            <div class="form-help">Stored encrypted. Leave blank to keep existing token.</div>
+            <div class="form-help"><?php echo e(t('admin_api-integration.stored_encrypted_token')); ?></div>
         </div>
         <div class="form-group">
-            <label for="openwebui_model">Default Model</label>
+            <label for="openwebui_model"><?php echo e(t('admin_api-integration.default_model')); ?></label>
             <input type="text" id="openwebui_model" name="openwebui_model" class="form-control" value="<?php echo e($owModel); ?>" placeholder="e.g. novita.google/gemma-3-27b-it">
         </div>
         <div style="display: flex; gap: 16px;">
             <div class="form-group" style="flex: 1;">
-                <label for="openwebui_temperature">Temperature</label>
+                <label for="openwebui_temperature"><?php echo e(t('admin_api-integration.temperature')); ?></label>
                 <input type="number" id="openwebui_temperature" name="openwebui_temperature" class="form-control" step="0.1" min="0" max="2" value="<?php echo e($owTemperature); ?>">
             </div>
             <div class="form-group" style="flex: 1;">
-                <label for="openwebui_max_tokens">Max Tokens</label>
+                <label for="openwebui_max_tokens"><?php echo e(t('admin_api-integration.max_tokens')); ?></label>
                 <input type="number" id="openwebui_max_tokens" name="openwebui_max_tokens" class="form-control" min="1" value="<?php echo e($owMaxTokens); ?>">
             </div>
         </div>
@@ -271,27 +271,27 @@ CURL;
 
     <!-- LibreChat Settings -->
     <div class="card" id="panel-librechat" style="margin-bottom: 20px;<?php echo $activePlatform !== 'librechat' ? ' display:none;' : ''; ?>">
-        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;">LibreChat Configuration</h3>
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;"><?php echo e(t('admin_api-integration.librechat_config')); ?></h3>
         <div class="form-group">
-            <label for="librechat_api_url">API URL</label>
+            <label for="librechat_api_url"><?php echo e(t('admin_api-integration.api_url')); ?></label>
             <input type="text" id="librechat_api_url" name="librechat_api_url" class="form-control" value="<?php echo e($lcApiUrl); ?>" placeholder="https://your-librechat.com/api/v1/chat/completions">
         </div>
         <div class="form-group">
-            <label for="librechat_api_key">API Key</label>
+            <label for="librechat_api_key"><?php echo e(t('admin_api-integration.api_key')); ?></label>
             <input type="password" id="librechat_api_key" name="librechat_api_key" class="form-control" placeholder="<?php echo !empty($lcApiKey) ? '••••••••  (leave blank to keep)' : 'Enter API key'; ?>">
-            <div class="form-help">Stored encrypted. Leave blank to keep existing key.</div>
+            <div class="form-help"><?php echo e(t('admin_api-integration.stored_encrypted_key')); ?></div>
         </div>
         <div class="form-group">
-            <label for="librechat_model">Default Model</label>
+            <label for="librechat_model"><?php echo e(t('admin_api-integration.default_model')); ?></label>
             <input type="text" id="librechat_model" name="librechat_model" class="form-control" value="<?php echo e($lcModel); ?>" placeholder="e.g. gpt-4o, claude-sonnet-4-6">
         </div>
         <div style="display: flex; gap: 16px;">
             <div class="form-group" style="flex: 1;">
-                <label for="librechat_temperature">Temperature</label>
+                <label for="librechat_temperature"><?php echo e(t('admin_api-integration.temperature')); ?></label>
                 <input type="number" id="librechat_temperature" name="librechat_temperature" class="form-control" step="0.1" min="0" max="2" value="<?php echo e($lcTemperature); ?>">
             </div>
             <div class="form-group" style="flex: 1;">
-                <label for="librechat_max_tokens">Max Tokens</label>
+                <label for="librechat_max_tokens"><?php echo e(t('admin_api-integration.max_tokens')); ?></label>
                 <input type="number" id="librechat_max_tokens" name="librechat_max_tokens" class="form-control" min="1" value="<?php echo e($lcMaxTokens); ?>">
             </div>
         </div>
@@ -299,13 +299,13 @@ CURL;
 
     <!-- Custom Settings -->
     <div class="card" id="panel-custom" style="margin-bottom: 20px;<?php echo $activePlatform !== 'custom' ? ' display:none;' : ''; ?>">
-        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;">Custom Configuration</h3>
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;"><?php echo e(t('admin_api-integration.custom_config')); ?></h3>
         <div class="form-group">
-            <label for="custom_api_url">API URL</label>
+            <label for="custom_api_url"><?php echo e(t('admin_api-integration.api_url')); ?></label>
             <input type="text" id="custom_api_url" name="custom_api_url" class="form-control" value="<?php echo e($customApiUrl); ?>" placeholder="https://your-ai-api.example.com/v1/infer">
         </div>
         <div class="form-group">
-            <label for="custom_search_url">Web Search URL <span style="font-weight: 400; color: #6b7280;">(optional)</span></label>
+            <label for="custom_search_url"><?php echo e(t('admin_api-integration.web_search_url')); ?> <span style="font-weight: 400; color: #6b7280;"><?php echo e(t('admin_api-integration.optional')); ?></span></label>
             <input type="text" id="custom_search_url" name="custom_search_url" class="form-control" value="<?php echo e($customSearchUrl); ?>" placeholder="Auto-detected from API URL — only set this to override">
             <div class="form-help">
                 Used by breach research to ground the model on fresh news. Sends <code>{"query": "...", "max_results": N}</code> with the same headers/secret as the API URL above.
@@ -314,18 +314,18 @@ CURL;
         </div>
         <div style="display: flex; gap: 16px;">
             <div class="form-group" style="flex: 0 0 240px;">
-                <label for="custom_secret_header_name">Secret Header Name</label>
+                <label for="custom_secret_header_name"><?php echo e(t('admin_api-integration.secret_header_name')); ?></label>
                 <input type="text" id="custom_secret_header_name" name="custom_secret_header_name" class="form-control" value="<?php echo e($customSecretHeaderName); ?>" placeholder="x-app-secret">
                 <div class="form-help">HTTP header that carries the secret (e.g., <code>x-app-secret</code>, <code>Authorization</code>).</div>
             </div>
             <div class="form-group" style="flex: 1;">
-                <label for="custom_secret_header_value">Secret Header Value</label>
+                <label for="custom_secret_header_value"><?php echo e(t('admin_api-integration.secret_header_value')); ?></label>
                 <input type="password" id="custom_secret_header_value" name="custom_secret_header_value" class="form-control" autocomplete="off" placeholder="<?php echo $customSecretIsSet ? '••••••••  (saved — leave blank to keep, or enter a new value to replace)' : 'sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; ?>">
                 <div class="form-help">Stored AES-256 encrypted. Once saved the value can never be viewed again — only replaced by entering a new value here. Injected into the request as <code>{Header Name}: {value}</code>; do not include this header in the textarea below.</div>
             </div>
         </div>
         <div class="form-group">
-            <label for="custom_headers">Headers &amp; Body Template (curl format)</label>
+            <label for="custom_headers"><?php echo e(t('admin_api-integration.headers_body_template')); ?></label>
             <textarea id="custom_headers" name="custom_headers" class="form-control" rows="12" style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; white-space: pre;" placeholder="<?php echo e($customHeadersExample); ?>"><?php echo e($customHeaders); ?></textarea>
             <div class="form-help">
                 One <code>-H 'Header: value'</code> per line, plus a <code>--data-raw '{...}'</code> JSON body template.
@@ -333,8 +333,8 @@ CURL;
                 (same dispatch model as OpenWebUI / LibreChat).
             </div>
             <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
-                <button type="button" id="custom_copy_example" class="btn" style="background:#6b7280;border-color:#6b7280;color:#fff;font-size:12px;padding:6px 12px;">Copy Example to Clipboard</button>
-                <button type="button" id="custom_download_postman" class="btn" style="background:#6b7280;border-color:#6b7280;color:#fff;font-size:12px;padding:6px 12px;">Download Postman Collection</button>
+                <button type="button" id="custom_copy_example" class="btn" style="background:#6b7280;border-color:#6b7280;color:#fff;font-size:12px;padding:6px 12px;"><?php echo e(t('admin_api-integration.copy_example')); ?></button>
+                <button type="button" id="custom_download_postman" class="btn" style="background:#6b7280;border-color:#6b7280;color:#fff;font-size:12px;padding:6px 12px;"><?php echo e(t('admin_api-integration.download_postman')); ?></button>
                 <span id="custom_action_status" style="font-size:12px;color:#10b981;align-self:center;display:none;"></span>
             </div>
         </div>
@@ -342,15 +342,15 @@ CURL;
 
     <!-- Shared Settings (only relevant for OpenWebUI / LibreChat — Custom uses its own --data-raw body) -->
     <div class="card" id="panel-shared" style="margin-bottom: 20px;<?php echo in_array($activePlatform, ['disabled', 'custom']) ? ' display:none;' : ''; ?>">
-        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;">Shared Model Settings</h3>
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;"><?php echo e(t('admin_api-integration.shared_model_settings')); ?></h3>
         <div class="form-group">
-            <label for="fair_ai_model">FAIR / Structured Output Model</label>
+            <label for="fair_ai_model"><?php echo e(t('admin_api-integration.fair_structured_model')); ?></label>
             <input type="text" id="fair_ai_model" name="fair_ai_model" class="form-control" value="<?php echo e($fairAiModel); ?>" placeholder="e.g. novita.deepseek/deepseek-v3-turbo">
             <div class="form-help">Used for FAIR risk analysis, assessment auto-fill, and contract extraction. Needs fast response (&lt;30s) and good JSON output. Works with both platforms. Leave blank to use the default model.</div>
         </div>
     </div>
 
-    <button type="submit" name="update_ai_settings" class="btn btn-primary">Save Configuration</button>
+    <button type="submit" name="update_ai_settings" class="btn btn-primary"><?php echo e(t('admin_api-integration.save_configuration')); ?></button>
 </form>
 
 <style nonce="<?php echo cspNonce(); ?>">

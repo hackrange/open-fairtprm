@@ -83,6 +83,13 @@ RUN set -e; \
            $pp/vendor-onboarding.php \
            $pp/vendor-srs-list.php $pp/vendor-srs-compliance-report.php \
            $pp/view-result.php \
+           $pp/admin-users-import.php $pp/api-rescore-status.php $pp/documentation.php \
+           $pp/download-pdf.php $pp/error.php $pp/fair_dashboard.php \
+           $pp/fair_import-analysis.php $pp/fair_results.php $pp/logout.php \
+           $pp/reports.php $pp/vendor-annual-review-history.php $pp/vendor-annual-review.php \
+           $pp/vendor-annual-reviews-list.php $pp/vendor-onboarding-export.php \
+           $pp/vendor-onboarding-import.php $pp/vendor-srs-details.php \
+           $pp/vendor-srs-export.php $pp/vendor-srs-import.php \
            /var/www/html/; \
     \
     cp -p  $pp/v2.6.1.sql /var/www/html/sql_updates/; \
@@ -215,6 +222,25 @@ RUN set -e; \
         /var/www/html/vendor-srs-list.php \
         /var/www/html/vendor-srs-compliance-report.php \
         /var/www/html/view-result.php \
+        /var/www/html/admin-users-import.php \
+        /var/www/html/api-rescore-status.php \
+        /var/www/html/documentation.php \
+        /var/www/html/download-pdf.php \
+        /var/www/html/error.php \
+        /var/www/html/fair_dashboard.php \
+        /var/www/html/fair_import-analysis.php \
+        /var/www/html/fair_results.php \
+        /var/www/html/logout.php \
+        /var/www/html/reports.php \
+        /var/www/html/vendor-annual-review-history.php \
+        /var/www/html/vendor-annual-review.php \
+        /var/www/html/vendor-annual-reviews-list.php \
+        /var/www/html/vendor-onboarding-export.php \
+        /var/www/html/vendor-onboarding-import.php \
+        /var/www/html/vendor-srs-details.php \
+        /var/www/html/vendor-srs-export.php \
+        /var/www/html/vendor-srs-import.php \
+        /var/www/html/includes/i18n/en.php \
         /var/www/html/sql_updates/v2.6.1.sql \
         /usr/local/bin/entrypoint.sh \
         /etc/modsecurity/grc-assessment-rules.conf \

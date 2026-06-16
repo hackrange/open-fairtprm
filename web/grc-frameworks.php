@@ -41,7 +41,7 @@ $msgType = '';
 // POST handlers for framework requirement management
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $msg = 'Invalid CSRF token. Please try again.';
+        $msg = t('grc_frameworks.invalid_csrf');
         $msgType = 'danger';
     } else {
         $action = $_POST['action'] ?? '';
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                 // Prevent deletion of template-generated frameworks
                 $fwCheck = $grc->getFramework($fwId);
                 if ($fwCheck && !empty($fwCheck['generated_from'])) {
-                    $msg = 'Template-based frameworks cannot be deleted. Use "Re-populate from Template" to reset requirements.';
+                    $msg = t('grc_frameworks.template_no_delete');
                     $msgType = 'danger';
                 } else {
                     $result = $grc->deleteFramework($fwId);
@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                             $msg = 'Seeded ' . $updated . ' description(s) from catalog data.';
                             $msgType = 'success';
                         } else {
-                            $msg = 'The catalog does not contain descriptions for the remaining missing requirements. Use "Seed from Assistant" to generate them.';
+                            $msg = t('grc_frameworks.catalog_no_descriptions');
                             $msgType = 'warning';
                         }
                     } else {
@@ -150,10 +150,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     $insertData['parent_id'] = $parentId;
                 }
                 $db->insert('grc_framework_requirements', $insertData);
-                $msg = 'Requirement added successfully.';
+                $msg = t('grc_frameworks.requirement_added');
                 $msgType = 'success';
             } else {
-                $msg = 'Framework, reference, and title are required.';
+                $msg = t('grc_frameworks.fw_ref_title_required');
                 $msgType = 'danger';
             }
         } elseif ($action === 'generate_from_catalog') {
@@ -186,12 +186,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                 // PRG redirect back to framework view
                 $editedReq = $db->fetchOne('SELECT framework_id FROM grc_framework_requirements WHERE id = :id', [':id' => $reqId]);
                 $fwId = $editedReq ? (int)$editedReq['framework_id'] : 0;
-                $_SESSION['flash_msg'] = 'Requirement updated successfully.';
+                $_SESSION['flash_msg'] = t('grc_frameworks.requirement_updated');
                 $_SESSION['flash_type'] = 'success';
                 header('Location: grc-frameworks.php?framework_id=' . $fwId);
                 exit;
             } else {
-                $msg = 'Reference and title are required.';
+                $msg = t('grc_frameworks.ref_title_required');
                 $msgType = 'danger';
             }
         }
@@ -292,7 +292,7 @@ $currentPage = 'grc_frameworks';
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Frameworks - GRC Compliance Engine</title>
+    <title><?php echo e(t('grc_frameworks.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -471,11 +471,11 @@ $currentPage = 'grc_frameworks';
 <body>
 <div class="page">
     <div class="top-bar">
-        <span style="margin-right:auto;font-size:14px;color:#333;">Welcome, <?php echo e($user['full_name']); ?></span>
+        <span style="margin-right:auto;font-size:14px;color:#333;"><?php echo e(t('chrome.welcome')); ?> <?php echo e($user['full_name']); ?></span>
         <div class="user-menu">
-            <?php if ($isAdmin): ?><a href="admin.php">Admin</a><?php endif; ?>
-            <a href="profile.php">Profile</a>
-            <a href="logout.php">Logout</a>
+            <?php if ($isAdmin): ?><a href="admin.php"><?php echo e(t('chrome.admin')); ?></a><?php endif; ?>
+            <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
+            <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
         </div>
     </div>
 
@@ -483,8 +483,8 @@ $currentPage = 'grc_frameworks';
         <?php include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
         <main class="main-content">
-            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;">Compliance Frameworks</h1>
-            <p style="color:#6b7280;margin:0 0 30px;">Manage frameworks, requirements, and control mappings</p>
+            <h1 style="font-size:26px;margin:0 0 6px;color:#333;font-weight:600;"><?php echo e(t('grc_frameworks.heading')); ?></h1>
+            <p style="color:#6b7280;margin:0 0 30px;"><?php echo e(t('grc_frameworks.subheading')); ?></p>
 
             <?php if ($msg): ?>
             <div class="alert alert-<?php echo e($msgType); ?>"><?php echo $msg; ?></div>
@@ -492,7 +492,7 @@ $currentPage = 'grc_frameworks';
 
             <?php if ($selectedFramework): ?>
             <!-- Requirement Tree View -->
-            <a href="grc-frameworks.php" class="back-link">&larr; Back to all frameworks</a>
+            <a href="grc-frameworks.php" class="back-link">&larr; <?php echo e(t('grc_frameworks.back_to_all')); ?></a>
             <h2 class="section-header"><?php echo e($selectedFramework['name']); ?> (<?php echo e($selectedFramework['code']); ?>)</h2>
             <p style="color:#6b7280;font-size:13px;margin:-10px 0 20px;"><?php echo e($selectedFramework['description'] ?? ''); ?></p>
 
@@ -500,7 +500,7 @@ $currentPage = 'grc_frameworks';
             <!-- Add Requirement Form -->
             <details class="grc-form" <?php echo $editReq ? 'open' : ''; ?>>
                 <summary style="cursor:pointer;font-weight:500;font-size:14px;color:#333;">
-                    <?php echo $editReq ? 'Edit Requirement' : 'Add Requirement'; ?>
+                    <?php echo e($editReq ? t('grc_frameworks.edit_requirement') : t('grc_frameworks.add_requirement')); ?>
                 </summary>
                 <form method="post" style="margin-top:16px;">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -513,34 +513,34 @@ $currentPage = 'grc_frameworks';
 
                     <div class="form-row">
                         <div>
-                            <label for="requirement_ref">Requirement Reference</label>
-                            <input type="text" id="requirement_ref" name="requirement_ref" value="<?php echo e($editReq['requirement_ref'] ?? ''); ?>" required placeholder="e.g., CC1.1">
+                            <label for="requirement_ref"><?php echo e(t('grc_frameworks.requirement_reference')); ?></label>
+                            <input type="text" id="requirement_ref" name="requirement_ref" value="<?php echo e($editReq['requirement_ref'] ?? ''); ?>" required placeholder="<?php echo e(t('grc_frameworks.ref_placeholder')); ?>">
                         </div>
                         <div>
-                            <label for="sort_order">Sort Order</label>
+                            <label for="sort_order"><?php echo e(t('grc_frameworks.sort_order')); ?></label>
                             <input type="number" id="sort_order" name="sort_order" value="<?php echo (int)($editReq['sort_order'] ?? 0); ?>">
                         </div>
                     </div>
 
-                    <label for="title">Title</label>
-                    <input type="text" id="title" name="title" value="<?php echo e($editReq['title'] ?? ''); ?>" required placeholder="Requirement title">
+                    <label for="title"><?php echo e(t('grc_frameworks.title')); ?></label>
+                    <input type="text" id="title" name="title" value="<?php echo e($editReq['title'] ?? ''); ?>" required placeholder="<?php echo e(t('grc_frameworks.title_placeholder')); ?>">
 
-                    <label for="description">Description</label>
-                    <textarea id="description" name="description" placeholder="Detailed description of the requirement"><?php echo e($editReq['description'] ?? ''); ?></textarea>
+                    <label for="description"><?php echo e(t('grc_frameworks.description')); ?></label>
+                    <textarea id="description" name="description" placeholder="<?php echo e(t('grc_frameworks.description_placeholder')); ?>"><?php echo e($editReq['description'] ?? ''); ?></textarea>
 
                     <?php if (!$editReq): ?>
-                    <label for="parent_id">Parent Requirement (optional)</label>
+                    <label for="parent_id"><?php echo e(t('grc_frameworks.parent_requirement')); ?></label>
                     <select id="parent_id" name="parent_id">
-                        <option value="">-- Top Level --</option>
+                        <option value="">-- <?php echo e(t('grc_frameworks.top_level')); ?> --</option>
                         <?php foreach ($requirements as $r): ?>
                         <option value="<?php echo (int)$r['id']; ?>"><?php echo e($r['requirement_ref']); ?> - <?php echo e($r['title']); ?></option>
                         <?php endforeach; ?>
                     </select>
                     <?php endif; ?>
 
-                    <button type="submit" class="btn btn-primary"><?php echo $editReq ? 'Update Requirement' : 'Add Requirement'; ?></button>
+                    <button type="submit" class="btn btn-primary"><?php echo e($editReq ? t('grc_frameworks.update_requirement') : t('grc_frameworks.add_requirement')); ?></button>
                     <?php if ($editReq): ?>
-                    <a href="grc-frameworks.php?framework_id=<?php echo (int)$selectedFrameworkId; ?>" class="btn btn-outline">Cancel</a>
+                    <a href="grc-frameworks.php?framework_id=<?php echo (int)$selectedFrameworkId; ?>" class="btn btn-outline"><?php echo e(t('grc_frameworks.cancel')); ?></a>
                     <?php endif; ?>
                 </form>
             </details>
@@ -589,17 +589,17 @@ $currentPage = 'grc_frameworks';
             <table class="grc-table">
                 <thead>
                     <tr>
-                        <th style="width:90px;">Reference</th>
-                        <th style="width:22%;">Title</th>
-                        <th>Description</th>
-                        <th style="width:70px;">Controls</th>
-                        <th style="width:120px;">Control Refs</th>
-                        <?php if (!$readOnly): ?><th style="width:60px;">Actions</th><?php endif; ?>
+                        <th style="width:90px;"><?php echo e(t('grc_frameworks.col_reference')); ?></th>
+                        <th style="width:22%;"><?php echo e(t('grc_frameworks.col_title')); ?></th>
+                        <th><?php echo e(t('grc_frameworks.col_description')); ?></th>
+                        <th style="width:70px;"><?php echo e(t('grc_frameworks.col_controls')); ?></th>
+                        <th style="width:120px;"><?php echo e(t('grc_frameworks.col_control_refs')); ?></th>
+                        <?php if (!$readOnly): ?><th style="width:60px;"><?php echo e(t('grc_frameworks.col_actions')); ?></th><?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($requirements)): ?>
-                    <tr><td colspan="<?php echo $readOnly ? 5 : 6; ?>" style="text-align:center;color:#6b7280;padding:30px;">No requirements found for this framework.</td></tr>
+                    <tr><td colspan="<?php echo $readOnly ? 5 : 6; ?>" style="text-align:center;color:#6b7280;padding:30px;"><?php echo e(t('grc_frameworks.no_requirements')); ?></td></tr>
                     <?php else: ?>
                     <?php
                     // Build a depth map for indentation
@@ -630,7 +630,7 @@ $currentPage = 'grc_frameworks';
                         <td style="font-size:12px;color:#6b7280;"><?php echo e($r['control_refs'] ?? '-'); ?></td>
                         <?php if (!$readOnly): ?>
                         <td>
-                            <a href="grc-frameworks.php?framework_id=<?php echo (int)$selectedFrameworkId; ?>&amp;edit_req=<?php echo (int)$r['id']; ?>" class="btn btn-sm btn-outline">Edit</a>
+                            <a href="grc-frameworks.php?framework_id=<?php echo (int)$selectedFrameworkId; ?>&amp;edit_req=<?php echo (int)$r['id']; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc_frameworks.edit')); ?></a>
                         </td>
                         <?php endif; ?>
                     </tr>
@@ -717,19 +717,19 @@ $currentPage = 'grc_frameworks';
             <div class="stats-bar">
                 <div class="stat-card accent">
                     <div class="stat-value"><?php echo count($yearFrameworks); ?></div>
-                    <div class="stat-label">Frameworks</div>
+                    <div class="stat-label"><?php echo e(t('grc_frameworks.stat_frameworks')); ?></div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value"><?php echo $avgPct; ?>%</div>
-                    <div class="stat-label">Avg Readiness</div>
+                    <div class="stat-label"><?php echo e(t('grc_frameworks.stat_avg_readiness')); ?></div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value"><?php echo number_format($totalReqs); ?></div>
-                    <div class="stat-label">Total Requirements</div>
+                    <div class="stat-label"><?php echo e(t('grc_frameworks.stat_total_requirements')); ?></div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value"><?php echo $needAttention; ?></div>
-                    <div class="stat-label">Need Attention</div>
+                    <div class="stat-label"><?php echo e(t('grc_frameworks.stat_need_attention')); ?></div>
                 </div>
                 <div style="display:flex;align-items:center;margin-left:auto;">
                     <div class="year-pills">
@@ -743,9 +743,9 @@ $currentPage = 'grc_frameworks';
             <?php if (!empty($allAssessments)): ?>
             <div style="margin-bottom:24px;padding:14px 20px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;">
                 <div style="display:flex;align-items:center;gap:12px;">
-                    <label style="font-size:13px;font-weight:600;color:#374151;white-space:nowrap;">Assessment:</label>
+                    <label style="font-size:13px;font-weight:600;color:#374151;white-space:nowrap;"><?php echo e(t('grc_frameworks.assessment_label')); ?></label>
                     <select id="assessmentSelector" style="flex:1;max-width:500px;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                        <option value="">-- Select Assessment --</option>
+                        <option value="">-- <?php echo e(t('grc_frameworks.select_assessment')); ?> --</option>
                         <?php foreach ($allAssessments as $aItem): ?>
                         <option value="<?php echo (int)$aItem['id']; ?>" <?php echo $selectedAssessmentId === (int)$aItem['id'] ? 'selected' : ''; ?>>
                             <?php echo e($aItem['assessment_ref'] . ' — ' . $aItem['title'] . ' (' . ucfirst($aItem['status']) . ')'); ?>
@@ -764,13 +764,13 @@ $currentPage = 'grc_frameworks';
                 ?>
                 <div style="display:flex;align-items:center;gap:20px;margin-top:10px;padding-top:10px;border-top:1px solid #f3f4f6;font-size:12px;color:#6b7280;flex-wrap:wrap;">
                     <?php if ($selScopeName): ?>
-                    <span><strong style="color:#374151;">Scope:</strong> <?php echo e($selScopeName); ?></span>
+                    <span><strong style="color:#374151;"><?php echo e(t('grc_frameworks.scope')); ?></strong> <?php echo e($selScopeName); ?></span>
                     <?php endif; ?>
-                    <span><strong style="color:#374151;">Status:</strong> <?php echo ucfirst($selAssessment['status'] ?? ''); ?></span>
+                    <span><strong style="color:#374151;"><?php echo e(t('grc_frameworks.status')); ?></strong> <?php echo ucfirst($selAssessment['status'] ?? ''); ?></span>
                     <?php if (!empty($selAssessment['lead_auditor_name'])): ?>
-                    <span><strong style="color:#374151;">Lead Auditor:</strong> <?php echo e($selAssessment['lead_auditor_name']); ?></span>
+                    <span><strong style="color:#374151;"><?php echo e(t('grc_frameworks.lead_auditor')); ?></strong> <?php echo e($selAssessment['lead_auditor_name']); ?></span>
                     <?php endif; ?>
-                    <span style="margin-left:auto;color:#4f46e5;font-weight:500;">Select a framework below to view its compliance report</span>
+                    <span style="margin-left:auto;color:#4f46e5;font-weight:500;"><?php echo e(t('grc_frameworks.select_framework_hint')); ?></span>
                 </div>
                 <?php endif; ?>
             </div>
@@ -780,7 +780,7 @@ $currentPage = 'grc_frameworks';
             <div style="text-align:center;padding:60px 20px;color:#6b7280;">
                 <div style="font-size:48px;opacity:0.3;margin-bottom:12px;">&#9744;</div>
                 <p style="font-size:15px;margin:0;">No frameworks for <?php echo (int)$filterYear; ?>.</p>
-                <p style="font-size:13px;margin:6px 0 0;opacity:0.7;">Template frameworks are auto-populated on system startup.</p>
+                <p style="font-size:13px;margin:6px 0 0;opacity:0.7;"><?php echo e(t('grc_frameworks.template_autopopulated')); ?></p>
             </div>
             <?php else: ?>
 
@@ -845,7 +845,7 @@ $currentPage = 'grc_frameworks';
                     </a>
                     <?php if ($avgMaturity !== null): ?>
                     <div class="fw-card-maturity">
-                        <span class="maturity-label">Avg Maturity</span>
+                        <span class="maturity-label"><?php echo e(t('grc_frameworks.avg_maturity')); ?></span>
                         <span class="maturity-value"><?php echo number_format($avgMaturity, 2); ?> / 4.00</span>
                     </div>
                     <?php endif; ?>
@@ -854,24 +854,24 @@ $currentPage = 'grc_frameworks';
                     <div class="fw-card-metrics">
                         <div class="fw-metric">
                             <div class="fw-metric-val green"><?php echo $conforming; ?></div>
-                            <div class="fw-metric-lbl">Conforming</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc_frameworks.metric_conforming')); ?></div>
                         </div>
                         <div class="fw-metric">
                             <div class="fw-metric-val amber"><?php echo $partial; ?></div>
-                            <div class="fw-metric-lbl">Partial</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc_frameworks.metric_partial')); ?></div>
                         </div>
                         <div class="fw-metric">
                             <div class="fw-metric-val <?php echo $nonConforming > 0 ? 'red' : 'gray'; ?>"><?php echo $nonConforming; ?></div>
-                            <div class="fw-metric-lbl">Non-Conforming</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc_frameworks.metric_non_conforming')); ?></div>
                         </div>
                         <div class="fw-metric">
                             <div class="fw-metric-val gray"><?php echo $totalMapped; ?></div>
-                            <div class="fw-metric-lbl">Total Mapped</div>
+                            <div class="fw-metric-lbl"><?php echo e(t('grc_frameworks.metric_total_mapped')); ?></div>
                         </div>
                     </div>
                     </a>
                     <?php else: ?>
-                    <div style="padding:14px 22px;border-top:1px solid #f3f4f6;text-align:center;color:#9ca3af;font-size:12px;">No requirements loaded</div>
+                    <div style="padding:14px 22px;border-top:1px solid #f3f4f6;text-align:center;color:#9ca3af;font-size:12px;"><?php echo e(t('grc_frameworks.no_requirements_loaded')); ?></div>
                     <?php endif; ?>
                 </div>
             <?php }; // end $renderCard ?>
@@ -885,8 +885,8 @@ $currentPage = 'grc_frameworks';
             <!-- Risk Heatmap -->
             <?php if ($heatmapTotal > 0): ?>
             <div class="heatmap-wrapper">
-                <h3>Risk Heatmap (Likelihood x Impact)</h3>
-                <div style="text-align:center;font-size:11px;color:#6b7280;margin-bottom:4px;">Impact &rarr;</div>
+                <h3><?php echo e(t('grc_frameworks.risk_heatmap')); ?></h3>
+                <div style="text-align:center;font-size:11px;color:#6b7280;margin-bottom:4px;"><?php echo e(t('grc_frameworks.impact')); ?> &rarr;</div>
                 <div class="heatmap">
                     <?php
                     function getHeatColor($l, $i) {
@@ -909,7 +909,7 @@ $currentPage = 'grc_frameworks';
                     <div class="heatmap-label"><?php echo $hi; ?></div>
                     <?php endfor; ?>
                 </div>
-                <div style="text-align:left;font-size:11px;color:#6b7280;margin-top:4px;">Likelihood &uarr;</div>
+                <div style="text-align:left;font-size:11px;color:#6b7280;margin-top:4px;"><?php echo e(t('grc_frameworks.likelihood')); ?> &uarr;</div>
             </div>
             <?php endif; ?>
 
@@ -924,7 +924,7 @@ $currentPage = 'grc_frameworks';
                 <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                     <?php if (!empty($theme['footer_logo_url'])): ?>
                         <a class="brand" href="index.php">
-                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('grc_frameworks.footer_logo_alt')); ?>" style="max-height: 45px;">
                         </a>
                     <?php endif; ?>
                     <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -933,7 +933,7 @@ $currentPage = 'grc_frameworks';
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('grc_frameworks.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </div>
