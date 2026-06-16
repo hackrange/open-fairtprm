@@ -5626,7 +5626,7 @@ PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'preferred_language') = 0,
-  'ALTER TABLE `users` ADD COLUMN `preferred_language` VARCHAR(10) DEFAULT NULL COMMENT ''User UI language code (e.g. en, es, zh-Hans); NULL = use system default'' AFTER `dashboard_modules`',
+  'ALTER TABLE `users` ADD COLUMN `preferred_language` VARCHAR(10) DEFAULT NULL COMMENT ''User UI language code (e.g. en, es, zh-Hans); NULL = use system default''',
   'SELECT 1'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;

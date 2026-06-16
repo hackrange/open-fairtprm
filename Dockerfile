@@ -119,6 +119,17 @@ RUN set -e; \
         /var/www/html/includes/admin/shadow-saas-grip.php \
         /var/www/html/includes/admin/version.php \
         /var/www/html/includes/admin/general.php \
+        /var/www/html/includes/admin/ai-platform.php \
+        /var/www/html/includes/admin/api-tokens.php \
+        /var/www/html/includes/admin/backup.php \
+        /var/www/html/includes/admin/lockdown.php \
+        /var/www/html/includes/admin/saml.php \
+        /var/www/html/includes/admin/scheduler.php \
+        /var/www/html/includes/admin/shodan-srs.php \
+        /var/www/html/includes/admin/srs.php \
+        /var/www/html/includes/admin/updates.php \
+        /var/www/html/includes/admin/users.php \
+        /var/www/html/includes/admin/workflows.php \
         /var/www/html/profile.php \
         /var/www/html/includes/classes/AssessmentTranslationService.php \
         /var/www/html/includes/i18n/en.php \
