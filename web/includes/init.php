@@ -373,6 +373,109 @@ function e($string) {
 }
 
 /**
+ * The canonical set of languages the application ships translations for.
+ * Maps language code => human-readable label (autonym + English name).
+ * English is the hard fallback and is always available; it cannot be disabled.
+ * This is the single source of truth -- the admin and profile pickers, the
+ * language validators, and t()'s fallback all read from here.
+ */
+function i18nLanguages() {
+    return [
+        'en'      => 'English',
+        'es'      => 'Español (Spanish)',
+        'it'      => 'Italiano (Italian)',
+        'uk'      => 'Українська (Ukrainian)',
+        'zh-Hans' => '中文 (简体) — Chinese (Simplified)',
+        'hi'      => 'हिन्दी (Hindi)',
+        'fr'      => 'Français (French)',
+        'pt'      => 'Português (Portuguese)',
+    ];
+}
+
+/**
+ * The set of languages an admin has switched on (from app_config.enabled_languages),
+ * as a list of codes. English is always forced in, and unknown codes are dropped,
+ * so the result is always a non-empty subset of i18nLanguages().
+ */
+function i18nEnabledLanguages() {
+    $known = i18nLanguages();
+    $enabled = json_decode((string)getAppConfig('enabled_languages', '["en"]'), true);
+    if (!is_array($enabled)) {
+        $enabled = ['en'];
+    }
+    $enabled = array_values(array_filter($enabled, function ($code) use ($known) {
+        return isset($known[$code]);
+    }));
+    if (!in_array('en', $enabled, true)) {
+        array_unshift($enabled, 'en');
+    }
+    return $enabled;
+}
+
+/**
+ * Resolves the active UI language for this request, exactly once.
+ * Order: the signed-in user's preferred_language -> the admin default
+ * (app_config.default_language) -> 'en'. The result is always a code we ship a
+ * catalog for; anything unknown collapses to 'en'. The DB lookup is wrapped so
+ * pre-login pages (no auth) and pre-migration databases (no column) fall back
+ * cleanly to the default rather than erroring.
+ */
+function currentLanguage() {
+    static $lang = null;
+    if ($lang !== null) {
+        return $lang;
+    }
+
+    $known = i18nLanguages();
+    $resolved = getAppConfig('default_language', 'en');
+
+    try {
+        $userId = Auth::getInstance()->getUserId();
+        if ($userId) {
+            $row = Database::getInstance()->fetchOne(
+                'SELECT preferred_language FROM users WHERE id = :id',
+                [':id' => $userId]
+            );
+            if ($row && !empty($row['preferred_language'])) {
+                $resolved = $row['preferred_language'];
+            }
+        }
+    } catch (Exception $e) {
+        // No auth yet, or the column doesn't exist on this DB -- keep the default.
+    }
+
+    $lang = isset($known[$resolved]) ? $resolved : 'en';
+    return $lang;
+}
+
+/**
+ * Translation lookup. Returns the RAW (unescaped) string for $key in the active
+ * language, falling back to English and finally to the key itself, so a missing
+ * translation never blanks the page. Any extra arguments are applied with
+ * vsprintf(), matching printf-style placeholders in the catalog value.
+ *
+ * Output is NOT escaped -- wrap with e() at the call site, matching the
+ * codebase convention: <?php echo e(t('nav.dashboard')); ?>
+ */
+function t($key, ...$args) {
+    static $catalogs = [];
+
+    foreach ([currentLanguage(), 'en'] as $candidate) {
+        if (!array_key_exists($candidate, $catalogs)) {
+            $file = __DIR__ . '/i18n/' . $candidate . '.php';
+            $loaded = is_file($file) ? require $file : [];
+            $catalogs[$candidate] = is_array($loaded) ? $loaded : [];
+        }
+        if (isset($catalogs[$candidate][$key])) {
+            return $args ? vsprintf($catalogs[$candidate][$key], $args) : $catalogs[$candidate][$key];
+        }
+    }
+
+    // Nothing anywhere -- return the key so the gap is visible but harmless.
+    return $key;
+}
+
+/**
  * Redirect and die. Sets the Location header and exits immediately.
  * No output buffering shenanigans, no "headers already sent" surprises.
  * Just go there. Now.

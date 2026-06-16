@@ -1244,6 +1244,25 @@ class VendorAssessmentService {
     }
 
     /**
+     * Record the submitter's attestation (name/title/email/phone, client IP and
+     * the truthfulness flag) against the assessment. Called at final submission
+     * from both the questionnaire submit and the certificate-skip upload. Only
+     * whitelisted keys are written; attested_at is stamped when attested.
+     */
+    public function saveSubmitterAttestation($assessmentId, array $data) {
+        $allowed = ['submitter_name', 'submitter_title', 'submitter_email', 'submitter_phone', 'submitter_ip_address', 'submitter_attested'];
+        $row = array_intersect_key($data, array_flip($allowed));
+        if (empty($row)) {
+            return false;
+        }
+        if (!empty($row['submitter_attested'])) {
+            $row['attested_at'] = date('Y-m-d H:i:s');
+        }
+        $row['updated_at'] = date('Y-m-d H:i:s');
+        return $this->db->update('vendor_assessments', $row, 'id = :id', [':id' => $assessmentId]);
+    }
+
+    /**
      * The autosave workhorse -- saves a single answer as the vendor fills out the form.
      * Uses an upsert pattern: if we already have a response for this question, update it;
      * otherwise insert a new one. Supports both text values and array values

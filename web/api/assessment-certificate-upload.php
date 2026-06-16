@@ -81,6 +81,25 @@ if (!$assessment['allow_certificate_upload']) {
 }
 
 // ---------------------------------------------------------------
+// SUBMITTER ATTESTATION (required) -- validate before storing the file so we
+// never persist a certificate for an incomplete/unattested submission.
+// ---------------------------------------------------------------
+$submitterName  = trim($_POST['submitter_name'] ?? '');
+$submitterTitle = trim($_POST['submitter_title'] ?? '');
+$submitterEmail = trim($_POST['submitter_email'] ?? '');
+$submitterPhone = trim($_POST['submitter_phone'] ?? '');
+$submitterAttested = ($_POST['submitter_attested'] ?? '') === '1';
+if ($submitterName === '' || $submitterTitle === '' || $submitterPhone === ''
+    || !filter_var($submitterEmail, FILTER_VALIDATE_EMAIL) || !$submitterAttested) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Please provide your name, title, valid email, phone number, and confirm the truthfulness attestation.',
+        'csrf_token' => $security->getCSRFToken()
+    ]);
+    exit;
+}
+
+// ---------------------------------------------------------------
 // VALIDATE AND STORE THE CERTIFICATE
 // FileUploadService handles MIME checks, size limits, encryption,
 // and BLOB storage. Same bouncer, different door.
@@ -106,6 +125,15 @@ try {
         $dbPath,
         $expiryDate ?: null
     );
+
+    $assessmentService->saveSubmitterAttestation($assessment['id'], [
+        'submitter_name'       => $submitterName,
+        'submitter_title'      => $submitterTitle,
+        'submitter_email'      => $submitterEmail,
+        'submitter_phone'      => $submitterPhone,
+        'submitter_ip_address' => $security->getClientIP(),
+        'submitter_attested'   => 1,
+    ]);
 
     $auth = Auth::getInstance();
     $userId = $auth->getUserId();

@@ -165,6 +165,30 @@ if (!empty($missingQuestions)) {
 // tell the vendor the good news. Party time.
 // ---------------------------------------------------------------
 try {
+    // Capture and validate the submitter attestation (required to submit).
+    $submitterName  = trim($_POST['submitter_name'] ?? '');
+    $submitterTitle = trim($_POST['submitter_title'] ?? '');
+    $submitterEmail = trim($_POST['submitter_email'] ?? '');
+    $submitterPhone = trim($_POST['submitter_phone'] ?? '');
+    $submitterAttested = ($_POST['submitter_attested'] ?? '') === '1';
+    if ($submitterName === '' || $submitterTitle === '' || $submitterPhone === ''
+        || !filter_var($submitterEmail, FILTER_VALIDATE_EMAIL) || !$submitterAttested) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Please provide your name, title, valid email, phone number, and confirm the truthfulness attestation.',
+            'csrf_token' => $security->getCSRFToken()
+        ]);
+        exit;
+    }
+    $assessmentService->saveSubmitterAttestation($assessment['id'], [
+        'submitter_name'       => $submitterName,
+        'submitter_title'      => $submitterTitle,
+        'submitter_email'      => $submitterEmail,
+        'submitter_phone'      => $submitterPhone,
+        'submitter_ip_address' => $security->getClientIP(),
+        'submitter_attested'   => 1,
+    ]);
+
     $assessmentService->updateStatus($assessment['id'], 'completed');
 
     // Audit log -- wrapped in its own try/catch because this is a public form

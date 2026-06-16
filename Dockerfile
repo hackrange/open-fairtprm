@@ -22,7 +22,7 @@
 # organised by destination path, blank-line-separated for readability.
 # sql_updates is purged to a single authoritative schema file (v2.6.1.sql).
 # =============================================================================
-FROM dockerregistry.fairtprm.com/fairtprm:v2.6.1
+FROM dockerregistry.fairtprm.com/fairtprm:v2.5.8
 
 # Layer 1: stage every patch input under /tmp/build. One COPY per source tree
 # (php_patches and icons live under different paths in persistent/).
@@ -51,11 +51,15 @@ RUN set -e; \
     cp -p  $pp/EmailService.php $pp/LockdownService.php $pp/BreachAlertService.php \
            $pp/AIPlatformService.php $pp/GitHubOSINTScanner.php \
            $pp/ShodanClient.php $pp/ShodanService.php $pp/Security.php \
-           $pp/VendorAssessmentService.php $pp/GripService.php \
+           $pp/VendorAssessmentService.php $pp/AssessmentTranslationService.php \
+           $pp/GripService.php \
            $pp/ZscalerService.php $pp/SAMLHandler.php \
            /var/www/html/includes/classes/; \
     \
     cp -p  $pp/config.sample.php /var/www/html/config/; \
+    \
+    mkdir -p /var/www/html/includes/i18n; \
+    cp -rp $pp/i18n/. /var/www/html/includes/i18n/; \
     \
     cp -p  $pp/search-vendors.php $pp/grc-unified-assessment.php \
            $pp/vendor-document-delete.php $pp/send-assessment-email.php \
@@ -71,7 +75,7 @@ RUN set -e; \
            $pp/grc-dashboard.php $pp/grc-evidence.php $pp/grc-fairscore.php \
            $pp/grc-framework-report.php $pp/grc-frameworks.php $pp/grc-gaps.php \
            $pp/grc-monitors.php $pp/grc-policies.php $pp/grc-risks.php \
-           $pp/grc-tasks.php $pp/admin.php $pp/index.php $pp/login.php \
+           $pp/grc-tasks.php $pp/admin.php $pp/index.php $pp/login.php $pp/profile.php \
            $pp/lockdown.php $pp/procurement-contracts.php $pp/shadow-saas.php \
            $pp/updates.php $pp/vendor-assessment.php $pp/vendor-assessments.php \
            $pp/vendor-assessment-view.php $pp/vendor-detailed-summary.php \
@@ -113,6 +117,20 @@ RUN set -e; \
         /var/www/html/includes/admin/assessment-templates.php \
         /var/www/html/includes/admin/api-integration.php \
         /var/www/html/includes/admin/shadow-saas-grip.php \
+        /var/www/html/includes/admin/version.php \
+        /var/www/html/includes/admin/general.php \
+        /var/www/html/profile.php \
+        /var/www/html/includes/classes/AssessmentTranslationService.php \
+        /var/www/html/includes/i18n/en.php \
+        /var/www/html/includes/i18n/es.php \
+        /var/www/html/includes/i18n/it.php \
+        /var/www/html/includes/i18n/uk.php \
+        /var/www/html/includes/i18n/zh-Hans.php \
+        /var/www/html/includes/i18n/hi.php \
+        /var/www/html/includes/i18n/fr.php \
+        /var/www/html/includes/i18n/pt.php \
+        /var/www/html/api/assessment-submit.php \
+        /var/www/html/api/assessment-certificate-upload.php \
         /var/www/html/includes/classes/EmailService.php \
         /var/www/html/includes/classes/LockdownService.php \
         /var/www/html/includes/classes/BreachAlertService.php \

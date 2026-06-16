@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS users (
     theme_nav_font_color VARCHAR(20) DEFAULT NULL COMMENT 'User-specific navigation font color',
     theme_nav_width VARCHAR(10) DEFAULT NULL COMMENT 'User-specific navigation width in pixels',
     dashboard_modules TEXT DEFAULT NULL COMMENT 'JSON array of selected dashboard module keys (max 9)',
+    preferred_language VARCHAR(10) DEFAULT NULL COMMENT 'User UI language code (e.g. en, es, zh-Hans); NULL = use system default',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_username (username),
@@ -800,6 +801,23 @@ CREATE TABLE IF NOT EXISTS assessment_questions (
     INDEX idx_depends_on (depends_on_question_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Cached machine translations of assessment content for the public vendor form.
+-- One row per (source field, source id, language). source_hash is a SHA-256 of
+-- the original text so a translation is reused until the admin edits the source,
+-- then transparently regenerated. source_type 'options' stores a JSON array.
+CREATE TABLE IF NOT EXISTS assessment_translations (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    source_type VARCHAR(32) NOT NULL COMMENT 'question_text | help_text | options | section_name | section_description | template_name | template_description',
+    source_id INT UNSIGNED NOT NULL COMMENT 'question/section/template id the text belongs to',
+    language_code VARCHAR(10) NOT NULL,
+    source_hash CHAR(64) NOT NULL COMMENT 'SHA-256 of the source text; invalidates the cache when the source changes',
+    translated_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_translation (source_type, source_id, language_code),
+    INDEX idx_lookup (source_type, source_id, language_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Vendor assessment instances (sent to vendors)
 CREATE TABLE IF NOT EXISTS vendor_assessments (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -815,6 +833,14 @@ CREATE TABLE IF NOT EXISTS vendor_assessments (
     certificate_uploaded TINYINT(1) DEFAULT 0,
     certificate_path VARCHAR(500) COMMENT 'Path or db:ID reference for certificate',
     certificate_expiry DATE,
+    -- Submitter attestation captured at final submission (questionnaire or certificate skip)
+    submitter_name VARCHAR(255) DEFAULT NULL COMMENT 'Name of the person who submitted',
+    submitter_title VARCHAR(255) DEFAULT NULL COMMENT 'Job title of the submitter',
+    submitter_email VARCHAR(255) DEFAULT NULL COMMENT 'Email of the submitter',
+    submitter_phone VARCHAR(50) DEFAULT NULL COMMENT 'Phone number of the submitter',
+    submitter_ip_address VARCHAR(45) DEFAULT NULL COMMENT 'Client IP captured at submission',
+    submitter_attested TINYINT(1) DEFAULT 0 COMMENT '1 = submitter attested the information is truthful',
+    attested_at DATETIME DEFAULT NULL COMMENT 'When the truthfulness attestation was made',
     started_at DATETIME,
     completed_at DATETIME,
     expires_at DATETIME,
@@ -1162,6 +1188,10 @@ INSERT INTO app_config (config_key, config_value, is_encrypted, description) VAL
 ('require_password_complexity', '1', 0, 'Require complex passwords'),
 ('totp_issuer', 'TPRM FAIR Analysis', 0, 'TOTP issuer name'),
 ('app_timezone', 'America/New_York', 0, 'Application timezone for displaying dates and times'),
+
+-- Localization / language settings
+('default_language', 'en', 0, 'Default UI language code for new users and pre-login pages'),
+('enabled_languages', '["en","es","it","uk","zh-Hans","hi","fr","pt"]', 0, 'JSON array of language codes users may choose in their profile'),
 
 -- FAIR Analysis cost settings
 ('pii_breach_cost_per_record', '160', 0, 'Cost per PII record if breached'),

@@ -45,6 +45,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_config'])) {
             }
             $appUrl = rtrim($appUrl, '/');
 
+            // Language settings. Default must be a known code; the enabled set is
+            // validated against the known codes with English always forced in.
+            $knownLanguages = i18nLanguages();
+            $defaultLanguage = $_POST['default_language'] ?? 'en';
+            if (!isset($knownLanguages[$defaultLanguage])) {
+                $defaultLanguage = 'en';
+            }
+            $enabledLanguages = array_values(array_filter(
+                (array)($_POST['enabled_languages'] ?? []),
+                function ($code) use ($knownLanguages) { return isset($knownLanguages[$code]); }
+            ));
+            if (!in_array('en', $enabledLanguages, true)) {
+                array_unshift($enabledLanguages, 'en');
+            }
+            // Don't let the default get switched off in the enabled set.
+            if (!in_array($defaultLanguage, $enabledLanguages, true)) {
+                $enabledLanguages[] = $defaultLanguage;
+            }
+
             $configs = [
                 'company_name' => trim($_POST['company_name'] ?? ''),
                 'app_url' => $appUrl,
@@ -53,7 +72,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_config'])) {
                 'max_login_attempts' => max(1, min(50, intval($_POST['max_login_attempts'] ?? 5))),
                 'lockout_duration' => max(60, min(86400, intval($_POST['lockout_duration'] ?? 1800))),
                 'app_timezone' => $appTimezone,
-                'log_retention_days' => max(0, min(3650, intval($_POST['log_retention_days'] ?? 90)))
+                'log_retention_days' => max(0, min(3650, intval($_POST['log_retention_days'] ?? 90))),
+                'default_language' => $defaultLanguage,
+                'enabled_languages' => json_encode($enabledLanguages)
             ];
 
             foreach ($configs as $key => $value) {
@@ -356,6 +377,42 @@ foreach ($configRows as $row) {
                 <?php endforeach; ?>
             </select>
             <div class="form-help">Timezone used for displaying dates and times in Cyber To-Do and other areas. Default: Eastern Time</div>
+        </div>
+        <?php
+        $knownLanguages = i18nLanguages();
+        $defaultLanguage = $appConfig['default_language'] ?? 'en';
+        if (!isset($knownLanguages[$defaultLanguage])) {
+            $defaultLanguage = 'en';
+        }
+        $enabledLanguages = json_decode($appConfig['enabled_languages'] ?? '["en"]', true);
+        if (!is_array($enabledLanguages)) {
+            $enabledLanguages = ['en'];
+        }
+        ?>
+        <div class="form-group">
+            <label for="default_language"><?php echo e(t('admin.general.language.default_label')); ?></label>
+            <select id="default_language" name="default_language" class="form-control">
+                <?php foreach ($knownLanguages as $code => $label): ?>
+                <option value="<?php echo e($code); ?>" <?php echo $defaultLanguage === $code ? 'selected' : ''; ?>><?php echo e($label); ?></option>
+                <?php endforeach; ?>
+            </select>
+            <div class="form-help"><?php echo e(t('admin.general.language.default_help')); ?></div>
+        </div>
+        <div class="form-group">
+            <label><?php echo e(t('admin.general.language.enabled_label')); ?></label>
+            <div style="display: flex; flex-wrap: wrap; gap: 14px; margin-top: 4px;">
+                <?php foreach ($knownLanguages as $code => $label):
+                    $isEnglish = ($code === 'en');
+                    $checked = $isEnglish || in_array($code, $enabledLanguages, true);
+                ?>
+                <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                    <input type="checkbox" name="enabled_languages[]" value="<?php echo e($code); ?>"
+                        <?php echo $checked ? 'checked' : ''; ?> <?php echo $isEnglish ? 'disabled' : ''; ?>>
+                    <?php echo e($label); ?>
+                </label>
+                <?php endforeach; ?>
+            </div>
+            <div class="form-help"><?php echo e(t('admin.general.language.enabled_help')); ?></div>
         </div>
         <button type="submit" name="update_config" class="btn btn-primary">Save Configuration</button>
     </form>

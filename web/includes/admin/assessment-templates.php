@@ -231,8 +231,8 @@ $categoryLabels = [
                     </label>
                 </div>
                 <div class="form-group" id="certPromptGroup" style="display:none;">
-                    <label>Certificate Upload Prompt</label>
-                    <textarea name="certificate_upload_prompt" class="form-control" rows="2" placeholder="Instructions shown to vendor when uploading a certificate..."></textarea>
+                    <label>Certificate Upload Instructions</label>
+                    <textarea name="certificate_upload_prompt" class="form-control" rows="3" placeholder="Instructions shown to the vendor on the certificate upload, e.g. &quot;Upload your detailed SOC 2 Type 2 certificate to bypass the rest of the questions.&quot;"></textarea>
                 </div>
             </div>
             <div style="display:flex; gap:10px; margin-top:20px;">
@@ -367,8 +367,8 @@ foreach ($editTemplate['sections'] as $sec) {
                 </label>
             </div>
             <div class="form-group" id="editCertPromptGroup" style="<?php echo $editTemplate['allow_certificate_upload'] ? '' : 'display:none;'; ?>">
-                <label>Certificate Upload Prompt</label>
-                <textarea name="certificate_upload_prompt" class="form-control" rows="2"><?php echo e($editTemplate['certificate_upload_prompt'] ?? ''); ?></textarea>
+                <label>Certificate Upload Instructions</label>
+                <textarea name="certificate_upload_prompt" class="form-control" rows="3" placeholder="Instructions shown to the vendor on the certificate upload, e.g. &quot;Upload your detailed SOC 2 Type 2 certificate to bypass the rest of the questions.&quot;"><?php echo e($editTemplate['certificate_upload_prompt'] ?? ''); ?></textarea>
             </div>
         </div>
         <button type="submit" name="update_template" class="btn btn-primary">Save Settings</button>

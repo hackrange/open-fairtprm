@@ -308,7 +308,7 @@ try {
 $csrfToken = Security::getInstance()->generateCSRFToken();
 ?>
 <!DOCTYPE html>
-<html class="wide wow-animation" lang="en">
+<html class="wide wow-animation" lang="<?php echo e(currentLanguage()); ?>">
 <head>
     <title>Dashboard - Third Party Risk Management</title>
     <meta charset="utf-8">

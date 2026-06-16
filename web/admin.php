@@ -169,7 +169,7 @@ if ($originalMethod !== 'POST' || !empty($success)) {
 // The section just loads its data and renders HTML with $csrfToken available.
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?php echo e(currentLanguage()); ?>">
 <head>
     <title>Administration - TPRM</title>
     <meta charset="utf-8">

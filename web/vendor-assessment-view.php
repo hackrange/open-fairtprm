@@ -336,6 +336,37 @@ $csrfToken = $security->generateCSRFToken();
             <?php endif; ?>
         </div>
 
+        <?php if ($isAdmin || $isCyberTPRM): ?>
+        <!-- Submitter attestation -- recorded at final submission. Admin + cyber TPRM only. -->
+        <div class="attestation-panel" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:18px 20px; margin-bottom:24px;">
+            <h3 style="margin:0 0 12px 0; font-size:1.05em; display:flex; align-items:center; gap:8px;">
+                Submitter Attestation
+                <?php if (!empty($assessment['submitter_attested'])): ?>
+                <span class="badge badge-completed" style="font-size:0.7em;">Attested</span>
+                <?php endif; ?>
+            </h3>
+            <?php if (!empty($assessment['submitter_name']) || !empty($assessment['submitter_attested'])): ?>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px 24px;">
+                <div><label style="display:block; font-size:12px; color:#6b7280;">Name</label><div><?php echo e($assessment['submitter_name'] ?: '—'); ?></div></div>
+                <div><label style="display:block; font-size:12px; color:#6b7280;">Title</label><div><?php echo e($assessment['submitter_title'] ?: '—'); ?></div></div>
+                <div><label style="display:block; font-size:12px; color:#6b7280;">Email</label><div><?php echo e($assessment['submitter_email'] ?: '—'); ?></div></div>
+                <div><label style="display:block; font-size:12px; color:#6b7280;">Phone</label><div><?php echo e($assessment['submitter_phone'] ?: '—'); ?></div></div>
+                <div><label style="display:block; font-size:12px; color:#6b7280;">IP Address</label><div><?php echo e($assessment['submitter_ip_address'] ?: '—'); ?></div></div>
+                <div><label style="display:block; font-size:12px; color:#6b7280;">Attested At</label><div><?php echo $assessment['attested_at'] ? e(date('M j, Y g:i A', strtotime($assessment['attested_at']))) : '—'; ?></div></div>
+            </div>
+            <p style="margin:14px 0 0 0; font-size:13px; color:#374151;">
+                <?php if (!empty($assessment['submitter_attested'])): ?>
+                &#10003; The submitter certified that the information provided is complete and truthful to the best of their knowledge.
+                <?php else: ?>
+                Attestation not yet confirmed.
+                <?php endif; ?>
+            </p>
+            <?php else: ?>
+            <p style="margin:0; color:#6b7280; font-size:13px;">No submitter attestation has been recorded for this assessment yet.</p>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <?php
         // Check AI availability and cert doc count for auto-fill button
         $showAiAutofill = false;

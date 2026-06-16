@@ -342,25 +342,25 @@ $_isActive = function($page) use ($currentPage) {
         <a href="index.php">
             <img src="<?php echo e($theme['logo_url']); ?>" alt="Logo"/>
         </a>
-        <div class="brand-title">Third Party Risk Management</div>
+        <div class="brand-title"><?php echo e(t('nav.brand')); ?></div>
     </div>
 
     <div class="sidebar-content">
     <?php if ($isStakeholderOnly): ?>
     <!-- Simplified sidebar for stakeholder-only users -->
     <details class="sidebar-section" open>
-        <summary class="sidebar-section-title">Vendor Onboarding</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.vendor_onboarding')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="index.php"<?php echo $_isActive('dashboard') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/home-03.svg" alt="" width="18" height="18"></span>
-                    <span>Dashboard</span>
+                    <span><?php echo e(t('nav.dashboard')); ?></span>
                 </a>
             </li>
             <li>
                 <a href="vendor-onboarding-list.php"<?php echo $_isActive('vendor_onboarding') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/book-open-01.svg" alt="" width="18" height="18"></span>
-                    <span>My Vendors</span>
+                    <span><?php echo e(t('nav.my_vendors')); ?></span>
                     <?php if ($pendingRequestCount > 0): ?>
                     <span class="badge"><?php echo $pendingRequestCount; ?></span>
                     <?php endif; ?>
@@ -369,7 +369,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="vendor-onboarding-list.php?view=tasks"<?php echo $_isActive('vendor_onboarding_tasks') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/book-open-01.svg" alt="" width="18" height="18"></span>
-                    <span>Vendor Tasks</span>
+                    <span><?php echo e(t('nav.vendor_tasks')); ?></span>
                     <?php if ($vendorTaskCount > 0): ?>
                     <span class="badge"><?php echo $vendorTaskCount; ?></span>
                     <?php endif; ?>
@@ -379,7 +379,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="vendor-annual-reviews-list.php?filter=overdue"<?php echo $_isActive('annual_reviews') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/calendar-check-01.svg" alt="" width="18" height="18"></span>
-                    <span>Required Annual Review</span>
+                    <span><?php echo e(t('nav.required_annual_review')); ?></span>
                     <?php if ($stakeholderAnnualReviewCount > 0): ?>
                     <span class="badge"><?php echo $stakeholderAnnualReviewCount; ?></span>
                     <?php endif; ?>
@@ -389,19 +389,19 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="vendor-onboarding.php"<?php echo $_isActive('new_request') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/plus-square.svg" alt="" width="18" height="18"></span>
-                    <span>New Request</span>
+                    <span><?php echo e(t('nav.new_request')); ?></span>
                 </a>
             </li>
         </ul>
     </details>
 
     <details class="sidebar-section"<?php echo $_isActive(['open_cases', 'assigned_to_me_cases', 'closed_cases', 'expiring_contracts_cases', 'cyber_todo', 'cyber_todo_assigned']) ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Case Management</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.case_management')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="vendor-onboarding-list.php?view=open_cases"<?php echo $_isActive('open_cases') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/edit-04.svg" alt="" width="18" height="18"></span>
-                    <span>Opened Cases</span>
+                    <span><?php echo e(t('nav.opened_cases')); ?></span>
                     <?php if ($openCasesCount > 0): ?>
                     <span class="badge"><?php echo $openCasesCount; ?></span>
                     <?php endif; ?>
@@ -410,7 +410,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="vendor-onboarding-list.php?view=assigned_to_me"<?php echo $_isActive('assigned_to_me_cases') ? ' class="active"' : ''; ?> style="padding-left: 32px;">
                     <span class="icon"><img src="app/icons/user-left-01.svg" alt="" width="18" height="18"></span>
-                    <span>Assigned to Me</span>
+                    <span><?php echo e(t('nav.assigned_to_me')); ?></span>
                     <?php if ($assignedToMeCasesCount > 0): ?>
                     <span class="badge"><?php echo $assignedToMeCasesCount; ?></span>
                     <?php endif; ?>
@@ -419,7 +419,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="vendor-onboarding-list.php?view=closed_cases"<?php echo $_isActive('closed_cases') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/check-square-broken.svg" alt="" width="18" height="18"></span>
-                    <span>Closed Cases</span>
+                    <span><?php echo e(t('nav.closed_cases')); ?></span>
                     <?php if ($closedCasesCount > 0): ?>
                     <span class="badge"><?php echo $closedCasesCount; ?></span>
                     <?php endif; ?>
@@ -429,7 +429,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="vendor-onboarding-list.php?view=expiring_contracts"<?php echo $_isActive('expiring_contracts_cases') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/file-06.svg" alt="" width="18" height="18"></span>
-                    <span>Expiring Contracts</span>
+                    <span><?php echo e(t('nav.expiring_contracts')); ?></span>
                     <?php if ($expiringContractCasesCount > 0): ?>
                     <span class="badge"><?php echo $expiringContractCasesCount; ?></span>
                     <?php endif; ?>
@@ -440,7 +440,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="cyber-todo.php"<?php echo $_isActive('cyber_todo') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/check-square-broken.svg" alt="" width="18" height="18"></span>
-                    <span>Cyber To-Do</span>
+                    <span><?php echo e(t('nav.cyber_todo')); ?></span>
                     <?php if (!empty($cyberTodoItems)): ?>
                     <span class="badge"><?php echo count($cyberTodoItems); ?></span>
                     <?php endif; ?>
@@ -449,7 +449,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="cyber-todo.php?assigned=<?php echo $user['id']; ?>"<?php echo $_isActive('cyber_todo_assigned') ? ' class="active"' : ''; ?> style="padding-left: 32px;">
                     <span class="icon"><img src="app/icons/user-left-01.svg" alt="" width="18" height="18"></span>
-                    <span>Assigned to Me</span>
+                    <span><?php echo e(t('nav.assigned_to_me')); ?></span>
                     <?php if ($cyberTodoAssignedCount > 0): ?>
                     <span class="badge"><?php echo $cyberTodoAssignedCount; ?></span>
                     <?php endif; ?>
@@ -460,7 +460,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="grc-tasks.php"<?php echo $_isActive('grc_tasks') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/calendar-check-01.svg" alt="" width="18" height="18"></span>
-                    <span>GRC Task Inbox</span>
+                    <span><?php echo e(t('nav.grc_task_inbox')); ?></span>
                     <span class="badge"><?php echo $grcMyTaskCount; ?></span>
                 </a>
             </li>
@@ -469,12 +469,12 @@ $_isActive = function($page) use ($currentPage) {
     </details>
 
     <details class="sidebar-section"<?php echo $_isActive('profile') ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Account</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.account')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="profile.php"<?php echo $_isActive('profile') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/image-user.svg" alt="" width="18" height="18"></span>
-                    <span>My Profile</span>
+                    <span><?php echo e(t('nav.my_profile')); ?></span>
                 </a>
             </li>
         </ul>
@@ -506,7 +506,7 @@ $_isActive = function($page) use ($currentPage) {
     <!-- ═══════════ TPRM Module (collapsible) ═══════════ -->
     <details class="sidebar-module" id="module-tprm" open>
         <summary class="sidebar-module-header">
-            <span class="module-label">TPRM Module</span>
+            <span class="module-label"><?php echo e(t('nav.module.tprm')); ?></span>
             <?php if ($breachAlertCount > 0): ?>
             <span style="background:#dc2626;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;margin-left:6px;font-weight:600;"><?php echo $breachAlertCount; ?> Breach<?php echo $breachAlertCount > 1 ? 'es' : ''; ?></span>
             <?php endif; ?>
@@ -516,12 +516,12 @@ $_isActive = function($page) use ($currentPage) {
     <!-- Breach / Cyber Alerts (prominent, above Stakeholders) -->
     <?php if ($isAdmin || $isCyberTPRM || $isAuditor): ?>
     <details class="sidebar-section"<?php echo $_isActive('breach_alerts') || $breachAlertCount > 0 ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Breach / Cyber Alerts</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.breach_alerts')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="breach-alerts.php"<?php echo $_isActive('breach_alerts') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/announcement-03.svg" alt="" width="18" height="18"></span>
-                    <span>Breach Alerts</span>
+                    <span><?php echo e(t('nav.breach_alerts')); ?></span>
                     <?php if ($breachAlertCount > 0): ?>
                     <span class="badge" style="background:#dc2626;"><?php echo $breachAlertCount; ?></span>
                     <?php endif; ?>
@@ -533,19 +533,19 @@ $_isActive = function($page) use ($currentPage) {
 
     <?php if ($showOnboarding): ?>
     <details class="sidebar-section"<?php echo $_isActive(['vendor_onboarding', 'vendor_onboarding_tasks', 'new_request']) ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Stakeholders</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.stakeholders')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="vendor-onboarding-list.php"<?php echo $_isActive('vendor_onboarding') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/book-open-01.svg" alt="" width="18" height="18"></span>
-                    <span>Vendor Onboarding</span>
+                    <span><?php echo e(t('nav.vendor_onboarding')); ?></span>
                 </a>
             </li>
             <?php if (!$isAuditor || $isStakeholderGroup): ?>
             <li>
                 <a href="vendor-onboarding.php"<?php echo $_isActive('new_request') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/plus-square.svg" alt="" width="18" height="18"></span>
-                    <span>New Request</span>
+                    <span><?php echo e(t('nav.new_request')); ?></span>
                 </a>
             </li>
             <?php endif; ?>
@@ -556,12 +556,12 @@ $_isActive = function($page) use ($currentPage) {
     <!-- Annual Reviews Section -->
     <?php if ($showOnboarding || $isCyberTPRM || $isAdmin): ?>
     <details class="sidebar-section"<?php echo $_isActive('annual_reviews') ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Annual Reviews</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.annual_reviews')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="vendor-annual-reviews-list.php"<?php echo $_isActive('annual_reviews') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/calendar-check-01.svg" alt="" width="18" height="18"></span>
-                    <span>Vendor Reviews</span>
+                    <span><?php echo e(t('nav.vendor_reviews')); ?></span>
                     <?php if ($annualReviewCount > 0): ?>
                     <span class="badge"><?php echo $annualReviewCount; ?></span>
                     <?php endif; ?>
@@ -572,12 +572,12 @@ $_isActive = function($page) use ($currentPage) {
     <?php endif; ?>
 
     <details class="sidebar-section"<?php echo $_isActive(['open_cases', 'assigned_to_me_cases', 'closed_cases', 'expiring_contracts_cases', 'cyber_todo', 'cyber_todo_assigned']) ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Case Management</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.case_management')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="vendor-onboarding-list.php?view=open_cases"<?php echo $_isActive('open_cases') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/edit-04.svg" alt="" width="18" height="18"></span>
-                    <span>Opened Cases</span>
+                    <span><?php echo e(t('nav.opened_cases')); ?></span>
                     <?php if ($openCasesCount > 0): ?>
                     <span class="badge"><?php echo $openCasesCount; ?></span>
                     <?php endif; ?>
@@ -586,7 +586,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="vendor-onboarding-list.php?view=assigned_to_me"<?php echo $_isActive('assigned_to_me_cases') ? ' class="active"' : ''; ?> style="padding-left: 32px;">
                     <span class="icon"><img src="app/icons/user-left-01.svg" alt="" width="18" height="18"></span>
-                    <span>Assigned to Me</span>
+                    <span><?php echo e(t('nav.assigned_to_me')); ?></span>
                     <?php if ($assignedToMeCasesCount > 0): ?>
                     <span class="badge"><?php echo $assignedToMeCasesCount; ?></span>
                     <?php endif; ?>
@@ -595,7 +595,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="vendor-onboarding-list.php?view=closed_cases"<?php echo $_isActive('closed_cases') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/check-square-broken.svg" alt="" width="18" height="18"></span>
-                    <span>Closed Cases</span>
+                    <span><?php echo e(t('nav.closed_cases')); ?></span>
                     <?php if ($closedCasesCount > 0): ?>
                     <span class="badge"><?php echo $closedCasesCount; ?></span>
                     <?php endif; ?>
@@ -605,7 +605,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="vendor-onboarding-list.php?view=expiring_contracts"<?php echo $_isActive('expiring_contracts_cases') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/file-06.svg" alt="" width="18" height="18"></span>
-                    <span>Expiring Contracts</span>
+                    <span><?php echo e(t('nav.expiring_contracts')); ?></span>
                     <?php if ($expiringContractCasesCount > 0): ?>
                     <span class="badge"><?php echo $expiringContractCasesCount; ?></span>
                     <?php endif; ?>
@@ -616,7 +616,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="cyber-todo.php"<?php echo $_isActive('cyber_todo') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/check-square-broken.svg" alt="" width="18" height="18"></span>
-                    <span>Cyber To-Do</span>
+                    <span><?php echo e(t('nav.cyber_todo')); ?></span>
                     <?php if (!empty($cyberTodoItems)): ?>
                     <span class="badge"><?php echo count($cyberTodoItems); ?></span>
                     <?php endif; ?>
@@ -625,7 +625,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="cyber-todo.php?assigned=<?php echo $user['id']; ?>"<?php echo $_isActive('cyber_todo_assigned') ? ' class="active"' : ''; ?> style="padding-left: 32px;">
                     <span class="icon"><img src="app/icons/user-left-01.svg" alt="" width="18" height="18"></span>
-                    <span>Assigned to Me</span>
+                    <span><?php echo e(t('nav.assigned_to_me')); ?></span>
                     <?php if ($cyberTodoAssignedCount > 0): ?>
                     <span class="badge"><?php echo $cyberTodoAssignedCount; ?></span>
                     <?php endif; ?>
@@ -636,7 +636,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="grc-tasks.php"<?php echo $_isActive('grc_tasks') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/calendar-check-01.svg" alt="" width="18" height="18"></span>
-                    <span>GRC Task Inbox</span>
+                    <span><?php echo e(t('nav.grc_task_inbox')); ?></span>
                     <span class="badge"><?php echo $grcMyTaskCount; ?></span>
                 </a>
             </li>
@@ -646,12 +646,12 @@ $_isActive = function($page) use ($currentPage) {
 
     <?php if ($isAdmin || $isProcurement || $isCyberTPRM || $isAuditor): ?>
     <details class="sidebar-section"<?php echo $_isActive('contracts') ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Procurement</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.procurement')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="procurement-contracts.php"<?php echo $_isActive('contracts') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/file-06.svg" alt="" width="18" height="18"></span>
-                    <span>Contracts</span>
+                    <span><?php echo e(t('nav.contracts')); ?></span>
                     <?php if ($expiringContractsCount > 0): ?>
                     <span class="badge"><?php echo $expiringContractsCount; ?></span>
                     <?php endif; ?>
@@ -663,13 +663,13 @@ $_isActive = function($page) use ($currentPage) {
 
     <?php if ($showFairModule || $showSRSModule): ?>
     <details class="sidebar-section"<?php echo $_isActive(['fair', 'srs', 'vendor_domains', '4th_party', 'cve_search', 'shadow_saas']) ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Modules</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.modules')); ?></summary>
         <ul class="sidebar-nav">
             <?php if ($showFairModule): ?>
             <li>
                 <a href="fair_dashboard.php"<?php echo $_isActive('fair') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/file-07.svg" alt="" width="18" height="18"></span>
-                    <span>FAIR Analysis</span>
+                    <span><?php echo e(t('nav.fair_analysis')); ?></span>
                 </a>
             </li>
             <?php endif; ?>
@@ -677,7 +677,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="vendor-srs-list.php"<?php echo $_isActive('srs') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="18" height="18"></span>
-                    <span>SRS Scoring</span>
+                    <span><?php echo e(t('nav.srs_scoring')); ?></span>
                     <?php if ($srsStats['needs_rescore'] > 0): ?>
                     <span class="badge"><?php echo $srsStats['needs_rescore']; ?></span>
                     <?php endif; ?>
@@ -696,19 +696,19 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="fourth-party-risk.php"<?php echo $_isActive('4th_party') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/dice-6.svg" alt="" width="18" height="18"></span>
-                    <span>4th Party Risk</span>
+                    <span><?php echo e(t('nav.fourth_party_risk')); ?></span>
                 </a>
             </li>
             <li>
                 <a href="fourth-party-risk.php?mode=cve"<?php echo $_isActive('cve_search') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/search-refraction.svg" alt="" width="18" height="18"></span>
-                    <span>CVE Search</span>
+                    <span><?php echo e(t('nav.cve_search')); ?></span>
                 </a>
             </li>
             <li>
                 <a href="fourth-party-risk.php?mode=subprocessors"<?php echo $_isActive('subprocessors') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/users-01.svg" alt="" width="18" height="18"></span>
-                    <span>Subprocessors</span>
+                    <span><?php echo e(t('nav.subprocessors')); ?></span>
                 </a>
             </li>
             <?php endif; ?>
@@ -716,7 +716,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="shadow-saas.php"<?php echo $_isActive('shadow_saas') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/alert-square.svg" alt="" width="18" height="18"></span>
-                    <span>Shadow SaaS</span>
+                    <span><?php echo e(t('nav.shadow_saas')); ?></span>
                     <?php if ($shadowSaasCount > 0): ?>
                     <span class="badge"><?php echo $shadowSaasCount; ?></span>
                     <?php endif; ?>
@@ -729,24 +729,24 @@ $_isActive = function($page) use ($currentPage) {
 
     <?php if ($isAdmin || $isCyberTPRM || $isAuditor || (!$isProcurementOnly && $isProcurement) || $isStakeholderGroup): ?>
     <details class="sidebar-section"<?php echo $_isActive(['assessments', 'assessments_pending', 'assessments_in_progress', 'assessments_completed']) ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Vendor Assessments</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.vendor_assessments')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="vendor-assessments.php"<?php echo $_isActive('assessments') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="18" height="18"></span>
-                    <span>All Assessments</span>
+                    <span><?php echo e(t('nav.all_assessments')); ?></span>
                 </a>
             </li>
             <li>
                 <a href="vendor-assessments.php?status=pending"<?php echo $_isActive('assessments_pending') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/calendar-date.svg" alt="" width="18" height="18"></span>
-                    <span>Pending</span>
+                    <span><?php echo e(t('nav.pending')); ?></span>
                 </a>
             </li>
             <li>
                 <a href="vendor-assessments.php?status=in_progress"<?php echo $_isActive('assessments_in_progress') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/hourglass-01.svg" alt="" width="18" height="18"></span>
-                    <span>In Progress</span>
+                    <span><?php echo e(t('nav.in_progress')); ?></span>
                 </a>
             </li>
         </ul>
@@ -760,47 +760,47 @@ $_isActive = function($page) use ($currentPage) {
     <!-- ═══════════ GRC Module (collapsible) ═══════════ -->
     <details class="sidebar-module" id="module-grc">
         <summary class="sidebar-module-header">
-            <span class="module-label">GRC Module</span>
+            <span class="module-label"><?php echo e(t('nav.module.grc')); ?></span>
         </summary>
         <div class="sidebar-module-body">
 
     <details class="sidebar-section"<?php echo $_isActive(['grc_dashboard', 'grc_frameworks', 'grc_controls', 'grc_crosswalk']) ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Compliance</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.compliance')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="grc-dashboard.php"<?php echo $_isActive('grc_dashboard') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/home-03.svg" alt="" width="18" height="18"></span>
-                    <span>GRC Dashboard</span>
+                    <span><?php echo e(t('nav.grc_dashboard')); ?></span>
                 </a>
             </li>
             <li>
                 <a href="grc-frameworks.php"<?php echo $_isActive('grc_frameworks') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="18" height="18"></span>
-                    <span>Frameworks</span>
+                    <span><?php echo e(t('nav.frameworks')); ?></span>
                 </a>
             </li>
             <li>
                 <a href="grc-controls.php"<?php echo $_isActive('grc_controls') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/key-01.svg" alt="" width="18" height="18"></span>
-                    <span>Internal Controls</span>
+                    <span><?php echo e(t('nav.internal_controls')); ?></span>
                 </a>
             </li>
             <li>
                 <a href="grc-crosswalk.php"<?php echo $_isActive('grc_crosswalk') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/globe-01.svg" alt="" width="18" height="18"></span>
-                    <span>Framework Crosswalk</span>
+                    <span><?php echo e(t('nav.framework_crosswalk')); ?></span>
                 </a>
             </li>
         </ul>
     </details>
 
     <details class="sidebar-section"<?php echo $_isActive(['grc_evidence', 'grc_monitors']) ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Evidence & Monitoring</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.evidence_monitoring')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="grc-evidence.php"<?php echo $_isActive('grc_evidence') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/file-07.svg" alt="" width="18" height="18"></span>
-                    <span>Evidence Library</span>
+                    <span><?php echo e(t('nav.evidence_library')); ?></span>
                     <?php if ($grcEvidenceExpiring > 0): ?>
                     <span class="badge"><?php echo $grcEvidenceExpiring; ?></span>
                     <?php endif; ?>
@@ -809,7 +809,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="grc-monitors.php"<?php echo $_isActive('grc_monitors') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/search-refraction.svg" alt="" width="18" height="18"></span>
-                    <span>Continuous Monitors</span>
+                    <span><?php echo e(t('nav.continuous_monitors')); ?></span>
                     <?php if ($grcMonitorsFailing > 0): ?>
                     <span class="badge badge-danger"><?php echo $grcMonitorsFailing; ?></span>
                     <?php endif; ?>
@@ -819,12 +819,12 @@ $_isActive = function($page) use ($currentPage) {
     </details>
 
     <details class="sidebar-section"<?php echo $_isActive(['grc_policies']) ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Policy Management</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.policy_management')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="grc-policies.php"<?php echo $_isActive('grc_policies') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/book-open-01.svg" alt="" width="18" height="18"></span>
-                    <span>Policies</span>
+                    <span><?php echo e(t('nav.policies')); ?></span>
                     <?php if ($grcPoliciesDueReview > 0): ?>
                     <span class="badge"><?php echo $grcPoliciesDueReview; ?></span>
                     <?php endif; ?>
@@ -834,24 +834,24 @@ $_isActive = function($page) use ($currentPage) {
     </details>
 
     <details class="sidebar-section"<?php echo $_isActive(['grc_assessment', 'grc_tasks', 'grc_audits', 'grc_findings', 'grc_risks', 'grc_gaps']) ? ' open' : ''; ?>>
-        <summary class="sidebar-section-title">Assessment & Audit</summary>
+        <summary class="sidebar-section-title"><?php echo e(t('nav.section.assessment_audit')); ?></summary>
         <ul class="sidebar-nav">
             <li>
                 <a href="grc-fairscore.php"<?php echo $_isActive('grc_fairscore') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/csf-maturity.svg" alt="" width="18" height="18"></span>
-                    <span>CSF Maturity Score</span>
+                    <span><?php echo e(t('nav.csf_maturity_score')); ?></span>
                 </a>
             </li>
             <li>
                 <a href="grc-assessment.php"<?php echo $_isActive('grc_assessment') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/check-square-broken.svg" alt="" width="18" height="18"></span>
-                    <span>Assessment Questionnaire</span>
+                    <span><?php echo e(t('nav.assessment_questionnaire')); ?></span>
                 </a>
             </li>
             <li>
                 <a href="grc-tasks.php"<?php echo $_isActive('grc_tasks') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/calendar-check-01.svg" alt="" width="18" height="18"></span>
-                    <span>Task Inbox</span>
+                    <span><?php echo e(t('nav.task_inbox')); ?></span>
                     <?php if ($grcMyTaskCount > 0): ?>
                     <span class="badge"><?php echo $grcMyTaskCount; ?></span>
                     <?php endif; ?>
@@ -860,7 +860,7 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="grc-audits.php"<?php echo $_isActive('grc_audits') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/check-square-broken.svg" alt="" width="18" height="18"></span>
-                    <span>Audits</span>
+                    <span><?php echo e(t('nav.audits')); ?></span>
                     <?php if ($grcOpenFindings > 0): ?>
                     <span class="badge"><?php echo $grcOpenFindings; ?></span>
                     <?php endif; ?>
@@ -869,13 +869,13 @@ $_isActive = function($page) use ($currentPage) {
             <li>
                 <a href="grc-risks.php"<?php echo $_isActive('grc_risks') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/alert-square.svg" alt="" width="18" height="18"></span>
-                    <span>Risk Register</span>
+                    <span><?php echo e(t('nav.risk_register')); ?></span>
                 </a>
             </li>
             <li>
                 <a href="grc-gaps.php"<?php echo $_isActive('grc_gaps') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/search-refraction.svg" alt="" width="18" height="18"></span>
-                    <span>Gaps</span>
+                    <span><?php echo e(t('nav.gaps')); ?></span>
                     <?php if ($grcGapCount > 0): ?>
                     <span class="badge"><?php echo $grcGapCount; ?></span>
                     <?php endif; ?>
@@ -893,26 +893,26 @@ $_isActive = function($page) use ($currentPage) {
         <li>
             <a href="index.php"<?php echo $_isActive('dashboard') ? ' class="active"' : ''; ?>>
                 <span class="icon"><img src="app/icons/home-03.svg" alt="" width="18" height="18"></span>
-                <span>Dashboard</span>
+                <span><?php echo e(t('nav.dashboard')); ?></span>
             </a>
         </li>
         <li>
             <a href="profile.php"<?php echo $_isActive('profile') ? ' class="active"' : ''; ?>>
                 <span class="icon"><img src="app/icons/image-user.svg" alt="" width="18" height="18"></span>
-                <span>Profile</span>
+                <span><?php echo e(t('nav.profile')); ?></span>
             </a>
         </li>
         <?php if ($isAdmin): ?>
         <li>
             <a href="documentation.php"<?php echo $_isActive('documentation') ? ' class="active"' : ''; ?>>
                 <span class="icon"><img src="app/icons/book-open-01.svg" alt="" width="18" height="18"></span>
-                <span>Documentation</span>
+                <span><?php echo e(t('nav.documentation')); ?></span>
             </a>
         </li>
         <li>
             <a href="admin.php"<?php echo $_isActive('admin') ? ' class="active"' : ''; ?>>
                 <span class="icon"><img src="app/icons/key-01.svg" alt="" width="18" height="18"></span>
-                <span>Administration</span>
+                <span><?php echo e(t('nav.administration')); ?></span>
             </a>
         </li>
         <?php endif; ?>

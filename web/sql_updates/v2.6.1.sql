@@ -5615,5 +5615,64 @@ SET @sql := IF(@idx_exists = 0,
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- =============================================================================
+-- Multi-language (i18n) support: per-user language preference + app defaults.
+-- users.preferred_language stores the user's chosen UI language (NULL = use the
+-- system default). The two app_config rows seed the admin-configurable default
+-- and the set of languages offered in the profile picker. INSERT IGNORE leaves
+-- any values an admin has already customised untouched.
+-- =============================================================================
+
+-- users.preferred_language
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'preferred_language') = 0,
+  'ALTER TABLE `users` ADD COLUMN `preferred_language` VARCHAR(10) DEFAULT NULL COMMENT ''User UI language code (e.g. en, es, zh-Hans); NULL = use system default'' AFTER `dashboard_modules`',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) VALUES
+  ('default_language', 'en', 0),
+  ('enabled_languages', '["en","es","it","uk","zh-Hans","hi","fr","pt"]', 0);
+
+-- Cached machine translations of assessment content for the public vendor form
+-- (see the same table in master_schema.sql). CREATE TABLE IF NOT EXISTS is
+-- naturally idempotent and never touches existing rows.
+CREATE TABLE IF NOT EXISTS `assessment_translations` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `source_type` VARCHAR(32) NOT NULL COMMENT 'question_text | help_text | options | section_name | section_description | template_name | template_description',
+  `source_id` INT UNSIGNED NOT NULL COMMENT 'question/section/template id the text belongs to',
+  `language_code` VARCHAR(10) NOT NULL,
+  `source_hash` CHAR(64) NOT NULL COMMENT 'SHA-256 of the source text; invalidates the cache when the source changes',
+  `translated_text` TEXT NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uniq_translation` (`source_type`, `source_id`, `language_code`),
+  KEY `idx_lookup` (`source_type`, `source_id`, `language_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- Vendor assessment submitter attestation: name/title/email/phone, client IP,
+-- and a truthfulness attestation flag, captured at final submission (both the
+-- full questionnaire submit and the certificate-skip upload). Added together as
+-- a set, so a single INFORMATION_SCHEMA guard on the sentinel column keeps
+-- re-runs safe on both MySQL and MariaDB.
+-- =============================================================================
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_assessments' AND column_name = 'submitter_name') = 0,
+  'ALTER TABLE `vendor_assessments`
+     ADD COLUMN `submitter_name` VARCHAR(255) DEFAULT NULL,
+     ADD COLUMN `submitter_title` VARCHAR(255) DEFAULT NULL,
+     ADD COLUMN `submitter_email` VARCHAR(255) DEFAULT NULL,
+     ADD COLUMN `submitter_phone` VARCHAR(50) DEFAULT NULL,
+     ADD COLUMN `submitter_ip_address` VARCHAR(45) DEFAULT NULL,
+     ADD COLUMN `submitter_attested` TINYINT(1) DEFAULT 0,
+     ADD COLUMN `attested_at` DATETIME DEFAULT NULL',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- =============================================================================
 -- FairTPRM v2.6.1 schema and seed data complete
 -- =============================================================================

@@ -257,6 +257,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+
+    // --- Language preference: store the user's chosen UI language, or NULL for "system default" ---
+    } elseif (isset($_POST['update_language'])) {
+        $enabledLangs = i18nEnabledLanguages();
+        $preferredLang = trim($_POST['preferred_language'] ?? '');
+
+        if ($preferredLang === '') {
+            $newLang = null; // empty selection means "use system default"
+        } elseif (in_array($preferredLang, $enabledLangs, true)) {
+            $newLang = $preferredLang;
+        } else {
+            $newLang = null;
+            $error = 'Selected language is not enabled.';
+        }
+
+        if (!$error) {
+            try {
+                $db->update('users', ['preferred_language' => $newLang], 'id = :id', [':id' => $user['id']]);
+                $auth->audit($user['id'], 'language_preference_update', 'users', $user['id'], [
+                    'new' => ['preferred_language' => $newLang]
+                ]);
+                $success = 'Language preference updated successfully';
+            } catch (Exception $e) {
+                error_log('Language preference update failed: ' . $e->getMessage());
+                $error = 'Failed to update language preference';
+            }
+        }
     }
 
     if (!empty($success) || !empty($error)) {
@@ -275,7 +302,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !empty($success)) {
 $theme = getUserTheme();
 ?>
 <!DOCTYPE html>
-<html class="wide wow-animation" lang="en">
+<html class="wide wow-animation" lang="<?php echo e(currentLanguage()); ?>">
 <head>
     <title>Profile - TPRM FAIR Analysis</title>
     <meta charset="utf-8">
@@ -567,6 +594,29 @@ $theme = getUserTheme();
                                 </div>
 
                                 <button type="submit" name="update_profile" class="btn btn-primary" style="margin-top: 15px;">Update Profile</button>
+                            </form>
+                        </div>
+
+                        <div class="card">
+                            <h3><?php echo e(t('profile.lang.title')); ?></h3>
+                            <p style="color: #666; margin-bottom: 15px;"><?php echo e(t('profile.lang.intro')); ?></p>
+                            <form method="POST" action="profile.php">
+                                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                <div class="form-group">
+                                    <label for="preferred_language"><?php echo e(t('profile.lang.label')); ?></label>
+                                    <?php
+                                    $langNames = i18nLanguages();
+                                    $enabledLangs = i18nEnabledLanguages();
+                                    $userLang = $userDetails['preferred_language'] ?? '';
+                                    ?>
+                                    <select id="preferred_language" name="preferred_language" class="form-control">
+                                        <option value="" <?php echo $userLang === '' ? 'selected' : ''; ?>><?php echo e(t('profile.lang.system_default')); ?></option>
+                                        <?php foreach ($enabledLangs as $code): ?>
+                                        <option value="<?php echo e($code); ?>" <?php echo $userLang === $code ? 'selected' : ''; ?>><?php echo e($langNames[$code] ?? $code); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <button type="submit" name="update_language" class="btn btn-primary"><?php echo e(t('profile.lang.button')); ?></button>
                             </form>
                         </div>
 

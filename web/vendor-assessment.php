@@ -108,9 +108,48 @@ $companyName = getAppConfig('company_name', '');
 
 // CSRF token for form submissions -- yes, even public forms need this
 $csrfToken = $security->generateCSRFToken();
+
+// ----------------------------------------------------------------------------
+// Optional translation of the assessment into the vendor's language. This is a
+// public, login-less page, so the chosen language comes from ?lang= (not a user
+// preference) and is applied to the admin-authored content via the cached AI
+// translator. If the language isn't enabled or the AI platform is off, this is
+// a silent no-op and the original English text is shown.
+// ----------------------------------------------------------------------------
+$enabledLangs = i18nEnabledLanguages();
+$assessmentLang = $_GET['lang'] ?? 'en';
+if (!in_array($assessmentLang, $enabledLangs, true)) {
+    $assessmentLang = 'en';
+}
+$langNames = i18nLanguages();
+$pickerLangs = array_values(array_filter($enabledLangs, function ($c) { return $c !== 'en'; }));
+$translator = AssessmentTranslationService::getInstance();
+$showLangPicker = !empty($pickerLangs);
+try { $showLangPicker = $showLangPicker && AIPlatformService::getInstance()->isEnabled(); }
+catch (Throwable $e) { $showLangPicker = false; }
+
+if ($translator->canTranslate($assessmentLang)) {
+    $assessment['template_name'] = $translator->translate('template_name', (int)$assessment['template_id'], $assessment['template_name'] ?? '', $assessmentLang);
+    foreach ($sections as $sIdx => $sec) {
+        $sections[$sIdx]['name'] = $translator->translate('section_name', (int)$sec['id'], $sec['name'] ?? '', $assessmentLang);
+    }
+    if ($currentSection) {
+        $currentSection['name'] = $translator->translate('section_name', (int)$currentSection['id'], $currentSection['name'] ?? '', $assessmentLang);
+        $currentSection['description'] = $translator->translate('section_description', (int)$currentSection['id'], $currentSection['description'] ?? '', $assessmentLang);
+    }
+    foreach ($currentQuestions as $qIdx => $cq) {
+        $currentQuestions[$qIdx]['question_text'] = $translator->translate('question_text', (int)$cq['id'], $cq['question_text'] ?? '', $assessmentLang);
+        if (!empty($cq['help_text'])) {
+            $currentQuestions[$qIdx]['help_text'] = $translator->translate('help_text', (int)$cq['id'], $cq['help_text'], $assessmentLang);
+        }
+        if (!empty($cq['options']) && is_array($cq['options'])) {
+            $currentQuestions[$qIdx]['option_labels'] = $translator->translateOptions((int)$cq['id'], $cq['options'], $assessmentLang);
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?php echo htmlspecialchars($assessmentLang); ?>">
 <head>
     <title><?php echo htmlspecialchars($assessment['template_name']); ?> - Vendor Assessment</title>
     <meta charset="utf-8">
@@ -841,6 +880,24 @@ $csrfToken = $security->generateCSRFToken();
         $progressHue = round(($completionStatus['percentage'] / 100) * 120);
         $progressColor = "hsl({$progressHue}, 70%, 45%)";
         ?>
+        <?php if ($showLangPicker): ?>
+        <!-- Language picker: reloads the assessment translated into the chosen language -->
+        <div class="lang-picker" style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:16px;">
+            <form method="get" action="vendor-assessment.php" style="display:flex; align-items:center; gap:8px;">
+                <input type="hidden" name="token" value="<?php echo htmlspecialchars($uuid); ?>">
+                <input type="hidden" name="section" value="<?php echo (int)$currentSectionIndex; ?>">
+                <?php if ($forceEdit): ?><input type="hidden" name="edit" value="1"><?php endif; ?>
+                <label for="langSelect" style="font-size:13px; color:#555;">&#127760; Language</label>
+                <select id="langSelect" name="lang" style="padding:6px 8px; border:1px solid #ccc; border-radius:6px;">
+                    <option value="en" <?php echo $assessmentLang === 'en' ? 'selected' : ''; ?>>English</option>
+                    <?php foreach ($pickerLangs as $code): ?>
+                    <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $assessmentLang === $code ? 'selected' : ''; ?>><?php echo htmlspecialchars($langNames[$code] ?? $code); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="btn btn-secondary" style="padding:6px 12px;">Translate</button>
+            </form>
+        </div>
+        <?php endif; ?>
         <!-- Progress bar showing overall completion percentage -->
         <div class="progress-container">
             <div class="progress-header">
@@ -907,6 +964,27 @@ $csrfToken = $security->generateCSRFToken();
                         <label class="question-label">Certificate Expiry Date</label>
                         <input type="date" name="certificate_expiry" id="certExpiry">
                     </div>
+
+                    <div class="question" style="margin-top: 16px; text-align: left;">
+                        <label class="question-label">Full Name <span class="required">*</span></label>
+                        <input type="text" name="submitter_name" class="form-control" required autocomplete="name">
+                    </div>
+                    <div class="question" style="margin-top: 16px; text-align: left;">
+                        <label class="question-label">Title <span class="required">*</span></label>
+                        <input type="text" name="submitter_title" class="form-control" required autocomplete="organization-title">
+                    </div>
+                    <div class="question" style="margin-top: 16px; text-align: left;">
+                        <label class="question-label">Email Address <span class="required">*</span></label>
+                        <input type="email" name="submitter_email" class="form-control" required autocomplete="email" value="<?php echo htmlspecialchars(($assessment['vendor_contact_email'] ?? '') ?: ($assessment['vendor_email'] ?? '')); ?>">
+                    </div>
+                    <div class="question" style="margin-top: 16px; text-align: left;">
+                        <label class="question-label">Phone Number <span class="required">*</span></label>
+                        <input type="tel" name="submitter_phone" class="form-control" required autocomplete="tel">
+                    </div>
+                    <label style="display:flex; align-items:flex-start; gap:8px; margin-top:16px; text-align:left; font-size:14px; line-height:1.4;">
+                        <input type="checkbox" name="submitter_attested" value="1" required style="margin-top:3px; flex-shrink:0;">
+                        <span>I certify that the information provided is complete and truthful to the best of my knowledge.</span>
+                    </label>
 
                     <button type="submit" class="btn btn-success" style="margin-top: 20px;">
                         Upload Certificate
@@ -1008,7 +1086,7 @@ $csrfToken = $security->generateCSRFToken();
                             <option value="">-- Select --</option>
                             <?php foreach ($q['options'] as $opt): ?>
                             <option value="<?php echo htmlspecialchars($opt); ?>" <?php echo $response === $opt ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($opt); ?>
+                                <?php echo htmlspecialchars($q['option_labels'][$opt] ?? $opt); ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
@@ -1024,7 +1102,7 @@ $csrfToken = $security->generateCSRFToken();
                                        value="<?php echo htmlspecialchars($opt); ?>"
                                        <?php echo $response === $opt ? 'checked' : ''; ?>
                                        class="autosave-input" data-qid="<?php echo $q['id']; ?>">
-                                <?php echo htmlspecialchars($opt); ?>
+                                <?php echo htmlspecialchars($q['option_labels'][$opt] ?? $opt); ?>
                             </label>
                             <?php endforeach; ?>
                         </div>
@@ -1040,7 +1118,7 @@ $csrfToken = $security->generateCSRFToken();
                                        value="<?php echo htmlspecialchars($opt); ?>"
                                        <?php echo $response === $opt ? 'checked' : ''; ?>
                                        class="autosave-input" data-qid="<?php echo $q['id']; ?>">
-                                <?php echo htmlspecialchars($opt); ?>
+                                <?php echo htmlspecialchars($q['option_labels'][$opt] ?? $opt); ?>
                             </label>
                             <?php endforeach; ?>
                         </div>
@@ -1057,7 +1135,7 @@ $csrfToken = $security->generateCSRFToken();
                                        value="<?php echo htmlspecialchars($opt); ?>"
                                        <?php echo in_array($opt, $selectedOptions) ? 'checked' : ''; ?>
                                        class="autosave-checkbox" data-qid="<?php echo $q['id']; ?>">
-                                <?php echo htmlspecialchars($opt); ?>
+                                <?php echo htmlspecialchars($q['option_labels'][$opt] ?? $opt); ?>
                             </label>
                             <?php endforeach; ?>
                         </div>
@@ -1074,7 +1152,7 @@ $csrfToken = $security->generateCSRFToken();
                                        value="<?php echo htmlspecialchars($opt); ?>"
                                        <?php echo in_array($opt, $selectedOptions) ? 'checked' : ''; ?>
                                        class="autosave-checkbox" data-qid="<?php echo $q['id']; ?>">
-                                <?php echo htmlspecialchars($opt); ?>
+                                <?php echo htmlspecialchars($q['option_labels'][$opt] ?? $opt); ?>
                             </label>
                             <?php endforeach; ?>
                         </div>
@@ -1179,8 +1257,31 @@ $csrfToken = $security->generateCSRFToken();
     <div class="incomplete-modal-overlay" id="submitConfirmOverlay">
         <div class="incomplete-modal" style="max-width: 480px;">
             <h2>Submit Assessment</h2>
-            <p style="color: #666; margin: 0 0 20px 0; font-size: 0.95em;">Are you sure you want to submit this assessment? You will not be able to make changes after submission.</p>
-            <div class="modal-footer">
+            <p style="color: #666; margin: 0 0 16px 0; font-size: 0.95em;">Please provide your details and confirm the attestation. You will not be able to make changes after submission.</p>
+            <div style="text-align:left; display:grid; gap:12px;">
+                <div>
+                    <label for="att_name" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Full Name <span style="color:#ef4444;">*</span></label>
+                    <input type="text" id="att_name" class="form-control" style="width:100%;" autocomplete="name">
+                </div>
+                <div>
+                    <label for="att_title" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Title <span style="color:#ef4444;">*</span></label>
+                    <input type="text" id="att_title" class="form-control" style="width:100%;" autocomplete="organization-title">
+                </div>
+                <div>
+                    <label for="att_email" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Email Address <span style="color:#ef4444;">*</span></label>
+                    <input type="email" id="att_email" class="form-control" style="width:100%;" autocomplete="email" value="<?php echo htmlspecialchars(($assessment['vendor_contact_email'] ?? '') ?: ($assessment['vendor_email'] ?? '')); ?>">
+                </div>
+                <div>
+                    <label for="att_phone" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Phone Number <span style="color:#ef4444;">*</span></label>
+                    <input type="tel" id="att_phone" class="form-control" style="width:100%;" autocomplete="tel">
+                </div>
+                <label style="display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:1.4;">
+                    <input type="checkbox" id="att_agree" style="margin-top:3px; flex-shrink:0;">
+                    <span>I certify that the information provided in this assessment is complete and truthful to the best of my knowledge.</span>
+                </label>
+                <div id="attError" style="display:none; color:#ef4444; font-size:13px;"></div>
+            </div>
+            <div class="modal-footer" style="margin-top:18px;">
                 <button type="button" class="btn btn-secondary" id="cancelSubmitBtn">Cancel</button>
                 <button type="button" class="btn btn-success" id="confirmSubmitBtn">Submit</button>
             </div>
@@ -1621,6 +1722,33 @@ $csrfToken = $security->generateCSRFToken();
     // The big moment -- save everything, then tell the server we're done.
     // No take-backs after this one.
     // ========================================================================
+    // Validate the submitter attestation fields shown in the submit modal.
+    function validateAttestation() {
+        var name = (document.getElementById('att_name').value || '').trim();
+        var title = (document.getElementById('att_title').value || '').trim();
+        var email = (document.getElementById('att_email').value || '').trim();
+        var phone = (document.getElementById('att_phone').value || '').trim();
+        var agree = document.getElementById('att_agree').checked;
+        var err = document.getElementById('attError');
+        if (!name || !title || !email || !phone) {
+            err.textContent = 'Please complete your name, title, email, and phone number.';
+            err.style.display = 'block';
+            return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            err.textContent = 'Please enter a valid email address.';
+            err.style.display = 'block';
+            return false;
+        }
+        if (!agree) {
+            err.textContent = 'Please confirm the truthfulness attestation to submit.';
+            err.style.display = 'block';
+            return false;
+        }
+        err.style.display = 'none';
+        return true;
+    }
+
     async function doFinalSubmit() {
         // Clear any previous error highlighting
         document.querySelectorAll('.question.error').forEach(q => q.classList.remove('error'));
@@ -1659,6 +1787,11 @@ $csrfToken = $security->generateCSRFToken();
             const formData = new FormData();
             formData.append('csrf_token', csrfToken);
             formData.append('assessment_uuid', assessmentUUID);
+            formData.append('submitter_name', (document.getElementById('att_name').value || '').trim());
+            formData.append('submitter_title', (document.getElementById('att_title').value || '').trim());
+            formData.append('submitter_email', (document.getElementById('att_email').value || '').trim());
+            formData.append('submitter_phone', (document.getElementById('att_phone').value || '').trim());
+            formData.append('submitter_attested', document.getElementById('att_agree').checked ? '1' : '0');
 
             const response = await fetch('/api/assessment-submit.php', {
                 method: 'POST',
@@ -1698,6 +1831,7 @@ $csrfToken = $security->generateCSRFToken();
     const confirmSubmitBtn = document.getElementById('confirmSubmitBtn');
     if (confirmSubmitBtn) {
         confirmSubmitBtn.addEventListener('click', function() {
+            if (!validateAttestation()) return;
             document.getElementById('submitConfirmOverlay').classList.remove('show');
             doFinalSubmit();
         });
