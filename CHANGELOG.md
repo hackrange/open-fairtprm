@@ -14,6 +14,7 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - **Provide Procurement with Update**: cyber_tprm/administrators can multi-select vendors (from the onboarding list under the Review pill, or from the Cyber Status page) and record a dated procurement update — with an optional status change applied in the same action. The modal stays open until explicitly closed.
 - **Status Notes Pill**: A "Status Notes" pill next to each vendor name shows the update count and opens a read-only viewer of the 5 most recent notes (date, author, status, text). Visible to stakeholders for their own assigned vendors.
 - **Procurement Update Email Digest**: Configurable digest (Enable + Procurement Recipients) in Admin → Email Settings → Procurement, with a weekly cron (`cron/procurement-digest.php`) and a **Send digest now** button. Mirrors the breach/cyber alert recipient model.
+- **Assessment Pre-Fill from Prior Answers**: When a vendor receives a new assessment, it is automatically pre-populated with the responses from their most recent prior assessment, so vendors only update what has changed instead of re-answering from scratch.
 
 ### Internationalization
 - **Full-App Multi-Language UI**: Complete interface localization across every page in 8 languages — English, Spanish, French, Italian, Portuguese, Ukrainian, Hindi, and Simplified Chinese — via a lightweight `t()` translation helper backed by per-language string catalogs (`includes/i18n/`).
