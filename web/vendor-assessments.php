@@ -207,6 +207,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $emailNote = $emailSent
                     ? '<br><span style="color:#166534;">Email sent automatically to ' . htmlspecialchars($vendorContactEmail) . '</span>'
                     : '';
+
+                // Let the admin know we carried answers over from a prior assessment
+                if (!empty($result['prefilled_count'])) {
+                    $emailNote .= '<br><span style="color:#166534;">Pre-filled ' . (int)$result['prefilled_count'] .
+                                  ' answer(s) from this vendor\'s previous assessment.</span>';
+                }
                 $auth->audit($user['id'], 'assessment_create', 'vendor_assessments', $result['id'] ?? null, [
                     'new' => ['vendor_name' => $vendorName, 'vendor_email' => $vendorEmail, 'template_id' => $templateId, 'vendor_request_id' => $vendorRequestId]
                 ]);

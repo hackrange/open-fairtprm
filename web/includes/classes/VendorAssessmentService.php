@@ -545,11 +545,164 @@ class VendorAssessmentService {
             }
         }
 
+        // Pre-populate this fresh assessment with the answers from the vendor's
+        // most recent completed assessment of the same template, so they only
+        // have to update what changed instead of starting from a blank form.
+        // Wrapped in a guard -- a pre-fill hiccup must never block creation.
+        $prefilledCount = 0;
+        try {
+            $prefilledCount = $this->prefillFromPriorAssessment(
+                $insertId,
+                $templateId,
+                $vendorRequestId,
+                $vendorEmail,
+                $vendorContactEmail
+            );
+        } catch (Exception $e) {
+            error_log('Assessment pre-fill from prior assessment failed: ' . $e->getMessage());
+        }
+
         return [
             'id' => $insertId,
             'uuid' => $uuid,
-            'expires_at' => $expiresAt
+            'expires_at' => $expiresAt,
+            'prefilled_count' => $prefilledCount
         ];
+    }
+
+    /**
+     * Copies answers from a vendor's previous completed assessment into a newly
+     * created one so they can edit rather than re-enter everything.
+     *
+     * Matching is conservative on purpose -- we only ever copy between assessments
+     * built from the SAME template, because responses are keyed by the template's
+     * question IDs. If the templates differ, the question IDs wouldn't line up and
+     * we'd attach answers to the wrong questions.
+     *
+     * Vendor matching prefers the linked onboarding record (vendor_request_id);
+     * when that's missing we fall back to the contact/vendor email address.
+     *
+     * File-upload answers are intentionally NOT copied -- the vendor should attach
+     * current documents (a SOC 2 report from last year may well be expired), and
+     * copying the reference would point at the previous assessment's stored file.
+     *
+     * Returns the number of answers copied (0 if no suitable prior assessment).
+     */
+    private function prefillFromPriorAssessment($newAssessmentId, $templateId, $vendorRequestId, $vendorEmail, $vendorContactEmail) {
+        $priorId = $this->findPriorCompletedAssessmentId(
+            $templateId,
+            $vendorRequestId,
+            $vendorEmail,
+            $vendorContactEmail,
+            $newAssessmentId
+        );
+        if (!$priorId) {
+            return 0;
+        }
+
+        // Questions of type 'file' are skipped -- the vendor re-uploads documents.
+        $fileQuestionIds = [];
+        $fileRows = $this->db->fetchAll(
+            "SELECT q.id
+             FROM assessment_questions q
+             JOIN assessment_sections s ON q.section_id = s.id
+             WHERE s.template_id = :tid AND q.question_type = 'file'",
+            [':tid' => $templateId]
+        );
+        foreach ($fileRows as $row) {
+            $fileQuestionIds[$row['id']] = true;
+        }
+
+        $responses = $this->db->fetchAll(
+            'SELECT question_id, response_value, file_path
+             FROM vendor_assessment_responses
+             WHERE assessment_id = :sid',
+            [':sid' => $priorId]
+        );
+
+        $copied = 0;
+        foreach ($responses as $r) {
+            // Skip file-upload answers (by question type or stored file reference)
+            if (isset($fileQuestionIds[$r['question_id']]) || !empty($r['file_path'])) {
+                continue;
+            }
+            // Nothing useful to carry forward for empty answers
+            if ($r['response_value'] === null || $r['response_value'] === '') {
+                continue;
+            }
+            $this->db->insert('vendor_assessment_responses', [
+                'assessment_id' => $newAssessmentId,
+                'question_id' => $r['question_id'],
+                'response_value' => $r['response_value']
+            ]);
+            $copied++;
+        }
+
+        return $copied;
+    }
+
+    /**
+     * Finds the most recent COMPLETED assessment to copy answers from, scoped to
+     * the given template. Tries the linked onboarding record first, then falls
+     * back to matching on the contact/vendor email address.
+     *
+     * Returns the prior assessment ID, or null when there's nothing to copy.
+     */
+    private function findPriorCompletedAssessmentId($templateId, $vendorRequestId, $vendorEmail, $vendorContactEmail, $excludeId) {
+        // 1. Match by the linked vendor onboarding request (most reliable)
+        if (!empty($vendorRequestId)) {
+            $row = $this->db->fetchOne(
+                "SELECT id
+                 FROM vendor_assessments
+                 WHERE template_id = :tid
+                   AND vendor_request_id = :vrid
+                   AND status = 'completed'
+                   AND id != :exclude
+                 ORDER BY COALESCE(completed_at, updated_at, created_at) DESC
+                 LIMIT 1",
+                [':tid' => $templateId, ':vrid' => $vendorRequestId, ':exclude' => $excludeId]
+            );
+            if ($row) {
+                return $row['id'];
+            }
+        }
+
+        // 2. Fall back to matching on email (contact email or general vendor email)
+        $emails = [];
+        foreach ([$vendorContactEmail, $vendorEmail] as $email) {
+            $email = strtolower(trim((string)$email));
+            if ($email !== '' && !in_array($email, $emails, true)) {
+                $emails[] = $email;
+            }
+        }
+        if (empty($emails)) {
+            return null;
+        }
+
+        // Native prepared statements (EMULATE_PREPARES => false) don't allow a
+        // named placeholder to appear more than once, so give each column its own.
+        $params = [':tid' => $templateId, ':exclude' => $excludeId];
+        $clauses = [];
+        foreach ($emails as $i => $email) {
+            $params[":emc{$i}"] = $email;
+            $params[":emv{$i}"] = $email;
+            $clauses[] = "LOWER(vendor_contact_email) = :emc{$i} OR LOWER(vendor_email) = :emv{$i}";
+        }
+        $emailWhere = '(' . implode(' OR ', $clauses) . ')';
+
+        $row = $this->db->fetchOne(
+            "SELECT id
+             FROM vendor_assessments
+             WHERE template_id = :tid
+               AND status = 'completed'
+               AND id != :exclude
+               AND {$emailWhere}
+             ORDER BY COALESCE(completed_at, updated_at, created_at) DESC
+             LIMIT 1",
+            $params
+        );
+
+        return $row ? $row['id'] : null;
     }
 
     /**
@@ -762,7 +915,7 @@ class VendorAssessmentService {
                 $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
                 $assignTo = $rule['assign_to'] ?? 'vendor';
 
-                $this->db->insert('vendor_assessments', [
+                $triggeredId = $this->db->insert('vendor_assessments', [
                     'uuid' => $uuid,
                     'template_id' => $targetTemplateId,
                     'vendor_request_id' => $assessment['vendor_request_id'],
@@ -777,6 +930,20 @@ class VendorAssessmentService {
                     'triggered_by_rule_id' => $ruleId,
                     'created_by' => $assessment['created_by'],
                 ]);
+
+                // Carry forward answers from a prior completed assessment of the
+                // same (target) template for this vendor, just like manual creation.
+                try {
+                    $this->prefillFromPriorAssessment(
+                        $triggeredId,
+                        $targetTemplateId,
+                        $assessment['vendor_request_id'],
+                        $assessment['vendor_email'],
+                        $assessment['vendor_contact_email'] ?? null
+                    );
+                } catch (Exception $e) {
+                    error_log('Triggered assessment pre-fill failed: ' . $e->getMessage());
+                }
 
                 error_log("Workflow rule #{$ruleId} triggered assessment (template {$targetTemplateId}) from assessment {$assessmentId}, question {$qid}, value '{$conditionValue}', assign_to '{$assignTo}'");
 

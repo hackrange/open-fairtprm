@@ -4484,6 +4484,34 @@ INSERT IGNORE INTO email_templates (id, template_category, template_key, assessm
 
 INSERT IGNORE INTO email_templates (id, template_category, template_key, assessment_template_id, display_name, email_subject, email_body_html, email_body_text, available_variables, is_active) VALUES (24, 'breach_alert', 'breach_digest', NULL, 'Breach / Cyber Alert Digest', 'Breach Alert Digest: {{alert_count}} New Alert(s)', '<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"></head>\n<body style=\"margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;\">\n    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #f4f4f4; padding: 20px;\">\n        <tr><td align=\"center\">\n            <table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);\">\n                <tr><td style=\"background-color: {{header_color}}; padding: 30px; text-align: center;\">{{logo_img}}<h1 style=\"margin: 10px 0 0 0; color: {{header_font_color}}; font-size: 20px;\">{{system_title}}</h1></td></tr>\n                <tr><td style=\"background-color: {{severity_color}}; border-left: 4px solid {{severity_border}}; padding: 15px 30px;\"><p style=\"margin: 0; color: {{severity_text_color}}; font-size: 16px; font-weight: bold;\">Breach / Cyber Alert Digest &mdash; {{alert_count}} New Alert(s)</p></td></tr>\n                <tr><td style=\"padding: 30px;\">\n                    <p style=\"margin: 0 0 10px 0; color: #333; font-size: 15px; line-height: 1.6;\">A scan on <strong>{{scan_date}}</strong> detected <strong>{{alert_count}}</strong> new breach/cyber alert(s): {{severity_summary}}.</p>\n                    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; margin: 20px 0;\">\n                        <tr><td style=\"background:#f9fafb;padding:10px 15px;font-weight:bold;color:#374151;font-size:14px;border-bottom:1px solid #e5e7eb;\">Alerts</td></tr>\n                        {{alert_rows_html}}\n                    </table>\n                    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin: 20px 0;\"><tr><td align=\"center\"><a href=\"{{alert_url}}\" style=\"display: inline-block; padding: 15px 40px; background-color: {{button_color}}; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;\">View All Alerts</a></td></tr></table>\n                </td></tr>\n                <tr><td style=\"background-color: {{footer_color}}; padding: 20px 30px;\"><p style=\"margin: 0; color: #ffffff; font-size: 12px;\">This is an automated notification from {{system_title}}. Please do not reply to this email.</p></td></tr>\n            </table>\n        </td></tr>\n    </table>\n</body>\n</html>', 'BREACH / CYBER ALERT DIGEST\n==========================================\n\nScan Date: {{scan_date}}\nNew Alerts: {{alert_count}} ({{severity_summary}})\n\n{{alert_rows_text}}\nView all alerts: {{alert_url}}\n\n==========================================\nThis is an automated notification from {{system_title}}. Please do not reply to this email.', '["alert_count","severity_summary","alert_rows_html","alert_rows_text","alert_url","scan_date","header_color","header_font_color","button_color","footer_color","system_title","logo_img","severity_color","severity_border","severity_text_color"]', 1);
 
+-- ---------------------------------------------------------------------------
+-- De-duplicate generic (default) email templates.
+--
+-- The UNIQUE KEY unique_template (template_category, template_key,
+-- assessment_template_id) does NOT stop duplicates for the default templates
+-- because they all have assessment_template_id = NULL, and MySQL/MariaDB treat
+-- NULLs as DISTINCT in a unique index. Combined with the explicit-id INSERTs
+-- above, upgrading an instance that already had these templates (seeded by the
+-- app under different auto-increment ids) inserts a second copy of every
+-- default template instead of being ignored.
+--
+-- Resolve it deterministically and non-destructively: when a (category, key)
+-- has more than one generic row, drop only the legacy copies that do NOT use
+-- the {{system_title}} branding placeholder, and only when a branding-aware
+-- copy survives. This removes the obsolete hardcoded templates while always
+-- preserving the branding-aware (customizable) row. Idempotent: re-running
+-- finds nothing left to delete. Portable across MySQL and MariaDB.
+-- ---------------------------------------------------------------------------
+DELETE legacy FROM email_templates legacy
+JOIN email_templates keep
+  ON keep.template_category = legacy.template_category
+ AND keep.template_key = legacy.template_key
+ AND keep.assessment_template_id IS NULL
+ AND legacy.assessment_template_id IS NULL
+ AND keep.id <> legacy.id
+WHERE keep.email_body_html LIKE '%{{system_title}}%'
+  AND legacy.email_body_html NOT LIKE '%{{system_title}}%';
+
 -- =============================================================================
 -- SECTION 8: Assessment Templates, Sections, and Questions
 -- Seed data for ISO 27001:2022, Tier 2, Vendor Onboarding, and AI Usage
