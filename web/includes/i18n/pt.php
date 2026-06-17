@@ -38,6 +38,7 @@ return [
     'nav.vendor_onboarding'           => 'Integração de Fornecedores',
     'nav.vendor_reviews'              => 'Revisões de Fornecedores',
     'nav.contracts'                   => 'Contratos',
+    'nav.cyber_status'                => 'Status Cibernético',
     'nav.fair_analysis'               => 'Análise FAIR',
     'nav.srs_scoring'                 => 'Pontuação SRS',
     'nav.fourth_party_risk'           => 'Risco de Quarta Parte',

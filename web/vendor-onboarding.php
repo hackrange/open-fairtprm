@@ -1346,6 +1346,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
             }
         }
 
+        // FORCE AI REVIEW: for vendors flagged "Services Use AI", move the request
+        // into the ai_review status so the AI-usage review can proceed.
+        if ($action === 'force_ai_review' && $canApprove && $editMode && $requestId > 0) {
+            if (($request['vendor_use_ai'] ?? '') !== 'yes') {
+                $error = 'AI Review can only be forced for vendors whose services use AI.';
+            } elseif (($request['status'] ?? '') === 'ai_review') {
+                $error = 'This request is already in AI Review.';
+            } else {
+                try {
+                    $db->update('vendor_onboarding_requests', [
+                        'status' => 'ai_review'
+                    ], 'id = :id', [':id' => $requestId]);
+                    $auth->audit($user['id'], 'vendor_force_ai_review', 'vendor_onboarding_requests', $requestId, [
+                        'old' => ['status' => $request['status']],
+                        'new' => ['status' => 'ai_review', 'vendor_name' => $request['vendor_name'] ?? '']
+                    ]);
+                    redirect('vendor-onboarding.php?id=' . $requestId . '&success_ai_review=1');
+                } catch (Exception $e) {
+                    error_log('Force AI Review error: ' . $e->getMessage());
+                    $error = 'Failed to move the request to AI Review. Please try again.';
+                }
+            }
+        }
+
         // SET DRAFT: Reactivates an inactive vendor back to draft status.
         if ($action === 'set_draft' && $canApprove && $editMode && $requestId > 0) {
             if ($request['status'] !== 'inactive') {
@@ -2575,6 +2599,15 @@ function getFieldValue($request, $field, $default = '') {
                             <?php dualField($request, 'vendor_sisterdomains', 'Sister/Subdomains', 'textarea'); ?>
                             <?php dualField($request, 'vendor_type', 'Vendor Type', 'select', $vendorTypes); ?>
                             <?php dualField($request, 'vendor_use_ai', 'Services Use AI', 'checkbox'); ?>
+                            <?php if ($canApprove && $editMode && ($request['vendor_use_ai'] ?? '') === 'yes' && ($request['status'] ?? '') !== 'ai_review'): ?>
+                            <div class="vendor-field-row" style="justify-content: flex-end;">
+                                <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                    <input type="hidden" name="action" value="force_ai_review">
+                                    <button type="submit" data-confirm="Force this vendor into AI Review?" style="background: none; border: none; padding: 0; color: #4f46e5; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: underline;">Force AI Review</button>
+                                </form>
+                            </div>
+                            <?php endif; ?>
                             <?php // Tier is read-only here — managed via SRS details page
                             $tier = getFieldValue($request, 'vendor_tier');
                             echo '<div class="vendor-field-row"><span class="vendor-field-label">Vendor Tier</span>';

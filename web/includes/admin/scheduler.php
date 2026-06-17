@@ -77,6 +77,14 @@ $cronJobs = [
         'default_schedule' => '*/5 * * * *',
         'history_key'     => 'grc-continuous-monitors',
     ],
+    'procurement_digest' => [
+        'name'            => 'Procurement Update Digest',
+        'description'     => 'Emails a weekly digest of vendors in review with their latest procurement update',
+        'script'          => 'procurement-digest.php',
+        'log'             => '/var/log/php/cron-procurement-digest.log',
+        'default_schedule' => '0 7 * * 1',
+        'history_key'     => 'procurement-digest',
+    ],
 ];
 
 // ============================================================================

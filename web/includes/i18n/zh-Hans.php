@@ -38,6 +38,7 @@ return [
     'nav.vendor_onboarding'           => '供应商引入',
     'nav.vendor_reviews'              => '供应商审查',
     'nav.contracts'                   => '合同',
+    'nav.cyber_status'                => '网络状态',
     'nav.fair_analysis'               => 'FAIR 分析',
     'nav.srs_scoring'                 => 'SRS 评分',
     'nav.fourth_party_risk'           => '第四方风险',

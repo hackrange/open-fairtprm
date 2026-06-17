@@ -53,6 +53,7 @@ $cronJobs = [
     'breach_monitor'       => ['script' => 'breach-monitor.php',             'log' => '/var/log/php/cron-breach-monitor.log',           'default_schedule' => '0 7 * * *',   'timeout' => 1800],
     'osint_company'        => ['script' => 'osint-company.php',              'log' => '/var/log/php/cron-osint-company.log',            'default_schedule' => '0 8 * * *',   'timeout' => 600],
     'osint_vendors'        => ['script' => 'osint-vendors.php',              'log' => '/var/log/php/cron-osint-vendors.log',            'default_schedule' => '0 2 * * 0',   'timeout' => 7200],
+    'procurement_digest'   => ['script' => 'procurement-digest.php',         'log' => '/var/log/php/cron-procurement-digest.log',       'default_schedule' => '0 7 * * 1',   'timeout' => 600],
 ];
 
 // -------------------------------------------------------------------------

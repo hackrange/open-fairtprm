@@ -231,10 +231,25 @@ if ($canReadAll) {
     $params[':user_id'] = $user['id'];
 }
 
-if (!empty($statusFilter) && in_array($statusFilter, ['draft', 'submitted', 'in_review', 'approved', 'rejected', 'inactive', 'evaluation'])) {
+if ($statusFilter === 'review') {
+    // The "Review" pill is the union of In Review + AI Review.
+    $whereConditions[] = "r.status IN ('in_review', 'ai_review')";
+} elseif (!empty($statusFilter) && in_array($statusFilter, ['draft', 'submitted', 'in_review', 'ai_review', 'approved', 'rejected', 'inactive', 'evaluation'])) {
     $whereConditions[] = "r.status = :status";
     $params[':status'] = $statusFilter;
 }
+
+// Procurement multi-select ("Provide Procurement with Update") is available to
+// cyber_tprm/admins only, and only while the Review pill is active.
+$showProcurementSelect = $canApprove && ($statusFilter === 'review');
+
+// Human-friendly onboarding status labels (ai_review must render as "AI Review",
+// not the ucfirst default "Ai review").
+$statusLabels = [
+    'draft' => 'Draft', 'submitted' => 'Submitted', 'in_review' => 'In Review',
+    'ai_review' => 'AI Review', 'evaluation' => 'Evaluation', 'approved' => 'Approved',
+    'rejected' => 'Rejected', 'inactive' => 'Inactive',
+];
 
 if (!empty($searchQuery)) {
     $whereConditions[] = "(r.vendor_name LIKE :search OR r.vendor_type LIKE :search2 OR r.relationship_manager LIKE :search3 OR r.project LIKE :search4 OR r.cost_center LIKE :search5)";
@@ -256,6 +271,7 @@ $query = "
     SELECT r.*,
            u.full_name as created_by_name,
            u.email as created_by_email,
+           (SELECT COUNT(*) FROM vendor_procurement_updates pu WHERE pu.request_id = r.id) as note_count,
            (SELECT su.full_name
             FROM vendor_onboarding_stakeholders vs
             JOIN users su ON vs.user_id = su.id
@@ -1237,11 +1253,13 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                         <?php echo e(t('vendor-onboarding-list.tab_all')); ?> <span class="count"><?php echo $totalCount; ?></span>
                     </a>
                     <?php
+                    // The "Review" pill combines In Review + AI Review into one tab.
+                    $statusCounts['review'] = ($statusCounts['in_review'] ?? 0) + ($statusCounts['ai_review'] ?? 0);
                     // Only show status tabs that have records (or are currently selected)
                     $statuses = [
                         'draft' => 'Draft',
                         'submitted' => 'Submitted',
-                        'in_review' => 'In Review',
+                        'review' => 'Review',
                         'evaluation' => 'Evaluation',
                         'approved' => 'Approved',
                         'rejected' => 'Rejected',
@@ -1548,14 +1566,18 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                     <?php
                     // Check if any draft rows exist on this page (for showing select-all)
                     $hasDraftsOnPage = $canDelete && count(array_filter($requests, fn($r) => $r['status'] === 'draft')) > 0;
+                    // Check if any In Review / AI Review rows exist (for the procurement-update select-all)
+                    $hasReviewOnPage = $showProcurementSelect && count(array_filter($requests, fn($r) => in_array($r['status'], ['in_review', 'ai_review'], true))) > 0;
                     ?>
                     <table class="requests-table" id="vendorTable">
                         <thead>
                             <tr>
-                                <?php if ($canDelete): ?>
+                                <?php if ($canDelete || $showProcurementSelect): ?>
                                 <th style="width: 40px; text-align: center;">
                                     <?php if ($hasDraftsOnPage): ?>
                                     <input type="checkbox" id="selectAllDrafts" title="<?php echo e(t('vendor-onboarding-list.select_all_drafts_title')); ?>" style="cursor: pointer;">
+                                    <?php elseif ($hasReviewOnPage): ?>
+                                    <input type="checkbox" id="selectAllReview" title="Select all vendors" style="cursor: pointer;">
                                     <?php endif; ?>
                                 </th>
                                 <?php endif; ?>
@@ -1574,10 +1596,12 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                         <tbody>
                             <?php foreach ($requests as $req): ?>
                                 <tr>
-                                    <?php if ($canDelete): ?>
+                                    <?php if ($canDelete || $showProcurementSelect): ?>
                                     <td style="text-align: center;">
-                                        <?php if ($req['status'] === 'draft'): ?>
+                                        <?php if ($canDelete && $req['status'] === 'draft'): ?>
                                         <input type="checkbox" class="draft-checkbox" value="<?php echo $req['id']; ?>" data-vendor="<?php echo e($req['vendor_name'] ?: t('vendor-onboarding-list.untitled')); ?>" style="cursor: pointer;">
+                                        <?php elseif ($showProcurementSelect && in_array($req['status'], ['in_review', 'ai_review'], true)): ?>
+                                        <input type="checkbox" class="review-checkbox" value="<?php echo $req['id']; ?>" data-vendor="<?php echo e($req['vendor_name'] ?: t('vendor-onboarding-list.untitled')); ?>" style="cursor: pointer;">
                                         <?php endif; ?>
                                     </td>
                                     <?php endif; ?>
@@ -1585,6 +1609,11 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                         <a href="vendor-onboarding.php?id=<?php echo $req['id']; ?>">
                                             <?php echo e($req['vendor_name'] ?: t('vendor-onboarding-list.untitled_request')); ?>
                                         </a>
+                                        <?php if (!empty($req['note_count'])): ?>
+                                        <button type="button" class="notes-pill" data-action="viewNotes" data-request-id="<?php echo (int)$req['id']; ?>" data-vendor="<?php echo e($req['vendor_name'] ?: t('vendor-onboarding-list.untitled_request')); ?>" title="View procurement status notes" style="margin-left:6px; display:inline-flex; align-items:center; gap:4px; padding:1px 8px; border-radius:20px; border:1px solid #c7d2fe; background:#eef2ff; color:#3730a3; font-size:11px; font-weight:600; cursor:pointer; vertical-align:middle;">
+                                            Status Notes <span style="background:#3730a3; color:#fff; border-radius:10px; padding:0 5px; font-size:10px;"><?php echo (int)$req['note_count']; ?></span>
+                                        </button>
+                                        <?php endif; ?>
                                         <?php if (!empty($req['expected_procurement_date'])): ?>
                                             <div class="meta-info">
                                                 <?php echo e(t('vendor-onboarding-list.target')); ?> <?php echo date('M j, Y', strtotime($req['expected_procurement_date'])); ?>
@@ -1594,7 +1623,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                     <td><?php echo e($req['vendor_type'] ?: '-'); ?></td>
                                     <td>
                                         <span class="status-badge status-<?php echo $req['status']; ?>">
-                                            <?php echo ucfirst(str_replace('_', ' ', $req['status'])); ?>
+                                            <?php echo e($statusLabels[$req['status']] ?? ucfirst(str_replace('_', ' ', $req['status']))); ?>
                                         </span>
                                     </td>
                                     <?php if ($canExportImport): ?>
@@ -1751,6 +1780,19 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                 </div>
                 <?php endif; ?>
 
+                <?php if ($showProcurementSelect): ?>
+                <!-- Procurement Update Action Bar (hidden until vendors are selected) -->
+                <div id="procUpdateBar" style="display: none; position: sticky; bottom: 0; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 12px 20px; margin-top: 15px; box-shadow: 0 -2px 8px rgba(0,0,0,0.1); z-index: 10; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                    <span style="font-size: 14px; color: #3730a3; font-weight: 500;">
+                        <span id="procSelectedCount">0</span> vendor(s) selected
+                    </span>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" id="procClearSelection" style="padding: 8px 16px; border: 1px solid #d1d5db; border-radius: 6px; background: white; color: #374151; font-size: 13px; cursor: pointer;">Clear selection</button>
+                        <button type="button" id="procProvideUpdateBtn" style="padding: 8px 16px; border: none; border-radius: 6px; background: #4f46e5; color: white; font-size: 13px; font-weight: 600; cursor: pointer;">Provide Procurement with Update</button>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <!-- Pagination Controls -->
                 <?php if (!isset($_GET['view']) || $_GET['view'] !== 'expiring_contracts'): ?>
                 <?php if ($onbTotalRows > 0): ?>
@@ -1796,6 +1838,54 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                 <?php endif; // End view conditional (tasks vs requests) ?>
             </div>
         </div>
+
+        <!-- Status Notes viewer modal (read-only; available to any role that can see the vendor) -->
+        <div id="notesViewModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+            <div style="background:#fff; border-radius:8px; width:90%; max-width:560px; max-height:90vh; overflow:auto; box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+                <div style="padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0; font-size:16px; color:#111827;">Status Notes &mdash; <span id="notesVendorName"></span></h3>
+                    <button type="button" id="notesModalClose" style="background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:#6b7280;">&times;</button>
+                </div>
+                <div style="padding:20px;" id="notesModalBody">
+                    <p style="color:#6b7280; font-size:13px;">Loading...</p>
+                </div>
+                <div style="padding:16px 20px; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end;">
+                    <button type="button" id="notesModalCancel" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; cursor:pointer;">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <?php if ($showProcurementSelect): ?>
+        <!-- Provide Procurement with Update modal (cyber_tprm / admin) -->
+        <div id="procUpdateModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+            <div style="background:#fff; border-radius:8px; width:90%; max-width:560px; max-height:90vh; overflow:auto; box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+                <div style="padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0; font-size:16px; color:#111827;">Provide Procurement with Update</h3>
+                    <button type="button" id="procModalClose" style="background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:#6b7280;">&times;</button>
+                </div>
+                <div style="padding:20px;">
+                    <p style="margin:0 0 12px; font-size:13px; color:#6b7280;"><span id="procModalCount">0</span> vendor(s) selected: <span id="procModalVendors" style="color:#374151;"></span></p>
+                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:6px;">Update</label>
+                    <textarea id="procUpdateText" rows="5" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:inherit; box-sizing:border-box;" placeholder="Type the update for procurement..."></textarea>
+                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin:14px 0 6px;">Change status (optional)</label>
+                    <select id="procNewStatus" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:14px;">
+                        <option value="">Keep current status</option>
+                        <option value="in_review">In Review</option>
+                        <option value="ai_review">AI Review</option>
+                        <option value="evaluation">Evaluation</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                    <div id="procModalMsg" style="margin-top:14px; font-size:13px;"></div>
+                </div>
+                <div style="padding:16px 20px; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:8px;">
+                    <button type="button" id="procModalCancel" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; cursor:pointer;">Close</button>
+                    <button type="button" id="procModalSubmit" style="padding:8px 16px; border:none; border-radius:6px; background:#4f46e5; color:white; font-size:13px; font-weight:600; cursor:pointer;">Save Update</button>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Footer -->
         <footer class="section footer-modern bg-gray-13">
@@ -1898,6 +1988,120 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                 if (!confirm('Permanently delete ' + checked.length + ' draft request(s)? This cannot be undone.')) {
                     e.preventDefault();
                 }
+            });
+        }
+    })();
+
+    // ---- Procurement: read-only Status Notes viewer + Provide-Update modal ----
+    (function() {
+        var csrf = <?php echo json_encode($csrfToken); ?>;
+        var reloadOnClose = false;
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        // Read-only Status Notes viewer (pill is visible to any role that can see the vendor)
+        var notesModal = document.getElementById('notesViewModal');
+        function closeNotes() { if (notesModal) notesModal.style.display = 'none'; }
+        if (notesModal) {
+            var nClose = document.getElementById('notesModalClose');
+            var nCancel = document.getElementById('notesModalCancel');
+            if (nClose) nClose.addEventListener('click', closeNotes);
+            if (nCancel) nCancel.addEventListener('click', closeNotes);
+        }
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-action="viewNotes"]');
+            if (!btn || !notesModal) return;
+            var rid = btn.getAttribute('data-request-id');
+            document.getElementById('notesVendorName').textContent = btn.getAttribute('data-vendor') || '';
+            var body = document.getElementById('notesModalBody');
+            body.innerHTML = '<p style="color:#6b7280;font-size:13px;">Loading...</p>';
+            notesModal.style.display = 'flex';
+            fetch('api/procurement-notes-list.php', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ csrf_token: csrf, request_id: rid })
+            }).then(function(r) { return r.json(); }).then(function(resp) {
+                if (resp.csrf_token) csrf = resp.csrf_token;
+                if (!resp.success) { body.innerHTML = '<p style="color:#dc2626;font-size:13px;">' + escapeHtml(resp.error || 'Unable to load notes.') + '</p>'; return; }
+                if (!resp.notes || !resp.notes.length) { body.innerHTML = '<p style="color:#6b7280;font-size:13px;">No notes yet.</p>'; return; }
+                var html = '';
+                resp.notes.forEach(function(n) {
+                    html += '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;margin-bottom:10px;">'
+                        + '<div style="font-size:12px;color:#6b7280;margin-bottom:4px;">' + escapeHtml(n.date) + ' &middot; ' + escapeHtml(n.author)
+                        + (n.status ? ' &middot; <span style="color:#3730a3;">' + escapeHtml(n.status) + '</span>' : '') + '</div>'
+                        + '<div style="font-size:13px;color:#374151;white-space:pre-wrap;">' + escapeHtml(n.text) + '</div></div>';
+                });
+                body.innerHTML = html;
+            }).catch(function() { body.innerHTML = '<p style="color:#dc2626;font-size:13px;">Network error.</p>'; });
+        });
+
+        // Provide Procurement with Update (cyber_tprm / admin; Review pill only)
+        var pBar = document.getElementById('procUpdateBar');
+        var pModal = document.getElementById('procUpdateModal');
+        var reviewBoxes = document.querySelectorAll('.review-checkbox');
+        var selectAllReview = document.getElementById('selectAllReview');
+        if (pBar && reviewBoxes.length) {
+            var pCount = document.getElementById('procSelectedCount');
+            function pUpdateBar() {
+                var checked = document.querySelectorAll('.review-checkbox:checked');
+                pCount.textContent = checked.length;
+                pBar.style.display = checked.length > 0 ? 'flex' : 'none';
+                if (selectAllReview) {
+                    selectAllReview.checked = checked.length > 0 && checked.length === reviewBoxes.length;
+                    selectAllReview.indeterminate = checked.length > 0 && checked.length < reviewBoxes.length;
+                }
+            }
+            if (selectAllReview) selectAllReview.addEventListener('change', function() { reviewBoxes.forEach(function(cb) { cb.checked = selectAllReview.checked; }); pUpdateBar(); });
+            reviewBoxes.forEach(function(cb) { cb.addEventListener('change', pUpdateBar); });
+            var pClear = document.getElementById('procClearSelection');
+            if (pClear) pClear.addEventListener('click', function() { reviewBoxes.forEach(function(cb) { cb.checked = false; }); pUpdateBar(); });
+
+            var openBtn = document.getElementById('procProvideUpdateBtn');
+            if (openBtn && pModal) {
+                openBtn.addEventListener('click', function() {
+                    var checked = document.querySelectorAll('.review-checkbox:checked');
+                    if (!checked.length) return;
+                    var names = Array.prototype.map.call(checked, function(cb) { return cb.getAttribute('data-vendor'); });
+                    document.getElementById('procModalCount').textContent = checked.length;
+                    document.getElementById('procModalVendors').textContent = names.join(', ');
+                    document.getElementById('procUpdateText').value = '';
+                    document.getElementById('procNewStatus').value = '';
+                    document.getElementById('procModalMsg').textContent = '';
+                    pModal.style.display = 'flex';
+                });
+            }
+        }
+        if (pModal) {
+            // Modal stays open until the user explicitly closes it (no backdrop / Escape close).
+            function closeProc() { pModal.style.display = 'none'; if (reloadOnClose) window.location.reload(); }
+            var pmClose = document.getElementById('procModalClose');
+            var pmCancel = document.getElementById('procModalCancel');
+            if (pmClose) pmClose.addEventListener('click', closeProc);
+            if (pmCancel) pmCancel.addEventListener('click', closeProc);
+            var pmSubmit = document.getElementById('procModalSubmit');
+            if (pmSubmit) pmSubmit.addEventListener('click', function() {
+                var text = document.getElementById('procUpdateText').value.trim();
+                var msg = document.getElementById('procModalMsg');
+                if (!text) { msg.style.color = '#dc2626'; msg.textContent = 'Please enter an update.'; return; }
+                var checked = document.querySelectorAll('.review-checkbox:checked');
+                var ids = Array.prototype.map.call(checked, function(cb) { return parseInt(cb.value, 10); });
+                if (!ids.length) { msg.style.color = '#dc2626'; msg.textContent = 'No vendors selected.'; return; }
+                pmSubmit.disabled = true;
+                msg.style.color = '#6b7280'; msg.textContent = 'Saving...';
+                fetch('api/procurement-update-save.php', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ csrf_token: csrf, vendor_ids: ids, update_text: text, new_status: document.getElementById('procNewStatus').value })
+                }).then(function(r) { return r.json(); }).then(function(resp) {
+                    pmSubmit.disabled = false;
+                    if (resp.csrf_token) csrf = resp.csrf_token;
+                    if (!resp.success) { msg.style.color = '#dc2626'; msg.textContent = resp.error || 'Failed to save.'; return; }
+                    reloadOnClose = true;
+                    msg.style.color = '#166534';
+                    msg.textContent = 'Saved update for ' + (resp.updated || ids.length) + ' vendor(s). Close to refresh.';
+                }).catch(function() { pmSubmit.disabled = false; msg.style.color = '#dc2626'; msg.textContent = 'Network error.'; });
             });
         }
     })();

@@ -1618,7 +1618,7 @@ CREATE TABLE IF NOT EXISTS `vendor_onboarding_requests` (
   `last_srs_score_at` datetime DEFAULT NULL COMMENT 'Last SRS score fetch time',
   `current_shodan_score` int(11) DEFAULT NULL COMMENT 'Current Shodan security score (0-100)',
   `last_shodan_score_at` datetime DEFAULT NULL COMMENT 'Last Shodan score fetch time',
-  `status` enum('draft','submitted','in_review','approved','rejected','inactive','evaluation') DEFAULT 'draft',
+  `status` enum('draft','submitted','in_review','ai_review','approved','rejected','inactive','evaluation') DEFAULT 'draft',
   `status_notes` text DEFAULT NULL COMMENT 'Notes about status changes',
   `marked_inactive_at` datetime DEFAULT NULL COMMENT 'When marked as inactive',
   `marked_inactive_by` int(10) unsigned DEFAULT NULL COMMENT 'Who marked it inactive',
@@ -5700,6 +5700,52 @@ SET @sql = IF(
   'SELECT 1'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- =============================================================================
+-- Procurement Cyber Status feature: new "AI Review" onboarding status, per-vendor
+-- procurement update notes, and the procurement update email digest. Mirrors the
+-- breach-alert config/storage pattern (app_config rows + branding-aware template).
+-- =============================================================================
+
+-- Add 'ai_review' to the onboarding status enum. MODIFY COLUMN re-applies the
+-- full enum definition; guarded on COLUMN_TYPE so re-runs (and instances that
+-- already carry the value) are no-ops. Portable across MySQL and MariaDB.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests'
+     AND column_name = 'status' AND COLUMN_TYPE LIKE '%''ai_review''%') = 0,
+  'ALTER TABLE `vendor_onboarding_requests` MODIFY COLUMN `status` enum(''draft'',''submitted'',''in_review'',''ai_review'',''approved'',''rejected'',''inactive'',''evaluation'') DEFAULT ''draft''',
+  'SELECT 1'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Per-vendor procurement update notes (dated text shown in Cyber Status + digest).
+CREATE TABLE IF NOT EXISTS `vendor_procurement_updates` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `request_id` int(10) unsigned NOT NULL COMMENT 'FK to vendor_onboarding_requests',
+  `update_text` text NOT NULL,
+  `status_at_update` varchar(20) DEFAULT NULL COMMENT 'Onboarding status at the time the update was provided',
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_request_created` (`request_id`,`created_at`),
+  KEY `idx_created_by` (`created_by`),
+  CONSTRAINT `vendor_procurement_updates_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `vendor_onboarding_requests` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `vendor_procurement_updates_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Procurement digest configuration (comma-separated recipients, like breach alerts).
+-- INSERT IGNORE preserves any values an admin has already customised.
+INSERT IGNORE INTO `app_config` (`config_key`, `config_value`) VALUES
+  ('procurement_digest_enabled', '0'),
+  ('procurement_digest_recipients', ''),
+  ('procurement_digest_last_run', ''),
+  ('cron_procurement_digest_enabled', '1'),
+  ('cron_procurement_digest_schedule', '0 7 * * 1');
+
+-- Procurement update digest email template (branding-aware; seed only if missing).
+-- The generic-template de-duplication above keeps the {{system_title}} copy.
+INSERT IGNORE INTO email_templates (id, template_category, template_key, assessment_template_id, display_name, email_subject, email_body_html, email_body_text, available_variables, is_active) VALUES (25, 'procurement_digest', 'procurement_update_digest', NULL, 'Procurement Update Digest', 'Procurement Update Digest: {{vendor_count}} Vendor(s) In Review', '<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"></head>\n<body style=\"margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;\">\n    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #f4f4f4; padding: 20px;\">\n        <tr><td align=\"center\">\n            <table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);\">\n                <tr><td style=\"background-color: {{header_color}}; padding: 30px; text-align: center;\">{{logo_img}}<h1 style=\"margin: 10px 0 0 0; color: {{header_font_color}}; font-size: 20px;\">{{system_title}}</h1></td></tr>\n                <tr><td style=\"padding: 30px;\">\n                    <p style=\"margin: 0 0 10px 0; color: #333; font-size: 15px; line-height: 1.6;\">As of <strong>{{digest_date}}</strong>, <strong>{{vendor_count}}</strong> vendor(s) in Review / AI Review have procurement updates:</p>\n                    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; margin: 20px 0;\">\n                        <tr><td style=\"background:#f9fafb;padding:10px 15px;font-weight:bold;color:#374151;font-size:14px;border-bottom:1px solid #e5e7eb;\">Latest Updates</td></tr>\n                        {{update_rows_html}}\n                    </table>\n                    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin: 20px 0;\"><tr><td align=\"center\"><a href=\"{{app_url}}\" style=\"display: inline-block; padding: 15px 40px; background-color: {{button_color}}; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;\">View Cyber Status</a></td></tr></table>\n                </td></tr>\n                <tr><td style=\"background-color: {{footer_color}}; padding: 20px 30px;\"><p style=\"margin: 0; color: #ffffff; font-size: 12px;\">This is an automated notification from {{system_title}}. Please do not reply to this email.</p></td></tr>\n            </table>\n        </td></tr>\n    </table>\n</body>\n</html>', 'PROCUREMENT UPDATE DIGEST\n==========================================\n\nAs of {{digest_date}}, {{vendor_count}} vendor(s) in Review / AI Review have procurement updates:\n\n{{update_rows_text}}\nView Cyber Status: {{app_url}}\n\n==========================================\nThis is an automated notification from {{system_title}}. Please do not reply to this email.', '[\"vendor_count\",\"digest_date\",\"update_rows_html\",\"update_rows_text\",\"app_url\",\"header_color\",\"header_font_color\",\"button_color\",\"footer_color\",\"system_title\",\"logo_img\"]', 1);
 
 -- =============================================================================
 -- FairTPRM v2.6.1 schema and seed data complete

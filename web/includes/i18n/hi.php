@@ -38,6 +38,7 @@ return [
     'nav.vendor_onboarding'           => 'विक्रेता ऑनबोर्डिंग',
     'nav.vendor_reviews'              => 'विक्रेता समीक्षाएँ',
     'nav.contracts'                   => 'अनुबंध',
+    'nav.cyber_status'                => 'साइबर स्थिति',
     'nav.fair_analysis'               => 'FAIR विश्लेषण',
     'nav.srs_scoring'                 => 'SRS स्कोरिंग',
     'nav.fourth_party_risk'           => 'चतुर्थ पक्ष जोखिम',

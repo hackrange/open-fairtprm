@@ -645,7 +645,7 @@ $_isActive = function($page) use ($currentPage) {
     </details>
 
     <?php if ($isAdmin || $isProcurement || $isCyberTPRM || $isAuditor): ?>
-    <details class="sidebar-section"<?php echo $_isActive('contracts') ? ' open' : ''; ?>>
+    <details class="sidebar-section"<?php echo $_isActive(['contracts', 'cyber_status']) ? ' open' : ''; ?>>
         <summary class="sidebar-section-title"><?php echo e(t('nav.section.procurement')); ?></summary>
         <ul class="sidebar-nav">
             <li>
@@ -657,6 +657,14 @@ $_isActive = function($page) use ($currentPage) {
                     <?php endif; ?>
                 </a>
             </li>
+            <?php if ($isAdmin || $isProcurement || $isCyberTPRM): ?>
+            <li>
+                <a href="procurement-cyber-status.php"<?php echo $_isActive('cyber_status') ? ' class="active"' : ''; ?>>
+                    <span class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="18" height="18"></span>
+                    <span><?php echo e(t('nav.cyber_status')); ?></span>
+                </a>
+            </li>
+            <?php endif; ?>
         </ul>
     </details>
     <?php endif; ?>

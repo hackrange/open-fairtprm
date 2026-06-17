@@ -2044,4 +2044,92 @@ TEXT;
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
+
+    /**
+     * Send a digest email summarizing vendors currently in review (in_review +
+     * ai_review statuses) along with their latest procurement update.
+     * One email per recipient. Modeled on sendBreachAlertDigest().
+     *
+     * Each $vendors element = ['id','vendor_name','status','update_text','update_date'].
+     */
+    public function sendProcurementDigest(array $vendors, string $recipientEmail): array
+    {
+        if (!$this->isEnabled()) {
+            return ['success' => false, 'error' => 'Email is disabled.'];
+        }
+
+        if (empty($vendors)) {
+            return ['success' => false, 'error' => 'No vendor updates to send.'];
+        }
+
+        try {
+            $mail = $this->createMailer();
+            $mail->addAddress($recipientEmail);
+
+            $appUrl = rtrim(baseUrl('procurement-cyber-status.php'), '/');
+
+            // Status badge styling per onboarding status.
+            $statusBadges = [
+                'in_review' => ['label' => 'In Review', 'bg' => '#DBEAFE', 'text' => '#1E40AF'],
+                'ai_review' => ['label' => 'AI Review', 'bg' => '#EDE9FE', 'text' => '#5B21B6'],
+            ];
+
+            // Build individual update rows for HTML and text.
+            $updateRowsHtml = '';
+            $updateRowsText = '';
+            foreach ($vendors as $i => $vendor) {
+                $status = $vendor['status'] ?? '';
+                $badge = $statusBadges[$status] ?? ['label' => ucwords(str_replace('_', ' ', $status)), 'bg' => '#F3F4F6', 'text' => '#374151'];
+
+                $vendorName = htmlspecialchars($vendor['vendor_name'] ?? '', ENT_QUOTES, 'UTF-8');
+                $badgeLabel = htmlspecialchars($badge['label'], ENT_QUOTES, 'UTF-8');
+                $updateText = htmlspecialchars($vendor['update_text'] ?? '', ENT_QUOTES, 'UTF-8');
+                $updateDate = $vendor['update_date'] ?? '';
+                $dateDisplay = $updateDate ? date('M j, Y g:i A', strtotime($updateDate)) : '';
+                $dateDisplayHtml = htmlspecialchars($dateDisplay, ENT_QUOTES, 'UTF-8');
+
+                $updateRowsHtml .= '<tr>'
+                    . '<td style="padding:12px 15px;border-bottom:1px solid #e5e7eb;vertical-align:top;">'
+                    . '<div style="margin-bottom:4px;">'
+                    . '<strong style="color:#333;font-size:14px;">' . $vendorName . '</strong>'
+                    . '<span style="display:inline-block;background:' . $badge['bg'] . ';color:' . $badge['text'] . ';font-size:11px;padding:2px 8px;border-radius:3px;font-weight:600;margin-left:8px;">' . $badgeLabel . '</span>'
+                    . '</div>'
+                    . '<div style="color:#666;font-size:13px;margin-bottom:4px;">' . $dateDisplayHtml . '</div>'
+                    . '<div style="color:#4b5563;font-size:13px;line-height:1.5;">' . nl2br($updateText) . '</div>'
+                    . '</td></tr>';
+
+                $num = $i + 1;
+                $updateRowsText .= "{$num}. " . ($vendor['vendor_name'] ?? '') . " [" . $badge['label'] . "]\n"
+                    . "   Updated: {$dateDisplay}\n"
+                    . "   " . ($vendor['update_text'] ?? '') . "\n\n";
+            }
+
+            $vendorCount = count($vendors);
+            $vars = [
+                'vendor_count'     => (string)$vendorCount,
+                'digest_date'      => date('Y-m-d'),
+                'update_rows_html' => $updateRowsHtml,
+                'update_rows_text' => $updateRowsText,
+                'app_url'          => $appUrl,
+            ];
+
+            $dbTemplate = $this->getTemplateFromDb('procurement_digest', 'procurement_update_digest');
+            if ($dbTemplate) {
+                $mail->Subject = $this->renderWithBranding($dbTemplate['email_subject'], $vars);
+                $mail->Body    = $this->renderWithBranding($dbTemplate['email_body_html'], $vars);
+                $mail->AltBody = $this->renderWithBranding($dbTemplate['email_body_text'], $vars);
+            } else {
+                // Fallback if template not in DB
+                $mail->Subject = "Procurement Update Digest: {$vendorCount} Vendor(s) in Review";
+                $mail->Body    = '<h2>Procurement Update Digest</h2><p>' . $vendorCount . ' vendor(s) in review.</p><table>' . $updateRowsHtml . '</table><p><a href="' . htmlspecialchars($appUrl) . '">View Procurement Cyber Status</a></p>';
+                $mail->AltBody = "PROCUREMENT UPDATE DIGEST\n{$vendorCount} vendor(s) in review.\n\n{$updateRowsText}\nView: {$appUrl}";
+            }
+
+            $this->sendEmail($mail);
+            return ['success' => true];
+        } catch (Exception $e) {
+            error_log('Procurement digest email error: ' . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
 }

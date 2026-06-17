@@ -406,7 +406,7 @@ CREATE TABLE IF NOT EXISTS vendor_onboarding_requests (
     vendor_favicon_mime VARCHAR(50) DEFAULT NULL COMMENT 'MIME type of stored favicon',
 
     -- Status and Workflow
-    status ENUM('draft', 'submitted', 'in_review', 'approved', 'rejected', 'inactive', 'evaluation') DEFAULT 'draft',
+    status ENUM('draft', 'submitted', 'in_review', 'ai_review', 'approved', 'rejected', 'inactive', 'evaluation') DEFAULT 'draft',
     status_notes TEXT COMMENT 'Notes about status changes',
     marked_inactive_at DATETIME DEFAULT NULL COMMENT 'When marked as inactive',
     marked_inactive_by INT UNSIGNED DEFAULT NULL COMMENT 'Who marked it inactive',

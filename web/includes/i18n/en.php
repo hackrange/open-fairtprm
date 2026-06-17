@@ -42,6 +42,7 @@ return [
     'nav.vendor_onboarding'           => 'Vendor Onboarding',
     'nav.vendor_reviews'              => 'Vendor Reviews',
     'nav.contracts'                   => 'Contracts',
+    'nav.cyber_status'                => 'Cyber Status',
     'nav.fair_analysis'               => 'FAIR Analysis',
     'nav.srs_scoring'                 => 'SRS Scoring',
     'nav.fourth_party_risk'           => '4th Party Risk',

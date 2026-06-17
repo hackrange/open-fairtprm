@@ -38,6 +38,7 @@ return [
     'nav.vendor_onboarding'           => 'Підключення постачальників',
     'nav.vendor_reviews'              => 'Перевірки постачальників',
     'nav.contracts'                   => 'Контракти',
+    'nav.cyber_status'                => 'Кібербезпека',
     'nav.fair_analysis'               => 'Аналіз FAIR',
     'nav.srs_scoring'                 => 'Оцінка SRS',
     'nav.fourth_party_risk'           => 'Ризик четвертих сторін',

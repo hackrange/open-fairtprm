@@ -180,6 +180,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_breach_alert_set
     }
 }
 
+// ============================================================================
+// POST Handler: save_procurement_digest_settings
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_procurement_digest_settings'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request. Please try again.';
+    } else {
+        $digestEnabled = ($_POST['procurement_digest_enabled'] ?? '0') === '1' ? '1' : '0';
+        $digestRecipients = trim($_POST['procurement_digest_recipients'] ?? '');
+
+        $db->query("INSERT INTO app_config (config_key, config_value, description) VALUES ('procurement_digest_enabled', :v, 'Enable/disable the procurement update digest email') ON DUPLICATE KEY UPDATE config_value = :v2", [':v' => $digestEnabled, ':v2' => $digestEnabled]);
+        $db->query("INSERT INTO app_config (config_key, config_value, description) VALUES ('procurement_digest_recipients', :v, 'Comma-separated email addresses for the procurement update digest') ON DUPLICATE KEY UPDATE config_value = :v2", [':v' => $digestRecipients, ':v2' => $digestRecipients]);
+
+        $success = 'Procurement digest settings saved.';
+    }
+}
+
+// ============================================================================
+// POST Handler: send_procurement_digest_now
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_procurement_digest_now'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request. Please try again.';
+    } else {
+        // Canonical "vendors in review with their latest update" query.
+        $digestVendors = $db->fetchAll(
+            "SELECT r.id, r.vendor_name, r.status, u.update_text, u.created_at AS update_date
+             FROM vendor_onboarding_requests r
+             JOIN vendor_procurement_updates u
+               ON u.id = (SELECT u2.id FROM vendor_procurement_updates u2 WHERE u2.request_id = r.id ORDER BY u2.created_at DESC, u2.id DESC LIMIT 1)
+             WHERE r.status IN ('in_review','ai_review')
+             ORDER BY u.created_at DESC"
+        );
+
+        if (empty($digestVendors)) {
+            $error = 'No vendors in review with updates to send.';
+        } else {
+            $digestRecipientStr = getAppConfig('procurement_digest_recipients', '');
+            $digestRecipients = array_filter(array_map('trim', explode(',', $digestRecipientStr)));
+
+            if (empty($digestRecipients)) {
+                $error = 'No procurement digest recipients are configured.';
+            } else {
+                $emailService = new EmailService($db, new Encryption());
+                if (!$emailService->isEnabled()) {
+                    $error = 'Email is disabled. Enable it under Email Settings first.';
+                } else {
+                    $sentCount = 0;
+                    foreach ($digestRecipients as $digestEmail) {
+                        if (!filter_var($digestEmail, FILTER_VALIDATE_EMAIL)) continue;
+                        $result = $emailService->sendProcurementDigest($digestVendors, $digestEmail);
+                        if ($result['success'] ?? false) {
+                            $sentCount++;
+                        }
+                    }
+
+                    $db->query("INSERT INTO app_config (config_key, config_value, description) VALUES ('procurement_digest_last_run', :v, 'Last time the procurement update digest ran') ON DUPLICATE KEY UPDATE config_value = :v2", [':v' => date('Y-m-d H:i:s'), ':v2' => date('Y-m-d H:i:s')]);
+
+                    if ($sentCount > 0) {
+                        $success = 'Procurement digest sent to ' . $sentCount . ' recipient(s).';
+                    } else {
+                        $error = 'Procurement digest could not be sent to any recipient.';
+                    }
+                }
+            }
+        }
+    }
+}
+
 // POST Handler: update_email_template
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_email_template'])) {
@@ -426,7 +495,7 @@ try {
 $activeTab = 'settings';
 if (isset($_POST['save_breach_alert_settings'])) {
     $activeTab = 'breach_alert';
-} elseif (isset($_POST['update_procurement_settings'])) {
+} elseif (isset($_POST['update_procurement_settings']) || isset($_POST['save_procurement_digest_settings']) || isset($_POST['send_procurement_digest_now'])) {
     $activeTab = 'procurement';
 } elseif (isset($_POST['update_email_template']) || isset($_POST['reset_email_template'])) {
     // Figure out which tab the template belongs to
@@ -890,6 +959,50 @@ if (isset($_POST['save_breach_alert_settings'])) {
         </div>
 
         <button type="submit" name="update_procurement_settings" class="btn btn-primary"><?php echo e(t('admin_email.btn_save_notifications')); ?></button>
+    </form>
+</div>
+
+<!-- Procurement Update Digest Card -->
+<div class="card" style="margin-bottom: 20px;">
+    <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;">Procurement Update Digest</h3>
+    <p style="color: #666; font-size: 13px; margin: 0 0 20px;">
+        Emails a digest of vendors currently in review (In Review + AI Review) with their latest procurement update. Runs on the schedule configured in Admin &gt; Scheduler.
+    </p>
+
+    <?php
+    $digestEnabled = getAppConfig('procurement_digest_enabled', '0');
+    $digestRecipients = getAppConfig('procurement_digest_recipients', '');
+    $digestLastRun = getAppConfig('procurement_digest_last_run', '');
+    ?>
+
+    <form method="POST" action="admin.php?section=email">
+        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+
+        <div class="form-group">
+            <label>Enable Procurement Digest</label>
+            <select name="procurement_digest_enabled" class="form-control" style="max-width:200px;">
+                <option value="1" <?php echo $digestEnabled === '1' ? 'selected' : ''; ?>>Enabled</option>
+                <option value="0" <?php echo $digestEnabled !== '1' ? 'selected' : ''; ?>>Disabled</option>
+            </select>
+            <div class="form-help">When enabled, the scheduled digest email is sent to the recipients below.</div>
+        </div>
+
+        <div class="form-group">
+            <label>Digest Recipients</label>
+            <textarea name="procurement_digest_recipients" class="form-control" rows="4" placeholder="procurement@example.com, ciso@example.com" style="font-family: monospace; font-size: 13px;"><?php echo e($digestRecipients); ?></textarea>
+            <div class="form-help">Comma-separated list of email addresses to receive the digest.</div>
+        </div>
+
+        <?php if ($digestLastRun): ?>
+        <div style="background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px; font-size: 13px;">
+            <strong style="color: #3730a3;">Last Run:</strong> <span style="color: #4338ca;"><?php echo e($digestLastRun); ?></span>
+        </div>
+        <?php endif; ?>
+
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button type="submit" name="save_procurement_digest_settings" class="btn btn-primary">Save Settings</button>
+            <button type="submit" name="send_procurement_digest_now" class="btn btn-secondary">Send digest now</button>
+        </div>
     </form>
 </div>
 

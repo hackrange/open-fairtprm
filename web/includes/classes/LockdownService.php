@@ -69,6 +69,7 @@ class LockdownService
         '/fourth-party-risk.php',
         '/shadow-saas.php',
         '/procurement-contracts.php',
+        '/procurement-cyber-status.php',
         '/reports.php',
         '/download-pdf.php',
         '/admin-users-import.php',
@@ -104,6 +105,8 @@ class LockdownService
         '/api/template-section-reorder.php',
         '/api/template-section-save.php',
         '/api/vendor-document-delete.php',
+        '/api/procurement-update-save.php',
+        '/api/procurement-notes-list.php',
         '/api/vendor-document-download.php',
         '/api/vendor-document-edit.php',
         '/api/vendor-document-toggle-status.php',
@@ -1554,6 +1557,12 @@ SecRule REQUEST_BODY "@rx (?:;\s*(?:cat|ls|id|whoami|uname|curl|wget|nc|bash|sh)
 # rules 400025/400026.
 SecRule REQUEST_URI "@streq /admin.php" \
     "id:400024,phase:1,pass,nolog,ctl:ruleRemoveById=400026"
+
+# Rule 400027: Exempt the procurement update API from SSTI POST-body detection.
+# Procurement status-note free text may legitimately contain template-style
+# markers like {{ }} that would otherwise trigger rule 400026.
+SecRule REQUEST_URI "@streq /api/procurement-update-save.php" \
+    "id:400027,phase:1,pass,nolog,ctl:ruleRemoveById=400026"
 
 # Rule 400025: SSTI payloads in URI, query string, or POST body
 SecRule REQUEST_URI|QUERY_STRING "@rx [\$%]\{\{|#\{.*\}|\{\{.*\}\}|\{%.*%\}" \
