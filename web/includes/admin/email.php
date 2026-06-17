@@ -20,6 +20,43 @@
 require_once __DIR__ . '/../classes/EmailService.php';
 
 // ============================================================================
+// POST Handler: WAF quick toggle (convenience for the template editors)
+// ============================================================================
+// The template editor legitimately authors {{placeholder}} markers and HTML,
+// which a strict WAF can flag (HTTP 403 on save). This lets an admin disable and
+// re-enable the WAF without leaving the page. Mirrors the canonical controls in
+// admin.php?section=lockdown (disable_waf -> engine off, enable_waf -> enforcing).
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['waf_action'])) {
+    require_once __DIR__ . '/../classes/LockdownService.php';
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_email.invalid_request');
+    } else {
+        $wafToggle = new LockdownService($db);
+        if (!$wafToggle->isModSecurityAvailable()) {
+            $error = 'ModSecurity is not available. Cannot change WAF state.';
+        } elseif ($_POST['waf_action'] === 'disable_waf') {
+            if ($wafToggle->setMode('disabled')) {
+                $success = 'WAF disabled. You can edit and save templates now — remember to re-enable it when you are finished.';
+                $auth->audit($user['id'], 'waf_mode_change', 'app_config', null, [
+                    'new' => ['mode' => 'disabled', 'via' => 'email_templates'],
+                ]);
+            } else {
+                $error = 'Failed to disable the WAF. Check Apache/ModSecurity configuration.';
+            }
+        } elseif ($_POST['waf_action'] === 'enable_waf') {
+            if ($wafToggle->setMode('enforcing')) {
+                $success = 'WAF re-enabled (enforcing). Your site is protected again.';
+                $auth->audit($user['id'], 'waf_mode_change', 'app_config', null, [
+                    'new' => ['mode' => 'enforcing', 'via' => 'email_templates'],
+                ]);
+            } else {
+                $error = 'Failed to re-enable the WAF. Check Apache/ModSecurity configuration.';
+            }
+        }
+    }
+}
+
+// ============================================================================
 // POST Handler: update_email_settings
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_email_settings'])) {
@@ -506,7 +543,75 @@ if (isset($_POST['save_breach_alert_settings'])) {
             if ($postTpl) $activeTab = $postTpl['template_category'];
         } catch (Exception $e) {}
     }
+} elseif (isset($_POST['waf_action']) && isset($_POST['email_tab'])) {
+    // Stay on the template tab the admin toggled the WAF from.
+    $wafTabs = ['vendor', 'stakeholder', 'procurement', 'grc', 'breach_alert'];
+    if (in_array($_POST['email_tab'], $wafTabs, true)) {
+        $activeTab = $_POST['email_tab'];
+    }
 }
+
+// ============================================================================
+// WAF status + reusable convenience banner for the template editors
+// ============================================================================
+require_once __DIR__ . '/../classes/LockdownService.php';
+$wafService  = new LockdownService($db);
+$wafAvailable = false;
+$wafModeNow   = 'disabled';
+try {
+    $wafAvailable = $wafService->isModSecurityAvailable();
+    $wafModeNow   = $wafService->getStatus()['mode'] ?? 'disabled';
+} catch (Exception $e) {}
+$wafActive = ($wafModeNow !== 'disabled');
+
+// Renders the disable/enable WAF helper banner for a given template tab. Returns
+// '' when ModSecurity is not installed (nothing to toggle).
+$renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wafModeNow, $csrfToken) {
+    if (!$wafAvailable) {
+        return '';
+    }
+    ob_start();
+    ?>
+    <div class="card" style="border-left: 4px solid #f59e0b; background: #fffbeb; margin-bottom: 16px;">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between;">
+            <div style="flex: 1; min-width: 260px;">
+                <strong style="color: #92400e;">Having trouble saving this template?</strong>
+                <p style="margin: 6px 0 0; color: #78350f; font-size: 13px; line-height: 1.5;">
+                    If saving is blocked with a <em>403 / access denied</em> error, the Web Application
+                    Firewall (WAF) may be flagging template content such as
+                    <code style="background: #fde68a; padding: 1px 4px; border-radius: 3px;">{{placeholders}}</code>
+                    or HTML markup. Disable the WAF here, make your changes, then re-enable it once you are done.
+                </p>
+                <div style="margin-top: 8px; font-size: 12px; color: #78350f;">
+                    Current WAF status:
+                    <span style="font-weight: 600; padding: 1px 8px; border-radius: 10px; color: #fff; background: <?php echo $wafActive ? '#16a34a' : '#dc2626'; ?>;">
+                        <?php echo $wafActive ? 'Enabled (' . e($wafModeNow) . ')' : 'Disabled'; ?>
+                    </span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <form method="POST" action="admin.php?section=email" style="display: inline; margin: 0;">
+                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                    <input type="hidden" name="email_tab" value="<?php echo e($tabKey); ?>">
+                    <input type="hidden" name="waf_action" value="disable_waf">
+                    <button type="submit" class="btn btn-sm" data-confirm="Disable the WAF now? Remember to re-enable it after saving your template."
+                        style="background: #dc2626; color: #fff; padding: 8px 14px; white-space: nowrap; <?php echo $wafActive ? '' : 'opacity: 0.5; cursor: not-allowed;'; ?>"
+                        <?php echo $wafActive ? '' : 'disabled'; ?>>Disable WAF</button>
+                </form>
+                <form method="POST" action="admin.php?section=email" style="display: inline; margin: 0;">
+                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                    <input type="hidden" name="email_tab" value="<?php echo e($tabKey); ?>">
+                    <input type="hidden" name="waf_action" value="enable_waf">
+                    <button type="submit" class="btn btn-sm"
+                        style="background: #16a34a; color: #fff; padding: 8px 14px; white-space: nowrap; <?php echo $wafActive ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>"
+                        <?php echo $wafActive ? 'disabled' : ''; ?>>Enable WAF</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php
+    return ob_get_clean();
+};
 
 // ============================================================================
 // HTML
@@ -722,6 +827,7 @@ if (isset($_POST['save_breach_alert_settings'])) {
 <!-- VENDOR TAB -->
 <!-- ================================================================== -->
 <div id="emailSection_vendor" <?php echo $activeTab !== 'vendor' ? 'style="display: none;"' : ''; ?>>
+<?php echo $renderWafNotice('vendor'); ?>
 <div class="card">
     <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.vendor_templates_heading')); ?></h3>
     <p style="color: #666; font-size: 13px; margin: 0 0 20px;">
@@ -814,6 +920,7 @@ if (isset($_POST['save_breach_alert_settings'])) {
 <!-- STAKEHOLDER TAB -->
 <!-- ================================================================== -->
 <div id="emailSection_stakeholder" <?php echo $activeTab !== 'stakeholder' ? 'style="display: none;"' : ''; ?>>
+<?php echo $renderWafNotice('stakeholder'); ?>
 <div class="card">
     <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.stakeholder_templates_heading')); ?></h3>
     <p style="color: #666; font-size: 13px; margin: 0 0 20px;">
@@ -901,6 +1008,7 @@ if (isset($_POST['save_breach_alert_settings'])) {
 <!-- PROCUREMENT TAB -->
 <!-- ================================================================== -->
 <div id="emailSection_procurement" <?php echo $activeTab !== 'procurement' ? 'style="display: none;"' : ''; ?>>
+<?php echo $renderWafNotice('procurement'); ?>
 
 <!-- Notification Settings Card -->
 <div class="card" style="margin-bottom: 20px;">
@@ -1094,6 +1202,7 @@ if (isset($_POST['save_breach_alert_settings'])) {
 <!-- GRC TAB -->
 <!-- ================================================================== -->
 <div id="emailSection_grc" <?php echo $activeTab !== 'grc' ? 'style="display: none;"' : ''; ?>>
+<?php echo $renderWafNotice('grc'); ?>
 
 <!-- Email Templates Card -->
 <div class="card">
@@ -1183,6 +1292,7 @@ if (isset($_POST['save_breach_alert_settings'])) {
 <!-- BREACH/CYBER ALERTS TAB -->
 <!-- ================================================================== -->
 <div id="emailSection_breach_alert" <?php echo $activeTab !== 'breach_alert' ? 'style="display: none;"' : ''; ?>>
+<?php echo $renderWafNotice('breach_alert'); ?>
 
 <!-- Breach Alert Recipients -->
 <div class="card">
