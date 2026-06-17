@@ -15,6 +15,11 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - **Status Notes Pill**: A "Status Notes" pill next to each vendor name shows the update count and opens a read-only viewer of the 5 most recent notes (date, author, status, text). Visible to stakeholders for their own assigned vendors.
 - **Procurement Update Email Digest**: Configurable digest (Enable + Procurement Recipients) in Admin → Email Settings → Procurement, with a weekly cron (`cron/procurement-digest.php`) and a **Send digest now** button. Mirrors the breach/cyber alert recipient model.
 
+### Internationalization
+- **Full-App Multi-Language UI**: Complete interface localization across every page in 8 languages — English, Spanish, French, Italian, Portuguese, Ukrainian, Hindi, and Simplified Chinese — via a lightweight `t()` translation helper backed by per-language string catalogs (`includes/i18n/`).
+- **Per-User Language Preference**: Each user selects their interface language from their profile (`users.preferred_language`); administrators set the system default and the set of offered languages (`default_language`, `enabled_languages`).
+- **Assessment Content Translation**: Vendor assessment questionnaires use browser-native translation, backed by a cached machine-translation layer (`assessment_translations`) keyed by a SHA-256 source hash so cached strings invalidate automatically when the source text changes.
+
 ### Fixed
 - **Docker Image Manifest Compatibility**: The published image is now a single Docker schema-2 manifest (built with `--provenance=false --sbom=false`) instead of a BuildKit OCI image index. The in-app upgrader (`admin.php?section=version`) on deployed v2.5.x/v2.6.x containers can again resolve the tag instead of failing with *"Could not fetch manifest from registry"*.
 - **Default Email Template Duplication**: De-duplicate generic (branding-aware) email templates on upgraded instances where the NULL-distinct unique index allowed explicit-id `INSERT IGNORE` to seed a second copy.
