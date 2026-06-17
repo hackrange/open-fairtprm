@@ -213,7 +213,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($statements as $stmt) {
                 if (empty($stmt)) continue;
                 try {
-                    $pdo->exec($stmt);
+                    // Use query() and fully drain any result set rather than
+                    // exec(). Idempotency guards in migration files run a no-op
+                    // branch via PREPARE/EXECUTE; if that branch (or any other
+                    // statement) returns rows, exec() leaves them unbuffered on
+                    // the connection and the very next statement fails with
+                    // MySQL errno 2014 ("Cannot execute queries while other
+                    // unbuffered queries are active"). Draining the cursor keeps
+                    // the connection clean for the next statement.
+                    $result = $pdo->query($stmt);
+                    if ($result instanceof PDOStatement) {
+                        do {
+                            $result->fetchAll(PDO::FETCH_NUM);
+                        } while ($result->nextRowset());
+                        $result->closeCursor();
+                    }
                 } catch (PDOException $stmtEx) {
                     $errCode = isset($stmtEx->errorInfo[1]) ? (int)$stmtEx->errorInfo[1] : 0;
                     // Ignorable errors for idempotent migrations:

@@ -5300,7 +5300,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'grc_frameworks' AND column_name = 'compliance_year') = 0,
   'ALTER TABLE `grc_frameworks` ADD COLUMN `compliance_year` SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER `is_active`',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5309,7 +5309,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.statistics
    WHERE table_schema = DATABASE() AND table_name = 'grc_frameworks' AND index_name = 'idx_year') = 0,
   'ALTER TABLE `grc_frameworks` ADD INDEX `idx_year` (`compliance_year`)',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5318,7 +5318,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'grc_frameworks' AND column_name = 'generated_from') = 0,
   'ALTER TABLE `grc_frameworks` ADD COLUMN `generated_from` VARCHAR(50) DEFAULT NULL',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5327,7 +5327,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND column_name = 'investigating_by') = 0,
   'ALTER TABLE `cyber_breach_alerts` ADD COLUMN `investigating_by` INT UNSIGNED DEFAULT NULL AFTER `resolved_at`',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5336,7 +5336,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND column_name = 'investigating_at') = 0,
   'ALTER TABLE `cyber_breach_alerts` ADD COLUMN `investigating_at` DATETIME DEFAULT NULL AFTER `investigating_by`',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5356,7 +5356,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND column_name = 'cost_center') = 0,
   'ALTER TABLE `vendor_onboarding_requests` ADD COLUMN `cost_center` INT(10) UNSIGNED DEFAULT NULL COMMENT ''Accounting cost center (integer)'' AFTER `target_user_count`',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5365,7 +5365,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND column_name = 'project') = 0,
   'ALTER TABLE `vendor_onboarding_requests` ADD COLUMN `project` VARCHAR(255) DEFAULT NULL COMMENT ''Project name / identifier'' AFTER `cost_center`',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5374,7 +5374,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.statistics
    WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND index_name = 'idx_project') = 0,
   'ALTER TABLE `vendor_onboarding_requests` ADD INDEX `idx_project` (`project`)',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5382,7 +5382,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.statistics
    WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND index_name = 'idx_cost_center') = 0,
   'ALTER TABLE `vendor_onboarding_requests` ADD INDEX `idx_cost_center` (`cost_center`)',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5401,7 +5401,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'grc_risk_register' AND column_name = 'vendor_id') = 0,
   'ALTER TABLE `grc_risk_register` ADD COLUMN `vendor_id` INT(10) UNSIGNED DEFAULT NULL COMMENT ''vendor_onboarding_requests.id this risk is associated with'' AFTER `created_by`',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5409,7 +5409,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.statistics
    WHERE table_schema = DATABASE() AND table_name = 'grc_risk_register' AND index_name = 'idx_vendor_id') = 0,
   'ALTER TABLE `grc_risk_register` ADD INDEX `idx_vendor_id` (`vendor_id`)',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5555,7 +5555,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_id') = 0,
   'ALTER TABLE `shadow_saas` ADD COLUMN `grip_id` VARCHAR(64) DEFAULT NULL COMMENT ''Grip Security UUID for matching upserts''',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5563,7 +5563,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.statistics
    WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND index_name = 'idx_grip_id') = 0,
   'ALTER TABLE `shadow_saas` ADD INDEX `idx_grip_id` (`grip_id`)',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5571,7 +5571,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'source') = 0,
   'ALTER TABLE `shadow_saas` ADD COLUMN `source` VARCHAR(20) DEFAULT ''csv'' COMMENT ''Origin of this row: csv | grip | manual''',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5582,7 +5582,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'is_zscaler_blocked') = 0,
   'ALTER TABLE `shadow_saas` ADD COLUMN `is_zscaler_blocked` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''1 = domain currently in Zscaler URL Category''',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5590,7 +5590,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'zscaler_blocked_at') = 0,
   'ALTER TABLE `shadow_saas` ADD COLUMN `zscaler_blocked_at` DATETIME DEFAULT NULL COMMENT ''When the domain was last added to Zscaler URL Category''',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5620,7 +5620,7 @@ SET @sql = IF(
    WHERE table_schema = DATABASE() AND table_name = 'shadow_saas'
      AND column_name = 'status' AND column_type LIKE '%unsanctioned%') = 0,
   'ALTER TABLE `shadow_saas` MODIFY COLUMN `status` ENUM(''pending'',''onboarded'',''dismissed'',''unsanctioned'') DEFAULT ''pending''',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5639,7 +5639,7 @@ SET @idx_exists := (
 );
 SET @sql := IF(@idx_exists = 0,
     'CREATE INDEX idx_audit_ip_created ON audit_log (ip_address, created_at)',
-    'SELECT 1');
+    'DO 0');
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- =============================================================================
@@ -5655,7 +5655,7 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'preferred_language') = 0,
   'ALTER TABLE `users` ADD COLUMN `preferred_language` VARCHAR(10) DEFAULT NULL COMMENT ''User UI language code (e.g. en, es, zh-Hans); NULL = use system default''',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5697,7 +5697,7 @@ SET @sql = IF(
      ADD COLUMN `submitter_ip_address` VARCHAR(45) DEFAULT NULL,
      ADD COLUMN `submitter_attested` TINYINT(1) DEFAULT 0,
      ADD COLUMN `attested_at` DATETIME DEFAULT NULL',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
@@ -5715,7 +5715,7 @@ SET @sql = IF(
    WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests'
      AND column_name = 'status' AND COLUMN_TYPE LIKE '%''ai_review''%') = 0,
   'ALTER TABLE `vendor_onboarding_requests` MODIFY COLUMN `status` enum(''draft'',''submitted'',''in_review'',''ai_review'',''approved'',''rejected'',''inactive'',''evaluation'') DEFAULT ''draft''',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
