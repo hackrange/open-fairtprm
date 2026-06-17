@@ -20,7 +20,21 @@
 // ============================================================================
 // Job Definitions
 // ============================================================================
+// NOTE: This list MUST stay in sync with cron/sync-crontab.php — same keys,
+// scripts, default schedules, and timeout values. sync-crontab.php is the
+// canonical generator run at container start; this array drives the admin UI
+// and regenerateCrontab() below. If they diverge, jobs missing here silently
+// vanish from the UI and get dropped from the crontab the next time an admin
+// clicks "Save Schedules".
 $cronJobs = [
+    'ai_queue' => [
+        'name'            => 'AI Job Queue',
+        'description'     => "Processes queued AI tasks so long-running AI calls don't block web workers",
+        'script'          => 'ai-queue.php',
+        'log'             => '/var/log/php/cron-ai-queue.log',
+        'default_schedule' => '* * * * *',
+        'history_key'     => 'ai-queue',
+    ],
     'rescore_queue' => [
         'name'            => 'Rescore Queue',
         'description'     => 'Processes the UpGuard SRS rescore queue',
@@ -28,6 +42,15 @@ $cronJobs = [
         'log'             => '/var/log/php/cron-rescore-queue.log',
         'default_schedule' => '* * * * *',
         'history_key'     => 'rescore-queue',
+    ],
+    'breach_scan_queue' => [
+        'name'            => 'Breach Scan Queue',
+        'description'     => 'Processes on-demand breach scan requests from the "Run Scan Now" button',
+        'script'          => 'breach-scan-queue.php',
+        'log'             => '/var/log/php/cron-breach-scan-queue.log',
+        'default_schedule' => '* * * * *',
+        'timeout'         => 1800,
+        'history_key'     => 'breach-scan-queue',
     ],
     'srs_rescore' => [
         'name'            => 'SRS Rescoring',
@@ -77,12 +100,48 @@ $cronJobs = [
         'default_schedule' => '*/5 * * * *',
         'history_key'     => 'grc-continuous-monitors',
     ],
+    'grc_task_digest' => [
+        'name'            => 'GRC Task Digest',
+        'description'     => 'Emails each assignee a consolidated digest of their open GRC tasks',
+        'script'          => 'grc-task-digest.php',
+        'log'             => '/var/log/php/cron-grc-task-digest.log',
+        'default_schedule' => '0 6 * * *',
+        'history_key'     => 'grc-task-digest',
+    ],
+    'breach_monitor' => [
+        'name'            => 'Breach / Cyber Alert Monitor',
+        'description'     => 'Researches credible breaches and vulnerabilities affecting monitored vendors',
+        'script'          => 'breach-monitor.php',
+        'log'             => '/var/log/php/cron-breach-monitor.log',
+        'default_schedule' => '0 7 * * *',
+        'timeout'         => 1800,
+        'history_key'     => 'breach-monitor',
+    ],
+    'osint_company' => [
+        'name'            => 'OSINT Company Scanner',
+        'description'     => 'Scans GitHub for exposed credentials tied to your own organization domains',
+        'script'          => 'osint-company.php',
+        'log'             => '/var/log/php/cron-osint-company.log',
+        'default_schedule' => '0 8 * * *',
+        'timeout'         => 600,
+        'history_key'     => 'osint-company',
+    ],
+    'osint_vendors' => [
+        'name'            => 'OSINT Vendor Scanner',
+        'description'     => 'Weekly GitHub scan for exposed credentials across all monitored vendor domains',
+        'script'          => 'osint-vendors.php',
+        'log'             => '/var/log/php/cron-osint-vendors.log',
+        'default_schedule' => '0 2 * * 0',
+        'timeout'         => 7200,
+        'history_key'     => 'osint-vendors',
+    ],
     'procurement_digest' => [
         'name'            => 'Procurement Update Digest',
         'description'     => 'Emails a weekly digest of vendors in review with their latest procurement update',
         'script'          => 'procurement-digest.php',
         'log'             => '/var/log/php/cron-procurement-digest.log',
         'default_schedule' => '0 7 * * 1',
+        'timeout'         => 600,
         'history_key'     => 'procurement-digest',
     ],
 ];
@@ -121,12 +180,25 @@ function regenerateCrontab(Database $db, array $cronJobs): bool
             continue;
         }
 
-        $lines[] = sprintf(
-            '%s www-data /usr/bin/php /var/www/html/cron/%s >> %s 2>&1',
-            $schedule,
-            $job['script'],
-            $job['log']
-        );
+        // Long-running jobs are wrapped in `timeout` so a hung run can't pile
+        // up. Keep this in lockstep with cron/sync-crontab.php.
+        $timeout = (int)($job['timeout'] ?? 0);
+        if ($timeout > 0) {
+            $lines[] = sprintf(
+                '%s www-data /usr/bin/timeout --signal=TERM --kill-after=30 %d /usr/bin/php /var/www/html/cron/%s >> %s 2>&1',
+                $schedule,
+                $timeout,
+                $job['script'],
+                $job['log']
+            );
+        } else {
+            $lines[] = sprintf(
+                '%s www-data /usr/bin/php /var/www/html/cron/%s >> %s 2>&1',
+                $schedule,
+                $job['script'],
+                $job['log']
+            );
+        }
     }
 
     // Cron requires a trailing newline
