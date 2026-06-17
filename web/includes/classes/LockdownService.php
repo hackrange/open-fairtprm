@@ -1551,17 +1551,34 @@ SecRule REQUEST_BODY "@rx (?:;\s*(?:cat|ls|id|whoami|uname|curl|wget|nc|bash|sh)
 
 # ── SECTION 4: Template Injection / SSTI ──────────────────────────────────
 
-# Rule 400024: Exempt admin email template editor from SSTI detection.
-# The email template system legitimately uses {{variable}} placeholders
-# (e.g. {{vendor_name}}, {{assessment_url}}) that would otherwise trigger
-# rules 400025/400026.
-SecRule REQUEST_URI "@streq /admin.php" \
-    "id:400024,phase:1,pass,nolog,ctl:ruleRemoveById=400026"
+# Rule 400024: Exempt the admin panel from the POST-body SSTI and XSS content
+# rules. /admin.php is authenticated and CSRF-protected, and the email template
+# editor (admin.php?section=email) legitimately authors HTML email bodies that
+# contain {{placeholder}} markers (e.g. {{vendor_name}}, {{assessment_url}} — the
+# SSTI signature, rule 400026) and arbitrary HTML markup / event-handler
+# attributes (the XSS signature, rule 400031). Unauthenticated requests never
+# reach an admin POST handler (they are redirected to login), so these body rules
+# only ever gate trusted admin input here.
+#
+# Two correctness notes — do not "tighten" this back into either broken form:
+#  1. Matched via REQUEST_FILENAME, NOT REQUEST_URI. REQUEST_URI includes the
+#     query string (e.g. ?section=email), so "@streq /admin.php" against
+#     REQUEST_URI never matches a real admin request and the exemption silently
+#     fails. This was the original bug behind the email-template-save 403.
+#     REQUEST_FILENAME holds the path only — the same convention rule 400041 uses.
+#  2. ctl:ruleRemoveById CANNOT be scoped with a chain (e.g. to section=email).
+#     A ctl action on a chain starter executes the moment the starter matches,
+#     before the chained conditions are evaluated, so the removal applies to all
+#     of /admin.php regardless of any chained ARGS:section test. The exemption is
+#     therefore panel-wide by necessity, which also matches the original intent.
+SecRule REQUEST_FILENAME "@streq /admin.php" \
+    "id:400024,phase:1,pass,nolog,ctl:ruleRemoveById=400026,ctl:ruleRemoveById=400031"
 
 # Rule 400027: Exempt the procurement update API from SSTI POST-body detection.
 # Procurement status-note free text may legitimately contain template-style
-# markers like {{ }} that would otherwise trigger rule 400026.
-SecRule REQUEST_URI "@streq /api/procurement-update-save.php" \
+# markers like {{ }} that would otherwise trigger rule 400026. Uses
+# REQUEST_FILENAME so a future query string cannot defeat the comparison.
+SecRule REQUEST_FILENAME "@streq /api/procurement-update-save.php" \
     "id:400027,phase:1,pass,nolog,ctl:ruleRemoveById=400026"
 
 # Rule 400025: SSTI payloads in URI, query string, or POST body
