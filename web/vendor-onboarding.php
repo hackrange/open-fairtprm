@@ -1518,6 +1518,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                     $val = trim($_POST[$field]);
                     $label = $fieldLabels[$field] ?? $field;
 
+                    // Strip scheme/path from a pasted URL so we store just the domain
+                    if ($field === 'vendor_domain') {
+                        $val = normalizeVendorDomain($val);
+                    }
+
                     // Validate numeric fields
                     if (in_array($field, $numericFields)) {
                         if ($val === '') {

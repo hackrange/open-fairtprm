@@ -373,6 +373,25 @@ function e($string) {
 }
 
 /**
+ * Normalize a vendor domain entry to a bare host.
+ *
+ * People paste full URLs ("https://domain.com", "http://domain.com/path") when
+ * all we want is the domain. Strip the scheme and anything from the first
+ * path/query/fragment separator onward, then trim stray dots/whitespace.
+ *
+ * Deliberately conservative: it does NOT strip "www." and does NOT blank out
+ * values that don't look like a domain, so unusual-but-valid hosts survive.
+ * Returns the cleaned string ('' stays '').
+ */
+function normalizeVendorDomain($input) {
+    $s = trim((string)$input);
+    if ($s === '') return '';
+    $s = preg_replace('#^\s*https?://#i', '', $s);   // drop http:// or https://
+    $s = preg_replace('#[/?\#].*$#', '', $s);        // drop path/query/fragment
+    return trim($s, ". \t\n\r\0\x0B");
+}
+
+/**
  * The canonical set of languages the application ships translations for.
  * Maps language code => human-readable label (autonym + English name).
  * English is the hard fallback and is always available; it cannot be disabled.

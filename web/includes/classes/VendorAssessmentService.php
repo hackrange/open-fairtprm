@@ -1136,6 +1136,10 @@ class VendorAssessmentService {
                     $value = intval($value);
                 } elseif (in_array($field, $decimalFields, true)) {
                     $value = floatval($value);
+                } elseif ($field === 'vendor_domain') {
+                    // Store just the domain even if the vendor pasted a full URL
+                    $value = normalizeVendorDomain($value);
+                    if ($value === '') continue;
                 } else {
                     $value = trim($value);
                 }
@@ -1249,6 +1253,9 @@ class VendorAssessmentService {
                 $normalized = intval($value);
             } elseif (in_array($field, $decimalFields, true)) {
                 $normalized = floatval($value);
+            } elseif ($field === 'vendor_domain') {
+                // Store just the domain even if the vendor pasted a full URL
+                $normalized = normalizeVendorDomain($value);
             } else {
                 $normalized = trim($value);
             }
