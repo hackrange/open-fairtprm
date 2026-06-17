@@ -15,6 +15,7 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - **Status Notes Pill**: A "Status Notes" pill next to each vendor name shows the update count and opens a read-only viewer of the 5 most recent notes (date, author, status, text). Visible to stakeholders for their own assigned vendors.
 - **Procurement Update Email Digest**: Configurable digest (Enable + Procurement Recipients) in Admin → Email Settings → Procurement, with a weekly cron (`cron/procurement-digest.php`) and a **Send digest now** button. Mirrors the breach/cyber alert recipient model.
 - **Assessment Pre-Fill from Prior Answers**: When a vendor receives a new assessment, it is automatically pre-populated with the responses from their most recent prior assessment, so vendors only update what has changed instead of re-answering from scratch.
+- **Inline WAF Disable/Enable on Email Templates**: Each email template tab (Vendor, Stakeholder, Procurement, GRC, Breach/Cyber Alerts) now shows a helper banner with the current WAF status and one-click **Disable WAF** / **Enable WAF** buttons (CSRF-protected and audited) — an escape hatch if a WAF content rule ever blocks a template save.
 
 ### Internationalization
 - **Full-App Multi-Language UI**: Complete interface localization across every page in 8 languages — English, Spanish, French, Italian, Portuguese, Ukrainian, Hindi, and Simplified Chinese — via a lightweight `t()` translation helper backed by per-language string catalogs (`includes/i18n/`).
@@ -24,6 +25,7 @@ project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 - **Docker Image Manifest Compatibility**: The published image is now a single Docker schema-2 manifest (built with `--provenance=false --sbom=false`) instead of a BuildKit OCI image index. The in-app upgrader (`admin.php?section=version`) on deployed v2.5.x/v2.6.x containers can again resolve the tag instead of failing with *"Could not fetch manifest from registry"*.
 - **Default Email Template Duplication**: De-duplicate generic (branding-aware) email templates on upgraded instances where the NULL-distinct unique index allowed explicit-id `INSERT IGNORE` to seed a second copy.
+- **Email Template Save Blocked by WAF (403)**: Saving an email template (`admin.php?section=email`) was denied by the ModSecurity SSTI rule (`400026`) because it matched the `{{placeholder}}` markers in the body. The admin exemption never fired — it tested `REQUEST_URI`, which includes the `?section=email` query string, so `@streq /admin.php` never matched. The exemption now matches `REQUEST_FILENAME` (path only) and also covers the XSS POST-body rule (`400031`), so HTML/`{{placeholder}}` template content saves correctly; SQLi/RCE body detection remains active. The scanner config regenerates from source on container start, so the fix applies on restart.
 
 ### Security
 - **WAF Whitelisting**: New page and API endpoints (`procurement-cyber-status.php`, `api/procurement-update-save.php`, `api/procurement-notes-list.php`) added to the positive-security allowlist, with a targeted SSTI-rule exemption for the free-text procurement update field.
