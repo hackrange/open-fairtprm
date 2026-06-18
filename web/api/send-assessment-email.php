@@ -77,9 +77,11 @@ $assessmentUrl = baseUrl("vendor-assessment.php?token={$uuid}");
 $db = Database::getInstance();
 $assessment = $db->fetchOne(
     "SELECT va.id as assessment_id, va.vendor_contact_name, va.template_id, va.vendor_request_id, va.expires_at,
-            vor.primary_contact_details as full_name
+            vor.primary_contact_details as full_name,
+            at.name as assessment_name
      FROM vendor_assessments va
      LEFT JOIN vendor_onboarding_requests vor ON va.vendor_request_id = vor.id
+     LEFT JOIN assessment_templates at ON va.template_id = at.id
      WHERE va.uuid = ?",
     [$uuid]
 );
@@ -87,6 +89,7 @@ $contactName = !empty($assessment['vendor_contact_name']) ? $assessment['vendor_
 $templateId = !empty($assessment['template_id']) ? (int)$assessment['template_id'] : null;
 $fullName = !empty($assessment['full_name']) ? $assessment['full_name'] : null;
 $expiresAt = !empty($assessment['expires_at']) ? $assessment['expires_at'] : null;
+$assessmentName = !empty($assessment['assessment_name']) ? $assessment['assessment_name'] : null;
 
 try {
     require_once __DIR__ . '/../includes/classes/EmailService.php';
@@ -98,7 +101,7 @@ try {
         exit;
     }
 
-    $result = $emailService->sendAssessmentEmail($vendorEmail, $vendorName, $assessmentUrl, $contactName, $templateId, $fullName, $expiresAt);
+    $result = $emailService->sendAssessmentEmail($vendorEmail, $vendorName, $assessmentUrl, $contactName, $templateId, $fullName, $expiresAt, $assessmentName);
 
     if (!empty($result['success'])) {
         $user = $auth->getUser();

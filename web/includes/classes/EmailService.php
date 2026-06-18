@@ -400,7 +400,7 @@ class EmailService {
         $defaults = [
             'vendor' => [
                 'assessment_request' => [
-                    'subject' => 'Security Assessment Request - {{vendor_name}}',
+                    'subject' => 'Security Assessment Request{{#assessment_name}} ({{assessment_name}}){{/assessment_name}} - {{vendor_name}}',
                     'html' => '<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -459,7 +459,7 @@ Thank you,
 Third Party Risk Management Team',
                 ],
                 'assessment_7_days_before' => [
-                    'subject' => 'Reminder: Assessment Due in 7 Days - {{vendor_name}}',
+                    'subject' => 'Reminder: Assessment Due in 7 Days{{#assessment_name}} ({{assessment_name}}){{/assessment_name}} - {{vendor_name}}',
                     'html' => '<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -496,7 +496,7 @@ Please click the link below to complete the assessment before it expires:
 This is an automated reminder from {{system_title}}. Please do not reply to this email.',
                 ],
                 'assessment_3_days_before' => [
-                    'subject' => 'Urgent: Assessment Due in 3 Days - {{vendor_name}}',
+                    'subject' => 'Urgent: Assessment Due in 3 Days{{#assessment_name}} ({{assessment_name}}){{/assessment_name}} - {{vendor_name}}',
                     'html' => '<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -533,7 +533,7 @@ Please complete it as soon as possible to avoid expiration:
 This is an automated reminder from {{system_title}}. Please do not reply to this email.',
                 ],
                 'assessment_expiry_day' => [
-                    'subject' => 'FINAL NOTICE: Assessment Expires Today - {{vendor_name}}',
+                    'subject' => 'FINAL NOTICE: Assessment Expires Today{{#assessment_name}} ({{assessment_name}}){{/assessment_name}} - {{vendor_name}}',
                     'html' => '<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -883,10 +883,10 @@ View your tasks: {{assessment_url}}',
         try {
             // Define the templates to seed: [category, key, display_name, available_variables]
             $templates = [
-                ['vendor', 'assessment_request', 'Assessment Request (Default)', '["vendor_name","assessment_url","greeting","contact_name","full_name","from_name","company_name","expires_at","header_color","button_color","footer_color","system_title","logo_img"]'],
-                ['vendor', 'assessment_7_days_before', 'Assessment Reminder - 7 Days', '["vendor_name","assessment_url","greeting","contact_name","expires_at","days_left","from_name","header_color","button_color","footer_color","system_title","logo_img"]'],
-                ['vendor', 'assessment_3_days_before', 'Assessment Reminder - 3 Days', '["vendor_name","assessment_url","greeting","contact_name","expires_at","days_left","from_name","header_color","button_color","footer_color","system_title","logo_img"]'],
-                ['vendor', 'assessment_expiry_day', 'Assessment Reminder - Expiry Day', '["vendor_name","assessment_url","greeting","contact_name","expires_at","days_left","from_name","header_color","button_color","footer_color","system_title","logo_img"]'],
+                ['vendor', 'assessment_request', 'Assessment Request (Default)', '["vendor_name","assessment_name","assessment_url","greeting","contact_name","full_name","from_name","company_name","expires_at","header_color","button_color","footer_color","system_title","logo_img"]'],
+                ['vendor', 'assessment_7_days_before', 'Assessment Reminder - 7 Days', '["vendor_name","assessment_name","assessment_url","greeting","contact_name","expires_at","days_left","from_name","header_color","button_color","footer_color","system_title","logo_img"]'],
+                ['vendor', 'assessment_3_days_before', 'Assessment Reminder - 3 Days', '["vendor_name","assessment_name","assessment_url","greeting","contact_name","expires_at","days_left","from_name","header_color","button_color","footer_color","system_title","logo_img"]'],
+                ['vendor', 'assessment_expiry_day', 'Assessment Reminder - Expiry Day', '["vendor_name","assessment_name","assessment_url","greeting","contact_name","expires_at","days_left","from_name","header_color","button_color","footer_color","system_title","logo_img"]'],
                 ['stakeholder', '30_days_before', 'Annual Review - 30 Day Reminder', '["vendor_name","review_url","due_date","from_name","company_name","header_color","button_color","footer_color","system_title","logo_img"]'],
                 ['stakeholder', 'due_date', 'Annual Review - Due Today', '["vendor_name","review_url","due_date","from_name","company_name","header_color","button_color","footer_color","system_title","logo_img"]'],
                 ['stakeholder', 'overdue', 'Annual Review - Overdue Notice', '["vendor_name","review_url","due_date","days_overdue","from_name","company_name","header_color","button_color","footer_color","system_title","logo_img"]'],
@@ -1163,7 +1163,7 @@ HTML;
      * @param string|null $contactName Optional contact person name
      * @return array ['success' => bool, 'message' => string]
      */
-    public function sendAssessmentEmail(string $vendorEmail, string $vendorName, string $assessmentUrl, ?string $contactName = null, ?int $assessmentTemplateId = null, ?string $fullName = null, ?string $expiresAt = null): array
+    public function sendAssessmentEmail(string $vendorEmail, string $vendorName, string $assessmentUrl, ?string $contactName = null, ?int $assessmentTemplateId = null, ?string $fullName = null, ?string $expiresAt = null, ?string $assessmentName = null): array
     {
         if (!$this->enabled) {
             return ['success' => false, 'message' => 'Email notifications are disabled.'];
@@ -1183,6 +1183,23 @@ HTML;
 
             // Try DB template first, fall back to hardcoded
             $dbTemplate = $this->getTemplateFromDb('vendor', 'assessment_request', $assessmentTemplateId);
+            // Resolve the assessment (template) name for the subject/body. Callers may
+            // pass it explicitly; otherwise look it up from the assessment template id
+            // so every send path gets it without threading the value through.
+            if (($assessmentName === null || $assessmentName === '') && $assessmentTemplateId !== null) {
+                try {
+                    $tplRow = $this->db->fetchOne(
+                        "SELECT name FROM assessment_templates WHERE id = ?",
+                        [(int)$assessmentTemplateId]
+                    );
+                    if ($tplRow && !empty($tplRow['name'])) {
+                        $assessmentName = $tplRow['name'];
+                    }
+                } catch (Exception $e) {
+                    // Non-fatal: subject simply omits the assessment name.
+                }
+            }
+
             if ($dbTemplate) {
                 $companyName = '';
                 try { $companyName = getAppConfig('company_name', ''); } catch (Exception $e) {}
@@ -1196,6 +1213,7 @@ HTML;
                     'from_name' => htmlspecialchars($this->config['email_from_name'] ?? 'TPRM System', ENT_QUOTES, 'UTF-8'),
                     'company_name' => htmlspecialchars($companyName, ENT_QUOTES, 'UTF-8'),
                     'expires_at' => htmlspecialchars($formattedExpiry, ENT_QUOTES, 'UTF-8'),
+                    'assessment_name' => htmlspecialchars($assessmentName ?? '', ENT_QUOTES, 'UTF-8'),
                 ];
                 $mail->Subject = $this->renderWithBranding($dbTemplate['email_subject'], $vars);
                 $mail->Body = $this->renderWithBranding($dbTemplate['email_body_html'], $vars);
@@ -1207,7 +1225,8 @@ HTML;
 
             // Hardcoded fallback (used if email_templates table doesn't exist yet)
             $formattedExpiryFallback = $expiresAt ? date('F j, Y', strtotime($expiresAt)) : date('F j, Y', strtotime('+30 days'));
-            $mail->Subject = "Security Assessment Request - {$vendorName}";
+            $namePart = !empty($assessmentName) ? " ({$assessmentName})" : '';
+            $mail->Subject = "Security Assessment Request{$namePart} - {$vendorName}";
 
             $mail->Body = <<<HTML
 <!DOCTYPE html>
@@ -1536,6 +1555,23 @@ TEXT;
             $templateKey = 'assessment_' . $reminderType;
             $dbTemplate = $this->getTemplateFromDb('vendor', $templateKey);
 
+            // Resolve the assessment (template) name so it can appear in the subject/body.
+            // Prefer a value already on the row; otherwise look it up from the template id.
+            $assessmentName = $assessment['assessment_name'] ?? '';
+            if ($assessmentName === '' && !empty($assessment['template_id'])) {
+                try {
+                    $tplRow = $this->db->fetchOne(
+                        "SELECT name FROM assessment_templates WHERE id = ?",
+                        [(int)$assessment['template_id']]
+                    );
+                    if ($tplRow && !empty($tplRow['name'])) {
+                        $assessmentName = $tplRow['name'];
+                    }
+                } catch (Exception $e) {
+                    // Non-fatal: subject simply omits the assessment name.
+                }
+            }
+
             $vars = [
                 'vendor_name' => $vendorName,
                 'assessment_url' => htmlspecialchars($assessmentUrl, ENT_QUOTES, 'UTF-8'),
@@ -1544,6 +1580,7 @@ TEXT;
                 'expires_at' => htmlspecialchars($expiresAt, ENT_QUOTES, 'UTF-8'),
                 'days_left' => (string)$daysLeft,
                 'from_name' => htmlspecialchars($this->config['email_from_name'] ?? 'TPRM System', ENT_QUOTES, 'UTF-8'),
+                'assessment_name' => htmlspecialchars($assessmentName, ENT_QUOTES, 'UTF-8'),
             ];
 
             if ($dbTemplate) {
