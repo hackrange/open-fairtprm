@@ -610,6 +610,10 @@ $csrfToken = $security->getCSRFToken();
         <tr><td><span class="status-label">Completed</span></td><td>Assessment is finished and finalized. Responses are locked.</td></tr>
         <tr><td><span class="status-label">Archived</span></td><td>Historical assessment kept for records. No longer active.</td></tr>
     </table>
+    <figure class="doc-figure">
+        <img src="app/docs/grc-assessment.png" alt="Assessment list on the Assessment Questionnaire page" loading="lazy">
+        <figcaption><strong>GRC Module &rarr; Assessment Questionnaire.</strong> Every assessment is listed with its reference, title, type, status, lead auditor, current CSF score and compliance %, and planned date. Use <span class="btn-label">+ New Assessment</span> to start one, or <span class="btn-label">Open</span> to continue answering an existing one. The status tabs across the top filter the list.</figcaption>
+    </figure>
 </div>
 
 
@@ -673,6 +677,10 @@ $csrfToken = $security->getCSRFToken();
     <div class="callout callout-warning">
         <strong>Important:</strong> Each question you answer maps to requirements across multiple frameworks. For example, answering a question about "Multi-Factor Authentication" (in the IAM domain) simultaneously updates your compliance scores for SOC 2, ISO 27001, PCI DSS, NIST CSF, and CMMC. You never need to answer the same concept twice.
     </div>
+    <figure class="doc-figure">
+        <img src="app/docs/grc-assessment-questions.png" alt="Answering questions in the assessment questionnaire" loading="lazy">
+        <figcaption><strong>Answering the questionnaire.</strong> The header tracks <em>Progress</em>, live <em>CSF Maturity</em>, and <em>Compliance</em> as you work. The domain tabs (GOV, IAM, DSP, &hellip;) each show that domain's current score; click one to jump to its questions. For each question you set a <strong>Maturity</strong> rating (1&ndash;4 or N/A) and a <strong>Conformity</strong> status &mdash; answers auto-save. Use <span class="btn-label">Show Unanswered Questions</span> to find what is left.</figcaption>
+    </figure>
 </div>
 
 
@@ -804,6 +812,36 @@ $csrfToken = $security->getCSRFToken();
             </ul>
         </li>
     </ol>
+    <figure class="doc-figure">
+        <img src="app/docs/grc-fairscore.png" alt="CSF Maturity Score dashboard with radar chart" loading="lazy">
+        <figcaption><strong>GRC Module &rarr; CSF Maturity Score.</strong> The four headline tiles &mdash; <em>CSF Maturity Score</em> (1&ndash;4 scale), <em>Compliance Rate</em>, <em>Questions Answered</em>, and <em>Gaps Found</em> &mdash; summarise your posture at a glance. The <strong>Security Domain Maturity Radar</strong> plots all 14 domains, and the list on the right gives each domain's exact average score. Pick the assessment you want from the dropdown at the top.</figcaption>
+    </figure>
+</div>
+
+
+<div class="doc-section" id="grc-gaps">
+    <h2>Gap Analysis</h2>
+    <p>The <strong>Gap Analysis</strong> page pulls together every weakness found during an assessment &mdash; every question answered <strong>Non-Conforming</strong> or <strong>Partial</strong> &mdash; into one prioritised worklist. It answers the question "where are we falling short, and what does each shortfall affect?"</p>
+
+    <h3>How to Access</h3>
+    <ol class="steps">
+        <li>Navigate to <span class="menu-label">GRC Module</span> &rarr; <span class="menu-label">Assessment &amp; Audit</span> &rarr; <span class="menu-label">Gaps</span>.</li>
+        <li>Select the assessment you want to analyse from the <span class="field-label">Assessment</span> dropdown.</li>
+    </ol>
+
+    <h3>What the Page Shows</h3>
+    <p>Four summary tiles at the top count your <strong>Total Gaps</strong>, <strong>Non-Conforming</strong>, <strong>Partial</strong>, and gaps <strong>With Linked Risk</strong>. Below them, each gap is listed as a row with:</p>
+    <ul>
+        <li><strong>Severity</strong> &mdash; a badge: <em>Non-Conforming</em> (red) or <em>Partial</em> (amber).</li>
+        <li><strong>Domain</strong> and <strong>Ref</strong> &mdash; the security domain and the exact question reference (e.g., <code>GOV-08</code>).</li>
+        <li><strong>Finding</strong> &mdash; the question text describing what is missing.</li>
+        <li><strong>Framework Impact</strong> &mdash; badges for every framework requirement this gap affects, so you can see at a glance whether a single fix improves SOC 2, ISO 27001, PCI DSS, and more at once.</li>
+        <li><strong>Risk</strong> &mdash; whether a risk has been logged for this gap, and a <span class="btn-label">View</span> action to open the full detail.</li>
+    </ul>
+    <figure class="doc-figure">
+        <img src="app/docs/grc-gaps.png" alt="Gap Analysis page listing non-conforming and partial findings" loading="lazy">
+        <figcaption><strong>GRC Module &rarr; Gaps.</strong> Every non-conforming or partial response becomes a gap. The <strong>Framework Impact</strong> column shows which requirements across each framework the gap touches &mdash; closing one gap can lift several frameworks at once.</figcaption>
+    </figure>
 </div>
 
 
@@ -818,6 +856,11 @@ $csrfToken = $security->getCSRFToken();
         <li>The page displays framework cards in a grid. Only frameworks with mapped questions appear. Each card shows compliance percentage, maturity score, and metric counts.</li>
         <li>Click a framework card to open the detailed compliance report.</li>
     </ol>
+
+    <figure class="doc-figure">
+        <img src="app/docs/grc-frameworks.png" alt="Compliance Frameworks page with per-framework compliance cards" loading="lazy">
+        <figcaption><strong>GRC Module &rarr; Frameworks.</strong> The top tiles count your frameworks, average readiness, total requirements, and how many <em>need attention</em>. Each card shows a framework's compliance donut, its average maturity, and the Conforming / Partial / Non-Conforming / Total-Mapped breakdown. Click any card to open that framework's full compliance report.</figcaption>
+    </figure>
 
     <h3>Framework Requirement Tree</h3>
     <p>If you navigate to this page <em>without</em> selecting an assessment (or by clicking a framework link from elsewhere), you will see the <strong>Requirement Tree</strong> view. This shows the hierarchical structure of all requirements within a framework, along with mapped controls and implementation status. Administrators and Cyber GRC users can add, edit, and delete custom requirements here.</p>
@@ -1182,7 +1225,7 @@ $csrfToken = $security->getCSRFToken();
     <p>Open it from <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Procurement</span> &rarr; <span class="menu-label">Cyber Status</span>. It is available to <strong>Procurement</strong>, <strong>Cyber TPRM</strong>, and <strong>Administrator</strong> users.</p>
     <figure class="doc-figure">
         <img src="app/docs/procurement-cyber-status.png" alt="Procurement Cyber Status page" loading="lazy">
-        <figcaption><strong>Procurement &rarr; Cyber Status.</strong> Lists every vendor whose status is <em>In Review</em> or <em>AI Review</em>, with the number of updates and the date of the latest update. When no vendors are in review you see the empty message shown here.</figcaption>
+        <figcaption><strong>Procurement &rarr; Cyber Status.</strong> Lists every vendor whose status is <em>In Review</em> or <em>AI Review</em>, with the number of updates and the date of the latest update. When no vendors are in review the table is replaced by a "No vendors in review" message.</figcaption>
     </figure>
 
     <h3>Reading a vendor's update history</h3>
@@ -1190,6 +1233,10 @@ $csrfToken = $security->getCSRFToken();
         <li>Click a vendor's name in the <strong>Vendors in Review</strong> table.</li>
         <li>The <strong>Procurement Update History</strong> panel opens, showing every update newest-first: the date and time, who wrote it, the vendor's status at that time, and the note itself.</li>
     </ol>
+    <figure class="doc-figure">
+        <img src="app/docs/procurement-cyber-status-updates.png" alt="Procurement Update History for a vendor in review" loading="lazy">
+        <figcaption><strong>A vendor's update history.</strong> Clicking a vendor name opens its <strong>Procurement Update History</strong>. Each entry shows the date and time, the author, a badge for the vendor's status when the note was written, and the cyber team's note &mdash; so procurement can see exactly where each review stands. Long histories are paged with the <em>Show&nbsp;per&nbsp;page</em> control.</figcaption>
+    </figure>
 
     <h3>For cyber reviewers: posting an update to procurement</h3>
     <p>Cyber TPRM users and admins can post an update for one or more vendors at once:</p>
@@ -1510,6 +1557,7 @@ $csrfToken = $security->getCSRFToken();
 
                     <h4>GRC — Features</h4>
                     <a href="#grc-fairscore">CSF Maturity Score</a>
+                    <a href="#grc-gaps">Gap Analysis</a>
                     <a href="#grc-frameworks">Frameworks</a>
                     <a href="#grc-controls">Internal Controls</a>
                     <a href="#grc-crosswalk">Framework Crosswalk</a>
@@ -1599,16 +1647,17 @@ $csrfToken = $security->getCSRFToken();
             ]},
             { heading: '3. GRC Module — Features', entries: [
                 { label: '3.1 CSF Maturity Score Dashboard', id: 'grc-fairscore' },
-                { label: '3.2 Frameworks Page', id: 'grc-frameworks' },
-                { label: '3.3 Internal Controls', id: 'grc-controls' },
-                { label: '3.4 Framework Crosswalk', id: 'grc-crosswalk' },
-                { label: '3.5 Evidence Library', id: 'grc-evidence' },
-                { label: '3.6 Policy Management', id: 'grc-policies' },
-                { label: '3.7 Audits & Findings', id: 'grc-audits' },
-                { label: '3.8 Risk Register', id: 'grc-risks' },
-                { label: '3.9 Continuous Monitors', id: 'grc-monitors' },
-                { label: '3.10 Task Inbox', id: 'grc-tasks' },
-                { label: '3.11 GRC Dashboard', id: 'grc-dashboard' }
+                { label: '3.2 Gap Analysis', id: 'grc-gaps' },
+                { label: '3.3 Frameworks Page', id: 'grc-frameworks' },
+                { label: '3.4 Internal Controls', id: 'grc-controls' },
+                { label: '3.5 Framework Crosswalk', id: 'grc-crosswalk' },
+                { label: '3.6 Evidence Library', id: 'grc-evidence' },
+                { label: '3.7 Policy Management', id: 'grc-policies' },
+                { label: '3.8 Audits & Findings', id: 'grc-audits' },
+                { label: '3.9 Risk Register', id: 'grc-risks' },
+                { label: '3.10 Continuous Monitors', id: 'grc-monitors' },
+                { label: '3.11 Task Inbox', id: 'grc-tasks' },
+                { label: '3.12 GRC Dashboard', id: 'grc-dashboard' }
             ]},
             { heading: '4. TPRM Module', entries: [
                 { label: '4.1 What is TPRM?', id: 'tprm-overview' },

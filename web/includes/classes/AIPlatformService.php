@@ -260,8 +260,28 @@ class AIPlatformService {
         }
 
         if ($httpCode !== 200) {
-            error_log("AI platform HTTP {$httpCode}: " . substr($response, 0, 500));
-            return ['success' => false, 'content' => null, 'error' => "API returned HTTP {$httpCode}"];
+            error_log("AI platform HTTP {$httpCode}: " . substr((string)$response, 0, 500));
+            // Surface the platform's own error detail (e.g. OpenWebUI's
+            // {"detail":"..."} for an invalid token or unknown model) so the
+            // operator can see *why* a request failed, not just the status code.
+            $detail = '';
+            $decoded = json_decode((string)$response, true);
+            if (is_array($decoded)) {
+                $detail = is_string($decoded['detail'] ?? null)
+                    ? $decoded['detail']
+                    : ($decoded['error']['message'] ?? ($decoded['message'] ?? ''));
+            }
+            if ($detail === '') {
+                $detail = trim(strip_tags((string)$response));
+            }
+            if (strlen($detail) > 300) {
+                $detail = substr($detail, 0, 300) . '…';
+            }
+            $error = "API returned HTTP {$httpCode}";
+            if ($detail !== '') {
+                $error .= ': ' . $detail;
+            }
+            return ['success' => false, 'content' => null, 'error' => $error];
         }
 
         $data = json_decode($response, true);
@@ -600,6 +620,92 @@ class AIPlatformService {
     /**
      * Test connection to the active AI platform.
      */
+    /**
+     * Query the active platform for the list of models it exposes.
+     *
+     * Both OpenWebUI and OpenAI-compatible backends serve a model list at the
+     * sibling "/models" path of the chat-completions endpoint, authenticated
+     * with the same bearer token. We derive that URL from the configured chat
+     * URL so the admin only ever maintains one URL.
+     *
+     * @return array{ success: bool, models: array<int,array{id:string,name:string}>, error: ?string }
+     */
+    public function fetchAvailableModels(): array {
+        $platform = $this->getActivePlatform();
+        if ($platform === 'custom') {
+            return ['success' => false, 'models' => [], 'error' => 'Model listing is not available for the Custom platform.'];
+        }
+
+        $apiUrl = $this->getApiUrl();
+        $authToken = $this->getAuthToken();
+        if (empty($apiUrl) || empty($authToken)) {
+            return ['success' => false, 'models' => [], 'error' => 'Set the API URL and token (and Save) before loading models.'];
+        }
+
+        // Derive ".../models" from ".../chat/completions"; fall back to appending.
+        $modelsUrl = preg_replace('#/chat/completions/?$#i', '/models', $apiUrl);
+        if ($modelsUrl === $apiUrl) {
+            $modelsUrl = rtrim($apiUrl, '/') . '/models';
+        }
+
+        $ch = curl_init($modelsUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPGET, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $authToken,
+            'Accept: application/json',
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlError) {
+            return ['success' => false, 'models' => [], 'error' => 'Connection failed: ' . $curlError];
+        }
+        if ($httpCode !== 200) {
+            $detail = '';
+            $decoded = json_decode((string)$response, true);
+            if (is_array($decoded)) {
+                $detail = is_string($decoded['detail'] ?? null)
+                    ? $decoded['detail']
+                    : ($decoded['error']['message'] ?? ($decoded['message'] ?? ''));
+            }
+            if ($detail === '') { $detail = trim(strip_tags((string)$response)); }
+            if (strlen($detail) > 200) { $detail = substr($detail, 0, 200) . '…'; }
+            $msg = "Models request returned HTTP {$httpCode}";
+            if ($detail !== '') { $msg .= ': ' . $detail; }
+            return ['success' => false, 'models' => [], 'error' => $msg];
+        }
+
+        $data = json_decode((string)$response, true);
+        // OpenAI/OpenWebUI shape: { "data": [ { "id": ..., "name": ... }, ... ] }
+        $list = $data['data'] ?? (is_array($data) ? $data : []);
+        $models = [];
+        $seen = [];
+        foreach ((array)$list as $m) {
+            if (is_array($m) && !empty($m['id'])) {
+                $id = (string)$m['id'];
+                $name = (string)($m['name'] ?? $id);
+            } elseif (is_string($m) && $m !== '') {
+                $id = $name = $m;
+            } else {
+                continue;
+            }
+            if (isset($seen[$id])) { continue; }
+            $seen[$id] = true;
+            $models[] = ['id' => $id, 'name' => $name];
+        }
+        usort($models, fn($a, $b) => strcasecmp($a['id'], $b['id']));
+
+        if (empty($models)) {
+            return ['success' => false, 'models' => [], 'error' => 'The platform returned no models.'];
+        }
+        return ['success' => true, 'models' => $models, 'error' => null];
+    }
+
     public function testConnection(): array {
         $result = $this->chatCompletion([
             ['role' => 'user', 'content' => 'Say "Connection successful" and nothing else.']

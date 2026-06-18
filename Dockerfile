@@ -188,6 +188,7 @@ RUN set -e; \
         /var/www/html/api/vendor-document-delete.php \
         /var/www/html/api/send-assessment-email.php \
         /var/www/html/api/generate-fair-ai-analysis.php \
+        /var/www/html/api/ai-models.php \
         /var/www/html/api/procurement-update-save.php \
         /var/www/html/api/procurement-notes-list.php \
         /var/www/html/cron/ai-queue.php \
@@ -207,6 +208,12 @@ RUN set -e; \
         /var/www/html/app/docs/grip-card.png \
         /var/www/html/app/docs/zscaler-card.png \
         /var/www/html/app/docs/vendor-info-card.png \
+        /var/www/html/app/docs/procurement-cyber-status-updates.png \
+        /var/www/html/app/docs/grc-fairscore.png \
+        /var/www/html/app/docs/grc-gaps.png \
+        /var/www/html/app/docs/grc-frameworks.png \
+        /var/www/html/app/docs/grc-assessment.png \
+        /var/www/html/app/docs/grc-assessment-questions.png \
         /var/www/html/app/icons/announcement-03.svg \
         /var/www/html/fair-analysis.php \
         /var/www/html/breach-alerts.php \

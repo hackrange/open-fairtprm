@@ -110,6 +110,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_ai_connection'])
     }
 }
 
+// FAIR analysis test handler — exercises the exact path AI-assisted FAIR
+// Analysis uses (purpose=fair, which applies the FAIR AI Model override and
+// runs through the same chat-completion call), so a green result here means
+// the real feature will work. The generic Test Connection above only uses the
+// default model, which can differ from the FAIR model.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_fair_analysis'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_ai-platform.invalid_request');
+    } else {
+        $aiPlatform = AIPlatformService::getInstance();
+        $result = $aiPlatform->chatCompletion(
+            [['role' => 'user', 'content' => 'Reply with only this JSON and nothing else: {"ok": true}']],
+            ['purpose' => 'fair', 'max_tokens' => 50]
+        );
+        if ($result['success']) {
+            $success = t('admin_ai-platform.test_fair_ok') . ' (' . $aiPlatform->getModel('fair') . ') — ' . trim((string)$result['content']);
+        } else {
+            $error = t('admin_ai-platform.test_fair_fail') . ' ' . ($result['error'] ?? 'Unknown error');
+        }
+    }
+}
+
 // ============================================================================
 // Data Loading
 // ============================================================================
@@ -189,7 +211,14 @@ foreach ($defaults as $k => $v) {
                 </div>
                 <div class="form-group">
                     <label><?php echo e(t('admin_ai-platform.model')); ?></label>
-                    <input type="text" name="openwebui_model" class="form-control" value="<?php echo e($aiConfig['openwebui_model']); ?>">
+                    <input type="text" name="openwebui_model" id="openwebui_model" class="form-control" value="<?php echo e($aiConfig['openwebui_model']); ?>">
+                    <div style="display:flex;gap:8px;margin-top:6px;align-items:center;">
+                        <select class="form-control ai-model-select" data-target="openwebui_model" style="flex:1;">
+                            <option value=""><?php echo e(t('admin_ai-platform.models_not_loaded')); ?></option>
+                        </select>
+                        <button type="button" class="btn ai-load-models" style="background:#6b7280;border-color:#6b7280;color:#fff;white-space:nowrap;"><?php echo e(t('admin_ai-platform.load_models')); ?></button>
+                    </div>
+                    <div class="form-help ai-models-msg" style="margin-top:4px;"></div>
                 </div>
             </div>
 
@@ -223,7 +252,13 @@ foreach ($defaults as $k => $v) {
             <h3 style="margin:0 0 16px;font-size:15px;"><?php echo e(t('admin_ai-platform.shared_settings')); ?></h3>
             <div class="form-group">
                 <label><?php echo e(t('admin_ai-platform.fair_ai_model')); ?></label>
-                <input type="text" name="fair_ai_model" class="form-control" value="<?php echo e($aiConfig['fair_ai_model']); ?>" placeholder="e.g., novita.deepseek/deepseek-v3-turbo">
+                <input type="text" name="fair_ai_model" id="fair_ai_model" class="form-control" value="<?php echo e($aiConfig['fair_ai_model']); ?>" placeholder="e.g., deepseek/deepseek-v3-turbo">
+                <div style="display:flex;gap:8px;margin-top:6px;align-items:center;">
+                    <select class="form-control ai-model-select" data-target="fair_ai_model" style="flex:1;">
+                        <option value=""><?php echo e(t('admin_ai-platform.models_not_loaded')); ?></option>
+                    </select>
+                    <button type="button" class="btn ai-load-models" style="background:#6b7280;border-color:#6b7280;color:#fff;white-space:nowrap;"><?php echo e(t('admin_ai-platform.load_models')); ?></button>
+                </div>
                 <div class="form-help"><?php echo e(t('admin_ai-platform.fair_ai_model_help')); ?></div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -247,8 +282,97 @@ foreach ($defaults as $k => $v) {
 <div class="card">
     <h3 style="margin:0 0 12px;font-size:15px;"><?php echo e(t('admin_ai-platform.test_connection')); ?></h3>
     <p style="color:#6b7280;font-size:13px;margin-bottom:12px;"><?php echo e(t('admin_ai-platform.test_connection_desc')); ?></p>
-    <form method="POST" action="admin.php?section=ai-platform">
-        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-        <button type="submit" name="test_ai_connection" class="btn btn-primary" style="background:#6b7280;border-color:#6b7280;"><?php echo e(t('admin_ai-platform.test_active_platform')); ?></button>
-    </form>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <form method="POST" action="admin.php?section=ai-platform">
+            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+            <button type="submit" name="test_ai_connection" class="btn btn-primary" style="background:#6b7280;border-color:#6b7280;"><?php echo e(t('admin_ai-platform.test_active_platform')); ?></button>
+        </form>
+        <form method="POST" action="admin.php?section=ai-platform">
+            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+            <button type="submit" name="test_fair_analysis" class="btn btn-primary"><?php echo e(t('admin_ai-platform.test_fair')); ?></button>
+        </form>
+    </div>
+    <p style="color:#6b7280;font-size:12px;margin-top:10px;"><?php echo e(t('admin_ai-platform.test_fair_desc')); ?></p>
 </div>
+
+<script nonce="<?php echo cspNonce(); ?>">
+// Populate the Model / FAIR AI Model dropdowns by querying the active platform
+// for its model list (api/ai-models.php uses the SAVED URL + token). Selecting
+// a model writes it into the matching text input, which is what gets submitted.
+(function () {
+    var csrf = <?php echo json_encode($csrfToken); ?>;
+    var loadingTxt = <?php echo json_encode(t('admin_ai-platform.models_loading')); ?>;
+    var loadTxt = <?php echo json_encode(t('admin_ai-platform.load_models')); ?>;
+    var selects = document.querySelectorAll('.ai-model-select');
+    var buttons = document.querySelectorAll('.ai-load-models');
+    var msgs = document.querySelectorAll('.ai-models-msg');
+
+    function setMsg(text, isError) {
+        msgs.forEach(function (m) {
+            m.textContent = text;
+            m.style.color = isError ? '#b91c1c' : '#6b7280';
+        });
+    }
+
+    // Keep the dropdown in sync with its text input
+    selects.forEach(function (sel) {
+        sel.addEventListener('change', function () {
+            if (!sel.value) return;
+            var input = document.getElementById(sel.getAttribute('data-target'));
+            if (input) input.value = sel.value;
+        });
+    });
+
+    function populate(models) {
+        selects.forEach(function (sel) {
+            var input = document.getElementById(sel.getAttribute('data-target'));
+            var current = input ? input.value : '';
+            sel.innerHTML = '';
+            var ph = document.createElement('option');
+            ph.value = '';
+            ph.textContent = '— select a model —';
+            sel.appendChild(ph);
+            var found = false;
+            models.forEach(function (m) {
+                var o = document.createElement('option');
+                o.value = m.id;
+                o.textContent = (m.name && m.name !== m.id) ? (m.name + '  (' + m.id + ')') : m.id;
+                if (m.id === current) { o.selected = true; found = true; }
+                sel.appendChild(o);
+            });
+            // If the saved value isn't in the list, surface it so it stays visible
+            if (current && !found) {
+                var o = document.createElement('option');
+                o.value = current;
+                o.textContent = current + '  (current — not in list)';
+                o.selected = true;
+                sel.appendChild(o);
+            }
+        });
+    }
+
+    function load() {
+        buttons.forEach(function (b) { b.disabled = true; });
+        setMsg(loadingTxt, false);
+        var body = new URLSearchParams({ csrf_token: csrf });
+        fetch('api/ai-models.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data && data.success && data.models && data.models.length) {
+                populate(data.models);
+                setMsg(data.models.length + ' model(s) loaded.', false);
+            } else {
+                setMsg((data && data.error) ? data.error : 'Could not load models.', true);
+            }
+        }).catch(function (e) {
+            setMsg('Could not load models: ' + e.message, true);
+        }).finally(function () {
+            buttons.forEach(function (b) { b.disabled = false; });
+        });
+    }
+
+    buttons.forEach(function (b) { b.addEventListener('click', load); });
+})();
+</script>
