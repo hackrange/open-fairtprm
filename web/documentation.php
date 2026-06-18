@@ -93,10 +93,14 @@ $csrfToken = $security->getCSRFToken();
         .doc-body h1 { font-size: 28px; font-weight: 700; color: #111827; margin: 0 0 6px; }
         .doc-body .doc-subtitle { font-size: 15px; color: #6b7280; margin-bottom: 24px; }
 
-        /* Floating right-side TOC — fixed to viewport right */
+        /* Floating right-side TOC — anchored ~0.5in to the right of the
+           900px article column (sidebar + 40px content padding + 900px
+           article + 48px gap), clamped so it never runs off-screen. */
         .doc-sidebar-toc {
             width: 220px;
-            position: fixed; top: 80px; right: 24px;
+            position: fixed; top: 80px;
+            left: min(calc(var(--sidebar-width) + 988px), calc(100vw - 244px));
+            right: auto;
             max-height: calc(100vh - 110px); overflow-y: auto;
             background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
             padding: 16px 14px; font-size: 12px;
