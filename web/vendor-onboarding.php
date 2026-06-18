@@ -2601,11 +2601,12 @@ function getFieldValue($request, $field, $default = '') {
                             <?php dualField($request, 'vendor_use_ai', 'Services Use AI', 'checkbox'); ?>
                             <?php if ($canApprove && $editMode && ($request['vendor_use_ai'] ?? '') === 'yes' && ($request['status'] ?? '') !== 'ai_review'): ?>
                             <div class="vendor-field-row" style="justify-content: flex-end;">
-                                <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>" style="display: inline;">
-                                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                                    <input type="hidden" name="action" value="force_ai_review">
-                                    <button type="submit" data-confirm="Force this vendor into AI Review?" style="background: none; border: none; padding: 0; color: #4f46e5; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: underline;">Force AI Review</button>
-                                </form>
+                                <?php /* Force AI Review must not open its own form element here: vendorFieldsForm
+                                          is already open, and a nested one would be flattened by the HTML parser
+                                          and prematurely close the outer form, orphaning Save Changes. This button
+                                          instead targets the separate forceAiReviewForm (rendered after
+                                          vendorFieldsForm closes) via the HTML form= attribute. */ ?>
+                                <button type="submit" form="forceAiReviewForm" data-confirm="Force this vendor into AI Review?" style="background: none; border: none; padding: 0; color: #4f46e5; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: underline;">Force AI Review</button>
                             </div>
                             <?php endif; ?>
                             <?php // Tier is read-only here — managed via SRS details page
@@ -2712,6 +2713,16 @@ function getFieldValue($request, $field, $default = '') {
                     <button type="submit" class="btn" style="background: var(--theme-header-color); color: white; padding: 8px 20px;" id="saveFieldsBtn">Save Changes</button>
                     <button type="button" class="btn btn-outline" style="padding: 8px 20px;" id="cancelEditBtn">Cancel</button>
                 </div>
+                </form>
+                <?php endif; ?>
+
+                <?php // Separate form for the "Force AI Review" action, kept OUTSIDE vendorFieldsForm
+                      // so it never nests (which would orphan the Save Changes button above). The
+                      // Force AI Review button (in the Vendor Information card) targets this via form=. ?>
+                <?php if ($canApprove && $editMode && ($request['vendor_use_ai'] ?? '') === 'yes' && ($request['status'] ?? '') !== 'ai_review'): ?>
+                <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>" id="forceAiReviewForm" style="display:none;">
+                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                    <input type="hidden" name="action" value="force_ai_review">
                 </form>
                 <?php endif; ?>
 
