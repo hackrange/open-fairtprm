@@ -80,17 +80,24 @@ if (!$assessment['allow_certificate_upload']) {
     exit;
 }
 
+// Certificate-upload mode for this template: skip (the certificate completes the
+// assessment) or minimal (the certificate is one required step; the selected
+// questions and the attestation are completed afterwards via the normal submit).
+$certMode = $assessmentService->getEffectiveCertificateMode($assessment);
+$isMinimalUpload = ($certMode === 'minimal');
+
 // ---------------------------------------------------------------
-// SUBMITTER ATTESTATION (required) -- validate before storing the file so we
-// never persist a certificate for an incomplete/unattested submission.
+// SUBMITTER ATTESTATION -- in skip mode the certificate finalizes the assessment,
+// so we capture and require the attestation here. In minimal mode the attestation
+// is collected at final submission, so we only store the certificate now.
 // ---------------------------------------------------------------
 $submitterName  = trim($_POST['submitter_name'] ?? '');
 $submitterTitle = trim($_POST['submitter_title'] ?? '');
 $submitterEmail = trim($_POST['submitter_email'] ?? '');
 $submitterPhone = trim($_POST['submitter_phone'] ?? '');
 $submitterAttested = ($_POST['submitter_attested'] ?? '') === '1';
-if ($submitterName === '' || $submitterTitle === '' || $submitterPhone === ''
-    || !filter_var($submitterEmail, FILTER_VALIDATE_EMAIL) || !$submitterAttested) {
+if (!$isMinimalUpload && ($submitterName === '' || $submitterTitle === '' || $submitterPhone === ''
+    || !filter_var($submitterEmail, FILTER_VALIDATE_EMAIL) || !$submitterAttested)) {
     echo json_encode([
         'success' => false,
         'message' => 'Please provide your name, title, valid email, phone number, and confirm the truthfulness attestation.',
@@ -119,21 +126,26 @@ try {
         'certificate'
     );
 
-    // Update the assessment with the certificate reference and expiry
+    // Update the assessment with the certificate reference and expiry. In minimal
+    // mode we store the certificate WITHOUT completing the assessment -- the vendor
+    // still has to answer the selected questions and attest at final submission.
     $assessmentService->saveCertificate(
         $assessment['id'],
         $dbPath,
-        $expiryDate ?: null
+        $expiryDate ?: null,
+        !$isMinimalUpload
     );
 
-    $assessmentService->saveSubmitterAttestation($assessment['id'], [
-        'submitter_name'       => $submitterName,
-        'submitter_title'      => $submitterTitle,
-        'submitter_email'      => $submitterEmail,
-        'submitter_phone'      => $submitterPhone,
-        'submitter_ip_address' => $security->getClientIP(),
-        'submitter_attested'   => 1,
-    ]);
+    if (!$isMinimalUpload) {
+        $assessmentService->saveSubmitterAttestation($assessment['id'], [
+            'submitter_name'       => $submitterName,
+            'submitter_title'      => $submitterTitle,
+            'submitter_email'      => $submitterEmail,
+            'submitter_phone'      => $submitterPhone,
+            'submitter_ip_address' => $security->getClientIP(),
+            'submitter_attested'   => 1,
+        ]);
+    }
 
     $auth = Auth::getInstance();
     $userId = $auth->getUserId();
@@ -143,7 +155,9 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => 'Certificate uploaded and encrypted successfully',
+        'message' => $isMinimalUpload
+            ? 'Certificate uploaded. Please complete the remaining questions to finish.'
+            : 'Certificate uploaded and encrypted successfully',
         'csrf_token' => $security->getCSRFToken()
     ]);
 

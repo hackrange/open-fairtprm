@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS assessment_templates (
     category VARCHAR(50) DEFAULT 'vendor_assessment',
     allow_certificate_upload TINYINT(1) DEFAULT 0,
     certificate_upload_prompt TEXT,
+    certificate_upload_mode VARCHAR(20) DEFAULT 'none',
     is_active TINYINT(1) DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -40,6 +41,7 @@ CREATE TABLE IF NOT EXISTS assessment_questions (
     depends_on_value VARCHAR(255) DEFAULT NULL,
     triggers_assessment_template_id INT DEFAULT NULL,
     triggers_on_value VARCHAR(255) DEFAULT NULL,
+    include_in_minimal TINYINT(1) DEFAULT 0,
     FOREIGN KEY (section_id) REFERENCES assessment_sections(id) ON DELETE CASCADE,
     INDEX idx_question_order (section_id, sort_order),
     INDEX idx_depends_on (depends_on_question_id)

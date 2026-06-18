@@ -78,12 +78,13 @@ if (!$assessment || !$assessmentService->canAccess($assessment)) {
 
 // ---------------------------------------------------------------
 // CERTIFICATE SHORTCUT CHECK
-// If someone already uploaded an ISO certificate, the assessment
-// is considered complete. No need to fill out 200 questions when
-// you've got a cert that says "we're legit." Just acknowledge it
-// and move on.
+// In "skip" mode a certificate stands in for the whole questionnaire, so if one
+// was uploaded the assessment is already complete -- just acknowledge it. In
+// "minimal" mode the certificate is only one required step, so we must NOT
+// short-circuit here; the vendor still has to answer the selected questions.
 // ---------------------------------------------------------------
-if ($assessment['certificate_uploaded']) {
+if ($assessment['certificate_uploaded']
+    && $assessmentService->getEffectiveCertificateMode($assessment) !== 'minimal') {
     echo json_encode(['success' => true, 'message' => 'Assessment already completed via certificate upload']);
     exit;
 }
@@ -96,6 +97,12 @@ if ($assessment['certificate_uploaded']) {
 // so the vendor knows exactly what they skipped.
 // ---------------------------------------------------------------
 $completionStatus = $assessmentService->getCompletionStatus($assessment['id']);
+
+// In minimal certificate mode the "required" set is the questions flagged
+// include_in_minimal (not the template-wide is_required flag), and completion also
+// requires the certificate itself -- handled explicitly below.
+$certMode = $assessmentService->getEffectiveCertificateMode($assessment);
+$minimalSubmit = ($certMode === 'minimal');
 
 $missingQuestions = [];
 $missingSections = [];
@@ -126,7 +133,8 @@ foreach ($completionStatus['sections'] as $sectionId => $section) {
             $rv = $responses[$q['id']]['response_value'] ?? null;
             $fp = $responses[$q['id']]['file_path'] ?? null;
             $isAnswered = isset($responses[$q['id']]) && ($rv !== null && $rv !== '' || $fp !== null && $fp !== '');
-            if ($q['is_required'] && !$isAnswered) {
+            $isRequiredHere = $minimalSubmit ? !empty($q['include_in_minimal']) : !empty($q['is_required']);
+            if ($isRequiredHere && !$isAnswered) {
                 $item = [
                     'id' => $q['id'],
                     'text' => $q['question_text'],
@@ -154,6 +162,17 @@ if (!empty($missingQuestions)) {
         'unanswered' => $allUnanswered,
         'incomplete_sections' => $missingSections,
         'details' => $completionStatus,
+        'csrf_token' => $security->getCSRFToken()
+    ]);
+    exit;
+}
+
+// Minimal certificate mode also requires the certificate itself, which isn't a
+// question and so never appears in the section completion loop above.
+if ($minimalSubmit && empty($assessment['certificate_uploaded'])) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Please upload your certificate before submitting.',
         'csrf_token' => $security->getCSRFToken()
     ]);
     exit;

@@ -69,11 +69,37 @@ $sections = $assessmentService->getSections($assessment['template_id']);
 $completionStatus = $assessmentService->getCompletionStatus($assessment['id']);
 $responses = $assessmentService->getResponses($assessment['id']);
 
-// Figure out which section we're currently viewing
-$currentSectionIndex = isset($_GET['section']) ? intval($_GET['section']) : 0;
+// Certificate-upload mode for this template: none | skip | minimal. In "minimal"
+// mode the vendor must BOTH upload a certificate AND answer the subset of questions
+// the admin flagged (include_in_minimal); the certificate no longer auto-completes
+// the assessment. getMinimalCompletionStatus() omits sections with no selected
+// questions from $completionStatus['sections'], which we reuse to drive navigation.
+$certMode = $assessmentService->getEffectiveCertificateMode($assessment);
+$isMinimal = ($certMode === 'minimal');
 
-// Section index -1 is the special "upload your ISO cert" section
-$showCertificateUpload = $assessment['allow_certificate_upload'] && !$assessment['certificate_uploaded'] && $currentSectionIndex === -1;
+// Section indexes the vendor actually steps through. In minimal mode, only the
+// sections that carry selected questions are navigable; otherwise, all sections.
+$navIndexes = [];
+foreach ($sections as $i => $section) {
+    if ($isMinimal && !isset($completionStatus['sections'][$section['id']])) {
+        continue;
+    }
+    $navIndexes[] = $i;
+}
+
+// Figure out which section we're currently viewing. In minimal mode, land the
+// vendor on the certificate step first until they've uploaded one, then on the
+// first section that actually has selected questions.
+$defaultSectionIndex = ($isMinimal && !$assessment['certificate_uploaded'])
+    ? -1
+    : (!empty($navIndexes) ? $navIndexes[0] : 0);
+$currentSectionIndex = isset($_GET['section']) ? intval($_GET['section']) : $defaultSectionIndex;
+
+// Section index -1 is the special "upload your certificate" section. In skip mode
+// it disappears once a cert is uploaded; in minimal mode it stays available (so the
+// vendor can review/replace the cert) since the cert alone doesn't finish the job.
+$showCertificateUpload = $assessment['allow_certificate_upload'] && $currentSectionIndex === -1
+    && ($isMinimal || !$assessment['certificate_uploaded']);
 
 // Clamp the section index to valid bounds (no going off the rails)
 if ($currentSectionIndex >= count($sections)) {
@@ -83,12 +109,18 @@ if ($currentSectionIndex < -1) {
     $currentSectionIndex = $assessment['allow_certificate_upload'] ? -1 : 0;
 }
 
-// Load the questions for whatever section we're on
+// Load the questions for whatever section we're on. In minimal mode only the
+// flagged subset is presented and counted.
 $currentSection = null;
 $currentQuestions = [];
 if ($currentSectionIndex >= 0 && isset($sections[$currentSectionIndex])) {
     $currentSection = $sections[$currentSectionIndex];
     $currentQuestions = $assessmentService->getQuestions($currentSection['id']);
+    if ($isMinimal) {
+        $currentQuestions = array_values(array_filter($currentQuestions, function($q) {
+            return !empty($q['include_in_minimal']);
+        }));
+    }
 }
 
 // Load app-level theme from app_config (no user is logged in on this public page)
@@ -878,6 +910,8 @@ $csrfToken = $security->generateCSRFToken();
 
                 <?php foreach ($sections as $i => $section): ?>
                 <?php
+                    // In minimal mode, only surface sections that carry selected questions.
+                    if ($isMinimal && !isset($completionStatus['sections'][$section['id']])) continue;
                     $sectionComplete = isset($completionStatus['sections'][$section['id']]) &&
                                        $completionStatus['sections'][$section['id']]['complete'];
                 ?>
@@ -899,6 +933,16 @@ $csrfToken = $security->generateCSRFToken();
             <div class="certificate-section">
                 <h2><?php echo e(t('vendor-assessment.upload_iso_title')); ?></h2>
                 <p><?php echo htmlspecialchars($assessment['certificate_upload_prompt']); ?></p>
+                <?php if ($isMinimal): ?>
+                <p style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:10px 12px; border-radius:6px; text-align:left;">
+                    <?php echo e(t('vendor-assessment.minimal_cert_note')); ?>
+                </p>
+                <?php if ($assessment['certificate_uploaded']): ?>
+                <p style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; padding:10px 12px; border-radius:6px; text-align:left;">
+                    &#10003; <?php echo e(t('vendor-assessment.cert_uploaded_replace')); ?>
+                </p>
+                <?php endif; ?>
+                <?php endif; ?>
 
                 <form id="certificateForm" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
@@ -918,6 +962,10 @@ $csrfToken = $security->generateCSRFToken();
                         <input type="date" name="certificate_expiry" id="certExpiry">
                     </div>
 
+                    <?php if (!$isMinimal): ?>
+                    <!-- Skip mode: the certificate completes the assessment, so the
+                         certification/attestation details are captured here. In minimal
+                         mode they're collected at final submission instead. -->
                     <div class="question" style="margin-top: 16px; text-align: left;">
                         <label class="question-label"><?php echo e(t('vendor-assessment.full_name')); ?> <span class="required">*</span></label>
                         <input type="text" name="submitter_name" class="form-control" required autocomplete="name">
@@ -938,12 +986,23 @@ $csrfToken = $security->generateCSRFToken();
                         <input type="checkbox" name="submitter_attested" value="1" required style="margin-top:3px; flex-shrink:0;">
                         <span><?php echo e(t('vendor-assessment.attestation_certify')); ?></span>
                     </label>
+                    <?php endif; ?>
 
                     <button type="submit" class="btn btn-success" style="margin-top: 20px;">
                         <?php echo e(t('vendor-assessment.upload_certificate')); ?>
                     </button>
                 </form>
 
+                <?php if ($isMinimal): ?>
+                <?php if (!empty($navIndexes)): ?>
+                <div class="or-divider">
+                    <span><?php echo e(t('vendor-assessment.or')); ?></span>
+                </div>
+                <a href="?token=<?php echo urlencode($uuid); ?>&section=<?php echo $navIndexes[0]; ?>" class="btn btn-secondary">
+                    <?php echo e(t('vendor-assessment.continue_to_questions')); ?> &rarr;
+                </a>
+                <?php endif; ?>
+                <?php else: ?>
                 <div class="or-divider">
                     <span><?php echo e(t('vendor-assessment.or')); ?></span>
                 </div>
@@ -951,6 +1010,7 @@ $csrfToken = $security->generateCSRFToken();
                 <a href="?token=<?php echo urlencode($uuid); ?>&section=0" class="btn btn-secondary">
                     <?php echo e(t('vendor-assessment.complete_full_assessment')); ?>
                 </a>
+                <?php endif; ?>
             </div>
 
             <?php elseif ($currentSection): ?>
@@ -1133,10 +1193,25 @@ $csrfToken = $security->generateCSRFToken();
                 </div>
                 <?php endforeach; ?>
 
-                <!-- Navigation: Previous / Next / Submit buttons -->
+                <!-- Navigation: Previous / Next / Submit buttons. Steps through the
+                     navigable section indexes ($navIndexes), which in minimal mode
+                     skip sections that have no selected questions. -->
+                <?php
+                    $navPos = array_search($currentSectionIndex, $navIndexes, true);
+                    if ($navPos !== false && $navPos > 0) {
+                        $prevTarget = $navIndexes[$navPos - 1];
+                    } elseif ($assessment['allow_certificate_upload']) {
+                        $prevTarget = -1; // step back to the certificate upload
+                    } else {
+                        $prevTarget = null;
+                    }
+                    $nextTarget = ($navPos !== false && $navPos < count($navIndexes) - 1)
+                        ? $navIndexes[$navPos + 1]
+                        : null;
+                ?>
                 <div class="nav-buttons">
-                    <?php if ($currentSectionIndex > 0 || $assessment['allow_certificate_upload']): ?>
-                    <a href="?token=<?php echo urlencode($uuid); ?>&section=<?php echo $currentSectionIndex - 1; ?>"
+                    <?php if ($prevTarget !== null): ?>
+                    <a href="?token=<?php echo urlencode($uuid); ?>&section=<?php echo $prevTarget; ?>"
                        class="btn btn-secondary">
                         &larr; <?php echo e(t('vendor-assessment.previous')); ?>
                     </a>
@@ -1144,8 +1219,8 @@ $csrfToken = $security->generateCSRFToken();
                     <div></div>
                     <?php endif; ?>
 
-                    <?php if ($currentSectionIndex < count($sections) - 1): ?>
-                    <a href="?token=<?php echo urlencode($uuid); ?>&section=<?php echo $currentSectionIndex + 1; ?>"
+                    <?php if ($nextTarget !== null): ?>
+                    <a href="?token=<?php echo urlencode($uuid); ?>&section=<?php echo $nextTarget; ?>"
                        class="btn btn-primary">
                         <?php echo e(t('vendor-assessment.next')); ?> &rarr;
                     </a>
@@ -1161,8 +1236,11 @@ $csrfToken = $security->generateCSRFToken();
         <?php endif; ?>
     </div>
 
-    <?php if ($assessment['allow_certificate_upload'] && !$assessment['certificate_uploaded'] && !$completedView): ?>
-    <!-- Certificate upload modal -- shown on first visit to ask if they have an ISO cert -->
+    <?php if ($assessment['allow_certificate_upload'] && !$assessment['certificate_uploaded'] && !$completedView && !$isMinimal): ?>
+    <!-- Certificate upload modal -- shown on first visit to ask if they have an ISO cert.
+         Suppressed in minimal mode: there the certificate is a required step in the
+         normal flow (not an either/or shortcut), so the "skip the assessment?" prompt
+         would be misleading. -->
     <div class="cert-modal-overlay" id="certModalOverlay">
         <div class="cert-modal">
             <h2><?php echo e(t('vendor-assessment.modal_cert_question')); ?></h2>
@@ -1191,6 +1269,27 @@ $csrfToken = $security->generateCSRFToken();
                         <label class="question-label"><?php echo e(t('vendor-assessment.cert_expiry_date_optional')); ?></label>
                         <input type="date" name="certificate_expiry" id="modalCertExpiry" style="width: 100%;">
                     </div>
+
+                    <div class="question" style="text-align: left; margin-bottom: 15px;">
+                        <label class="question-label"><?php echo e(t('vendor-assessment.full_name')); ?> <span class="required">*</span></label>
+                        <input type="text" name="submitter_name" class="form-control" style="width: 100%;" required autocomplete="name">
+                    </div>
+                    <div class="question" style="text-align: left; margin-bottom: 15px;">
+                        <label class="question-label"><?php echo e(t('vendor-assessment.title')); ?> <span class="required">*</span></label>
+                        <input type="text" name="submitter_title" class="form-control" style="width: 100%;" required autocomplete="organization-title">
+                    </div>
+                    <div class="question" style="text-align: left; margin-bottom: 15px;">
+                        <label class="question-label"><?php echo e(t('vendor-assessment.email_address')); ?> <span class="required">*</span></label>
+                        <input type="email" name="submitter_email" class="form-control" style="width: 100%;" required autocomplete="email" value="<?php echo htmlspecialchars(($assessment['vendor_contact_email'] ?? '') ?: ($assessment['vendor_email'] ?? '')); ?>">
+                    </div>
+                    <div class="question" style="text-align: left; margin-bottom: 15px;">
+                        <label class="question-label"><?php echo e(t('vendor-assessment.phone_number')); ?> <span class="required">*</span></label>
+                        <input type="tel" name="submitter_phone" class="form-control" style="width: 100%;" required autocomplete="tel">
+                    </div>
+                    <label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:15px; text-align:left; font-size:14px; line-height:1.4;">
+                        <input type="checkbox" name="submitter_attested" value="1" required style="margin-top:3px; flex-shrink:0;">
+                        <span><?php echo e(t('vendor-assessment.attestation_certify')); ?></span>
+                    </label>
 
                     <button type="submit" class="btn btn-success" style="width: 100%;"><?php echo e(t('vendor-assessment.upload_certificate')); ?></button>
                     <button type="button" class="btn btn-secondary" id="certBackBtn" style="width: 100%; margin-top: 10px;"><?php echo e(t('vendor-assessment.back')); ?></button>
@@ -1263,6 +1362,10 @@ $csrfToken = $security->generateCSRFToken();
     // ========================================================================
     const assessmentUUID = <?php echo json_encode($uuid); ?>;
     let csrfToken = <?php echo json_encode($csrfToken); ?>;
+    // Minimal certificate mode: the cert is one required step, not a shortcut that
+    // completes the assessment. After upload we move the vendor on to the questions.
+    const CERT_MINIMAL_MODE = <?php echo $isMinimal ? 'true' : 'false'; ?>;
+    const CERT_FIRST_QUESTION_SECTION = <?php echo json_encode(!empty($navIndexes) ? $navIndexes[0] : 0); ?>;
 
     // If navigated here with ?highlight=questionId, scroll to and highlight that question
     (function() {
@@ -1591,7 +1694,12 @@ $csrfToken = $security->generateCSRFToken();
                 updateCsrfToken(result.csrf_token);
                 if (result.success) {
                     showAutosave('saved', 'Certificate uploaded');
-                    window.location.reload();
+                    if (CERT_MINIMAL_MODE) {
+                        // Cert stored, but the assessment isn't done -- continue to the questions.
+                        window.location.href = '?token=' + encodeURIComponent(assessmentUUID) + '&section=' + CERT_FIRST_QUESTION_SECTION;
+                    } else {
+                        window.location.reload();
+                    }
                 } else {
                     showAutosave('error', result.message || 'Upload failed');
                     alert(result.message || 'Upload failed');

@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'name' => $name,
                     'description' => trim($_POST['description'] ?? ''),
                     'category' => $_POST['category'] ?? 'vendor_assessment',
-                    'allow_certificate_upload' => !empty($_POST['allow_certificate_upload']),
+                    'certificate_upload_mode' => $_POST['certificate_upload_mode'] ?? 'none',
                     'certificate_upload_prompt' => trim($_POST['certificate_upload_prompt'] ?? ''),
                 ]);
                 $success = 'Template created. <a href="?section=assessment-templates&action=edit&template_id=' . $newId . '">Edit it now</a>';
@@ -53,9 +53,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'name' => $name,
                     'description' => trim($_POST['description'] ?? ''),
                     'category' => $_POST['category'] ?? 'vendor_assessment',
-                    'allow_certificate_upload' => !empty($_POST['allow_certificate_upload']),
+                    'certificate_upload_mode' => $_POST['certificate_upload_mode'] ?? 'none',
                     'certificate_upload_prompt' => trim($_POST['certificate_upload_prompt'] ?? ''),
                 ]);
+                // Persist the minimal-set question selection whenever the picker was
+                // part of the submitted form (it is always present in the edit view,
+                // just hidden unless minimal mode is selected).
+                if (!empty($_POST['minimal_questions_submitted'])) {
+                    $minimalIds = (isset($_POST['minimal_questions']) && is_array($_POST['minimal_questions']))
+                        ? $_POST['minimal_questions'] : [];
+                    $assessmentService->setMinimalQuestions($tid, $minimalIds);
+                }
                 $success = t('admin_assessment-templates.updated');
                 $templateId = $tid;
                 $action = 'edit';
@@ -225,15 +233,19 @@ $categoryLabels = [
             </div>
             <div id="certUploadGroup">
                 <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="allow_certificate_upload" value="1">
-                        <?php echo e(t('admin_assessment-templates.allow_cert_upload')); ?>
-                    </label>
+                    <label><?php echo e(t('admin_assessment-templates.cert_mode_label')); ?></label>
+                    <select name="certificate_upload_mode" class="form-control" id="createCertMode">
+                        <option value="none"><?php echo e(t('admin_assessment-templates.cert_mode_none')); ?></option>
+                        <option value="skip"><?php echo e(t('admin_assessment-templates.cert_mode_skip')); ?></option>
+                        <option value="minimal"><?php echo e(t('admin_assessment-templates.cert_mode_minimal')); ?></option>
+                    </select>
+                    <small style="color:#666; display:block; margin-top:4px;"><?php echo e(t('admin_assessment-templates.cert_mode_help')); ?></small>
                 </div>
                 <div class="form-group" id="certPromptGroup" style="display:none;">
                     <label><?php echo e(t('admin_assessment-templates.label_cert_instructions')); ?></label>
                     <textarea name="certificate_upload_prompt" class="form-control" rows="3" placeholder="<?php echo e(t('admin_assessment-templates.placeholder_cert_instructions')); ?>"></textarea>
                 </div>
+                <p id="createMinimalHint" style="color:#666; font-size:12px; margin:4px 0 0 0; display:none;"><em><?php echo e(t('admin_assessment-templates.minimal_no_questions')); ?></em></p>
             </div>
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button type="submit" name="create_template" class="btn btn-primary"><?php echo e(t('admin_assessment-templates.btn_create_template')); ?></button>
@@ -244,12 +256,23 @@ $categoryLabels = [
 </div>
 
 <script nonce="<?php echo cspNonce(); ?>">
-document.querySelector('#createTemplateModal [name="allow_certificate_upload"]')?.addEventListener('change', function() {
-    document.getElementById('certPromptGroup').style.display = this.checked ? 'block' : 'none';
-});
-document.querySelector('#createTemplateModal [name="category"]')?.addEventListener('change', function() {
-    document.getElementById('certUploadGroup').style.display = this.value === 'vendor_assessment' ? '' : 'none';
-});
+(function() {
+    var modeSel = document.getElementById('createCertMode');
+    function syncCreateMode() {
+        var mode = modeSel ? modeSel.value : 'none';
+        var prompt = document.getElementById('certPromptGroup');
+        var hint = document.getElementById('createMinimalHint');
+        if (prompt) prompt.style.display = (mode === 'skip' || mode === 'minimal') ? 'block' : 'none';
+        // Minimal questions are chosen on the edit screen (the template has no
+        // questions until it exists), so just hint the admin when minimal is picked.
+        if (hint) hint.style.display = (mode === 'minimal') ? 'block' : 'none';
+    }
+    modeSel?.addEventListener('change', syncCreateMode);
+    syncCreateMode();
+    document.querySelector('#createTemplateModal [name="category"]')?.addEventListener('change', function() {
+        document.getElementById('certUploadGroup').style.display = this.value === 'vendor_assessment' ? '' : 'none';
+    });
+})();
 </script>
 
 <?php elseif ($action === 'edit' && $editTemplate): ?>
@@ -359,16 +382,77 @@ foreach ($editTemplate['sections'] as $sec) {
             <label><?php echo e(t('admin_assessment-templates.label_description')); ?></label>
             <textarea name="description" class="form-control" rows="2"><?php echo e($editTemplate['description'] ?? ''); ?></textarea>
         </div>
+<?php
+        $editCertMode = $assessmentService->normalizeCertificateMode(
+            $editTemplate['certificate_upload_mode'] ?? null,
+            $editTemplate['allow_certificate_upload'] ?? null
+        );
+        $minimalSelectedCount = 0;
+        foreach ($editTemplate['sections'] as $sec) {
+            foreach ($sec['questions'] as $q) {
+                if (!empty($q['include_in_minimal'])) $minimalSelectedCount++;
+            }
+        }
+        $totalQuestionCount = count($allQuestionsFlat);
+?>
         <div id="editCertUploadGroup" style="<?php echo ($editTemplate['category'] ?? '') === 'vendor_assessment' ? '' : 'display:none;'; ?>">
+            <!-- Marker so the update handler knows the minimal-set picker was submitted -->
+            <input type="hidden" name="minimal_questions_submitted" value="1">
             <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" name="allow_certificate_upload" value="1" <?php echo $editTemplate['allow_certificate_upload'] ? 'checked' : ''; ?> id="editCertToggle">
-                    <?php echo e(t('admin_assessment-templates.allow_cert_upload')); ?>
-                </label>
+                <label><?php echo e(t('admin_assessment-templates.cert_mode_label')); ?></label>
+                <select name="certificate_upload_mode" class="form-control" id="editCertMode">
+                    <option value="none" <?php echo $editCertMode === 'none' ? 'selected' : ''; ?>><?php echo e(t('admin_assessment-templates.cert_mode_none')); ?></option>
+                    <option value="skip" <?php echo $editCertMode === 'skip' ? 'selected' : ''; ?>><?php echo e(t('admin_assessment-templates.cert_mode_skip')); ?></option>
+                    <option value="minimal" <?php echo $editCertMode === 'minimal' ? 'selected' : ''; ?>><?php echo e(t('admin_assessment-templates.cert_mode_minimal')); ?></option>
+                </select>
+                <small style="color:#666; display:block; margin-top:4px;"><?php echo e(t('admin_assessment-templates.cert_mode_help')); ?></small>
             </div>
-            <div class="form-group" id="editCertPromptGroup" style="<?php echo $editTemplate['allow_certificate_upload'] ? '' : 'display:none;'; ?>">
+            <div class="form-group" id="editCertPromptGroup" style="<?php echo $editCertMode !== 'none' ? '' : 'display:none;'; ?>">
                 <label><?php echo e(t('admin_assessment-templates.label_cert_instructions')); ?></label>
                 <textarea name="certificate_upload_prompt" class="form-control" rows="3" placeholder="<?php echo e(t('admin_assessment-templates.placeholder_cert_instructions')); ?>"><?php echo e($editTemplate['certificate_upload_prompt'] ?? ''); ?></textarea>
+            </div>
+            <div class="form-group" id="editMinimalGroup" style="<?php echo $editCertMode === 'minimal' ? '' : 'display:none;'; ?>">
+                <button type="button" class="btn btn-secondary" data-toggle="minimalQuestionsModal"><?php echo e(t('admin_assessment-templates.minimal_pick_btn')); ?></button>
+                <span id="minimalCountLabel" style="margin-left:10px; color:#666;"
+                      data-count-template="<?php echo e(t('admin_assessment-templates.minimal_count')); ?>"
+                      data-none="<?php echo e(t('admin_assessment-templates.minimal_none_selected')); ?>"></span>
+            </div>
+
+            <!-- Minimal-set picker. Rendered INSIDE the settings form so its checkboxes
+                 submit; position:fixed (.modal) keeps it out of the layout flow. -->
+            <div id="minimalQuestionsModal" class="modal">
+                <div class="modal-content" style="max-width:640px;">
+                    <span class="close" data-close="minimalQuestionsModal">&times;</span>
+                    <h3 style="margin-top:0; color:var(--theme-header-color);"><?php echo e(t('admin_assessment-templates.minimal_modal_title')); ?></h3>
+                    <p style="color:#666; font-size:13px;"><?php echo e(t('admin_assessment-templates.minimal_modal_desc')); ?></p>
+                    <?php if ($totalQuestionCount === 0): ?>
+                    <p><em><?php echo e(t('admin_assessment-templates.minimal_no_questions')); ?></em></p>
+                    <?php else: ?>
+                    <div style="margin-bottom:10px; display:flex; gap:10px;">
+                        <button type="button" class="btn btn-sm btn-secondary" id="minimalSelectAll"><?php echo e(t('admin_assessment-templates.minimal_select_all')); ?></button>
+                        <button type="button" class="btn btn-sm btn-secondary" id="minimalClearAll"><?php echo e(t('admin_assessment-templates.minimal_clear_all')); ?></button>
+                    </div>
+                    <div style="max-height:360px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:6px; padding:10px;">
+                        <?php foreach ($editTemplate['sections'] as $sec): ?>
+                            <?php if (empty($sec['questions'])) continue; ?>
+                            <div style="font-weight:600; color:#374151; margin:8px 0 4px;"><?php echo e($sec['name']); ?></div>
+                            <?php foreach ($sec['questions'] as $q): ?>
+                            <label style="display:flex; align-items:flex-start; gap:8px; padding:4px 0; font-size:14px;">
+                                <input type="checkbox" class="minimal-q-checkbox" name="minimal_questions[]" value="<?php echo (int)$q['id']; ?>" <?php echo !empty($q['include_in_minimal']) ? 'checked' : ''; ?> style="margin-top:3px;">
+                                <span>
+                                    <span class="q-type-badge" style="font-size:10px;"><?php echo e($q['question_type']); ?></span>
+                                    <?php echo e(mb_strimwidth($q['question_text'], 0, 90, '...')); ?>
+                                    <?php if ($q['is_required']): ?><span class="badge badge-danger" style="font-size:9px;"><?php echo e(t('admin_assessment-templates.badge_required')); ?></span><?php endif; ?>
+                                </span>
+                            </label>
+                            <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+                    <div style="display:flex; gap:10px; margin-top:20px;">
+                        <button type="button" class="btn btn-primary" data-close="minimalQuestionsModal"><?php echo e(t('admin_assessment-templates.minimal_done')); ?></button>
+                    </div>
+                </div>
             </div>
         </div>
         <button type="submit" name="update_template" class="btn btn-primary"><?php echo e(t('admin_assessment-templates.btn_save_settings')); ?></button>
@@ -636,12 +720,48 @@ document.getElementById('qModalFieldName')?.addEventListener('change', function(
     }
 });
 
-document.getElementById('editCertToggle')?.addEventListener('change', function() {
-    document.getElementById('editCertPromptGroup').style.display = this.checked ? 'block' : 'none';
-});
-document.querySelector('form [name="category"]')?.addEventListener('change', function() {
-    document.getElementById('editCertUploadGroup').style.display = this.value === 'vendor_assessment' ? '' : 'none';
-});
+(function() {
+    var modeSel = document.getElementById('editCertMode');
+    var promptGroup = document.getElementById('editCertPromptGroup');
+    var minimalGroup = document.getElementById('editMinimalGroup');
+    var countLabel = document.getElementById('minimalCountLabel');
+
+    function updateMinimalCount() {
+        if (!countLabel) return;
+        var n = document.querySelectorAll('.minimal-q-checkbox:checked').length;
+        if (n > 0) {
+            var tpl = countLabel.getAttribute('data-count-template') || '%d';
+            countLabel.textContent = tpl.replace('%d', n);
+        } else {
+            countLabel.textContent = countLabel.getAttribute('data-none') || '';
+        }
+    }
+
+    function syncEditMode() {
+        var mode = modeSel ? modeSel.value : 'none';
+        if (promptGroup) promptGroup.style.display = (mode === 'skip' || mode === 'minimal') ? 'block' : 'none';
+        if (minimalGroup) minimalGroup.style.display = (mode === 'minimal') ? 'block' : 'none';
+    }
+
+    modeSel?.addEventListener('change', syncEditMode);
+    document.getElementById('minimalSelectAll')?.addEventListener('click', function() {
+        document.querySelectorAll('.minimal-q-checkbox').forEach(function(cb) { cb.checked = true; });
+        updateMinimalCount();
+    });
+    document.getElementById('minimalClearAll')?.addEventListener('click', function() {
+        document.querySelectorAll('.minimal-q-checkbox').forEach(function(cb) { cb.checked = false; });
+        updateMinimalCount();
+    });
+    document.querySelectorAll('.minimal-q-checkbox').forEach(function(cb) {
+        cb.addEventListener('change', updateMinimalCount);
+    });
+    document.querySelector('form [name="category"]')?.addEventListener('change', function() {
+        document.getElementById('editCertUploadGroup').style.display = this.value === 'vendor_assessment' ? '' : 'none';
+    });
+
+    syncEditMode();
+    updateMinimalCount();
+})();
 </script>
 
 <?php endif; ?>

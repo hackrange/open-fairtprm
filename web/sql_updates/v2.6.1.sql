@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS `assessment_questions` (
   `field_name` varchar(100) DEFAULT NULL COMMENT 'Maps to vendor_onboarding_requests column for onboarding templates',
   `triggers_assessment_template_id` int(11) DEFAULT NULL,
   `triggers_on_value` varchar(255) DEFAULT NULL,
+  `include_in_minimal` tinyint(1) DEFAULT 0 COMMENT 'When the template is in minimal certificate mode, only questions flagged here are presented/required',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_section_sort` (`section_id`,`sort_order`),
   KEY `idx_depends_on` (`depends_on_question_id`),
@@ -181,6 +182,7 @@ CREATE TABLE IF NOT EXISTS `assessment_templates` (
   `description` text DEFAULT NULL,
   `allow_certificate_upload` tinyint(1) DEFAULT 0,
   `certificate_upload_prompt` text DEFAULT NULL,
+  `certificate_upload_mode` varchar(20) DEFAULT 'none' COMMENT 'none = full assessment; skip = cert upload completes; minimal = cert upload + selected questions',
   `is_active` tinyint(1) DEFAULT 1,
   `created_at` datetime DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -5749,6 +5751,37 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`) VALUES
 -- Procurement update digest email template (branding-aware; seed only if missing).
 -- The generic-template de-duplication above keeps the {{system_title}} copy.
 INSERT IGNORE INTO email_templates (id, template_category, template_key, assessment_template_id, display_name, email_subject, email_body_html, email_body_text, available_variables, is_active) VALUES (25, 'procurement_digest', 'procurement_update_digest', NULL, 'Procurement Update Digest', 'Procurement Update Digest: {{vendor_count}} Vendor(s) In Review', '<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"></head>\n<body style=\"margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;\">\n    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #f4f4f4; padding: 20px;\">\n        <tr><td align=\"center\">\n            <table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);\">\n                <tr><td style=\"background-color: {{header_color}}; padding: 30px; text-align: center;\">{{logo_img}}<h1 style=\"margin: 10px 0 0 0; color: {{header_font_color}}; font-size: 20px;\">{{system_title}}</h1></td></tr>\n                <tr><td style=\"padding: 30px;\">\n                    <p style=\"margin: 0 0 10px 0; color: #333; font-size: 15px; line-height: 1.6;\">As of <strong>{{digest_date}}</strong>, <strong>{{vendor_count}}</strong> vendor(s) in Review / AI Review have procurement updates:</p>\n                    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; margin: 20px 0;\">\n                        <tr><td style=\"background:#f9fafb;padding:10px 15px;font-weight:bold;color:#374151;font-size:14px;border-bottom:1px solid #e5e7eb;\">Latest Updates</td></tr>\n                        {{update_rows_html}}\n                    </table>\n                    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin: 20px 0;\"><tr><td align=\"center\"><a href=\"{{app_url}}\" style=\"display: inline-block; padding: 15px 40px; background-color: {{button_color}}; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;\">View Cyber Status</a></td></tr></table>\n                </td></tr>\n                <tr><td style=\"background-color: {{footer_color}}; padding: 20px 30px;\"><p style=\"margin: 0; color: #ffffff; font-size: 12px;\">This is an automated notification from {{system_title}}. Please do not reply to this email.</p></td></tr>\n            </table>\n        </td></tr>\n    </table>\n</body>\n</html>', 'PROCUREMENT UPDATE DIGEST\n==========================================\n\nAs of {{digest_date}}, {{vendor_count}} vendor(s) in Review / AI Review have procurement updates:\n\n{{update_rows_text}}\nView Cyber Status: {{app_url}}\n\n==========================================\nThis is an automated notification from {{system_title}}. Please do not reply to this email.', '[\"vendor_count\",\"digest_date\",\"update_rows_html\",\"update_rows_text\",\"app_url\",\"header_color\",\"header_font_color\",\"button_color\",\"footer_color\",\"system_title\",\"logo_img\"]', 1);
+
+-- =============================================================================
+-- Certificate upload mode: replaces the boolean allow_certificate_upload with a
+-- three-state mode on the template (none / skip / minimal) plus a per-question
+-- flag marking which questions make up the "minimal" set. allow_certificate_upload
+-- is retained and kept in sync (1 for skip and minimal) so existing checks that
+-- gate the cert-upload UI keep working. Guarded on INFORMATION_SCHEMA so re-runs
+-- are no-ops on both MySQL and MariaDB.
+-- =============================================================================
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'assessment_templates' AND column_name = 'certificate_upload_mode') = 0,
+  'ALTER TABLE `assessment_templates` ADD COLUMN `certificate_upload_mode` VARCHAR(20) DEFAULT ''none'' COMMENT ''none = full assessment; skip = cert upload completes; minimal = cert upload + selected questions''',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Backfill: any template that already permitted certificate upload is a "skip"
+-- template. Only touch rows still on the default so we never clobber an admin's
+-- explicit later choice; safe to re-run.
+UPDATE `assessment_templates`
+   SET `certificate_upload_mode` = 'skip'
+ WHERE `allow_certificate_upload` = 1 AND (`certificate_upload_mode` IS NULL OR `certificate_upload_mode` = 'none');
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'assessment_questions' AND column_name = 'include_in_minimal') = 0,
+  'ALTER TABLE `assessment_questions` ADD COLUMN `include_in_minimal` TINYINT(1) DEFAULT 0 COMMENT ''When the template is in minimal certificate mode, only questions flagged here are presented/required''',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- =============================================================================
 -- FairTPRM v2.6.1 schema and seed data complete

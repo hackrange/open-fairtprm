@@ -208,30 +208,78 @@ class VendorAssessmentService {
      */
     public function createTemplate($data) {
         $slug = $this->generateUniqueSlug($data['name']);
+        $mode = $this->normalizeCertificateMode($data['certificate_upload_mode'] ?? null, $data['allow_certificate_upload'] ?? null);
         return $this->db->insert('assessment_templates', [
             'name' => $data['name'],
             'slug' => $slug,
             'description' => $data['description'] ?? '',
             'category' => $data['category'] ?? 'vendor_assessment',
-            'allow_certificate_upload' => !empty($data['allow_certificate_upload']) ? 1 : 0,
+            'certificate_upload_mode' => $mode,
+            // Kept in sync with the mode so existing checks that gate the cert-upload
+            // UI keep working: enabled for both 'skip' and 'minimal'.
+            'allow_certificate_upload' => $mode === 'none' ? 0 : 1,
             'certificate_upload_prompt' => $data['certificate_upload_prompt'] ?? null,
             'is_active' => 0, // New templates start inactive
         ]);
     }
 
     /**
+     * Normalize a certificate-upload mode value to one of none|skip|minimal.
+     * Falls back to the legacy boolean allow_certificate_upload when no explicit
+     * mode is provided (so older callers keep working): true => 'skip'.
+     */
+    public function normalizeCertificateMode($mode, $legacyAllow = null) {
+        $mode = is_string($mode) ? strtolower(trim($mode)) : '';
+        if (in_array($mode, ['none', 'skip', 'minimal'], true)) {
+            return $mode;
+        }
+        return !empty($legacyAllow) ? 'skip' : 'none';
+    }
+
+    /**
      * Update template metadata (name, description, category, certificate settings).
      */
     public function updateTemplate($templateId, $data) {
+        $mode = $this->normalizeCertificateMode($data['certificate_upload_mode'] ?? null, $data['allow_certificate_upload'] ?? null);
         $update = [
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
             'category' => $data['category'] ?? 'vendor_assessment',
-            'allow_certificate_upload' => !empty($data['allow_certificate_upload']) ? 1 : 0,
+            'certificate_upload_mode' => $mode,
+            'allow_certificate_upload' => $mode === 'none' ? 0 : 1,
             'certificate_upload_prompt' => $data['certificate_upload_prompt'] ?? null,
             'updated_at' => date('Y-m-d H:i:s'),
         ];
         return $this->db->update('assessment_templates', $update, 'id = :id', [':id' => $templateId]);
+    }
+
+    /**
+     * Set which questions make up the "minimal" certificate-mode set for a template.
+     * Flags the given question IDs (scoped to this template) include_in_minimal = 1 and
+     * clears the flag on all other questions of the template. Pass an empty array to
+     * clear the whole set. Uses the same section-subquery scoping as the SQL migrations.
+     */
+    public function setMinimalQuestions($templateId, array $questionIds) {
+        $this->db->query(
+            'UPDATE assessment_questions SET include_in_minimal = 0
+             WHERE section_id IN (SELECT id FROM assessment_sections WHERE template_id = :tid)',
+            [':tid' => $templateId]
+        );
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $questionIds))));
+        if (empty($ids)) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = $ids;
+        $params[] = (int)$templateId;
+        $this->db->query(
+            "UPDATE assessment_questions SET include_in_minimal = 1
+             WHERE id IN ($placeholders)
+               AND section_id IN (SELECT id FROM assessment_sections WHERE template_id = ?)",
+            $params
+        );
     }
 
     /**
@@ -279,6 +327,7 @@ class VendorAssessmentService {
             'name' => $newName,
             'description' => $source['description'],
             'category' => $source['category'] ?? 'vendor_assessment',
+            'certificate_upload_mode' => $source['certificate_upload_mode'] ?? null,
             'allow_certificate_upload' => $source['allow_certificate_upload'],
             'certificate_upload_prompt' => $source['certificate_upload_prompt'],
         ]);
@@ -304,6 +353,7 @@ class VendorAssessmentService {
                     'help_text' => $q['help_text'],
                     'sort_order' => $q['sort_order'],
                     'field_name' => $q['field_name'] ?? null,
+                    'include_in_minimal' => $q['include_in_minimal'] ?? 0,
                     // depends_on fields will be remapped after all questions are created
                     'depends_on_question_id' => null,
                     'depends_on_value' => $q['depends_on_value'] ?? null,
@@ -714,7 +764,7 @@ class VendorAssessmentService {
     public function getAssessmentByUUID($uuid) {
         $assessment = $this->db->fetchOne(
             'SELECT a.*, t.name as template_name, t.slug as template_slug,
-                    t.allow_certificate_upload, t.certificate_upload_prompt
+                    t.allow_certificate_upload, t.certificate_upload_prompt, t.certificate_upload_mode
              FROM vendor_assessments a
              JOIN assessment_templates t ON a.template_id = t.id
              WHERE a.uuid = :uuid',
@@ -731,7 +781,7 @@ class VendorAssessmentService {
     public function getAssessmentById($id) {
         return $this->db->fetchOne(
             'SELECT a.*, t.name as template_name, t.slug as template_slug,
-                    t.allow_certificate_upload, t.certificate_upload_prompt
+                    t.allow_certificate_upload, t.certificate_upload_prompt, t.certificate_upload_mode
              FROM vendor_assessments a
              JOIN assessment_templates t ON a.template_id = t.id
              WHERE a.id = :id',
@@ -915,14 +965,36 @@ class VendorAssessmentService {
                 $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
                 $assignTo = $rule['assign_to'] ?? 'vendor';
 
+                // Resolve the vendor contact. The source assessment's vendor_email can be
+                // the internal requester (e.g. the stakeholder who initiated onboarding,
+                // since it defaults to the logged-in user's email at creation time). The
+                // vendor's actual contact is captured in the onboarding form and synced to
+                // vendor_onboarding_requests.primary_contact_email, so prefer that when the
+                // assessment is linked to an onboarding request.
+                $vendorContactEmail = $assessment['vendor_contact_email'] ?? null;
+                $vendorContactName  = $assessment['vendor_contact_name'] ?? null;
+                if (!empty($assessment['vendor_request_id'])) {
+                    $onboardingContact = $this->db->fetchOne(
+                        "SELECT primary_contact_email, primary_contact_details
+                         FROM vendor_onboarding_requests WHERE id = ?",
+                        [$assessment['vendor_request_id']]
+                    );
+                    if (!empty($onboardingContact['primary_contact_email'])) {
+                        $vendorContactEmail = $onboardingContact['primary_contact_email'];
+                        if (!empty($onboardingContact['primary_contact_details'])) {
+                            $vendorContactName = $onboardingContact['primary_contact_details'];
+                        }
+                    }
+                }
+
                 $triggeredId = $this->db->insert('vendor_assessments', [
                     'uuid' => $uuid,
                     'template_id' => $targetTemplateId,
                     'vendor_request_id' => $assessment['vendor_request_id'],
                     'vendor_name' => $assessment['vendor_name'],
                     'vendor_email' => $assessment['vendor_email'],
-                    'vendor_contact_name' => $assessment['vendor_contact_name'] ?? null,
-                    'vendor_contact_email' => $assessment['vendor_contact_email'] ?? null,
+                    'vendor_contact_name' => $vendorContactName,
+                    'vendor_contact_email' => $vendorContactEmail,
                     'status' => 'pending',
                     'expires_at' => $expiresAt,
                     'triggered_by_assessment_id' => $assessmentId,
@@ -978,10 +1050,12 @@ class VendorAssessmentService {
                         }
                     }
 
-                    // Default: send to vendor contact
+                    // Default: send to vendor contact (resolved above, preferring the
+                    // onboarding request's primary contact over the source assessment's
+                    // vendor_email, which may be the internal requester's address).
                     if (empty($recipientEmail)) {
-                        $recipientEmail = $assessment['vendor_contact_email'] ?: $assessment['vendor_email'];
-                        $recipientName = $assessment['vendor_contact_name'] ?? null;
+                        $recipientEmail = $vendorContactEmail ?: $assessment['vendor_email'];
+                        $recipientName = $vendorContactName;
                     }
 
                     if (!empty($recipientEmail) && filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
@@ -1402,19 +1476,37 @@ class VendorAssessmentService {
     }
 
     /**
-     * Saves a certificate upload (ISO 27001, SOC 2, etc.) and marks the
-     * assessment as completed. Because if you have a cert, you've basically
-     * answered all the questions with "yes, we do that, here's the proof."
+     * Saves a certificate upload (ISO 27001, SOC 2, etc.).
+     *
+     * In "skip" mode the certificate stands in for the whole questionnaire, so
+     * $autoComplete (the default) marks the assessment completed. In "minimal"
+     * mode the certificate is necessary but not sufficient — the vendor still has
+     * to answer the selected questions — so callers pass $autoComplete = false and
+     * the assessment is completed later via the normal submit flow.
      */
-    public function saveCertificate($assessmentId, $filePath, $expiryDate = null) {
-        return $this->db->update('vendor_assessments', [
+    public function saveCertificate($assessmentId, $filePath, $expiryDate = null, $autoComplete = true) {
+        $data = [
             'certificate_uploaded' => 1,
             'certificate_path' => $filePath,
             'certificate_expiry' => $expiryDate,
-            'status' => 'completed',
-            'completed_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s')
-        ], 'id = :id', [':id' => $assessmentId]);
+        ];
+        if ($autoComplete) {
+            $data['status'] = 'completed';
+            $data['completed_at'] = date('Y-m-d H:i:s');
+        }
+        return $this->db->update('vendor_assessments', $data, 'id = :id', [':id' => $assessmentId]);
+    }
+
+    /**
+     * Resolve a loaded assessment's effective certificate-upload mode
+     * (none|skip|minimal), tolerant of rows created before the mode column existed.
+     */
+    public function getEffectiveCertificateMode($assessment) {
+        return $this->normalizeCertificateMode(
+            $assessment['certificate_upload_mode'] ?? null,
+            $assessment['allow_certificate_upload'] ?? null
+        );
     }
 
     /**
@@ -1526,7 +1618,16 @@ class VendorAssessmentService {
         $assessment = $this->getAssessmentById($assessmentId);
         if (!$assessment) return null;
 
-        // Certificate uploaded = instant 100%. Like a get-out-of-jail-free card.
+        $mode = $this->getEffectiveCertificateMode($assessment);
+
+        // Minimal mode: the certificate is necessary but NOT sufficient -- the vendor
+        // must also answer the selected subset of questions. Handled separately so we
+        // never short-circuit to 100% on the certificate alone.
+        if ($mode === 'minimal') {
+            return $this->getMinimalCompletionStatus($assessment);
+        }
+
+        // Skip mode (and legacy): certificate uploaded = instant 100%. Get-out-of-jail-free.
         if ($assessment['certificate_uploaded']) {
             return [
                 'total_questions' => 0,
@@ -1581,6 +1682,76 @@ class VendorAssessmentService {
             'answered_questions' => $totalAnswered,
             'percentage' => $totalRequired > 0 ? round(($totalAnswered / $totalRequired) * 100) : 0,
             'sections' => $sectionStatus
+        ];
+    }
+
+    /**
+     * Completion status for a "minimal" certificate-mode assessment.
+     *
+     * Only questions flagged include_in_minimal count toward completion (conditional
+     * visibility still applies), and the certificate upload itself counts as one
+     * additional required item. Sections with no minimal questions are omitted so the
+     * vendor only ever sees the relevant steps. Extra keys (minimal_mode /
+     * certificate_required / certificate_uploaded) let the submit endpoint and the
+     * vendor UI gate on the certificate as well as the questions.
+     */
+    private function getMinimalCompletionStatus($assessment) {
+        $sections = $this->getSections($assessment['template_id']);
+        $responses = $this->getResponses($assessment['id']);
+
+        $sectionStatus = [];
+        $totalRequired = 0;
+        $totalAnswered = 0;
+
+        foreach ($sections as $section) {
+            $questions = $this->getQuestions($section['id']);
+            $sectionRequired = 0;
+            $sectionAnswered = 0;
+
+            foreach ($questions as $q) {
+                // Only the selected minimal questions count.
+                if (empty($q['include_in_minimal'])) {
+                    continue;
+                }
+                // Respect conditional visibility, same as the full flow.
+                if (!$this->isQuestionVisible($q, $responses)) {
+                    continue;
+                }
+
+                $sectionRequired++;
+                $totalRequired++;
+                if (isset($responses[$q['id']]) && !empty($responses[$q['id']]['response_value'])) {
+                    $sectionAnswered++;
+                    $totalAnswered++;
+                }
+            }
+
+            // Only surface sections that actually carry minimal questions.
+            if ($sectionRequired > 0) {
+                $sectionStatus[$section['id']] = [
+                    'name' => $section['name'],
+                    'required' => $sectionRequired,
+                    'answered' => $sectionAnswered,
+                    'complete' => $sectionRequired === $sectionAnswered
+                ];
+            }
+        }
+
+        // The certificate is a required item in minimal mode.
+        $certUploaded = !empty($assessment['certificate_uploaded']);
+        $totalRequired++;
+        if ($certUploaded) {
+            $totalAnswered++;
+        }
+
+        return [
+            'total_questions' => $totalRequired,
+            'answered_questions' => $totalAnswered,
+            'percentage' => $totalRequired > 0 ? round(($totalAnswered / $totalRequired) * 100) : 0,
+            'sections' => $sectionStatus,
+            'minimal_mode' => true,
+            'certificate_required' => true,
+            'certificate_uploaded' => $certUploaded,
         ];
     }
 
