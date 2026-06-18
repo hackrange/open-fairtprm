@@ -155,6 +155,33 @@ $csrfToken = $security->getCSRFToken();
         .btn-doc { display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; background: var(--theme-button-color, #ff6543); color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.2s; text-decoration: none; }
         .btn-doc:hover { opacity: 0.9; color: white; }
 
+        /* Screenshot figures */
+        figure.doc-figure { margin: 18px 0; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; background: #fbfcfd; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+        figure.doc-figure img { display: block; width: 100%; height: auto; border-bottom: 1px solid #eef0f2; }
+        figure.doc-figure figcaption { font-size: 12px; color: #6b7280; padding: 8px 14px; line-height: 1.5; }
+        figure.doc-figure figcaption strong { color: #374151; }
+        figure.doc-figure.narrow { max-width: 640px; }
+
+        /* "New in 2.6.1" badge */
+        .new-badge { display: inline-block; vertical-align: middle; background: var(--theme-button-color, #ff6543); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 7px; border-radius: 10px; margin-left: 8px; }
+
+        /* FAQ search + accordion */
+        .faq-search-wrap { position: relative; margin: 6px 0 18px; }
+        .faq-search { width: 100%; padding: 12px 16px 12px 40px; font-size: 14px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-family: inherit; }
+        .faq-search:focus { outline: none; border-color: var(--theme-button-color, #ff6543); box-shadow: 0 0 0 3px rgba(255,101,67,0.12); }
+        .faq-search-wrap::before { content: "\1F50D"; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.5; }
+        .faq-count { font-size: 12px; color: #9ca3af; margin: 0 0 14px; }
+        details.faq-item { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; background: #fff; overflow: hidden; }
+        details.faq-item > summary { list-style: none; cursor: pointer; padding: 12px 16px; font-size: 14px; font-weight: 600; color: #1f2937; display: flex; align-items: center; gap: 8px; }
+        details.faq-item > summary::-webkit-details-marker { display: none; }
+        details.faq-item > summary::before { content: "+"; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; background: #f3f4f6; border-radius: 4px; color: var(--theme-button-color, #ff6543); font-weight: 700; }
+        details.faq-item[open] > summary::before { content: "\2212"; }
+        details.faq-item[open] > summary { border-bottom: 1px solid #eef0f2; }
+        details.faq-item .faq-body { padding: 12px 16px 16px; font-size: 13px; color: #374151; line-height: 1.7; }
+        details.faq-item .faq-body p { font-size: 13px; margin: 0 0 10px; }
+        .faq-tag { display: inline-block; background: #eef2ff; color: #4338ca; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 1px 7px; border-radius: 4px; margin-left: auto; }
+        .faq-no-results { display: none; padding: 14px; color: #9ca3af; font-size: 13px; font-style: italic; }
+
         .doc-nav-bottom { display: flex; justify-content: space-between; margin-top: 16px; }
         .doc-nav-bottom a { color: #2563eb; text-decoration: none; font-size: 13px; }
         .doc-nav-bottom a:hover { text-decoration: underline; }
@@ -171,11 +198,16 @@ $csrfToken = $security->getCSRFToken();
             .doc-section { border: none; box-shadow: none; padding: 16px 0; }
             .doc-section h2 { break-after: avoid; }
             body { font-size: 11px; color: #1e293b; }
+            figure.doc-figure { break-inside: avoid; box-shadow: none; max-width: 100%; }
+            figure.doc-figure img { max-width: 100%; }
+            .faq-search-wrap, .faq-count, .faq-no-results { display: none !important; }
+            details.faq-item, details.faq-item .faq-body { display: block !important; }
+            details.faq-item > summary::before, details.faq-item[open] > summary::before { content: "" !important; }
 
             /* Page setup & footer */
             @page {
                 margin: 2cm 2cm 2.8cm 2cm;
-                @bottom-left { content: "Fair TPRM & GRC Platform — v2.5.7"; font-size: 8px; color: #999; font-family: 'Roboto', sans-serif; }
+                @bottom-left { content: "Fair TPRM & GRC Platform — v2.6.1"; font-size: 8px; color: #999; font-family: 'Roboto', sans-serif; }
                 @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 8px; color: #999; font-family: 'Roboto', sans-serif; }
             }
 
@@ -278,7 +310,7 @@ $csrfToken = $security->getCSRFToken();
                     <div class="cover-rule"></div>
                     <h1>Platform Documentation</h1>
                     <div class="cover-edition">Governance, Risk &amp; Compliance &bull; Third Party Risk Management</div>
-                    <div class="cover-version">Version 2.5.7</div>
+                    <div class="cover-version">Version 2.6.1</div>
                     <div class="cover-rule-bottom"></div>
                     <div class="cover-meta">
                         <strong>Date:</strong> <?php echo date('F j, Y'); ?><br>
@@ -327,7 +359,7 @@ $csrfToken = $security->getCSRFToken();
                 <div class="doc-body">
 
                 <h1>Platform Documentation</h1>
-                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; Version 2.5.7 &mdash; Last updated: <?php echo date('F j, Y'); ?></p>
+                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; Version 2.6.1 &mdash; Last updated: <?php echo date('F j, Y'); ?></p>
 
                 <div style="margin-bottom:20px;">
                     <button class="btn-doc" id="printBtn">Download PDF</button>
@@ -402,6 +434,80 @@ $csrfToken = $security->getCSRFToken();
         <li>You will land on the <strong>Dashboard</strong>. The top bar shows "Welcome, [Your Name]" with links to Admin (if you are an administrator), Profile, and Logout.</li>
         <li>Look at the left sidebar. If you are in the <strong>Cyber GRC</strong> or <strong>Administrator</strong> group, you will see <span class="menu-label">GRC Module</span> in the sidebar. Click it to expand the GRC navigation.</li>
     </ol>
+    <figure class="doc-figure">
+        <img src="app/docs/dashboard.png" alt="The platform dashboard after logging in" loading="lazy">
+        <figcaption><strong>The Dashboard.</strong> After signing in you land here. The top bar (upper right) has <strong>Admin</strong>, <strong>Profile</strong>, and <strong>Logout</strong>. The left sidebar is your main menu.</figcaption>
+    </figure>
+</div>
+
+
+<!-- ================================================================
+     WHAT'S NEW IN 2.6.1
+     ================================================================ -->
+<div class="doc-section" id="whats-new">
+    <h2>What's New in Version 2.6.1</h2>
+    <p>Version 2.6.1 adds several features focused on <strong>vendor onboarding, procurement collaboration, multi-language support, and shadow-SaaS discovery</strong>. If you have used an earlier version, here is what is new. Each item links to its full walkthrough later in this guide.</p>
+    <table class="doc-table">
+        <tr><th>New Feature</th><th>What It Does</th><th>Who It's For</th></tr>
+        <tr><td><strong><a href="#language">Language settings</a></strong></td><td>Use the platform in 8 languages. Each person picks their own language; admins choose which languages are available.</td><td>Everyone</td></tr>
+        <tr><td><strong><a href="#onboarding-workflow">Procurement Onboarding &amp; Vendor ID</a></strong></td><td>A vendor must be onboarded through procurement and have a valid Vendor ID (VID) before it can be submitted for cyber review.</td><td>Procurement, Stakeholders</td></tr>
+        <tr><td><strong><a href="#ai-review">AI Review for vendors</a></strong></td><td>A dedicated review status for vendors whose services use AI, plus a "Force AI Review" action.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#procurement-cyber-status">Procurement Cyber Status</a></strong></td><td>A live page showing vendors in review, with a running history of updates the cyber team shares with procurement, plus a weekly email digest.</td><td>Procurement, Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#shadow-saas-grip">Grip Security integration</a></strong></td><td>Automatically discover SaaS apps used across your organization and pull them into the Shadow SaaS list.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#zscaler">Zscaler blocking</a></strong></td><td>Block an unsanctioned app's web domain directly in Zscaler with one click.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-updates">In-app upgrades</a></strong></td><td>Check your registry for a newer version and upgrade from inside the Admin Portal.</td><td>Admins</td></tr>
+    </table>
+    <div class="callout callout-info">
+        <strong>How do I know which version I'm on?</strong> Administrators can go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> to see the installed version. This guide describes <strong>v2.6.1</strong>. See <a href="#admin-updates">Updating the Platform</a>.
+    </div>
+</div>
+
+<div class="doc-section" id="language">
+    <h2>Changing Your Language <span class="new-badge">New in 2.6.1</span></h2>
+    <p>The platform interface can be displayed in <strong>8 languages</strong>. Every person chooses their own language &mdash; changing it only affects <em>your</em> screen, not anyone else's. Your choice is remembered every time you log in.</p>
+
+    <h3>Languages available</h3>
+    <table class="doc-table">
+        <tr><th>Language</th><th>Shown in the menu as</th></tr>
+        <tr><td>English</td><td>English</td></tr>
+        <tr><td>Spanish</td><td>Espa&ntilde;ol</td></tr>
+        <tr><td>Italian</td><td>Italiano</td></tr>
+        <tr><td>Ukrainian</td><td>&#1059;&#1082;&#1088;&#1072;&#1111;&#1085;&#1089;&#1100;&#1082;&#1072;</td></tr>
+        <tr><td>Chinese (Simplified)</td><td>&#20013;&#25991;&#65288;&#31616;&#20307;&#65289;</td></tr>
+        <tr><td>Hindi</td><td>&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;</td></tr>
+        <tr><td>French</td><td>Fran&ccedil;ais</td></tr>
+        <tr><td>Portuguese</td><td>Portugu&ecirc;s</td></tr>
+    </table>
+    <p class="callout callout-info" style="margin-top:0;"><strong>Only the languages your administrator has turned on will appear in your list.</strong> English is always available and cannot be turned off.</p>
+
+    <h3>How to change your language (step by step)</h3>
+    <ol class="steps">
+        <li>Click <span class="menu-label">Profile</span> in the top-right corner of any page.</li>
+        <li>On the Profile page, scroll down to the <span class="field-label">Language Preference</span> card.</li>
+        <li>Click the <span class="field-label">Language</span> drop-down and choose your language. To go back to the language your administrator set for everyone, choose <strong>System default</strong>.</li>
+        <li>Click <span class="btn-label">Update Language</span>. The page reloads and the menus, buttons, and labels now appear in your chosen language.</li>
+    </ol>
+    <figure class="doc-figure narrow">
+        <img src="app/docs/profile-language-card.png" alt="Language Preference card on the Profile page" loading="lazy">
+        <figcaption><strong>Profile &rarr; Language Preference.</strong> Pick a language and click <strong>Update Language</strong>. Choosing <em>System default</em> removes your personal preference.</figcaption>
+    </figure>
+
+    <h3>For administrators: choosing which languages are available</h3>
+    <p>Administrators decide the <strong>default language</strong> (used for brand-new users and for the sign-in page before anyone logs in) and which languages everyone is allowed to pick.</p>
+    <ol class="steps">
+        <li>Go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">General</span>.</li>
+        <li>Find the <span class="field-label">Default Language</span> drop-down and choose the organization-wide default.</li>
+        <li>Under <span class="field-label">Enabled Languages</span>, tick the languages you want to make available. (English is always ticked and cannot be disabled.)</li>
+        <li>Click <span class="btn-label">Save Configuration</span>.</li>
+    </ol>
+    <figure class="doc-figure">
+        <img src="app/docs/admin-general-language.png" alt="Default Language and Enabled Languages settings in Admin General" loading="lazy">
+        <figcaption><strong>Admin &rarr; General.</strong> Set the <strong>Default Language</strong> and tick the <strong>Enabled Languages</strong> users may choose from.</figcaption>
+    </figure>
+
+    <div class="callout callout-warning">
+        <strong>Good to know:</strong> Most of the interface (menus, buttons, labels, and form fields) is translated. Vendor assessment <em>questions</em> can also be translated automatically when an AI provider is configured (see <a href="#admin-ai">AI Integration</a>), but the stored answer values stay in English so that scoring and reports remain consistent across languages.
+    </div>
 </div>
 
 
@@ -994,7 +1100,176 @@ $csrfToken = $security->getCSRFToken();
 
 <div class="doc-section" id="tprm-shadow-saas">
     <h2>Shadow SaaS Discovery</h2>
-    <p>Discover SaaS applications being used across your organization that may not have been formally approved or assessed. Navigate to <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>.</p>
+    <p>Discover SaaS applications being used across your organization that may not have been formally approved or assessed. Navigate to <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>. In v2.6.1 this list can be filled automatically by the <a href="#shadow-saas-grip">Grip Security integration</a>, and unsanctioned apps can be blocked in <a href="#zscaler">Zscaler</a>.</p>
+</div>
+
+
+<!-- ================================================================
+     VENDOR ONBOARDING & PROCUREMENT (NEW IN 2.6.1)
+     ================================================================ -->
+<div class="doc-section" id="onboarding-workflow">
+    <h2>Vendor Onboarding &amp; Procurement Onboarding <span class="new-badge">New in 2.6.1</span></h2>
+    <p>A <strong>vendor onboarding request</strong> is how a new vendor enters the platform. It moves through a series of <strong>statuses</strong> from first draft to final decision. Before the cyber team will review a vendor, the vendor must first be <strong>onboarded through your procurement process</strong> and have a valid <strong>Vendor ID (VID)</strong>. This section explains why, and exactly how it works.</p>
+
+    <h3>The onboarding journey (statuses)</h3>
+    <table class="doc-table">
+        <tr><th>Status</th><th>What it means</th></tr>
+        <tr><td><span class="status-label">Draft</span></td><td>The request is being filled in. It has not been sent for review yet.</td></tr>
+        <tr><td><span class="status-label">Submitted</span></td><td>The request passed the submission checks and has been sent to the cyber team.</td></tr>
+        <tr><td><span class="status-label">In Review</span></td><td>The cyber team is reviewing the vendor.</td></tr>
+        <tr><td><span class="status-label">AI Review</span></td><td>The vendor's services use AI and it is in the dedicated AI review stage (see <a href="#ai-review">AI Review</a>).</td></tr>
+        <tr><td><span class="status-label">Evaluation</span></td><td>The vendor is being trialled or evaluated.</td></tr>
+        <tr><td><span class="status-label">Approved</span></td><td>The vendor has been approved and is onboarded.</td></tr>
+        <tr><td><span class="status-label">Rejected</span></td><td>The vendor was not approved.</td></tr>
+        <tr><td><span class="status-label">Inactive</span></td><td>The vendor is no longer active.</td></tr>
+    </table>
+
+    <h3>Finding your vendor requests</h3>
+    <p>Go to <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Stakeholders</span> &rarr; <span class="menu-label">Vendor Onboarding</span>. You will see a searchable list of vendors with their status, tier, security score (SRS), and quick actions (View, Edit). Use the filter pills at the top (for example <strong>All</strong>, <strong>Approved</strong>, <strong>Review</strong>) to narrow the list. Use <span class="btn-label">+ New Request</span> to start a new vendor.</p>
+    <figure class="doc-figure">
+        <img src="app/docs/vendor-onboarding-list.png" alt="Vendor Onboarding Requests list" loading="lazy">
+        <figcaption><strong>Vendor Onboarding list.</strong> Search, filter pills, and per-vendor actions. The <strong>Review</strong> filter pill is a single view that combines both <em>In Review</em> and <em>AI Review</em> vendors.</figcaption>
+    </figure>
+
+    <h3 id="procurement-onboarding">The two things every vendor needs before review</h3>
+    <p>Open a vendor and look at the <strong>Vendor Information</strong> card. Two fields control whether the vendor can be submitted for cyber review:</p>
+    <ul>
+        <li><strong>Procurement Onboarding</strong> &mdash; a Yes/No field answering the question <em>"Has this vendor completed Procurement Onboarding?"</em> This must be set to <strong>Yes</strong>.</li>
+        <li><strong>Vendor ID (VID)</strong> &mdash; the 4&ndash;8 digit identifier assigned to the vendor by your procurement system. This must be a valid 4&ndash;8 digit number.</li>
+    </ul>
+    <figure class="doc-figure">
+        <img src="app/docs/vendor-info-card.png" alt="Vendor Information card showing Procurement Onboarding and Vendor ID fields" loading="lazy">
+        <figcaption><strong>Vendor Information card.</strong> The <strong>Vendor ID (VID)</strong> and the procurement-onboarding field both need to be filled in before the vendor can be submitted. <em>Note:</em> on instances upgraded from an earlier release this field may still read <strong>"VSU Onboarded"</strong>; in v2.6.1 it is labelled <strong>"Procurement Onboarding"</strong> &mdash; it is the same field.</figcaption>
+    </figure>
+
+    <h3>Submitting a vendor for review</h3>
+    <ol class="steps">
+        <li>Open the vendor from the <span class="menu-label">Vendor Onboarding</span> list (the request must be in <strong>Draft</strong>).</li>
+        <li>In the <strong>Vendor Information</strong> card, set <span class="field-label">Procurement Onboarding</span> to <strong>Yes</strong> and enter a valid <span class="field-label">Vendor ID (VID)</span> (4&ndash;8 digits). Save your changes.</li>
+        <li>Click <span class="btn-label">Submit for Review</span>. You will be asked to confirm: <em>"Submit this vendor for review? The vendor must have a valid VID and be onboarded at VSU."</em></li>
+        <li>If both checks pass, the status changes to <strong>Submitted</strong> and the cyber team is notified.</li>
+    </ol>
+    <div class="callout callout-danger">
+        <strong>If submission is blocked,</strong> you will see one of these messages:
+        <ul style="margin:8px 0 0;">
+            <li>"Cannot submit: Vendor must be onboarded at VSU before submission. Please complete the onboarding assessment with VSU details." &rarr; set <strong>Procurement Onboarding</strong> to <strong>Yes</strong>.</li>
+            <li>"Cannot submit: A valid Vendor ID (VID) is required (4-8 digits). Please complete the onboarding assessment with the VSU Vendor ID." &rarr; enter a valid 4&ndash;8 digit <strong>Vendor ID</strong>.</li>
+        </ul>
+        See <a href="#troubleshooting">Troubleshooting</a> for why this rule exists.
+    </div>
+</div>
+
+<div class="doc-section" id="ai-review">
+    <h2>AI Review for Vendors <span class="new-badge">New in 2.6.1</span></h2>
+    <p>Some vendors provide services that use artificial intelligence. These vendors can carry different risks, so v2.6.1 adds a dedicated <strong>AI Review</strong> status to track them separately during the review process.</p>
+
+    <h3>How a vendor enters AI Review</h3>
+    <p>On the <strong>Vendor Information</strong> card there is a <span class="field-label">Services Use AI</span> field. When this is set to <strong>Yes</strong>, an authorized reviewer (a <strong>Cyber TPRM</strong> user or <strong>Administrator</strong>, while editing the vendor) sees a <span class="btn-label">Force AI Review</span> link directly beneath that field.</p>
+    <ol class="steps">
+        <li>Open the vendor and confirm <span class="field-label">Services Use AI</span> is set to <strong>Yes</strong>.</li>
+        <li>Click <span class="btn-label">Force AI Review</span>. Confirm the prompt: <em>"Force this vendor into AI Review?"</em></li>
+        <li>The vendor's status changes to <strong>AI Review</strong>.</li>
+    </ol>
+    <div class="callout callout-info">
+        <strong>Why might the link not appear?</strong> The <strong>Force AI Review</strong> link only shows when (1) you have permission to approve, (2) you are in edit mode, (3) <strong>Services Use AI</strong> is <strong>Yes</strong>, and (4) the vendor is not already in AI Review. If <strong>Services Use AI</strong> is "No", you will see the message <em>"AI Review can only be forced for vendors whose services use AI."</em></p>
+    </div>
+    <p>On the <a href="#procurement-cyber-status">Procurement Cyber Status</a> page and on the vendor list's <strong>Review</strong> filter, vendors in <strong>In Review</strong> and <strong>AI Review</strong> are shown together &mdash; so nothing in review is ever hidden just because it is being reviewed with AI.</p>
+</div>
+
+<div class="doc-section" id="procurement-cyber-status">
+    <h2>Procurement Cyber Status <span class="new-badge">New in 2.6.1</span></h2>
+    <p>The <strong>Cyber Status</strong> page gives the <strong>procurement team</strong> a simple, always-current view of which vendors the cyber team is reviewing and what the latest word is on each one &mdash; without needing access to the full security tooling. The cyber team posts short, dated updates; procurement reads them here (and in a weekly email).</p>
+    <p>Open it from <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Procurement</span> &rarr; <span class="menu-label">Cyber Status</span>. It is available to <strong>Procurement</strong>, <strong>Cyber TPRM</strong>, and <strong>Administrator</strong> users.</p>
+    <figure class="doc-figure">
+        <img src="app/docs/procurement-cyber-status.png" alt="Procurement Cyber Status page" loading="lazy">
+        <figcaption><strong>Procurement &rarr; Cyber Status.</strong> Lists every vendor whose status is <em>In Review</em> or <em>AI Review</em>, with the number of updates and the date of the latest update. When no vendors are in review you see the empty message shown here.</figcaption>
+    </figure>
+
+    <h3>Reading a vendor's update history</h3>
+    <ol class="steps">
+        <li>Click a vendor's name in the <strong>Vendors in Review</strong> table.</li>
+        <li>The <strong>Procurement Update History</strong> panel opens, showing every update newest-first: the date and time, who wrote it, the vendor's status at that time, and the note itself.</li>
+    </ol>
+
+    <h3>For cyber reviewers: posting an update to procurement</h3>
+    <p>Cyber TPRM users and admins can post an update for one or more vendors at once:</p>
+    <ol class="steps">
+        <li>On the <strong>Cyber Status</strong> page, tick the checkbox next to each vendor you want to update.</li>
+        <li>Click <span class="btn-label">Provide Procurement with Update</span>.</li>
+        <li>In the <strong>Provide Procurement with Update</strong> window, type your note in the <span class="field-label">Update</span> box.</li>
+        <li>Optionally use <span class="field-label">Change status</span> to move the vendor(s) forward (for example to <strong>Evaluation</strong>, <strong>Approved</strong>, or <strong>Rejected</strong>). Leave it on <em>Keep current status</em> to only add a note.</li>
+        <li>Click <span class="btn-label">Save Update</span>. The update is recorded against every selected vendor.</li>
+    </ol>
+
+    <h3>The weekly procurement digest email</h3>
+    <p>To keep procurement informed without anyone logging in, the platform can email a <strong>weekly digest</strong> listing every vendor in review together with its most recent update. By default this is sent <strong>every Monday at 7:00 AM</strong>.</p>
+    <ol class="steps">
+        <li>An administrator goes to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email Settings</span> and finds the <strong>Procurement Update Digest</strong> options.</li>
+        <li>Turn the digest <strong>on</strong> and enter one or more recipient email addresses (separated by commas).</li>
+        <li>Save. You can also send one immediately with <span class="btn-label">Send digest now</span> to test it.</li>
+    </ol>
+    <figure class="doc-figure">
+        <img src="app/docs/admin-scheduler.png" alt="Admin Scheduler showing the Procurement Update Digest job" loading="lazy">
+        <figcaption><strong>Admin &rarr; Scheduler.</strong> The <strong>Procurement Update Digest</strong> job (bottom of the list) runs weekly. The Scheduler is where admins enable, disable, and time all automated jobs.</figcaption>
+    </figure>
+</div>
+
+<!-- ================================================================
+     INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.1)
+     ================================================================ -->
+<div class="doc-section" id="shadow-saas-grip">
+    <h2>Grip Security Integration (Shadow SaaS) <span class="new-badge">New in 2.6.1</span></h2>
+    <p>"Shadow SaaS" means cloud apps that employees use which were never formally approved. <strong>Grip Security</strong> is a service that discovers these apps. In v2.6.1 you can connect your Grip account so the platform automatically pulls in the apps Grip finds &mdash; along with how many people use each one, a risk score, and security alerts &mdash; and lists them on your <a href="#tprm-shadow-saas">Shadow SaaS</a> page.</p>
+    <p>It is configured by an administrator at <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span>.</p>
+
+    <h3>Connecting Grip (step by step)</h3>
+    <ol class="steps">
+        <li>In Grip, create an <strong>API token</strong> and note your tenant's base URL (it ends in <code>/public/saas</code>, for example <code>https://acme.dep.grip.security/public/saas</code>).</li>
+        <li>In the platform, go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> and find the <strong>Grip Security Connection</strong> card.</li>
+        <li>Tick <span class="field-label">Enable Grip Security integration</span>.</li>
+        <li>Paste your tenant URL into <span class="field-label">Server (Tenant Base URL)</span> and your token into <span class="field-label">API Token</span>.</li>
+        <li>Click <span class="btn-label">Save Configuration</span>, then click <span class="btn-label">Test Connection</span> to confirm. A success message looks like <em>"Connected to Grip — sample returned 1 record(s)"</em>.</li>
+    </ol>
+    <figure class="doc-figure">
+        <img src="app/docs/grip-card.png" alt="Grip Security Connection settings" loading="lazy">
+        <figcaption><strong>Admin &rarr; Shadow SaaS &rarr; Grip Security Connection.</strong> Enter your tenant URL and API token, save, then test.</figcaption>
+    </figure>
+
+    <h3>Keeping it up to date automatically</h3>
+    <p>Use the <strong>Scheduled Rehydration</strong> card to have the platform refresh Grip data on a schedule. Tick <span class="field-label">Enable scheduled rehydration via cron</span> and choose a <span class="field-label">Run frequency</span> (Hourly, Every 6 hours, Every 12 hours, Daily, or Weekly). You can also click <span class="btn-label">Run Now</span> to refresh immediately.</p>
+    <figure class="doc-figure">
+        <img src="app/docs/grip-cron-card.png" alt="Scheduled Rehydration settings for Grip" loading="lazy">
+        <figcaption><strong>Scheduled Rehydration.</strong> Choose how often Grip data refreshes, or click <strong>Run Now</strong> for an immediate sync. The exact schedule line shown is the technical command your server runs.</figcaption>
+    </figure>
+
+    <h3>What you'll see afterward</h3>
+    <p>Discovered apps appear on the <span class="menu-label">Shadow SaaS</span> page as <strong>Pending</strong> entries with a risk score (shown on a 1&ndash;5 scale), category, and number of users. From there you can <strong>Allow</strong> an app (which begins onboarding it as a vendor), <strong>Deny</strong> it (mark it unsanctioned, and optionally block it in Zscaler), or <strong>Dismiss</strong> it.</p>
+    <figure class="doc-figure">
+        <img src="app/docs/shadow-saas.png" alt="Shadow SaaS list page" loading="lazy">
+        <figcaption><strong>The Shadow SaaS page.</strong> Discovered and imported apps with their risk and actions. Apps onboarded as vendors are skipped on future syncs, and anything you dismiss stays dismissed.</figcaption>
+    </figure>
+</div>
+
+<div class="doc-section" id="zscaler">
+    <h2>Zscaler Blocking Integration <span class="new-badge">New in 2.6.1</span></h2>
+    <p><strong>Zscaler</strong> is a web-security service that can block access to websites. With this integration, when you <strong>Deny</strong> an unsanctioned app on the Shadow SaaS page, the platform can automatically add that app's web domain to a blocking list in your Zscaler account &mdash; so people can no longer reach it. Clicking <strong>Allow</strong> later removes the block.</p>
+    <p>It is configured by an administrator at <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span>, on the <strong>Zscaler Connection</strong> card.</p>
+
+    <h3>Connecting Zscaler (step by step)</h3>
+    <ol class="steps">
+        <li>In Zscaler (ZIdentity), create an <strong>API Client</strong> and copy its <strong>Client ID</strong> and <strong>Client Secret</strong>. Note your <strong>vanity domain</strong> (the part before <code>.zslogin.net</code>).</li>
+        <li>In ZIA, create (or pick) a <strong>custom URL Category</strong> that the blocked domains will be added to, and note its exact name.</li>
+        <li>In the platform's <strong>Zscaler Connection</strong> card, tick <span class="field-label">Enable Zscaler URL-Category blocking on Deny</span>.</li>
+        <li>Fill in <span class="field-label">API URL</span> (default <code>https://api.zsapi.net</code>), <span class="field-label">ZIdentity Vanity Domain</span>, <span class="field-label">Client ID</span>, <span class="field-label">Client Secret</span>, and the <span class="field-label">URL Category</span> name.</li>
+        <li>Click <span class="btn-label">Save Configuration</span>, then <span class="btn-label">Test Connection</span> to confirm the credentials work.</li>
+    </ol>
+    <figure class="doc-figure">
+        <img src="app/docs/zscaler-card.png" alt="Zscaler Connection settings" loading="lazy">
+        <figcaption><strong>Admin &rarr; Shadow SaaS &rarr; Zscaler Connection.</strong> When enabled, the <strong>Deny</strong> button on a Shadow SaaS app adds its domain to the URL Category you name here. The category must already exist in Zscaler.</figcaption>
+    </figure>
+    <div class="callout callout-info">
+        <strong>If blocking is turned off,</strong> denying an app only marks it unsanctioned in the platform; nothing is sent to Zscaler. You will see <em>"Marked unsanctioned. Zscaler integration is not enabled; domain not added to URL Category."</em>
+    </div>
 </div>
 
 
@@ -1039,6 +1314,130 @@ $csrfToken = $security->getCSRFToken();
 <div class="doc-section" id="admin-ai">
     <h2>AI Integration</h2>
     <p>Enable AI-powered features including assessment note refinement, control suggestions, and report language assistance. Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">AI Platform</span> to configure your AI provider API key.</p>
+    <p>In v2.6.1 the same AI provider also powers <strong>automatic translation of assessment questions</strong> (see <a href="#language">Changing Your Language</a>) and AI-assisted FAIR risk analysis for vendors.</p>
+</div>
+
+<div class="doc-section" id="admin-updates">
+    <h2>Updating the Platform <span class="new-badge">New in 2.6.1</span></h2>
+    <p>Administrators can check for and apply new versions from inside the platform. Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span>.</p>
+    <ol class="steps">
+        <li>The <strong>Current Status</strong> card shows your <span class="field-label">Installed Version</span> and whether a newer one is available.</li>
+        <li>Confirm the <span class="field-label">Registry Hostname</span> is correct (your image registry), then click <span class="btn-label">Check for Updates</span>.</li>
+        <li>If a newer version is listed, follow the on-screen <strong>Upgrade</strong> action to apply it.</li>
+    </ol>
+    <figure class="doc-figure">
+        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.1" loading="lazy">
+        <figcaption><strong>Admin &rarr; Version.</strong> Here the installed version is <strong>v2.6.1</strong> and the platform reports it is up to date. This is also where you confirm which version this guide applies to.</figcaption>
+    </figure>
+</div>
+
+
+<!-- ================================================================
+     FAQ (SEARCHABLE)
+     ================================================================ -->
+<div class="doc-section" id="faq">
+    <h2>Frequently Asked Questions</h2>
+    <p>Type a keyword below to instantly filter the questions &mdash; for example <em>language</em>, <em>VID</em>, <em>onboard</em>, <em>Grip</em>, or <em>password</em>.</p>
+    <div class="faq-search-wrap">
+        <input type="text" id="faqSearch" class="faq-search" placeholder="Search the FAQ&hellip;" aria-label="Search frequently asked questions" autocomplete="off">
+    </div>
+    <p class="faq-count" id="faqCount"></p>
+    <div id="faqList">
+
+        <details class="faq-item"><summary>How do I change the language of the platform?<span class="faq-tag">Language</span></summary>
+            <div class="faq-body"><p>Click <strong>Profile</strong> (top-right), open the <strong>Language Preference</strong> card, choose your language, and click <strong>Update Language</strong>. This only changes your own screen. See <a href="#language">Changing Your Language</a>.</p></div></details>
+
+        <details class="faq-item"><summary>Which languages are supported?<span class="faq-tag">Language</span></summary>
+            <div class="faq-body"><p>English, Spanish, Italian, Ukrainian, Chinese (Simplified), Hindi, French, and Portuguese. Your administrator decides which of these appear in your list; English is always available.</p></div></details>
+
+        <details class="faq-item"><summary>I changed my language but some text is still in English. Why?<span class="faq-tag">Language</span></summary>
+            <div class="faq-body"><p>Menus, buttons, and labels are translated. Vendor assessment <em>questions</em> are translated automatically only when an AI provider is configured by your administrator, and stored answer values always remain in English so scoring stays consistent. A few third-party messages may also remain in English.</p></div></details>
+
+        <details class="faq-item"><summary>Why can't I submit my vendor for review?<span class="faq-tag">Onboarding</span></summary>
+            <div class="faq-body"><p>A vendor can only be submitted once it has completed <strong>Procurement Onboarding</strong> (set to <strong>Yes</strong>) and has a valid <strong>Vendor ID (VID)</strong> of 4&ndash;8 digits. Open the vendor, fill in both on the <strong>Vendor Information</strong> card, save, then click <strong>Submit for Review</strong>. See <a href="#onboarding-workflow">Vendor Onboarding</a> and <a href="#troubleshooting">Troubleshooting</a>.</p></div></details>
+
+        <details class="faq-item"><summary>What is a Vendor ID (VID) and where do I get it?<span class="faq-tag">Onboarding</span></summary>
+            <div class="faq-body"><p>The VID is a 4&ndash;8 digit number assigned to the vendor by your procurement system when the vendor is onboarded. It links the vendor here to your procurement and finance records. If you don't have one, the vendor has not finished procurement onboarding yet.</p></div></details>
+
+        <details class="faq-item"><summary>The field on my vendor says "VSU Onboarded", but the guide says "Procurement Onboarding". Which is it?<span class="faq-tag">Onboarding</span></summary>
+            <div class="faq-body"><p>They are the same field. It was renamed to the clearer <strong>"Procurement Onboarding"</strong> in v2.6.1. If your screen still shows <strong>"VSU Onboarded"</strong>, your instance hasn't been upgraded to the latest v2.6.1 image yet &mdash; the behaviour is identical.</p></div></details>
+
+        <details class="faq-item"><summary>What does "AI Review" mean for a vendor?<span class="faq-tag">AI Review</span></summary>
+            <div class="faq-body"><p>It is a separate review status for vendors whose services use AI, so they can be tracked apart from ordinary reviews. A Cyber TPRM user or admin moves a vendor into it with the <strong>Force AI Review</strong> link. See <a href="#ai-review">AI Review for Vendors</a>.</p></div></details>
+
+        <details class="faq-item"><summary>I don't see the "Force AI Review" link. Why?<span class="faq-tag">AI Review</span></summary>
+            <div class="faq-body"><p>It only appears when you are editing the vendor with approval permission, the vendor's <strong>Services Use AI</strong> field is <strong>Yes</strong>, and the vendor is not already in AI Review.</p></div></details>
+
+        <details class="faq-item"><summary>What is the Procurement Cyber Status page?<span class="faq-tag">Procurement</span></summary>
+            <div class="faq-body"><p>A plain-language page (<strong>TPRM &rarr; Procurement &rarr; Cyber Status</strong>) where procurement can see which vendors the cyber team is reviewing and read dated updates the cyber team posts. See <a href="#procurement-cyber-status">Procurement Cyber Status</a>.</p></div></details>
+
+        <details class="faq-item"><summary>How does procurement get update emails?<span class="faq-tag">Procurement</span></summary>
+            <div class="faq-body"><p>An administrator turns on the <strong>Procurement Update Digest</strong> under <strong>Admin &rarr; Email Settings</strong> and adds recipient addresses. It is emailed weekly (by default Mondays at 7:00 AM) and can also be sent on demand.</p></div></details>
+
+        <details class="faq-item"><summary>What is Grip and what does it do here?<span class="faq-tag">Integrations</span></summary>
+            <div class="faq-body"><p>Grip Security discovers SaaS apps used across your organization. When connected (<strong>Admin &rarr; Shadow SaaS</strong>), the platform automatically pulls those apps, their user counts, risk scores, and alerts into your Shadow SaaS list. See <a href="#shadow-saas-grip">Grip Security Integration</a>.</p></div></details>
+
+        <details class="faq-item"><summary>My Grip "Test Connection" failed. What should I check?<span class="faq-tag">Integrations</span></summary>
+            <div class="faq-body"><p>Confirm the <strong>Server (Tenant Base URL)</strong> ends in <code>/public/saas</code>, that the <strong>API Token</strong> is current, and that your server can reach the Grip endpoint. A token error reports <em>"Unauthorized — token rejected"</em>; a URL error reports <em>"Endpoint not found — check base URL"</em>.</p></div></details>
+
+        <details class="faq-item"><summary>What does the Zscaler integration do?<span class="faq-tag">Integrations</span></summary>
+            <div class="faq-body"><p>When you <strong>Deny</strong> an unsanctioned app, the platform can add its web domain to a blocking URL Category in your Zscaler account so people can't reach it. Clicking <strong>Allow</strong> later removes the block. See <a href="#zscaler">Zscaler Blocking Integration</a>.</p></div></details>
+
+        <details class="faq-item"><summary>What's the difference between Allow, Deny, and Dismiss on a Shadow SaaS app?<span class="faq-tag">Integrations</span></summary>
+            <div class="faq-body"><p><strong>Allow</strong> begins onboarding the app as a vendor; <strong>Deny</strong> marks it unsanctioned (and can block it in Zscaler); <strong>Dismiss</strong> hides it from the list. Dismissed apps stay dismissed even after future syncs.</p></div></details>
+
+        <details class="faq-item"><summary>Who can see the GRC module?<span class="faq-tag">Access</span></summary>
+            <div class="faq-body"><p>Users in the <strong>Administrator</strong>, <strong>Cyber GRC</strong>, or <strong>Auditor</strong> groups. If you don't see it, ask your administrator to add you to one of these groups. See <a href="#roles">User Roles &amp; Permissions</a>.</p></div></details>
+
+        <details class="faq-item"><summary>How do I turn on two-factor authentication (2FA)?<span class="faq-tag">Account</span></summary>
+            <div class="faq-body"><p>Open <strong>Profile</strong> and use the <strong>Two-Factor Authentication (TOTP)</strong> card to enable it with an authenticator app such as Google Authenticator or Microsoft Authenticator.</p></div></details>
+
+        <details class="faq-item"><summary>Can I save or print this documentation?<span class="faq-tag">General</span></summary>
+            <div class="faq-body"><p>Yes. Click <strong>Download PDF</strong> at the top of this page. It produces a formatted document with a cover page, table of contents, and page numbers.</p></div></details>
+
+        <details class="faq-item"><summary>How do I know which version I'm running?<span class="faq-tag">General</span></summary>
+            <div class="faq-body"><p>Administrators can check <strong>Admin &rarr; Version</strong>. This guide describes <strong>v2.6.1</strong>. See <a href="#admin-updates">Updating the Platform</a>.</p></div></details>
+
+    </div>
+    <p class="faq-no-results" id="faqNoResults">No questions match your search. Try a different keyword.</p>
+</div>
+
+
+<!-- ================================================================
+     TROUBLESHOOTING
+     ================================================================ -->
+<div class="doc-section" id="troubleshooting">
+    <h2>Troubleshooting</h2>
+
+    <h3>Why onboarding through procurement matters (the VID &amp; Procurement Onboarding rule)</h3>
+    <p>This is the single most common thing that stops a vendor from moving forward, so it is worth understanding. The platform <strong>will not let a vendor be submitted for cyber review</strong> until two procurement facts are recorded on the vendor:</p>
+    <ul>
+        <li><strong>Procurement Onboarding = Yes</strong> &mdash; confirmation that the vendor has been set up and vetted through your organization's procurement process.</li>
+        <li>A valid <strong>Vendor ID (VID)</strong> &mdash; the 4&ndash;8 digit number procurement assigns to the vendor.</li>
+    </ul>
+    <p>Why enforce this? Because the VID is the shared key that links this vendor to procurement, finance, and contract records. If the cyber team reviewed and approved a vendor that procurement had never onboarded, you would end up with duplicate or "ghost" vendors, security work that can't be tied back to a real purchase order, and reports that don't reconcile. Requiring procurement onboarding <em>first</em> keeps the security review and the procurement record pointing at the same, real vendor.</p>
+    <div class="callout callout-warning">
+        <strong>Fix it:</strong> Open the vendor, and on the <strong>Vendor Information</strong> card set <strong>Procurement Onboarding</strong> to <strong>Yes</strong> and enter the 4&ndash;8 digit <strong>Vendor ID (VID)</strong> from your procurement system. Save, then click <strong>Submit for Review</strong> again. If you don't have a VID yet, the vendor hasn't completed procurement onboarding &mdash; start there.
+    </div>
+
+    <h3>Common issues and how to resolve them</h3>
+    <table class="doc-table">
+        <tr><th>Symptom</th><th>Likely cause &amp; fix</th></tr>
+        <tr><td>"Cannot submit: Vendor must be onboarded at VSU before submission&hellip;"</td><td>The <strong>Procurement Onboarding</strong> field isn't set to <strong>Yes</strong>. Set it to Yes on the Vendor Information card and save.</td></tr>
+        <tr><td>"Cannot submit: A valid Vendor ID (VID) is required (4-8 digits)&hellip;"</td><td>The <strong>Vendor ID</strong> is missing or not 4&ndash;8 digits. Enter a valid VID from procurement.</td></tr>
+        <tr><td>"Only draft requests can be submitted for review."</td><td>The vendor is already past Draft. You can only submit a request that is still in <strong>Draft</strong> status.</td></tr>
+        <tr><td>The <strong>Submit for Review</strong> button isn't visible</td><td>It only appears for vendors in <strong>Draft</strong> when you have edit permission.</td></tr>
+        <tr><td>"AI Review can only be forced for vendors whose services use AI."</td><td>Set <strong>Services Use AI</strong> to <strong>Yes</strong> on the vendor before forcing AI Review.</td></tr>
+        <tr><td>I can't see the GRC module in the sidebar</td><td>You need to be in the <strong>Administrator</strong>, <strong>Cyber GRC</strong>, or <strong>Auditor</strong> group. Ask an administrator.</td></tr>
+        <tr><td>My language change didn't stick</td><td>Make sure you clicked <strong>Update Language</strong> (not just changed the drop-down), and that the language is enabled by your administrator.</td></tr>
+        <tr><td>Grip "Test Connection" fails</td><td>Check the base URL ends in <code>/public/saas</code> and the API token is valid and current.</td></tr>
+        <tr><td>Denying a Shadow SaaS app didn't block it in Zscaler</td><td>Zscaler blocking must be enabled and configured, and the named <strong>URL Category</strong> must already exist in Zscaler.</td></tr>
+        <tr><td>Procurement didn't receive the digest email</td><td>Confirm the digest is enabled with recipients under <strong>Admin &rarr; Email Settings</strong>, and that <strong>Admin &rarr; Email</strong> SMTP settings are correct.</td></tr>
+        <tr><td>The Upgrade button says "Could not fetch manifest"</td><td>A registry/network issue reaching your image registry. Verify the <strong>Registry Hostname</strong> under <strong>Admin &rarr; Version</strong> and that the host can reach it.</td></tr>
+    </table>
+    <div class="callout callout-info">
+        <strong>Still stuck?</strong> Note the exact on-screen message and which page you were on, then contact your platform administrator. Administrators can review <strong>Admin &rarr; Activity Log</strong> for details.
+    </div>
 </div>
 
 
@@ -1050,6 +1449,7 @@ $csrfToken = $security->getCSRFToken();
     <table class="doc-table">
         <tr><th>Term</th><th>Definition</th></tr>
         <tr><td><strong>ACL</strong></td><td>Access Control List &mdash; defines what actions users in a group can perform</td></tr>
+        <tr><td><strong>AI Review</strong></td><td>A vendor onboarding status for vendors whose services use AI, tracked separately during review</td></tr>
         <tr><td><strong>Assessment</strong></td><td>A point-in-time compliance evaluation using the unified questionnaire</td></tr>
         <tr><td><strong>CIS Controls</strong></td><td>Center for Internet Security Controls &mdash; a prioritized set of security best practices</td></tr>
         <tr><td><strong>CMMC</strong></td><td>Cybersecurity Maturity Model Certification &mdash; required for US Department of Defense contractors</td></tr>
@@ -1064,17 +1464,25 @@ $csrfToken = $security->getCSRFToken();
         <tr><td><strong>Finding</strong></td><td>An issue discovered during an audit (nonconformity, observation, opportunity, or strength)</td></tr>
         <tr><td><strong>Framework</strong></td><td>A compliance standard like SOC 2, ISO 27001, PCI DSS, etc.</td></tr>
         <tr><td><strong>GRC</strong></td><td>Governance, Risk, and Compliance</td></tr>
+        <tr><td><strong>Grip</strong></td><td>Grip Security &mdash; a service that discovers SaaS apps in use; can feed the Shadow SaaS list (see <a href="#shadow-saas-grip">Grip Integration</a>)</td></tr>
         <tr><td><strong>HIPAA</strong></td><td>Health Insurance Portability and Accountability Act &mdash; US healthcare data protection law</td></tr>
         <tr><td><strong>ISO 27001</strong></td><td>International standard for information security management systems</td></tr>
         <tr><td><strong>Maturity Rating</strong></td><td>A 1-4 score indicating how mature a security practice is (1=Ad Hoc, 4=Optimized)</td></tr>
         <tr><td><strong>NIST 800-171</strong></td><td>NIST guidelines for protecting Controlled Unclassified Information (CUI)</td></tr>
         <tr><td><strong>PCI DSS</strong></td><td>Payment Card Industry Data Security Standard</td></tr>
         <tr><td><strong>PII</strong></td><td>Personally Identifiable Information (names, emails, addresses, etc.)</td></tr>
+        <tr><td><strong>Procurement Onboarding</strong></td><td>Confirmation (Yes/No) that a vendor has been set up through your procurement process; required, along with a valid VID, before a vendor can be submitted for review. (Labelled "VSU Onboarded" on instances upgraded from earlier releases.)</td></tr>
         <tr><td><strong>Requirement</strong></td><td>A specific clause or control objective within a compliance framework</td></tr>
+        <tr><td><strong>SaaS</strong></td><td>Software as a Service &mdash; cloud applications accessed over the web</td></tr>
+        <tr><td><strong>Shadow SaaS</strong></td><td>SaaS apps used in the organization that were never formally approved or assessed</td></tr>
         <tr><td><strong>SOC 2</strong></td><td>Service Organization Control Type 2 &mdash; trust services criteria for service organizations</td></tr>
         <tr><td><strong>SPII</strong></td><td>Sensitive PII (SSNs, financial data, health records)</td></tr>
+        <tr><td><strong>SRS</strong></td><td>Security Risk Scorecard &mdash; the platform's external security rating/grade for a vendor</td></tr>
         <tr><td><strong>TPRM</strong></td><td>Third Party Risk Management</td></tr>
         <tr><td><strong>Unified Question</strong></td><td>A single security question that maps to requirements across multiple frameworks</td></tr>
+        <tr><td><strong>VID</strong></td><td>Vendor ID &mdash; a 4&ndash;8 digit identifier assigned to a vendor by your procurement system</td></tr>
+        <tr><td><strong>VSU</strong></td><td>The procurement/vendor-setup function; "onboarded at VSU" means the vendor has completed Procurement Onboarding</td></tr>
+        <tr><td><strong>Zscaler</strong></td><td>A web-security service that can block website domains; integrated so unsanctioned apps can be blocked on Deny (see <a href="#zscaler">Zscaler Blocking</a>)</td></tr>
     </table>
 </div>
 
@@ -1088,6 +1496,8 @@ $csrfToken = $security->getCSRFToken();
                     <a href="#navigation">Navigating the Sidebar</a>
                     <a href="#roles">User Roles &amp; Permissions</a>
                     <a href="#first-login">Your First Login</a>
+                    <a href="#whats-new">What's New in 2.6.1</a>
+                    <a href="#language">Changing Your Language</a>
 
                     <h4>GRC — Quick Start</h4>
                     <a href="#grc-overview">What is GRC?</a>
@@ -1121,6 +1531,13 @@ $csrfToken = $security->getCSRFToken();
                     <a href="#tprm-fourth-party">4th Party Risk</a>
                     <a href="#tprm-shadow-saas">Shadow SaaS</a>
 
+                    <h4>Onboarding &amp; Procurement</h4>
+                    <a href="#onboarding-workflow">Vendor Onboarding</a>
+                    <a href="#ai-review">AI Review</a>
+                    <a href="#procurement-cyber-status">Procurement Cyber Status</a>
+                    <a href="#shadow-saas-grip">Grip Integration</a>
+                    <a href="#zscaler">Zscaler Blocking</a>
+
                     <h4>Admin Portal</h4>
                     <a href="#admin-general">General Settings</a>
                     <a href="#admin-branding">Branding &amp; Theme</a>
@@ -1128,8 +1545,11 @@ $csrfToken = $security->getCSRFToken();
                     <a href="#admin-email">Email Configuration</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">AI Integration</a>
+                    <a href="#admin-updates">Updating the Platform</a>
 
-                    <h4>Reference</h4>
+                    <h4>Help &amp; Reference</h4>
+                    <a href="#faq">FAQ</a>
+                    <a href="#troubleshooting">Troubleshooting</a>
                     <a href="#glossary">Glossary</a>
                 </nav>
 
@@ -1164,7 +1584,9 @@ $csrfToken = $security->getCSRFToken();
                 { label: '1.1 Platform Overview', id: 'overview' },
                 { label: '1.2 Navigating the Sidebar', id: 'navigation' },
                 { label: '1.3 User Roles & Permissions', id: 'roles' },
-                { label: '1.4 Your First Login', id: 'first-login' }
+                { label: '1.4 Your First Login', id: 'first-login' },
+                { label: '1.5 What’s New in Version 2.6.1', id: 'whats-new' },
+                { label: '1.6 Changing Your Language', id: 'language' }
             ]},
             { heading: '2. GRC Module — Quick Start', entries: [
                 { label: '2.1 What is GRC?', id: 'grc-overview' },
@@ -1198,16 +1620,26 @@ $csrfToken = $security->getCSRFToken();
                 { label: '4.7 4th Party Risk', id: 'tprm-fourth-party' },
                 { label: '4.8 Shadow SaaS Discovery', id: 'tprm-shadow-saas' }
             ]},
-            { heading: '5. Admin Portal', entries: [
-                { label: '5.1 General Settings', id: 'admin-general' },
-                { label: '5.2 Branding & Theme', id: 'admin-branding' },
-                { label: '5.3 User Management', id: 'admin-users' },
-                { label: '5.4 Email Configuration', id: 'admin-email' },
-                { label: '5.5 SAML / SSO', id: 'admin-saml' },
-                { label: '5.6 AI Integration', id: 'admin-ai' }
+            { heading: '5. Onboarding & Procurement (New in 2.6.1)', entries: [
+                { label: '5.1 Vendor Onboarding & Procurement Onboarding', id: 'onboarding-workflow' },
+                { label: '5.2 AI Review for Vendors', id: 'ai-review' },
+                { label: '5.3 Procurement Cyber Status', id: 'procurement-cyber-status' },
+                { label: '5.4 Grip Security Integration', id: 'shadow-saas-grip' },
+                { label: '5.5 Zscaler Blocking Integration', id: 'zscaler' }
             ]},
-            { heading: '6. Reference', entries: [
-                { label: '6.1 Glossary', id: 'glossary' }
+            { heading: '6. Admin Portal', entries: [
+                { label: '6.1 General Settings', id: 'admin-general' },
+                { label: '6.2 Branding & Theme', id: 'admin-branding' },
+                { label: '6.3 User Management', id: 'admin-users' },
+                { label: '6.4 Email Configuration', id: 'admin-email' },
+                { label: '6.5 SAML / SSO', id: 'admin-saml' },
+                { label: '6.6 AI Integration', id: 'admin-ai' },
+                { label: '6.7 Updating the Platform', id: 'admin-updates' }
+            ]},
+            { heading: '7. Help & Reference', entries: [
+                { label: '7.1 Frequently Asked Questions', id: 'faq' },
+                { label: '7.2 Troubleshooting', id: 'troubleshooting' },
+                { label: '7.3 Glossary', id: 'glossary' }
             ]}
         ];
 
@@ -1315,6 +1747,43 @@ $csrfToken = $security->getCSRFToken();
             mainContent.addEventListener('scroll', updateActiveToc);
         }
         updateActiveToc();
+    }
+
+    // === FAQ live search ===
+    var faqSearch = document.getElementById('faqSearch');
+    if (faqSearch) {
+        var faqItems = Array.prototype.slice.call(document.querySelectorAll('#faqList .faq-item'));
+        var faqCount = document.getElementById('faqCount');
+        var faqNoResults = document.getElementById('faqNoResults');
+        var totalFaq = faqItems.length;
+
+        function updateFaqCount(shown) {
+            if (!faqCount) return;
+            if (!faqSearch.value.trim()) {
+                faqCount.textContent = totalFaq + ' questions. Start typing to filter.';
+            } else {
+                faqCount.textContent = shown + ' of ' + totalFaq + ' question' + (totalFaq === 1 ? '' : 's') + ' match “' + faqSearch.value.trim() + '”.';
+            }
+        }
+
+        function filterFaq() {
+            var q = faqSearch.value.trim().toLowerCase();
+            var shown = 0;
+            faqItems.forEach(function(item) {
+                var text = (item.textContent || '').toLowerCase();
+                var match = q === '' || text.indexOf(q) !== -1;
+                item.style.display = match ? '' : 'none';
+                if (match) shown++;
+                // Auto-open matches when searching, collapse when cleared
+                if (q !== '' && match) { item.setAttribute('open', ''); }
+                else if (q === '') { item.removeAttribute('open'); }
+            });
+            if (faqNoResults) faqNoResults.style.display = (shown === 0 && q !== '') ? 'block' : 'none';
+            updateFaqCount(shown);
+        }
+
+        faqSearch.addEventListener('input', filterFaq);
+        updateFaqCount(totalFaq);
     }
 })();
 </script>

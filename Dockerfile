@@ -8,8 +8,21 @@
 # version bump); builds are now self-referential on v2.6.1.
 #
 #     docker pull dockerregistry.fairtprm.com/fairtprm:v2.6.1
-#     docker build -t dockerregistry.fairtprm.com/fairtprm:v2.6.1 .
+#     docker buildx build --provenance=false --sbom=false \
+#         -t dockerregistry.fairtprm.com/fairtprm:v2.6.1 --load .
+#     docker push dockerregistry.fairtprm.com/fairtprm:v2.6.1
 #     docker-compose down && docker-compose up -d
+#
+# Manifest format: ALWAYS build with --provenance=false --sbom=false and push
+# from the local image store (--load then docker push). This publishes a single
+# Docker schema-2 manifest (application/vnd.docker.distribution.manifest.v2+json).
+# Do NOT let buildx publish an OCI image index (the default when attestations are
+# on): the in-app upgrader (admin.php?section=version) on deployed v2.5.x/v2.6.x
+# containers requests the manifest with a narrow Accept header that does NOT list
+# OCI index types, so an index makes the registry return 404 MANIFEST_UNKNOWN and
+# the "Upgrade" button fails with "Could not fetch manifest". A single schema-2
+# manifest is accepted by every deployed version. We are single-arch (linux/amd64),
+# so the index buys nothing here.
 #
 # Layer hygiene: this Dockerfile adds exactly TWO layers on top of the base
 # (one COPY per source tree, then one RUN that places every file). The
@@ -40,6 +53,8 @@ RUN set -e; \
     cp -rp $pp/includes/admin/. /var/www/html/includes/admin/; \
     mkdir -p /var/www/html/app/grip-reference; \
     cp -rp $pp/app/grip-reference/. /var/www/html/app/grip-reference/; \
+    mkdir -p /var/www/html/app/docs; \
+    cp -rp $pp/app/docs/. /var/www/html/app/docs/; \
     \
     cp -p  $pp/sidebar_nav.php $pp/init.php $pp/FairCalculator.php \
            /var/www/html/includes/; \
@@ -76,7 +91,7 @@ RUN set -e; \
            $pp/grc-framework-report.php $pp/grc-frameworks.php $pp/grc-gaps.php \
            $pp/grc-monitors.php $pp/grc-policies.php $pp/grc-risks.php \
            $pp/grc-tasks.php $pp/admin.php $pp/index.php $pp/login.php $pp/profile.php \
-           $pp/lockdown.php $pp/procurement-contracts.php $pp/shadow-saas.php \
+           $pp/lockdown.php $pp/procurement-contracts.php $pp/procurement-cyber-status.php $pp/shadow-saas.php \
            $pp/updates.php $pp/vendor-assessment.php $pp/vendor-assessments.php \
            $pp/vendor-assessment-view.php $pp/vendor-detailed-summary.php \
            $pp/vendor-domains.php $pp/vendor-onboarding-list.php \
@@ -173,6 +188,8 @@ RUN set -e; \
         /var/www/html/api/vendor-document-delete.php \
         /var/www/html/api/send-assessment-email.php \
         /var/www/html/api/generate-fair-ai-analysis.php \
+        /var/www/html/api/procurement-update-save.php \
+        /var/www/html/api/procurement-notes-list.php \
         /var/www/html/cron/ai-queue.php \
         /var/www/html/cron/breach-monitor.php \
         /var/www/html/cron/breach-scan-queue.php \
@@ -181,8 +198,15 @@ RUN set -e; \
         /var/www/html/cron/osint-vendors.php \
         /var/www/html/cron/sync-crontab.php \
         /var/www/html/cron/grc-task-digest.php \
+        /var/www/html/cron/procurement-digest.php \
         /var/www/html/app/grip-reference/grip-openapi.yaml \
         /var/www/html/app/grip-reference/grip-postman-collection.json \
+        /var/www/html/app/docs/dashboard.png \
+        /var/www/html/app/docs/profile-language-card.png \
+        /var/www/html/app/docs/procurement-cyber-status.png \
+        /var/www/html/app/docs/grip-card.png \
+        /var/www/html/app/docs/zscaler-card.png \
+        /var/www/html/app/docs/vendor-info-card.png \
         /var/www/html/app/icons/announcement-03.svg \
         /var/www/html/fair-analysis.php \
         /var/www/html/breach-alerts.php \
@@ -210,6 +234,7 @@ RUN set -e; \
         /var/www/html/login.php \
         /var/www/html/lockdown.php \
         /var/www/html/procurement-contracts.php \
+        /var/www/html/procurement-cyber-status.php \
         /var/www/html/shadow-saas.php \
         /var/www/html/updates.php \
         /var/www/html/vendor-assessment.php \
