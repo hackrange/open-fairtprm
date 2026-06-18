@@ -38,7 +38,7 @@ if (($seedCheck['cnt'] ?? 0) == 0) {
         ['vendor_name',                 'VARCHAR(500)',                              'Vendor Information',    'onboarding', 'Vendor legal name'],
         ['vendor_domain',               'VARCHAR(255)',                              'Vendor Information',    'onboarding', 'Vendor domain name for SRS scoring'],
         ['vendor_sisterdomains',        'TEXT',                                     'Vendor Information',    'onboarding', 'Related/sister domains for Shodan scanning (one per line)'],
-        ['vendor_id',                   'VARCHAR(20)',                               'Vendor Information',    'onboarding', 'VSU Vendor ID (VID)'],
+        ['vendor_id',                   'VARCHAR(20)',                               'Vendor Information',    'onboarding', 'Vendor ID (VID)'],
         ['vendor_type',                 'VARCHAR(255)',                              'Vendor Information',    'onboarding', 'Vendor category/type'],
         ['relationship_manager',        'VARCHAR(255)',                              'Vendor Information',    'onboarding', 'Business relationship manager name'],
         ['expected_procurement_date',   'DATE',                                     'Vendor Information',    'onboarding', 'Expected procurement date'],
@@ -50,7 +50,7 @@ if (($seedCheck['cnt'] ?? 0) == 0) {
         ['primary_contact_phone',       'VARCHAR(50)',                               'Vendor Information',    'onboarding', 'Primary contact direct phone'],
         ['nda_in_place',                "ENUM('yes','no','')",                       'Vendor Information',    'onboarding', 'Is NDA in place?'],
         ['vendor_competitors',          'TEXT',                                     'Vendor Information',    'onboarding', 'Known vendor competitors'],
-        ['vsu_onboarded',               "ENUM('yes','no','')",                       'Vendor Information',    'onboarding', 'VSU procurement onboarding status'],
+        ['vsu_onboarded',               "ENUM('yes','no','')",                       'Vendor Information',    'onboarding', 'Procurement onboarding status'],
 
         // Section: Engagement Details
         ['cost_center',                 'INT(10) UNSIGNED',                          'Engagement Details',    'onboarding', 'Accounting cost center (integer)'],

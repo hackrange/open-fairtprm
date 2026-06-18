@@ -1291,7 +1291,7 @@ INSERT IGNORE INTO assessment_questions (section_id, question_text, question_typ
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What other Domain Names are associated with this vendor?', 'textarea', NULL, 0, 'Enter one domain per line. These sister domains will be included in Shodan security scanning.', 3, 'vendor_sisterdomains'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
-'Has this vendor completed VSU Procurement Onboarding?', 'button_group', '["Yes", "No"]', 1, NULL, 4, 'vsu_onboarded'),
+'Has this vendor completed Procurement Onboarding?', 'button_group', '["Yes", "No"]', 1, NULL, 4, 'vsu_onboarded'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What is the Vendor ID (VID)?', 'number', NULL, 0, '4-8 digit vendor ID from VSU procurement system.', 5, 'vendor_id'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),

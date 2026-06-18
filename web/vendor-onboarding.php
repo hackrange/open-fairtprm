@@ -1486,7 +1486,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
             $fieldLabels = [
                 'vendor_name' => 'Vendor Name', 'vendor_domain' => 'Vendor Domain',
                 'vendor_sisterdomains' => 'Sister/Subdomains', 'vendor_id' => 'Vendor ID',
-                'vendor_type' => 'Vendor Type', 'vsu_onboarded' => 'VSU Onboarded',
+                'vendor_type' => 'Vendor Type', 'vsu_onboarded' => 'Procurement Onboarding',
                 'relationship_manager' => 'Relationship Manager',
                 'expected_procurement_date' => 'Expected Procurement Date',
                 'product_service_description' => 'Product/Service Description',
@@ -2620,7 +2620,7 @@ function getFieldValue($request, $field, $default = '') {
                             }
                             echo '</div>'; ?>
                             <?php dualField($request, 'vendor_id', 'Vendor ID (VID)'); ?>
-                            <?php dualField($request, 'vsu_onboarded', 'VSU Onboarded', 'yes_no'); ?>
+                            <?php dualField($request, 'vsu_onboarded', 'Procurement Onboarding', 'yes_no'); ?>
                         </div>
                     </div>
 

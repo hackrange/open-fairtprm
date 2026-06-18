@@ -1308,7 +1308,7 @@ INSERT IGNORE INTO assessment_questions (section_id, question_text, question_typ
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What is the vendor''s primary domain?', 'text', NULL, 0, 'e.g., vendor.com', 2, 'vendor_domain'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
-'Has this vendor completed VSU Procurement Onboarding?', 'radio', '["Yes", "No"]', 1, NULL, 3, 'vsu_onboarded'),
+'Has this vendor completed Procurement Onboarding?', 'radio', '["Yes", "No"]', 1, NULL, 3, 'vsu_onboarded'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What is the Vendor ID (VID)?', 'text', NULL, 0, '4-8 digit vendor ID from VSU procurement system.', 4, 'vendor_id'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),

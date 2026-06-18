@@ -4714,7 +4714,7 @@ INSERT IGNORE INTO assessment_questions (section_id, question_text, question_typ
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What other Domain Names are associated with this vendor?', 'textarea', NULL, 0, 'Enter one domain per line. These sister domains will be included in Shodan security scanning.', 3, 'vendor_sisterdomains'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
-'Has this vendor completed VSU Procurement Onboarding?', 'button_group', '["Yes", "No"]', 1, NULL, 4, 'vsu_onboarded'),
+'Has this vendor completed Procurement Onboarding?', 'button_group', '["Yes", "No"]', 1, NULL, 4, 'vsu_onboarded'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What is the Vendor ID (VID)?', 'number', NULL, 0, '4-8 digit vendor ID from VSU procurement system.', 5, 'vendor_id'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
@@ -5126,6 +5126,9 @@ UPDATE assessment_questions SET field_name = 'vendor_use_ai' WHERE field_name IS
 
 -- Section 3: Additional Information
 UPDATE assessment_questions SET field_name = 'additional_information' WHERE field_name IS NULL AND section_id IN (SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 3) AND sort_order = 1;
+
+-- Label rename: drop the institution-specific "VSU" prefix from the onboarding question text (idempotent).
+UPDATE assessment_questions SET question_text = 'Has this vendor completed Procurement Onboarding?' WHERE field_name = 'vsu_onboarded' AND question_text = 'Has this vendor completed VSU Procurement Onboarding?';
 
 
 -- =============================================================================

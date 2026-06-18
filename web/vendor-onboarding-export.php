@@ -130,7 +130,7 @@ $headers = [
     'SOX Record Count',
     'Business Impact',
     // VSU Fields
-    'VSU Onboarded',
+    'Procurement Onboarding',
     // Tier
     'Vendor Tier',
     // Additional Info
