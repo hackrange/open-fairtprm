@@ -77,9 +77,11 @@ $sectionFiles = [
     'fair'      => 'fair-defaults.php',
     'email'     => 'email.php',
     'saml'      => 'saml.php',
+    'ai-integration' => 'api-integration.php',
     'openwebui' => 'api-integration.php',
     'api'       => 'api-integration.php',
     'ai-platform' => 'ai-platform.php',
+    'api-management' => 'api-tokens.php',
     'api-tokens' => 'api-tokens.php',
     'srs'       => 'srs.php',
     'shadow-saas' => 'shadow-saas-grip.php',
@@ -427,8 +429,8 @@ if ($originalMethod !== 'POST' || !empty($success)) {
                         <summary class="sidebar-section-title"><?php echo e(t('admin.section_integrations')); ?></summary>
                         <ul class="sidebar-nav">
                             <li><a href="?section=saml" class="<?php echo $section === 'saml' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/users-01.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_saml_sso')); ?></span></a></li>
-                            <li><a href="?section=api" class="<?php echo in_array($section, ['api', 'openwebui']) ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/message-text-square-02.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_ai_integration')); ?></span></a></li>
-                            <li><a href="?section=api-tokens" class="<?php echo $section === 'api-tokens' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/key-01.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_restful_api')); ?></span></a></li>
+                            <li><a href="?section=ai-integration" class="<?php echo in_array($section, ['ai-integration', 'api', 'openwebui']) ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/message-text-square-02.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_ai_integration')); ?></span></a></li>
+                            <li><a href="?section=api-management" class="<?php echo in_array($section, ['api-management', 'api-tokens']) ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/key-01.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_restful_api')); ?></span></a></li>
                             <li><a href="?section=srs" class="<?php echo $section === 'srs' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_srs')); ?></span></a></li>
                             <li><a href="?section=shadow-saas" class="<?php echo $section === 'shadow-saas' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_shadow_saas')); ?></span></a></li>
                         </ul>

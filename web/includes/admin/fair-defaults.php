@@ -160,7 +160,7 @@ $maxLossExample = ($annualRev > 0) ? '$' . number_format($annualRev * ($capPct /
     <?php else: ?>
     <div class="card" style="margin-bottom: 20px; opacity: 0.6;">
         <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #1e3a5f;">AI-Assisted FAIR Analysis</h3>
-        <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">AI-assisted FAIR calculations require an AI platform (OpenWebUI or LibreChat) to be enabled. <a href="admin.php?section=api">Configure AI Integration settings</a> first.</p>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">AI-assisted FAIR calculations require an AI platform (OpenWebUI or LibreChat) to be enabled. <a href="admin.php?section=ai-integration">Configure AI Integration settings</a> first.</p>
     </div>
     <?php endif; ?>
 

@@ -198,11 +198,11 @@ if ($editTokenId > 0) {
     .api-tabs a.active { background:#374151; color:#fff; border-color:#374151; }
 </style>
 <div class="api-tabs">
-    <a href="admin.php?section=api-tokens&api_tab=tokens" class="<?php echo $apiTab === 'tokens' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_tokens')); ?></a>
-    <a href="admin.php?section=api-tokens&api_tab=create" class="<?php echo $apiTab === 'create' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_create')); ?></a>
-    <a href="admin.php?section=api-tokens&api_tab=logs" class="<?php echo $apiTab === 'logs' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_logs')); ?></a>
-    <a href="admin.php?section=api-tokens&api_tab=playground" class="<?php echo $apiTab === 'playground' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_playground')); ?></a>
-    <a href="admin.php?section=api-tokens&api_tab=docs" class="<?php echo $apiTab === 'docs' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_docs')); ?></a>
+    <a href="admin.php?section=api-management&api_tab=tokens" class="<?php echo $apiTab === 'tokens' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_tokens')); ?></a>
+    <a href="admin.php?section=api-management&api_tab=create" class="<?php echo $apiTab === 'create' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_create')); ?></a>
+    <a href="admin.php?section=api-management&api_tab=logs" class="<?php echo $apiTab === 'logs' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_logs')); ?></a>
+    <a href="admin.php?section=api-management&api_tab=playground" class="<?php echo $apiTab === 'playground' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_playground')); ?></a>
+    <a href="admin.php?section=api-management&api_tab=docs" class="<?php echo $apiTab === 'docs' ? 'active' : ''; ?>"><?php echo e(t('admin_api-tokens.tab_docs')); ?></a>
 </div>
 
 <?php if ($newTokenRaw): ?>
@@ -250,7 +250,7 @@ if ($editTokenId > 0) {
                     <?php endif; ?>
                 </td>
                 <td style="padding:12px;white-space:nowrap;">
-                    <a href="admin.php?section=api-tokens&edit_token=<?php echo $t['id']; ?>" style="font-size:12px;margin-right:8px;"><?php echo e(t('admin_api-tokens.action_edit')); ?></a>
+                    <a href="admin.php?section=api-management&edit_token=<?php echo $t['id']; ?>" style="font-size:12px;margin-right:8px;"><?php echo e(t('admin_api-tokens.action_edit')); ?></a>
                     <?php if ($t['is_active']): ?>
                     <form method="POST" style="display:inline;" data-confirm="<?php echo e(t('admin_api-tokens.confirm_revoke')); ?>">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -341,7 +341,7 @@ if ($editTokenId > 0) {
 
         <div style="display:flex;gap:10px;margin-top:10px;">
             <button type="submit" class="btn btn-primary"><?php echo e(t('admin_api-tokens.btn_save_changes')); ?></button>
-            <a href="admin.php?section=api-tokens&api_tab=tokens" class="btn btn-secondary"><?php echo e(t('admin_api-tokens.btn_cancel')); ?></a>
+            <a href="admin.php?section=api-management&api_tab=tokens" class="btn btn-secondary"><?php echo e(t('admin_api-tokens.btn_cancel')); ?></a>
         </div>
     </form>
 </div>
@@ -378,7 +378,7 @@ if ($editTokenId > 0) {
     <?php else: ?>
     <p style="color:#9ca3af;font-size:13px;margin-bottom:16px;"><?php echo e(t('admin_api-tokens.no_ips')); ?></p>
     <?php endif; ?>
-    <form method="POST" action="admin.php?section=api-tokens&edit_token=<?php echo $editToken['id']; ?>" style="display:flex;gap:10px;align-items:end;">
+    <form method="POST" action="admin.php?section=api-management&edit_token=<?php echo $editToken['id']; ?>" style="display:flex;gap:10px;align-items:end;">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="api_action" value="add_ip">
         <input type="hidden" name="token_id" value="<?php echo $editToken['id']; ?>">

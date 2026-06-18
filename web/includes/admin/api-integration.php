@@ -144,6 +144,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['update_openwebui']) 
 }
 
 // ============================================================================
+// Test handlers: connection (default model) and FAIR Analysis (purpose=fair).
+// Both use the SAVED config via AIPlatformService, so Save before testing.
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_ai_connection'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_api-integration.invalid_request_retry');
+    } else {
+        require_once __DIR__ . '/../classes/AIPlatformService.php';
+        $r = AIPlatformService::getInstance()->testConnection();
+        if ($r['success']) {
+            $success = t('admin_ai-platform.test_connection') . ' — ' . t('admin_api-integration.settings_saved') . ' (' . $r['platform'] . ', ' . $r['model'] . ')';
+        } else {
+            $error = 'Connection failed: ' . ($r['message'] ?? 'Unknown error');
+        }
+    }
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_fair_analysis'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_api-integration.invalid_request_retry');
+    } else {
+        require_once __DIR__ . '/../classes/AIPlatformService.php';
+        $ai = AIPlatformService::getInstance();
+        $r = $ai->chatCompletion(
+            [['role' => 'user', 'content' => 'Reply with only this JSON and nothing else: {"ok": true}']],
+            ['purpose' => 'fair', 'max_tokens' => 50]
+        );
+        if ($r['success']) {
+            $success = t('admin_ai-platform.test_fair_ok') . ' (' . $ai->getModel('fair') . ') — ' . trim((string)$r['content']);
+        } else {
+            $error = t('admin_ai-platform.test_fair_fail') . ' ' . ($r['error'] ?? 'Unknown error');
+        }
+    }
+}
+
+// ============================================================================
 // Data Loading
 // ============================================================================
 $encryption = new Encryption();
@@ -255,7 +290,14 @@ CURL;
         </div>
         <div class="form-group">
             <label for="openwebui_model"><?php echo e(t('admin_api-integration.default_model')); ?></label>
-            <input type="text" id="openwebui_model" name="openwebui_model" class="form-control" value="<?php echo e($owModel); ?>" placeholder="e.g. novita.google/gemma-3-27b-it">
+            <input type="text" id="openwebui_model" name="openwebui_model" class="form-control" value="<?php echo e($owModel); ?>" placeholder="e.g. gemma-3-27b-it">
+            <div style="display:flex;gap:8px;margin-top:6px;align-items:center;">
+                <select class="form-control ai-model-select" data-target="openwebui_model" style="flex:1;">
+                    <option value=""><?php echo e(t('admin_ai-platform.models_not_loaded')); ?></option>
+                </select>
+                <button type="button" class="btn ai-load-models" style="background:#6b7280;border-color:#6b7280;color:#fff;white-space:nowrap;"><?php echo e(t('admin_ai-platform.load_models')); ?></button>
+            </div>
+            <div class="form-help ai-models-msg" style="margin-top:4px;"></div>
         </div>
         <div style="display: flex; gap: 16px;">
             <div class="form-group" style="flex: 1;">
@@ -345,13 +387,37 @@ CURL;
         <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;"><?php echo e(t('admin_api-integration.shared_model_settings')); ?></h3>
         <div class="form-group">
             <label for="fair_ai_model"><?php echo e(t('admin_api-integration.fair_structured_model')); ?></label>
-            <input type="text" id="fair_ai_model" name="fair_ai_model" class="form-control" value="<?php echo e($fairAiModel); ?>" placeholder="e.g. novita.deepseek/deepseek-v3-turbo">
+            <input type="text" id="fair_ai_model" name="fair_ai_model" class="form-control" value="<?php echo e($fairAiModel); ?>" placeholder="e.g. deepseek/deepseek-v3-turbo">
+            <div style="display:flex;gap:8px;margin-top:6px;align-items:center;">
+                <select class="form-control ai-model-select" data-target="fair_ai_model" style="flex:1;">
+                    <option value=""><?php echo e(t('admin_ai-platform.models_not_loaded')); ?></option>
+                </select>
+                <button type="button" class="btn ai-load-models" style="background:#6b7280;border-color:#6b7280;color:#fff;white-space:nowrap;"><?php echo e(t('admin_ai-platform.load_models')); ?></button>
+            </div>
             <div class="form-help">Used for FAIR risk analysis, assessment auto-fill, and contract extraction. Needs fast response (&lt;30s) and good JSON output. Works with both platforms. Leave blank to use the default model.</div>
         </div>
     </div>
 
     <button type="submit" name="update_ai_settings" class="btn btn-primary"><?php echo e(t('admin_api-integration.save_configuration')); ?></button>
 </form>
+
+<?php if (!in_array($activePlatform, ['disabled'], true)): ?>
+<div class="card" style="margin-top:20px;">
+    <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;"><?php echo e(t('admin_ai-platform.test_connection')); ?></h3>
+    <p style="color:#6b7280;font-size:13px;margin-bottom:12px;"><?php echo e(t('admin_ai-platform.test_connection_desc')); ?></p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <form method="POST" action="admin.php?section=<?php echo e($section); ?>">
+            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+            <button type="submit" name="test_ai_connection" class="btn" style="background:#6b7280;border-color:#6b7280;color:#fff;"><?php echo e(t('admin_ai-platform.test_active_platform')); ?></button>
+        </form>
+        <form method="POST" action="admin.php?section=<?php echo e($section); ?>">
+            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+            <button type="submit" name="test_fair_analysis" class="btn btn-primary"><?php echo e(t('admin_ai-platform.test_fair')); ?></button>
+        </form>
+    </div>
+    <p style="color:#6b7280;font-size:12px;margin-top:10px;"><?php echo e(t('admin_ai-platform.test_fair_desc')); ?></p>
+</div>
+<?php endif; ?>
 
 <style nonce="<?php echo cspNonce(); ?>">
 .api-choice {
@@ -545,5 +611,76 @@ CURL;
             flashStatus('Postman collection downloaded');
         });
     }
+
+    // ----- Model dropdowns: query the active platform's /models list -----
+    // Uses api/ai-models.php (saved URL + token). Selecting a model fills the
+    // matching text input, which is what gets submitted.
+    var aiCsrf = <?php echo json_encode($csrfToken); ?>;
+    var modelSelects = document.querySelectorAll('.ai-model-select');
+    var loadButtons  = document.querySelectorAll('.ai-load-models');
+    var modelMsgs    = document.querySelectorAll('.ai-models-msg');
+
+    function setModelMsg(text, isError) {
+        modelMsgs.forEach(function (m) {
+            m.textContent = text;
+            m.style.color = isError ? '#b91c1c' : '#6b7280';
+        });
+    }
+
+    modelSelects.forEach(function (sel) {
+        sel.addEventListener('change', function () {
+            if (!sel.value) return;
+            var input = document.getElementById(sel.getAttribute('data-target'));
+            if (input) input.value = sel.value;
+        });
+    });
+
+    function populateModels(models) {
+        modelSelects.forEach(function (sel) {
+            var input = document.getElementById(sel.getAttribute('data-target'));
+            var current = input ? input.value : '';
+            sel.innerHTML = '';
+            var ph = document.createElement('option');
+            ph.value = ''; ph.textContent = '— select a model —';
+            sel.appendChild(ph);
+            var found = false;
+            models.forEach(function (m) {
+                var o = document.createElement('option');
+                o.value = m.id;
+                o.textContent = (m.name && m.name !== m.id) ? (m.name + '  (' + m.id + ')') : m.id;
+                if (m.id === current) { o.selected = true; found = true; }
+                sel.appendChild(o);
+            });
+            if (current && !found) {
+                var o2 = document.createElement('option');
+                o2.value = current; o2.textContent = current + '  (current — not in list)';
+                o2.selected = true;
+                sel.appendChild(o2);
+            }
+        });
+    }
+
+    function loadModels() {
+        loadButtons.forEach(function (b) { b.disabled = true; });
+        setModelMsg(<?php echo json_encode(t('admin_ai-platform.models_loading')); ?>, false);
+        fetch('api/ai-models.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ csrf_token: aiCsrf })
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data && data.success && data.models && data.models.length) {
+                populateModels(data.models);
+                setModelMsg(data.models.length + ' model(s) loaded.', false);
+            } else {
+                setModelMsg((data && data.error) ? data.error : 'Could not load models.', true);
+            }
+        }).catch(function (e) {
+            setModelMsg('Could not load models: ' + e.message, true);
+        }).finally(function () {
+            loadButtons.forEach(function (b) { b.disabled = false; });
+        });
+    }
+
+    loadButtons.forEach(function (b) { b.addEventListener('click', loadModels); });
 })();
 </script>
