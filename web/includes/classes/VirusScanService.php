@@ -57,13 +57,35 @@ class VirusScanService
         }
 
         try {
-            // SCAN command — clamd reads the file directly from the filesystem.
-            // This is faster than streaming and avoids the StreamMaxLength limit
-            // for files clamd can access (which it can, since we're all-in-one).
-            $command = "SCAN {$filePath}\n";
-            if (fwrite($socket, $command) === false) {
+            // INSTREAM — stream the file CONTENTS to clamd over the socket rather than
+            // asking clamd to read the path. Uploaded temp files are owned by the web
+            // user (mode 600), so clamd (running as the 'clamav' user) cannot read them
+            // from disk via SCAN ("Access denied") -- INSTREAM avoids that entirely.
+            // Protocol: "zINSTREAM\0", then <4-byte BE length><bytes> chunks, terminated
+            // by a zero-length chunk. clamd replies "stream: OK" or "stream: <threat> FOUND".
+            $data = @file_get_contents($filePath);
+            if ($data === false) {
                 fclose($socket);
-                return $this->handleUnavailable('Failed to send SCAN command to clamd');
+                throw new \RuntimeException('Virus scan failed: file not readable');
+            }
+
+            $ok = (fwrite($socket, "zINSTREAM\0") !== false);
+            $offset = 0;
+            $len = strlen($data);
+            $chunkSize = 65536;
+            while ($ok && $offset < $len) {
+                $chunk = substr($data, $offset, $chunkSize);
+                $offset += strlen($chunk);
+                if (fwrite($socket, pack('N', strlen($chunk)) . $chunk) === false) {
+                    $ok = false;
+                }
+            }
+            if ($ok && fwrite($socket, pack('N', 0)) === false) { // zero-length chunk = end of stream
+                $ok = false;
+            }
+            if (!$ok) {
+                fclose($socket);
+                return $this->handleUnavailable('Failed to stream file to clamd (INSTREAM)');
             }
 
             $response = '';
