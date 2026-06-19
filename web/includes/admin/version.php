@@ -530,26 +530,40 @@ $upgradeLog = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
-    } elseif (isset($_POST['perform_docker_upgrade'])) {
+    } elseif (isset($_POST['perform_docker_upgrade']) || isset($_POST['perform_docker_redeploy'])) {
+        // Redeploy re-pulls and re-applies the CURRENTLY installed version. It exists
+        // for the case where a fix was published under the same tag (a rolling re-push):
+        // the normal upgrade list never offers it because getNewerDockerVersions() only
+        // surfaces strictly-newer versions. Everything downstream (backup, layer
+        // download, in-place file apply, SQL migration, OPcache flush + Apache reload)
+        // is shared with the upgrade path.
+        $isRedeploy = isset($_POST['perform_docker_redeploy']);
         $upgradeLog = [];
-        $selectedVersion = $_POST['target_version'] ?? '';
+        $selectedVersion = $isRedeploy ? ltrim($currentVersion, 'v') : ($_POST['target_version'] ?? '');
         $upgradeFailed = false;
 
-        // Validate the selected version exists in newer versions from registry
-        $versionValid = false;
-        foreach ($newerVersions as $nv) {
-            if ($nv['version'] === $selectedVersion) {
-                $versionValid = true;
-                break;
-            }
-        }
-
-        if (!$versionValid) {
-            $error = 'Selected version is not available.';
-            $upgradeLog[] = ['step' => 'Validate version', 'status' => 'error', 'detail' => 'v' . $selectedVersion . ' not in available upgrades'];
-            $upgradeFailed = true;
+        if ($isRedeploy) {
+            // Redeploy always targets the installed version -- nothing to validate
+            // against the "newer versions" list.
+            $versionValid = true;
+            $upgradeLog[] = ['step' => 'Validate version', 'status' => 'ok', 'detail' => 'redeploy v' . $selectedVersion];
         } else {
-            $upgradeLog[] = ['step' => 'Validate version', 'status' => 'ok', 'detail' => 'v' . $selectedVersion];
+            // Validate the selected version exists in newer versions from registry
+            $versionValid = false;
+            foreach ($newerVersions as $nv) {
+                if ($nv['version'] === $selectedVersion) {
+                    $versionValid = true;
+                    break;
+                }
+            }
+
+            if (!$versionValid) {
+                $error = 'Selected version is not available.';
+                $upgradeLog[] = ['step' => 'Validate version', 'status' => 'error', 'detail' => 'v' . $selectedVersion . ' not in available upgrades'];
+                $upgradeFailed = true;
+            } else {
+                $upgradeLog[] = ['step' => 'Validate version', 'status' => 'ok', 'detail' => 'v' . $selectedVersion];
+            }
         }
 
         // ---- Step 1: Fetch image manifests from Docker registry ----
@@ -574,33 +588,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$upgradeFailed) {
-            $currentManifest = fetchDockerManifest($registryHost, $dockerImageName, $currentTag, $regUser, $regPass);
-            // Build set of current layer digests
-            $currentDigests = [];
-            if ($currentManifest !== false && !empty($currentManifest['layers'])) {
-                foreach ($currentManifest['layers'] as $layer) {
-                    $currentDigests[$layer['digest']] = true;
+            if ($isRedeploy) {
+                // Same tag in and out, so a current-vs-target layer diff would be empty.
+                // The Dockerfile places the whole app in its final layer: the closing RUN
+                // cp's every patched file into /var/www/html and then `chown -R` re-owns
+                // the entire web root, so that top layer is a complete /var/www/html
+                // snapshot. Re-applying just that layer refreshes all application code
+                // without re-downloading the multi-hundred-MB OS base layers.
+                $topLayer = !empty($targetManifest['layers']) ? end($targetManifest['layers']) : null;
+                if ($topLayer === null) {
+                    $error = 'Target image manifest has no layers to apply.';
+                    $upgradeLog[] = ['step' => 'Fetch manifests', 'status' => 'error', 'detail' => 'Empty layer list for ' . $targetTag];
+                    $upgradeFailed = true;
+                } else {
+                    $newLayers[] = $topLayer;
+                    $sz = $topLayer['size'] ?? 0;
+                    $sizeStr = $sz > 1048576 ? round($sz / 1048576, 2) . ' MB' : round($sz / 1024, 2) . ' KB';
+                    $upgradeLog[] = ['step' => 'Fetch manifests', 'status' => 'ok', 'detail' => 'Redeploy: applying top application layer, ' . $sizeStr . ' to download'];
                 }
-            }
-
-            // Find layers in target that don't exist in current
-            foreach ($targetManifest['layers'] as $layer) {
-                if (!isset($currentDigests[$layer['digest']])) {
-                    $newLayers[] = $layer;
-                }
-            }
-
-            if (empty($newLayers)) {
-                $error = 'No new layers found between current and target versions.';
-                $upgradeLog[] = ['step' => 'Fetch manifests', 'status' => 'error', 'detail' => 'Target image has no new layers compared to current (are they identical?)'];
-                $upgradeFailed = true;
             } else {
-                $totalSize = 0;
-                foreach ($newLayers as $l) $totalSize += ($l['size'] ?? 0);
-                $sizeStr = $totalSize > 1048576
-                    ? round($totalSize / 1048576, 2) . ' MB'
-                    : round($totalSize / 1024, 2) . ' KB';
-                $upgradeLog[] = ['step' => 'Fetch manifests', 'status' => 'ok', 'detail' => count($newLayers) . ' new layer(s), ' . $sizeStr . ' to download'];
+                $currentManifest = fetchDockerManifest($registryHost, $dockerImageName, $currentTag, $regUser, $regPass);
+                // Build set of current layer digests
+                $currentDigests = [];
+                if ($currentManifest !== false && !empty($currentManifest['layers'])) {
+                    foreach ($currentManifest['layers'] as $layer) {
+                        $currentDigests[$layer['digest']] = true;
+                    }
+                }
+
+                // Find layers in target that don't exist in current
+                foreach ($targetManifest['layers'] as $layer) {
+                    if (!isset($currentDigests[$layer['digest']])) {
+                        $newLayers[] = $layer;
+                    }
+                }
+
+                if (empty($newLayers)) {
+                    $error = 'No new layers found between current and target versions.';
+                    $upgradeLog[] = ['step' => 'Fetch manifests', 'status' => 'error', 'detail' => 'Target image has no new layers compared to current (are they identical?)'];
+                    $upgradeFailed = true;
+                } else {
+                    $totalSize = 0;
+                    foreach ($newLayers as $l) $totalSize += ($l['size'] ?? 0);
+                    $sizeStr = $totalSize > 1048576
+                        ? round($totalSize / 1048576, 2) . ' MB'
+                        : round($totalSize / 1024, 2) . ' KB';
+                    $upgradeLog[] = ['step' => 'Fetch manifests', 'status' => 'ok', 'detail' => count($newLayers) . ' new layer(s), ' . $sizeStr . ' to download'];
+                }
             }
         }
 
@@ -938,7 +972,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Audit log
-        $auth->audit($user['id'], 'docker_upgrade', 'system', null, [
+        $auth->audit($user['id'], $isRedeploy ? 'docker_redeploy' : 'docker_upgrade', 'system', null, [
             'new' => [
                 'target_version' => 'v' . $selectedVersion,
                 'success' => !$upgradeFailed,
@@ -948,7 +982,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$upgradeFailed) {
             postUpgradeRefresh($upgradeLog);
-            $success = 'Upgrade to v' . $selectedVersion . ' completed successfully.';
+            $success = ($isRedeploy ? 'Redeploy of v' : 'Upgrade to v') . $selectedVersion . ' completed successfully.';
             $currentVersion = getAppVersion();
             $newerVersions = getNewerDockerVersions($dockerTags, $currentVersion);
         }
@@ -1027,6 +1061,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="alert alert-danger" style="margin-top: 10px;"><?php echo e($registryErrMsg); ?></div>
     <?php endif; ?>
 </div>
+
+<!-- Re-apply current version (redeploy) -->
+<?php if (!$registryError): ?>
+<div class="card">
+    <h3>Re-apply Current Version</h3>
+    <p style="color: #555; font-size: 14px; margin-top: 0;">
+        Re-download and re-apply the <strong>v<?php echo e(ltrim($currentVersion, 'v')); ?></strong> image from the registry. Use this when a fix was published under the <em>same</em> version tag &mdash; the upgrade list below only offers <em>newer</em> versions, so it won't show a same-tag rebuild. Your data is preserved; this refreshes the application code in place, then flushes the cache and gracefully reloads.
+    </p>
+    <button type="button" class="btn btn-primary docker-redeploy-btn"
+            data-version="<?php echo e(ltrim($currentVersion, 'v')); ?>">
+        Redeploy v<?php echo e(ltrim($currentVersion, 'v')); ?>
+    </button>
+</div>
+<?php endif; ?>
 
 <!-- Available Updates (only newer versions) -->
 <?php if (!empty($newerVersions)): ?>
@@ -1218,6 +1266,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (confirmInput.value !== 'UPGRADE') return;
             confirmBtn.disabled = true;
             confirmBtn.textContent = 'Upgrading...';
+            form.submit();
+        });
+    }
+})();
+</script>
+
+<!-- Docker Redeploy Modal -->
+<div id="dockerRedeployModal" class="modal">
+    <div class="modal-content" style="max-width: 550px;">
+        <span class="close" data-close="dockerRedeployModal">&times;</span>
+        <h3 style="margin-top: 0; color: var(--theme-header-color);">Confirm Redeploy</h3>
+
+        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: start; gap: 10px;">
+                <span style="font-size: 20px;">&#10003;</span>
+                <div>
+                    <strong style="color: #166534;">Your settings are safe</strong>
+                    <p style="margin: 5px 0 0; font-size: 13px; color: #15803d;">
+                        All database data, profile colors, API keys, SMTP settings, branding, and configurations are stored on persistent volumes. They will not be affected by this redeploy.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+            <strong style="color: #92400e;">What happens:</strong>
+            <ul style="margin: 8px 0 0; padding-left: 20px; font-size: 13px; color: #78350f;">
+                <li>A database backup is created automatically</li>
+                <li>The current version's image is re-downloaded and its application files re-applied in place</li>
+                <li>Docker symlinks are restored for persistent data</li>
+                <li>Any pending SQL migrations are applied, then OPcache is flushed and Apache gracefully reloaded</li>
+            </ul>
+        </div>
+
+        <p style="color: #666; margin-bottom: 15px;">
+            Re-applying: <strong id="docker_redeploy_version_display" style="color: #333;"></strong>
+        </p>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="docker_redeploy_confirm_input" style="font-weight: 500;">Type <strong>REDEPLOY</strong> to confirm:</label>
+            <input type="text" id="docker_redeploy_confirm_input" class="form-control" placeholder="Type REDEPLOY to confirm" autocomplete="off">
+        </div>
+
+        <form method="POST" action="admin.php?section=version" id="dockerRedeployForm">
+            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+            <input type="hidden" id="docker_redeploy_target_version" name="target_version" value="">
+            <input type="hidden" name="perform_docker_redeploy" value="1">
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                <button type="button" class="btn" style="background: #6b7280; color: white;" data-close="dockerRedeployModal">Cancel</button>
+                <button type="button" id="dockerConfirmRedeployBtn" class="btn btn-primary" disabled>Redeploy</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script nonce="<?php echo cspNonce(); ?>">
+(function() {
+    var modal        = document.getElementById('dockerRedeployModal');
+    var confirmInput = document.getElementById('docker_redeploy_confirm_input');
+    var confirmBtn   = document.getElementById('dockerConfirmRedeployBtn');
+    var verDisplay   = document.getElementById('docker_redeploy_version_display');
+    var hiddenVer    = document.getElementById('docker_redeploy_target_version');
+    var form         = document.getElementById('dockerRedeployForm');
+
+    function openModal(version) {
+        verDisplay.textContent = 'v' + version;
+        hiddenVer.value = version;
+        confirmInput.value = '';
+        confirmBtn.disabled = true;
+        modal.style.display = 'flex';
+    }
+
+    document.querySelectorAll('.docker-redeploy-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            openModal(this.getAttribute('data-version'));
+        });
+    });
+
+    if (confirmInput) {
+        confirmInput.addEventListener('input', function() {
+            confirmBtn.disabled = (this.value !== 'REDEPLOY');
+        });
+    }
+
+    if (confirmBtn && form) {
+        confirmBtn.addEventListener('click', function() {
+            if (confirmInput.value !== 'REDEPLOY') return;
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Redeploying...';
             form.submit();
         });
     }
