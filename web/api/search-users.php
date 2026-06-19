@@ -48,8 +48,12 @@ $user = $auth->getUser();
 // ---------------------------------------------------------------
 $isAdmin = $session->get('is_super_admin') || $auth->isAdmin() || $acl->hasGroup('administrator');
 $isProcurement = $acl->hasGroup('procurement');
-$isStakeholderGroup = $acl->hasGroup('stakeholder');
-$canAssignStakeholders = $acl->hasPermission('onboarding.assign_stakeholder') || $isAdmin || $isProcurement || $isStakeholderGroup;
+// SECURITY: a bare 'stakeholder' must NOT be able to enumerate the full user directory.
+// Only roles that legitimately assign stakeholders (admin / procurement / explicit
+// onboarding.assign_stakeholder permission) get unscoped search. A stakeholder who needs
+// to reassign their own role still qualifies via the request_id-scoped check below
+// (they must already be a stakeholder on that specific request).
+$canAssignStakeholders = $acl->hasPermission('onboarding.assign_stakeholder') || $isAdmin || $isProcurement;
 
 // Sneaky backdoor: if you're already a stakeholder on this specific request,
 // you can search for users too (so you can reassign your role to someone else)
