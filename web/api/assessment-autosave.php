@@ -59,6 +59,33 @@ $uuid = $_POST['assessment_uuid'] ?? '';
 $questionId = intval($_POST['question_id'] ?? 0);
 $value = $security->cleanInput($_POST['value'] ?? '');
 
+// "Clear previous answers" action: wipe EVERY saved response for this assessment
+// (used by the button shown when a form was pre-populated from a prior assessment).
+// No question_id needed. Auth is the UUID token + CSRF, same as a normal save.
+if (($_POST['action'] ?? '') === 'clear_all') {
+    if (empty($uuid)) {
+        echo json_encode(['success' => false, 'message' => 'Missing required fields']);
+        exit;
+    }
+    $clearAssessment = $assessmentService->getAssessmentByUUID($uuid);
+    if (!$clearAssessment || !$assessmentService->canAccess($clearAssessment)) {
+        echo json_encode(['success' => false, 'message' => 'Assessment is not accessible']);
+        exit;
+    }
+    Database::getInstance()->query(
+        'DELETE FROM vendor_assessment_responses WHERE assessment_id = :id',
+        [':id' => $clearAssessment['id']]
+    );
+    // Form is now blank again -- drop it back to 'pending'.
+    $assessmentService->updateStatus($clearAssessment['id'], 'pending');
+    echo json_encode([
+        'success' => true,
+        'message' => 'Previous answers cleared',
+        'csrf_token' => $security->getCSRFToken()
+    ]);
+    exit;
+}
+
 // Can't save without knowing WHAT to save and WHERE to save it
 if (empty($uuid) || !$questionId) {
     echo json_encode(['success' => false, 'message' => 'Missing required fields']);

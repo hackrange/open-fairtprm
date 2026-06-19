@@ -1020,6 +1020,16 @@ $csrfToken = $security->generateCSRFToken();
             <p class="section-desc"><?php echo htmlspecialchars($currentSection['description']); ?></p>
             <?php endif; ?>
 
+            <?php /* Prefilled state = created 'pending' with responses copied from a prior
+                     assessment. Offer a one-click clear so the vendor can start fresh.
+                     Hidden once they begin answering (status flips to in_progress). */ ?>
+            <?php if (($assessment['status'] ?? '') === 'pending' && !empty($responses)): ?>
+            <div class="prefill-notice" style="margin: 0 0 16px; padding: 10px 14px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                <span>This assessment was pre-filled with answers from a previous assessment. Review and update them, or clear everything to start fresh.</span>
+                <button type="button" id="clearPrevAnswersBtn" data-uuid="<?php echo htmlspecialchars($uuid); ?>" class="btn btn-secondary" style="font-size: 13px; white-space: nowrap;">Clear previous answers</button>
+            </div>
+            <?php endif; ?>
+
             <form id="assessmentForm">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                 <input type="hidden" name="assessment_uuid" value="<?php echo htmlspecialchars($uuid); ?>">
@@ -1380,6 +1390,36 @@ $csrfToken = $security->generateCSRFToken();
             }
         }
     })();
+    // "Clear previous answers": wipe all prefilled responses server-side, then reload
+    // to a freshly blank form. Uses the existing (whitelisted) autosave endpoint.
+    (function() {
+        var clearBtn = document.getElementById('clearPrevAnswersBtn');
+        if (!clearBtn) return;
+        clearBtn.addEventListener('click', function() {
+            if (!confirm('This will clear ALL answers on this assessment so you can start fresh. Continue?')) return;
+            clearBtn.disabled = true;
+            var fd = new FormData();
+            fd.append('action', 'clear_all');
+            fd.append('assessment_uuid', assessmentUUID);
+            fd.append('csrf_token', csrfToken);
+            fetch('api/assessment-autosave.php', { method: 'POST', body: fd })
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (res && res.success) {
+                        window.location.reload();
+                    } else {
+                        if (res && res.csrf_token) { csrfToken = res.csrf_token; }
+                        alert((res && res.message) || 'Could not clear answers. Please try again.');
+                        clearBtn.disabled = false;
+                    }
+                })
+                .catch(function() {
+                    alert('Could not clear answers. Please try again.');
+                    clearBtn.disabled = false;
+                });
+        });
+    })();
+
     let autosaveTimeout = null;
     let isSaving = false;
     let autosavePromise = null; // Track in-flight autosave requests

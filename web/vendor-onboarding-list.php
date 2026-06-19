@@ -201,9 +201,31 @@ $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
 
 // Pagination
 require_once __DIR__ . '/includes/classes/Pagination.php';
-$pgParams = Pagination::getParams(['per_page' => 25, 'sort_column' => 'updated_at', 'sort_dir' => 'DESC']);
+// Sortable columns for the main onboarding table. Each whitelisted sort key maps to a
+// fully-qualified SQL expression so ORDER BY is unambiguous AND injection-safe (only
+// these keys can pass Pagination::getParams validation and reach the query).
+$onbSortMap = [
+    'vendor_name'      => 'r.vendor_name',
+    'vendor_type'      => 'r.vendor_type',
+    'status'           => 'r.status',
+    'stakeholder_name' => 'stakeholder_name',
+    'updated_at'       => 'r.updated_at',
+];
+$pgParams = Pagination::getParams([
+    'per_page' => 25,
+    'sort_column' => 'updated_at',
+    'sort_dir' => 'DESC',
+    'valid_sort_columns' => array_keys($onbSortMap),
+]);
 $onbPerPage = $pgParams['per_page'];
 $onbCurrentPage = $pgParams['page'];
+$onbSortSql = $onbSortMap[$pgParams['sort_column']] ?? 'r.updated_at';
+// Renders a clickable, sort-toggling table header with a direction arrow.
+$sortableTh = function (string $col, string $label) use ($pgParams) {
+    $url = Pagination::buildSortUrl($col, $pgParams['sort_column'], $pgParams['sort_dir']);
+    $ind = Pagination::getSortIndicator($col, $pgParams['sort_column'], $pgParams['sort_dir']);
+    echo '<th><a href="' . e($url) . '" style="color:inherit;text-decoration:none;white-space:nowrap;">' . e($label) . $ind . '</a></th>';
+};
 
 // ============================================================================
 // BUILD THE MAIN QUERY
@@ -280,7 +302,7 @@ $query = "
     FROM vendor_onboarding_requests r
     LEFT JOIN users u ON r.created_by = u.id
     {$whereClause}
-    ORDER BY r.updated_at DESC
+    ORDER BY {$onbSortSql} {$pgParams['sort_dir']}, r.id DESC
     LIMIT {$onbPerPage} OFFSET {$onbPg['offset']}
 ";
 
@@ -1581,14 +1603,14 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                     <?php endif; ?>
                                 </th>
                                 <?php endif; ?>
-                                <th><?php echo e(t('vendor-onboarding-list.col_vendor')); ?></th>
-                                <th><?php echo e(t('vendor-onboarding-list.col_type')); ?></th>
-                                <th><?php echo e(t('vendor-onboarding-list.col_status')); ?></th>
+                                <?php $sortableTh('vendor_name', t('vendor-onboarding-list.col_vendor')); ?>
+                                <?php $sortableTh('vendor_type', t('vendor-onboarding-list.col_type')); ?>
+                                <?php $sortableTh('status', t('vendor-onboarding-list.col_status')); ?>
                                 <?php if ($canExportImport): ?>
                                 <th><?php echo e(t('vendor-onboarding-list.col_tier_srs')); ?></th>
                                 <?php endif; ?>
-                                <th><?php echo e(t('vendor-onboarding-list.col_stakeholder')); ?></th>
-                                <th><?php echo e(t('vendor-onboarding-list.col_last_updated')); ?></th>
+                                <?php $sortableTh('stakeholder_name', t('vendor-onboarding-list.col_stakeholder')); ?>
+                                <?php $sortableTh('updated_at', t('vendor-onboarding-list.col_last_updated')); ?>
                                 <th><?php echo e(t('vendor-onboarding-list.col_annual_review')); ?></th>
                                 <th><?php echo e(t('vendor-onboarding-list.col_actions')); ?></th>
                             </tr>
