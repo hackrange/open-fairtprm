@@ -739,6 +739,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($stagedFile === '') continue;
                     // Skip symlinks pointing to directories (persistent mount points)
                     if (is_link($stagedFile) && is_dir($stagedFile)) continue;
+                    // Skip OverlayFS whiteout markers (.wh.*). These are layer
+                    // delete-markers (e.g. sql_updates purged old migration files), not
+                    // real content. Copying them fails when the target is a symlink to a
+                    // persistent dir, and we must NOT honor them as deletions either --
+                    // that would wipe migration-tracking state (.applied_hashes /
+                    // applied_updates.json) on the persistent volume. An in-place apply
+                    // only ever adds/updates files, never deletes.
+                    if (strpos(basename($stagedFile), '.wh.') === 0) continue;
                     $relPath = substr($stagedFile, strlen($stagedWebRoot));
                     $targetFile = $webRoot . $relPath;
                     $targetDir = dirname($targetFile);
