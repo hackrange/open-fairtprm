@@ -394,6 +394,14 @@ if ($linkVendorId) {
     );
 }
 
+// link_vendor is a one-shot trigger: it pre-selects the vendor and auto-opens the
+// Create modal exactly once, on arrival from a vendor's "New Assessment" button.
+// Drop it now that it has been consumed so the param does NOT get carried into the
+// sort/pagination links (built by copying $_GET) -- otherwise clicking a column
+// header would reload with link_vendor still set and re-open the Create modal
+// instead of just sorting. ($preselectedVendor already holds what we need.)
+unset($_GET['link_vendor']);
+
 $csrfToken = $security->getCSRFToken() ?? $security->generateCSRFToken();
 
 // Check if email notifications are enabled for native email sending
@@ -1226,6 +1234,16 @@ try {
             // Auto-open modal if coming from vendor record (but not after successful creation)
             <?php if ($preselectedVendor && empty($success) && empty($successHtml)): ?>
             document.getElementById('createModal').style.display = 'block';
+            // Scrub link_vendor from the address bar once the modal is open so the
+            // client-side Type / per-page handlers (which rebuild the URL from
+            // window.location.search) don't carry it forward and re-open this modal.
+            try {
+                var _u = new URL(window.location.href);
+                if (_u.searchParams.has('link_vendor')) {
+                    _u.searchParams.delete('link_vendor');
+                    window.history.replaceState({}, '', _u.toString());
+                }
+            } catch (e) { /* older browsers: harmless, server-side guard already handles links */ }
             <?php endif; ?>
 
             // Form validation for create assessment

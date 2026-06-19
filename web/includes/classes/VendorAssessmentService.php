@@ -1662,6 +1662,24 @@ class VendorAssessmentService {
         $assessment = $this->getAssessmentById($assessmentId);
         if (!$assessment) return null;
 
+        // Not opened since it was created: the vendor hasn't worked on it yet, so it
+        // reports 0% regardless of any answers carried over by the re-assessment
+        // pre-fill. Pre-filled drafts are a convenience for the vendor to edit -- they
+        // are NOT vendor-confirmed progress, and must not make a never-touched
+        // assessment look complete in the admin list. The vendor-facing page flips the
+        // status to 'in_progress' before it ever calls this, so this only affects the
+        // admin/reporting views of an untouched assessment.
+        if (($assessment['status'] ?? '') === 'pending') {
+            return [
+                'total_questions' => 0,
+                'answered_questions' => 0,
+                'percentage' => 0,
+                'sections' => [],
+                'attestation_required' => true,
+                'attestation_complete' => false,
+            ];
+        }
+
         $mode = $this->getEffectiveCertificateMode($assessment);
 
         // Minimal mode: the certificate is necessary but NOT sufficient -- the vendor
@@ -1673,12 +1691,12 @@ class VendorAssessmentService {
 
         // Skip mode (and legacy): certificate uploaded = instant 100%. Get-out-of-jail-free.
         if ($assessment['certificate_uploaded']) {
-            return [
+            return $this->withAttestationRequirement($assessment, [
                 'total_questions' => 0,
                 'answered_questions' => 0,
                 'percentage' => 100,
                 'sections' => []
-            ];
+            ]);
         }
 
         $sections = $this->getSections($assessment['template_id']);
@@ -1721,12 +1739,35 @@ class VendorAssessmentService {
             ];
         }
 
-        return [
+        return $this->withAttestationRequirement($assessment, [
             'total_questions' => $totalRequired,
             'answered_questions' => $totalAnswered,
             'percentage' => $totalRequired > 0 ? round(($totalAnswered / $totalRequired) * 100) : 0,
             'sections' => $sectionStatus
-        ];
+        ]);
+    }
+
+    /**
+     * Folds the submitter attestation into a completion result as one extra
+     * required item, so an assessment can never report 100% until the submitter
+     * has attested (which the submit/certificate flows capture at final submission).
+     * A row already marked 'completed' counts as attested, so historical completed
+     * assessments still read 100% even if their attestation flag predates this rule.
+     */
+    private function withAttestationRequirement($assessment, array $result) {
+        $attested = !empty($assessment['submitter_attested'])
+            || ($assessment['status'] ?? '') === 'completed';
+
+        $total = ($result['total_questions'] ?? 0) + 1;          // +1 for the attestation step
+        $answered = ($result['answered_questions'] ?? 0) + ($attested ? 1 : 0);
+
+        $result['total_questions'] = $total;
+        $result['answered_questions'] = $answered;
+        $result['percentage'] = $total > 0 ? (int)round(($answered / $total) * 100) : 0;
+        $result['attestation_required'] = true;
+        $result['attestation_complete'] = $attested;
+
+        return $result;
     }
 
     /**
@@ -1788,7 +1829,7 @@ class VendorAssessmentService {
             $totalAnswered++;
         }
 
-        return [
+        return $this->withAttestationRequirement($assessment, [
             'total_questions' => $totalRequired,
             'answered_questions' => $totalAnswered,
             'percentage' => $totalRequired > 0 ? round(($totalAnswered / $totalRequired) * 100) : 0,
@@ -1796,7 +1837,7 @@ class VendorAssessmentService {
             'minimal_mode' => true,
             'certificate_required' => true,
             'certificate_uploaded' => $certUploaded,
-        ];
+        ]);
     }
 
     /**
