@@ -119,6 +119,7 @@ RUN set -e; \
     cp -p  $pp/entrypoint.sh /usr/local/bin/entrypoint.sh; \
     chmod 755 /usr/local/bin/entrypoint.sh; \
     sed -i 's/^expose_php = On/expose_php = Off/' /etc/php/*/cli/php.ini; \
+    sed -i 's/^Checks[[:space:]].*/Checks 1/' /etc/clamav/freshclam.conf; \
     \
     composer require onelogin/php-saml:^4.3 --no-interaction --no-progress \
         --working-dir=/var/www/html; \

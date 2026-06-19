@@ -573,8 +573,18 @@ done
 
 if [ "$CLAMD_READY" = true ]; then
     echo "==> ClamAV is running (socket ready)."
+    # Nudge clamd to load the freshest signatures shortly after startup. freshclam's
+    # initial update can finish before clamd's socket exists, so freshclam's "notify
+    # clamd" ping fails; clamd would otherwise only pick the new DB up on its ~10min
+    # SelfCheck. This backgrounded one-shot RELOAD makes signatures prompt after a recreate.
+    (
+        sleep 120
+        if [ -S /var/run/clamav/clamd.sock ]; then
+            printf 'nRELOAD\n' | socat - UNIX-CONNECT:/var/run/clamav/clamd.sock >/dev/null 2>&1 || true
+        fi
+    ) &
 else
-    echo "WARNING: ClamAV socket not ready after 30s — uploads will proceed without scanning (fail-open)."
+    echo "WARNING: ClamAV socket not ready after 30s — virus scanning fails CLOSED, so uploads will be blocked until clamd is available."
 fi
 
 # =========================================================================
