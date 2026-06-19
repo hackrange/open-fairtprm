@@ -581,7 +581,7 @@ class VendorAssessmentService {
      *
      * Returns the new assessment ID, UUID, and expiry date.
      */
-    public function createAssessment($templateId, $vendorName, $vendorEmail, $vendorContactName = null, $vendorContactEmail = null, $vendorRequestId = null, $createdBy = null, $expiresInDays = 30) {
+    public function createAssessment($templateId, $vendorName, $vendorEmail, $vendorContactName = null, $vendorContactEmail = null, $vendorRequestId = null, $createdBy = null, $expiresInDays = 30, $prefillFromPrior = false) {
         $uuid = $this->generateUUID();
         $expiresAt = date('Y-m-d H:i:s', strtotime("+{$expiresInDays} days"));
 
@@ -614,20 +614,33 @@ class VendorAssessmentService {
         }
 
         // Pre-populate this fresh assessment with the answers from the vendor's
-        // most recent completed assessment of the same template, so they only
-        // have to update what changed instead of starting from a blank form.
+        // most recent completed assessment of the same template, so a returning
+        // vendor only updates what changed instead of starting from a blank form.
+        //
+        // This is restricted on TWO axes so a new form can never inherit another
+        // vendor's answers (cross-vendor data leak):
+        //   1. $prefillFromPrior must be explicitly enabled -- only the
+        //      re-assessment flow in vendor-assessments.php sets it.
+        //   2. The template must be a recurring vendor assessment, NOT an
+        //      'onboarding' template -- a new vendor onboarding always starts blank.
         // Wrapped in a guard -- a pre-fill hiccup must never block creation.
         $prefilledCount = 0;
-        try {
-            $prefilledCount = $this->prefillFromPriorAssessment(
-                $insertId,
-                $templateId,
-                $vendorRequestId,
-                $vendorEmail,
-                $vendorContactEmail
-            );
-        } catch (Exception $e) {
-            error_log('Assessment pre-fill from prior assessment failed: ' . $e->getMessage());
+        if ($prefillFromPrior) {
+            $tplRow = $this->db->fetchOne('SELECT category FROM assessment_templates WHERE id = :id', [':id' => $templateId]);
+            $isOnboardingTpl = $tplRow && (($tplRow['category'] ?? '') === 'onboarding');
+            if (!$isOnboardingTpl) {
+                try {
+                    $prefilledCount = $this->prefillFromPriorAssessment(
+                        $insertId,
+                        $templateId,
+                        $vendorRequestId,
+                        $vendorEmail,
+                        $vendorContactEmail
+                    );
+                } catch (Exception $e) {
+                    error_log('Assessment pre-fill from prior assessment failed: ' . $e->getMessage());
+                }
+            }
         }
 
         return [

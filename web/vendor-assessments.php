@@ -141,7 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $vendorContactEmail,
                     $vendorRequestId,
                     $user['id'],
-                    $expiresInDays
+                    $expiresInDays,
+                    true   // prefill from the vendor's prior completed assessment (re-assessment convenience)
                 );
 
                 // Build the magic link URL using the admin-configured Application URL
