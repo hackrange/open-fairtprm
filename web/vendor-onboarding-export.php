@@ -208,7 +208,7 @@ foreach ($requests as $req) {
         $req['updated_at'] ?? ''
     ];
 
-    fputcsv($output, $row);
+    fputcsv($output, array_map('csvSafeCell', $row)); // SECURITY: neutralize CSV formula injection
 }
 
 fclose($output);

@@ -415,12 +415,12 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $cveIds = '';
             $cRaw = !empty($r['cves']) ? (is_string($r['cves']) ? json_decode($r['cves'], true) : $r['cves']) : [];
             if (is_array($cRaw)) $cveIds = implode('; ', array_column($cRaw, 'id'));
-            fputcsv($out, [
+            fputcsv($out, array_map('csvSafeCell', [
                 $r['technology_name'], $r['technology_version'] ?? '', $r['technology_category'],
                 $r['vendor_name'] ?? '', $r['vendor_domain'], $r['detected_on'] ?? '',
                 $r['detected_port'] ?? '', $r['detection_confidence'] ?? '', $r['detection_method'] ?? '',
                 $cveIds, $r['last_seen_at'] ?? ''
-            ]);
+            ])); // SECURITY: neutralize CSV formula injection
         }
         fclose($out);
         exit;
@@ -433,11 +433,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $cveIds2 = '';
             $cRaw2 = !empty($r['cves']) ? (is_string($r['cves']) ? json_decode($r['cves'], true) : $r['cves']) : [];
             if (is_array($cRaw2)) $cveIds2 = implode('; ', array_column($cRaw2, 'id'));
-            fputcsv($out, [
+            fputcsv($out, array_map('csvSafeCell', [
                 $r['vendor_name'] ?? '', $r['vendor_domain'], $r['technology_version'] ?? '',
                 $r['technology_category'], $r['detected_on'] ?? '', $r['detected_port'] ?? '',
                 $r['detection_confidence'] ?? '', $cveIds2, $r['last_seen_at'] ?? ''
-            ]);
+            ])); // SECURITY: neutralize CSV formula injection
         }
         fclose($out);
         exit;
@@ -450,13 +450,13 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         if ($isViewResult) {
             fputcsv($out, ['Vendor Name', 'Domain', 'Subdomain', 'IP Address', 'CVE', 'CVSS', 'Severity', 'Waived', $shodanDisplayName, $upguardDisplayName]);
             foreach ($results as $r) {
-                fputcsv($out, [
+                fputcsv($out, array_map('csvSafeCell', [
                     $r['vendor_name'] ?? '', $r['vendor_domain'] ?? '', $r['subdomain'] ?? '',
                     $r['ip_address'] ?? '', $r['cve_id'] ?? '', $r['cvss_score'] ?? '',
                     $r['severity'] ?? '', !empty($r['waived']) ? 'Yes' : 'No',
                     $r['shodan_detected'] ? 'Yes' : 'No',
                     $r['upguard_detected'] ? 'Yes' : 'No'
-                ]);
+                ])); // SECURITY: neutralize CSV formula injection
             }
         } else {
             fputcsv($out, ['Vendor Name', 'Domain', 'Technology', 'Version', 'Category', 'Detected On', 'Port', 'CVEs', 'Last Seen']);
@@ -464,11 +464,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 $cveIds3 = '';
                 $cRaw3 = !empty($r['cves']) ? (is_string($r['cves']) ? json_decode($r['cves'], true) : $r['cves']) : [];
                 if (is_array($cRaw3)) $cveIds3 = implode('; ', array_column($cRaw3, 'id'));
-                fputcsv($out, [
+                fputcsv($out, array_map('csvSafeCell', [
                     $r['vendor_name'] ?? '', $r['vendor_domain'], $r['technology_name'],
                     $r['technology_version'] ?? '', $r['technology_category'],
                     $r['detected_on'] ?? '', $r['detected_port'] ?? '', $cveIds3, $r['last_seen_at'] ?? ''
-                ]);
+                ])); // SECURITY: neutralize CSV formula injection
             }
         }
         fclose($out);
@@ -479,7 +479,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         $out = fopen('php://output', 'w');
         fputcsv($out, ['Technology', 'Category', 'Vendor Count']);
         foreach ($concentrationRaw as $r) {
-            fputcsv($out, [$r['technology_name'], $r['technology_category'], $r['vendor_count']]);
+            fputcsv($out, array_map('csvSafeCell', [$r['technology_name'], $r['technology_category'], $r['vendor_count']])); // SECURITY: neutralize CSV formula injection
         }
         fclose($out);
         exit;

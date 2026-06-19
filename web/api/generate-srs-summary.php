@@ -55,6 +55,28 @@ if (!$vendor) {
     exit;
 }
 
+// SECURITY (IDOR): this endpoint previously had no authorization beyond requireAuth(),
+// letting any authenticated user (e.g. a scoped stakeholder) pull a full executive /
+// security / FAIR / financial summary for any vendor by id. Enforce the same SRS-view
+// model as vendor-srs-details.php: org-wide reviewer roles, or a stakeholder assigned
+// to this specific vendor.
+$acl = ACL::getInstance();
+$canView = $acl->hasGroup('administrator') || $acl->hasGroup('cyber_tprm')
+        || $acl->hasGroup('auditor') || $acl->hasGroup('procurement')
+        || Session::getInstance()->get('is_super_admin');
+if (!$canView && $acl->hasGroup('stakeholder')) {
+    $st = $db->fetchOne(
+        'SELECT id FROM vendor_onboarding_stakeholders WHERE request_id = :rid AND user_id = :uid',
+        [':rid' => $vendorId, ':uid' => $user['id']]
+    );
+    $canView = !empty($st);
+}
+if (!$canView) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Access denied', 'csrf_token' => $newCsrfToken]);
+    exit;
+}
+
 // Load UpGuard data
 require_once __DIR__ . '/../includes/classes/SRSService.php';
 $srsService = new SRSService();

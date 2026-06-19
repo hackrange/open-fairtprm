@@ -12,6 +12,14 @@ requireAuth();
 
 header('Content-Type: application/json');
 
+// SECURITY: limit this GRC helper to GRC roles (matches grc-assessment-control.php);
+// otherwise any authenticated user could enumerate framework requirement data.
+if (!hasGroup(['administrator', 'cyber_grc', 'auditor']) && !Auth::getInstance()->isAdmin() && !Session::getInstance()->get('is_super_admin')) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Access denied.']);
+    exit;
+}
+
 $auth = Auth::getInstance();
 $security = Security::getInstance();
 $db = Database::getInstance();

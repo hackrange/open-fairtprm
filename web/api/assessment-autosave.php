@@ -83,6 +83,19 @@ if (!$assessmentService->canAccess($assessment)) {
     exit;
 }
 
+// SECURITY (IDOR): the UUID token authorizes exactly ONE assessment, but the
+// question_id arrives separately from the client. Reject any question that does
+// not belong to this assessment's template so a token holder cannot write
+// off-template / cross-template responses.
+if (!$assessmentService->questionBelongsToTemplate($questionId, $assessment['template_id'])) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid question for this assessment',
+        'csrf_token' => $security->getCSRFToken()
+    ]);
+    exit;
+}
+
 // ---------------------------------------------------------------
 // EMAIL VALIDATION
 // If the question is an email type, validate the value server-side

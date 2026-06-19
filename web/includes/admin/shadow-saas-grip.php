@@ -50,6 +50,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
                 if (!preg_match('#^https?://[^\s]+$#i', $rawBase)) {
                     throw new Exception('Server URL must be a valid http(s) URL.');
                 }
+                // SECURITY (SSRF): reject cloud-metadata / loopback hosts (the API token is
+                // sent to this endpoint). Private LAN hosts remain allowed for on-prem Grip.
+                if (!isConfigUrlHostSafe($rawBase)) {
+                    throw new Exception('Server URL host is not allowed.');
+                }
 
                 $settings['grip_enabled']  = isset($_POST['grip_enabled']) ? '1' : '0';
                 $settings['grip_base_url'] = $rawBase;
@@ -110,6 +115,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_zscaler'])) {
             $rawUrl = rtrim(trim($_POST['zscaler_api_url'] ?? ''), '/');
             if ($rawUrl !== '' && !preg_match('#^https?://[^\s]+$#i', $rawUrl)) {
                 throw new Exception('API URL must be a valid http(s) URL.');
+            }
+            // SECURITY (SSRF): reject cloud-metadata / loopback hosts (credentials are POSTed
+            // to this endpoint). Private LAN hosts remain allowed for on-prem Zscaler proxies.
+            if ($rawUrl !== '' && !isConfigUrlHostSafe($rawUrl)) {
+                throw new Exception('API URL host is not allowed.');
             }
 
             $settings['zscaler_enabled']       = isset($_POST['zscaler_enabled']) ? '1' : '0';

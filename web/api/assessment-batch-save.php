@@ -89,6 +89,15 @@ foreach ($responses as $questionId => $value) {
     $questionId = intval($questionId);
     if (!$questionId) continue;
 
+    // SECURITY (IDOR): the UUID token authorizes exactly ONE assessment. Skip any
+    // question that does not belong to this assessment's template so a token holder
+    // cannot bulk-write off-template / cross-template responses. A poisoned key is
+    // recorded as an error rather than aborting the whole legitimate batch.
+    if (!$assessmentService->questionBelongsToTemplate($questionId, $assessment['template_id'])) {
+        $errors[] = ['question_id' => $questionId, 'message' => 'Invalid question for this assessment'];
+        continue;
+    }
+
     $cleanValue = $security->cleanInput(is_array($value) ? json_encode($value) : $value);
 
     // Validate email fields server-side

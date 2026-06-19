@@ -24,7 +24,10 @@ class VirusScanService
         $config = Config::getInstance();
         $this->enabled    = (bool) $config->get('security.antivirus.enabled', true);
         $this->socketPath = $config->get('security.antivirus.socket', '/var/run/clamav/clamd.sock');
-        $this->failOpen   = (bool) $config->get('security.antivirus.fail_open', true);
+        // SECURITY: default to fail-CLOSED -- if clamd is unavailable, block the upload
+        // rather than accept it unscanned. Can be overridden via config for environments
+        // that deliberately run without an AV daemon.
+        $this->failOpen   = (bool) $config->get('security.antivirus.fail_open', false);
     }
 
     /**

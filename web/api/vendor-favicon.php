@@ -27,13 +27,27 @@ if ($vendorId <= 0) {
 
 $db = Database::getInstance();
 
+// SECURITY (IDOR): only users who may view this vendor get its stored favicon.
+// Unauthorized callers fall through to the generic placeholder (instead of a 403),
+// so the response cannot be used to enumerate which vendor IDs exist / have a logo.
+$acl = ACL::getInstance();
+$canView = $acl->hasGroup(['administrator', 'cyber_tprm', 'auditor', 'procurement'])
+        || Session::getInstance()->get('is_super_admin');
+if (!$canView && $acl->hasGroup('stakeholder')) {
+    $st = $db->fetchOne(
+        'SELECT id FROM vendor_onboarding_stakeholders WHERE request_id = ? AND user_id = ?',
+        [$vendorId, (int)Auth::getInstance()->getUserId()]
+    );
+    $canView = !empty($st);
+}
+
 // Wrap in try/catch because the favicon columns may not exist yet if the
 // migration hasn't been run. In that case, fall through to the placeholder.
 try {
-    $row = $db->fetchOne(
+    $row = $canView ? $db->fetchOne(
         'SELECT vendor_favicon, vendor_favicon_mime FROM vendor_onboarding_requests WHERE id = ?',
         [$vendorId]
-    );
+    ) : null;
 
     if ($row && !empty($row['vendor_favicon'])) {
         $mime = $row['vendor_favicon_mime'] ?: 'image/png';

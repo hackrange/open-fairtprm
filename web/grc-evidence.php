@@ -45,10 +45,17 @@ if (isset($_GET['download']) && is_numeric($_GET['download'])) {
     if ($ev && !empty($ev['encrypted_data'])) {
         try {
             $decrypted = $encryption->decryptRaw($ev['encrypted_data']);
-            $filename = $ev['file_name'] ?? 'evidence_' . $evId;
-            $mime = $ev['file_mime'] ?? 'application/octet-stream';
+            // SECURITY: sanitize filename (no CR/LF/quote header injection) and only
+            // serve a known-renderable MIME inline-safely; anything else is forced to
+            // octet-stream. Always attachment + nosniff to prevent stored-XSS sniffing.
+            $filename = str_replace(["\r", "\n", '"', "\0"], '', basename($ev['file_name'] ?? ('evidence_' . $evId)));
+            $allowedMimes = ['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'text/plain', 'text/csv',
+                'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+            $mime = in_array($ev['file_mime'] ?? '', $allowedMimes, true) ? $ev['file_mime'] : 'application/octet-stream';
             header('Content-Type: ' . $mime);
-            header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
+            header('X-Content-Type-Options: nosniff');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
             header('Content-Length: ' . strlen($decrypted));
             echo $decrypted;
             exit;

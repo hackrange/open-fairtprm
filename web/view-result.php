@@ -35,9 +35,12 @@ $isCyberTPRM = $acl->hasGroup('cyber_tprm');
 $isProcurement = $acl->hasGroup('procurement');
 $isAuditor = $acl->hasGroup('auditor');
 
-// Admins, cyber_tprm, procurement, and auditors can view any FAIR analysis.
-// Everyone else can only view their own.
-if ($isAdmin || $isCyberTPRM || $isProcurement || $isAuditor) {
+// SECURITY (IDOR): FAIR analyses are per-user owned -- the list page (fair_results.php)
+// scopes every role to its own user_id. Only the oversight roles (administrator /
+// cyber_tprm) may open another user's analysis by id; procurement, auditor, and all
+// other roles are limited to their own, matching the list. This closes the cross-user
+// FAIR-analysis disclosure (procurement/auditor reading any analysis by id).
+if ($isAdmin || $isCyberTPRM) {
     $analysis = $db->fetchOne(
         'SELECT * FROM tprm_results WHERE id = :id',
         [':id' => $analysisId]

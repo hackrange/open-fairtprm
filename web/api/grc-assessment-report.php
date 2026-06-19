@@ -979,8 +979,15 @@ if (!empty($scorecardDomains)) {
 
 // ─── HEADER/FOOTER SCRIPT ───────────────────────────────────────────────────
 
-$escapedOrgName = addslashes($orgName);
-$escapedReportDate = addslashes($reportDate);
+// SECURITY: $orgName comes from the user-supplied company_name. The header/footer
+// runs inside a Dompdf <script type="text/php"> block with isPhpEnabled=true, where
+// addslashes() is NOT sufficient — PHP evaluates ${...}/{$...} interpolation inside
+// double-quoted strings, allowing arbitrary code execution (SQLi/SSRF/RCE). Encode
+// user-controlled values as Base64 and decode them at render time so the bytes are
+// passed to page_text() as inert data and never re-parsed as PHP. The Base64 alphabet
+// ([A-Za-z0-9+/=]) contains none of " \ $ { }, so it cannot break out of the literal.
+$orgNameHeaderB64  = base64_encode($orgName . " \xc2\xb7 Cyber Report");
+$reportDateB64     = base64_encode($reportDate);
 
 // Brand colors for the page script (RGB 0-1 floats)
 $brandR = $brandRgb[0]; $brandG = $brandRgb[1]; $brandB = $brandRgb[2];
@@ -1007,7 +1014,7 @@ if (isset($pdf)) {
     } else {
         // Header bar (brand color, 28pt tall, full width)
         $pdf->filled_rectangle(0, 0, 792, 28, $brand);
-        $pdf->page_text(36, 9, "' . $escapedOrgName . ' \xc2\xb7 Cyber Report", $fontBold, 7, $white);
+        $pdf->page_text(36, 9, base64_decode("' . $orgNameHeaderB64 . '"), $fontBold, 7, $white);
         $fairText = "FairTPRM";
         $fairW = $fontMetrics->getTextWidth($fairText, $fontBold, 8);
         $pdf->page_text(756 - $fairW, 8, $fairText, $fontBold, 8, $white);
@@ -1017,7 +1024,7 @@ if (isset($pdf)) {
         $pdf->page_text(36, 586, "Proprietary & Confidential", $fontNormal, 6.5, $grey);
         $pageText = "Page {PAGE_NUM} of {PAGE_COUNT}";
         $pdf->page_text(370, 586, $pageText, $fontNormal, 6.5, $grey);
-        $genText = "' . $escapedReportDate . '";
+        $genText = base64_decode("' . $reportDateB64 . '");
         $genW = $fontMetrics->getTextWidth($genText, $fontNormal, 6.5);
         $pdf->page_text(756 - $genW, 586, $genText, $fontNormal, 6.5, $grey);
     }

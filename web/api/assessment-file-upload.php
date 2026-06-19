@@ -72,6 +72,15 @@ if (!$assessment || !$assessmentService->canAccess($assessment)) {
     exit;
 }
 
+// SECURITY (IDOR): the UUID token authorizes exactly ONE assessment, but the
+// question_id arrives separately from the client. Reject any question that does
+// not belong to this assessment's template so a token holder cannot attach files
+// to off-template / cross-template questions.
+if (!$assessmentService->questionBelongsToTemplate($questionId, $assessment['template_id'])) {
+    echo json_encode(['success' => false, 'message' => 'Invalid question for this assessment']);
+    exit;
+}
+
 // ---------------------------------------------------------------
 // VALIDATE AND STORE THE FILE
 // FileUploadService handles the boring-but-critical stuff: MIME

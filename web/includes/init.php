@@ -373,6 +373,45 @@ function e($string) {
 }
 
 /**
+ * SECURITY: neutralize CSV/formula injection for a single CSV cell.
+ * Spreadsheet apps (Excel/Sheets/LibreOffice) execute a cell whose value begins
+ * with = + - @ (or a leading tab/CR), e.g. =HYPERLINK(...)/=cmd|'/c calc'!A1.
+ * Since vendor-supplied fields (names, justifications, domains) end up in CSV
+ * exports opened by admins, prefix any such cell with a single quote so it is
+ * treated as literal text. Apply via: array_map('csvSafeCell', $row) before fputcsv.
+ */
+function csvSafeCell($value) {
+    $s = (string)$value;
+    if ($s !== '' && strpos("=+-@\t\r", $s[0]) !== false) {
+        return "'" . $s;
+    }
+    return $s;
+}
+
+/**
+ * SECURITY (SSRF): validate an admin-configured outbound URL (AI / Grip / Zscaler
+ * integration endpoints, whose requests carry bearer tokens). Rejects only cloud-metadata
+ * (169.254.0.0/16) and loopback (127.0.0.0/8, ::1) hosts — the high-value SSRF / credential-
+ * exfil destinations that are never legitimate integration targets. Private LAN ranges are
+ * intentionally allowed, since on-prem AI/integration hosts are valid. Empty = allowed
+ * (clearing the setting). Returns true if safe to save.
+ */
+function isConfigUrlHostSafe($url) {
+    $url = trim((string)$url);
+    if ($url === '') return true;
+    $host = parse_url($url, PHP_URL_HOST);
+    if (!$host) return false;
+    $host = trim($host, '[]');
+    $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : (@gethostbynamel($host) ?: []);
+    foreach ($ips as $ip) {
+        if ($ip === '::1') return false;
+        if (strpos($ip, '127.') === 0) return false;     // loopback
+        if (strpos($ip, '169.254.') === 0) return false;  // link-local / cloud metadata
+    }
+    return true;
+}
+
+/**
  * Normalize a vendor domain entry to a bare host.
  *
  * People paste full URLs ("https://domain.com", "http://domain.com/path") when

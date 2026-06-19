@@ -296,6 +296,14 @@ $statusFilter = $_GET['status'] ?? 'open';
 $priorityFilter = $_GET['priority'] ?? '';
 $pastDueFilter = $_GET['past_due'] ?? '';
 $assignedFilter = $_GET['assigned'] ?? '';
+// SECURITY (IDOR): only administrators may filter the to-do list by an arbitrary
+// assignee. Non-admins are clamped to their own user ID so they cannot enumerate
+// another user's assigned cards by tampering with ?assigned=<other uid>. The only
+// legitimate non-admin consumer is the "Assigned to Me" sidebar link, which always
+// passes the current user's own ID.
+if ($assignedFilter !== '' && !$isAdmin && (int)$assignedFilter !== (int)$user['id']) {
+    $assignedFilter = (string)(int)$user['id'];
+}
 $showSnoozed = ($_GET['snoozed'] ?? '') === '1';
 
 // Now for the main event: CyberTodoService gathers ALL the todo items from

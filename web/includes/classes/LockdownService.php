@@ -574,6 +574,13 @@ class LockdownService
             $uri = $pattern['uri'];
             $method = $pattern['method'];
 
+            // SECURITY: learned patterns originate from raw HTTP request lines (a
+            // network-reachable, attacker-influenced source). Never emit one that could
+            // break out of the rule operand / inject a directive — skip it entirely.
+            if (!$this->isWafTokenSafe($uri) || !$this->isWafTokenSafe($method)) {
+                continue;
+            }
+
             // Skip if already covered by safe paths or seen as a duplicate
             if ($this->isSafePath($uri)) {
                 continue;
@@ -1087,8 +1094,25 @@ class LockdownService
     /**
      * Add a manual exception (whitelist rule) for a blocked URI+method.
      */
+    /**
+     * SECURITY: a URI / method / pattern is only safe to embed inside a ModSecurity
+     * rule operand if it contains none of  "  \  CR  LF  — any of those would break out
+     * of the quoted operand or inject a new directive into the .conf that is written to
+     * the live Apache config via `sudo tee`. Legitimate request URIs and HTTP methods
+     * never contain these characters, so we reject (not escape) unsafe values.
+     */
+    private function isWafTokenSafe(string $value): bool
+    {
+        return !preg_match('/["\\\\\r\n]/', $value);
+    }
+
     public function addException(string $uri, string $method, string $description = ''): bool
     {
+        // SECURITY: reject values that could inject ModSecurity directives.
+        if (!$this->isWafTokenSafe($uri) || !$this->isWafTokenSafe($method)) {
+            return false;
+        }
+
         // Check if this URI+method combination already has an active rule
         try {
             $existing = $this->db->fetchOne(
@@ -1252,6 +1276,32 @@ class LockdownService
             if ($ruleId < self::RULE_ID_START || $ruleId >= self::RULE_ID_DENY) {
                 continue;
             }
+
+            // SECURITY: never trust the imported rule_text — it is written verbatim into
+            // the live ModSecurity config. Rebuild it server-side from the (validated)
+            // pattern fields so a tampered import file cannot inject arbitrary directives.
+            $uriPattern = (string)($rule['uri_pattern'] ?? '');
+            $methodPattern = (string)($rule['method_pattern'] ?? '*');
+            if ($uriPattern === '' || !$this->isWafTokenSafe($uriPattern) || !$this->isWafTokenSafe($methodPattern)) {
+                continue; // skip unsafe/malformed rule
+            }
+            $isPrefix = substr($uriPattern, -1) === '*';
+            $matchUri = $isPrefix ? rtrim($uriPattern, '*') : $uriPattern;
+            $uriOp = $isPrefix ? '@beginsWith' : '@streq';
+            if ($methodPattern === '*') {
+                $ruleText = sprintf(
+                    'SecRule REQUEST_URI "%s %s" "id:%d,phase:1,pass,nolog,setvar:TX.lockdown_allowed=1"',
+                    $uriOp, $matchUri, $ruleId
+                );
+            } else {
+                $ruleText = sprintf(
+                    'SecRule REQUEST_URI "%s %s" "id:%d,phase:1,pass,nolog,chain,setvar:TX.lockdown_allowed=1"' . "\n" .
+                    '    SecRule REQUEST_METHOD "@streq %s" ""',
+                    $uriOp, $matchUri, $ruleId, $methodPattern
+                );
+            }
+            $desc = str_replace(["\r", "\n"], ' ', (string)($rule['description'] ?? ''));
+
             try {
                 $this->db->query(
                     "INSERT INTO waf_whitelist_rules (rule_id, uri_pattern, method_pattern, rule_text, description, is_auto_generated, is_active)
@@ -1261,16 +1311,16 @@ class LockdownService
                          description = :desc2, is_auto_generated = :auto2, is_active = :active2",
                     [
                         ':rid'     => $ruleId,
-                        ':uri'     => $rule['uri_pattern'] ?? '',
-                        ':method'  => $rule['method_pattern'] ?? '*',
-                        ':text'    => $rule['rule_text'] ?? '',
-                        ':desc'    => $rule['description'] ?? '',
+                        ':uri'     => $uriPattern,
+                        ':method'  => $methodPattern,
+                        ':text'    => $ruleText,
+                        ':desc'    => $desc,
                         ':auto'    => (int)($rule['is_auto_generated'] ?? 1),
                         ':active'  => (int)($rule['is_active'] ?? 1),
-                        ':uri2'    => $rule['uri_pattern'] ?? '',
-                        ':method2' => $rule['method_pattern'] ?? '*',
-                        ':text2'   => $rule['rule_text'] ?? '',
-                        ':desc2'   => $rule['description'] ?? '',
+                        ':uri2'    => $uriPattern,
+                        ':method2' => $methodPattern,
+                        ':text2'   => $ruleText,
+                        ':desc2'   => $desc,
                         ':auto2'   => (int)($rule['is_auto_generated'] ?? 1),
                         ':active2' => (int)($rule['is_active'] ?? 1),
                     ]

@@ -169,7 +169,7 @@ return [
         'antivirus' => [
             'enabled' => true,                              // Master switch — set to false to skip scanning entirely
             'socket' => '/var/run/clamav/clamd.sock',       // Unix socket for clamd
-            'fail_open' => true,                            // If clamd is down: true = allow uploads, false = block uploads
+            'fail_open' => false,                           // If clamd is down: false = block uploads (fail closed, secure default); true = allow (insecure)
         ],
     ],
 

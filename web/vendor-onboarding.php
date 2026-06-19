@@ -897,7 +897,9 @@ if ($showVendorTabs) {
 // CASE REPLY HANDLER
 // Adds a threaded reply to an existing case.
 // ============================================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_reply']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
+// SECURITY (IDOR): match the UI policy ($canAddNotes) -- procurement-only users may
+// not write case replies/notes/status/reassignment even via a direct POST.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_reply']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder) && !$isProcurementOnly) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request - security token mismatch.';
     } else {
@@ -946,7 +948,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_reply']) && $edit
 // CASE STATUS TOGGLE HANDLER
 // Toggles a case between open and closed.
 // ============================================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_case_status']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_case_status']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder) && !$isProcurementOnly) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request - security token mismatch.';
     } else {
@@ -990,7 +992,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_case_status'])
 // CASE REASSIGNMENT HANDLER
 // Reassigns an existing case to a different user.
 // ============================================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reassign_case']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reassign_case']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder) && !$isProcurementOnly) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request - security token mismatch.';
     } else {
@@ -1047,7 +1049,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reassign_case']) && $
 // CASE NOTE HANDLER
 // Adds a note to the vendor via cyber_todo_activities table.
 // ============================================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_note']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder)) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_note']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder) && !$isProcurementOnly) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request - security token mismatch.';
     } else {

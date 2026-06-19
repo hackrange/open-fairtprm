@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['update_openwebui']) 
             // OpenWebUI settings
             $apiUrl = trim($_POST['openwebui_api_url'] ?? '');
             $settings['openwebui_enabled'] = ($activePlatform === 'openwebui') ? '1' : '0';
-            $settings['openwebui_api_url'] = (!empty($apiUrl) && filter_var($apiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $apiUrl)) ? $apiUrl : '';
+            $settings['openwebui_api_url'] = (!empty($apiUrl) && filter_var($apiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $apiUrl) && isConfigUrlHostSafe($apiUrl)) ? $apiUrl : '';
             $settings['openwebui_model'] = trim($_POST['openwebui_model'] ?? '');
             $settings['fair_ai_model'] = trim($_POST['fair_ai_model'] ?? '');
             $settings['openwebui_temperature'] = (string)max(0.0, min(2.0, floatval($_POST['openwebui_temperature'] ?? 0.7)));
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['update_openwebui']) 
             // LibreChat settings
             $lcApiUrl = trim($_POST['librechat_api_url'] ?? '');
             $settings['librechat_enabled'] = ($activePlatform === 'librechat') ? '1' : '0';
-            $settings['librechat_api_url'] = (!empty($lcApiUrl) && filter_var($lcApiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $lcApiUrl)) ? $lcApiUrl : '';
+            $settings['librechat_api_url'] = (!empty($lcApiUrl) && filter_var($lcApiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $lcApiUrl) && isConfigUrlHostSafe($lcApiUrl)) ? $lcApiUrl : '';
             $settings['librechat_model'] = trim($_POST['librechat_model'] ?? '');
             $settings['librechat_temperature'] = (string)max(0.0, min(2.0, floatval($_POST['librechat_temperature'] ?? 0.7)));
             $settings['librechat_max_tokens'] = (string)max(1, min(100000, intval($_POST['librechat_max_tokens'] ?? 500)));
@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['update_openwebui']) 
             // Custom platform settings (curl-template style)
             $customApiUrl = trim($_POST['custom_api_url'] ?? '');
             $settings['custom_enabled'] = ($activePlatform === 'custom') ? '1' : '0';
-            $settings['custom_api_url'] = (!empty($customApiUrl) && filter_var($customApiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $customApiUrl)) ? $customApiUrl : '';
+            $settings['custom_api_url'] = (!empty($customApiUrl) && filter_var($customApiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $customApiUrl) && isConfigUrlHostSafe($customApiUrl)) ? $customApiUrl : '';
             $settings['custom_headers'] = $_POST['custom_headers'] ?? '';
             $settings['custom_secret_header_name'] = trim($_POST['custom_secret_header_name'] ?? '');
 
@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['update_openwebui']) 
             // API URL above. Setting this lets admins point at a different
             // search backend without changing the inference URL.
             $customSearchUrl = trim($_POST['custom_search_url'] ?? '');
-            $settings['custom_search_url'] = (!empty($customSearchUrl) && filter_var($customSearchUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $customSearchUrl)) ? $customSearchUrl : '';
+            $settings['custom_search_url'] = (!empty($customSearchUrl) && filter_var($customSearchUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $customSearchUrl) && isConfigUrlHostSafe($customSearchUrl)) ? $customSearchUrl : '';
 
             // Custom secret header value (encrypted, leave blank to keep existing)
             $customSecretValue = trim($_POST['custom_secret_header_value'] ?? '');

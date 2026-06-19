@@ -40,6 +40,16 @@ if (!$input || empty($input['csrf_token']) || !$security->validateCSRFToken($inp
 }
 
 $newCsrfToken = $security->getCSRFToken();
+
+// SECURITY: auditors are read-only across the GRC module (matches every sibling
+// GRC write endpoint, e.g. grc-audit-finding.php). Block them from saving/forging
+// or deleting audit reports; only administrators and cyber_grc may write.
+$readOnly = $isAuditor && !$isAdmin && !$isCyberGRC;
+if ($readOnly) {
+    echo json_encode(['success' => false, 'error' => 'Read-only access.', 'csrf_token' => $newCsrfToken]);
+    exit;
+}
+
 $auditId = (int)($input['audit_id'] ?? 0);
 
 if ($auditId <= 0) {

@@ -45,16 +45,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
     } else {
         $action = $_POST['action'] ?? '';
 
+        // SECURITY (IDOR): owner_user_id must reference a user the owner dropdown
+        // actually offers (active administrator/cyber_grc members). The dropdown is
+        // rendered later in the page, so validate the submitted id here before it
+        // reaches createControl()/updateControl(); an unoffered id is dropped to null
+        // and the save is rejected with an error.
+        $ownerUserId = null;
+        $ownerValid = true;
+        if (!empty($_POST['owner_user_id'])) {
+            $candidateOwner = (int)$_POST['owner_user_id'];
+            $ownerOk = $db->fetchOne(
+                "SELECT 1 FROM users u
+                   INNER JOIN user_acl_groups uag ON uag.user_id = u.id
+                   INNER JOIN acl_groups ag ON ag.id = uag.group_id
+                  WHERE u.id = :id AND u.is_active = 1
+                    AND ag.group_name IN ('administrator', 'cyber_grc')",
+                [':id' => $candidateOwner]
+            );
+            if ($ownerOk) {
+                $ownerUserId = $candidateOwner;
+            } else {
+                $ownerValid = false;
+                $msg = 'Invalid control owner selected.';
+                $msgType = 'danger';
+            }
+        }
+
         if ($action === 'create') {
             $title = trim($_POST['title'] ?? '');
-            if ($title !== '') {
+            if ($title !== '' && $ownerValid) {
                 $newId = $grc->createControl([
                     'title' => $title,
                     'description' => trim($_POST['description'] ?? ''),
                     'control_type' => $_POST['control_type'] ?? 'preventive',
                     'control_category' => $_POST['control_category'] ?? 'technical',
                     'implementation_status' => $_POST['implementation_status'] ?? 'planned',
-                    'owner_user_id' => !empty($_POST['owner_user_id']) ? (int)$_POST['owner_user_id'] : null,
+                    'owner_user_id' => $ownerUserId,
                     'frequency' => $_POST['frequency'] ?? 'ad_hoc',
                     'risk_level' => $_POST['risk_level'] ?? 'medium',
                     'notes' => trim($_POST['notes'] ?? ''),
@@ -67,14 +93,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
             }
         } elseif ($action === 'update') {
             $controlId = (int)($_POST['control_id'] ?? 0);
-            if ($controlId > 0) {
+            if ($controlId > 0 && $ownerValid) {
                 $grc->updateControl($controlId, [
                     'title' => trim($_POST['title'] ?? ''),
                     'description' => trim($_POST['description'] ?? ''),
                     'control_type' => $_POST['control_type'] ?? 'preventive',
                     'control_category' => $_POST['control_category'] ?? 'technical',
                     'implementation_status' => $_POST['implementation_status'] ?? 'planned',
-                    'owner_user_id' => !empty($_POST['owner_user_id']) ? (int)$_POST['owner_user_id'] : null,
+                    'owner_user_id' => $ownerUserId,
                     'frequency' => $_POST['frequency'] ?? 'ad_hoc',
                     'risk_level' => $_POST['risk_level'] ?? 'medium',
                     'notes' => trim($_POST['notes'] ?? ''),

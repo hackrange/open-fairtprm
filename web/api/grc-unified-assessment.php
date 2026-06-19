@@ -143,6 +143,20 @@ try {
                 echo json_encode(['success' => false, 'error' => 'Task ID required.', 'csrf_token' => $newToken]);
                 exit;
             }
+            // SECURITY (IDOR): the GRC team (admin/cyber_grc) may update any task,
+            // but other contributors may only update tasks assigned to them. Without
+            // this check any contributor could tamper with the status/notes/priority
+            // of tasks owned by other users (e.g. administrators).
+            if (!$isAdmin && !$isCyberGRC) {
+                $taskRow = Database::getInstance()->fetchOne(
+                    'SELECT assigned_to FROM grc_assessment_tasks WHERE id = :id',
+                    [':id' => $taskId]
+                );
+                if (!$taskRow || (int)$taskRow['assigned_to'] !== (int)$user['id']) {
+                    echo json_encode(['success' => false, 'error' => 'You can only update tasks assigned to you.', 'csrf_token' => $newToken]);
+                    exit;
+                }
+            }
             $result = $uas->updateTask($taskId, $input, (int)$user['id']);
             $result['csrf_token'] = $newToken;
             echo json_encode($result);

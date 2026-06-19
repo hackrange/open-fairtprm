@@ -30,6 +30,10 @@ if (!$isAdmin && !$isCyberTPRM && !$isAuditor) {
     die(e(t('shadow-saas.access_denied')));
 }
 
+// SECURITY: auditors get read-only access to this page. Only admin/cyber_tprm may
+// perform the write actions (import/add/edit/delete/onboard/dismiss/Zscaler allow-block).
+$canManage = $isAdmin || $isCyberTPRM;
+
 $error = '';
 $success = '';
 
@@ -267,8 +271,11 @@ if ($tableExists) {
     }
 }
 
-// Handle POST requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
+// Handle POST requests (write actions require manage privilege; auditors are read-only)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
+    http_response_code(403);
+    $error = t('shadow-saas.access_denied');
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = t('shadow-saas.invalid_request');
 
@@ -1109,7 +1116,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv' && $tableExists) {
         foreach ($csvHeaders as $col) {
             $csvRow[] = $row[$col] ?? '';
         }
-        fputcsv($out, $csvRow);
+        fputcsv($out, array_map('csvSafeCell', $csvRow)); // SECURITY: neutralize CSV formula injection
     }
     fclose($out);
     exit;

@@ -27,6 +27,11 @@
 //                impersonate, stop_impersonation, delete_user
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // SECURITY: privilege-tier enforcement. Only super administrators may grant/revoke
+    // admin & super-admin status, assign the administrator group, or act on a super-admin
+    // account. requireAdmin() (which gates this page) is satisfied by ordinary admins too,
+    // so these checks must be made explicitly here.
+    $callerIsSuperAdmin = (bool)$session->get('is_super_admin');
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } elseif (isset($_POST['create_user'])) {
@@ -35,8 +40,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fullName = trim($_POST['full_name'] ?? '');
             $email = trim($_POST['email'] ?? '');
             $password = $_POST['password'] ?? '';
-            $isAdmin = isset($_POST['is_admin']) ? 1 : 0;
-            $isSuperAdmin = isset($_POST['is_super_admin']) ? 1 : 0;
+            // SECURITY: only super administrators may create privileged accounts.
+            $isAdmin = (isset($_POST['is_admin']) && $callerIsSuperAdmin) ? 1 : 0;
+            $isSuperAdmin = (isset($_POST['is_super_admin']) && $callerIsSuperAdmin) ? 1 : 0;
 
             if (empty($username) || empty($fullName) || empty($email) || empty($password)) {
                 $error = 'All fields are required';
@@ -98,8 +104,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Invalid email address';
             } elseif (!empty($newPassword) && strlen($newPassword) < 8) {
                 $error = 'Password must be at least 8 characters';
+            } elseif (!$callerIsSuperAdmin && ($__t = $db->fetchOne('SELECT is_super_admin FROM users WHERE id = ?', [$userId])) && !empty($__t['is_super_admin'])) {
+                // SECURITY: only super administrators may modify a super-admin account.
+                $error = 'Only super administrators can modify a super administrator account.';
             } else {
                 $oldUser = $db->fetchOne('SELECT full_name, email, is_admin, is_super_admin FROM users WHERE id = ?', [$userId]);
+                // SECURITY: non-super-admins cannot grant or revoke admin / super-admin
+                // privileges -- preserve the target's existing flags regardless of POST.
+                if (!$callerIsSuperAdmin) {
+                    $isAdmin = (int)($oldUser['is_admin'] ?? 0);
+                    $isSuperAdmin = (int)($oldUser['is_super_admin'] ?? 0);
+                }
                 $updateData = [
                     'full_name' => $fullName,
                     'email' => $email,
@@ -148,6 +163,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = intval($_POST['user_id'] ?? 0);
             $desiredGroupIds = array_map('intval', json_decode($_POST['group_ids'] ?? '[]', true) ?: []);
 
+            // SECURITY: only super administrators may modify a super-admin's groups.
+            $__targetSuper = $db->fetchOne('SELECT is_super_admin FROM users WHERE id = ?', [$userId]);
+
             // Fetch current group assignments
             $currentRows = $db->fetchAll(
                 'SELECT g.id, g.group_name FROM user_acl_groups ug JOIN acl_groups g ON g.id = ug.group_id WHERE ug.user_id = ?',
@@ -158,6 +176,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $toAdd = array_diff($desiredGroupIds, $currentGroupIds);
             $toRemove = array_diff($currentGroupIds, $desiredGroupIds);
+
+            // SECURITY: enforce privilege tiering for non-super-admin callers.
+            if (!$callerIsSuperAdmin) {
+                if ($__targetSuper && !empty($__targetSuper['is_super_admin'])) {
+                    // Cannot touch a super-admin's groups at all.
+                    $toAdd = [];
+                    $toRemove = [];
+                    $error = 'Only super administrators can modify a super administrator\'s groups.';
+                } else {
+                    // Cannot grant the administrator group (privilege escalation).
+                    $adminGroup = $acl->getGroupByName('administrator');
+                    if ($adminGroup) {
+                        $toAdd = array_diff($toAdd, [$adminGroup['id']]);
+                    }
+                }
+            }
 
             foreach ($toRemove as $groupId) {
                 $acl->removeUserFromGroup($userId, $groupId);
@@ -174,8 +208,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
 
-            $changes = count($toAdd) + count($toRemove);
-            $success = $changes > 0 ? 'User groups updated successfully' : 'No group changes needed';
+            if (empty($error)) {
+                $changes = count($toAdd) + count($toRemove);
+                $success = $changes > 0 ? 'User groups updated successfully' : 'No group changes needed';
+            }
         } catch (Exception $e) {
             error_log('Error syncing user groups: ' . $e->getMessage());
             $error = 'Failed to update user groups';
@@ -216,9 +252,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($toggleUserId == $currentUserId) {
                 $error = 'You cannot deactivate your own account';
             } else {
-                $targetUser = $db->fetchOne('SELECT id, username, full_name, is_active FROM users WHERE id = :id', [':id' => $toggleUserId]);
+                $targetUser = $db->fetchOne('SELECT id, username, full_name, is_active, is_super_admin FROM users WHERE id = :id', [':id' => $toggleUserId]);
                 if (!$targetUser) {
                     $error = 'User not found';
+                } elseif (!$callerIsSuperAdmin && !empty($targetUser['is_super_admin'])) {
+                    // SECURITY: only super administrators may activate/deactivate a super-admin.
+                    $error = 'Only super administrators can change a super administrator account.';
                 } else {
                     $newActive = $targetUser['is_active'] ? 0 : 1;
                     $db->update('users', ['is_active' => $newActive], 'id = :id', [':id' => $toggleUserId]);
@@ -245,10 +284,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'You cannot delete your own account';
             } else {
                 // Get user info for confirmation message
-                $userToDelete = $db->fetchOne('SELECT username, full_name FROM users WHERE id = :id', [':id' => $deleteUserId]);
+                $userToDelete = $db->fetchOne('SELECT username, full_name, is_super_admin FROM users WHERE id = :id', [':id' => $deleteUserId]);
 
                 if (!$userToDelete) {
                     $error = 'User not found';
+                } elseif (!$callerIsSuperAdmin && !empty($userToDelete['is_super_admin'])) {
+                    // SECURITY: only super administrators may delete a super-admin.
+                    $error = 'Only super administrators can delete a super administrator account.';
                 } else {
                     $db->beginTransaction();
 

@@ -214,7 +214,7 @@ function fetchDockerTags(string $registryHost, string $imageName, string &$error
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 15,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => true,  // SECURITY: verify registry TLS cert (prevents MITM of image/SQL artifacts)
         CURLOPT_FOLLOWLOCATION => false,
     ]);
     if ($username !== null && $username !== '') {
@@ -328,7 +328,7 @@ function fetchDockerManifestRaw(string $registryHost, string $imageName, string 
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 30,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => true,  // SECURITY: verify registry TLS cert (prevents MITM of image/SQL artifacts)
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_HTTPHEADER     => [
             // Accept plain image manifests AND multi-arch indexes / manifest lists,
@@ -405,7 +405,7 @@ function downloadDockerBlob(string $registryHost, string $imageName, string $dig
     curl_setopt_array($ch, [
         CURLOPT_FILE           => $fp,
         CURLOPT_TIMEOUT        => 600,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => true,  // SECURITY: verify registry TLS cert (prevents MITM of image/SQL artifacts)
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS      => 5,
     ]);

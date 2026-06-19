@@ -33,6 +33,21 @@ if (!Auth::getInstance()->isAuthenticated()) {
     exit;
 }
 
+// SECURITY (IDOR): authentication alone is not enough -- a scoped stakeholder (who
+// has no SRS visibility) could otherwise pull SRS/Shodan posture for any domain.
+// Require a function-level SRS capability: an org-wide reviewer role, an explicit
+// srs.view permission, or analysis.read (the FAIR-analysis autofill caller).
+$acl = ACL::getInstance();
+$canViewSrs = $acl->hasGroup(['administrator', 'cyber_tprm', 'auditor', 'procurement'])
+           || $acl->hasPermission('srs.view')
+           || $acl->hasPermission('analysis.read')
+           || Session::getInstance()->get('is_super_admin');
+if (!$canViewSrs) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Permission denied']);
+    exit;
+}
+
 // Grab the domain from the query string. Trim it because users
 // love adding spaces to things that shouldn't have spaces.
 $domain = trim($_GET['domain'] ?? '');

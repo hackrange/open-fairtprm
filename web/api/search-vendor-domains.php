@@ -71,6 +71,24 @@ try {
     $query = str_replace(['%', '_'], ['\\%', '\\_'], $query);
     $searchTerm = '%' . $query . '%';
 
+    // SECURITY (BOLA): callers without org-wide onboarding read (e.g. a stakeholder
+    // who only holds read_own/read_assigned/create) must not enumerate every vendor's
+    // domain/PII/business-impact metadata. Scope their results to vendors they created
+    // or are assigned to. Org-wide readers (onboarding.read / admin / cyber_tprm /
+    // procurement / super admin) keep the full typeahead.
+    $ownerScope = '';
+    $scopeParams = [];
+    if (!$acl->hasPermission('onboarding.read')
+        && !$acl->hasGroup(['administrator', 'cyber_tprm', 'procurement'])
+        && !Session::getInstance()->get('is_super_admin')) {
+        $ownerScope = " AND (created_by = :scope_uid
+            OR EXISTS (SELECT 1 FROM vendor_onboarding_stakeholders s
+                       WHERE s.request_id = vendor_onboarding_requests.id
+                         AND s.user_id = :scope_uid2))";
+        $uid = (int)Auth::getInstance()->getUserId();
+        $scopeParams = [':scope_uid' => $uid, ':scope_uid2' => $uid];
+    }
+
     // ---------------------------------------------------------------
     // DOMAIN + NAME SEARCH
     // Searches vendor_domain and vendor_name in existing onboarding
@@ -96,7 +114,7 @@ try {
          FROM vendor_onboarding_requests
          WHERE vendor_domain IS NOT NULL
            AND vendor_domain != ''
-           AND (vendor_domain LIKE :search1 OR vendor_name LIKE :search2)
+           AND (vendor_domain LIKE :search1 OR vendor_name LIKE :search2)" . $ownerScope . "
          ORDER BY
            CASE
              WHEN vendor_domain LIKE :exact1 THEN 1
@@ -105,12 +123,12 @@ try {
            END,
            vendor_name ASC
          LIMIT 10",
-        [
+        array_merge([
             ':search1' => $searchTerm,
             ':search2' => $searchTerm,
             ':exact1' => $query . '%',
             ':exact2' => $query . '%'
-        ]
+        ], $scopeParams)
     );
 
     // ---------------------------------------------------------------

@@ -130,7 +130,7 @@ foreach ($vendors as $vendor) {
         $vendor['created_at'] ?? ''
     ];
 
-    fputcsv($output, $row);
+    fputcsv($output, array_map('csvSafeCell', $row)); // SECURITY: neutralize CSV formula injection
 }
 
 fclose($output);

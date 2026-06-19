@@ -111,6 +111,12 @@ class ContinuousMonitor {
 
         // Instantiate the collector
         $collectorClass = $monitor['collector_class'];
+        // SECURITY: only instantiate known, vetted collector classes — never an
+        // arbitrary class name from the stored collector_class (object-injection guard).
+        $allowedCollectors = ['AwsEvidenceCollector', 'AzureEvidenceCollector'];
+        if (!in_array($collectorClass, $allowedCollectors, true)) {
+            return ['result' => 'error', 'summary' => "Collector class not allowed: {$collectorClass}"];
+        }
         if (!class_exists($collectorClass)) {
             return ['result' => 'error', 'summary' => "Collector class not found: {$collectorClass}"];
         }

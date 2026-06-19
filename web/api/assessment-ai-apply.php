@@ -90,8 +90,22 @@ if (!$assessmentId) {
 require_once __DIR__ . '/../includes/classes/VendorAssessmentService.php';
 $assessmentService = new VendorAssessmentService();
 
+// SECURITY (IDOR): only write answers whose question_id actually belongs to this
+// assessment's template, mirroring the autosave/batch-save/file-upload guards.
+// Prevents off-template / cross-template writes (and field-mapped mutations such
+// as vendor_name) if a malformed/poisoned answer id reaches the apply step.
+$applyAssessment = $assessmentService->getAssessmentById($assessmentId);
+if (!$applyAssessment) {
+    echo json_encode(['error' => 'Assessment not found', 'csrf_token' => $newCsrfToken]);
+    exit;
+}
+$applyTemplateId = $applyAssessment['template_id'];
+
 $filled = 0;
 foreach ($result['answers'] as $answer) {
+    if (!$assessmentService->questionBelongsToTemplate($answer['id'] ?? 0, $applyTemplateId)) {
+        continue;
+    }
     $assessmentService->saveResponse($assessmentId, $answer['id'], $answer['value']);
     $filled++;
 }

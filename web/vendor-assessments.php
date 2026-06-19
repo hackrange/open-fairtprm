@@ -288,6 +288,16 @@ if ($typeFilter) {
     $filters['template_id'] = $typeFilter;
 }
 
+// SECURITY (BOLA): stakeholders are a scoped role -- they are excluded from the
+// per-assessment view page (vendor-assessment-view.php returns 403 for them), so
+// they must not receive the whole org's assessment inventory (and its bearer-token
+// links) from the list either. Scope their list to assessments they created or are
+// assigned to. Org-wide reviewer roles (admin/cyber_tprm/procurement/auditor) are
+// unaffected and still see everything.
+if ($isStakeholder && !$isAdmin && !$isCyberTPRM && !$isProcurement && !$isAuditor) {
+    $filters['scope_user_id'] = (int)$user['id'];
+}
+
 // Fetch all assessments matching filters. Yes, we load them all into memory
 // and handle search/pagination in PHP. Is it optimal? Nah. Does it work? You bet.
 $allAssessments = $assessmentService->getAllAssessments($filters);
@@ -373,8 +383,12 @@ $vendors = $db->fetchAll(
 $linkVendorId = isset($_GET['link_vendor']) ? intval($_GET['link_vendor']) : 0;
 $preselectedVendor = null;
 if ($linkVendorId) {
+    // SECURITY (IDOR): constrain the preselect lookup to the same "usable" vendor
+    // set the create-modal dropdown ($vendors) already exposes. Without the status
+    // filter, link_vendor=<any id> would disclose name/contact/email of draft or
+    // inactive vendor records the user is not meant to see in this form.
     $preselectedVendor = $db->fetchOne(
-        "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email as vendor_contact_email FROM vendor_onboarding_requests WHERE id = :id",
+        "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email as vendor_contact_email FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'approved')",
         [':id' => $linkVendorId]
     );
 }

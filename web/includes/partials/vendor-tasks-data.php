@@ -33,17 +33,20 @@ if ($canReadAll) {
     // God mode -- can see everything. No user filter needed.
     // (admins and users with 'vendor.read.all' permission)
 } elseif ($canReadOwn && $canReadAssigned) {
-    // Can see assessments they created OR are a stakeholder on.
-    // Uses a subquery to check the stakeholder table -- a bit heavy but accurate.
-    $taskWhereConditions[] = "(va.created_by = :task_user_id OR EXISTS (
+    // SECURITY (BOLA): scope on the parent vendor REQUEST the user owns or is a
+    // stakeholder on -- the same object boundary the main onboarding list uses.
+    // Scoping on va.created_by (the assessment creator) instead leaked vendor
+    // requests (and their assessment UUIDs) to a user who created an assessment
+    // on a request they neither own nor are assigned to.
+    $taskWhereConditions[] = "(vor.created_by = :task_user_id OR EXISTS (
         SELECT 1 FROM vendor_onboarding_stakeholders s
         WHERE s.request_id = vor.id AND s.user_id = :task_user_id2
     ))";
     $taskParams[':task_user_id'] = $user['id'];
     $taskParams[':task_user_id2'] = $user['id'];
 } elseif ($canReadOwn) {
-    // Only see stuff they personally created. Tight leash.
-    $taskWhereConditions[] = "va.created_by = :task_user_id";
+    // Only see vendor requests they personally created. Tight leash.
+    $taskWhereConditions[] = "vor.created_by = :task_user_id";
     $taskParams[':task_user_id'] = $user['id'];
 } elseif ($canReadAssigned) {
     // Only see vendors they're assigned to as a stakeholder.

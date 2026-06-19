@@ -141,6 +141,24 @@ class VendorAssessmentService {
     }
 
     /**
+     * SECURITY (IDOR): verify a question actually belongs to a given template.
+     * The public assessment-save endpoints resolve the assessment from its UUID
+     * token but accept the question_id separately from the client. Without this
+     * check a token holder could write responses for off-template / cross-template
+     * questions (and abuse field-mapped questions like vendor_name). The
+     * relationship is assessment_questions.section_id -> assessment_sections.template_id.
+     */
+    public function questionBelongsToTemplate($questionId, $templateId) {
+        $row = $this->db->fetchOne(
+            'SELECT q.id FROM assessment_questions q
+               JOIN assessment_sections s ON q.section_id = s.id
+              WHERE q.id = :qid AND s.template_id = :tid',
+            [':qid' => (int)$questionId, ':tid' => (int)$templateId]
+        );
+        return !empty($row);
+    }
+
+    /**
      * Get ALL questions for a template in one shot, with section info joined in.
      * Useful for bulk operations like calculating completion percentage or
      * exporting the full assessment. Sorted by section order, then question order.
@@ -835,6 +853,19 @@ class VendorAssessmentService {
         if (!empty($filters['category'])) {
             $where[] = 't.category = :category';
             $params[':category'] = $filters['category'];
+        }
+
+        // SECURITY (BOLA): when a scope_user_id is supplied (set for scoped roles
+        // such as stakeholders), restrict the result set to assessments the user
+        // created or is assigned to (stakeholder/owner on the vendor request),
+        // rather than returning the entire org inventory and its bearer tokens.
+        if (!empty($filters['scope_user_id'])) {
+            $where[] = '(a.created_by = :scope_uid
+                         OR EXISTS (SELECT 1 FROM vendor_onboarding_stakeholders vse
+                                    WHERE vse.request_id = a.vendor_request_id
+                                      AND vse.user_id = :scope_uid2))';
+            $params[':scope_uid'] = (int)$filters['scope_user_id'];
+            $params[':scope_uid2'] = (int)$filters['scope_user_id'];
         }
 
         if (!empty($where)) {

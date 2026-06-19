@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_ai_platform'])
             // OpenWebUI settings
             $owApiUrl = trim($_POST['openwebui_api_url'] ?? '');
             $settings['openwebui_enabled'] = isset($_POST['openwebui_enabled']) ? '1' : '0';
-            $settings['openwebui_api_url'] = (!empty($owApiUrl) && filter_var($owApiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $owApiUrl)) ? $owApiUrl : '';
+            $settings['openwebui_api_url'] = (!empty($owApiUrl) && filter_var($owApiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $owApiUrl) && isConfigUrlHostSafe($owApiUrl)) ? $owApiUrl : '';
             $settings['openwebui_model'] = trim($_POST['openwebui_model'] ?? '');
 
             $owJwt = trim($_POST['openwebui_jwt_token'] ?? '');
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_ai_platform'])
             // LibreChat settings
             $lcApiUrl = trim($_POST['librechat_api_url'] ?? '');
             $settings['librechat_enabled'] = isset($_POST['librechat_enabled']) ? '1' : '0';
-            $settings['librechat_api_url'] = (!empty($lcApiUrl) && filter_var($lcApiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $lcApiUrl)) ? $lcApiUrl : '';
+            $settings['librechat_api_url'] = (!empty($lcApiUrl) && filter_var($lcApiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $lcApiUrl) && isConfigUrlHostSafe($lcApiUrl)) ? $lcApiUrl : '';
             $settings['librechat_model'] = trim($_POST['librechat_model'] ?? '');
             $settings['librechat_temperature'] = (string)max(0.0, min(2.0, floatval($_POST['librechat_temperature'] ?? 0.7)));
             $settings['librechat_max_tokens'] = (string)max(1, min(100000, intval($_POST['librechat_max_tokens'] ?? 500)));

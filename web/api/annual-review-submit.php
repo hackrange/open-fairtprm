@@ -151,8 +151,13 @@ try {
     // this specific vendor. Either you can read ALL reviews (admin-level)
     // or you're a stakeholder on this particular vendor.
     // ---------------------------------------------------------------
-    $canReadAll = $acl->hasPermission('annual_review.read');
-    if (!$canReadAll) {
+    // SECURITY (IDOR): a READ-all permission (annual_review.read) must NOT authorize
+    // a state-changing WRITE to an arbitrary vendor. Only elevated roles that manage
+    // every vendor (administrator / cyber_tprm) may submit a review for any vendor;
+    // everyone else must be a stakeholder on this specific vendor request.
+    $canReviewAny = $acl->hasGroup('administrator') || $acl->hasGroup('cyber_tprm')
+                    || Session::getInstance()->get('is_super_admin');
+    if (!$canReviewAny) {
         $isStakeholder = $db->fetchOne(
             "SELECT 1 FROM vendor_onboarding_stakeholders WHERE request_id = :request_id AND user_id = :user_id",
             [':request_id' => $requestId, ':user_id' => $user['id']]

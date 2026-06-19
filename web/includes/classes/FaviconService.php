@@ -107,6 +107,95 @@ class FaviconService
     }
 
     /**
+     * SECURITY (SSRF guard): reject hosts that resolve to private / loopback /
+     * link-local / reserved IPs (cloud metadata 169.254.169.254, 127.0.0.1,
+     * 10/8, 172.16/12, 192.168/16, ::1, fc00::/7, ...). Fails closed when the
+     * host cannot be resolved.
+     */
+    private function isBlockedHost(string $host): bool
+    {
+        $host = trim($host, '[]'); // strip IPv6 brackets
+        $ips = [];
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            $ips[] = $host;
+        } else {
+            $records = @dns_get_record($host, DNS_A | DNS_AAAA);
+            if (is_array($records)) {
+                foreach ($records as $r) {
+                    if (!empty($r['ip']))   { $ips[] = $r['ip']; }
+                    if (!empty($r['ipv6'])) { $ips[] = $r['ipv6']; }
+                }
+            }
+            if (!$ips) {
+                $resolved = @gethostbynamel($host);
+                if (is_array($resolved)) { $ips = $resolved; }
+            }
+        }
+        if (!$ips) {
+            return true; // unresolvable -> fail closed
+        }
+        foreach ($ips as $ip) {
+            if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return true; // private or reserved
+            }
+        }
+        return false;
+    }
+
+    /** URL is fetchable only if it is http(s) and its host is public. */
+    private function isSafeUrl(string $url): bool
+    {
+        $parts = parse_url($url);
+        if (!$parts || empty($parts['scheme']) || empty($parts['host'])) {
+            return false;
+        }
+        if (!in_array(strtolower($parts['scheme']), ['http', 'https'], true)) {
+            return false;
+        }
+        return !$this->isBlockedHost($parts['host']);
+    }
+
+    /**
+     * cURL GET with the SSRF guard applied: HTTP(S) only (no file://, gopher://,
+     * etc.), redirects followed manually so EACH hop's host is re-validated
+     * against private/reserved ranges before it is fetched.
+     * Returns ['body','httpCode','contentType'] or null.
+     */
+    private function curlGet(string $url, int $maxRedirects = 3): ?array
+    {
+        $redirects = 0;
+        while (true) {
+            if (!$this->isSafeUrl($url)) {
+                return null;
+            }
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => self::TIMEOUT,
+                CURLOPT_CONNECTTIMEOUT => self::TIMEOUT,
+                CURLOPT_FOLLOWLOCATION => false, // followed manually with per-hop validation
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; TPRM-FaviconFetcher/1.0)',
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+                CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            ]);
+            $body = curl_exec($ch);
+            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+            $location = curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+            curl_close($ch);
+
+            if ($httpCode >= 300 && $httpCode < 400 && $location && $redirects < $maxRedirects) {
+                $url = $location;
+                $redirects++;
+                continue;
+            }
+            return ['body' => $body, 'httpCode' => $httpCode, 'contentType' => $contentType];
+        }
+    }
+
+    /**
      * Fetch favicon via Google's favicon service.
      * Returns null if the request fails or the response isn't a valid image.
      */
@@ -134,25 +223,11 @@ class FaviconService
     private function fetchFromHtml(string $domain): ?array
     {
         $baseUrl = 'https://' . $domain;
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $baseUrl,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => self::TIMEOUT,
-            CURLOPT_CONNECTTIMEOUT => self::TIMEOUT,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 3,
-            CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; TPRM-FaviconFetcher/1.0)',
-            CURLOPT_SSL_VERIFYPEER => true,
-        ]);
-
-        $html = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode !== 200 || empty($html)) {
+        $result = $this->curlGet($baseUrl);
+        if ($result === null || $result['httpCode'] !== 200 || empty($result['body'])) {
             return null;
         }
+        $html = $result['body'];
 
         // Only look at the <head> section to avoid matching random content
         $headEnd = stripos($html, '</head>');
@@ -204,21 +279,13 @@ class FaviconService
      */
     private function fetchUrl(string $url): ?array
     {
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => self::TIMEOUT,
-            CURLOPT_CONNECTTIMEOUT => self::TIMEOUT,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 3,
-            CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; TPRM-FaviconFetcher/1.0)',
-            CURLOPT_SSL_VERIFYPEER => true,
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        $result = $this->curlGet($url);
+        if ($result === null) {
+            return null;
+        }
+        $response = $result['body'];
+        $httpCode = $result['httpCode'];
+        $contentType = $result['contentType'];
 
         // Must be a successful response with actual content
         if ($httpCode !== 200 || empty($response)) {
