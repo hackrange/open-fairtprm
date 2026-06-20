@@ -4737,7 +4737,7 @@ INSERT IGNORE INTO assessment_questions (section_id, question_text, question_typ
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What is the primary contact''s title?', 'text', NULL, 0, 'e.g., Account Manager, Sales Director', 13, 'primary_contact_title'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
-'What is the primary contact''s direct phone number?', 'text', NULL, 0, NULL, 14, 'primary_contact_phone'),
+'What is the primary contact''s direct phone number?', 'phone', NULL, 0, NULL, 14, 'primary_contact_phone'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'Is an NDA in place with this vendor?', 'button_group', '["Yes", "No"]', 1, NULL, 15, 'nda_in_place'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
@@ -5414,6 +5414,21 @@ PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 -- Document vat_number in the field-reference UI so it can be mapped from templates.
 INSERT IGNORE INTO `field_references` (`field_name`, `column_type`, `section`, `category`, `description`, `is_builtin`) VALUES
   ('vat_number',   'VARCHAR(64)',        'Vendor Information',     'onboarding', 'EU VAT number (validated against VIES)', 1);
+
+-- =============================================================================
+-- Default Vendor Onboarding template: switch the primary-contact phone question
+-- from a plain text box to the new "phone" type. Idempotent and scoped to the
+-- built-in vendor-onboarding template's primary_contact_phone question, so a
+-- custom text override on a different template is left untouched.
+-- =============================================================================
+UPDATE assessment_questions
+   SET question_type = 'phone'
+ WHERE field_name = 'primary_contact_phone'
+   AND question_type = 'text'
+   AND section_id IN (
+     SELECT id FROM assessment_sections
+      WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding')
+   );
 
 -- =============================================================================
 -- grc_risk_register: vendor_id link (for per-vendor AI risk tracking from SRS list)
