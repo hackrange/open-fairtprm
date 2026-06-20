@@ -19,8 +19,12 @@ net_write_timeout       = 600
 # comfortable. MariaDB 10.11 resizes the redo log safely at startup.
 innodb_log_file_size    = 512M
 
+# Use loose- so option-intolerant client tools that read [client] but do NOT
+# recognise max_allowed_packet (notably mysqladmin, used by the entrypoint
+# readiness gate) skip the option instead of aborting with exit 7. mysql and
+# mysqldump still honour it (loose- only suppresses the unknown-variable error).
 [client]
-max_allowed_packet      = 1G
+loose-max_allowed_packet = 1G
 
 [mysql]
 max_allowed_packet      = 1G

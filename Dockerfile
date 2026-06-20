@@ -133,7 +133,7 @@ RUN set -e; \
     for ini in /etc/php/*/apache2/conf.d/99-hardening.ini /etc/php/*/fpm/conf.d/99-hardening.ini /etc/php/*/cli/conf.d/99-hardening.ini; do \
         [ -f "$ini" ] && printf '\n; Large-backup restore/upload headroom (appended; last value wins)\nupload_max_filesize = 8G\npost_max_size = 8G\nmax_input_time = 1800\n' >> "$ini"; \
     done; \
-    printf 'Timeout 1800\nProxyTimeout 1800\n' > /etc/apache2/conf-enabled/zz-fairtprm-timeout.conf; \
+    printf 'Timeout 1800\n<IfModule mod_proxy.c>\nProxyTimeout 1800\n</IfModule>\n' > /etc/apache2/conf-enabled/zz-fairtprm-timeout.conf; \
     \
     composer require onelogin/php-saml:^4.3 --no-interaction --no-progress \
         --working-dir=/var/www/html; \
