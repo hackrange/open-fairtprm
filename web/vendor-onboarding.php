@@ -2534,7 +2534,13 @@ function getFieldValue($request, $field, $default = '') {
                                     echo '<span class="vendor-field-value empty">Not provided</span>';
                                 }
                             } else {
-                                echo '<span class="vendor-field-value">' . e(vat_normalize($val)) . '</span>';
+                                $vatVal = vat_normalize($val);
+                                echo '<span class="vendor-field-value">' . e($vatVal)
+                                   . ' <button type="button" class="vat-info-standalone" data-vat-info="' . e($vatVal) . '" data-vies-endpoint="api/vat-validate.php"'
+                                   . ' title="View VAT registration details" aria-label="View VAT registration details"'
+                                   . ' style="display:inline-flex; align-items:center; vertical-align:middle; width:20px; height:20px; padding:0; margin-left:4px; border:none; background:none; cursor:pointer; color:#2563eb;">'
+                                   . '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>'
+                                   . '</button></span>';
                             }
                         } elseif ($type === 'date' && $val) {
                             echo '<span class="vendor-field-value">' . date('M j, Y', strtotime($val)) . '</span>';
@@ -7260,7 +7266,7 @@ function getFieldValue($request, $field, $default = '') {
     <script src="app/js/mobile-nav.js"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <script src="app/js/phone-input.js?v=1" nonce="<?php echo cspNonce(); ?>"></script>
-    <script src="app/js/vat-input.js?v=1" nonce="<?php echo cspNonce(); ?>"></script>
+    <script src="app/js/vat-input.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <script nonce="<?php echo cspNonce(); ?>">
     // Procurement Onboarding -> scoring-disabled banner: toggle live when staff
     // change the Yes/No field in edit mode (server already renders it for the

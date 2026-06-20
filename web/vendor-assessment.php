@@ -2287,7 +2287,7 @@ $csrfToken = $security->generateCSRFToken();
     <script src="app/js/mobile-nav.js"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <script src="app/js/phone-input.js?v=1" nonce="<?php echo cspNonce(); ?>"></script>
-    <script src="app/js/vat-input.js?v=1" nonce="<?php echo cspNonce(); ?>"></script>
+    <script src="app/js/vat-input.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
 
     <footer class="assessment-footer">
         <div class="assessment-footer-body">

@@ -59,9 +59,18 @@
             return '<div style="margin-bottom:10px;"><div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#9ca3af;">' +
                    esc(label) + '</div><div style="white-space:pre-line;">' + esc(value) + '</div></div>';
         }
-        var status = result.valid
-            ? '<span style="color:#065f46; font-weight:600;">&#10003; Valid (VIES)</span>'
-            : '<span style="color:#b45309; font-weight:600;">Not confirmed</span>';
+        var status;
+        if (result.loading) {
+            status = '<span style="color:#6b7280;">Checking with VIES…</span>';
+        } else if (result.reachable === false) {
+            status = '<span style="color:#b45309; font-weight:600;">Could not reach VIES right now</span>';
+        } else if (result.unavailable) {
+            status = '<span style="color:#b45309; font-weight:600;">VIES temporarily unavailable for this country</span>';
+        } else if (result.valid) {
+            status = '<span style="color:#065f46; font-weight:600;">&#10003; Valid (VIES)</span>';
+        } else {
+            status = '<span style="color:#b45309; font-weight:600;">Not valid in VIES</span>';
+        }
         var when = '';
         if (result.requestDate) {
             var d = new Date(result.requestDate);
@@ -76,6 +85,35 @@
             '<div style="margin-top:14px; font-size:12px; color:#9ca3af;">Source: EU VIES (ec.europa.eu)</div>';
         m.overlay.style.display = 'flex';
     }
+
+    // Look up a VAT number against VIES and show the details modal. Used by the
+    // standalone info (ⓘ) buttons rendered next to a stored VAT number (in both
+    // view and edit mode), so details are available on demand regardless of
+    // whether an inline live-check already ran.
+    function fetchAndShow(vat, endpoint) {
+        vat = (vat || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (!vat) { return; }
+        endpoint = endpoint || 'api/vat-validate.php';
+        showModal({ vat: vat, loading: true });
+        fetch(endpoint + (endpoint.indexOf('?') === -1 ? '?' : '&') + 'vat=' + encodeURIComponent(vat), {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                showModal({
+                    vat: vat,
+                    reachable: !d || d.reachable !== false,
+                    unavailable: !!(d && (d.unavailable || d.valid === null)),
+                    valid: !!(d && d.valid),
+                    name: (d && d.name) || '',
+                    address: (d && d.address) || '',
+                    requestDate: (d && d.requestDate) || ''
+                });
+            })
+            .catch(function () { showModal({ vat: vat, reachable: false }); });
+    }
+    window.showVatInfo = fetchAndShow;
 
     // ---- Widget ---------------------------------------------------------------
     function initWidget(widget) {
@@ -206,7 +244,18 @@
     }
 
     function initAll(root) {
-        (root || document).querySelectorAll('[data-vat-widget]').forEach(initWidget);
+        var scope = root || document;
+        scope.querySelectorAll('[data-vat-widget]').forEach(initWidget);
+        // Standalone info buttons (e.g. next to a stored VAT number in view mode):
+        // fetch the VIES details on click and open the modal.
+        scope.querySelectorAll('[data-vat-info]').forEach(function (btn) {
+            if (btn.__vatInfoInit) { return; }
+            btn.__vatInfoInit = true;
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                fetchAndShow(btn.getAttribute('data-vat-info'), btn.getAttribute('data-vies-endpoint'));
+            });
+        });
     }
 
     if (document.readyState !== 'loading') { initAll(); }
