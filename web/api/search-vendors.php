@@ -112,7 +112,9 @@ try {
             )
         )
         GROUP BY r.id, r.vendor_name, r.vendor_domain, r.vendor_tier, r.status, r.current_srs_score, r.current_shodan_score{$customScoreGroup}
-        ORDER BY r.vendor_name ASC
+        ORDER BY
+            (CASE WHEN r.vendor_name LIKE :rank1 OR r.vendor_domain LIKE :rank2 THEN 0 ELSE 1 END),
+            r.vendor_name ASC
         LIMIT 10
     ";
 
@@ -124,7 +126,13 @@ try {
         ':search2' => '%' . $query . '%',
         ':search3' => '%' . $query . '%',
         ':search4' => '%' . $query . '%',
-        ':search5' => '%' . $query . '%'
+        ':search5' => '%' . $query . '%',
+        // Ranking params: surface direct vendor name/domain matches ahead of
+        // rows matched only via a shared stakeholder email/name. Without this,
+        // a term that appears in many stakeholders' emails (e.g. the org's own
+        // domain) floods results and buries the actual vendor past LIMIT 10.
+        ':rank1' => '%' . $query . '%',
+        ':rank2' => '%' . $query . '%'
     ];
 
     $vendors = $db->fetchAll($sql, $params);

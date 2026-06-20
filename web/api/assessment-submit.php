@@ -179,6 +179,23 @@ if ($minimalSubmit && empty($assessment['certificate_uploaded'])) {
 }
 
 // ---------------------------------------------------------------
+// VALIDATE-ONLY PREFLIGHT
+// The form calls this with validate_only=1 when the vendor clicks Submit, BEFORE
+// collecting the attestation. If we reached this point, every required question
+// (and, in minimal mode, the certificate) is satisfied -- so report completeness
+// without saving attestation or marking the assessment completed. This lets the
+// UI ask for attestation only once the answers are actually complete.
+// ---------------------------------------------------------------
+if (($_POST['validate_only'] ?? '') === '1') {
+    echo json_encode([
+        'success'   => true,
+        'complete'  => true,
+        'csrf_token' => $security->getCSRFToken()
+    ]);
+    exit;
+}
+
+// ---------------------------------------------------------------
 // THE BIG MOMENT: MARK AS COMPLETED
 // Everything checks out, flip the status to 'completed' and
 // tell the vendor the good news. Party time.
@@ -188,7 +205,8 @@ try {
     $submitterName  = trim($_POST['submitter_name'] ?? '');
     $submitterTitle = trim($_POST['submitter_title'] ?? '');
     $submitterEmail = trim($_POST['submitter_email'] ?? '');
-    $submitterPhone = trim($_POST['submitter_phone'] ?? '');
+    // Attestation phone uses the Phone widget; canonicalise to E.164 server-side.
+    $submitterPhone = phone_normalize_e164($_POST['submitter_phone'] ?? '');
     $submitterAttested = ($_POST['submitter_attested'] ?? '') === '1';
     if ($submitterName === '' || $submitterTitle === '' || $submitterPhone === ''
         || !filter_var($submitterEmail, FILTER_VALIDATE_EMAIL) || !$submitterAttested) {

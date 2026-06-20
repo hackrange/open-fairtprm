@@ -1221,6 +1221,19 @@ $csrfToken = $security->generateCSRFToken();
                         <span class="question-check">&#10003;</span>
                     </div>
                     <?php endif; ?>
+
+                    <?php /* Procurement Onboarding gate notice: when the vendor's
+                             onboarding status is answered "No", warn that automated
+                             vendor scoring stays disabled until it is completed. The
+                             banner is server-rendered for the saved answer and toggled
+                             live by JS as the selection changes. */ ?>
+                    <?php if (($q['field_name'] ?? '') === 'vsu_onboarded'): ?>
+                    <div class="procurement-scoring-banner" data-vsu-scoring-banner
+                         style="display:<?php echo (strcasecmp((string)$response, 'no') === 0) ? 'flex' : 'none'; ?>; align-items:flex-start; gap:8px; margin-top:10px; padding:10px 14px; background:#fff3cd; border:1px solid #ffeeba; border-radius:6px; color:#856404; font-size:13px; line-height:1.4;">
+                        <span aria-hidden="true">&#9888;</span>
+                        <span>Automated vendor scoring will be disabled until this vendor has completed Procurement Onboarding.</span>
+                    </div>
+                    <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
 
@@ -1356,7 +1369,10 @@ $csrfToken = $security->generateCSRFToken();
                 </div>
                 <div>
                     <label for="att_phone" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;"><?php echo e(t('vendor-assessment.phone_number')); ?> <span style="color:#ef4444;">*</span></label>
-                    <input type="tel" id="att_phone" class="form-control" style="width:100%;" autocomplete="tel">
+                    <?php /* Phone type widget: country code + flag, normalised to E.164.
+                             The hidden canonical input carries id="att_phone" so the existing
+                             attestation JS keeps reading its value unchanged. */ ?>
+                    <?php echo phone_render_widget('submitter_phone', '', ['id' => 'att_phone']); ?>
                 </div>
                 <label style="display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:1.4;">
                     <input type="checkbox" id="att_agree" style="margin-top:3px; flex-shrink:0;">
@@ -1941,11 +1957,61 @@ $csrfToken = $security->generateCSRFToken();
         }
     }
 
-    // Show confirmation modal when submit button is clicked
+    // Validate that all required questions are answered BEFORE asking for the
+    // attestation. Otherwise the vendor fills in attestation, submits, and only
+    // then learns a field is missing -- forcing them to re-enter attestation.
+    async function preflightThenAttest() {
+        // Cheap client check first: invalid email fields.
+        var invalidEmails = document.querySelectorAll('input[type="email"].autosave-input:invalid');
+        if (invalidEmails.length > 0) {
+            invalidEmails.forEach(function(el) {
+                var questionEl = el.closest('.question');
+                if (questionEl) questionEl.classList.add('error');
+                el.style.borderColor = '#ef4444';
+                var msgEl = el.parentElement.querySelector('.email-validation-msg');
+                if (msgEl) { msgEl.textContent = 'Please enter a valid email address'; msgEl.style.display = 'block'; }
+            });
+            invalidEmails[0].closest('.question')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            alert('Please fix invalid email addresses before submitting.');
+            return;
+        }
+        // Persist latest answers, then ask the server (authoritative, all sections)
+        // whether anything required is still missing -- without touching attestation.
+        clearTimeout(autosaveTimeout);
+        if (autosavePromise) { await autosavePromise; }
+        showAutosave('saving', 'Checking answers...');
+        try {
+            await saveAllResponses();
+            const fd = new FormData();
+            fd.append('csrf_token', csrfToken);
+            fd.append('assessment_uuid', assessmentUUID);
+            fd.append('validate_only', '1');
+            const resp = await fetch('/api/assessment-submit.php', { method: 'POST', body: fd });
+            const result = await resp.json();
+            updateCsrfToken(result.csrf_token);
+            if (result.success) {
+                // Everything required is answered -> now collect the attestation.
+                showAutosave('saved', 'Saved');
+                document.getElementById('submitConfirmOverlay').classList.add('show');
+            } else if (result.unanswered && result.unanswered.length > 0) {
+                showAutosave('error', 'Incomplete');
+                showIncompleteModal(result);
+            } else {
+                showAutosave('error', 'Error');
+                alert(result.message || 'Please complete all required questions before submitting.');
+            }
+        } catch (error) {
+            showAutosave('error', 'Error');
+            alert('An error occurred while checking your answers. Please try again.');
+        }
+    }
+
+    // Validate required questions when the submit button is clicked; only open the
+    // attestation modal once everything required is filled in.
     const submitBtn = document.getElementById('submitAssessment');
     if (submitBtn) {
         submitBtn.addEventListener('click', function() {
-            document.getElementById('submitConfirmOverlay').classList.add('show');
+            preflightThenAttest();
         });
     }
 
@@ -2197,6 +2263,22 @@ $csrfToken = $security->generateCSRFToken();
                 setTimeout(evaluateConditionalQuestions, 50);
             });
         }
+    });
+
+    // Procurement Onboarding -> scoring-disabled banner. Show the warning whenever
+    // the answer to the vsu_onboarded question is "No", updating live as it changes.
+    document.querySelectorAll('[data-vsu-scoring-banner]').forEach(function(banner) {
+        var q = banner.closest('.question');
+        if (!q) return;
+        function syncBanner() {
+            var checked = q.querySelector('input[type="radio"]:checked, input[type="checkbox"]:checked');
+            var isNo = !!checked && /^no$/i.test((checked.value || '').trim());
+            banner.style.display = isNo ? 'flex' : 'none';
+        }
+        q.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(function(inp) {
+            inp.addEventListener('change', syncBanner);
+        });
+        syncBanner();
     });
 
     // Initialize answered state on page load

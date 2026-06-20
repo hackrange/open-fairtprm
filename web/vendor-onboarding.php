@@ -2654,6 +2654,14 @@ function getFieldValue($request, $field, $default = '') {
                             <?php dualField($request, 'vendor_id', 'Vendor ID (VID)'); ?>
                             <?php dualField($request, 'vat_number', 'VAT Number', 'vat'); ?>
                             <?php dualField($request, 'vsu_onboarded', 'Procurement Onboarding', 'yes_no'); ?>
+                            <?php /* When Procurement Onboarding is not "yes", warn that automated
+                                     vendor scoring stays disabled until it is completed. Server-rendered
+                                     for the saved value and toggled live by JS when staff change the field. */ ?>
+                            <div id="procurementScoringBanner" data-vsu-onboarding-banner
+                                 style="display:<?php echo ((getFieldValue($request, 'vsu_onboarded') ?: '') === 'no') ? 'flex' : 'none'; ?>; align-items:flex-start; gap:8px; margin-top:10px; padding:10px 14px; background:#fff3cd; border:1px solid #ffeeba; border-radius:6px; color:#856404; font-size:13px; line-height:1.4;">
+                                <span aria-hidden="true">&#9888;</span>
+                                <span>Automated vendor scoring will be disabled until this vendor has completed Procurement Onboarding.</span>
+                            </div>
                         </div>
                     </div>
 
@@ -7235,6 +7243,24 @@ function getFieldValue($request, $field, $default = '') {
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <script src="app/js/phone-input.js?v=1" nonce="<?php echo cspNonce(); ?>"></script>
     <script src="app/js/vat-input.js?v=1" nonce="<?php echo cspNonce(); ?>"></script>
+    <script nonce="<?php echo cspNonce(); ?>">
+    // Procurement Onboarding -> scoring-disabled banner: toggle live when staff
+    // change the Yes/No field in edit mode (server already renders it for the
+    // saved value on load).
+    (function () {
+        var banner = document.getElementById('procurementScoringBanner');
+        if (!banner) return;
+        function sync() {
+            var sel = document.querySelector('select[name="vsu_onboarded"]');
+            // In edit mode the select drives it; otherwise keep the server-rendered state.
+            if (sel) banner.style.display = (sel.value === 'no') ? 'flex' : 'none';
+        }
+        document.addEventListener('change', function (e) {
+            if (e.target && e.target.name === 'vsu_onboarded') sync();
+        });
+        sync();
+    })();
+    </script>
 
     <?php if ($isProcurementOnly && $showVendorTabs): ?>
     <!-- Chart.js for procurement detailed summary report -->
