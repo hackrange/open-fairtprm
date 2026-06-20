@@ -1086,6 +1086,27 @@ $csrfToken = $security->generateCSRFToken();
                         <span class="question-check">&#10003;</span>
                     </div>
 
+                    <?php elseif ($q['question_type'] === 'phone'): ?>
+                    <div class="input-wrapper">
+                        <?php echo phone_render_widget('responses[' . $q['id'] . ']', $response, [
+                            'id'           => $questionId,
+                            'hidden_class' => 'autosave-input',
+                            'data_attrs'   => 'data-qid="' . e($q['id']) . '"',
+                        ]); ?>
+                        <span class="question-check">&#10003;</span>
+                    </div>
+
+                    <?php elseif ($q['question_type'] === 'vat'): ?>
+                    <div class="input-wrapper">
+                        <?php echo vat_render_widget('responses[' . $q['id'] . ']', $response, [
+                            'id'            => $questionId,
+                            'hidden_class'  => 'autosave-input',
+                            'data_attrs'    => 'data-qid="' . e($q['id']) . '"',
+                            'vies_endpoint' => 'api/vat-validate.php',
+                        ]); ?>
+                        <span class="question-check">&#10003;</span>
+                    </div>
+
                     <?php elseif ($q['question_type'] === 'number'): ?>
                     <div class="input-wrapper">
                         <input type="number" id="<?php echo $questionId; ?>" name="responses[<?php echo $q['id']; ?>]"
@@ -2183,6 +2204,8 @@ $csrfToken = $security->generateCSRFToken();
     </script>
     <script src="app/js/mobile-nav.js"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
+    <script src="app/js/phone-input.js?v=1" nonce="<?php echo cspNonce(); ?>"></script>
+    <script src="app/js/vat-input.js?v=1" nonce="<?php echo cspNonce(); ?>"></script>
 
     <footer class="assessment-footer">
         <div class="assessment-footer-body">

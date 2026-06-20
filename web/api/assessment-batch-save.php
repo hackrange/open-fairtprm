@@ -100,12 +100,18 @@ foreach ($responses as $questionId => $value) {
 
     $cleanValue = $security->cleanInput(is_array($value) ? json_encode($value) : $value);
 
-    // Validate email fields server-side
+    // Validate email fields server-side; canonicalise phone/VAT values so the
+    // stored answer is uniform no matter what the client posted.
     if ($cleanValue !== '') {
         $question = $assessmentService->getQuestion($questionId);
         if ($question && $question['question_type'] === 'email' && !filter_var($cleanValue, FILTER_VALIDATE_EMAIL)) {
             $errors[] = ['question_id' => $questionId, 'message' => 'Invalid email address'];
             continue;
+        }
+        if ($question && $question['question_type'] === 'phone') {
+            $cleanValue = phone_normalize_e164($cleanValue);
+        } elseif ($question && $question['question_type'] === 'vat') {
+            $cleanValue = vat_normalize($cleanValue);
         }
     }
 

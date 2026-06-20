@@ -1634,6 +1634,7 @@ CREATE TABLE IF NOT EXISTS `vendor_onboarding_requests` (
   `vendor_favicon_mime` varchar(50) DEFAULT NULL,
   `primary_contact_title` varchar(255) DEFAULT NULL,
   `primary_contact_phone` varchar(50) DEFAULT NULL,
+  `vat_number` varchar(64) DEFAULT NULL COMMENT 'EU VAT number (canonical, e.g. DE123456789)',
   `rescore_status` varchar(30) DEFAULT NULL,
   `rescore_started_at` datetime DEFAULT NULL,
   `rescore_result` text DEFAULT NULL,
@@ -5397,6 +5398,22 @@ INSERT IGNORE INTO `field_references` (`field_name`, `column_type`, `section`, `
   ('cost_center',  'INT(10) UNSIGNED',   'Engagement Details',     'onboarding', 'Accounting cost center (integer)', 1),
   ('project',      'VARCHAR(255)',       'Engagement Details',     'onboarding', 'Project name / identifier', 1),
   ('vendor_use_ai','ENUM(''yes'',''no'','''')', 'Data & Risk Assessment', 'onboarding', 'Does vendor solution use AI? (Services Use AI checkbox on onboarding)', 1);
+
+-- =============================================================================
+-- vendor_onboarding_requests: VAT number (EU VAT, surfaced on the onboarding page
+-- and mappable from a "vat" Template Builder question via field_name).
+-- =============================================================================
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND column_name = 'vat_number') = 0,
+  'ALTER TABLE `vendor_onboarding_requests` ADD COLUMN `vat_number` VARCHAR(64) DEFAULT NULL COMMENT ''EU VAT number (canonical, e.g. DE123456789)'' AFTER `primary_contact_phone`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Document vat_number in the field-reference UI so it can be mapped from templates.
+INSERT IGNORE INTO `field_references` (`field_name`, `column_type`, `section`, `category`, `description`, `is_builtin`) VALUES
+  ('vat_number',   'VARCHAR(64)',        'Vendor Information',     'onboarding', 'EU VAT number (validated against VIES)', 1);
 
 -- =============================================================================
 -- grc_risk_register: vendor_id link (for per-vendor AI risk tracking from SRS list)

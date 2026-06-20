@@ -139,6 +139,15 @@ if (!empty($value)) {
         ]);
         exit;
     }
+    // Canonicalise type-specific values server-side so the stored answer is
+    // uniform regardless of what the browser sent. Phone -> E.164 ("+13144445544");
+    // VAT -> uppercased, punctuation-stripped ("DE123456789"). VAT validity against
+    // VIES is advisory and handled client-side, so we never block the save here.
+    if ($question && $question['question_type'] === 'phone') {
+        $value = phone_normalize_e164($value);
+    } elseif ($question && $question['question_type'] === 'vat') {
+        $value = vat_normalize($value);
+    }
 }
 
 // ---------------------------------------------------------------

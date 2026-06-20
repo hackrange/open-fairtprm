@@ -48,6 +48,7 @@ if (($seedCheck['cnt'] ?? 0) == 0) {
         ['primary_contact_details',     'TEXT',                                     'Vendor Information',    'onboarding', 'Primary contact full name'],
         ['primary_contact_title',       'VARCHAR(255)',                              'Vendor Information',    'onboarding', 'Primary contact job title'],
         ['primary_contact_phone',       'VARCHAR(50)',                               'Vendor Information',    'onboarding', 'Primary contact direct phone'],
+        ['vat_number',                  'VARCHAR(64)',                               'Vendor Information',    'onboarding', 'EU VAT number (validated against VIES)'],
         ['nda_in_place',                "ENUM('yes','no','')",                       'Vendor Information',    'onboarding', 'Is NDA in place?'],
         ['vendor_competitors',          'TEXT',                                     'Vendor Information',    'onboarding', 'Known vendor competitors'],
         ['vsu_onboarded',               "ENUM('yes','no','')",                       'Vendor Information',    'onboarding', 'Procurement onboarding status'],

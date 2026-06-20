@@ -49,7 +49,7 @@ if (!$sectionId || empty($questionText)) {
 }
 
 // Validate question type
-$validTypes = ['text', 'textarea', 'select', 'radio', 'checkbox', 'file', 'number', 'date', 'button_group', 'button_group_multi', 'email'];
+$validTypes = ['text', 'textarea', 'select', 'radio', 'checkbox', 'file', 'number', 'date', 'button_group', 'button_group_multi', 'email', 'phone', 'vat'];
 if (!in_array($questionType, $validTypes)) {
     $questionType = 'text';
 }

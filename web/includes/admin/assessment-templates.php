@@ -564,6 +564,8 @@ foreach ($editTemplate['sections'] as $sec) {
                     <option value="number"><?php echo e(t('admin_assessment-templates.qtype_number')); ?></option>
                     <option value="date"><?php echo e(t('admin_assessment-templates.qtype_date')); ?></option>
                     <option value="email"><?php echo e(t('admin_assessment-templates.qtype_email')); ?></option>
+                    <option value="phone"><?php echo e(t('admin_assessment-templates.qtype_phone')); ?></option>
+                    <option value="vat"><?php echo e(t('admin_assessment-templates.qtype_vat')); ?></option>
                     <option value="select"><?php echo e(t('admin_assessment-templates.qtype_dropdown')); ?></option>
                     <option value="radio"><?php echo e(t('admin_assessment-templates.qtype_radio')); ?></option>
                     <option value="checkbox"><?php echo e(t('admin_assessment-templates.qtype_checkbox')); ?></option>

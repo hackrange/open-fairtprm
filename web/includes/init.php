@@ -53,6 +53,12 @@ spl_autoload_register(function ($className) {
 });
 
 /**
+ * Procedural helpers that aren't classes (so the autoloader won't find them).
+ * Loaded eagerly here so every page and API has them available.
+ */
+require_once INCLUDES_PATH . '/contact-fields.php';
+
+/**
  * Global exception handler -- catches anything that nobody else bothered to catch.
  * In debug mode: shows the full error and stack trace (developer-friendly).
  * In production: shows a polite "something broke" message (user-friendly, hacker-unfriendly).

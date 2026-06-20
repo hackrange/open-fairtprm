@@ -1462,7 +1462,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                 'vsu_onboarded', 'relationship_manager', 'expected_procurement_date',
                 'product_service_description', 'target_user_count',
                 'primary_contact_email', 'primary_contact_details',
-                'primary_contact_title', 'primary_contact_phone',
+                'primary_contact_title', 'primary_contact_phone', 'vat_number',
                 'nda_in_place', 'vendor_competitors',
                 'cost_center', 'project',
                 'pii_record_count', 'spii_record_count', 'sox_record_count',
@@ -1496,7 +1496,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                 'primary_contact_email' => 'Primary Contact Email',
                 'primary_contact_details' => 'Contact Name',
                 'primary_contact_title' => 'Contact Title',
-                'primary_contact_phone' => 'Contact Phone',
+                'primary_contact_phone' => 'Contact Phone', 'vat_number' => 'VAT Number',
                 'nda_in_place' => 'NDA in Place', 'vendor_competitors' => 'Competitors',
                 'pii_record_count' => 'PII Records', 'spii_record_count' => 'SPII Records',
                 'sox_record_count' => 'SOX Records', 'business_impact' => 'Business Impact (USD)',
@@ -1563,6 +1563,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                     if ($field === 'primary_contact_email' && $val !== '' && !filter_var($val, FILTER_VALIDATE_EMAIL)) {
                         $validationErrors[] = "$label must be a valid email address.";
                         continue;
+                    }
+
+                    // Canonicalise the phone number to E.164 ("+13144445544") so it
+                    // is stored uniformly regardless of how it was typed.
+                    if ($field === 'primary_contact_phone') {
+                        $val = phone_normalize_e164($val);
+                    }
+
+                    // Canonicalise the VAT number (uppercase, punctuation stripped).
+                    // VIES validity is advisory and handled in the UI; we never block.
+                    if ($field === 'vat_number') {
+                        $val = vat_normalize($val);
                     }
 
                     // Validate date fields
@@ -2504,6 +2516,19 @@ function getFieldValue($request, $field, $default = '') {
                             echo '<span class="vendor-field-value"><a href="mailto:' . e($val) . '">' . e($val) . '</a></span>';
                         } elseif ($type === 'domain' && $val) {
                             echo '<span class="vendor-field-value"><a href="https://' . e($val) . '" target="_blank" rel="noopener">' . e($val) . '</a></span>';
+                        } elseif ($type === 'phone') {
+                            if ($val === '' || $val === null) {
+                                echo '<span class="vendor-field-value empty">Not provided</span>';
+                            } else {
+                                $disp = phone_display($val);
+                                echo '<span class="vendor-field-value"><a href="tel:' . e(phone_normalize_e164($val)) . '">' . e($disp) . '</a></span>';
+                            }
+                        } elseif ($type === 'vat') {
+                            if ($val === '' || $val === null) {
+                                echo '<span class="vendor-field-value empty">Not provided</span>';
+                            } else {
+                                echo '<span class="vendor-field-value">' . e(vat_normalize($val)) . '</span>';
+                            }
                         } elseif ($type === 'date' && $val) {
                             echo '<span class="vendor-field-value">' . date('M j, Y', strtotime($val)) . '</span>';
                         } elseif ($type === 'number') {
@@ -2569,6 +2594,10 @@ function getFieldValue($request, $field, $default = '') {
                             echo '<input type="date" name="' . e($field) . '" value="' . e($val) . '" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;">';
                         } elseif ($type === 'email') {
                             echo '<input type="email" name="' . e($field) . '" value="' . e($val) . '" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;width:100%;">';
+                        } elseif ($type === 'phone') {
+                            echo phone_render_widget($field, $val, ['id' => 'pf_' . $field]);
+                        } elseif ($type === 'vat') {
+                            echo vat_render_widget($field, $val, ['id' => 'vf_' . $field, 'vies_endpoint' => 'api/vat-validate.php']);
                         } elseif ($type === 'number' || $type === 'currency' || $type === 'integer') {
                             echo '<input type="number" name="' . e($field) . '" value="' . e($val) . '" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;width:120px;"' . ($type === 'currency' ? ' step="0.01"' : ($type === 'integer' ? ' step="1"' : '')) . '>';
                         } else {
@@ -2623,6 +2652,7 @@ function getFieldValue($request, $field, $default = '') {
                             }
                             echo '</div>'; ?>
                             <?php dualField($request, 'vendor_id', 'Vendor ID (VID)'); ?>
+                            <?php dualField($request, 'vat_number', 'VAT Number', 'vat'); ?>
                             <?php dualField($request, 'vsu_onboarded', 'Procurement Onboarding', 'yes_no'); ?>
                         </div>
                     </div>
@@ -2634,7 +2664,7 @@ function getFieldValue($request, $field, $default = '') {
                             <?php dualField($request, 'primary_contact_details', 'Contact Name'); ?>
                             <?php dualField($request, 'primary_contact_email', 'Email', 'email'); ?>
                             <?php dualField($request, 'primary_contact_title', 'Title'); ?>
-                            <?php dualField($request, 'primary_contact_phone', 'Phone'); ?>
+                            <?php dualField($request, 'primary_contact_phone', 'Phone', 'phone'); ?>
                         </div>
                     </div>
 
@@ -7203,6 +7233,8 @@ function getFieldValue($request, $field, $default = '') {
     <script src="app/js/vendor-search.js?v=2.5.5b"></script>
     <script src="app/js/mobile-nav.js"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
+    <script src="app/js/phone-input.js?v=1" nonce="<?php echo cspNonce(); ?>"></script>
+    <script src="app/js/vat-input.js?v=1" nonce="<?php echo cspNonce(); ?>"></script>
 
     <?php if ($isProcurementOnly && $showVendorTabs): ?>
     <!-- Chart.js for procurement detailed summary report -->
