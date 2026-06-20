@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // CSRF validation -- one check for all responses
-if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'], false)) {
     http_response_code(403);
     echo json_encode([
         'success' => false,

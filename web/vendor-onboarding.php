@@ -2525,7 +2525,14 @@ function getFieldValue($request, $field, $default = '') {
                             }
                         } elseif ($type === 'vat') {
                             if ($val === '' || $val === null) {
-                                echo '<span class="vendor-field-value empty">Not provided</span>';
+                                $vatEditable = $canEdit || ($canEditProcurementFields && in_array($field, $procurementEditableFields));
+                                if ($vatEditable) {
+                                    // No VAT on file yet: offer a button that jumps into edit
+                                    // mode and focuses the VAT field.
+                                    echo '<button type="button" class="vat-add-btn" data-vat-target="' . e('vf_' . $field) . '" style="padding:4px 12px;border:1px solid #2563eb;border-radius:4px;background:#eff6ff;color:#2563eb;font-size:13px;font-weight:500;cursor:pointer;">+ Add VAT</button>';
+                                } else {
+                                    echo '<span class="vendor-field-value empty">Not provided</span>';
+                                }
                             } else {
                                 echo '<span class="vendor-field-value">' . e(vat_normalize($val)) . '</span>';
                             }
@@ -6956,6 +6963,17 @@ function getFieldValue($request, $field, $default = '') {
 
         toggleBtn.addEventListener('click', function() { setEditMode(true); });
         if (cancelBtn) cancelBtn.addEventListener('click', function() { setEditMode(false); });
+
+        // "Add VAT" buttons (shown when no VAT is on file) jump straight into edit
+        // mode and focus the VAT field.
+        document.querySelectorAll('.vat-add-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                setEditMode(true);
+                var t = btn.getAttribute('data-vat-target');
+                var inp = t && document.getElementById(t + '_primary');
+                if (inp) { try { inp.focus(); } catch (e) {} }
+            });
+        });
     })();
     </script>
     <?php endif; ?>

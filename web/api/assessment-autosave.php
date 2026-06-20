@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Even though we don't require login, we still validate CSRF tokens
 // because cross-site request forgery doesn't care about your auth model.
 // ---------------------------------------------------------------
-if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'], false)) {
     http_response_code(403);
     echo json_encode([
         'success' => false,

@@ -75,6 +75,16 @@ try {
     $customScoreSelect = $customColExists ? ', r.custom_score' : '';
     $customScoreGroup = $customColExists ? ', r.custom_score' : '';
 
+    // The vat_number column was added in v2.6.1; older instances that haven't
+    // applied the migration won't have it, so probe before referencing it.
+    $vatColExists = false;
+    try {
+        $db->fetchOne("SELECT vat_number FROM vendor_onboarding_requests LIMIT 1");
+        $vatColExists = true;
+    } catch (Exception $e) {}
+    $vatWhere = $vatColExists ? "\n            OR r.vat_number LIKE :search_vat" : '';
+    $vatRank  = $vatColExists ? ' OR r.vat_number LIKE :rank_vat' : '';
+
     // ---------------------------------------------------------------
     // THE BIG SEARCH QUERY
     // This beast searches vendors by name, domain, AND by stakeholder
@@ -99,7 +109,7 @@ try {
         LEFT JOIN users u ON u.id = s.user_id
         WHERE (
             r.vendor_name LIKE :search
-            OR r.vendor_domain LIKE :search2
+            OR r.vendor_domain LIKE :search2{$vatWhere}
             OR r.id IN (
                 SELECT s2.request_id
                 FROM vendor_onboarding_stakeholders s2
@@ -113,7 +123,7 @@ try {
         )
         GROUP BY r.id, r.vendor_name, r.vendor_domain, r.vendor_tier, r.status, r.current_srs_score, r.current_shodan_score{$customScoreGroup}
         ORDER BY
-            (CASE WHEN r.vendor_name LIKE :rank1 OR r.vendor_domain LIKE :rank2 THEN 0 ELSE 1 END),
+            (CASE WHEN r.vendor_name LIKE :rank1 OR r.vendor_domain LIKE :rank2{$vatRank} THEN 0 ELSE 1 END),
             r.vendor_name ASC
         LIMIT 10
     ";
@@ -134,6 +144,12 @@ try {
         ':rank1' => '%' . $query . '%',
         ':rank2' => '%' . $query . '%'
     ];
+    // VAT number search (only when the column exists). A VAT match counts as a
+    // direct match for ranking, so searching a VAT surfaces that vendor first.
+    if ($vatColExists) {
+        $params[':search_vat'] = '%' . $query . '%';
+        $params[':rank_vat'] = '%' . $query . '%';
+    }
 
     $vendors = $db->fetchAll($sql, $params);
 

@@ -85,7 +85,7 @@ class Security {
      * @param string $token The token submitted with the form
      * @return bool True if the token is valid and fresh
      */
-    public function validateCSRFToken($token) {
+    public function validateCSRFToken($token, $consume = true) {
         if (session_status() !== PHP_SESSION_ACTIVE) {
             session_start();
         }
@@ -113,9 +113,19 @@ class Security {
         // Consume the token after successful validation to prevent replay.
         // A fresh token is generated immediately so subsequent forms/AJAX
         // can retrieve it via getCSRFToken().
+        //
+        // High-frequency, UUID-authenticated AJAX endpoints (assessment autosave,
+        // batch-save, file upload) pass $consume = false: they validate the token
+        // but DO NOT rotate it. Rotating per request breaks legitimate concurrent
+        // autosaves -- a second in-flight request arrives with the now-stale token
+        // and fails with a spurious 403 ("Error saving"). Keeping a stable
+        // per-session token for these endpoints removes that race without weakening
+        // CSRF protection (the token is still secret, per-session, and required).
         if ($isValid) {
-            $_SESSION[$tokenName] = bin2hex(random_bytes(32));
-            $_SESSION[$tokenName . '_time'] = time();
+            if ($consume) {
+                $_SESSION[$tokenName] = bin2hex(random_bytes(32));
+                $_SESSION[$tokenName . '_time'] = time();
+            }
         } else {
             http_response_code(403);
         }

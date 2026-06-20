@@ -77,9 +77,23 @@ if (empty($result['reachable'])) {
     exit;
 }
 
+// VIES answered but the member state's registry was temporarily unavailable: we
+// cannot confirm validity right now. Report it distinctly so the UI can say
+// "temporarily unavailable" rather than "not valid".
+if (!empty($result['unavailable']) || (array_key_exists('valid', $result) && $result['valid'] === null)) {
+    echo json_encode([
+        'reachable'   => true,
+        'valid'       => null,
+        'unavailable' => true,
+        'detail'      => $result['detail'] ?? '',
+    ]);
+    exit;
+}
+
 echo json_encode([
-    'reachable' => true,
-    'valid'     => !empty($result['valid']),
-    'name'      => $result['name'] ?? '',
-    'address'   => $result['address'] ?? '',
+    'reachable'   => true,
+    'valid'       => !empty($result['valid']),
+    'name'        => $result['name'] ?? '',
+    'address'     => $result['address'] ?? '',
+    'requestDate' => $result['requestDate'] ?? '',
 ]);

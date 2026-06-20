@@ -9,6 +9,8 @@
  * the value passes a light EU format check, so a half-typed or mismatched number
  * is never saved. The VIES lookup is ADVISORY: its outcome is shown to the user
  * but never blocks saving (VIES has outages and the occasional false negative).
+ * When VIES confirms the number, an info (i) button reveals the registered
+ * company name/address in a modal.
  */
 (function () {
     'use strict';
@@ -20,6 +22,62 @@
     // Prefix + 2..13 alphanumerics. EL = Greece, XI = Northern Ireland.
     var FORMAT_RE = /^(AT|BE|BG|HR|CY|CZ|DK|EE|FI|FR|DE|EL|HU|IE|IT|LV|LT|LU|MT|NL|PL|PT|RO|SK|SI|ES|SE|XI)[0-9A-Z]{2,13}$/;
 
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = (s == null ? '' : String(s));
+        return d.innerHTML;
+    }
+
+    // ---- Shared details modal -------------------------------------------------
+    var modal = null;
+    function ensureModal() {
+        if (modal) return modal;
+        var overlay = document.createElement('div');
+        overlay.className = 'vat-info-overlay';
+        overlay.style.cssText = 'position:fixed; inset:0; background:rgba(17,24,39,0.55); display:none; align-items:center; justify-content:center; z-index:10000; padding:20px;';
+        overlay.innerHTML =
+            '<div class="vat-info-card" role="dialog" aria-modal="true" aria-label="VAT registration details" style="background:#fff; border-radius:10px; max-width:460px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,0.3); overflow:hidden;">' +
+              '<div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid #e5e7eb;">' +
+                '<strong style="font-size:15px; color:#111827;">VAT registration details</strong>' +
+                '<button type="button" class="vat-info-close" aria-label="Close" style="border:none; background:none; font-size:22px; line-height:1; cursor:pointer; color:#6b7280;">&times;</button>' +
+              '</div>' +
+              '<div class="vat-info-body" style="padding:18px; font-size:14px; color:#374151; line-height:1.5;"></div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        function close() { overlay.style.display = 'none'; }
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        overlay.querySelector('.vat-info-close').addEventListener('click', close);
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+        modal = { overlay: overlay, body: overlay.querySelector('.vat-info-body'), close: close };
+        return modal;
+    }
+
+    function showModal(result) {
+        var m = ensureModal();
+        function row(label, value) {
+            if (!value) return '';
+            return '<div style="margin-bottom:10px;"><div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#9ca3af;">' +
+                   esc(label) + '</div><div style="white-space:pre-line;">' + esc(value) + '</div></div>';
+        }
+        var status = result.valid
+            ? '<span style="color:#065f46; font-weight:600;">&#10003; Valid (VIES)</span>'
+            : '<span style="color:#b45309; font-weight:600;">Not confirmed</span>';
+        var when = '';
+        if (result.requestDate) {
+            var d = new Date(result.requestDate);
+            when = isNaN(d.getTime()) ? result.requestDate : d.toLocaleString();
+        }
+        m.body.innerHTML =
+            row('VAT number', result.vat) +
+            '<div style="margin-bottom:10px;"><div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#9ca3af;">Status</div><div>' + status + '</div></div>' +
+            row('Registered name', result.name) +
+            row('Registered address', result.address) +
+            row('Checked', when) +
+            '<div style="margin-top:14px; font-size:12px; color:#9ca3af;">Source: EU VIES (ec.europa.eu)</div>';
+        m.overlay.style.display = 'flex';
+    }
+
+    // ---- Widget ---------------------------------------------------------------
     function initWidget(widget) {
         if (widget.__vatInit) { return; }
         widget.__vatInit = true;
@@ -28,11 +86,13 @@
         var confirm = widget.querySelector('.vat-confirm');
         var hidden = widget.querySelector('input[type="hidden"]');
         var msg = widget.querySelector('.vat-validation-msg');
+        var infoBtn = widget.querySelector('.vat-info-btn');
         var endpoint = widget.getAttribute('data-vies-endpoint');
         if (!primary || !confirm || !hidden) { return; }
 
         var viesTimer = null;
         var lastChecked = null;
+        var lastResult = null;
 
         function setMsg(text, color) {
             if (!msg) { return; }
@@ -43,6 +103,11 @@
             } else {
                 msg.style.display = 'none';
             }
+        }
+
+        function hideInfo() {
+            lastResult = null;
+            if (infoBtn) infoBtn.style.display = 'none';
         }
 
         function fireSave() {
@@ -64,11 +129,18 @@
                         setMsg('Could not reach VIES right now — the number was saved; please double-check it.', '#b45309');
                         return;
                     }
+                    if (d.unavailable || d.valid === null) {
+                        // VIES is up but the country's registry was momentarily unavailable.
+                        lastChecked = null; // allow a re-check on next blur
+                        setMsg('VIES is temporarily unavailable for this country — the number was saved; please verify it later.', '#b45309');
+                        return;
+                    }
                     if (d.valid) {
-                        setMsg('✓ Valid VAT number' + (d.name ? ' — ' + d.name : ''), '#065f46');
+                        lastResult = { vat: vat, valid: true, name: d.name || '', address: d.address || '', requestDate: d.requestDate || '' };
+                        setMsg('✓ Valid VAT number' + (d.name ? ' — ' + d.name : '') + (d.name ? '  (ⓘ for details)' : ''), '#065f46');
+                        if (infoBtn) infoBtn.style.display = 'inline-flex';
                     } else {
-                        // Advisory: the number IS saved; we just warn that VIES could
-                        // not confirm it as valid.
+                        hideInfo();
                         setMsg('⚠ VAT number not valid — saved anyway. Please verify it is correct.', '#b45309');
                     }
                 })
@@ -80,28 +152,29 @@
         function evaluate(runVies) {
             var pv = normalize(primary.value);
             var cv = normalize(confirm.value);
-            // Reflect the normalised value back so the user sees what is stored.
             if (primary.value !== pv) { primary.value = pv; }
             if (confirm.value !== cv) { confirm.value = cv; }
 
             if (!pv && !cv) {
                 hidden.value = '';
+                hideInfo();
                 setMsg('');
                 fireSave();
                 return;
             }
             if (pv !== cv) {
                 hidden.value = '';
+                hideInfo();
                 setMsg('The two VAT numbers do not match.');
                 return;
             }
             if (!FORMAT_RE.test(pv)) {
                 hidden.value = '';
+                hideInfo();
                 setMsg('Enter a valid EU VAT number, including the country prefix (e.g. DE123456789).');
                 return;
             }
 
-            // Confirmed match + valid format -> store it.
             hidden.value = pv;
             fireSave();
 
@@ -109,6 +182,8 @@
                 clearTimeout(viesTimer);
                 viesTimer = setTimeout(function () { checkVies(pv); }, 400);
             } else {
+                // Typing changed the number -> any prior VIES detail is stale.
+                if (lastResult && lastResult.vat !== pv) hideInfo();
                 setMsg('✓ Format looks valid.', '#065f46');
             }
         }
@@ -117,6 +192,12 @@
         confirm.addEventListener('input', function () { evaluate(false); });
         primary.addEventListener('blur', function () { evaluate(true); });
         confirm.addEventListener('blur', function () { evaluate(true); });
+
+        if (infoBtn) {
+            infoBtn.addEventListener('click', function () {
+                if (lastResult) showModal(lastResult);
+            });
+        }
 
         // Prefilled (returning user) — validate quietly and confirm with VIES once.
         if (normalize(primary.value) && normalize(primary.value) === normalize(confirm.value)) {

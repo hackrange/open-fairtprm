@@ -448,35 +448,66 @@ function vat_vies_check($raw) {
     }
 
     $payload = json_encode(['countryCode' => $fmt['country'], 'vatNumber' => $fmt['number']]);
-    $ch = curl_init('https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number');
-    curl_setopt_array($ch, [
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => $payload,
-        CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Accept: application/json'],
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 6,
-        CURLOPT_CONNECTTIMEOUT => 4,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_FOLLOWLOCATION => false,
-        CURLOPT_USERAGENT      => 'fairtprm-vat-check',
-    ]);
-    $body = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
 
-    if ($body === false || $code < 200 || $code >= 300) {
+    // VIES is a federation of national registries; some member states (Italy and
+    // Germany especially) are slow and intermittently return transient errors.
+    // Use a generous timeout and retry once before giving up, so a momentary
+    // slow response does not surface as "could not reach VIES".
+    $body = false;
+    $code = 0;
+    for ($attempt = 0; $attempt < 2; $attempt++) {
+        $ch = curl_init('https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Accept: application/json'],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_USERAGENT      => 'fairtprm-vat-check',
+        ]);
+        $body = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($body !== false && $code >= 200 && $code < 300) {
+            break; // got a usable HTTP response
+        }
+        $body = false;
+    }
+
+    if ($body === false) {
+        // Network/TLS failure or non-2xx after retry -> genuinely unreachable.
         return ['reachable' => false];
     }
+
     $data = json_decode($body, true);
-    if (!is_array($data) || !array_key_exists('valid', $data)) {
+    if (!is_array($data)) {
         return ['reachable' => false];
     }
+
+    // VIES returns HTTP 200 even when a member state's registry is temporarily
+    // unavailable; in that case there is no boolean "valid" and instead an error
+    // marker (e.g. MS_UNAVAILABLE / SERVICE_UNAVAILABLE / TIMEOUT). Treat that as
+    // "reachable but could not verify right now" rather than a definitive answer.
+    if (!array_key_exists('valid', $data) || $data['valid'] === null) {
+        $err = '';
+        if (isset($data['userError'])) {
+            $err = (string)$data['userError'];
+        } elseif (isset($data['errorWrappers'][0]['error'])) {
+            $err = (string)$data['errorWrappers'][0]['error'];
+        }
+        return ['reachable' => true, 'valid' => null, 'unavailable' => true, 'detail' => $err];
+    }
+
     return [
-        'reachable' => true,
-        'valid'     => (bool)$data['valid'],
-        'name'      => isset($data['name']) ? trim((string)$data['name']) : '',
-        'address'   => isset($data['address']) ? trim((string)$data['address']) : '',
+        'reachable'   => true,
+        'valid'       => (bool)$data['valid'],
+        'name'        => isset($data['name']) ? trim((string)$data['name']) : '',
+        'address'     => isset($data['address']) ? trim((string)$data['address']) : '',
+        'requestDate' => isset($data['requestDate']) ? trim((string)$data['requestDate']) : '',
     ];
 }
 
@@ -501,8 +532,17 @@ function vat_render_widget($name, $value, $opts = []) {
 
     $pid = $id ? (' id="' . e($id) . '_primary"') : '';
     $cid = $id ? (' id="' . e($id) . '_confirm"') : '';
+    // Primary input + an info (i) button that opens a modal with the VIES company
+    // details (name, address, checked date). Hidden until a lookup has details.
+    $html .= '<div class="vat-primary-row" style="display:flex; align-items:center; gap:6px;">';
     $html .= '<input type="text" class="vat-primary"' . $pid . ' autocomplete="off" spellcheck="false"'
           . ' placeholder="e.g. DE123456789" value="' . e($value) . '" style="' . e($inputStyle) . '">';
+    $html .= '<button type="button" class="vat-info-btn" title="View VAT registration details" aria-label="View VAT registration details"'
+          . ' style="display:none; flex:none; width:24px; height:24px; padding:0; border:none; background:none; cursor:pointer; color:#2563eb;">'
+          . '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+          . '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>'
+          . '</button>';
+    $html .= '</div>';
     $html .= '<input type="text" class="vat-confirm"' . $cid . ' autocomplete="off" spellcheck="false"'
           . ' placeholder="Re-enter VAT number" value="' . e($value) . '" style="' . e($inputStyle) . ';margin-top:6px;">';
 

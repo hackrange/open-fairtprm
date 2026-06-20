@@ -460,6 +460,9 @@ $csrfToken = $security->getCSRFToken();
         <tr><td><strong><a href="#shadow-saas-grip">Grip Security integration</a></strong></td><td>Automatically discover SaaS apps used across your organization and pull them into the Shadow SaaS list.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#zscaler">Zscaler blocking</a></strong></td><td>Block an unsanctioned app's web domain directly in Zscaler with one click.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#admin-updates">In-app upgrades</a></strong></td><td>Check your registry for a newer version and upgrade from inside the Admin Portal.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#question-types">Phone &amp; VAT question types</a></strong></td><td>New assessment/onboarding field types: a phone number with a country-code &amp; flag picker (auto-formatted), and an EU VAT number with double entry and free live validation against the official EU VIES service.</td><td>Everyone</td></tr>
+        <tr><td><strong><a href="#question-types">Vendor data &amp; search improvements</a></strong></td><td>Store a VAT number on each vendor (shown on the vendor page with an &quot;Add VAT&quot; shortcut), find vendors by VAT number in the quick search, and a clearer Procurement-Onboarding scoring banner.</td><td>Procurement, Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#admin-backup">Large database backups</a></strong></td><td>Backup and restore now support multi-gigabyte databases and very large records without timing out.</td><td>Admins</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>How do I know which version I'm on?</strong> Administrators can go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> to see the installed version. This guide describes <strong>v2.6.1</strong>. See <a href="#admin-updates">Updating the Platform</a>.
@@ -511,6 +514,52 @@ $csrfToken = $security->getCSRFToken();
 
     <div class="callout callout-warning">
         <strong>Good to know:</strong> Most of the interface (menus, buttons, labels, and form fields) is translated. Vendor assessment <em>questions</em> can also be translated automatically when an AI provider is configured (see <a href="#admin-ai">AI Integration</a>), but the stored answer values stay in English so that scoring and reports remain consistent across languages.
+    </div>
+</div>
+
+
+<!-- ================================================================
+     PHONE & VAT QUESTION TYPES + VENDOR DATA IMPROVEMENTS
+     ================================================================ -->
+<div class="doc-section" id="question-types">
+    <h2>Phone &amp; VAT Question Types <span class="new-badge">New in 2.6.1</span></h2>
+    <p>The <strong>Template Builder</strong> (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Assessment Templates</span>) gains two new question types that capture contact and tax details in a clean, consistent format. They can be used on any assessment or onboarding template, and like other questions they can be mapped to a vendor field so the answer flows onto the vendor record.</p>
+
+    <h3>Phone</h3>
+    <p>The <strong>Phone</strong> type shows a country selector with a flag and dialing code next to the number box. The United States is listed first; every other country follows in alphabetical order. Whatever format the person types &mdash; <code>314-444-5544</code>, <code>(314)&nbsp;444-5544</code> or <code>3144445544</code> &mdash; the number is stored in one uniform international format (for example, picking the US flag and typing <code>3144445544</code> stores <code>+13144445544</code>). The default Vendor Onboarding Request form now uses this type for the primary contact's phone number, and the assessment <strong>attestation</strong> phone field uses it too.</p>
+
+    <h3>VAT (EU VAT number)</h3>
+    <p>The <strong>VAT</strong> type is for European VAT numbers. To guard against typos it must be <strong>entered twice</strong>, and the two entries must match before it is saved. The number is stored in a consistent form (uppercase, no spaces or punctuation &mdash; for example <code>DE123456789</code>).</p>
+    <ul>
+        <li><strong>Free live validation.</strong> When you finish typing, the platform checks the number against the official <strong>EU VIES</strong> service (the European Commission's VAT Information Exchange System). VIES is free, needs no account, and reflects each member state's live registry.</li>
+        <li><strong>Advisory, never blocking.</strong> If VIES cannot confirm the number, it is still saved &mdash; a notice simply asks you to double-check it. If VIES is momentarily slow or a country's registry is temporarily unavailable, the number is saved and you are told to verify it later.</li>
+        <li><strong>Details on demand.</strong> When VIES confirms a number, an information (&#9432;) button appears next to it. Clicking it opens a panel showing the registered company name and address returned by VIES.</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>Mapping VAT to the vendor record.</strong> A dedicated <code>vat_number</code> field is available, so a VAT question mapped to it stores the value on the vendor. When you choose the VAT question type in the Template Builder, this mapping is selected for you automatically.
+    </div>
+
+    <h3>VAT on the vendor page</h3>
+    <p>The vendor's VAT number is shown in the <strong>Vendor Information</strong> card on the vendor onboarding page. If no VAT is on file, an <strong>&ldquo;+ Add VAT&rdquo;</strong> button appears that jumps straight into edit mode with the VAT field focused.</p>
+
+    <h3>Finding vendors by VAT number</h3>
+    <p>The <strong>quick search</strong> box in the top-right of the platform now also matches on VAT number, alongside vendor name, domain, and stakeholder. Direct matches on a vendor's own name, domain, or VAT number are always shown first.</p>
+
+    <h2>Procurement Onboarding scoring banner <span class="new-badge">New in 2.6.1</span></h2>
+    <p>When a vendor's <strong>Procurement Onboarding</strong> status is set to <strong>No</strong>, a banner now makes clear that <em>automated vendor scoring is disabled until the vendor completes Procurement Onboarding</em>. It appears both on the vendor onboarding page and beneath the matching assessment question, and updates immediately as the answer changes.</p>
+
+    <h2>Submitting an assessment: required fields checked first <span class="new-badge">New in 2.6.1</span></h2>
+    <p>When a vendor clicks <strong>Submit</strong> on an assessment, the platform now checks that every required question is answered <em>before</em> asking for the submitter's attestation details. Previously a missing answer was only reported after the attestation was filled in, forcing it to be re-entered.</p>
+</div>
+
+<!-- ================================================================
+     LARGE DATABASE BACKUPS
+     ================================================================ -->
+<div class="doc-section" id="admin-backup">
+    <h2>Large Database Backups &amp; Restores <span class="new-badge">New in 2.6.1</span></h2>
+    <p>Backup and restore (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Backup</span>) now handle <strong>multi-gigabyte databases</strong> and individual records approaching <strong>1&nbsp;GB</strong> without the operation being cut short by a timeout or running out of memory. Behind the scenes the database packet limit, network timeouts, upload size, and request time limits were all raised to accommodate very large data.</p>
+    <div class="callout callout-info">
+        <strong>For very large databases:</strong> A backup or restore of a multi-gigabyte file can take a while &mdash; leave the page open until it finishes. Extremely large datasets (tens of gigabytes) are best restored from the server command line.
     </div>
 </div>
 
@@ -1549,6 +1598,7 @@ $csrfToken = $security->getCSRFToken();
                     <a href="#first-login">Your First Login</a>
                     <a href="#whats-new">What's New in 2.6.1</a>
                     <a href="#language">Changing Your Language</a>
+                    <a href="#question-types">Phone &amp; VAT Question Types</a>
 
                     <h4>GRC — Quick Start</h4>
                     <a href="#grc-overview">What is GRC?</a>
@@ -1597,6 +1647,7 @@ $csrfToken = $security->getCSRFToken();
                     <a href="#admin-email">Email Configuration</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">AI Integration</a>
+                    <a href="#admin-backup">Large Database Backups</a>
                     <a href="#admin-updates">Updating the Platform</a>
 
                     <h4>Help &amp; Reference</h4>

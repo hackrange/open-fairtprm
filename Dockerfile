@@ -55,8 +55,10 @@ RUN set -e; \
     cp -rp $pp/app/grip-reference/. /var/www/html/app/grip-reference/; \
     mkdir -p /var/www/html/app/docs; \
     cp -rp $pp/app/docs/. /var/www/html/app/docs/; \
+    mkdir -p /var/www/html/app/js; \
+    cp -p  $pp/app/js/phone-input.js $pp/app/js/vat-input.js $pp/app/js/template-builder.js /var/www/html/app/js/; \
     \
-    cp -p  $pp/sidebar_nav.php $pp/init.php $pp/FairCalculator.php \
+    cp -p  $pp/sidebar_nav.php $pp/init.php $pp/FairCalculator.php $pp/contact-fields.php \
            /var/www/html/includes/; \
     \
     cp -p  $pp/email.php $pp/fair-defaults.php $pp/field-reference.php \
@@ -69,7 +71,12 @@ RUN set -e; \
            $pp/VendorAssessmentService.php $pp/AssessmentTranslationService.php \
            $pp/GripService.php \
            $pp/ZscalerService.php $pp/SAMLHandler.php \
+           $pp/FaviconService.php $pp/ContinuousMonitor.php $pp/VirusScanService.php \
+           $pp/BackupService.php \
            /var/www/html/includes/classes/; \
+    \
+    mkdir -p /var/www/html/includes/partials; \
+    cp -rp $pp/includes/partials/. /var/www/html/includes/partials/; \
     \
     cp -p  $pp/config.sample.php /var/www/html/config/; \
     \
@@ -91,7 +98,7 @@ RUN set -e; \
            $pp/grc-framework-report.php $pp/grc-frameworks.php $pp/grc-gaps.php \
            $pp/grc-monitors.php $pp/grc-policies.php $pp/grc-risks.php \
            $pp/grc-tasks.php $pp/admin.php $pp/index.php $pp/login.php $pp/profile.php \
-           $pp/lockdown.php $pp/procurement-contracts.php $pp/procurement-cyber-status.php $pp/shadow-saas.php \
+           $pp/procurement-contracts.php $pp/procurement-cyber-status.php $pp/shadow-saas.php \
            $pp/updates.php $pp/vendor-assessment.php $pp/vendor-assessments.php \
            $pp/vendor-assessment-view.php $pp/vendor-detailed-summary.php \
            $pp/vendor-domains.php $pp/vendor-onboarding-list.php \
@@ -121,10 +128,19 @@ RUN set -e; \
     sed -i 's/^expose_php = On/expose_php = Off/' /etc/php/*/cli/php.ini; \
     sed -i 's/^Checks[[:space:]].*/Checks 1/' /etc/clamav/freshclam.conf; \
     \
+    cp -p  $pp/fairtprm-tuning.cnf /etc/mysql/mariadb.conf.d/99-fairtprm-tuning.cnf; \
+    chmod 644 /etc/mysql/mariadb.conf.d/99-fairtprm-tuning.cnf; \
+    for ini in /etc/php/*/apache2/conf.d/99-hardening.ini /etc/php/*/fpm/conf.d/99-hardening.ini /etc/php/*/cli/conf.d/99-hardening.ini; do \
+        [ -f "$ini" ] && printf '\n; Large-backup restore/upload headroom (appended; last value wins)\nupload_max_filesize = 8G\npost_max_size = 8G\nmax_input_time = 1800\n' >> "$ini"; \
+    done; \
+    printf 'Timeout 1800\nProxyTimeout 1800\n' > /etc/apache2/conf-enabled/zz-fairtprm-timeout.conf; \
+    \
     composer require onelogin/php-saml:^4.3 --no-interaction --no-progress \
         --working-dir=/var/www/html; \
     \
     cp -p  /tmp/build/icons/announcement-03.svg /var/www/html/app/icons/announcement-03.svg; \
+    \
+    rm -f /var/www/html/lockdown.php; \
     \
     echo 'v2.6.1' > /var/www/html/VERSION; \
     chown -R www-data:www-data /var/www/html/; \
@@ -177,6 +193,10 @@ RUN set -e; \
         /var/www/html/includes/classes/GripService.php \
         /var/www/html/includes/classes/ZscalerService.php \
         /var/www/html/includes/classes/SAMLHandler.php \
+        /var/www/html/includes/classes/FaviconService.php \
+        /var/www/html/includes/classes/ContinuousMonitor.php \
+        /var/www/html/includes/classes/VirusScanService.php \
+        /var/www/html/includes/partials/vendor-tasks-data.php \
         /var/www/html/vendor/onelogin/php-saml/src/Saml2/Response.php \
         /var/www/html/config/config.sample.php \
         /var/www/html/api/ai-job-status.php \
@@ -240,7 +260,6 @@ RUN set -e; \
         /var/www/html/admin.php \
         /var/www/html/index.php \
         /var/www/html/login.php \
-        /var/www/html/lockdown.php \
         /var/www/html/procurement-contracts.php \
         /var/www/html/procurement-cyber-status.php \
         /var/www/html/shadow-saas.php \
@@ -274,8 +293,15 @@ RUN set -e; \
         /var/www/html/vendor-srs-export.php \
         /var/www/html/vendor-srs-import.php \
         /var/www/html/includes/i18n/en.php \
+        /var/www/html/includes/contact-fields.php \
+        /var/www/html/app/js/phone-input.js \
+        /var/www/html/app/js/vat-input.js \
+        /var/www/html/api/vat-validate.php \
+        /var/www/html/api/template-question-save.php \
         /var/www/html/sql_updates/v2.6.1.sql \
         /usr/local/bin/entrypoint.sh \
+        /etc/mysql/mariadb.conf.d/99-fairtprm-tuning.cnf \
+        /etc/apache2/conf-enabled/zz-fairtprm-timeout.conf \
         /etc/modsecurity/grc-assessment-rules.conf \
         /etc/cron.d/open-tprm \
         /var/www/html/VERSION \

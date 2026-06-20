@@ -182,6 +182,15 @@ function toggleOptionsEditor() {
     var type = document.getElementById('qModalType').value;
     var show = ['select', 'radio', 'checkbox', 'button_group', 'button_group_multi'].indexOf(type) !== -1;
     document.getElementById('optionsEditorGroup').style.display = show ? 'block' : 'none';
+
+    // Convenience mapping defaults: when the admin picks the VAT type, default the
+    // field name to the dedicated vat_number column so the answer maps to the
+    // vendor record automatically (only if a field name isn't already chosen).
+    var fieldSel = document.getElementById('qModalFieldName');
+    if (fieldSel && type === 'vat' && !fieldSel.value) {
+        var hasVat = Array.prototype.some.call(fieldSel.options, function (o) { return o.value === 'vat_number'; });
+        if (hasVat) fieldSel.value = 'vat_number';
+    }
 }
 
 function loadDependsOnValues() {

@@ -7,6 +7,27 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [2.6.1] - 2026-06-17
 
+> **Later additions within 2.6.1 (2026-06-20)**
+>
+> **Added**
+> - **Phone question type**: Template Builder field with a country-code + flag selector (US first, then alphabetical) that normalises any input to canonical E.164 (e.g. `+13144445544`). The default Vendor Onboarding Request form's primary contact phone and the assessment submitter-attestation phone now use it.
+> - **VAT question type**: EU VAT field requiring double entry (typo guard), stored canonical (e.g. `DE123456789`), with free live validation against the official EU **VIES** service (advisory — saved even when unverifiable, with a clear notice). On a confirmed number an info (ⓘ) button opens a modal with the registered company name/address. The VIES call uses a generous timeout with one retry and distinguishes "temporarily unavailable" from "not valid".
+> - **`vat_number` vendor field**: New column on `vendor_onboarding_requests` (idempotent migration + `field_references` seed), shown on the vendor page; mappable from a VAT question (auto-selected when the VAT type is chosen). An **"+ Add VAT"** button appears when none is on file.
+> - **Vendor quick search by VAT** (column-guarded), and **large database backup/restore** support (multi-GB dumps and ~1 GB rows).
+> - **Procurement Onboarding scoring banner**: when *Procurement Onboarding = No*, a banner notes that automated vendor scoring is disabled until it is completed — on the vendor page and beneath the assessment question, toggling live.
+>
+> **Changed**
+> - **Assessment submit** now validates that all required questions are answered *before* prompting for the submitter attestation (new `validate_only` preflight), so a missing field no longer forces re-entering attestation.
+> - **Quick vendor search ranking**: direct vendor name/domain/VAT matches are surfaced ahead of rows matched only via a shared stakeholder email — fixing a case where a stakeholder email on the org's own domain matched ~all vendors and buried the searched vendor past `LIMIT 10`.
+> - **Large-restore tuning**: MariaDB `max_allowed_packet` 1G, larger redo log and network timeouts; PHP upload/post limits and Apache request timeout raised; backup/restore no longer abort on the default execution-time/memory limits.
+>
+> **Fixed**
+> - **Intermittent assessment autosave "Error saving"**: the per-request CSRF token rotation raced with concurrent autosaves, occasionally rejecting an in-flight request with a stale-token 403.
+>
+> **Security**
+> - The high-frequency, UUID-authenticated assessment AJAX endpoints (autosave, batch-save, file upload) now **validate the CSRF token without rotating it** (stable per-session token) to remove the concurrency race; the token remains secret, per-session, and required. (Other endpoints still rotate per request.)
+> - VIES lookups contact only the fixed EU host (no user-controlled URL — no SSRF), with strict EU-VAT format validation and a per-session rate limit.
+
 ### Added
 - **Procurement Cyber Status**: New Procurement → Cyber Status page listing every vendor whose onboarding status is *In Review* or *AI Review*, with a per-vendor procurement update history (5 most recent, paginated).
 - **"AI Review" Onboarding Status**: New `ai_review` status for vendors whose services use AI. Entered via a **Force AI Review** link shown next to the *Services Use AI* toggle on the vendor onboarding page (cyber_tprm/admin only).

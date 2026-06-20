@@ -42,6 +42,12 @@ class BackupService
      */
     public function dump(string $filePath): void
     {
+        // Backups of large databases / large cells must not be killed by the
+        // default 300s web execution limit, and reading big BLOB cells needs
+        // headroom. These only relax limits for this long-running operation.
+        @set_time_limit(0);
+        @ini_set('memory_limit', '-1');
+
         $pdo = $this->connect();
 
         $fp = fopen($filePath, 'w');
@@ -194,6 +200,12 @@ class BackupService
      */
     public function restore(string $filePath): void
     {
+        // A large restore can run for many minutes and the dump is read into
+        // memory for quote-aware parsing; never let the default 300s execution
+        // limit or the 2G web memory cap abort a restore in progress.
+        @set_time_limit(0);
+        @ini_set('memory_limit', '-1');
+
         $pdo = $this->connect();
 
         $sql = file_get_contents($filePath);
