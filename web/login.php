@@ -57,9 +57,17 @@ $breakGlassUser = 'admin';
 if ($samlEnabled) {
     try {
         $cfgDb = Database::getInstance();
-        $rowLL = $cfgDb->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'local_login_enabled'");
-        if ($rowLL !== null && isset($rowLL['config_value'])) {
-            $localLoginEnabled = ((string)$rowLL['config_value'] !== '0');
+        // Config-file override (auth.local_login_enabled) takes precedence over the DB
+        // toggle: it's a no-SQL, file-only break-glass control. null = key absent from
+        // config.php, so we defer to the database setting exactly as before.
+        $cfgLocalLogin = Config::getInstance()->get('auth.local_login_enabled', null);
+        if ($cfgLocalLogin !== null) {
+            $localLoginEnabled = (bool)$cfgLocalLogin;
+        } else {
+            $rowLL = $cfgDb->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'local_login_enabled'");
+            if ($rowLL !== null && isset($rowLL['config_value'])) {
+                $localLoginEnabled = ((string)$rowLL['config_value'] !== '0');
+            }
         }
         $rowBG = $cfgDb->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'break_glass_admin_username'");
         if ($rowBG !== null && !empty($rowBG['config_value'])) {

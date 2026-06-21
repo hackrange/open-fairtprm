@@ -1409,6 +1409,29 @@ $csrfToken = $security->getCSRFToken();
 <div class="doc-section" id="admin-saml">
     <h2>SAML / SSO</h2>
     <p>Configure Single Sign-On using SAML 2.0. Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">SAML</span>. This allows users to log in using your organization's identity provider (Okta, Azure AD, etc.).</p>
+    <ol class="steps">
+        <li>Tick <span class="field-label">Enable SAML 2.0</span>.</li>
+        <li>Fill in every required Identity Provider field (<span class="field-label">IdP Entity ID</span>, <span class="field-label">IdP Single Sign-On URL</span>, <span class="field-label">IdP X.509 Certificate</span>) and Service Provider field (<span class="field-label">SP Entity ID</span>, <span class="field-label">SP ACS URL</span>). SSO only activates once <strong>all</strong> of these are filled in &mdash; a partially completed form stays disabled.</li>
+        <li>Click <span class="btn-label">Save</span>.</li>
+    </ol>
+
+    <h3>Running local login and SSO together</h3>
+    <p>By default, enabling SSO does <strong>not</strong> turn off the local username/password form &mdash; the login page shows a <strong>Sign in with SSO</strong> button <em>and</em> a local sign-in option, so both work side by side. The behaviour is controlled by a single local-login switch:</p>
+    <table>
+        <tr><th>Mode</th><th>What users see</th></tr>
+        <tr><td><strong>Local login enabled</strong> (default)</td><td>SSO button <em>and</em> the username/password form. Use this to run both at once.</td></tr>
+        <tr><td><strong>Local login disabled</strong> (SSO-only)</td><td>SSO is the only path for normal users. The designated <strong>break-glass admin</strong> account can still sign in locally, so a broken identity provider can never lock everyone out.</td></tr>
+    </table>
+    <p>If SAML is not actually configured, the switch is ignored and local login always stays available (anti-lockout safety net).</p>
+
+    <h3>Controlling local login from the config file <span class="new-badge">New in 2.6.1</span></h3>
+    <p>The local-login switch can be set two ways. The config-file setting, when present, takes precedence over the database toggle &mdash; handy as a break-glass control because it needs no database access or admin UI.</p>
+    <table>
+        <tr><th>Where</th><th>How</th></tr>
+        <tr><td>Admin UI / database</td><td>The local-login toggle saved on the <span class="menu-label">Admin</span> &rarr; <span class="menu-label">SAML</span> page.</td></tr>
+        <tr><td>Config file (wins if set)</td><td>In <code>config/config.php</code>, under the <code>auth</code> block, set <code>'local_login_enabled' =&gt; true</code> to keep local login always available (both local + SSO), or <code>false</code> for SSO-only. Remove the line to defer to the Admin/database setting. Restart the container for the change to take effect.</td></tr>
+    </table>
+    <p>So to run <strong>both local login and SSO</strong> with no database changes: configure SAML as above, then set <code>'local_login_enabled' =&gt; true</code> in <code>config.php</code>.</p>
 </div>
 
 <div class="doc-section" id="admin-ai">

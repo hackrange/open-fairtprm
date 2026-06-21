@@ -63,6 +63,15 @@ return [
         // and /login.php returns 404. If SAML is NOT configured, this flag is ignored so admins
         // can still get in via local login (lockout safety net).
         'force_saml' => false,
+        // Break-glass override for the database `local_login_enabled` toggle (admin > SAML).
+        // Lets you control local login from this file alone -- no SQL, no admin UI -- which is
+        // handy as an anti-lockout safety net when SSO is misbehaving.
+        //   true  = local username/password login is ALWAYS available, alongside SSO (both on)
+        //   false = SSO-only mode (only the break-glass admin may use local login)
+        // When this key is present it WINS over the database setting. Comment it out (or remove
+        // it) to defer to the database toggle, which is the default behavior. SAML must actually
+        // be configured for this to matter; with no SAML, local login is always available anyway.
+        'local_login_enabled' => true,
         'session_lifetime' => 3600, // 1 hour in seconds. Adjust for paranoia level.
         'session_name' => '__Host-tprm_session',  // __Host- prefix enforces Secure, no Domain, Path=/
         'max_login_attempts' => 5,         // 5 strikes and you're locked out
