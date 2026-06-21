@@ -1424,14 +1424,20 @@ $csrfToken = $security->getCSRFToken();
     </table>
     <p>If SAML is not actually configured, the switch is ignored and local login always stays available (anti-lockout safety net).</p>
 
-    <h3>Controlling local login from the config file <span class="new-badge">New in 2.6.1</span></h3>
-    <p>The local-login switch can be set two ways. The config-file setting, when present, takes precedence over the database toggle &mdash; handy as a break-glass control because it needs no database access or admin UI.</p>
+    <h3>Break-glass: allow SAML and local login together (config file) <span class="new-badge">New in 2.6.1</span></h3>
+    <p>The local-login switch can be set two ways. The config-file setting, when present, <strong>takes precedence over the database toggle</strong> &mdash; a break-glass control that needs no database access and no admin UI, so you can always restore local login even if SSO is misbehaving.</p>
     <table>
         <tr><th>Where</th><th>How</th></tr>
         <tr><td>Admin UI / database</td><td>The local-login toggle saved on the <span class="menu-label">Admin</span> &rarr; <span class="menu-label">SAML</span> page.</td></tr>
         <tr><td>Config file (wins if set)</td><td>In <code>config/config.php</code>, under the <code>auth</code> block, set <code>'local_login_enabled' =&gt; true</code> to keep local login always available (both local + SSO), or <code>false</code> for SSO-only. Remove the line to defer to the Admin/database setting. Restart the container for the change to take effect.</td></tr>
     </table>
-    <p>So to run <strong>both local login and SSO</strong> with no database changes: configure SAML as above, then set <code>'local_login_enabled' =&gt; true</code> in <code>config.php</code>.</p>
+    <p>To run <strong>both SAML and local login</strong> with no database changes, configure SAML as above and add this to the <code>auth</code> block of <code>config/config.php</code>, then restart the container:</p>
+    <pre><code>'auth' =&gt; [
+    // ...
+    // Break-glass: true = local login always available alongside SSO;
+    // false = SSO-only (break-glass admin can still log in locally).
+    'local_login_enabled' =&gt; true,
+],</code></pre>
 </div>
 
 <div class="doc-section" id="admin-ai">
@@ -1466,6 +1472,12 @@ $csrfToken = $security->getCSRFToken();
     </div>
     <p class="faq-count" id="faqCount"></p>
     <div id="faqList">
+
+        <details class="faq-item"><summary>Can users sign in with both SSO and a local password at the same time?<span class="faq-tag">SSO</span></summary>
+            <div class="faq-body"><p>Yes. Enabling SAML/SSO does <strong>not</strong> turn off local login by default &mdash; the login page shows a <strong>Sign in with SSO</strong> button and a local username/password option together. To guarantee local login stays available no matter what the database toggle says, set <code>'local_login_enabled' =&gt; true</code> in the <code>auth</code> block of <code>config/config.php</code> (a no-SQL break-glass control) and restart the container. To make it SSO-only, set it to <code>false</code> &mdash; the break-glass admin can still log in locally. See <a href="#admin-saml">SAML / SSO</a>.</p></div></details>
+
+        <details class="faq-item"><summary>SSO is misconfigured and no one can log in. How do I get back in?<span class="faq-tag">SSO</span></summary>
+            <div class="faq-body"><p>Use the break-glass control: in <code>config/config.php</code>, under the <code>auth</code> block, set <code>'local_login_enabled' =&gt; true</code> and restart the container. This re-enables the local username/password form regardless of the database setting, so you can sign in and fix the SAML configuration. See <a href="#admin-saml">SAML / SSO</a>.</p></div></details>
 
         <details class="faq-item"><summary>How do I change the language of the platform?<span class="faq-tag">Language</span></summary>
             <div class="faq-body"><p>Click <strong>Profile</strong> (top-right), open the <strong>Language Preference</strong> card, choose your language, and click <strong>Update Language</strong>. This only changes your own screen. See <a href="#language">Changing Your Language</a>.</p></div></details>
