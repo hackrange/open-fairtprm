@@ -5649,6 +5649,34 @@ UPDATE `app_config` SET `config_value` = 'daily' WHERE `config_key` = 'grip_cron
 UPDATE `app_config` SET `config_value` = '0'     WHERE `config_key` = 'grip_cron_enabled'   AND `config_value` IS NULL;
 UPDATE `app_config` SET `config_value` = ''      WHERE `config_key` = 'grip_api_token'      AND `config_value` IS NULL;
 
+-- Shared Shadow SaaS rehydration schedule. Replaces the old grip_cron_* card,
+-- which only rendered a copy-paste crontab hint and was never installed. Stored
+-- under the cron_* convention so includes/cron-jobs.php's regenerateCrontab()
+-- installs it as the hidden `shadow_saas_rehydrate` job (managed on the Shadow
+-- SaaS admin page, not the Scheduler page). Seeded DISABLED: the old schedule
+-- never actually ran, so we require an explicit opt-in rather than silently
+-- starting a now-functional cron job on upgrade. INSERT IGNORE preserves any
+-- value an admin already set.
+INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) VALUES
+  ('cron_shadow_saas_rehydrate_enabled',  '0',         0),
+  ('cron_shadow_saas_rehydrate_schedule', '0 2 * * *', 0);
+
+-- Carry over the operator's old cadence preference (grip_cron_frequency) to the
+-- new schedule, best-effort, ONLY while the new schedule is still at its seeded
+-- default — so it never overwrites a value set on the new card, and re-running is
+-- safe. The enabled flag is intentionally NOT migrated (see above). MySQL/MariaDB
+-- compatible (multi-table UPDATE + CASE).
+UPDATE `app_config` `dst`
+  JOIN `app_config` `fr` ON `fr`.`config_key` = 'grip_cron_frequency'
+  SET `dst`.`config_value` = CASE `fr`.`config_value`
+        WHEN 'hourly'    THEN '0 * * * *'
+        WHEN 'every_6h'  THEN '0 */6 * * *'
+        WHEN 'every_12h' THEN '0 */12 * * *'
+        WHEN 'weekly'    THEN '0 2 * * 0'
+        ELSE '0 2 * * *' END
+  WHERE `dst`.`config_key` = 'cron_shadow_saas_rehydrate_schedule'
+    AND `dst`.`config_value` = '0 2 * * *';
+
 -- shadow_saas.status: ensure the enum includes 'unsanctioned'. Earlier installs
 -- only had ('pending','onboarded','dismissed'); the Deny button in shadow-saas.php
 -- now flips rows to 'unsanctioned' as a local equivalent of Grip's sanctionTag.

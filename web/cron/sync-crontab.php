@@ -37,24 +37,12 @@ try {
 $db = Database::getInstance();
 
 // -------------------------------------------------------------------------
-// Job definitions — keep in sync with includes/admin/scheduler.php
+// Job definitions — SINGLE SOURCE OF TRUTH in includes/cron-jobs.php, shared
+// with includes/admin/scheduler.php and the Shadow SaaS admin page so the
+// crontab can never drift from the UI. 'hidden' jobs are still installed here.
 // -------------------------------------------------------------------------
-$cronJobs = [
-    'ai_queue'             => ['script' => 'ai-queue.php',                    'log' => '/var/log/php/cron-ai-queue.log',                 'default_schedule' => '* * * * *'],
-    'rescore_queue'        => ['script' => 'rescore-queue.php',              'log' => '/var/log/php/cron-rescore-queue.log',            'default_schedule' => '* * * * *'],
-    'breach_scan_queue'    => ['script' => 'breach-scan-queue.php',          'log' => '/var/log/php/cron-breach-scan-queue.log',        'default_schedule' => '* * * * *',   'timeout' => 1800],
-    'srs_rescore'          => ['script' => 'srs-rescore.php',                'log' => '/var/log/php/cron-srs-rescore.log',              'default_schedule' => '0 * * * *'],
-    'annual_review'        => ['script' => 'annual-review-reminders.php',    'log' => '/var/log/php/cron-annual-review.log',            'default_schedule' => '0 2 * * *'],
-    'contract_expiry'      => ['script' => 'contract-expiry-reminders.php',  'log' => '/var/log/php/cron-contract-expiry.log',          'default_schedule' => '0 3 * * *'],
-    'assessment_reminders' => ['script' => 'assessment-reminders.php',       'log' => '/var/log/php/cron-assessment-reminders.log',     'default_schedule' => '0 4 * * *'],
-    'grc_policy_reminders' => ['script' => 'grc-policy-reminders.php',       'log' => '/var/log/php/cron-grc-policy-reminders.log',     'default_schedule' => '0 5 * * *'],
-    'grc_monitors'         => ['script' => 'grc-continuous-monitors.php',    'log' => '/var/log/php/cron-grc-monitors.log',             'default_schedule' => '*/5 * * * *'],
-    'grc_task_digest'      => ['script' => 'grc-task-digest.php',            'log' => '/var/log/php/cron-grc-task-digest.log',          'default_schedule' => '0 6 * * *'],
-    'breach_monitor'       => ['script' => 'breach-monitor.php',             'log' => '/var/log/php/cron-breach-monitor.log',           'default_schedule' => '0 7 * * *',   'timeout' => 1800],
-    'osint_company'        => ['script' => 'osint-company.php',              'log' => '/var/log/php/cron-osint-company.log',            'default_schedule' => '0 8 * * *',   'timeout' => 600],
-    'osint_vendors'        => ['script' => 'osint-vendors.php',              'log' => '/var/log/php/cron-osint-vendors.log',            'default_schedule' => '0 2 * * 0',   'timeout' => 7200],
-    'procurement_digest'   => ['script' => 'procurement-digest.php',         'log' => '/var/log/php/cron-procurement-digest.log',       'default_schedule' => '0 7 * * 1',   'timeout' => 600],
-];
+require_once APP_ROOT . '/includes/cron-jobs.php';
+$cronJobs = cronJobDefinitions();
 
 // -------------------------------------------------------------------------
 // Read cron config from database

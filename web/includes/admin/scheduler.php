@@ -20,131 +20,14 @@
 // ============================================================================
 // Job Definitions
 // ============================================================================
-// NOTE: This list MUST stay in sync with cron/sync-crontab.php — same keys,
-// scripts, default schedules, and timeout values. sync-crontab.php is the
-// canonical generator run at container start; this array drives the admin UI
-// and regenerateCrontab() below. If they diverge, jobs missing here silently
-// vanish from the UI and get dropped from the crontab the next time an admin
-// clicks "Save Schedules".
-$cronJobs = [
-    'ai_queue' => [
-        'name'            => 'AI Job Queue',
-        'description'     => "Processes queued AI tasks so long-running AI calls don't block web workers",
-        'script'          => 'ai-queue.php',
-        'log'             => '/var/log/php/cron-ai-queue.log',
-        'default_schedule' => '* * * * *',
-        'history_key'     => 'ai-queue',
-    ],
-    'rescore_queue' => [
-        'name'            => 'Rescore Queue',
-        'description'     => 'Processes the UpGuard SRS rescore queue',
-        'script'          => 'rescore-queue.php',
-        'log'             => '/var/log/php/cron-rescore-queue.log',
-        'default_schedule' => '* * * * *',
-        'history_key'     => 'rescore-queue',
-    ],
-    'breach_scan_queue' => [
-        'name'            => 'Breach Scan Queue',
-        'description'     => 'Processes on-demand breach scan requests from the "Run Scan Now" button',
-        'script'          => 'breach-scan-queue.php',
-        'log'             => '/var/log/php/cron-breach-scan-queue.log',
-        'default_schedule' => '* * * * *',
-        'timeout'         => 1800,
-        'history_key'     => 'breach-scan-queue',
-    ],
-    'srs_rescore' => [
-        'name'            => 'SRS Rescoring',
-        'description'     => 'Scheduled UpGuard SRS rescoring for all vendors',
-        'script'          => 'srs-rescore.php',
-        'log'             => '/var/log/php/cron-srs-rescore.log',
-        'default_schedule' => '0 * * * *',
-        'history_key'     => 'srs-rescore',
-    ],
-    'annual_review' => [
-        'name'            => 'Annual Review Reminders',
-        'description'     => 'Sends reminder emails for upcoming annual reviews',
-        'script'          => 'annual-review-reminders.php',
-        'log'             => '/var/log/php/cron-annual-review.log',
-        'default_schedule' => '0 2 * * *',
-        'history_key'     => 'annual-review-reminders',
-    ],
-    'contract_expiry' => [
-        'name'            => 'Contract Expiry Reminders',
-        'description'     => 'Sends reminder emails for expiring contracts',
-        'script'          => 'contract-expiry-reminders.php',
-        'log'             => '/var/log/php/cron-contract-expiry.log',
-        'default_schedule' => '0 3 * * *',
-        'history_key'     => 'contract-expiry-reminders',
-    ],
-    'assessment_reminders' => [
-        'name'            => 'Assessment Reminders',
-        'description'     => 'Sends reminder emails for pending vendor assessments',
-        'script'          => 'assessment-reminders.php',
-        'log'             => '/var/log/php/cron-assessment-reminders.log',
-        'default_schedule' => '0 4 * * *',
-        'history_key'     => 'assessment-reminders',
-    ],
-    'grc_policy_reminders' => [
-        'name'            => 'GRC Policy Reminders',
-        'description'     => 'Sends reminder emails for policies due for review and unacknowledged policies',
-        'script'          => 'grc-policy-reminders.php',
-        'log'             => '/var/log/php/cron-grc-policy-reminders.log',
-        'default_schedule' => '0 5 * * *',
-        'history_key'     => 'grc-policy-reminders',
-    ],
-    'grc_monitors' => [
-        'name'            => 'GRC Continuous Monitors',
-        'description'     => 'Runs due continuous monitors, collects evidence, and updates compliance status',
-        'script'          => 'grc-continuous-monitors.php',
-        'log'             => '/var/log/php/cron-grc-monitors.log',
-        'default_schedule' => '*/5 * * * *',
-        'history_key'     => 'grc-continuous-monitors',
-    ],
-    'grc_task_digest' => [
-        'name'            => 'GRC Task Digest',
-        'description'     => 'Emails each assignee a consolidated digest of their open GRC tasks',
-        'script'          => 'grc-task-digest.php',
-        'log'             => '/var/log/php/cron-grc-task-digest.log',
-        'default_schedule' => '0 6 * * *',
-        'history_key'     => 'grc-task-digest',
-    ],
-    'breach_monitor' => [
-        'name'            => 'Breach / Cyber Alert Monitor',
-        'description'     => 'Researches credible breaches and vulnerabilities affecting monitored vendors',
-        'script'          => 'breach-monitor.php',
-        'log'             => '/var/log/php/cron-breach-monitor.log',
-        'default_schedule' => '0 7 * * *',
-        'timeout'         => 1800,
-        'history_key'     => 'breach-monitor',
-    ],
-    'osint_company' => [
-        'name'            => 'OSINT Company Scanner',
-        'description'     => 'Scans GitHub for exposed credentials tied to your own organization domains',
-        'script'          => 'osint-company.php',
-        'log'             => '/var/log/php/cron-osint-company.log',
-        'default_schedule' => '0 8 * * *',
-        'timeout'         => 600,
-        'history_key'     => 'osint-company',
-    ],
-    'osint_vendors' => [
-        'name'            => 'OSINT Vendor Scanner',
-        'description'     => 'Weekly GitHub scan for exposed credentials across all monitored vendor domains',
-        'script'          => 'osint-vendors.php',
-        'log'             => '/var/log/php/cron-osint-vendors.log',
-        'default_schedule' => '0 2 * * 0',
-        'timeout'         => 7200,
-        'history_key'     => 'osint-vendors',
-    ],
-    'procurement_digest' => [
-        'name'            => 'Procurement Update Digest',
-        'description'     => 'Emails a weekly digest of vendors in review with their latest procurement update',
-        'script'          => 'procurement-digest.php',
-        'log'             => '/var/log/php/cron-procurement-digest.log',
-        'default_schedule' => '0 7 * * 1',
-        'timeout'         => 600,
-        'history_key'     => 'procurement-digest',
-    ],
-];
+// Canonical job definitions + crontab helpers live in includes/cron-jobs.php so
+// scheduler.php, cron/sync-crontab.php, and the Shadow SaaS admin page all share
+// ONE source of truth (no more hand-synced duplicate arrays). The require below
+// also defines regenerateCrontab()/isValidCronExpression()/describeCron(); the
+// guarded copies further down this file are therefore skipped (kept only as a
+// fallback if this file is somehow loaded standalone).
+require_once __DIR__ . '/../cron-jobs.php';
+$cronJobs = cronJobDefinitions();
 
 // ============================================================================
 // Helper: Regenerate /etc/cron.d/open-tprm from DB config
@@ -309,6 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$validationError) {
             // Validate all schedules first
             foreach ($cronJobs as $key => $job) {
+                if (!empty($job['hidden'])) { continue; } // managed on its own admin page
                 $schedule = trim($_POST["schedule_{$key}"] ?? $job['default_schedule']);
                 if (!isValidCronExpression($schedule)) {
                     $error = 'Invalid cron expression for ' . e($job['name']) . ': must be 5 space-separated fields (e.g. 0 4 * * *)';
@@ -334,6 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Save each job's config
                 foreach ($cronJobs as $key => $job) {
+                    if (!empty($job['hidden'])) { continue; } // managed on its own admin page
                     $enabled  = isset($_POST["enabled_{$key}"]) ? '1' : '0';
                     $schedule = trim($_POST["schedule_{$key}"] ?? $job['default_schedule']);
 
@@ -418,6 +303,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Load current config from app_config (seed defaults if missing)
 $jobConfigs = [];
 foreach ($cronJobs as $key => $job) {
+    if (!empty($job['hidden'])) { continue; } // managed on its own admin page (e.g. Shadow SaaS)
     $enabled  = getAppConfig("cron_{$key}_enabled", null);
     $schedule = getAppConfig("cron_{$key}_schedule", null);
 
@@ -545,6 +431,7 @@ $timezones = timezone_identifiers_list();
                 </thead>
                 <tbody>
                     <?php foreach ($cronJobs as $key => $job):
+                        if (!empty($job['hidden'])) { continue; } // managed on its own admin page (e.g. Shadow SaaS)
                         $cfg = $jobConfigs[$key];
                         $lastExec = $lastExecutions[$job['history_key']] ?? null;
                     ?>

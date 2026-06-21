@@ -15,6 +15,10 @@
 
 require_once __DIR__ . '/../classes/GripService.php';
 require_once __DIR__ . '/../classes/ZscalerService.php';
+// Shared cron-job definitions + regenerateCrontab()/isValidCronExpression()/
+// describeCron(). The "Scheduled Rehydration" card manages the hidden
+// shadow_saas_rehydrate job (registered here) directly from this page.
+require_once __DIR__ . '/../cron-jobs.php';
 
 $shadowTab = $_GET['shadow_tab'] ?? 'grip';
 if (!in_array($shadowTab, ['grip'], true)) {
@@ -64,11 +68,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
                     $settings['grip_api_token'] = $encryption->encrypt($newToken);
                 }
             } else { // 'schedule'
-                $settings['grip_cron_enabled'] = isset($_POST['grip_cron_enabled']) ? '1' : '0';
-                $cronFreqRaw = $_POST['grip_cron_frequency'] ?? 'daily';
-                $settings['grip_cron_frequency'] = in_array($cronFreqRaw, ['hourly','every_6h','every_12h','daily','weekly'], true)
-                    ? $cronFreqRaw
-                    : 'daily';
+                // Shared rehydration schedule. Stored under the cron_* convention
+                // (cron_<key>_enabled / cron_<key>_schedule) so regenerateCrontab()
+                // installs it exactly like every other job, and edited here instead
+                // of on the Scheduler page (the job is 'hidden' there).
+                $schedule = trim($_POST['rehydrate_schedule'] ?? '0 2 * * *');
+                if (!isValidCronExpression($schedule)) {
+                    throw new Exception('Invalid cron expression: must be 5 space-separated fields (e.g. 0 2 * * *).');
+                }
+                $settings['cron_shadow_saas_rehydrate_enabled']  = isset($_POST['rehydrate_enabled']) ? '1' : '0';
+                $settings['cron_shadow_saas_rehydrate_schedule'] = $schedule;
             }
 
             foreach ($settings as $key => $value) {
@@ -85,9 +94,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
 
             $db->commit();
             $auth->audit($user['id'], 'config_update_grip', 'app_config', null, ['form' => $formId, 'new' => $settings]);
-            $success = $formId === 'schedule'
-                ? 'Grip schedule updated successfully.'
-                : 'Grip configuration updated successfully.';
+            if ($formId === 'schedule') {
+                // Install/refresh the crontab so the schedule change takes effect
+                // immediately (same mechanism the Scheduler page uses).
+                if (regenerateCrontab($db, cronJobDefinitions())) {
+                    $success = 'Rehydration schedule updated and crontab refreshed.';
+                } else {
+                    $error = 'Schedule saved, but failed to write /etc/cron.d/open-tprm. Check permissions.';
+                }
+            } else {
+                $success = 'Grip configuration updated successfully.';
+            }
         } catch (Throwable $e) {
             try { $db->rollback(); } catch (Throwable $e2) {}
             error_log('Error updating Grip config: ' . $e->getMessage());
@@ -215,13 +232,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_grip_now'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = 'Invalid request. Please try again.';
     } else {
-        $cronScript = realpath(__DIR__ . '/../../cron/grip-sync.php');
+        $cronScript = realpath(__DIR__ . '/../../cron/shadow-saas-sync.php');
         if (!$cronScript || !is_file($cronScript)) {
-            $error = 'Grip sync script not found at cron/grip-sync.php.';
+            $error = 'Shadow SaaS sync script not found at cron/shadow-saas-sync.php.';
         } else {
-            $logDir = '/var/log/tprm';
-            @mkdir($logDir, 0755, true);
-            $logFile = is_dir($logDir) && is_writable($logDir) ? $logDir . '/grip-sync.log' : '/tmp/fairtprm-grip-sync.log';
+            $logFile = '/var/log/php/cron-shadow-saas-rehydrate.log';
             $cmd = sprintf(
                 'nohup /usr/bin/php %s --manual --user-id=%d --verbose >> %s 2>&1 &',
                 escapeshellarg($cronScript),
@@ -237,8 +252,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_grip_now'])) {
                 if (isset($_gsPipes[2])) { fclose($_gsPipes[2]); }
                 proc_close($_gsProc);
             }
-            $auth->audit($user['id'], 'grip_run_now', 'shadow_saas_grip_sync_log', null, ['log_file' => $logFile]);
-            $success = 'Grip hydration started in the background. Refresh in a few seconds to see the latest run.';
+            $auth->audit($user['id'], 'shadow_saas_run_now', 'shadow_saas_grip_sync_log', null, ['log_file' => $logFile]);
+            $success = 'Shadow SaaS rehydration started in the background. Refresh in a few seconds to see the latest run.';
         }
     }
 }
@@ -282,15 +297,15 @@ foreach ([['shadow_saas_grip_apps','apps'],['shadow_saas_grip_users','users'],['
     try { $r = $db->fetchOne("SELECT COUNT(*) AS cnt FROM {$tbl}"); $counts[$key] = (int)($r['cnt'] ?? 0); } catch (Throwable $e) {}
 }
 
-$cronCommand = '* * * * * /usr/bin/php ' . dirname(dirname(__DIR__)) . '/cron/grip-sync.php >> /var/log/tprm/grip-sync.log 2>&1';
-switch ($gripCfg['cron_frequency']) {
-    case 'hourly':    $cronCommand = '0 * * * * /usr/bin/php ' . dirname(dirname(__DIR__)) . '/cron/grip-sync.php >> /var/log/tprm/grip-sync.log 2>&1'; break;
-    case 'every_6h':  $cronCommand = '0 */6 * * * /usr/bin/php ' . dirname(dirname(__DIR__)) . '/cron/grip-sync.php >> /var/log/tprm/grip-sync.log 2>&1'; break;
-    case 'every_12h': $cronCommand = '0 */12 * * * /usr/bin/php ' . dirname(dirname(__DIR__)) . '/cron/grip-sync.php >> /var/log/tprm/grip-sync.log 2>&1'; break;
-    case 'weekly':    $cronCommand = '0 2 * * 0 /usr/bin/php ' . dirname(dirname(__DIR__)) . '/cron/grip-sync.php >> /var/log/tprm/grip-sync.log 2>&1'; break;
-    case 'daily':
-    default:          $cronCommand = '0 2 * * * /usr/bin/php ' . dirname(dirname(__DIR__)) . '/cron/grip-sync.php >> /var/log/tprm/grip-sync.log 2>&1'; break;
-}
+// Shared rehydration schedule — stored under the cron_* convention and installed
+// into the system crontab as the hidden shadow_saas_rehydrate job. Defaults match
+// the SQL seed (disabled, daily 2am) for the case where the keys aren't set yet.
+$rehydrateEnabled  = '0';
+$rehydrateSchedule = '0 2 * * *';
+$rrEn = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'cron_shadow_saas_rehydrate_enabled'");
+if ($rrEn && isset($rrEn['config_value'])) { $rehydrateEnabled = (string)$rrEn['config_value']; }
+$rrSc = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'cron_shadow_saas_rehydrate_schedule'");
+if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc['config_value']; }
 ?>
 <div class="page-header-bar">
     <h1 class="page-title">Shadow SaaS</h1>
@@ -338,34 +353,25 @@ switch ($gripCfg['cron_frequency']) {
 
 <div class="card">
     <h3>Scheduled Rehydration</h3>
+    <p style="color: #666; line-height: 1.6; margin-top: -4px;">Runs the enabled Shadow SaaS provider on a schedule, refreshing the mirror tables and the Shadow SaaS list. The schedule below is installed into the system crontab automatically &mdash; no manual crontab editing, and it survives container restarts.</p>
     <form method="POST" action="admin.php?section=shadow-saas">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="grip_form" value="schedule">
         <div class="form-group">
             <label class="checkbox-label">
-                <input type="checkbox" name="grip_cron_enabled" value="1" <?php echo ($gripCfg['cron_enabled'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                <span>Enable scheduled rehydration via cron</span>
+                <input type="checkbox" name="rehydrate_enabled" value="1" <?php echo $rehydrateEnabled === '1' ? 'checked' : ''; ?>>
+                <span>Enable scheduled rehydration</span>
             </label>
-            <div class="form-help">When enabled, the cron job below should be installed on the host. The job runs <code>cron/grip-sync.php</code> and refreshes both the mirror tables and the Shadow SaaS list.</div>
+            <div class="form-help">When enabled, the job is installed into the system crontab and runs on the schedule below. A lock file prevents overlapping runs. The run uses whichever provider is enabled.</div>
         </div>
         <div class="form-group" style="max-width: 400px;">
-            <label for="grip_cron_frequency">Run frequency</label>
-            <select id="grip_cron_frequency" name="grip_cron_frequency" class="form-control">
-                <option value="hourly"    <?php echo ($gripCfg['cron_frequency'] === 'hourly')    ? 'selected' : ''; ?>>Hourly</option>
-                <option value="every_6h"  <?php echo ($gripCfg['cron_frequency'] === 'every_6h')  ? 'selected' : ''; ?>>Every 6 hours</option>
-                <option value="every_12h" <?php echo ($gripCfg['cron_frequency'] === 'every_12h') ? 'selected' : ''; ?>>Every 12 hours</option>
-                <option value="daily"     <?php echo ($gripCfg['cron_frequency'] === 'daily')     ? 'selected' : ''; ?>>Daily (2am)</option>
-                <option value="weekly"    <?php echo ($gripCfg['cron_frequency'] === 'weekly')    ? 'selected' : ''; ?>>Weekly (Sun 2am)</option>
-            </select>
-        </div>
-        <div style="margin-top: 8px;">
-            <div style="font-weight: 500; font-size: 13px; color: #374151; margin-bottom: 6px;">Crontab entry</div>
-            <div style="background: #1e1e1e; color: #d4d4d4; padding: 10px 12px; border-radius: 4px; font-family: monospace; font-size: 12px; overflow-x: auto;"><?php echo e($cronCommand); ?></div>
-            <div class="form-help">Add this entry to your system crontab to enable scheduled rehydration. Lock files prevent overlapping runs.</div>
+            <label for="rehydrate_schedule">Schedule (cron expression)</label>
+            <input type="text" id="rehydrate_schedule" name="rehydrate_schedule" class="form-control" style="font-family: monospace;" value="<?php echo e($rehydrateSchedule); ?>" placeholder="0 2 * * *">
+            <div class="form-help">Five-field cron expression, evaluated in the Scheduler's timezone. Currently: <strong><?php echo e(describeCron($rehydrateSchedule)); ?></strong>. Examples: <code>0 2 * * *</code> (daily 2am), <code>0 */6 * * *</code> (every 6 hours), <code>0 2 * * 0</code> (weekly Sun 2am).</div>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 14px; align-items: center; flex-wrap: wrap;">
             <button type="submit" name="update_grip" class="btn btn-primary">Save Schedule</button>
-            <button type="submit" name="run_grip_now" class="btn btn-secondary" onclick="return confirm('Kick off a Grip rehydration now? It runs in the background; refresh this page in a few seconds to see the result.');">Run Now</button>
+            <button type="submit" name="run_grip_now" class="btn btn-secondary" onclick="return confirm('Kick off a Shadow SaaS rehydration now? It runs in the background; refresh this page in a few seconds to see the result.');">Run Now</button>
             <?php if ($lastSync): ?>
                 <span style="color: #6b7280; font-size: 13px;">Last run: <strong><?php echo e($lastSync['started_at']); ?></strong> &middot; status: <span class="badge <?php echo $lastSync['status'] === 'success' ? 'badge-success' : ($lastSync['status'] === 'error' ? 'badge-danger' : 'badge-blue'); ?>"><?php echo e($lastSync['status']); ?></span></span>
             <?php endif; ?>

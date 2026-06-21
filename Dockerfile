@@ -59,6 +59,7 @@ RUN set -e; \
     cp -p  $pp/app/js/phone-input.js $pp/app/js/vat-input.js $pp/app/js/template-builder.js /var/www/html/app/js/; \
     \
     cp -p  $pp/sidebar_nav.php $pp/init.php $pp/FairCalculator.php $pp/contact-fields.php \
+           $pp/cron-jobs.php \
            /var/www/html/includes/; \
     \
     cp -p  $pp/email.php $pp/fair-defaults.php $pp/field-reference.php \
@@ -149,6 +150,7 @@ RUN set -e; \
     for f in \
         /var/www/html/includes/sidebar_nav.php \
         /var/www/html/includes/init.php \
+        /var/www/html/includes/cron-jobs.php \
         /var/www/html/includes/FairCalculator.php \
         /var/www/html/includes/admin/email.php \
         /var/www/html/includes/admin/fair-defaults.php \
@@ -219,6 +221,7 @@ RUN set -e; \
         /var/www/html/cron/osint-company.php \
         /var/www/html/cron/osint-vendors.php \
         /var/www/html/cron/sync-crontab.php \
+        /var/www/html/cron/shadow-saas-sync.php \
         /var/www/html/cron/grc-task-digest.php \
         /var/www/html/cron/procurement-digest.php \
         /var/www/html/app/grip-reference/grip-openapi.yaml \
