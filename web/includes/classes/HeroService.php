@@ -36,7 +36,11 @@ class HeroService
     private const PAGE_SIZE = 250;
     private const REQUEST_TIMEOUT = 30;
     private const MAX_RETRIES = 5;          // 429 backoff attempts per request
-    private const THROTTLE_USEC = 200000;   // 200ms between per-vendor calls to avoid 429s
+    // HERO's limit is ~60 requests / 60s (account-wide, all endpoints), returning
+    // Retry-After: 50 on 429. Pace per-vendor calls at ~1.1s (~55/min) to stay
+    // under the cap and avoid 429 churn — the quota is the real floor anyway
+    // (671 vendors / 60-per-min ≈ 11 min minimum).
+    private const THROTTLE_USEC = 1100000;  // 1.1s between per-vendor calls
 
     // Worst-severity ranking + the 1-5 risk score we STORE (in the DB, not just a
     // UX transform) so Hero matches the same 1-5 scale Grip uses.
@@ -168,7 +172,8 @@ class HeroService
 
         // Rate limited — honour Retry-After (capped) or exponential backoff, then retry.
         if ($code === 429 && $attempt <= self::MAX_RETRIES) {
-            $sleep = $retryAfter > 0 ? min($retryAfter, 30) : min((int)pow(2, $attempt), 30);
+            // Honour Retry-After fully (HERO sends 50); cap at 60s as a safety net.
+            $sleep = $retryAfter > 0 ? min($retryAfter, 60) : min((int)pow(2, $attempt), 60);
             sleep(max(1, $sleep));
             return $this->request($path, $query, $attempt + 1);
         }
