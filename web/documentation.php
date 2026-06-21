@@ -457,7 +457,8 @@ $csrfToken = $security->getCSRFToken();
         <tr><td><strong><a href="#onboarding-workflow">Procurement Onboarding &amp; Vendor ID</a></strong></td><td>A vendor must be onboarded through procurement and have a valid Vendor ID (VID) before it can be submitted for cyber review.</td><td>Procurement, Stakeholders</td></tr>
         <tr><td><strong><a href="#ai-review">AI Review for vendors</a></strong></td><td>A dedicated review status for vendors whose services use AI, plus a "Force AI Review" action.</td><td>Cyber TPRM, Admins</td></tr>
         <tr><td><strong><a href="#procurement-cyber-status">Procurement Cyber Status</a></strong></td><td>A live page showing vendors in review, with a running history of updates the cyber team shares with procurement, plus a weekly email digest.</td><td>Procurement, Cyber TPRM</td></tr>
-        <tr><td><strong><a href="#shadow-saas-grip">Grip Security integration</a></strong></td><td>Automatically discover SaaS apps used across your organization and pull them into the Shadow SaaS list.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#shadow-saas-grip">Grip Shadow SaaS integration</a></strong></td><td>Automatically discover SaaS apps used across your organization and pull them into the Shadow SaaS list.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#shadow-saas-hero">Hero Shadow SaaS integration</a></strong></td><td>An alternative Shadow SaaS provider: discover vendors and security issues from HERO Security and feed them into the same Shadow SaaS list. Grip and Hero are mutually exclusive &mdash; use one or the other.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#zscaler">Zscaler blocking</a></strong></td><td>Block an unsanctioned app's web domain directly in Zscaler with one click.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#admin-updates">In-app upgrades</a></strong></td><td>Check your registry for a newer version and upgrade from inside the Admin Portal.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#question-types">Phone &amp; VAT question types</a></strong></td><td>New assessment/onboarding field types: a phone number with a country-code &amp; flag picker (auto-formatted), and an EU VAT number with double entry and free live validation against the official EU VIES service.</td><td>Everyone</td></tr>
@@ -1196,7 +1197,7 @@ $csrfToken = $security->getCSRFToken();
 
 <div class="doc-section" id="tprm-shadow-saas">
     <h2>Shadow SaaS Discovery</h2>
-    <p>Discover SaaS applications being used across your organization that may not have been formally approved or assessed. Navigate to <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>. In v2.6.1 this list can be filled automatically by the <a href="#shadow-saas-grip">Grip Security integration</a>, and unsanctioned apps can be blocked in <a href="#zscaler">Zscaler</a>.</p>
+    <p>Discover SaaS applications being used across your organization that may not have been formally approved or assessed. Navigate to <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>. In v2.6.1 this list can be filled automatically by the <a href="#shadow-saas-grip">Grip</a> or <a href="#shadow-saas-hero">Hero</a> Shadow SaaS integration, and unsanctioned apps can be blocked in <a href="#zscaler">Zscaler</a>.</p>
 </div>
 
 
@@ -1318,9 +1319,9 @@ $csrfToken = $security->getCSRFToken();
      INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.1)
      ================================================================ -->
 <div class="doc-section" id="shadow-saas-grip">
-    <h2>Grip Security Integration (Shadow SaaS) <span class="new-badge">New in 2.6.1</span></h2>
+    <h2>Grip Shadow SaaS Integration <span class="new-badge">New in 2.6.1</span></h2>
     <p>"Shadow SaaS" means cloud apps that employees use which were never formally approved. <strong>Grip Security</strong> is a service that discovers these apps. In v2.6.1 you can connect your Grip account so the platform automatically pulls in the apps Grip finds &mdash; along with how many people use each one, a risk score, and security alerts &mdash; and lists them on your <a href="#tprm-shadow-saas">Shadow SaaS</a> page.</p>
-    <p>It is configured by an administrator at <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span>.</p>
+    <p>It is configured by an administrator at <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> on the <strong>Grip</strong> tab. Grip is one of two Shadow SaaS providers (the other is <a href="#shadow-saas-hero">Hero</a>); only one can be enabled at a time.</p>
 
     <h3>Connecting Grip (step by step)</h3>
     <ol class="steps">
@@ -1336,11 +1337,7 @@ $csrfToken = $security->getCSRFToken();
     </figure>
 
     <h3>Keeping it up to date automatically</h3>
-    <p>Use the <strong>Scheduled Rehydration</strong> card to have the platform refresh Grip data on a schedule. Tick <span class="field-label">Enable scheduled rehydration via cron</span> and choose a <span class="field-label">Run frequency</span> (Hourly, Every 6 hours, Every 12 hours, Daily, or Weekly). You can also click <span class="btn-label">Run Now</span> to refresh immediately.</p>
-    <figure class="doc-figure">
-        <img src="app/docs/grip-cron-card.png" alt="Scheduled Rehydration settings for Grip" loading="lazy">
-        <figcaption><strong>Scheduled Rehydration.</strong> Choose how often Grip data refreshes, or click <strong>Run Now</strong> for an immediate sync. The exact schedule line shown is the technical command your server runs.</figcaption>
-    </figure>
+    <p>Use the shared <strong>Scheduled Rehydration</strong> card (below the provider tabs) to refresh the enabled provider's data on a schedule. Tick <span class="field-label">Enable scheduled rehydration</span> and enter a <span class="field-label">Schedule (cron expression)</span> &mdash; for example <code>0 2 * * *</code> for daily at 2&nbsp;AM; the card shows a plain-English summary of what you typed. The job is installed into the system scheduler automatically (no manual server steps) and survives restarts. You can also click <span class="btn-label">Run Now</span> to refresh immediately. The same schedule serves whichever provider (Grip or Hero) is currently enabled.</p>
 
     <h3>What you'll see afterward</h3>
     <p>Discovered apps appear on the <span class="menu-label">Shadow SaaS</span> page as <strong>Pending</strong> entries with a risk score (shown on a 1&ndash;5 scale), category, and number of users. From there you can <strong>Allow</strong> an app (which begins onboarding it as a vendor), <strong>Deny</strong> it (mark it unsanctioned, and optionally block it in Zscaler), or <strong>Dismiss</strong> it.</p>
@@ -1348,6 +1345,35 @@ $csrfToken = $security->getCSRFToken();
         <img src="app/docs/shadow-saas.png" alt="Shadow SaaS list page" loading="lazy">
         <figcaption><strong>The Shadow SaaS page.</strong> Discovered and imported apps with their risk and actions. Apps onboarded as vendors are skipped on future syncs, and anything you dismiss stays dismissed.</figcaption>
     </figure>
+</div>
+
+<div class="doc-section" id="shadow-saas-hero">
+    <h2>Hero Shadow SaaS Integration <span class="new-badge">New in 2.6.1</span></h2>
+    <p><strong>HERO Security</strong> is an alternative Shadow SaaS provider. Instead of Grip, you can connect a HERO account and the platform pulls the vendors HERO discovers &mdash; with their status, a risk score, the most-active contact, and a user count &mdash; into the same <a href="#tprm-shadow-saas">Shadow SaaS</a> list. Grip and Hero are <strong>mutually exclusive</strong>: enabling Hero automatically disables Grip (and vice-versa), so the list is always fed by exactly one provider.</p>
+    <p>It is configured by an administrator at <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> on the <strong>Hero</strong> tab.</p>
+
+    <h3>Connecting Hero (step by step)</h3>
+    <ol class="steps">
+        <li>In the HERO admin panel, create an <strong>API client</strong> and copy its <strong>Client ID</strong> and <strong>Client Secret</strong> (the secret is shown only once).</li>
+        <li>In the platform, go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> and open the <strong>Hero</strong> tab to find the <strong>HERO Security Connection</strong> card.</li>
+        <li>Tick <span class="field-label">Enable HERO Security integration</span> (this disables Grip).</li>
+        <li>Leave <span class="field-label">Server (Base URL)</span> as <code>https://api.herosecurity.ai/stable</code> unless told otherwise, and paste your <span class="field-label">Client ID</span> and <span class="field-label">Client Secret</span>.</li>
+        <li>Click <span class="btn-label">Save Configuration</span>, then <span class="btn-label">Test Connection</span>. A success message looks like <em>"Connected to HERO — sample returned 1 record(s)"</em>.</li>
+    </ol>
+
+    <h3>What you'll see afterward</h3>
+    <p>HERO vendors appear on the <span class="menu-label">Shadow SaaS</span> page the same way Grip apps do &mdash; as <strong>Pending</strong> entries you can Allow, Deny, or Dismiss. For each vendor the platform records:</p>
+    <ul>
+        <li><strong>Risk Score (1&ndash;5)</strong> &mdash; derived from the most severe open security issue HERO has for that vendor (critical&nbsp;=&nbsp;5 down to low&nbsp;=&nbsp;2; vendors with no open issues are left unscored). This is the same 1&ndash;5 scale Grip uses.</li>
+        <li><strong>Relationship Manager</strong> &mdash; the vendor's most-active observed contact (the user with the highest email activity).</li>
+        <li><strong>Number of Users</strong> &mdash; how many users were observed interacting with the vendor.</li>
+        <li><strong>Risk Type</strong> &mdash; a summary of HERO's engagement signals (authorization, activity, commercial engagement) and the open-issue count.</li>
+    </ul>
+    <p>Some columns that other sources provide (application category, MFA support, breach history, traffic volumes, file-sharing) are not part of the HERO API, so they remain blank for Hero rows.</p>
+
+    <div class="callout callout-info">
+        <strong>Heads-up on sync time.</strong> HERO returns its data per vendor and rate-limits requests, so a full refresh of a large tenant runs for several minutes in the background. The scheduled job and "Run Now" both pace themselves automatically to stay within HERO's limits.
+    </div>
 </div>
 
 <div class="doc-section" id="zscaler">
@@ -1510,7 +1536,10 @@ $csrfToken = $security->getCSRFToken();
             <div class="faq-body"><p>An administrator turns on the <strong>Procurement Update Digest</strong> under <strong>Admin &rarr; Email Settings</strong> and adds recipient addresses. It is emailed weekly (by default Mondays at 7:00 AM) and can also be sent on demand.</p></div></details>
 
         <details class="faq-item"><summary>What is Grip and what does it do here?<span class="faq-tag">Integrations</span></summary>
-            <div class="faq-body"><p>Grip Security discovers SaaS apps used across your organization. When connected (<strong>Admin &rarr; Shadow SaaS</strong>), the platform automatically pulls those apps, their user counts, risk scores, and alerts into your Shadow SaaS list. See <a href="#shadow-saas-grip">Grip Security Integration</a>.</p></div></details>
+            <div class="faq-body"><p>Grip Security discovers SaaS apps used across your organization. When connected (<strong>Admin &rarr; Shadow SaaS</strong>), the platform automatically pulls those apps, their user counts, risk scores, and alerts into your Shadow SaaS list. See <a href="#shadow-saas-grip">Grip Shadow SaaS Integration</a>.</p></div></details>
+
+        <details class="faq-item"><summary>What's the difference between the Grip and Hero integrations?<span class="faq-tag">Integrations</span></summary>
+            <div class="faq-body"><p>Both feed the same Shadow SaaS list from a third-party discovery service &mdash; Grip Security or HERO Security &mdash; and both share the Zscaler blocking and the Scheduled Rehydration job. They are <strong>mutually exclusive</strong>: enabling one disables the other, so you run whichever provider your organization uses. See <a href="#shadow-saas-hero">Hero Shadow SaaS Integration</a>.</p></div></details>
 
         <details class="faq-item"><summary>My Grip "Test Connection" failed. What should I check?<span class="faq-tag">Integrations</span></summary>
             <div class="faq-body"><p>Confirm the <strong>Server (Tenant Base URL)</strong> ends in <code>/public/saas</code>, that the <strong>API Token</strong> is current, and that your server can reach the Grip endpoint. A token error reports <em>"Unauthorized — token rejected"</em>; a URL error reports <em>"Endpoint not found — check base URL"</em>.</p></div></details>
@@ -1599,7 +1628,8 @@ $csrfToken = $security->getCSRFToken();
         <tr><td><strong>Finding</strong></td><td>An issue discovered during an audit (nonconformity, observation, opportunity, or strength)</td></tr>
         <tr><td><strong>Framework</strong></td><td>A compliance standard like SOC 2, ISO 27001, PCI DSS, etc.</td></tr>
         <tr><td><strong>GRC</strong></td><td>Governance, Risk, and Compliance</td></tr>
-        <tr><td><strong>Grip</strong></td><td>Grip Security &mdash; a service that discovers SaaS apps in use; can feed the Shadow SaaS list (see <a href="#shadow-saas-grip">Grip Integration</a>)</td></tr>
+        <tr><td><strong>Grip</strong></td><td>Grip Security &mdash; a service that discovers SaaS apps in use; can feed the Shadow SaaS list (see <a href="#shadow-saas-grip">Grip Shadow SaaS Integration</a>)</td></tr>
+        <tr><td><strong>Hero</strong></td><td>HERO Security &mdash; an alternative Shadow SaaS discovery service that can feed the Shadow SaaS list (mutually exclusive with Grip; see <a href="#shadow-saas-hero">Hero Shadow SaaS Integration</a>)</td></tr>
         <tr><td><strong>HIPAA</strong></td><td>Health Insurance Portability and Accountability Act &mdash; US healthcare data protection law</td></tr>
         <tr><td><strong>ISO 27001</strong></td><td>International standard for information security management systems</td></tr>
         <tr><td><strong>Maturity Rating</strong></td><td>A 1-4 score indicating how mature a security practice is (1=Ad Hoc, 4=Optimized)</td></tr>
@@ -1672,7 +1702,8 @@ $csrfToken = $security->getCSRFToken();
                     <a href="#onboarding-workflow">Vendor Onboarding</a>
                     <a href="#ai-review">AI Review</a>
                     <a href="#procurement-cyber-status">Procurement Cyber Status</a>
-                    <a href="#shadow-saas-grip">Grip Integration</a>
+                    <a href="#shadow-saas-grip">Grip Shadow SaaS Integration</a>
+                    <a href="#shadow-saas-hero">Hero Shadow SaaS Integration</a>
                     <a href="#zscaler">Zscaler Blocking</a>
 
                     <h4>Admin Portal</h4>
@@ -1763,8 +1794,9 @@ $csrfToken = $security->getCSRFToken();
                 { label: '5.1 Vendor Onboarding & Procurement Onboarding', id: 'onboarding-workflow' },
                 { label: '5.2 AI Review for Vendors', id: 'ai-review' },
                 { label: '5.3 Procurement Cyber Status', id: 'procurement-cyber-status' },
-                { label: '5.4 Grip Security Integration', id: 'shadow-saas-grip' },
-                { label: '5.5 Zscaler Blocking Integration', id: 'zscaler' }
+                { label: '5.4 Grip Shadow SaaS Integration', id: 'shadow-saas-grip' },
+                { label: '5.5 Hero Shadow SaaS Integration', id: 'shadow-saas-hero' },
+                { label: '5.6 Zscaler Blocking Integration', id: 'zscaler' }
             ]},
             { heading: '6. Admin Portal', entries: [
                 { label: '6.1 General Settings', id: 'admin-general' },
