@@ -7,6 +7,26 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [2.6.1] - 2026-06-17
 
+> **Later additions within 2.6.1 (2026-06-21)**
+>
+> **Added**
+> - **Hero Shadow SaaS Integration**: New **HERO Security** provider for the Shadow SaaS list, parallel to Grip and **mutually exclusive** with it (enabling one disables the other). OAuth 2.0 client-credentials auth, cursor pagination, and per-vendor discovery via `HeroService` and the `shadow_saas_hero_*` mirror tables. Each vendor projects into the shared Shadow SaaS list with a **1–5 risk score** derived from its worst open HERO issue, a **Relationship Manager** (the vendor's highest-email-activity contact), a **Number of Users** count, and a Risk Type summary. Admin → Shadow SaaS gains a **Hero** tab and a HERO Security Connection card; the bundled HERO OpenAPI spec is included for reference.
+> - **Shared Scheduled Rehydration as a real cron job**: The Shadow SaaS rehydration schedule is now an editable cron expression installed into the system scheduler automatically (single source of truth in `includes/cron-jobs.php`, shared by `scheduler.php` and `sync-crontab.php`). It is shared by whichever provider (Grip or Hero) is enabled, with a live plain-English schedule summary.
+> - **Stop/Abort running sync**: The Last Sync card shows a **Stop Sync** button while a sync is running; it cooperatively cancels the run (Grip or Hero) and releases its lock.
+> - **Config-file local-login override**: `auth.local_login_enabled` in `config.php` is a no-SQL break-glass control that takes precedence over the database toggle, plus a matching **Allow local login** checkbox on Admin → SAML.
+>
+> **Changed**
+> - **Shadow SaaS risk scores are stored 1–5** in the database for both providers (Grip now buckets its 0–100 API score at write time via an idempotent migration; Hero derives 1–5 from issue severity) rather than converting only at render.
+> - **HERO rate-limit pacing**: the Hero sync paces per-vendor requests (~1.1s) and honours `Retry-After` with backoff to stay within HERO's ~60 requests/minute account-wide limit; per-vendor users are sampled first-page-only to keep a full refresh tractable.
+> - **Documentation**: renamed the *Grip Security Integration* section to **Grip Shadow SaaS Integration** and added a **Hero Shadow SaaS Integration** section (TOC, nav, glossary, FAQ).
+>
+> **Fixed**
+> - **Scheduled Rehydration was orphaned**: it previously only rendered a copy-paste crontab hint and was never installed, so the schedule did nothing (only *Run Now* worked). It is now registered with the entrypoint and runs on the configured schedule.
+> - **Shadow SaaS admin tab no longer resets**: Save/Test/Run Now keep the admin on the current provider tab instead of bouncing back to Grip.
+>
+> **Security**
+> - **API documentation locked down**: `/api/v2/swagger`, `/api/v2/openapi`, and `/api/v2/postman` were publicly accessible and now require an authenticated **admin session or a valid API token**. The bundled Grip/Hero OpenAPI & Postman files are served only through the admin-gated `reference-doc.php`; direct access to the static `app/*-reference/` files is denied (`.htaccess` + Apache).
+
 > **Later additions within 2.6.1 (2026-06-20)**
 >
 > **Added**
