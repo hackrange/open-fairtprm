@@ -15,6 +15,14 @@
  *   $section, $isAdmin, $error, $success, $csrfToken
  */
 
+// Config-file override for local login. When auth.local_login_enabled is set in
+// config.php it WINS over the app_config value (a no-SQL break-glass control), so
+// the toggle below is shown read-only and never written while the override is in
+// effect. null = the key is absent from config.php, so the database toggle is
+// authoritative and editable here. Mirrors the precedence logic in login.php.
+$localLoginConfigOverride = Config::getInstance()->get('auth.local_login_enabled', null);
+$localLoginOverridden = ($localLoginConfigOverride !== null);
+
 // ============================================================================
 // POST Handler: update_saml (IdP/SP configuration)
 // ============================================================================
@@ -67,9 +75,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_saml'])) {
                 $db->insert('saml_config', $samlConfig);
             }
 
+            // Persist the local-login toggle to app_config — but only when config.php
+            // is NOT overriding it. A disabled checkbox submits no value, so writing it
+            // while overridden would clobber the stored DB value with '0' on every save.
+            $localLoginSaved = null;
+            if (!$localLoginOverridden) {
+                $localLoginSaved = isset($_POST['local_login_enabled']) ? '1' : '0';
+                $existingLL = $db->fetchOne("SELECT id FROM app_config WHERE config_key = 'local_login_enabled'");
+                if ($existingLL) {
+                    $db->update('app_config', ['config_value' => $localLoginSaved], 'config_key = :key', [':key' => 'local_login_enabled']);
+                } else {
+                    $db->insert('app_config', ['config_key' => 'local_login_enabled', 'config_value' => $localLoginSaved]);
+                }
+            }
+
             $db->commit();
             $auth->audit($user['id'], 'config_update_saml', 'saml_config', null, [
-                'new' => ['is_enabled' => $samlConfig['is_enabled'], 'idp_entity_id' => $samlConfig['idp_entity_id'], 'sp_entity_id' => $samlConfig['sp_entity_id']]
+                'new' => array_merge(
+                    ['is_enabled' => $samlConfig['is_enabled'], 'idp_entity_id' => $samlConfig['idp_entity_id'], 'sp_entity_id' => $samlConfig['sp_entity_id']],
+                    $localLoginSaved !== null ? ['local_login_enabled' => $localLoginSaved] : []
+                )
             ]);
             $success = 'SAML configuration updated successfully';
         } catch (Exception $e) {
@@ -217,6 +242,15 @@ if (!$samlConfig) {
     ];
 }
 
+// Local-login toggle: current database value (default enabled), and the effective
+// state shown in the UI (the config.php override wins when present).
+$localLoginDbEnabled = true;
+$rowLL = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'local_login_enabled'");
+if ($rowLL && isset($rowLL['config_value'])) {
+    $localLoginDbEnabled = ((string)$rowLL['config_value'] !== '0');
+}
+$localLoginEffective = $localLoginOverridden ? (bool)$localLoginConfigOverride : $localLoginDbEnabled;
+
 // Compute base URL for auto-filling SP values
 $appBaseUrl = rtrim(baseUrl(), '/');
 
@@ -260,6 +294,18 @@ $groupMappings = $db->fetchAll(
                 <input type="checkbox" name="saml_enabled" value="1" <?php echo $samlConfig['is_enabled'] ? 'checked' : ''; ?>>
                 <span>Enable SAML 2.0</span>
             </label>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="local_login_enabled" value="1" <?php echo $localLoginEffective ? 'checked' : ''; ?> <?php echo $localLoginOverridden ? 'disabled' : ''; ?>>
+                <span>Allow local username/password login (in addition to SSO)</span>
+            </label>
+            <small style="color: #666; margin-top: 4px; display: block;">
+                When enabled, the login page offers both SSO and a local username/password form. When disabled, SSO is the only path for normal users &mdash; the designated break-glass admin can still sign in locally, so a broken IdP can never lock everyone out. This setting only takes effect once SAML is enabled and fully configured.
+                <?php if ($localLoginOverridden): ?>
+                    <br><strong>Currently controlled by <code>config.php</code></strong> (<code>auth.local_login_enabled</code> = <?php echo $localLoginConfigOverride ? 'true' : 'false'; ?>); remove that line to manage it here.
+                <?php endif; ?>
+            </small>
         </div>
         <h4 style="margin: 20px 0 15px; color: #666; font-size: 14px; font-weight: 600;">Identity Provider (IdP)</h4>
         <div class="form-group">
