@@ -5586,6 +5586,92 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_sync_log` (
   KEY `idx_started_at` (`started_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- HERO Security mirror tables (parallel to shadow_saas_grip_*). Hydrated by
+-- HeroService; Grip and Hero are mutually exclusive. Vendor key = canonical
+-- domain (HERO has no opaque vendor id).
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `shadow_saas_hero_vendors` (
+  `hero_id` varchar(255) NOT NULL COMMENT 'HERO canonical_domain (natural key)',
+  `commercial_name` varchar(500) DEFAULT NULL,
+  `canonical_domain` varchar(255) DEFAULT NULL,
+  `domain` varchar(255) DEFAULT NULL COMMENT 'Normalized registrable domain',
+  `associated_domains` longtext DEFAULT NULL COMMENT 'JSON array',
+  `status` varchar(50) DEFAULT NULL COMMENT 'observed|operative|inoperative',
+  `commercial_engagement` varchar(50) DEFAULT NULL,
+  `authorization` varchar(50) DEFAULT NULL,
+  `activity` varchar(50) DEFAULT NULL,
+  `hero_url` varchar(2048) DEFAULT NULL,
+  `open_issue_count` int(10) unsigned DEFAULT 0,
+  `worst_issue_severity` varchar(20) DEFAULT NULL,
+  `derived_risk_score` tinyint(3) unsigned DEFAULT NULL COMMENT '1-5, derived from worst open issue',
+  `updated_at_hero` datetime DEFAULT NULL,
+  `raw_payload` longtext DEFAULT NULL,
+  `first_seen_at` timestamp NULL DEFAULT current_timestamp(),
+  `last_synced_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`hero_id`),
+  KEY `idx_domain` (`domain`),
+  KEY `idx_status` (`status`),
+  KEY `idx_derived_risk_score` (`derived_risk_score`),
+  KEY `idx_last_synced_at` (`last_synced_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `shadow_saas_hero_issues` (
+  `issue_id` varchar(255) NOT NULL,
+  `type` varchar(64) DEFAULT NULL COMMENT 'shadow_it|unrevoked_permissions|bec|misconfiguration|dormancy',
+  `severity` varchar(20) DEFAULT NULL COMMENT 'low|medium|high|critical',
+  `status` varchar(20) DEFAULT NULL COMMENT 'open|resolved',
+  `title` varchar(500) DEFAULT NULL,
+  `vendor_domain` varchar(255) DEFAULT NULL COMMENT 'Normalized registrable domain',
+  `vendor_name` varchar(500) DEFAULT NULL,
+  `opened_at` datetime DEFAULT NULL,
+  `updated_at_hero` datetime DEFAULT NULL,
+  `resolved_at` datetime DEFAULT NULL,
+  `resolution` longtext DEFAULT NULL COMMENT 'JSON',
+  `raw_payload` longtext DEFAULT NULL,
+  `first_seen_at` timestamp NULL DEFAULT current_timestamp(),
+  `last_synced_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`issue_id`),
+  KEY `idx_type` (`type`),
+  KEY `idx_severity` (`severity`),
+  KEY `idx_status` (`status`),
+  KEY `idx_vendor_domain` (`vendor_domain`),
+  KEY `idx_opened_at` (`opened_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `shadow_saas_hero_users` (
+  `user_key` char(40) NOT NULL COMMENT 'sha1(vendor_domain|lower(email)) — fixed-length surrogate PK',
+  `vendor_domain` varchar(255) DEFAULT NULL,
+  `email` varchar(320) DEFAULT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `email_count` int(10) unsigned DEFAULT 0,
+  `sources` longtext DEFAULT NULL COMMENT 'JSON array (type/provider/last_seen)',
+  `raw_payload` longtext DEFAULT NULL,
+  `first_seen_at` timestamp NULL DEFAULT current_timestamp(),
+  `last_synced_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`user_key`),
+  KEY `idx_vendor_domain` (`vendor_domain`),
+  KEY `idx_email` (`email`),
+  KEY `idx_last_synced_at` (`last_synced_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `shadow_saas_hero_sync_log` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `started_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `finished_at` datetime DEFAULT NULL,
+  `trigger_source` varchar(20) NOT NULL DEFAULT 'cron' COMMENT 'cron|manual|test',
+  `status` varchar(20) NOT NULL DEFAULT 'running' COMMENT 'running|success|partial|error',
+  `vendors_fetched` int(10) unsigned DEFAULT 0,
+  `users_fetched` int(10) unsigned DEFAULT 0,
+  `issues_fetched` int(10) unsigned DEFAULT 0,
+  `shadow_saas_upserted` int(10) unsigned DEFAULT 0,
+  `error_message` text DEFAULT NULL,
+  `triggered_by` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_started_at` (`started_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- shadow_saas link columns used by GripService::projectAppsToShadowSaas().
 
 SET @sql = IF(
@@ -5604,10 +5690,27 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
+-- HERO link column used by HeroService::projectVendorsToShadowSaas() (= canonical_domain).
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'hero_id') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `hero_id` VARCHAR(255) DEFAULT NULL COMMENT ''HERO canonical domain for matching upserts''',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.statistics
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND index_name = 'idx_hero_id') = 0,
+  'ALTER TABLE `shadow_saas` ADD INDEX `idx_hero_id` (`hero_id`)',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
 SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'source') = 0,
-  'ALTER TABLE `shadow_saas` ADD COLUMN `source` VARCHAR(20) DEFAULT ''csv'' COMMENT ''Origin of this row: csv | grip | manual''',
+  'ALTER TABLE `shadow_saas` ADD COLUMN `source` VARCHAR(20) DEFAULT ''csv'' COMMENT ''Origin of this row: csv | grip | hero | manual''',
   'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
@@ -5641,6 +5744,31 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) V
   ('grip_api_token',       '',      1),
   ('grip_cron_enabled',    '0',     0),
   ('grip_cron_frequency',  'daily', 0);
+
+-- HERO Security config (parallel to grip_*; mutually exclusive with Grip).
+-- client_secret encrypted; base_url seeded to the fixed public API host (not
+-- tenant-specific); disabled by default.
+INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) VALUES
+  ('hero_enabled',       '0',                                  0),
+  ('hero_base_url',      'https://api.herosecurity.ai/stable', 0),
+  ('hero_client_id',     '',                                   0),
+  ('hero_client_secret', '',                                   1);
+
+-- Convert shadow_saas Grip risk scores from 0-100 to the stored 1-5 scale by
+-- re-deriving from the authoritative 0-100 value in the mirror table. Idempotent:
+-- recomputes from shadow_saas_grip_apps.risk_score every run, so re-applying never
+-- double-buckets. (Hero rows are written as 1-5 directly by HeroService.)
+UPDATE `shadow_saas` `ss`
+  JOIN `shadow_saas_grip_apps` `ga` ON `ga`.`grip_id` = `ss`.`grip_id`
+  SET `ss`.`risk_score` = CASE
+        WHEN `ga`.`risk_score` IS NULL THEN NULL
+        WHEN `ga`.`risk_score` <= 0  THEN 0
+        WHEN `ga`.`risk_score` <= 20 THEN 1
+        WHEN `ga`.`risk_score` <= 40 THEN 2
+        WHEN `ga`.`risk_score` <= 60 THEN 3
+        WHEN `ga`.`risk_score` <= 80 THEN 4
+        ELSE 5 END
+  WHERE `ss`.`source` = 'grip';
 
 -- Repair any rows that were already saved with NULL config_value (the bug
 -- this migration accompanies could create those for grip_cron_frequency

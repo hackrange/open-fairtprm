@@ -26,10 +26,12 @@ if (empty($_resolvedAuthHeader) && function_exists('getallheaders')) {
 
 // Prevent direct browser access -- API only
 if (php_sapi_name() !== 'cli' && empty($_resolvedAuthHeader) && !isset($_SERVER['HTTP_X_API_KEY'])) {
-    // Allow Swagger UI / Postman collection access without auth
+    // Swagger / Postman are opened from the admin UI via a session cookie (no
+    // Authorization header), so let them reach init.php and the gated handler
+    // below — which enforces admin-session OR valid-token auth (no longer public).
     $requestUri = $_SERVER['REQUEST_URI'] ?? '';
     if (preg_match('#/api/v2/(swagger|postman|openapi)#', $requestUri)) {
-        // Fall through to handle swagger endpoints
+        // Defer the auth decision to the locked-down handler below.
     } else {
         http_response_code(401);
         header('Content-Type: application/json');
@@ -68,18 +70,38 @@ if ($method === 'OPTIONS') {
 // Detect protocol -- respect X-Forwarded-Proto from nginx (SSL terminates at nginx, not Apache)
 $proto = (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) ? $_SERVER['HTTP_X_FORWARDED_PROTO'] : (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http'));
 
-// Public endpoints (no auth required)
-if (preg_match('#^/(swagger|openapi)(\.json)?$#', $path)) {
-    $apiService = APIService::getInstance();
-    $baseUrl = $proto . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    echo json_encode($apiService->getSwaggerSpec($baseUrl), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    exit;
-}
+// API spec / Postman collection — LOCKED DOWN (previously public, which leaked the
+// API surface to anonymous callers). Requires EITHER an authenticated admin
+// session (the admin UI opens these in a browser, so there's no Authorization
+// header) OR a valid API bearer token.
+if (preg_match('#^/(swagger|openapi)(\.json)?$#', $path) || $path === '/postman') {
+    $docAuthorized = false;
+    try {
+        $auth = Auth::getInstance();
+        if ($auth->isAuthenticated() && ($auth->isAdmin() || Session::getInstance()->get('is_super_admin'))) {
+            $docAuthorized = true;
+        }
+    } catch (Throwable $e) { /* fall through to token check */ }
+    if (!$docAuthorized && preg_match('/^Bearer\s+(.+)$/i', $_resolvedAuthHeader, $m)) {
+        try {
+            if (APIService::getInstance()->authenticateToken(trim($m[1]), $_SERVER['REMOTE_ADDR'] ?? '')) {
+                $docAuthorized = true;
+            }
+        } catch (Throwable $e) { /* not authorized */ }
+    }
+    if (!$docAuthorized) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Authentication required', 'code' => 401]);
+        exit;
+    }
 
-if (preg_match('#^/postman$#', $path)) {
     $apiService = APIService::getInstance();
     $baseUrl = $proto . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    echo json_encode(generatePostmanCollection($apiService->getSwaggerSpec($baseUrl)), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    $spec = $apiService->getSwaggerSpec($baseUrl);
+    echo json_encode(
+        $path === '/postman' ? generatePostmanCollection($spec) : $spec,
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+    );
     exit;
 }
 

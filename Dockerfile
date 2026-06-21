@@ -53,6 +53,8 @@ RUN set -e; \
     cp -rp $pp/includes/admin/. /var/www/html/includes/admin/; \
     mkdir -p /var/www/html/app/grip-reference; \
     cp -rp $pp/app/grip-reference/. /var/www/html/app/grip-reference/; \
+    mkdir -p /var/www/html/app/hero-reference; \
+    cp -rp $pp/app/hero-reference/. /var/www/html/app/hero-reference/; \
     mkdir -p /var/www/html/app/docs; \
     cp -rp $pp/app/docs/. /var/www/html/app/docs/; \
     mkdir -p /var/www/html/app/js; \
@@ -70,7 +72,7 @@ RUN set -e; \
            $pp/AIPlatformService.php $pp/GitHubOSINTScanner.php \
            $pp/ShodanClient.php $pp/ShodanService.php $pp/Security.php \
            $pp/VendorAssessmentService.php $pp/AssessmentTranslationService.php \
-           $pp/GripService.php \
+           $pp/GripService.php $pp/HeroService.php \
            $pp/ZscalerService.php $pp/SAMLHandler.php \
            $pp/FaviconService.php $pp/ContinuousMonitor.php $pp/VirusScanService.php \
            $pp/BackupService.php \
@@ -106,7 +108,7 @@ RUN set -e; \
            $pp/vendor-onboarding.php \
            $pp/vendor-srs-list.php $pp/vendor-srs-compliance-report.php \
            $pp/view-result.php \
-           $pp/admin-users-import.php $pp/api-rescore-status.php $pp/documentation.php \
+           $pp/admin-users-import.php $pp/api-rescore-status.php $pp/documentation.php $pp/reference-doc.php \
            $pp/download-pdf.php $pp/error.php $pp/fair_dashboard.php \
            $pp/fair_import-analysis.php $pp/fair_results.php $pp/logout.php \
            $pp/reports.php $pp/vendor-annual-review-history.php $pp/vendor-annual-review.php \
@@ -135,6 +137,7 @@ RUN set -e; \
         [ -f "$ini" ] && printf '\n; Large-backup restore/upload headroom (appended; last value wins)\nupload_max_filesize = 8G\npost_max_size = 8G\nmax_input_time = 1800\n' >> "$ini"; \
     done; \
     printf 'Timeout 1800\n<IfModule mod_proxy.c>\nProxyTimeout 1800\n</IfModule>\n' > /etc/apache2/conf-enabled/zz-fairtprm-timeout.conf; \
+    printf '# API reference docs (OpenAPI/Swagger/Postman) must not be world-readable\n# static files. Deny direct access; they are served by reference-doc.php behind\n# the admin session.\n<LocationMatch "^/app/(grip|hero)-reference/">\n    Require all denied\n</LocationMatch>\n' > /etc/apache2/conf-enabled/zz-fairtprm-reference-deny.conf; \
     \
     composer require onelogin/php-saml:^4.3 --no-interaction --no-progress \
         --working-dir=/var/www/html; \
@@ -193,6 +196,7 @@ RUN set -e; \
         /var/www/html/includes/classes/Security.php \
         /var/www/html/includes/classes/VendorAssessmentService.php \
         /var/www/html/includes/classes/GripService.php \
+        /var/www/html/includes/classes/HeroService.php \
         /var/www/html/includes/classes/ZscalerService.php \
         /var/www/html/includes/classes/SAMLHandler.php \
         /var/www/html/includes/classes/FaviconService.php \
@@ -226,6 +230,7 @@ RUN set -e; \
         /var/www/html/cron/procurement-digest.php \
         /var/www/html/app/grip-reference/grip-openapi.yaml \
         /var/www/html/app/grip-reference/grip-postman-collection.json \
+        /var/www/html/app/hero-reference/hero-openapi.yaml \
         /var/www/html/app/docs/dashboard.png \
         /var/www/html/app/docs/profile-language-card.png \
         /var/www/html/app/docs/procurement-cyber-status.png \
@@ -280,6 +285,7 @@ RUN set -e; \
         /var/www/html/admin-users-import.php \
         /var/www/html/api-rescore-status.php \
         /var/www/html/documentation.php \
+        /var/www/html/reference-doc.php \
         /var/www/html/download-pdf.php \
         /var/www/html/error.php \
         /var/www/html/fair_dashboard.php \
@@ -305,6 +311,7 @@ RUN set -e; \
         /usr/local/bin/entrypoint.sh \
         /etc/mysql/mariadb.conf.d/99-fairtprm-tuning.cnf \
         /etc/apache2/conf-enabled/zz-fairtprm-timeout.conf \
+        /etc/apache2/conf-enabled/zz-fairtprm-reference-deny.conf \
         /etc/modsecurity/grc-assessment-rules.conf \
         /etc/cron.d/open-tprm \
         /var/www/html/VERSION \

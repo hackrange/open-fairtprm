@@ -159,7 +159,7 @@ function cronJobDefinitions(): array
             'script'          => 'shadow-saas-sync.php',
             'log'             => '/var/log/php/cron-shadow-saas-rehydrate.log',
             'default_schedule' => '0 2 * * *',
-            'timeout'         => 1800,
+            'timeout'         => 3600,
             'history_key'     => 'shadow-saas-rehydrate',
             'hidden'          => true,
         ],

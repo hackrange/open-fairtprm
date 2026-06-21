@@ -239,6 +239,13 @@ class GripService
             $shadowUpserts   = (int)($shadowResult['upserts'] ?? 0);
             $shadowGripIds   = $shadowResult['grip_ids'] ?? [];
 
+            // Cooperative cancellation: an admin can abort a running sync from the
+            // Last Sync card, which flips this run's status to 'aborting'.
+            if ($this->isCancelled($logId)) {
+                $this->closeSyncLog($logId, 'aborted', $appsCount, $usersCount, $alertsCount, $shadowUpserts, 'Aborted by admin.');
+                return ['success' => false, 'error' => 'aborted', 'log_id' => $logId, 'aborted' => true];
+            }
+
             $usersData = $alertsData = [];
             try { $usersData  = $this->fetchAll('/public/users');   $usersCount  = $this->upsertUsers($usersData); }   catch (Throwable $e) { error_log('Grip users fetch failed: ' . $e->getMessage()); }
             try { $alertsData = $this->fetchAll('/public/alerts');  $alertsCount = $this->upsertAlerts($alertsData); } catch (Throwable $e) { error_log('Grip alerts fetch failed: ' . $e->getMessage()); }
@@ -510,7 +517,9 @@ class GripService
                 'vendor_name'          => $name,
                 'vendor_domain'        => $domain ?: null,
                 'description'          => trim(($g['aiDepth']['description'] ?? '') . ($compliances ? "\nCompliances: " . $compliances : '')) ?: null,
-                'risk_score'           => isset($g['riskScore']) ? (int)$g['riskScore'] : null,
+                // Store the 1-5 score in the DB (Grip's API gives 0-100; bucket it
+                // here so shadow_saas holds 1-5 directly, not just at display time).
+                'risk_score'           => self::bucketScore($g['riskScore'] ?? null),
                 'risk_type'            => $riskTypeParts ? implode('; ', $riskTypeParts) : null,
                 'number_of_users'      => isset($g['numberOfUsers']) ? (int)$g['numberOfUsers'] : null,
                 'application_category' => $g['category'] ?? null,
@@ -570,6 +579,33 @@ class GripService
         if (empty($val) || !is_string($val)) return null;
         $ts = strtotime($val);
         return $ts ? date('Y-m-d H:i:s', $ts) : null;
+    }
+
+    /**
+     * Bucket Grip's 0-100 risk score to the stored 1-5 scale used across Shadow
+     * SaaS. Null in -> null out. (Same thresholds the UI historically applied at
+     * render; now applied at write so the DB holds 1-5.)
+     *   <=0 -> 0, <=20 -> 1, <=40 -> 2, <=60 -> 3, <=80 -> 4, else 5
+     */
+    public static function bucketScore($raw): ?int
+    {
+        if ($raw === null || $raw === '') return null;
+        $n = (int)$raw;
+        if ($n <= 0)  return 0;
+        if ($n <= 20) return 1;
+        if ($n <= 40) return 2;
+        if ($n <= 60) return 3;
+        if ($n <= 80) return 4;
+        return 5;
+    }
+
+    /** True if an admin has requested this run be aborted (status flipped to 'aborting'). */
+    private function isCancelled(int $logId): bool
+    {
+        try {
+            $r = $this->db->fetchOne("SELECT status FROM shadow_saas_grip_sync_log WHERE id = :id", [':id' => $logId]);
+            return $r && ($r['status'] ?? '') === 'aborting';
+        } catch (Throwable $e) { return false; }
     }
 
     /** Latest sync log row, or null if none. */

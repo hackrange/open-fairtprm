@@ -61,7 +61,7 @@ register_shutdown_function(function () use ($lockFp, $lockFile) {
 
 require_once APP_ROOT . '/includes/init.php';
 require_once CLASSES_PATH . '/GripService.php';
-// require_once CLASSES_PATH . '/HeroService.php'; // wired when Hero lands
+require_once CLASSES_PATH . '/HeroService.php';
 
 $start = microtime(true);
 

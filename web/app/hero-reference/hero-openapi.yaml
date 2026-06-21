@@ -1,0 +1,839 @@
+openapi: 3.1.0
+info:
+  title: HERO Public API
+  description: >-
+    Read-only REST API exposing vendors, issues, and users to external security
+    tooling.
+
+
+    ## Authentication
+
+
+    All data endpoints require a Bearer token obtained via `POST /v1/auth/token`
+    using the **OAuth 2.0 client credentials** grant. Tokens are scoped to your
+    organization and expire after 1 hour.
+
+
+    ## Pagination
+
+
+    List endpoints use **cursor-based pagination**. Pass the `next_cursor` value
+    from a response as the `cursor` query parameter to get the next page. A
+    `null` next_cursor means you are on the last page.
+
+
+    ## AI agents (MCP)
+
+
+    The same read-only data is also available to AI agents through a self-hosted
+    [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server — no
+    third-party AI cloud, no telemetry.
+
+
+    - **Endpoint:** `https://api.herosecurity.ai/stable/mcp`
+
+    - **Auth:** the same Bearer token as above (`Authorization: Bearer
+    <token>`), required on every request including the connection handshake.
+
+    - **Tools** (read-only, scoped to your organization): `list_vendors`,
+    `get_vendor`, `list_vendor_users`, `list_issues`, `get_issue`.
+
+
+    Point any MCP-compatible client (Claude Code, Claude Desktop, or your own
+    agent) at the endpoint using the Streamable HTTP transport. For example,
+    with Claude Code:
+
+
+    ```
+
+    claude mcp add --transport http hero https://api.herosecurity.ai/stable/mcp
+    --header "Authorization: Bearer <token>"
+
+    ```
+  contact:
+    name: HERO Security
+    url: https://herosecurity.ai/
+  license:
+    name: Proprietary
+  version: 1.0.0
+  x-logo:
+    url: /api-docs/assets/logo
+    altText: HERO Public API
+paths:
+  /v1/health:
+    get:
+      tags:
+        - system
+      summary: Health check
+      description: 'Returns `{"status": "ok"}` when the service is running. Does not
+        require authentication.'
+      operationId: health_v1_health_get
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+              example:
+                status: ok
+  /v1/auth/token:
+    post:
+      tags:
+        - auth
+      summary: Get access token
+      description: >-
+        Exchange `client_id` + `client_secret` for a short-lived JWT using the
+        **OAuth 2.0 client credentials** grant.
+
+
+        Send as `application/x-www-form-urlencoded` with:
+
+        - `grant_type=client_credentials`
+
+        - `client_id` — from HERO admin panel
+
+        - `client_secret` — shown once at credential creation
+
+
+        The returned token is valid for `expires_in` seconds (default 1 hour).
+        Pass it as `Authorization: Bearer <token>` on all data endpoints.
+      operationId: create_token_v1_auth_token_post
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/Body_create_token_v1_auth_token_post"
+        required: true
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+  /v1/auth/me:
+    get:
+      tags:
+        - auth
+      summary: Get token identity
+      description: Returns the `client_id` and `org_id` encoded in the current Bearer
+        token. Useful for verifying a credential is working correctly.
+      operationId: me_v1_auth_me_get
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Me V1 Auth Me Get
+              example:
+                client_id: hero_a1b2c3d4e5f6g7h8
+                org_id: org_2abc123
+      security:
+        - HTTPBearer: []
+  /v1/vendors:
+    get:
+      tags:
+        - vendors
+      summary: List vendors
+      description: >-
+        Returns a paginated list of vendors visible to your organization,
+        including their status and security aspects.
+
+
+        Results are ordered by domain. Use `next_cursor` to page through
+        results.
+      operationId: list_vendors
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: domain
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            description: Partial domain match, e.g. `salesforce`
+            title: Domain
+          description: Partial domain match, e.g. `salesforce`
+        - name: status
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            description: "Filter by status. One of: `observed`, `operative`, `inoperative`"
+            title: Status
+          description: "Filter by status. One of: `observed`, `operative`, `inoperative`"
+        - name: commercial_engagement
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            description: "Filter by commercial engagement aspect. One of: `none`,
+              `possible`, `in_progress`, `accepted`, `terminated`"
+            title: Commercial Engagement
+          description: "Filter by commercial engagement aspect. One of: `none`,
+            `possible`, `in_progress`, `accepted`, `terminated`"
+        - name: authorization
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            description: "Filter by authorization aspect. One of: `no_indication`,
+              `possible`, `granted`, `revoked`"
+            title: Authorization
+          description: "Filter by authorization aspect. One of: `no_indication`,
+            `possible`, `granted`, `revoked`"
+        - name: activity
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            description: "Filter by activity aspect. One of: `no_indication`, `possible`,
+              `active`, `inactive`"
+            title: Activity
+          description: "Filter by activity aspect. One of: `no_indication`, `possible`,
+            `active`, `inactive`"
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Cursor
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 250
+            minimum: 1
+            default: 50
+            title: Page Size
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedResponse_VendorResponse_"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+  /v1/vendors/{domain}:
+    get:
+      tags:
+        - vendors
+      summary: Get vendor by domain
+      description: Returns full details for a single vendor, including status and all
+        security aspects.
+      operationId: get_vendor
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Domain
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorResponse"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+  /v1/vendors/{domain}/users:
+    get:
+      tags:
+        - vendors
+      summary: List users interacting with a vendor
+      description: "Returns a paginated list of users observed interacting with the
+        vendor. For now, users are derived from email activity only: `email` is
+        stable, `name` may be absent, and `email_count` is the number of emails
+        observed for this user with this vendor. `sources` lists where the user
+        was observed — for now `type` is always `mail` and `provider` is `gmail`
+        or `m365`, with `last_seen` the ISO 8601 UTC timestamp the user was last
+        observed via that source."
+      operationId: list_vendor_users
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Domain
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Cursor
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 250
+            minimum: 1
+            default: 50
+            title: Page Size
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedResponse_VendorUserResponse_"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+  /v1/issues:
+    get:
+      tags:
+        - issues
+      summary: List issues
+      description: >-
+        Returns a paginated list of security issues detected by HERO, ordered by
+        `opened_at` descending.
+
+
+        Each issue includes a `vendor` sub-object, severity, status, and
+        resolution details if resolved.
+      operationId: list_issues
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: severity
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            description: "Filter by severity. One of: `low`, `medium`, `high`, `critical`"
+            title: Severity
+          description: "Filter by severity. One of: `low`, `medium`, `high`, `critical`"
+        - name: status
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            description: "Filter by status. One of: `open`, `resolved`"
+            title: Status
+          description: "Filter by status. One of: `open`, `resolved`"
+        - name: type
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            description: "Filter by issue type. One of: `shadow_it`,
+              `unrevoked_permissions`, `bec`, `misconfiguration`, `dormancy`"
+            title: Type
+          description: "Filter by issue type. One of: `shadow_it`,
+            `unrevoked_permissions`, `bec`, `misconfiguration`, `dormancy`"
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Cursor
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 250
+            minimum: 1
+            default: 50
+            title: Page Size
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedResponse_IssueResponse_"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+  /v1/issues/{issue_id}:
+    get:
+      tags:
+        - issues
+      summary: Get issue by ID
+      description: Returns a single issue by its ID, including full resolution details
+        if the issue has been resolved.
+      operationId: get_issue
+      security:
+        - HTTPBearer: []
+      parameters:
+        - name: issue_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Issue Id
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssueResponse"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+components:
+  schemas:
+    Body_create_token_v1_auth_token_post:
+      properties:
+        grant_type:
+          type: string
+          title: Grant Type
+          description: Must be `client_credentials`
+        client_id:
+          type: string
+          title: Client Id
+          description: Your client ID from HERO admin
+        client_secret:
+          type: string
+          title: Client Secret
+          description: Your client secret (shown once at creation)
+      type: object
+      required:
+        - grant_type
+        - client_id
+        - client_secret
+      title: Body_create_token_v1_auth_token_post
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: "#/components/schemas/ValidationError"
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    IssueResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        type:
+          type: string
+          title: Type
+        severity:
+          type: string
+          title: Severity
+        status:
+          type: string
+          title: Status
+        title:
+          type: string
+          title: Title
+        vendor:
+          $ref: "#/components/schemas/IssueVendor"
+        opened_at:
+          type: string
+          title: Opened At
+        updated_at:
+          type: string
+          title: Updated At
+        resolved_at:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Resolved At
+        resolution:
+          anyOf:
+            - $ref: "#/components/schemas/Resolution"
+            - type: "null"
+      type: object
+      required:
+        - id
+        - type
+        - severity
+        - status
+        - title
+        - vendor
+        - opened_at
+        - updated_at
+      title: IssueResponse
+      example:
+        id: iss_01hx4k9r2q
+        opened_at: 2026-04-10T09:15:00Z
+        severity: high
+        status: open
+        title: Unsanctioned SaaS tool detected — Notion
+        type: shadow_it
+        updated_at: 2026-04-12T11:00:00Z
+        vendor:
+          domain: notion.so
+          name: Notion
+    IssueVendor:
+      properties:
+        domain:
+          type: string
+          title: Domain
+        name:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Name
+      type: object
+      required:
+        - domain
+        - name
+      title: IssueVendor
+    PaginatedResponse_IssueResponse_:
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/IssueResponse"
+          type: array
+          title: Data
+        next_cursor:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Next Cursor
+        limit:
+          type: integer
+          title: Limit
+      type: object
+      required:
+        - data
+        - limit
+      title: PaginatedResponse[IssueResponse]
+    PaginatedResponse_VendorResponse_:
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/VendorResponse"
+          type: array
+          title: Data
+        next_cursor:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Next Cursor
+        limit:
+          type: integer
+          title: Limit
+      type: object
+      required:
+        - data
+        - limit
+      title: PaginatedResponse[VendorResponse]
+    PaginatedResponse_VendorUserResponse_:
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/VendorUserResponse"
+          type: array
+          title: Data
+        next_cursor:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Next Cursor
+        limit:
+          type: integer
+          title: Limit
+      type: object
+      required:
+        - data
+        - limit
+      title: PaginatedResponse[VendorUserResponse]
+    Resolution:
+      properties:
+        resolved_at:
+          type: string
+          title: Resolved At
+        reason:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Reason
+        resolved_by:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Resolved By
+      type: object
+      required:
+        - resolved_at
+      title: Resolution
+      example:
+        reason: Vendor access has been revoked
+        resolved_at: 2026-05-20T14:30:00Z
+        resolved_by: Alice Smith
+    TokenResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        token_type:
+          type: string
+          title: Token Type
+          default: bearer
+        expires_in:
+          type: integer
+          title: Expires In
+      type: object
+      required:
+        - access_token
+        - expires_in
+      title: TokenResponse
+      example:
+        access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        expires_in: 3600
+        token_type: bearer
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+    VendorAspects:
+      properties:
+        commercial_engagement:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Commercial Engagement
+          description: "One of: `none`, `possible`, `in_progress`, `accepted`,
+            `terminated`."
+        authorization:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Authorization
+          description: "One of: `no_indication`, `possible`, `granted`, `revoked`."
+        activity:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Activity
+          description: "One of: `no_indication`, `possible`, `active`, `inactive`."
+      type: object
+      title: VendorAspects
+      example:
+        activity: active
+        authorization: granted
+        commercial_engagement: accepted
+    VendorIdentity:
+      properties:
+        canonical_domain:
+          type: string
+          title: Canonical Domain
+          description: Primary domain identifying the vendor.
+        associated_domains:
+          items:
+            type: string
+          type: array
+          title: Associated Domains
+          description: Other domains attributed to this vendor.
+        commercial_name:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Commercial Name
+          description: Vendor's commercial name.
+      type: object
+      required:
+        - canonical_domain
+      title: VendorIdentity
+      example:
+        associated_domains:
+          - force.com
+        canonical_domain: salesforce.com
+        commercial_name: Salesforce
+    VendorResponse:
+      properties:
+        vendor:
+          $ref: "#/components/schemas/VendorIdentity"
+        status:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Status
+          description: "One of: `observed`, `operative`, `inoperative`."
+        aspects:
+          $ref: "#/components/schemas/VendorAspects"
+        hero_url:
+          type: string
+          title: Hero Url
+          description: Link to the vendor page in the HERO console.
+        updated_at:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Updated At
+          description: When the vendor's status was last updated.
+      type: object
+      required:
+        - vendor
+        - aspects
+        - hero_url
+      title: VendorResponse
+      example:
+        aspects:
+          activity: active
+          authorization: granted
+          commercial_engagement: accepted
+        hero_url: https://vspm.herosecurity.ai/vendors/salesforce.com
+        status: observed
+        updated_at: 2026-05-22T09:14:33Z
+        vendor:
+          associated_domains:
+            - force.com
+          canonical_domain: salesforce.com
+          commercial_name: Salesforce
+    VendorUserResponse:
+      properties:
+        email:
+          type: string
+          title: Email
+          description: Stable identifier for the user.
+        name:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Name
+          description: Display name when observed; may be absent.
+        email_count:
+          type: integer
+          minimum: 0
+          title: Email Count
+          description: Number of emails observed for this user with this vendor.
+          default: 0
+        sources:
+          items:
+            $ref: "#/components/schemas/VendorUserSource"
+          type: array
+          title: Sources
+          description: Sources the user was observed via. For now mail only.
+      type: object
+      required:
+        - email
+      title: VendorUserResponse
+      example:
+        email: alice@acme.com
+        email_count: 142
+        name: Alice Smith
+        sources:
+          - last_seen: 2026-05-22T09:14:33Z
+            provider: gmail
+            type: mail
+    VendorUserSource:
+      properties:
+        type:
+          type: string
+          const: mail
+          title: Type
+          description: How the user was observed. For now always `mail`.
+          default: mail
+        provider:
+          type: string
+          enum:
+            - gmail
+            - m365
+          title: Provider
+          description: Mail integration the observation came from.
+        last_seen:
+          type: string
+          title: Last Seen
+          description: ISO 8601 UTC timestamp the user was last observed via this source.
+      type: object
+      required:
+        - provider
+        - last_seen
+      title: VendorUserSource
+      example:
+        last_seen: 2026-05-22T09:14:33Z
+        provider: gmail
+        type: mail
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      scheme: bearer
+tags:
+  - name: auth
+    description: Obtain and inspect access tokens.
+  - name: vendors
+    description: Vendor list, details, and associated users.
+  - name: issues
+    description: Security issues detected by HERO.
+  - name: system
+    description: Health and status endpoints.
+servers:
+  - url: https://api.herosecurity.ai/stable

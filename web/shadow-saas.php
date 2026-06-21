@@ -1532,10 +1532,11 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <?php if ($entry['risk_score'] !== null): ?>
                                 <?php
                                     $rs = (int)$entry['risk_score'];
-                                    // Grip-sourced rows store a 0-100 score; bucket to a 1-5 scale for display.
-                                    if (($entry['source'] ?? '') === 'grip') {
-                                        if      ($rs <= 0)  { $rs = 0; }
-                                        elseif  ($rs <= 20) { $rs = 1; }
+                                    // Scores are STORED on a 1-5 scale (Grip & Hero both bucket at write
+                                    // time). This is only a defensive fallback for any legacy row still
+                                    // holding a 0-100 value (i.e. > 5) that predates the migration.
+                                    if ($rs > 5 && in_array(($entry['source'] ?? ''), ['grip', 'hero'], true)) {
+                                        if      ($rs <= 20) { $rs = 1; }
                                         elseif  ($rs <= 40) { $rs = 2; }
                                         elseif  ($rs <= 60) { $rs = 3; }
                                         elseif  ($rs <= 80) { $rs = 4; }
