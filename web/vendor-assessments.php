@@ -126,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = t('vendor-assessments.fill_required_fields');
         } elseif (!$vendorRequestId) {
             $error = t('vendor-assessments.select_valid_vendor_existing');
-        } elseif (!$isOnboardingTemplate && !$db->fetchOne("SELECT id FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'approved')", [':id' => $vendorRequestId])) {
+        } elseif (!$isOnboardingTemplate && !$db->fetchOne("SELECT id FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'ai_review', 'approved')", [':id' => $vendorRequestId])) {
             $error = t('vendor-assessments.vendor_not_valid');
         } elseif (!filter_var($vendorEmail, FILTER_VALIDATE_EMAIL)) {
             $error = t('vendor-assessments.enter_valid_email');
@@ -372,10 +372,12 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
 }
 
 // Grab all vendors from the onboarding system that are in a "usable" state.
-// We only show submitted, in_review, and approved vendors because drafts and
-// inactive ones aren't real vendors yet (or anymore).
+// We only show submitted, in_review, ai_review, and approved vendors because
+// drafts and inactive ones aren't real vendors yet (or anymore). ai_review is
+// the AI-usage review stage -- it's a sibling of in_review (a vendor actively
+// under review), so assessments must be linkable to it just like in_review.
 $vendors = $db->fetchAll(
-    "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email as vendor_contact_email FROM vendor_onboarding_requests WHERE status IN ('submitted', 'in_review', 'approved') ORDER BY vendor_name"
+    "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email as vendor_contact_email FROM vendor_onboarding_requests WHERE status IN ('submitted', 'in_review', 'ai_review', 'approved') ORDER BY vendor_name"
 );
 
 // If someone arrived here from a vendor's onboarding page via "New Assessment" button,
@@ -389,7 +391,7 @@ if ($linkVendorId) {
     // filter, link_vendor=<any id> would disclose name/contact/email of draft or
     // inactive vendor records the user is not meant to see in this form.
     $preselectedVendor = $db->fetchOne(
-        "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email as vendor_contact_email FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'approved')",
+        "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email as vendor_contact_email FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'ai_review', 'approved')",
         [':id' => $linkVendorId]
     );
 }
@@ -1479,11 +1481,10 @@ try {
             sendNext(0);
         }
 
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.style.display = 'none';
-            }
-        }
+        // NOTE: We intentionally do NOT close the create-assessment modal when the
+        // backdrop is clicked. It is a data-entry form, and an accidental click
+        // outside it used to wipe everything the user had typed. Use the X or the
+        // Cancel button to dismiss it instead.
 
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && document.getElementById('emailModal').style.display === 'flex') {
