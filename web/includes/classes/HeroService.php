@@ -35,6 +35,9 @@ class HeroService
     private const DEFAULT_BASE_URL = 'https://api.herosecurity.ai/stable';
     private const PAGE_SIZE = 250;
     private const REQUEST_TIMEOUT = 30;
+    private const USERS_TIMEOUT = 15;       // shorter timeout for per-vendor users so a
+                                            // slow huge-tenant /users call fails fast and
+                                            // is skipped, rather than burning 30s each
     private const MAX_RETRIES = 5;          // 429 backoff attempts per request
     // HERO's limit is ~60 requests / 60s (account-wide, all endpoints), returning
     // Retry-After: 50 on 429. Pace per-vendor calls at ~1.1s (~55/min) to stay
@@ -56,6 +59,10 @@ class HeroService
 
     private string $token = '';
     private int $tokenExpiry = 0;
+
+    // Admin-tunable pacing (defaults to the constants; overridable in the GUI).
+    private int $usersTimeout = self::USERS_TIMEOUT;  // seconds, per-vendor users call
+    private int $throttleUsec = self::THROTTLE_USEC;  // microseconds between vendor calls
 
     public function __construct()
     {
@@ -79,6 +86,10 @@ class HeroService
                 case 'hero_base_url':      $this->baseUrl = is_string($val) ? trim($val) : ''; break;
                 case 'hero_client_id':     $this->clientId = is_string($val) ? trim($val) : ''; break;
                 case 'hero_client_secret': $this->clientSecret = is_string($val) ? trim($val) : ''; break;
+                case 'hero_users_timeout': // seconds (5–120)
+                    $n = (int)$val; if ($n >= 5 && $n <= 120) $this->usersTimeout = $n; break;
+                case 'hero_throttle_ms':   // milliseconds between vendor calls (0–10000) -> usec
+                    $n = (int)$val; if ($n >= 0 && $n <= 10000) $this->throttleUsec = $n * 1000; break;
             }
         }
         if ($this->baseUrl === '') $this->baseUrl = self::DEFAULT_BASE_URL;
@@ -137,7 +148,7 @@ class HeroService
         return ['success' => true];
     }
 
-    private function request(string $path, array $query = [], int $attempt = 1): array
+    private function request(string $path, array $query = [], int $attempt = 1, ?int $timeout = null): array
     {
         $auth = $this->authenticate();
         if (empty($auth['success'])) {
@@ -151,7 +162,7 @@ class HeroService
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => self::REQUEST_TIMEOUT,
+            CURLOPT_TIMEOUT        => $timeout ?? self::REQUEST_TIMEOUT,
             CURLOPT_HTTPHEADER     => [
                 'Accept: application/json',
                 'Authorization: Bearer ' . $this->token,
@@ -175,7 +186,7 @@ class HeroService
             // Honour Retry-After fully (HERO sends 50); cap at 60s as a safety net.
             $sleep = $retryAfter > 0 ? min($retryAfter, 60) : min((int)pow(2, $attempt), 60);
             sleep(max(1, $sleep));
-            return $this->request($path, $query, $attempt + 1);
+            return $this->request($path, $query, $attempt + 1, $timeout);
         }
 
         if ($body === false) {
@@ -215,7 +226,9 @@ class HeroService
      */
     private function fetchUsersPage(string $path): array
     {
-        $res = $this->request($path, ['page_size' => self::PAGE_SIZE]);
+        // Use the shorter USERS_TIMEOUT: huge-tenant /users calls that hang should
+        // fail fast and be skipped instead of stalling the whole run for 30s each.
+        $res = $this->request($path, ['page_size' => self::PAGE_SIZE], 1, $this->usersTimeout);
         if (!$res['success']) {
             throw new RuntimeException("HERO fetch {$path} failed: " . ($res['error'] ?: 'HTTP ' . $res['http_code']));
         }
@@ -327,7 +340,7 @@ class HeroService
                 if ($cdomain === '') continue;
                 // Gentle proactive throttle so 671 sequential user calls don't trip
                 // HERO's rate limiter (429); request() also backs off on a 429.
-                usleep(self::THROTTLE_USEC);
+                usleep($this->throttleUsec);
                 try {
                     // Sample the FIRST PAGE of the vendor's users to pick the
                     // primary contact (highest email_count) and an observed-user

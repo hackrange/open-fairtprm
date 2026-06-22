@@ -287,6 +287,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['abort_shadow_sync']))
 }
 
 // ============================================================================
+// POST: truncate a Shadow SaaS mirror table (admin maintenance). Whitelisted
+// table names ONLY — the table name is never taken from raw user input.
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['truncate_mirror_table'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request. Please try again.';
+    } else {
+        $allowedTables = [
+            'shadow_saas_grip_apps', 'shadow_saas_grip_users', 'shadow_saas_grip_alerts',
+            'shadow_saas_hero_vendors', 'shadow_saas_hero_issues', 'shadow_saas_hero_users',
+        ];
+        $tbl = (string)($_POST['mirror_table'] ?? '');
+        if (!in_array($tbl, $allowedTables, true)) {
+            $error = 'Unknown mirror table.';
+        } else {
+            try {
+                // $tbl is constrained to the whitelist above — safe to interpolate.
+                $db->query("TRUNCATE TABLE `{$tbl}`");
+                $auth->audit($user['id'], 'shadow_saas_truncate_mirror', $tbl, null, ['table' => $tbl]);
+                $success = 'Mirror table ' . e($tbl) . ' truncated.';
+            } catch (Throwable $e) {
+                error_log('Truncate mirror failed: ' . $e->getMessage());
+                $error = 'Failed to truncate ' . e($tbl) . '.';
+            }
+        }
+    }
+}
+
+// ============================================================================
 // POST: save HERO settings (mutually exclusive with Grip)
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_hero'])) {
@@ -315,6 +344,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_hero'])) {
             if ($newSecret !== '') {
                 $settings['hero_client_secret'] = $encryption->encrypt($newSecret);
             }
+            // Sync pacing (clamped to safe bounds; HERO rate-limits ~60 req/min).
+            $settings['hero_throttle_ms']   = (string)max(0, min(10000, (int)($_POST['hero_throttle_ms'] ?? 1100)));
+            $settings['hero_users_timeout'] = (string)max(5, min(120, (int)($_POST['hero_users_timeout'] ?? 15)));
             // Mutual exclusion: enabling Hero disables Grip.
             if ($heroEnabled === '1') {
                 $settings['grip_enabled'] = '0';
@@ -403,7 +435,7 @@ foreach ([['shadow_saas_grip_apps','apps'],['shadow_saas_grip_users','users'],['
 }
 
 // HERO config (parallel to Grip; mutually exclusive)
-$heroCfg = ['enabled' => '0', 'base_url' => 'https://api.herosecurity.ai/stable', 'client_id' => '', 'client_secret' => ''];
+$heroCfg = ['enabled' => '0', 'base_url' => 'https://api.herosecurity.ai/stable', 'client_id' => '', 'client_secret' => '', 'throttle_ms' => '1100', 'users_timeout' => '15'];
 $heroRows = $db->fetchAll('SELECT config_key, config_value, is_encrypted FROM app_config WHERE config_key LIKE ?', ['hero_%']);
 foreach ($heroRows as $row) {
     $key = str_replace('hero_', '', $row['config_key']);
@@ -494,7 +526,7 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
     <form method="POST" action="admin.php?section=shadow-saas" style="margin-top: 12px;">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="sync_provider" value="grip">
-        <button type="submit" name="abort_shadow_sync" class="btn btn-secondary" onclick="return confirm('Abort the running Grip sync?');">Stop Sync</button>
+        <button type="submit" name="abort_shadow_sync" class="btn btn-secondary" data-confirm="Abort the running Grip sync?">Stop Sync</button>
     </form>
     <?php endif; ?>
 </div>
@@ -503,11 +535,11 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
 <div class="card">
     <h3>Mirror Tables</h3>
     <table>
-        <thead><tr><th>Table</th><th>Rows</th><th>Description</th></tr></thead>
+        <thead><tr><th>Table</th><th>Rows</th><th>Description</th><th style="width: 100px;">Actions</th></tr></thead>
         <tbody>
-            <tr><td><code>shadow_saas_grip_apps</code></td><td><?php echo number_format($counts['apps']); ?></td><td>One row per Grip SaaS application (full payload + flattened fields).</td></tr>
-            <tr><td><code>shadow_saas_grip_users</code></td><td><?php echo number_format($counts['users']); ?></td><td>One row per Grip-discovered user.</td></tr>
-            <tr><td><code>shadow_saas_grip_alerts</code></td><td><?php echo number_format($counts['alerts']); ?></td><td>One row per Grip alert with severity, status, and related entity.</td></tr>
+            <tr><td><code>shadow_saas_grip_apps</code></td><td><?php echo number_format($counts['apps']); ?></td><td>One row per Grip SaaS application (full payload + flattened fields).</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_grip_apps"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_grip_apps? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
+            <tr><td><code>shadow_saas_grip_users</code></td><td><?php echo number_format($counts['users']); ?></td><td>One row per Grip-discovered user.</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_grip_users"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_grip_users? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
+            <tr><td><code>shadow_saas_grip_alerts</code></td><td><?php echo number_format($counts['alerts']); ?></td><td>One row per Grip alert with severity, status, and related entity.</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_grip_alerts"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_grip_alerts? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
         </tbody>
     </table>
 </div>
@@ -581,6 +613,22 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
                 <div class="form-help">OAuth 2.0 <code>client_secret</code>, exchanged for a short-lived Bearer token (client-credentials grant). Stored encrypted. Leave blank to keep the existing value.</div>
             </div>
         </div>
+        <details style="margin-top: 4px;">
+            <summary style="cursor: pointer; color: #6b7280; font-size: 13px;">Sync pacing (advanced)</summary>
+            <p class="form-help" style="margin: 8px 0;">HERO rate-limits API calls (~60 requests per minute, account-wide). These control how the per-vendor user sync paces itself.</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="hero_throttle_ms">Throttle between vendor calls (ms)</label>
+                    <input type="number" id="hero_throttle_ms" name="hero_throttle_ms" class="form-control" min="0" max="10000" step="50" value="<?php echo e($heroCfg['throttle_ms'] ?? '1100'); ?>">
+                    <div class="form-help">Pause between each vendor's user request. ~1100&nbsp;ms keeps a full sync just under HERO's ~60/min limit. Lower is faster but triggers rate-limit (429) backoffs.</div>
+                </div>
+                <div class="form-group">
+                    <label for="hero_users_timeout">Users fetch timeout (seconds)</label>
+                    <input type="number" id="hero_users_timeout" name="hero_users_timeout" class="form-control" min="5" max="120" value="<?php echo e($heroCfg['users_timeout'] ?? '15'); ?>">
+                    <div class="form-help">How long to wait for one vendor's users before skipping it. Lower means very large tenants that hang fail fast instead of stalling the run for the full timeout.</div>
+                </div>
+            </div>
+        </details>
         <div style="display: flex; gap: 10px; margin-top: 8px;">
             <button type="submit" name="update_hero" class="btn btn-primary">Save Configuration</button>
             <button type="submit" name="test_hero_connection" class="btn btn-secondary">Test Connection</button>
@@ -608,7 +656,7 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
     <form method="POST" action="admin.php?section=shadow-saas" style="margin-top: 12px;">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="sync_provider" value="hero">
-        <button type="submit" name="abort_shadow_sync" class="btn btn-secondary" onclick="return confirm('Abort the running HERO sync?');">Stop Sync</button>
+        <button type="submit" name="abort_shadow_sync" class="btn btn-secondary" data-confirm="Abort the running HERO sync?">Stop Sync</button>
     </form>
     <?php endif; ?>
 </div>
@@ -617,11 +665,11 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
 <div class="card">
     <h3>Mirror Tables</h3>
     <table>
-        <thead><tr><th>Table</th><th>Rows</th><th>Description</th></tr></thead>
+        <thead><tr><th>Table</th><th>Rows</th><th>Description</th><th style="width: 100px;">Actions</th></tr></thead>
         <tbody>
-            <tr><td><code>shadow_saas_hero_vendors</code></td><td><?php echo number_format($heroCounts['vendors']); ?></td><td>One row per HERO vendor (status, aspects, derived 1-5 risk score, full payload).</td></tr>
-            <tr><td><code>shadow_saas_hero_issues</code></td><td><?php echo number_format($heroCounts['issues']); ?></td><td>One row per HERO security issue (type, severity, status, vendor).</td></tr>
-            <tr><td><code>shadow_saas_hero_users</code></td><td><?php echo number_format($heroCounts['users']); ?></td><td>Primary contact per vendor — the highest email-activity user, used as the relationship manager.</td></tr>
+            <tr><td><code>shadow_saas_hero_vendors</code></td><td><?php echo number_format($heroCounts['vendors']); ?></td><td>One row per HERO vendor (status, aspects, derived 1-5 risk score, full payload).</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_hero_vendors"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_hero_vendors? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
+            <tr><td><code>shadow_saas_hero_issues</code></td><td><?php echo number_format($heroCounts['issues']); ?></td><td>One row per HERO security issue (type, severity, status, vendor).</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_hero_issues"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_hero_issues? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
+            <tr><td><code>shadow_saas_hero_users</code></td><td><?php echo number_format($heroCounts['users']); ?></td><td>Primary contact per vendor — the highest email-activity user, used as the relationship manager.</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_hero_users"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_hero_users? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
         </tbody>
     </table>
 </div>
@@ -685,7 +733,7 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
         </div>
         <div style="display: flex; gap: 10px; margin-top: 14px; align-items: center; flex-wrap: wrap;">
             <button type="submit" name="update_grip" class="btn btn-primary">Save Schedule</button>
-            <button type="submit" name="run_grip_now" class="btn btn-secondary" onclick="return confirm('Kick off a Shadow SaaS rehydration now? It runs in the background; refresh this page in a few seconds to see the result.');">Run Now</button>
+            <button type="submit" name="run_grip_now" class="btn btn-secondary" data-confirm="Kick off a Shadow SaaS rehydration now? It runs in the background; refresh this page in a few seconds to see the result.">Run Now</button>
         </div>
     </form>
 </div>

@@ -5749,10 +5749,12 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) V
 -- client_secret encrypted; base_url seeded to the fixed public API host (not
 -- tenant-specific); disabled by default.
 INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) VALUES
-  ('hero_enabled',       '0',                                  0),
-  ('hero_base_url',      'https://api.herosecurity.ai/stable', 0),
-  ('hero_client_id',     '',                                   0),
-  ('hero_client_secret', '',                                   1);
+  ('hero_enabled',        '0',                                  0),
+  ('hero_base_url',       'https://api.herosecurity.ai/stable', 0),
+  ('hero_client_id',      '',                                   0),
+  ('hero_client_secret',  '',                                   1),
+  ('hero_throttle_ms',    '1100',                               0),
+  ('hero_users_timeout',  '15',                                 0);
 
 -- Convert shadow_saas Grip risk scores from 0-100 to the stored 1-5 scale by
 -- re-deriving from the authoritative 0-100 value in the mirror table. Idempotent:
