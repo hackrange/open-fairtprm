@@ -272,14 +272,21 @@ function postProcessFairAnalysis(string $content, array $context): array
         throw new Exception('AI returned an invalid response format. Please try again.');
     }
 
-    // Validate and clamp values
-    $aiEstimates['threat_event_frequency'] = max(0.01, floatval($aiEstimates['threat_event_frequency'] ?? 1.0));
-    $aiEstimates['vulnerability_score'] = max(0.01, min(1.0, floatval($aiEstimates['vulnerability_score'] ?? 0.5)));
-    $aiEstimates['loss_event_frequency'] = max(0, floatval($aiEstimates['loss_event_frequency'] ?? 0));
+    // Validate and clamp values. TEF and vulnerability are bounded, then LEF is
+    // RECOMPUTED server-side as TEF x vulnerability and capped at the real-world ceiling
+    // of 1.0 -- we do not trust the model's own multiplication, and an LEF above one
+    // material loss event/year for a single vendor is not realistic (published breach
+    // base rates put it at ~0.05-0.15, poor-posture vendors ~0.3-0.5). ALE is then
+    // recomputed from the capped LEF so the whole result stays internally consistent.
+    // This mirrors FairCalculator's LEF_CEILING on the deterministic path.
+    $aiEstimates['threat_event_frequency'] = max(0.01, min(6.0, floatval($aiEstimates['threat_event_frequency'] ?? 0.5)));
+    $aiEstimates['vulnerability_score'] = max(0.01, min(0.6, floatval($aiEstimates['vulnerability_score'] ?? 0.2)));
     $aiEstimates['primary_loss_magnitude'] = max(0, floatval($aiEstimates['primary_loss_magnitude'] ?? 0));
     $aiEstimates['secondary_loss_magnitude'] = max(0, floatval($aiEstimates['secondary_loss_magnitude'] ?? 0));
-    $aiEstimates['annualized_loss_expectancy'] = max(0, floatval($aiEstimates['annualized_loss_expectancy'] ?? 0));
-    $aiEstimates['recommended_cyber_insurance'] = max(0, floatval($aiEstimates['recommended_cyber_insurance'] ?? 0));
+
+    $aiEstimates['loss_event_frequency'] = min(1.0, $aiEstimates['threat_event_frequency'] * $aiEstimates['vulnerability_score']);
+    $lossMagnitude = $aiEstimates['primary_loss_magnitude'] + $aiEstimates['secondary_loss_magnitude'];
+    $aiEstimates['annualized_loss_expectancy'] = $aiEstimates['loss_event_frequency'] * $lossMagnitude;
 
     $validRiskLevels = ['Very Low', 'Low', 'Medium', 'High', 'Very High', 'Critical'];
     if (!in_array($aiEstimates['risk_level'] ?? '', $validRiskLevels)) {
@@ -309,6 +316,20 @@ function postProcessFairAnalysis(string $content, array $context): array
         $aiEstimates['recommended_cyber_insurance'] = min($aiEstimates['recommended_cyber_insurance'], 3000);
         $aiEstimates['low_risk_cap_applied'] = true;
     }
+
+    // Derive insurance and risk level from the FINAL (post-cap) ALE so the headline
+    // number, the recommended cover, and the risk label can never disagree. Thresholds
+    // mirror FairCalculator::determineRiskLevel.
+    $ale = $aiEstimates['annualized_loss_expectancy'];
+    if (empty($aiEstimates['low_risk_cap_applied'])) {
+        $aiEstimates['recommended_cyber_insurance'] = $ale * 3;
+    }
+    if      ($ale < 1000)    { $aiEstimates['risk_level'] = 'Very Low'; }
+    elseif  ($ale < 10000)   { $aiEstimates['risk_level'] = 'Low'; }
+    elseif  ($ale < 50000)   { $aiEstimates['risk_level'] = 'Medium'; }
+    elseif  ($ale < 250000)  { $aiEstimates['risk_level'] = 'High'; }
+    elseif  ($ale < 1000000) { $aiEstimates['risk_level'] = 'Very High'; }
+    else                     { $aiEstimates['risk_level'] = 'Critical'; }
 
     return ['success' => true, 'ai_estimates' => $aiEstimates];
 }

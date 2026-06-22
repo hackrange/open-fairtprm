@@ -294,12 +294,21 @@ STEP 2 — Secondary Loss Magnitude:
 
 STEP 3 — TEF & Vulnerability:
   Use security posture data (Shodan, UpGuard, grades, CVEs) to estimate:
-  - threat_event_frequency (events/year, typically 0.01–5.0)
-  - vulnerability_score (0.01–1.0)
+  - threat_event_frequency = frequency of MATERIAL threat events/year (serious attempts
+    capable of causing a loss, NOT raw scan/probe volume). Typically 0.1–4.0; only a prime,
+    exposed target approaches the high end.
+  - vulnerability_score = P(a material threat event becomes an actual loss event). This is a
+    CONDITIONAL probability, typically 0.02–0.45; even weak vendors rarely exceed ~0.55,
+    because most serious attempts still do NOT end in a material breach.
   Security findings affect ONLY these two values. They do NOT add to loss magnitudes.
 
 STEP 4 — LEF & ALE:
   loss_event_frequency = TEF × vulnerability_score
+  *** loss_event_frequency MUST be between 0.02 and 1.0. ***
+  Real-world breach base rates (Verizon DBIR, Cyentia IRIS, cyber-insurer actuarial data) put a
+  single organization's annual probability of a MATERIAL breach at ~0.05–0.15; a poor-posture
+  vendor is ~0.3–0.5. An LEF above 1.0 implies more than one material breach per year, every
+  year, which is not realistic — if your product exceeds 1.0, set it to 1.0.
   annualized_loss_expectancy = LEF × (primary_loss_magnitude + secondary_loss_magnitude)
 
 STEP 5 — Risk Level (based on ALE):

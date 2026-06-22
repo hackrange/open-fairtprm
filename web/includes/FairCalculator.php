@@ -28,36 +28,44 @@ class FairCalculator
     // How attractive is this vendor to attackers? Baseline is 1 event/year
     // and we multiply up based on data classification and threat landscape.
     // ---------------------------------------------------------------
-    const TEF_BASELINE             = 1.0;   // At least one threat event/year (optimistic)
-    const TEF_CRITICAL_DATA        = 12.0;  // Critical/confidential = 12x more attention from hackers
-    const TEF_SENSITIVE_DATA       = 6.0;   // Sensitive but not crown-jewels level
-    const TEF_PUBLIC_DATA          = 0.5;   // Public data? Hackers will skip you for someone shinier
-    const TEF_DATA_SHARING_BOOST   = 1.5;   // Sharing data = 50% more attack surface
-    const TEF_THREAT_INTEL_HIGH    = 2.0;   // Active threats in your sector = double the fun
-    const TEF_THREAT_INTEL_MEDIUM  = 1.5;   // Some chatter, stay alert
+    // TEF here means the frequency of MATERIAL threat events (serious attempts capable
+    // of causing a loss), NOT raw scan/contact volume. Calibrated so an unremarkable
+    // vendor sits below 1/yr and only prime, exposed targets approach the ceiling.
+    const TEF_BASELINE             = 0.5;   // Baseline material threat events/year for an average vendor
+    const TEF_CRITICAL_DATA        = 2.5;   // Crown-jewel data draws more serious, targeted attempts
+    const TEF_SENSITIVE_DATA       = 1.8;   // Sensitive but not crown-jewels level
+    const TEF_PUBLIC_DATA          = 0.4;   // Public/no sensitive data = a less interesting target
+    const TEF_DATA_SHARING_BOOST   = 1.25;  // Sharing data = a somewhat larger attack surface
+    const TEF_THREAT_INTEL_HIGH    = 1.5;   // Active threats in the sector raise attempt frequency
+    const TEF_THREAT_INTEL_MEDIUM  = 1.2;   // Some chatter, stay alert
 
     // Shodan-driven TEF boosts (additive, not multiplicative)
-    const TEF_PER_CRITICAL_CVE     = 0.5;   // Each critical CVE = +0.5 events/year
-    const TEF_PER_HIGH_CVE         = 0.25;  // Each high CVE = +0.25 events/year
+    const TEF_PER_CRITICAL_CVE     = 0.15;  // Each critical CVE attracts some targeted exploitation
+    const TEF_PER_HIGH_CVE         = 0.05;  // Each high CVE, a smaller pull
     const TEF_CRITICAL_CVE_CAP     = 3;     // Max CVEs counted for TEF boost
     const TEF_HIGH_CVE_CAP         = 3;
-    const TEF_EXPOSED_DB           = 1.0;   // Exposed database port = hacker magnet
-    const TEF_EXPOSED_ADMIN        = 0.5;   // Exposed admin panel = unwanted attention
-    const TEF_MANY_OPEN_PORTS      = 0.5;   // >10 open ports = larger attack surface
+    const TEF_EXPOSED_DB           = 0.5;   // Exposed database port = scanner magnet
+    const TEF_EXPOSED_ADMIN        = 0.25;  // Exposed admin panel = unwanted attention
+    const TEF_MANY_OPEN_PORTS      = 0.25;  // >10 open ports = larger attack surface
+    const TEF_CEILING              = 6.0;   // Even prime targets see a bounded rate of material attempts
 
     // ---------------------------------------------------------------
     // VULNERABILITY BASELINES & GRADE MULTIPLIERS
     // Maps security grades to "probability an attack succeeds."
     // Start at 50% (coin flip) and adjust based on actual security posture.
     // ---------------------------------------------------------------
-    const VULN_BASELINE            = 0.50;  // Know nothing? Start at 50/50
-    const VULN_GRADE_A             = 0.20;  // Excellent security = only 20% get through
-    const VULN_GRADE_B             = 0.35;  // Good security = 35%
-    const VULN_GRADE_C             = 0.50;  // Average = coin flip
-    const VULN_GRADE_D             = 0.70;  // Below average = 70%. Not great, not terrible.
-    const VULN_GRADE_F             = 0.90;  // Failing = screen door on a submarine
-    const VULN_D_GRADE_PENALTY     = 5.0;   // D-grade vendors have dramatically higher breach rates
-    const VULN_F_GRADE_PENALTY     = 15.0;  // F-grade: just assume they're compromised
+    // Vulnerability = P(a material threat event becomes an actual loss event). This is a
+    // CONDITIONAL probability, not "how bad is the vendor" -- most serious attempts still
+    // do NOT end in a material breach, so it stays well below 1.0. The grade constants are
+    // RELATIVE multipliers on the baseline (C = average = 1.0x). There is deliberately no
+    // separate D/F penalty: the grade multiplier already encodes posture (double-counting
+    // it previously slammed every D/F vendor into the ceiling, erasing all other signal).
+    const VULN_BASELINE            = 0.20;  // Average vendor: ~1 in 5 material attempts lands
+    const VULN_GRADE_A             = 0.40;  // Excellent posture -> 0.20 x 0.40 = 0.08
+    const VULN_GRADE_B             = 0.60;  // Good            -> 0.12
+    const VULN_GRADE_C             = 1.00;  // Average         -> 0.20
+    const VULN_GRADE_D             = 1.60;  // Below average   -> 0.32
+    const VULN_GRADE_F             = 2.20;  // Failing         -> 0.44
     const VULN_ISO_27001_DISCOUNT  = 0.55;  // ISO cert = 45% reduction (research-backed)
     const VULN_NO_VULN_MGMT        = 1.5;   // No vuln management? 50% penalty
     const VULN_EXCELLENT_VULN_MGMT = 0.7;   // Automated scanning? Gold star. 30% off.
@@ -66,11 +74,11 @@ class FairCalculator
     const VULN_MFA_DISCOUNT        = 0.7;   // MFA alone prevents a massive chunk of attacks
     const VULN_LEAST_PRIVILEGE     = 0.85;  // Least privilege = 15% reduction on top
     const VULN_FLOOR               = 0.01;  // Nothing is perfectly secure (1% minimum)
-    const VULN_CEILING             = 1.0;   // Can't exceed 100%
+    const VULN_CEILING             = 0.55;  // A single threat event rarely exceeds ~55% chance of material loss
 
     // Shodan signal-based vulnerability adjustments (additive to the 0-1 score)
-    const VULN_PER_CRITICAL_CVE    = 0.08;  // Each critical CVE adds 8% attack success probability
-    const VULN_PER_HIGH_CVE        = 0.04;  // Each high CVE adds 4%
+    const VULN_PER_CRITICAL_CVE    = 0.04;  // Each critical CVE adds 4% conditional loss probability
+    const VULN_PER_HIGH_CVE        = 0.02;  // Each high CVE adds 2%
     const VULN_NO_DMARC            = 0.03;  // No DMARC = phishing door wide open
     const VULN_NO_SPF              = 0.03;  // No SPF = spoofable
     const VULN_TLS10_ENABLED       = 0.05;  // TLS 1.0 = downgrade attacks possible
@@ -88,8 +96,8 @@ class FairCalculator
     const VULN_STD_PORTS_ONLY      = -0.02; // Only standard ports = minimal exposure
 
     // UpGuard-based vulnerability adjustments
-    const VULN_PER_UG_CRITICAL     = 0.04;  // Each UpGuard critical risk
-    const VULN_PER_UG_HIGH         = 0.02;  // Each UpGuard high risk
+    const VULN_PER_UG_CRITICAL     = 0.02;  // Each UpGuard critical risk
+    const VULN_PER_UG_HIGH         = 0.01;  // Each UpGuard high risk
     const VULN_UG_CRITICAL_CAP     = 5;     // Max UpGuard risks counted
     const VULN_UG_HIGH_CAP         = 5;
     const VULN_UG_GRADE_A_BONUS    = -0.05; // UpGuard A-grade bonus
@@ -122,6 +130,16 @@ class FairCalculator
     // LIABILITY / INSURANCE
     // ---------------------------------------------------------------
     const LIABILITY_MULTIPLIER = 3.0; // Recommend 3x ALE for worst-case buffer
+
+    // ---------------------------------------------------------------
+    // LOSS EVENT FREQUENCY CEILING
+    // Hard real-world backstop. Published breach base rates (Verizon DBIR, Cyentia
+    // IRIS, insurer actuarial data) put a single organization's annual probability of
+    // a MATERIAL breach in the ~5-15% range, with even poor-posture firms rarely above
+    // ~50%. An LEF above 1.0 implies more than one material breach per year, every
+    // year -- which is not realistic for one vendor. No input path may exceed this.
+    // ---------------------------------------------------------------
+    const LEF_CEILING = 1.0;
 
     // ---------------------------------------------------------------
     // DEFAULT BREACH COSTS (fallbacks if app_config is empty)
@@ -441,8 +459,12 @@ class FairCalculator
         // Step 3: Vulnerability
         $results['vulnerability_score'] = self::calculateVulnerability($data, $shodanIntel, $upguardIntel);
 
-        // Step 4: Loss Event Frequency = TEF x Vulnerability
-        $results['loss_event_frequency'] = $results['threat_event_frequency'] * $results['vulnerability_score'];
+        // Step 4: Loss Event Frequency = TEF x Vulnerability, capped at the real-world
+        // ceiling (>1 material loss event/yr for a single vendor is not realistic).
+        $results['loss_event_frequency'] = min(
+            self::LEF_CEILING,
+            $results['threat_event_frequency'] * $results['vulnerability_score']
+        );
 
         // Step 4a: Tier-based LEF reduction
         // Tier 2 vendors have less frequent exposure to high-impact data, so cut LEF by 70%.
@@ -544,7 +566,7 @@ class FairCalculator
             }
         }
 
-        return $tef;
+        return min(self::TEF_CEILING, $tef);
     }
 
     /**
@@ -571,12 +593,9 @@ class FairCalculator
         ];
         $vulnerability *= ($scoreMultipliers[$securityScore] ?? self::VULN_GRADE_C);
 
-        // Extra penalty for D and F grades
-        if ($securityScore === 'D') {
-            $vulnerability *= self::VULN_D_GRADE_PENALTY;
-        } elseif ($securityScore === 'F') {
-            $vulnerability *= self::VULN_F_GRADE_PENALTY;
-        }
+        // (No separate D/F penalty: the grade multiplier above already encodes posture.
+        // The old extra x5 / x15 penalty double-counted the grade and pinned every D/F
+        // vendor at the ceiling, discarding every other signal.)
 
         // Factor 2: ISO 27001 Certification
         if (isset($data['iso_27001_certified']) && $data['iso_27001_certified']) {
