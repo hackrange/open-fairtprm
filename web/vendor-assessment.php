@@ -1005,7 +1005,11 @@ $csrfToken = $security->generateCSRFToken();
                     </div>
                     <div class="question" style="margin-top: 16px; text-align: left;">
                         <label class="question-label"><?php echo e(t('vendor-assessment.phone_number')); ?> <span class="required">*</span></label>
-                        <input type="tel" name="submitter_phone" class="form-control" required autocomplete="tel">
+                        <?php /* Phone type widget: country code + flag, normalised to E.164.
+                                 The hidden canonical input keeps name="submitter_phone" so the
+                                 certificate form's FormData submit is unchanged; required-ness is
+                                 enforced server-side in api/assessment-certificate-upload.php. */ ?>
+                        <?php echo phone_render_widget('submitter_phone', '', ['id' => 'cert_phone']); ?>
                     </div>
                     <label style="display:flex; align-items:flex-start; gap:8px; margin-top:16px; text-align:left; font-size:14px; line-height:1.4;">
                         <input type="checkbox" name="submitter_attested" value="1" required style="margin-top:3px; flex-shrink:0;">
@@ -1353,7 +1357,10 @@ $csrfToken = $security->generateCSRFToken();
                     </div>
                     <div class="question" style="text-align: left; margin-bottom: 15px;">
                         <label class="question-label"><?php echo e(t('vendor-assessment.phone_number')); ?> <span class="required">*</span></label>
-                        <input type="tel" name="submitter_phone" class="form-control" style="width: 100%;" required autocomplete="tel">
+                        <?php /* Phone type widget (country code + flag, E.164). Hidden canonical
+                                 input keeps name="submitter_phone"; the modal cert form submits via
+                                 FormData and required-ness is enforced server-side. */ ?>
+                        <?php echo phone_render_widget('submitter_phone', '', ['id' => 'modal_cert_phone']); ?>
                     </div>
                     <label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:15px; text-align:left; font-size:14px; line-height:1.4;">
                         <input type="checkbox" name="submitter_attested" value="1" required style="margin-top:3px; flex-shrink:0;">
