@@ -44,10 +44,35 @@ if (!$assessment) {
     die(e(t('vendor-assessment.not_found')));
 }
 
-// Check if the link has expired -- we don't want vendors filling out stale assessments
-if ($assessmentService->isExpired($assessment)) {
-    die(e(t('vendor-assessment.link_expired')));
+// ============================================================================
+// COMPLETED / EXPIRED ASSESSMENTS ARE NOT PUBLIC
+// A valid token grants PUBLIC access only while the assessment is still open
+// (not yet submitted and not past its expiry). Once it is completed or expired,
+// the secret link must stop working for anonymous visitors -- otherwise anyone
+// who ever held the link (or it leaks) could read the vendor's filled-out
+// answers back through ?edit=1. From that point on, only authenticated
+// administrators or cyber_tprm members may open it; everyone else gets a 404
+// that is indistinguishable from a bad token, so we never confirm the
+// assessment exists. hasGroup()/isAdmin()/is_super_admin are all safe to call
+// on this public (no requireAuth) page -- they read the session and return
+// false for anonymous visitors rather than redirecting.
+$isExpired = $assessmentService->isExpired($assessment);
+$isCompleted = ($assessment['status'] === 'completed');
+
+$session = Session::getInstance();
+$isPrivilegedViewer = $session->get('is_super_admin')
+    || Auth::getInstance()->isAdmin()
+    || hasGroup('administrator')
+    || hasGroup('cyber_tprm');
+
+if (($isCompleted || $isExpired) && !$isPrivilegedViewer) {
+    http_response_code(404);
+    die(e(t('vendor-assessment.not_found')));
 }
+// Past this point the assessment is either still open, or a privileged reviewer
+// is looking at a completed/expired one -- expiry no longer blocks them so they
+// can still review or correct the responses.
+// ============================================================================
 
 // Check if they already submitted this thing. If so, show a "thanks" message.
 // The ?edit=1 parameter allows re-editing a completed assessment (used by internal Edit button)
@@ -1943,7 +1968,10 @@ $csrfToken = $security->generateCSRFToken();
 
             if (result.success) {
                 showAutosave('saved', 'Submitted!');
-                window.location.reload();
+                // The assessment is now 'completed', which means this public page is
+                // no longer accessible anonymously (reloading it would 404). Render
+                // the thank-you confirmation in place instead of reloading.
+                showCompletedMessage();
             } else if (result.unanswered && result.unanswered.length > 0) {
                 showAutosave('error', 'Incomplete');
                 showIncompleteModal(result);
@@ -1955,6 +1983,30 @@ $csrfToken = $security->generateCSRFToken();
             showAutosave('error', 'Submission failed');
             alert('An error occurred while submitting the assessment.');
         }
+    }
+
+    // Replace the page body with the completion confirmation. Used after a
+    // successful submit instead of a reload, because a completed assessment is no
+    // longer publicly accessible -- reloading would hand the vendor a 404.
+    function showCompletedMessage() {
+        const container = document.querySelector('.container');
+        if (!container) { return; }
+        const hasCert = <?php echo !empty($assessment['certificate_uploaded']) ? 'true' : 'false'; ?>;
+        const certUrl = 'api/assessment-certificate-download.php?token=' + encodeURIComponent(assessmentUUID);
+        let html = ''
+            + '<div class="form-card"><div class="completed-message">'
+            + '<div class="icon">&#9989;</div>'
+            + '<h2>' + <?php echo json_encode(t('vendor-assessment.completed_title')); ?> + '</h2>'
+            + '<p>' + <?php echo json_encode(t('vendor-assessment.completed_message')); ?> + '</p>';
+        if (hasCert) {
+            html += '<p style="margin-top:15px;color:#22c55e;"><strong>'
+                + <?php echo json_encode(t('vendor-assessment.cert_uploaded_success')); ?> + '</strong></p>'
+                + '<p style="margin-top:10px;"><a href="' + certUrl + '" class="btn btn-secondary" style="display:inline-block;" target="_blank">'
+                + <?php echo json_encode(t('vendor-assessment.download_certificate')); ?> + '</a></p>';
+        }
+        html += '</div></div>';
+        container.innerHTML = html;
+        window.scrollTo(0, 0);
     }
 
     // Validate that all required questions are answered BEFORE asking for the

@@ -47,10 +47,25 @@ if (!$assessment) {
     die('Assessment not found');
 }
 
-// Check expiry -- if the link is expired, no downloads either
-if ($assessmentService->isExpired($assessment)) {
-    http_response_code(403);
-    die('This assessment link has expired.');
+// ---------------------------------------------------------------
+// COMPLETED / EXPIRED ASSESSMENTS ARE NOT PUBLIC
+// The UUID grants public download only while the assessment is still
+// open. Once it is completed (submitted) or expired, only authenticated
+// administrators or cyber_tprm members may pull the certificate back;
+// everyone else gets a 404 that is indistinguishable from a bad token,
+// mirroring vendor-assessment.php. hasGroup()/isAdmin()/is_super_admin are
+// all safe on this no-auth endpoint -- they read the session and return
+// false for anonymous callers rather than redirecting.
+// ---------------------------------------------------------------
+$session = Session::getInstance();
+$isPrivilegedViewer = $session->get('is_super_admin')
+    || Auth::getInstance()->isAdmin()
+    || hasGroup('administrator')
+    || hasGroup('cyber_tprm');
+
+if (($assessment['status'] === 'completed' || $assessmentService->isExpired($assessment)) && !$isPrivilegedViewer) {
+    http_response_code(404);
+    die('Assessment not found');
 }
 
 // Must have a certificate uploaded
