@@ -309,13 +309,65 @@ function phone_split_e164($e164) {
 }
 
 /**
+ * Self-hosted flag-image URL for an ISO-3166-1 alpha-2 code. Real SVG flags
+ * (4:3, shown at 24x18) render on every platform -- unlike the flag *emoji*,
+ * which Chrome/Windows never displays. Served from app/flags/ ('self', so no
+ * external request and no air-gap/egress concern); the assets are the
+ * MIT-licensed flag-icons set bundled into the image. A missing file simply
+ * shows the styled empty box, so an unknown ISO degrades gracefully.
+ */
+function phone_flag_img_url($iso) {
+    return 'app/flags/' . strtolower((string)$iso) . '.svg';
+}
+
+/**
+ * The phone-widget stylesheet, emitted at most once per request (static guard).
+ * Inline <style> is allowed by the CSP (style-src 'unsafe-inline'); keeping it
+ * with the widget means every page that renders a phone field is styled without
+ * having to remember to include a separate CSS file.
+ */
+function phone_widget_css() {
+    static $done = false;
+    if ($done) return '';
+    $done = true;
+    return '<style>'
+        . '.phone-widget-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}'
+        . '.phone-cc{position:relative;}'
+        . '.phone-cc-toggle{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;font-size:13px;line-height:1;cursor:pointer;min-width:96px;}'
+        . '.phone-cc-toggle:focus{outline:2px solid #35a0a3;outline-offset:1px;}'
+        . '.phone-cc-flag{width:24px;height:18px;border-radius:2px;background-size:cover;background-position:center;background-repeat:no-repeat;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,0.08) inset;}'
+        . '.phone-cc-dial{font-weight:500;}'
+        . '.phone-cc-caret{margin-left:auto;color:#888;font-size:11px;}'
+        . '.phone-cc-pop{position:absolute;z-index:1100;top:calc(100% + 4px);left:0;width:288px;max-width:80vw;background:#fff;border:1px solid #ddd;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.18);display:none;}'
+        . '.phone-cc.open .phone-cc-pop{display:block;}'
+        . '.phone-cc-search{width:calc(100% - 16px);margin:8px;padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;box-sizing:border-box;}'
+        . '.phone-cc-options{list-style:none;margin:0;padding:0 0 6px;max-height:240px;overflow-y:auto;}'
+        . '.phone-cc-option{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;font-size:13px;}'
+        . '.phone-cc-option:hover,.phone-cc-option.active{background:#eef6f6;}'
+        . '.phone-cc-option.hidden{display:none;}'
+        . '.phone-cc-option-name{flex:1;}'
+        . '.phone-cc-option-dial{color:#888;}'
+        . '</style>';
+}
+
+/**
  * Render the phone input widget.
+ *
+ * A custom country dropdown (button + searchable popup of flag rows) drives the
+ * international dialling code, and a national-number input holds the rest; JS in
+ * app/js/phone-input.js combines them into the canonical E.164 value carried by
+ * the hidden input -- that hidden input is the ONLY thing submitted, so callers
+ * and autosave are unaffected. The native <select> was replaced because flag
+ * icons cannot render inside a native <option> on every platform.
+ *
+ * NOTE: the page MUST also load app/js/phone-input.js -- the dropdown is inert
+ * without it. (vendor-assessment.php and vendor-onboarding.php already do.)
  *
  * @param string $name   The submitted field name (e.g. "primary_contact_phone"
  *                       or "responses[42]"). Applied to the hidden canonical input.
  * @param string $value  Current stored value (E.164 or anything; normalised here).
  * @param array  $opts   id, hidden_class, data_attrs (raw attr string for the
- *                       hidden input, already escaped), national_style, select_style.
+ *                       hidden input, already escaped), national_style.
  */
 function phone_render_widget($name, $value, $opts = []) {
     $value = phone_normalize_e164($value);
@@ -325,20 +377,40 @@ function phone_render_widget($name, $value, $opts = []) {
     $id          = $opts['id'] ?? '';
     $hiddenClass = $opts['hidden_class'] ?? '';
     $dataAttrs   = $opts['data_attrs'] ?? '';
-    $selectStyle = $opts['select_style'] ?? 'padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;max-width:170px;';
     $natStyle    = $opts['national_style'] ?? 'padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;flex:1;min-width:140px;';
 
-    $html  = '<div class="phone-widget" data-phone-widget>';
-    $html .= '<div class="phone-widget-row" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
+    $countries = phone_countries();
+    $selDial = '';
+    foreach ($countries as $c) { if ($c['iso'] === $selIso) { $selDial = $c['dial']; break; } }
 
-    $html .= '<select class="phone-cc" aria-label="Country dialing code" style="' . e($selectStyle) . '">';
-    foreach (phone_countries() as $c) {
-        $sel = ($c['iso'] === $selIso) ? ' selected' : '';
-        $html .= '<option value="' . e($c['iso']) . '" data-dial="' . e($c['dial']) . '"' . $sel . '>'
-              . phone_flag_entities($c['iso']) . ' ' . e($c['name']) . ' (+' . e($c['dial']) . ')'
-              . '</option>';
+    $html  = phone_widget_css();
+    $html .= '<div class="phone-widget" data-phone-widget>';
+    $html .= '<div class="phone-widget-row">';
+
+    // Custom country dropdown. The selected flag is set inline (one image) so it
+    // shows before JS runs; the option-row flags are lazy-hydrated on first open.
+    $html .= '<div class="phone-cc" data-phone-cc data-iso="' . e($selIso) . '" data-dial="' . e($selDial) . '">';
+    $html .= '<button type="button" class="phone-cc-toggle" aria-haspopup="listbox" aria-expanded="false" aria-label="Country dialling code">';
+    $html .= '<span class="phone-cc-flag" style="background-image:url(\'' . e(phone_flag_img_url($selIso)) . '\')"></span>';
+    $html .= '<span class="phone-cc-dial">+' . e($selDial) . '</span>';
+    $html .= '<span class="phone-cc-caret" aria-hidden="true">&#9662;</span>';
+    $html .= '</button>';
+    $html .= '<div class="phone-cc-pop">';
+    $html .= '<input type="text" class="phone-cc-search" placeholder="Search country or code" autocomplete="off" aria-label="Search country">';
+    $html .= '<ul class="phone-cc-options" role="listbox">';
+    foreach ($countries as $c) {
+        $iso = $c['iso']; $dial = $c['dial']; $nm = $c['name'];
+        $active = ($iso === $selIso) ? ' active' : '';
+        $search = strtolower($nm . ' ' . $iso . ' +' . $dial);
+        $html .= '<li class="phone-cc-option' . $active . '" role="option"'
+              . ' data-iso="' . e($iso) . '" data-dial="' . e($dial) . '"'
+              . ' data-flag="' . e(phone_flag_img_url($iso)) . '" data-search="' . e($search) . '">'
+              . '<span class="phone-cc-flag"></span>'
+              . '<span class="phone-cc-option-name">' . e($nm) . '</span>'
+              . '<span class="phone-cc-option-dial">+' . e($dial) . '</span>'
+              . '</li>';
     }
-    $html .= '</select>';
+    $html .= '</ul></div></div>';
 
     $natId = $id ? (' id="' . e($id) . '_national"') : '';
     $html .= '<input type="tel" class="phone-national" inputmode="tel" autocomplete="tel-national"'

@@ -7265,7 +7265,7 @@ function getFieldValue($request, $field, $default = '') {
     <script src="app/js/vendor-search.js?v=2.5.5b"></script>
     <script src="app/js/mobile-nav.js"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
-    <script src="app/js/phone-input.js?v=1" nonce="<?php echo cspNonce(); ?>"></script>
+    <script src="app/js/phone-input.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <script src="app/js/vat-input.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <script nonce="<?php echo cspNonce(); ?>">
     // Procurement Onboarding -> scoring-disabled banner: toggle live when staff
