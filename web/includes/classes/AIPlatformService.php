@@ -41,8 +41,9 @@ class AIPlatformService {
         // Load all AI-related config keys
         $rows = $this->db->fetchAll(
             'SELECT config_key, config_value, is_encrypted FROM app_config
-             WHERE config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ?',
-            ['openwebui_%', 'librechat_%', 'custom_%', 'ai_platform_%']
+             WHERE config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ?
+                OR config_key LIKE ? OR config_key LIKE ?',
+            ['openwebui_%', 'librechat_%', 'custom_%', 'ai_platform_%', 'anthropic_%', 'openai_%']
         );
 
         foreach ($rows as $row) {
@@ -90,6 +91,12 @@ class AIPlatformService {
         if ($platform === 'custom') {
             return ($this->config['custom_enabled'] ?? '0') === '1';
         }
+        if ($platform === 'anthropic') {
+            return ($this->config['anthropic_enabled'] ?? '0') === '1';
+        }
+        if ($platform === 'openai') {
+            return ($this->config['openai_enabled'] ?? '0') === '1';
+        }
         return ($this->config['openwebui_enabled'] ?? '0') === '1';
     }
 
@@ -100,6 +107,14 @@ class AIPlatformService {
         $platform = $this->getActivePlatform();
         if ($platform === 'librechat') {
             return $this->config['librechat_api_url'] ?? '';
+        }
+        if ($platform === 'anthropic') {
+            $u = $this->config['anthropic_api_url'] ?? '';
+            return $u !== '' ? $u : 'https://api.anthropic.com/v1/messages';
+        }
+        if ($platform === 'openai') {
+            $u = $this->config['openai_api_url'] ?? '';
+            return $u !== '' ? $u : 'https://api.openai.com/v1/chat/completions';
         }
         return $this->config['openwebui_api_url'] ?? '';
     }
@@ -112,6 +127,12 @@ class AIPlatformService {
         if ($platform === 'librechat') {
             return $this->config['librechat_api_key'] ?? '';
         }
+        if ($platform === 'anthropic') {
+            return $this->config['anthropic_api_key'] ?? '';
+        }
+        if ($platform === 'openai') {
+            return $this->config['openai_api_key'] ?? '';
+        }
         return $this->config['openwebui_jwt_token'] ?? '';
     }
 
@@ -122,6 +143,18 @@ class AIPlatformService {
      */
     public function getModel(?string $purpose = null): string {
         $platform = $this->getActivePlatform();
+
+        // Native Anthropic / OpenAI platforms carry their own model field. The
+        // fair_ai_model override is an OpenWebUI raw-model convenience and must
+        // not leak an incompatible model name into these APIs.
+        if ($platform === 'anthropic') {
+            $m = $this->config['anthropic_model'] ?? '';
+            return $m !== '' ? $m : 'claude-opus-4-8';
+        }
+        if ($platform === 'openai') {
+            $m = $this->config['openai_model'] ?? '';
+            return $m !== '' ? $m : 'gpt-4o';
+        }
 
         // fair_ai_model override only works for OpenWebUI (raw model names)
         if ($platform !== 'librechat' && ($purpose === 'fair' || $purpose === 'structured')) {
@@ -143,6 +176,14 @@ class AIPlatformService {
         if ($platform === 'librechat') {
             return (float)($this->config['librechat_temperature'] ?? 0.7);
         }
+        if ($platform === 'openai') {
+            return (float)($this->config['openai_temperature'] ?? 0.7);
+        }
+        if ($platform === 'anthropic') {
+            // Not sent to the API (current Claude models reject sampling params);
+            // returned only for completeness.
+            return (float)($this->config['anthropic_temperature'] ?? 1.0);
+        }
         return (float)($this->config['openwebui_temperature'] ?? 0.7);
     }
 
@@ -153,6 +194,12 @@ class AIPlatformService {
         $platform = $this->getActivePlatform();
         if ($platform === 'librechat') {
             return (int)($this->config['librechat_max_tokens'] ?? 500);
+        }
+        if ($platform === 'anthropic') {
+            return (int)($this->config['anthropic_max_tokens'] ?? 4096);
+        }
+        if ($platform === 'openai') {
+            return (int)($this->config['openai_max_tokens'] ?? 4096);
         }
         return (int)($this->config['openwebui_max_tokens'] ?? 500);
     }
@@ -208,6 +255,16 @@ class AIPlatformService {
         // Custom platform uses an admin-supplied curl-style template; dispatch separately.
         if ($this->getActivePlatform() === 'custom') {
             return $this->customChatCompletion($messages, $options);
+        }
+
+        // Native Anthropic (Claude) and OpenAI (ChatGPT) platforms each speak
+        // their own wire format (and ground breach/OSINT scans via a built-in
+        // web-search tool), so they dispatch separately too.
+        if ($this->getActivePlatform() === 'anthropic') {
+            return $this->anthropicChatCompletion($messages, $options);
+        }
+        if ($this->getActivePlatform() === 'openai') {
+            return $this->openaiChatCompletion($messages, $options);
         }
 
         $apiUrl = $this->getApiUrl();
@@ -635,6 +692,11 @@ class AIPlatformService {
         if ($platform === 'custom') {
             return ['success' => false, 'models' => [], 'error' => 'Model listing is not available for the Custom platform.'];
         }
+        if ($platform === 'anthropic') {
+            // Anthropic's models endpoint uses x-api-key + anthropic-version, not
+            // the OpenAI bearer + /chat/completions→/models derivation below.
+            return ['success' => false, 'models' => [], 'error' => 'Enter the model manually (e.g. claude-opus-4-8). Model listing is not available for Anthropic here.'];
+        }
 
         $apiUrl = $this->getApiUrl();
         $authToken = $this->getAuthToken();
@@ -704,6 +766,247 @@ class AIPlatformService {
             return ['success' => false, 'models' => [], 'error' => 'The platform returned no models.'];
         }
         return ['success' => true, 'models' => $models, 'error' => null];
+    }
+
+    /**
+     * Native Anthropic (Claude) Messages API dispatch.
+     *
+     * Differs from the OpenAI-compatible platforms: auth is the x-api-key
+     * header (not a bearer), the endpoint is /v1/messages, system prompts are a
+     * top-level field (not a message role), the response is a content[] block
+     * array (not choices[]), and sampling params are rejected by current models
+     * so we omit temperature. When the caller supplies search_queries
+     * (breach/OSINT research) we attach Anthropic's server-side web_search tool
+     * so Claude grounds on live, cited results — this is what makes Breach
+     * Alerts work natively, with no external safe-search shim. The server runs
+     * the search loop and may emit stop_reason "pause_turn"; we resend the
+     * accumulated assistant turn to let it resume, up to a small bound.
+     */
+    private function anthropicChatCompletion(array $messages, array $options): array {
+        $apiUrl = $this->getApiUrl();
+        $apiKey = $this->getAuthToken();
+        $model  = $options['model'] ?? $this->getModel($options['purpose'] ?? null);
+        $maxTokens = (int)($options['max_tokens'] ?? $this->getMaxTokens());
+        if ($maxTokens < 1) { $maxTokens = 4096; }
+
+        if (empty($apiUrl) || empty($apiKey)) {
+            return ['success' => false, 'content' => null, 'error' => 'Anthropic: API URL or key not configured'];
+        }
+
+        // Split system messages into the top-level "system" field; the rest stay
+        // as user/assistant turns (Anthropic rejects a system role in messages[]).
+        $systemParts = [];
+        $apiMessages = [];
+        foreach ($messages as $msg) {
+            $role    = $msg['role']    ?? 'user';
+            $content = $msg['content'] ?? '';
+            if (!is_string($content) || $content === '') { continue; }
+            if ($role === 'system') {
+                $systemParts[] = $content;
+            } else {
+                $apiMessages[] = ['role' => ($role === 'assistant' ? 'assistant' : 'user'), 'content' => $content];
+            }
+        }
+        if (empty($apiMessages)) {
+            $apiMessages[] = ['role' => 'user', 'content' => ' '];
+        }
+
+        $payload = [
+            'model'      => $model,
+            'max_tokens' => $maxTokens,
+            'messages'   => $apiMessages,
+        ];
+        if (!empty($systemParts)) {
+            $payload['system'] = implode("\n\n", $systemParts);
+        }
+
+        // Grounded research: enable Claude's server-side web search so it can
+        // cite live sources. Triggered by the same search_queries signal the
+        // Custom platform uses, so Breach/OSINT scans light it up automatically.
+        if (!empty($options['search_queries'])) {
+            $payload['tools'] = [[
+                'type' => 'web_search_20260209',
+                'name' => 'web_search',
+            ]];
+        }
+
+        $headers = [
+            'x-api-key: ' . $apiKey,
+            'anthropic-version: 2023-06-01',
+            'content-type: application/json',
+        ];
+
+        $timeout   = (int)($options['timeout'] ?? 120);
+        $maxRounds = 6;
+        $carry     = null; // accumulated assistant content blocks for pause_turn resume
+
+        for ($round = 0; $round < $maxRounds; $round++) {
+            $payload['messages'] = ($carry === null)
+                ? $apiMessages
+                : array_merge($apiMessages, [['role' => 'assistant', 'content' => $carry]]);
+
+            $ch = curl_init($apiUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+            $response  = curl_exec($ch);
+            $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+
+            if ($curlError) {
+                error_log('Anthropic cURL error: ' . $curlError);
+                return ['success' => false, 'content' => null, 'error' => 'Connection failed: ' . $curlError];
+            }
+            if ($httpCode !== 200) {
+                error_log("Anthropic HTTP {$httpCode}: " . substr((string)$response, 0, 500));
+                $detail  = '';
+                $decoded = json_decode((string)$response, true);
+                if (is_array($decoded)) {
+                    $detail = $decoded['error']['message'] ?? ($decoded['message'] ?? '');
+                }
+                if ($detail === '') { $detail = trim(strip_tags((string)$response)); }
+                if (strlen($detail) > 300) { $detail = substr($detail, 0, 300) . '…'; }
+                $err = "API returned HTTP {$httpCode}";
+                if ($detail !== '') { $err .= ': ' . $detail; }
+                return ['success' => false, 'content' => null, 'error' => $err];
+            }
+
+            $data = json_decode((string)$response, true);
+            if (!is_array($data)) {
+                return ['success' => false, 'content' => null, 'error' => 'Invalid JSON response'];
+            }
+
+            $stopReason    = $data['stop_reason'] ?? null;
+            $contentBlocks = (array)($data['content'] ?? []);
+
+            if ($stopReason === 'refusal') {
+                return ['success' => false, 'content' => null, 'error' => 'Anthropic declined the request (refusal).'];
+            }
+
+            // pause_turn: server-tool loop hit its per-turn cap. Accumulate the
+            // assistant content and resend so it resumes (no extra user turn).
+            if ($stopReason === 'pause_turn' && !empty($contentBlocks)) {
+                $carry = array_merge((array)($carry ?? []), $contentBlocks);
+                continue;
+            }
+
+            // Terminal turn: concatenate text blocks across all rounds; skip
+            // server_tool_use / web_search_tool_result / thinking blocks.
+            $allBlocks = array_merge((array)($carry ?? []), $contentBlocks);
+            $text = '';
+            foreach ($allBlocks as $block) {
+                if (is_array($block) && ($block['type'] ?? '') === 'text' && isset($block['text'])) {
+                    $text .= $block['text'];
+                }
+            }
+            $text = trim($text);
+            if ($text === '') {
+                return ['success' => false, 'content' => null, 'error' => 'No content in response'];
+            }
+
+            return [
+                'success' => true,
+                'content' => $text,
+                'error'   => null,
+                'usage'   => $data['usage'] ?? null,
+            ];
+        }
+
+        return ['success' => false, 'content' => null, 'error' => 'Anthropic: exceeded web-search continuation rounds'];
+    }
+
+    /**
+     * Native OpenAI (ChatGPT) chat-completions dispatch.
+     *
+     * Standard OpenAI shape: bearer auth, /v1/chat/completions, choices[] back.
+     * For grounded research (search_queries present) we switch to a web-search
+     * -capable model (openai_search_model, default gpt-4o-search-preview) and
+     * attach web_search_options so Breach/OSINT scans get live, cited results.
+     * The search-preview models reject temperature, so it is omitted there.
+     */
+    private function openaiChatCompletion(array $messages, array $options): array {
+        $apiUrl = $this->getApiUrl();
+        $apiKey = $this->getAuthToken();
+        $maxTokens = (int)($options['max_tokens'] ?? $this->getMaxTokens());
+        if ($maxTokens < 1) { $maxTokens = 4096; }
+
+        if (empty($apiUrl) || empty($apiKey)) {
+            return ['success' => false, 'content' => null, 'error' => 'OpenAI: API URL or key not configured'];
+        }
+
+        $useSearch = !empty($options['search_queries']);
+        if ($useSearch) {
+            $searchModel = $this->config['openai_search_model'] ?? '';
+            $model = $searchModel !== '' ? $searchModel : 'gpt-4o-search-preview';
+        } else {
+            $model = $options['model'] ?? $this->getModel($options['purpose'] ?? null);
+        }
+
+        $payload = [
+            'model'      => $model,
+            'messages'   => $messages,
+            'max_tokens' => $maxTokens,
+        ];
+        if ($useSearch) {
+            // Built-in web search for the search-preview models. These models
+            // reject temperature, so it is intentionally omitted on this path.
+            $payload['web_search_options'] = new stdClass();
+        } else {
+            $payload['temperature'] = $options['temperature'] ?? $this->getTemperature();
+        }
+
+        $ch = curl_init($apiUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, (int)($options['timeout'] ?? 120));
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $apiKey,
+            'Content-Type: application/json',
+            'Accept: application/json',
+        ]);
+
+        $response  = curl_exec($ch);
+        $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+
+        if ($curlError) {
+            error_log('OpenAI cURL error: ' . $curlError);
+            return ['success' => false, 'content' => null, 'error' => 'Connection failed: ' . $curlError];
+        }
+        if ($httpCode !== 200) {
+            error_log("OpenAI HTTP {$httpCode}: " . substr((string)$response, 0, 500));
+            $detail  = '';
+            $decoded = json_decode((string)$response, true);
+            if (is_array($decoded)) {
+                $detail = $decoded['error']['message'] ?? ($decoded['message'] ?? '');
+            }
+            if ($detail === '') { $detail = trim(strip_tags((string)$response)); }
+            if (strlen($detail) > 300) { $detail = substr($detail, 0, 300) . '…'; }
+            $err = "API returned HTTP {$httpCode}";
+            if ($detail !== '') { $err .= ': ' . $detail; }
+            return ['success' => false, 'content' => null, 'error' => $err];
+        }
+
+        $data = json_decode((string)$response, true);
+        if (!is_array($data)) {
+            return ['success' => false, 'content' => null, 'error' => 'Invalid JSON response'];
+        }
+        $content = $data['choices'][0]['message']['content'] ?? null;
+        if ($content === null || $content === '') {
+            return ['success' => false, 'content' => null, 'error' => 'No content in response'];
+        }
+        return [
+            'success' => true,
+            'content' => $content,
+            'error'   => null,
+            'usage'   => $data['usage'] ?? null,
+        ];
     }
 
     public function testConnection(): array {

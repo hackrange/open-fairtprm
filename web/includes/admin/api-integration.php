@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['update_openwebui']) 
             $encryption = new Encryption();
 
             // Active platform selection (disabled / openwebui / librechat / custom)
-            $activePlatform = in_array($_POST['ai_platform_active'] ?? '', ['openwebui', 'librechat', 'custom', 'disabled'])
+            $activePlatform = in_array($_POST['ai_platform_active'] ?? '', ['openwebui', 'librechat', 'custom', 'anthropic', 'openai', 'disabled'])
                 ? $_POST['ai_platform_active']
                 : 'disabled';
 
@@ -113,9 +113,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['update_openwebui']) 
                 }
             }
 
+            // Anthropic (Claude) native settings. The API URL defaults to the
+            // canonical Messages endpoint when left blank so admins only have to
+            // paste a key. Web search is attached automatically during scans.
+            $anthropicApiUrl = trim($_POST['anthropic_api_url'] ?? '');
+            $settings['anthropic_enabled'] = ($activePlatform === 'anthropic') ? '1' : '0';
+            $settings['anthropic_api_url'] = (!empty($anthropicApiUrl) && filter_var($anthropicApiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $anthropicApiUrl) && isConfigUrlHostSafe($anthropicApiUrl)) ? $anthropicApiUrl : 'https://api.anthropic.com/v1/messages';
+            $settings['anthropic_model'] = trim($_POST['anthropic_model'] ?? '');
+            $settings['anthropic_max_tokens'] = (string)max(1, min(100000, intval($_POST['anthropic_max_tokens'] ?? 4096)));
+
+            // Anthropic API key (encrypted, leave blank to keep existing)
+            $anthropicKey = trim($_POST['anthropic_api_key'] ?? '');
+            if (!empty($anthropicKey)) {
+                $settings['anthropic_api_key'] = $encryption->encrypt($anthropicKey);
+            } else {
+                $existingAnthropicKey = $db->fetchOne(
+                    'SELECT config_value FROM app_config WHERE config_key = :key',
+                    [':key' => 'anthropic_api_key']
+                );
+                if ($existingAnthropicKey) {
+                    $settings['anthropic_api_key'] = $existingAnthropicKey['config_value'];
+                }
+            }
+
+            // OpenAI (ChatGPT) native settings. The search model is used only
+            // for breach/OSINT scans, which need a web-search-capable model.
+            $openaiApiUrl = trim($_POST['openai_api_url'] ?? '');
+            $settings['openai_enabled'] = ($activePlatform === 'openai') ? '1' : '0';
+            $settings['openai_api_url'] = (!empty($openaiApiUrl) && filter_var($openaiApiUrl, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $openaiApiUrl) && isConfigUrlHostSafe($openaiApiUrl)) ? $openaiApiUrl : 'https://api.openai.com/v1/chat/completions';
+            $settings['openai_model'] = trim($_POST['openai_model'] ?? '');
+            $settings['openai_search_model'] = trim($_POST['openai_search_model'] ?? '');
+            $settings['openai_temperature'] = (string)max(0.0, min(2.0, floatval($_POST['openai_temperature'] ?? 0.7)));
+            $settings['openai_max_tokens'] = (string)max(1, min(100000, intval($_POST['openai_max_tokens'] ?? 4096)));
+
+            // OpenAI API key (encrypted, leave blank to keep existing)
+            $openaiKey = trim($_POST['openai_api_key'] ?? '');
+            if (!empty($openaiKey)) {
+                $settings['openai_api_key'] = $encryption->encrypt($openaiKey);
+            } else {
+                $existingOpenaiKey = $db->fetchOne(
+                    'SELECT config_value FROM app_config WHERE config_key = :key',
+                    [':key' => 'openai_api_key']
+                );
+                if ($existingOpenaiKey) {
+                    $settings['openai_api_key'] = $existingOpenaiKey['config_value'];
+                }
+            }
+
             // Save all settings
             foreach ($settings as $key => $value) {
-                $isEncrypted = in_array($key, ['openwebui_jwt_token', 'librechat_api_key', 'custom_secret_header_value']) ? 1 : 0;
+                $isEncrypted = in_array($key, ['openwebui_jwt_token', 'librechat_api_key', 'custom_secret_header_value', 'anthropic_api_key', 'openai_api_key']) ? 1 : 0;
                 $existing = $db->fetchOne('SELECT id FROM app_config WHERE config_key = :key', [':key' => $key]);
                 if ($existing) {
                     $db->update('app_config', ['config_value' => $value, 'is_encrypted' => $isEncrypted], 'config_key = :key', [':key' => $key]);
@@ -131,7 +178,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['update_openwebui']) 
                 $auditData['openwebui_jwt_token'],
                 $auditData['librechat_api_key'],
                 $auditData['custom_headers'],
-                $auditData['custom_secret_header_value']
+                $auditData['custom_secret_header_value'],
+                $auditData['anthropic_api_key'],
+                $auditData['openai_api_key']
             );
             $auth->audit($user['id'], 'config_update_ai_settings', 'app_config', null, ['new' => $auditData]);
             $success = t('admin_api-integration.settings_saved');
@@ -185,8 +234,8 @@ $encryption = new Encryption();
 
 // Load all AI config keys
 $aiRows = $db->fetchAll(
-    'SELECT config_key, config_value, is_encrypted FROM app_config WHERE config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ? OR config_key = ?',
-    ['openwebui_%', 'librechat_%', 'custom_%', 'ai_platform_%', 'fair_ai_model']
+    'SELECT config_key, config_value, is_encrypted FROM app_config WHERE config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ? OR config_key LIKE ? OR config_key = ?',
+    ['openwebui_%', 'librechat_%', 'custom_%', 'ai_platform_%', 'anthropic_%', 'openai_%', 'fair_ai_model']
 );
 $aiConfig = [];
 foreach ($aiRows as $row) {
@@ -223,6 +272,20 @@ $customSecretHeaderName  = $aiConfig['custom_secret_header_name'] ?? 'x-app-secr
 // only check for presence here — the actual secret is never echoed back to
 // the browser. Replacement is the only path; viewing is impossible after save.
 $customSecretIsSet       = !empty($aiConfig['custom_secret_header_value']);
+
+// Anthropic (Claude) values
+$anthropicApiUrl    = $aiConfig['anthropic_api_url']    ?? 'https://api.anthropic.com/v1/messages';
+$anthropicApiKey    = $aiConfig['anthropic_api_key']    ?? '';
+$anthropicModel     = $aiConfig['anthropic_model']      ?? 'claude-opus-4-8';
+$anthropicMaxTokens = $aiConfig['anthropic_max_tokens'] ?? '4096';
+
+// OpenAI (ChatGPT) values
+$openaiApiUrl      = $aiConfig['openai_api_url']      ?? 'https://api.openai.com/v1/chat/completions';
+$openaiApiKey      = $aiConfig['openai_api_key']      ?? '';
+$openaiModel       = $aiConfig['openai_model']        ?? 'gpt-4o';
+$openaiSearchModel = $aiConfig['openai_search_model'] ?? 'gpt-4o-search-preview';
+$openaiTemperature = $aiConfig['openai_temperature']  ?? '0.7';
+$openaiMaxTokens   = $aiConfig['openai_max_tokens']   ?? '4096';
 
 // Sanitized example shown when the headers field is empty.
 // Only the additional headers and the body template are listed — the request
@@ -272,6 +335,16 @@ CURL;
                 <input type="radio" name="ai_platform_active" value="custom" <?php echo $activePlatform === 'custom' ? 'checked' : ''; ?>>
                 <span class="api-choice-label"><?php echo e(t('admin_api-integration.custom')); ?></span>
                 <span class="api-choice-desc"><?php echo e(t('admin_api-integration.curl_style_headers')); ?></span>
+            </label>
+            <label class="api-choice <?php echo $activePlatform === 'anthropic' ? 'api-choice-active' : ''; ?>">
+                <input type="radio" name="ai_platform_active" value="anthropic" <?php echo $activePlatform === 'anthropic' ? 'checked' : ''; ?>>
+                <span class="api-choice-label">Anthropic (Claude)</span>
+                <span class="api-choice-desc">Native API + web search</span>
+            </label>
+            <label class="api-choice <?php echo $activePlatform === 'openai' ? 'api-choice-active' : ''; ?>">
+                <input type="radio" name="ai_platform_active" value="openai" <?php echo $activePlatform === 'openai' ? 'checked' : ''; ?>>
+                <span class="api-choice-label">OpenAI (ChatGPT)</span>
+                <span class="api-choice-desc">Native API + web search</span>
             </label>
         </div>
     </div>
@@ -382,8 +455,74 @@ CURL;
         </div>
     </div>
 
-    <!-- Shared Settings (only relevant for OpenWebUI / LibreChat — Custom uses its own --data-raw body) -->
-    <div class="card" id="panel-shared" style="margin-bottom: 20px;<?php echo in_array($activePlatform, ['disabled', 'custom']) ? ' display:none;' : ''; ?>">
+    <!-- Anthropic (Claude) Settings -->
+    <div class="card" id="panel-anthropic" style="margin-bottom: 20px;<?php echo $activePlatform !== 'anthropic' ? ' display:none;' : ''; ?>">
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;">Anthropic (Claude) Configuration</h3>
+        <div class="form-group">
+            <label for="anthropic_api_url"><?php echo e(t('admin_api-integration.api_url')); ?></label>
+            <input type="text" id="anthropic_api_url" name="anthropic_api_url" class="form-control" value="<?php echo e($anthropicApiUrl); ?>" placeholder="https://api.anthropic.com/v1/messages">
+            <div class="form-help">Native Anthropic Messages endpoint. Leave as-is unless you proxy Anthropic.</div>
+        </div>
+        <div class="form-group">
+            <label for="anthropic_api_key"><?php echo e(t('admin_api-integration.api_key')); ?></label>
+            <input type="password" id="anthropic_api_key" name="anthropic_api_key" class="form-control" autocomplete="off" placeholder="<?php echo !empty($anthropicApiKey) ? '••••••••  (leave blank to keep)' : 'sk-ant-api03-...'; ?>">
+            <div class="form-help">Sent as the <code>x-api-key</code> header. Stored AES-256 encrypted; leave blank to keep the existing key.</div>
+        </div>
+        <div class="form-group">
+            <label for="anthropic_model"><?php echo e(t('admin_api-integration.default_model')); ?></label>
+            <input type="text" id="anthropic_model" name="anthropic_model" class="form-control" value="<?php echo e($anthropicModel); ?>" placeholder="e.g. claude-opus-4-8">
+            <div class="form-help">e.g. <code>claude-opus-4-8</code>, <code>claude-sonnet-4-6</code>, <code>claude-haiku-4-5</code>. Web search runs automatically during Breach &amp; OSINT scans.</div>
+        </div>
+        <div style="display: flex; gap: 16px;">
+            <div class="form-group" style="flex: 1;">
+                <label for="anthropic_max_tokens"><?php echo e(t('admin_api-integration.max_tokens')); ?></label>
+                <input type="number" id="anthropic_max_tokens" name="anthropic_max_tokens" class="form-control" min="1" value="<?php echo e($anthropicMaxTokens); ?>">
+            </div>
+        </div>
+    </div>
+
+    <!-- OpenAI (ChatGPT) Settings -->
+    <div class="card" id="panel-openai" style="margin-bottom: 20px;<?php echo $activePlatform !== 'openai' ? ' display:none;' : ''; ?>">
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;">OpenAI (ChatGPT) Configuration</h3>
+        <div class="form-group">
+            <label for="openai_api_url"><?php echo e(t('admin_api-integration.api_url')); ?></label>
+            <input type="text" id="openai_api_url" name="openai_api_url" class="form-control" value="<?php echo e($openaiApiUrl); ?>" placeholder="https://api.openai.com/v1/chat/completions">
+        </div>
+        <div class="form-group">
+            <label for="openai_api_key"><?php echo e(t('admin_api-integration.api_key')); ?></label>
+            <input type="password" id="openai_api_key" name="openai_api_key" class="form-control" autocomplete="off" placeholder="<?php echo !empty($openaiApiKey) ? '••••••••  (leave blank to keep)' : 'sk-...'; ?>">
+            <div class="form-help">Sent as <code>Authorization: Bearer</code>. Stored AES-256 encrypted; leave blank to keep the existing key.</div>
+        </div>
+        <div class="form-group">
+            <label for="openai_model"><?php echo e(t('admin_api-integration.default_model')); ?></label>
+            <input type="text" id="openai_model" name="openai_model" class="form-control" value="<?php echo e($openaiModel); ?>" placeholder="e.g. gpt-4o">
+            <div style="display:flex;gap:8px;margin-top:6px;align-items:center;">
+                <select class="form-control ai-model-select" data-target="openai_model" style="flex:1;">
+                    <option value=""><?php echo e(t('admin_ai-platform.models_not_loaded')); ?></option>
+                </select>
+                <button type="button" class="btn ai-load-models" style="background:#6b7280;border-color:#6b7280;color:#fff;white-space:nowrap;"><?php echo e(t('admin_ai-platform.load_models')); ?></button>
+            </div>
+            <div class="form-help ai-models-msg" style="margin-top:4px;"></div>
+        </div>
+        <div class="form-group">
+            <label for="openai_search_model">Web Search Model</label>
+            <input type="text" id="openai_search_model" name="openai_search_model" class="form-control" value="<?php echo e($openaiSearchModel); ?>" placeholder="gpt-4o-search-preview">
+            <div class="form-help">Used only for Breach &amp; OSINT scans (needs a web-search-capable model). e.g. <code>gpt-4o-search-preview</code>, <code>gpt-4o-mini-search-preview</code>.</div>
+        </div>
+        <div style="display: flex; gap: 16px;">
+            <div class="form-group" style="flex: 1;">
+                <label for="openai_temperature"><?php echo e(t('admin_api-integration.temperature')); ?></label>
+                <input type="number" id="openai_temperature" name="openai_temperature" class="form-control" step="0.1" min="0" max="2" value="<?php echo e($openaiTemperature); ?>">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label for="openai_max_tokens"><?php echo e(t('admin_api-integration.max_tokens')); ?></label>
+                <input type="number" id="openai_max_tokens" name="openai_max_tokens" class="form-control" min="1" value="<?php echo e($openaiMaxTokens); ?>">
+            </div>
+        </div>
+    </div>
+
+    <!-- Shared Settings (only relevant for OpenWebUI / LibreChat — Custom/Anthropic/OpenAI use their own model field) -->
+    <div class="card" id="panel-shared" style="margin-bottom: 20px;<?php echo in_array($activePlatform, ['disabled', 'custom', 'anthropic', 'openai']) ? ' display:none;' : ''; ?>">
         <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;"><?php echo e(t('admin_api-integration.shared_model_settings')); ?></h3>
         <div class="form-group">
             <label for="fair_ai_model"><?php echo e(t('admin_api-integration.fair_structured_model')); ?></label>
@@ -462,6 +601,8 @@ CURL;
         openwebui: document.getElementById('panel-openwebui'),
         librechat: document.getElementById('panel-librechat'),
         custom:    document.getElementById('panel-custom'),
+        anthropic: document.getElementById('panel-anthropic'),
+        openai:    document.getElementById('panel-openai'),
         shared:    document.getElementById('panel-shared')
     };
 
@@ -472,7 +613,9 @@ CURL;
         panels.openwebui.style.display = val === 'openwebui' ? '' : 'none';
         panels.librechat.style.display = val === 'librechat' ? '' : 'none';
         panels.custom.style.display    = val === 'custom'    ? '' : 'none';
-        panels.shared.style.display    = (val === 'disabled' || val === 'custom') ? 'none' : '';
+        panels.anthropic.style.display = val === 'anthropic' ? '' : 'none';
+        panels.openai.style.display    = val === 'openai'    ? '' : 'none';
+        panels.shared.style.display    = (val === 'disabled' || val === 'custom' || val === 'anthropic' || val === 'openai') ? 'none' : '';
 
         // Highlight active choice card
         document.querySelectorAll('.api-choice').forEach(function(card) {
