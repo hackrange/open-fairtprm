@@ -806,10 +806,14 @@ CURL;
     function loadModels() {
         loadButtons.forEach(function (b) { b.disabled = true; });
         setModelMsg(<?php echo json_encode(t('admin_ai-platform.models_loading')); ?>, false);
+        // Query the platform the admin is currently editing (the selected card),
+        // not whatever happens to be the saved active platform.
+        var checked = document.querySelector('input[name="ai_platform_active"]:checked');
+        var selPlatform = checked ? checked.value : '';
         fetch('api/ai-models.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ csrf_token: aiCsrf })
+            body: new URLSearchParams({ csrf_token: aiCsrf, platform: selPlatform })
         }).then(function (r) { return r.json(); }).then(function (data) {
             if (data && data.success && data.models && data.models.length) {
                 populateModels(data.models);

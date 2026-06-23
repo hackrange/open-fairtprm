@@ -687,19 +687,38 @@ class AIPlatformService {
      *
      * @return array{ success: bool, models: array<int,array{id:string,name:string}>, error: ?string }
      */
-    public function fetchAvailableModels(): array {
-        $platform = $this->getActivePlatform();
+    public function fetchAvailableModels(?string $platform = null): array {
+        // Panel-aware: callers pass the platform whose model list they want (the
+        // box the admin is editing), so "Load Models" follows the panel rather
+        // than the saved active platform. Falls back to the active platform.
+        if ($platform === null || $platform === '') {
+            $platform = $this->getActivePlatform();
+        }
         if ($platform === 'custom') {
             return ['success' => false, 'models' => [], 'error' => 'Model listing is not available for the Custom platform.'];
         }
         if ($platform === 'anthropic') {
             // Anthropic's models endpoint uses x-api-key + anthropic-version, not
             // the OpenAI bearer + /chat/completions→/models derivation below.
-            return ['success' => false, 'models' => [], 'error' => 'Enter the model manually (e.g. claude-opus-4-8). Model listing is not available for Anthropic here.'];
+            return ['success' => false, 'models' => [], 'error' => 'Auto-listing is not available for Anthropic — type the model name (e.g. claude-opus-4-8).'];
         }
 
-        $apiUrl = $this->getApiUrl();
-        $authToken = $this->getAuthToken();
+        // OpenAI-compatible /models listing for OpenWebUI / LibreChat / OpenAI.
+        // Resolve the URL + token for the requested platform from saved config.
+        switch ($platform) {
+            case 'librechat':
+                $apiUrl    = $this->config['librechat_api_url'] ?? '';
+                $authToken = $this->config['librechat_api_key'] ?? '';
+                break;
+            case 'openai':
+                $apiUrl    = ($this->config['openai_api_url'] ?? '') ?: 'https://api.openai.com/v1/chat/completions';
+                $authToken = $this->config['openai_api_key'] ?? '';
+                break;
+            default: // openwebui
+                $apiUrl    = $this->config['openwebui_api_url'] ?? '';
+                $authToken = $this->config['openwebui_jwt_token'] ?? '';
+                break;
+        }
         if (empty($apiUrl) || empty($authToken)) {
             return ['success' => false, 'models' => [], 'error' => 'Set the API URL and token (and Save) before loading models.'];
         }
@@ -722,7 +741,6 @@ class AIPlatformService {
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
-        curl_close($ch);
 
         if ($curlError) {
             return ['success' => false, 'models' => [], 'error' => 'Connection failed: ' . $curlError];

@@ -40,8 +40,15 @@ if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_t
 }
 
 require_once __DIR__ . '/../includes/classes/AIPlatformService.php';
+
+// Panel-aware: the settings page sends the platform whose model list the admin
+// is editing. Validate it; an unknown/empty value falls back to the active one.
+$platform = $_POST['platform'] ?? '';
+if (!in_array($platform, ['openwebui', 'librechat', 'custom', 'anthropic', 'openai'], true)) {
+    $platform = null;
+}
 $ai = AIPlatformService::getInstance();
-$result = $ai->fetchAvailableModels();
+$result = $ai->fetchAvailableModels($platform);
 
 echo json_encode([
     'success' => $result['success'],

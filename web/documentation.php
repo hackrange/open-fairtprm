@@ -1468,8 +1468,18 @@ $csrfToken = $security->getCSRFToken();
 
 <div class="doc-section" id="admin-ai">
     <h2>AI Integration</h2>
-    <p>Enable AI-powered features including assessment note refinement, control suggestions, and report language assistance. Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">AI Platform</span> to configure your AI provider API key.</p>
-    <p>In v2.6.1 the same AI provider also powers <strong>automatic translation of assessment questions</strong> (see <a href="#language">Changing Your Language</a>) and AI-assisted FAIR risk analysis for vendors.</p>
+    <p>Enable AI-powered features including assessment note refinement, control suggestions, vendor commentary, AI-assisted FAIR risk analysis, and report language assistance. Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">AI Platform</span> to choose a provider and enter its API key. Only one platform is active at a time.</p>
+    <p>Supported AI platforms:</p>
+    <ul>
+        <li><strong>Anthropic (Claude)</strong> <span class="new-badge">New in 2.6.1</span> &mdash; connects directly to Claude's native API (e.g. <code>claude-opus-4-8</code>). Paste your Anthropic API key; the endpoint defaults to the standard Messages URL. Supports live <strong>web search</strong>, so Breach Alerts and OSINT scans are grounded on current, cited sources.</li>
+        <li><strong>OpenAI (ChatGPT)</strong> <span class="new-badge">New in 2.6.1</span> &mdash; connects directly to OpenAI (e.g. <code>gpt-4o</code>). Paste your OpenAI API key. For Breach &amp; OSINT scans it uses a web-search-capable model (default <code>gpt-4o-search-preview</code>) so those scans are grounded on live sources.</li>
+        <li><strong>OpenWebUI</strong> &mdash; JWT bearer token against an OpenAI-compatible endpoint.</li>
+        <li><strong>LibreChat</strong> &mdash; API-key auth, agent-based; the agent manages its own model and sampling.</li>
+        <li><strong>Custom</strong> &mdash; paste a curl-style headers + body template for any other OpenAI-compatible (or orchestrator) endpoint.</li>
+    </ul>
+    <p><strong>Choosing &amp; loading a model:</strong> after entering and <strong>saving</strong> a key, click <span class="btn-label">Load Models</span> on that platform's card to fetch its available model list (OpenWebUI / LibreChat / OpenAI). For Anthropic, type the model name directly (e.g. <code>claude-opus-4-8</code>).</p>
+    <p><strong>Breach Alerts grounding:</strong> the Breach &amp; OSINT scanners need a provider that can search the web. <strong>Anthropic (Claude)</strong> and <strong>OpenAI (ChatGPT)</strong> both ground natively; OpenWebUI / LibreChat ground only if the underlying agent has browsing; the Custom platform grounds only when a Web Search URL is configured.</p>
+    <p>The active AI provider also powers <strong>automatic translation of assessment questions</strong> (see <a href="#language">Changing Your Language</a>).</p>
 </div>
 
 <div class="doc-section" id="admin-updates">
