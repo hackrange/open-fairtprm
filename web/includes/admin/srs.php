@@ -182,6 +182,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_upguardPostAction) {
                 }
             }
 
+            // GitHub PAT for OSINT code search — standalone key (no upguard_
+            // prefix), always encrypted; a blank submission keeps the existing
+            // token. Used by GitHubOSINTScanner, which needs an authenticated
+            // token for GitHub's code-search API.
+            $githubPat = trim($_POST['github_pat'] ?? '');
+            if ($githubPat !== '') {
+                $patEnc = $encryption->encrypt($githubPat);
+                $patRow = $db->fetchOne('SELECT id FROM app_config WHERE config_key = :key', [':key' => 'github_pat']);
+                if ($patRow) {
+                    $db->update('app_config', ['config_value' => $patEnc, 'is_encrypted' => 1], 'config_key = :key', [':key' => 'github_pat']);
+                } else {
+                    $db->insert('app_config', ['config_key' => 'github_pat', 'config_value' => $patEnc, 'is_encrypted' => 1]);
+                }
+            }
+
             $db->commit();
             $auditSrs = $srsSettings;
             unset($auditSrs['upguard_api_key']);
@@ -270,6 +285,11 @@ foreach ($srsRows as $row) {
 }
 if (!isset($srsConfig['enabled'])) $srsConfig['enabled'] = '0';
 if (!isset($srsConfig['api_key'])) $srsConfig['api_key'] = '';
+
+// GitHub PAT is a standalone key (no upguard_ prefix); only its presence is
+// surfaced to the form — the secret itself is never echoed back to the browser.
+$githubPatRow = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'github_pat'");
+$githubPatIsSet = !empty($githubPatRow['config_value']);
 
 // ============================================================================
 // Include Shodan section (POST handlers + data loading + capture HTML)
@@ -381,6 +401,11 @@ if ($_anyCronEnabled) {
             <label for="upguard_org_domain">Organization Domain</label>
             <input type="text" id="upguard_org_domain" name="upguard_org_domain" class="form-control" value="<?php echo e($srsConfig['org_domain'] ?? ''); ?>" placeholder="e.g. example.com" maxlength="255" style="max-width: 400px;">
             <div class="form-help">Your organization's primary domain in UpGuard. When Vendor Domains is enabled, this tells the system to use the BreachSight <code>/domains</code> endpoint (your own attack surface) instead of the third-party <code>/vendor/domains</code> endpoint.</div>
+        </div>
+        <div class="form-group">
+            <label for="github_pat">GitHub Personal Access Token <span style="font-weight: 400; color: #6b7280;">(optional)</span></label>
+            <input type="password" id="github_pat" name="github_pat" class="form-control" autocomplete="off" placeholder="<?php echo $githubPatIsSet ? '••••••••  (leave blank to keep)' : 'github_pat_… or ghp_…'; ?>" maxlength="255" style="max-width: 400px;">
+            <div class="form-help">Used by OSINT breach scans to search public GitHub code for leaked secrets/credentials mentioning your domains (GitHub's code-search API requires an authenticated token). A fine-grained PAT with read-only public-repo / code-search access is sufficient. Stored AES-256 encrypted; leave blank to keep the existing token.</div>
         </div>
 
         <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;">Score Display & Grading</h4>
