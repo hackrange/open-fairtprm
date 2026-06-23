@@ -394,6 +394,17 @@ $headerRight = 'CONFIDENTIAL';
 $footerLeft = $auditRef;
 $footerRight = 'Generated: ' . $reportDate;
 
+// SECURITY: these strings are emitted into a Dompdf <script type="text/php"> block
+// with isPhpEnabled=true. Neither htmlspecialchars() nor addslashes() neutralizes PHP
+// ${...}/{$...} interpolation inside the double-quoted literal, so any attacker-influenced
+// value (org name from app_config, framework/audit names from the DB) could execute PHP at
+// render time. Encode as Base64 and decode at render time: the Base64 alphabet
+// ([A-Za-z0-9+/=]) contains none of " \ $ { }, so the bytes reach page_text() as inert data.
+$headerLeftB64  = base64_encode($headerLeft);
+$headerRightB64 = base64_encode($headerRight);
+$footerLeftB64  = base64_encode($footerLeft);
+$footerRightB64 = base64_encode($footerRight);
+
 $pdfHtml .= '<script type="text/php">
 if (isset($pdf)) {
     $fontNormal = $fontMetrics->getFont("Helvetica", "normal");
@@ -410,10 +421,10 @@ if (isset($pdf)) {
 
     // --- HEADER: 50pt from top ---
     $headerY = 50;
-    $pdf->page_text($leftX, $headerY, "' . addslashes($headerLeft) . '", $fontNormal, 7, $grey);
+    $pdf->page_text($leftX, $headerY, base64_decode("' . $headerLeftB64 . '"), $fontNormal, 7, $grey);
     // Right-align "CONFIDENTIAL"
-    $confWidth = $fontMetrics->getTextWidth("' . addslashes($headerRight) . '", $fontBold, 6.5);
-    $pdf->page_text($rightX - $confWidth, $headerY, "' . addslashes($headerRight) . '", $fontBold, 6.5, $dark);
+    $confWidth = $fontMetrics->getTextWidth(base64_decode("' . $headerRightB64 . '"), $fontBold, 6.5);
+    $pdf->page_text($rightX - $confWidth, $headerY, base64_decode("' . $headerRightB64 . '"), $fontBold, 6.5, $dark);
 
     // --- FOOTER LINE: 738pt from top ---
     $footerLineY = 738;
@@ -421,9 +432,9 @@ if (isset($pdf)) {
 
     // --- FOOTER TEXT: 746pt from top ---
     $footerY = 746;
-    $pdf->page_text($leftX, $footerY, "' . addslashes($footerLeft) . '", $fontNormal, 7, $grey);
-    $genWidth = $fontMetrics->getTextWidth("' . addslashes($footerRight) . '", $fontNormal, 7);
-    $pdf->page_text($rightX - $genWidth, $footerY, "' . addslashes($footerRight) . '", $fontNormal, 7, $grey);
+    $pdf->page_text($leftX, $footerY, base64_decode("' . $footerLeftB64 . '"), $fontNormal, 7, $grey);
+    $genWidth = $fontMetrics->getTextWidth(base64_decode("' . $footerRightB64 . '"), $fontNormal, 7);
+    $pdf->page_text($rightX - $genWidth, $footerY, base64_decode("' . $footerRightB64 . '"), $fontNormal, 7, $grey);
 
     // --- PAGE NUMBER: centered at 758pt ---
     $pageText = "Page {PAGE_NUM} of {PAGE_COUNT}";
