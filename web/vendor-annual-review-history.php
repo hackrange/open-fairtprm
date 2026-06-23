@@ -352,8 +352,15 @@ $reviews = $db->fetchAll(
                                 </div>
                             <?php endif; ?>
 
-                            <!-- Contact info updates -- if any fields were changed during the review -->
-                            <?php if ($contactUpdates && is_array($contactUpdates)): ?>
+                            <!-- Contact info updates -- only when actual contact fields were submitted.
+                                 The stored JSON blob always carries an 'updated_at' timestamp (and the
+                                 four keys, possibly empty), so we must check the fields themselves --
+                                 not merely the presence of the blob -- or the header shows on every review. -->
+                            <?php if ($contactUpdates && is_array($contactUpdates)
+                                    && (!empty($contactUpdates['contact_name'])
+                                        || !empty($contactUpdates['contact_title'])
+                                        || !empty($contactUpdates['contact_email'])
+                                        || !empty($contactUpdates['contact_phone']))): ?>
                                 <div class="review-section">
                                     <div class="section-label"><?php echo e(t('vendor-annual-review-history.contact_updated')); ?></div>
                                     <div class="contact-grid">

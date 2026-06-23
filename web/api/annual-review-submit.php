@@ -63,11 +63,6 @@ if (!$canCreate) {
     exit;
 }
 
-// Determine if this user can update the ORIGINAL vendor contact fields.
-// Only cyber_tprm and admins get this power because letting anyone
-// overwrite vendor contacts is a recipe for chaos.
-$canApproveContactChanges = $acl->hasGroup('cyber_tprm') || $acl->hasGroup('administrator');
-
 // ---------------------------------------------------------------
 // CSRF VALIDATION
 // Standard cross-site request forgery protection.
@@ -245,22 +240,23 @@ try {
         'last_annual_review_due' => $nextDueDate
     ];
 
-    // Only admins and cyber_tprm get to modify the canonical vendor
-    // contact info. Regular stakeholders can suggest changes (stored
-    // in the review record) but can't directly overwrite the source of truth.
-    if ($canApproveContactChanges) {
-        if (!empty($contactEmail)) {
-            $vendorUpdateData['primary_contact_email'] = $contactEmail;
-        }
-        if (!empty($contactName)) {
-            $vendorUpdateData['primary_contact_details'] = $contactName;
-        }
-        if (!empty($contactTitle)) {
-            $vendorUpdateData['primary_contact_title'] = $contactTitle;
-        }
-        if (!empty($contactPhone)) {
-            $vendorUpdateData['primary_contact_phone'] = $contactPhone;
-        }
+    // Apply the contact info to the canonical vendor record. The submitter has
+    // already been authorized for THIS specific vendor above (administrator /
+    // cyber_tprm, or a verified stakeholder on this vendor request), so updating
+    // its contact fields is the intended annual-review workflow -- not an
+    // arbitrary cross-vendor write. Empty fields are skipped so a blank input
+    // never wipes an existing value.
+    if (!empty($contactEmail)) {
+        $vendorUpdateData['primary_contact_email'] = $contactEmail;
+    }
+    if (!empty($contactName)) {
+        $vendorUpdateData['primary_contact_details'] = $contactName;
+    }
+    if (!empty($contactTitle)) {
+        $vendorUpdateData['primary_contact_title'] = $contactTitle;
+    }
+    if (!empty($contactPhone)) {
+        $vendorUpdateData['primary_contact_phone'] = $contactPhone;
     }
 
     $db->update(
