@@ -780,6 +780,66 @@ class CyberTodoService
     }
 
     /**
+     * Activity types that are free-form, user-authored entries and therefore
+     * editable/deletable by their author. System-generated bookkeeping rows
+     * (status_change, import, revert) are deliberately excluded -- those form
+     * the audit trail and must not be rewritten or removed from the UI.
+     */
+    private const EDITABLE_ACTIVITY_TYPES = ['note', 'action', 'reminder'];
+
+    /**
+     * Edit the description of a note/comment. Authorization is enforced HERE,
+     * not just in the controller: only the original author ($userId === created_by)
+     * may edit, and only free-form note types -- never a status_change/import row.
+     * A closed activity is frozen. Returns true only when a row was actually
+     * updated; false signals "not found / not yours / not editable" so the
+     * caller can surface a permission error instead of a silent success.
+     */
+    public function editActivity(int $activityId, string $newDescription, int $userId): bool
+    {
+        $activity = $this->db->fetchOne(
+            "SELECT id, created_by, activity_type, status FROM cyber_todo_activities WHERE id = :id",
+            [':id' => $activityId]
+        );
+        if (!$activity) return false;
+        if ((int)$activity['created_by'] !== $userId) return false;
+        if (!in_array($activity['activity_type'], self::EDITABLE_ACTIVITY_TYPES, true)) return false;
+        if ($activity['status'] === 'closed') return false;
+
+        // The created_by guard is repeated in the WHERE clause as defense in
+        // depth -- the row cannot be mutated even if the check above is bypassed.
+        $this->db->query(
+            "UPDATE cyber_todo_activities SET description = :description, updated_at = NOW()
+             WHERE id = :id AND created_by = :uid",
+            [':description' => $newDescription, ':id' => $activityId, ':uid' => $userId]
+        );
+        return true;
+    }
+
+    /**
+     * Delete a note/comment. Same ownership + type gate as editActivity().
+     * Only the author may delete, and only free-form note rows -- audit-trail
+     * entries (status_change/import/revert) are never deletable from here.
+     * Returns true only when a row was actually removed.
+     */
+    public function deleteActivity(int $activityId, int $userId): bool
+    {
+        $activity = $this->db->fetchOne(
+            "SELECT id, created_by, activity_type FROM cyber_todo_activities WHERE id = :id",
+            [':id' => $activityId]
+        );
+        if (!$activity) return false;
+        if ((int)$activity['created_by'] !== $userId) return false;
+        if (!in_array($activity['activity_type'], self::EDITABLE_ACTIVITY_TYPES, true)) return false;
+
+        $this->db->query(
+            "DELETE FROM cyber_todo_activities WHERE id = :id AND created_by = :uid",
+            [':id' => $activityId, ':uid' => $userId]
+        );
+        return true;
+    }
+
+    /**
      * Mark a vendor as having completed their annual review. Check that box.
      */
     public function markAnnualReview(int $vendorId): void

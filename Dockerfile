@@ -72,6 +72,7 @@ RUN set -e; \
            $pp/AIPlatformService.php $pp/GitHubOSINTScanner.php \
            $pp/ShodanClient.php $pp/ShodanService.php $pp/Security.php \
            $pp/VendorAssessmentService.php $pp/AssessmentTranslationService.php \
+           $pp/CyberTodoService.php \
            $pp/GripService.php $pp/HeroService.php \
            $pp/ZscalerService.php $pp/SAMLHandler.php \
            $pp/FaviconService.php $pp/ContinuousMonitor.php $pp/VirusScanService.php \
@@ -176,6 +177,7 @@ RUN set -e; \
         /var/www/html/includes/admin/workflows.php \
         /var/www/html/profile.php \
         /var/www/html/includes/classes/AssessmentTranslationService.php \
+        /var/www/html/includes/classes/CyberTodoService.php \
         /var/www/html/includes/i18n/en.php \
         /var/www/html/includes/i18n/es.php \
         /var/www/html/includes/i18n/it.php \

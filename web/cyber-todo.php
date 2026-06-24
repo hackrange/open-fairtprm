@@ -134,6 +134,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = t('cyber-todo.activity_status_failed');
             }
         }
+    } elseif (isset($_POST['edit_activity'])) {
+        // Author-only note edit. CyberTodoService::editActivity() re-checks that
+        // the requesting user owns the row and that it is an editable note type,
+        // so a forged activity_id for someone else's note simply returns false.
+        $activityId = intval($_POST['activity_id'] ?? 0);
+        $newDescription = trim($_POST['activity_description'] ?? $_POST['description'] ?? '');
+
+        if (!$activityId) {
+            $error = t('cyber-todo.activity_edit_failed');
+        } elseif ($newDescription === '') {
+            $error = t('cyber-todo.enter_description');
+        } else {
+            try {
+                if ($todoService->editActivity($activityId, $newDescription, (int)$user['id'])) {
+                    $auth->audit($user['id'], 'todo_edit_activity', 'cyber_todo_activities', $activityId, [
+                        'new' => ['description' => $newDescription]
+                    ]);
+                    $success = t('cyber-todo.activity_updated');
+                } else {
+                    $error = t('cyber-todo.activity_edit_denied');
+                }
+            } catch (Exception $e) {
+                error_log('Edit activity error: ' . $e->getMessage());
+                $error = t('cyber-todo.activity_edit_failed');
+            }
+        }
+    } elseif (isset($_POST['delete_activity'])) {
+        // Author-only note delete -- ownership/type enforced in the service.
+        $activityId = intval($_POST['activity_id'] ?? 0);
+
+        if (!$activityId) {
+            $error = t('cyber-todo.activity_delete_failed');
+        } else {
+            try {
+                if ($todoService->deleteActivity($activityId, (int)$user['id'])) {
+                    $auth->audit($user['id'], 'todo_delete_activity', 'cyber_todo_activities', $activityId);
+                    $success = t('cyber-todo.activity_deleted');
+                } else {
+                    $error = t('cyber-todo.activity_delete_denied');
+                }
+            } catch (Exception $e) {
+                error_log('Delete activity error: ' . $e->getMessage());
+                $error = t('cyber-todo.activity_delete_failed');
+            }
+        }
     } elseif (isset($_POST['mark_annual_review'])) {
         $vendorId = intval($_POST['vendor_id'] ?? 0);
         if ($vendorId) {
@@ -1012,18 +1057,50 @@ foreach ($todoItems as $ti) {
                                     </span>
                                 </div>
                                 <div class="activity-text"><?php echo nl2br(e($activity['description'])); ?></div>
-                                <?php if ($activity['status'] !== 'closed'): ?>
-                                <form method="POST" style="margin-top: 8px;">
-                                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                                    <input type="hidden" name="activity_id" value="<?php echo e($activity['id']); ?>">
-                                    <select name="new_status" class="btn btn-sm" style="padding: 4px 8px; font-size: 11px;" data-submit-form>
-                                        <option value="">Change status...</option>
-                                        <option value="in_progress">In Progress</option>
-                                        <option value="closed">Closed</option>
-                                        <option value="deferred">Deferred</option>
-                                    </select>
-                                    <input type="hidden" name="update_activity_status" value="1">
-                                </form>
+                                <?php
+                                // Author-only note controls. The server (CyberTodoService)
+                                // re-enforces both checks; this just hides controls the
+                                // current user has no business seeing.
+                                $isNoteAuthor = isset($activity['created_by']) && (int)$activity['created_by'] === $currentUserId;
+                                $isEditableNote = in_array(($activity['activity_type'] ?? ''), ['note', 'action', 'reminder'], true);
+                                ?>
+                                <div style="margin-top: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                    <?php if ($activity['status'] !== 'closed'): ?>
+                                    <form method="POST" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                        <input type="hidden" name="activity_id" value="<?php echo e($activity['id']); ?>">
+                                        <select name="new_status" class="btn btn-sm" style="padding: 4px 8px; font-size: 11px;" data-submit-form>
+                                            <option value="">Change status...</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="closed">Closed</option>
+                                            <option value="deferred">Deferred</option>
+                                        </select>
+                                        <input type="hidden" name="update_activity_status" value="1">
+                                    </form>
+                                    <?php endif; ?>
+                                    <?php if (!$isAuditor && $isNoteAuthor && $isEditableNote): ?>
+                                    <?php if ($activity['status'] !== 'closed'): ?>
+                                    <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-toggle="edit-activity-<?php echo (int)$activity['id']; ?>">Edit</button>
+                                    <?php endif; ?>
+                                    <form method="POST" style="display: inline;" data-confirm="Delete this note? This cannot be undone.">
+                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                        <input type="hidden" name="activity_id" value="<?php echo e($activity['id']); ?>">
+                                        <button type="submit" name="delete_activity" class="btn btn-sm" style="background: #fee2e2; color: #991b1b;">Delete</button>
+                                    </form>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if (!$isAuditor && $isNoteAuthor && $isEditableNote && $activity['status'] !== 'closed'): ?>
+                                <div id="edit-activity-<?php echo (int)$activity['id']; ?>" style="display: none; margin-top: 8px;">
+                                    <form method="POST">
+                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                        <input type="hidden" name="activity_id" value="<?php echo e($activity['id']); ?>">
+                                        <textarea name="activity_description" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; min-height: 60px;"><?php echo e($activity['description']); ?></textarea>
+                                        <div style="display: flex; gap: 8px; margin-top: 6px;">
+                                            <button type="submit" name="edit_activity" class="btn btn-primary btn-sm">Save</button>
+                                            <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-close="edit-activity-<?php echo (int)$activity['id']; ?>">Cancel</button>
+                                        </div>
+                                    </form>
+                                </div>
                                 <?php endif; ?>
                             </div>
                             <?php endforeach; ?>
