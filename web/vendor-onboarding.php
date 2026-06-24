@@ -1110,6 +1110,187 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_note']) && $editM
 }
 
 // ============================================================
+// CASE / REPLY EDIT + DELETE HANDLERS (author-only)
+// A note's author may edit or delete their own case or reply. Ownership
+// (created_by) AND vendor scope (reference_type/reference_id) are re-checked
+// server-side -- mirroring the cyber-todo activity edit/delete model -- so a
+// forged id cannot touch another user's note or a note on another vendor even
+// with a scraped CSRF token. The created_by guard is repeated in the write's
+// WHERE clause as defense in depth.
+// ============================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_case']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder) && !$isProcurementOnly) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request - security token mismatch.';
+    } else {
+        $editCaseId = intval($_POST['case_id'] ?? 0);
+        $newTitle = trim($security->cleanInput($_POST['note_title'] ?? ''));
+        $newDescription = trim($security->cleanInput($_POST['note_description'] ?? ''));
+        if ($editCaseId <= 0) {
+            $error = 'Invalid case.';
+        } elseif (empty($newTitle)) {
+            $error = 'Note title is required.';
+        } else {
+            try {
+                $caseRow = $db->fetchOne(
+                    "SELECT id, created_by, status FROM cyber_todo_activities WHERE id = :id AND reference_type = 'vendor_onboarding_requests' AND reference_id = :rid AND (parent_id IS NULL OR parent_id = 0)",
+                    [':id' => $editCaseId, ':rid' => $requestId]
+                );
+                if (!$caseRow) {
+                    $error = 'Case not found or does not belong to this vendor.';
+                } elseif (intval($caseRow['created_by']) !== intval($user['id'])) {
+                    $error = 'You can only edit your own cases.';
+                } elseif ($caseRow['status'] === 'closed') {
+                    $error = 'Closed cases cannot be edited. Reopen the case first.';
+                } else {
+                    $db->query(
+                        "UPDATE cyber_todo_activities SET title = :title, description = :description, updated_at = NOW() WHERE id = :id AND created_by = :uid",
+                        [':title' => $newTitle, ':description' => $newDescription, ':id' => $editCaseId, ':uid' => $user['id']]
+                    );
+                    $auth->audit($user['id'], 'case_edit_note', 'cyber_todo_activities', $editCaseId, [
+                        'new' => ['title' => $newTitle, 'vendor_request_id' => $requestId]
+                    ]);
+                    redirect('vendor-onboarding.php?id=' . $requestId . '&tab=notes');
+                }
+            } catch (Exception $e) {
+                error_log('Edit case error: ' . $e->getMessage());
+                $error = 'Failed to update case. Please try again.';
+            }
+        }
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_case']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder) && !$isProcurementOnly) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request - security token mismatch.';
+    } else {
+        $deleteCaseId = intval($_POST['case_id'] ?? 0);
+        if ($deleteCaseId <= 0) {
+            $error = 'Invalid case.';
+        } else {
+            try {
+                $caseRow = $db->fetchOne(
+                    "SELECT id, created_by, status FROM cyber_todo_activities WHERE id = :id AND reference_type = 'vendor_onboarding_requests' AND reference_id = :rid AND (parent_id IS NULL OR parent_id = 0)",
+                    [':id' => $deleteCaseId, ':rid' => $requestId]
+                );
+                if (!$caseRow) {
+                    $error = 'Case not found or does not belong to this vendor.';
+                } elseif (intval($caseRow['created_by']) !== intval($user['id'])) {
+                    $error = 'You can only delete your own cases.';
+                } elseif ($caseRow['status'] === 'closed') {
+                    $error = 'Closed cases cannot be deleted. Reopen the case first.';
+                } else {
+                    // Don't let a case delete destroy other users' responses -- if anyone
+                    // else has replied, the thread is shared and must be Closed, not deleted.
+                    $otherReply = $db->fetchOne(
+                        "SELECT id FROM cyber_todo_activities WHERE parent_id = :pid AND reference_type = 'vendor_onboarding_requests' AND reference_id = :rid AND created_by != :uid LIMIT 1",
+                        [':pid' => $deleteCaseId, ':rid' => $requestId, ':uid' => $user['id']]
+                    );
+                    if ($otherReply) {
+                        $error = 'This case has responses from other users and cannot be deleted. Close it instead.';
+                    } else {
+                        // Safe to remove: only the author's own replies (if any) go with it.
+                        $db->query(
+                            "DELETE FROM cyber_todo_activities WHERE reference_type = 'vendor_onboarding_requests' AND reference_id = :rid AND (id = :id OR parent_id = :pid)",
+                            [':rid' => $requestId, ':id' => $deleteCaseId, ':pid' => $deleteCaseId]
+                        );
+                        $auth->audit($user['id'], 'case_delete_note', 'cyber_todo_activities', $deleteCaseId, [
+                            'new' => ['vendor_request_id' => $requestId]
+                        ]);
+                        redirect('vendor-onboarding.php?id=' . $requestId . '&tab=notes');
+                    }
+                }
+            } catch (Exception $e) {
+                error_log('Delete case error: ' . $e->getMessage());
+                $error = 'Failed to delete case. Please try again.';
+            }
+        }
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_reply']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder) && !$isProcurementOnly) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request - security token mismatch.';
+    } else {
+        $editReplyId = intval($_POST['reply_id'] ?? 0);
+        $newDescription = trim($security->cleanInput($_POST['reply_description'] ?? ''));
+        if ($editReplyId <= 0) {
+            $error = 'Invalid reply.';
+        } elseif (empty($newDescription)) {
+            $error = 'Reply text is required.';
+        } else {
+            try {
+                $replyRow = $db->fetchOne(
+                    "SELECT a.id, a.created_by, p.status AS parent_status
+                     FROM cyber_todo_activities a
+                     JOIN cyber_todo_activities p ON a.parent_id = p.id
+                     WHERE a.id = :id AND a.reference_type = 'vendor_onboarding_requests' AND a.reference_id = :rid AND a.parent_id IS NOT NULL AND a.parent_id > 0",
+                    [':id' => $editReplyId, ':rid' => $requestId]
+                );
+                if (!$replyRow) {
+                    $error = 'Reply not found or does not belong to this vendor.';
+                } elseif (intval($replyRow['created_by']) !== intval($user['id'])) {
+                    $error = 'You can only edit your own replies.';
+                } elseif ($replyRow['parent_status'] === 'closed') {
+                    $error = 'Responses on a closed case cannot be edited. Reopen the case first.';
+                } else {
+                    $db->query(
+                        "UPDATE cyber_todo_activities SET description = :description, updated_at = NOW() WHERE id = :id AND created_by = :uid",
+                        [':description' => $newDescription, ':id' => $editReplyId, ':uid' => $user['id']]
+                    );
+                    $auth->audit($user['id'], 'case_edit_reply', 'cyber_todo_activities', $editReplyId, [
+                        'new' => ['vendor_request_id' => $requestId]
+                    ]);
+                    redirect('vendor-onboarding.php?id=' . $requestId . '&tab=notes');
+                }
+            } catch (Exception $e) {
+                error_log('Edit reply error: ' . $e->getMessage());
+                $error = 'Failed to update reply. Please try again.';
+            }
+        }
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_reply']) && $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder) && !$isProcurementOnly) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request - security token mismatch.';
+    } else {
+        $deleteReplyId = intval($_POST['reply_id'] ?? 0);
+        if ($deleteReplyId <= 0) {
+            $error = 'Invalid reply.';
+        } else {
+            try {
+                $replyRow = $db->fetchOne(
+                    "SELECT a.id, a.created_by, p.status AS parent_status
+                     FROM cyber_todo_activities a
+                     JOIN cyber_todo_activities p ON a.parent_id = p.id
+                     WHERE a.id = :id AND a.reference_type = 'vendor_onboarding_requests' AND a.reference_id = :rid AND a.parent_id IS NOT NULL AND a.parent_id > 0",
+                    [':id' => $deleteReplyId, ':rid' => $requestId]
+                );
+                if (!$replyRow) {
+                    $error = 'Reply not found or does not belong to this vendor.';
+                } elseif (intval($replyRow['created_by']) !== intval($user['id'])) {
+                    $error = 'You can only delete your own replies.';
+                } elseif ($replyRow['parent_status'] === 'closed') {
+                    $error = 'Responses on a closed case cannot be deleted. Reopen the case first.';
+                } else {
+                    $db->query(
+                        "DELETE FROM cyber_todo_activities WHERE id = :id AND created_by = :uid",
+                        [':id' => $deleteReplyId, ':uid' => $user['id']]
+                    );
+                    $auth->audit($user['id'], 'case_delete_reply', 'cyber_todo_activities', $deleteReplyId, [
+                        'new' => ['vendor_request_id' => $requestId]
+                    ]);
+                    redirect('vendor-onboarding.php?id=' . $requestId . '&tab=notes');
+                }
+            } catch (Exception $e) {
+                error_log('Delete reply error: ' . $e->getMessage());
+                $error = 'Failed to delete reply. Please try again.';
+            }
+        }
+    }
+}
+
+// ============================================================
 // FORM SUBMISSION HANDLING
 // This is the big POST handler that processes saves, submissions,
 // deletions, deactivations, status changes, and stakeholder
@@ -2937,6 +3118,12 @@ function getFieldValue($request, $field, $default = '') {
                                 $nsc = $noteStatusColors[$note['status']] ?? ['bg' => '#f3f4f6', 'color' => '#333'];
                                 $replies = $noteReplies[$note['id']] ?? [];
                                 $replyCount = count($replies);
+                                // Author may delete a case only if nobody else has replied to it
+                                // (closing is the alternative once a thread is shared).
+                                $caseHasOtherReplies = false;
+                                foreach ($replies as $rr) {
+                                    if ((int)$rr['created_by'] !== (int)$note['created_by']) { $caseHasOtherReplies = true; break; }
+                                }
                             ?>
                                 <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; border-left: 4px solid <?php echo $nsc['color']; ?>;">
                                     <!-- Structured case fields -->
@@ -2954,6 +3141,17 @@ function getFieldValue($request, $field, $default = '') {
                                                         <?php echo $note['status'] === 'closed' ? 'Reopen' : 'Close'; ?>
                                                     </button>
                                                 </form>
+                                                <?php endif; ?>
+                                                <?php if ($canAddNotes && (int)$note['created_by'] === (int)$user['id'] && $note['status'] !== 'closed'): ?>
+                                                <button type="button" data-toggle="editCase_<?php echo intval($note['id']); ?>" style="font-size: 10px; padding: 2px 8px; border-radius: 10px; border: 1px solid #d1d5db; background: #fff; color: #666; cursor: pointer; white-space: nowrap;" title="Edit this case">Edit</button>
+                                                <?php if (!$caseHasOtherReplies): ?>
+                                                <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=notes" style="display: inline; margin: 0;" data-confirm="Delete this case? This cannot be undone.">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                                    <input type="hidden" name="delete_case" value="1">
+                                                    <input type="hidden" name="case_id" value="<?php echo intval($note['id']); ?>">
+                                                    <button type="submit" style="font-size: 10px; padding: 2px 8px; border-radius: 10px; border: 1px solid #fecaca; background: #fff; color: #991b1b; cursor: pointer; white-space: nowrap;" title="Delete this case">Delete</button>
+                                                </form>
+                                                <?php endif; ?>
                                                 <?php endif; ?>
                                             </div>
                                         </div>
@@ -2985,6 +3183,25 @@ function getFieldValue($request, $field, $default = '') {
                                         </div>
                                     </div>
 
+                                    <!-- Inline case edit form (author only, hidden by default; frozen once closed) -->
+                                    <?php if ($canAddNotes && (int)$note['created_by'] === (int)$user['id'] && $note['status'] !== 'closed'): ?>
+                                    <div id="editCase_<?php echo intval($note['id']); ?>" style="display: none; padding: 0 16px 14px 16px;">
+                                        <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=notes">
+                                            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                            <input type="hidden" name="edit_case" value="1">
+                                            <input type="hidden" name="case_id" value="<?php echo intval($note['id']); ?>">
+                                            <label style="display: block; font-size: 12px; font-weight: 500; color: #333; margin-bottom: 4px;">Title <span style="color: #dc3545;">*</span></label>
+                                            <input type="text" name="note_title" required value="<?php echo e($note['title']); ?>" style="width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box; margin-bottom: 8px;">
+                                            <label style="display: block; font-size: 12px; font-weight: 500; color: #333; margin-bottom: 4px;">Description</label>
+                                            <textarea name="note_description" rows="3" style="width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; box-sizing: border-box; margin-bottom: 8px;"><?php echo e($note['description']); ?></textarea>
+                                            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                                <button type="button" data-close="editCase_<?php echo intval($note['id']); ?>" style="padding: 6px 14px; border: 1px solid #d1d5db; background: #fff; color: #666; border-radius: 6px; cursor: pointer; font-size: 12px;">Cancel</button>
+                                                <button type="submit" style="padding: 6px 14px; border: none; background: var(--theme-button-color, #35a0a3); color: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">Save Changes</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    <?php endif; ?>
+
                                     <!-- Responses section -->
                                     <?php if ($replyCount > 0): ?>
                                     <div style="border-top: 1px solid #e5e7eb; padding: 12px 16px; background: #f9fafb;">
@@ -2997,6 +3214,29 @@ function getFieldValue($request, $field, $default = '') {
                                                     &middot; <?php echo date('M j, Y g:i A', strtotime($reply['created_at'])); ?>
                                                 </div>
                                                 <div style="font-size: 13px; color: #333; line-height: 1.5;"><?php echo nl2br(e($reply['description'])); ?></div>
+                                                <?php if ($canAddNotes && (int)$reply['created_by'] === (int)$user['id'] && $note['status'] !== 'closed'): ?>
+                                                <div style="margin-top: 6px; display: flex; gap: 10px;">
+                                                    <button type="button" data-toggle="editReply_<?php echo intval($reply['id']); ?>" style="font-size: 11px; color: #6b7280; background: none; border: none; cursor: pointer; padding: 0;">Edit</button>
+                                                    <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=notes" style="display: inline; margin: 0;" data-confirm="Delete this response? This cannot be undone.">
+                                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                                        <input type="hidden" name="delete_reply" value="1">
+                                                        <input type="hidden" name="reply_id" value="<?php echo intval($reply['id']); ?>">
+                                                        <button type="submit" style="font-size: 11px; color: #991b1b; background: none; border: none; cursor: pointer; padding: 0;">Delete</button>
+                                                    </form>
+                                                </div>
+                                                <div id="editReply_<?php echo intval($reply['id']); ?>" style="display: none; margin-top: 8px;">
+                                                    <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=notes">
+                                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                                        <input type="hidden" name="edit_reply" value="1">
+                                                        <input type="hidden" name="reply_id" value="<?php echo intval($reply['id']); ?>">
+                                                        <textarea name="reply_description" rows="2" required style="width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; box-sizing: border-box; margin-bottom: 8px;"><?php echo e($reply['description']); ?></textarea>
+                                                        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                                            <button type="button" data-close="editReply_<?php echo intval($reply['id']); ?>" style="padding: 6px 14px; border: 1px solid #d1d5db; background: #fff; color: #666; border-radius: 6px; cursor: pointer; font-size: 12px;">Cancel</button>
+                                                            <button type="submit" style="padding: 6px 14px; border: none; background: var(--theme-button-color, #35a0a3); color: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">Save</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                                <?php endif; ?>
                                             </div>
                                         <?php endforeach; ?>
                                         </div>
