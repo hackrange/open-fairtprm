@@ -59,6 +59,8 @@ RUN set -e; \
     cp -rp $pp/app/docs/. /var/www/html/app/docs/; \
     mkdir -p /var/www/html/app/js; \
     cp -p  $pp/app/js/phone-input.js $pp/app/js/vat-input.js $pp/app/js/template-builder.js /var/www/html/app/js/; \
+    mkdir -p /var/www/html/app/flags; \
+    cp -rp $pp/app/flags/. /var/www/html/app/flags/; \
     \
     cp -p  $pp/sidebar_nav.php $pp/init.php $pp/FairCalculator.php $pp/contact-fields.php \
            $pp/cron-jobs.php \
@@ -87,9 +89,12 @@ RUN set -e; \
     mkdir -p /var/www/html/includes/i18n; \
     cp -rp $pp/i18n/. /var/www/html/includes/i18n/; \
     \
+    mkdir -p /var/www/html/lang; \
+    cp -rp $pp/lang/. /var/www/html/lang/; \
+    \
     cp -p  $pp/search-vendors.php $pp/grc-unified-assessment.php \
            $pp/vendor-document-delete.php $pp/send-assessment-email.php \
-           $pp/generate-fair-ai-analysis.php \
+           $pp/generate-fair-ai-analysis.php $pp/ai-models.php \
            /var/www/html/api/; \
     \
     cp -p  $pp/grc-task-digest.php /var/www/html/cron/; \
@@ -246,6 +251,7 @@ RUN set -e; \
         /var/www/html/app/docs/grc-assessment.png \
         /var/www/html/app/docs/grc-assessment-questions.png \
         /var/www/html/app/icons/announcement-03.svg \
+        /var/www/html/app/flags/us.svg \
         /var/www/html/fair-analysis.php \
         /var/www/html/breach-alerts.php \
         /var/www/html/api-breach-scan-status.php \
@@ -287,6 +293,14 @@ RUN set -e; \
         /var/www/html/admin-users-import.php \
         /var/www/html/api-rescore-status.php \
         /var/www/html/documentation.php \
+        /var/www/html/lang/en/documentation.php \
+        /var/www/html/lang/es/documentation.php \
+        /var/www/html/lang/fr/documentation.php \
+        /var/www/html/lang/hi/documentation.php \
+        /var/www/html/lang/it/documentation.php \
+        /var/www/html/lang/pt/documentation.php \
+        /var/www/html/lang/uk/documentation.php \
+        /var/www/html/lang/zh-Hans/documentation.php \
         /var/www/html/reference-doc.php \
         /var/www/html/download-pdf.php \
         /var/www/html/error.php \
