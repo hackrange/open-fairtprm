@@ -51,6 +51,23 @@ require_once __DIR__ . '/includes/classes/VendorAssessmentService.php';
 $assessmentService = new VendorAssessmentService();
 $assessmentService->initializeTables();
 
+// BOLA fix: reviewers (admin/cyber_tprm/procurement/auditor) manage all assessments;
+// a scoped stakeholder may only delete/resend assessments for vendors they created or
+// are linked to via vendor_onboarding_stakeholders.
+if (!function_exists('assessmentManageable')) {
+    function assessmentManageable($assessmentId, $isAdmin, $isCyberTPRM, $isProcurement, $isAuditor, $assessmentService, $user) {
+        if ($isAdmin || $isCyberTPRM || $isProcurement || $isAuditor) return true;
+        $a = $assessmentService->getAssessmentById((int)$assessmentId);
+        if (!$a) return false;
+        if ((int)($a['created_by'] ?? 0) === (int)$user['id']) return true;
+        $vrid = (int)($a['vendor_request_id'] ?? 0);
+        if (!$vrid) return false;
+        return !empty(Database::getInstance()->fetchOne(
+            'SELECT 1 AS x FROM vendor_onboarding_stakeholders WHERE request_id = :rid AND user_id = :uid',
+            [':rid' => $vrid, ':uid' => (int)$user['id']]));
+    }
+}
+
 $error = '';
 $success = '';
 $successHtml = '';
@@ -229,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (isset($_POST['delete_assessment'])) {
         // Nuke an assessment from orbit. It's the only way to be sure.
         $assessmentId = intval($_POST['assessment_id'] ?? 0);
-        if ($assessmentId) {
+        if ($assessmentId && assessmentManageable($assessmentId, $isAdmin, $isCyberTPRM, $isProcurement, $isAuditor, $assessmentService, $user)) {
             try {
                 $auth->audit($user['id'], 'assessment_delete', 'vendor_assessments', $assessmentId);
                 $assessmentService->deleteAssessment($assessmentId);
@@ -238,12 +255,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 error_log('Delete assessment error: ' . $e->getMessage());
                 $error = t('vendor-assessments.failed_delete');
             }
+        } elseif ($assessmentId) {
+            http_response_code(403);
+            $error = t('vendor-assessments.failed_delete');
         }
     } elseif (isset($_POST['resend_assessment'])) {
         // Vendor ghosted us? Hit 'em with a fresh link and reset the clock.
         // Extends the expiration by another 30 days because we're generous like that.
         $assessmentId = intval($_POST['assessment_id'] ?? 0);
-        if ($assessmentId) {
+        if ($assessmentId && assessmentManageable($assessmentId, $isAdmin, $isCyberTPRM, $isProcurement, $isAuditor, $assessmentService, $user)) {
             try {
                 $assessmentService->resendAssessment($assessmentId, 30);
                 $auth->audit($user['id'], 'assessment_resend', 'vendor_assessments', $assessmentId);
@@ -252,6 +272,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 error_log('Resend assessment error: ' . $e->getMessage());
                 $error = t('vendor-assessments.failed_resend');
             }
+        } elseif ($assessmentId) {
+            http_response_code(403);
+            $error = t('vendor-assessments.failed_resend');
         }
     }
 }

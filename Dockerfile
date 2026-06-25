@@ -46,6 +46,11 @@ COPY persistent/icons       /tmp/build/icons
 # verify the manifest, and remove the staging tree. set -e + cp's exit codes
 # cause the build to fail fast on any missing source file.
 RUN set -e; \
+    export DEBIAN_FRONTEND=noninteractive; \
+    apt-get update; \
+    apt-get -y -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef dist-upgrade; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*; \
     pp=/tmp/build/php_patches; \
     \
     cp -rp $pp/api/.            /var/www/html/api/; \

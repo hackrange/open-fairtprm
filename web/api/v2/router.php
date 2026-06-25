@@ -148,6 +148,25 @@ try {
             if (!$apiService->hasModuleAccess($token, 'tprm')) {
                 apiError(403, 'No access to TPRM module');
             }
+            // --- BOLA fix: scope vendor access to the token's user unless they are an
+            // org-wide reviewer. Mirrors the web UI (vendor-onboarding-list.php) scoping.
+            $tokenUserId = (int)($token['user_id'] ?? 0);
+            $tokenGroups = array_column($db->fetchAll(
+                'SELECT g.group_name FROM acl_groups g
+                   JOIN user_acl_groups ug ON g.id = ug.group_id
+                  WHERE ug.user_id = :uid AND g.is_active = 1', [':uid' => $tokenUserId]), 'group_name');
+            $tokenIsSuperAdmin = !empty($db->fetchOne('SELECT 1 AS x FROM users WHERE id = :id AND is_super_admin = 1', [':id' => $tokenUserId]));
+            $tokenCanReadAllVendors = $tokenIsSuperAdmin || (bool)array_intersect($tokenGroups, ['administrator', 'cyber_tprm', 'procurement', 'auditor']);
+            $tokenCanApproveVendors = $tokenIsSuperAdmin || (bool)array_intersect($tokenGroups, ['administrator', 'cyber_tprm']);
+            $tokenCanAccessVendor = function ($vid) use ($db, $tokenUserId, $tokenCanReadAllVendors) {
+                if ($tokenCanReadAllVendors) return true;
+                return !empty($db->fetchOne(
+                    'SELECT 1 AS x FROM vendor_onboarding_requests r
+                      WHERE r.id = :id AND (r.created_by = :u
+                        OR EXISTS (SELECT 1 FROM vendor_onboarding_stakeholders s
+                                   WHERE s.request_id = r.id AND s.user_id = :u2))',
+                    [':id' => (int)$vid, ':u' => $tokenUserId, ':u2' => $tokenUserId]));
+            };
             if ($method === 'GET' && $resourceId === null) {
                 $status = $_GET['status'] ?? null;
                 $search = $_GET['search'] ?? null;
@@ -158,6 +177,10 @@ try {
                 $params = [];
                 if ($status) { $where[] = 'v.status = :s'; $params[':s'] = $status; }
                 if ($search) { $where[] = '(v.vendor_name LIKE :q OR v.vendor_domain LIKE :q2)'; $params[':q'] = "%{$search}%"; $params[':q2'] = "%{$search}%"; }
+                if (!$tokenCanReadAllVendors) {
+                    $where[] = '(v.created_by = :scu OR EXISTS (SELECT 1 FROM vendor_onboarding_stakeholders s WHERE s.request_id = v.id AND s.user_id = :scu2))';
+                    $params[':scu'] = $tokenUserId; $params[':scu2'] = $tokenUserId;
+                }
 
                 $sql = 'SELECT v.id, v.vendor_name, v.vendor_domain, v.status, v.vendor_tier, v.created_at, v.updated_at
                         FROM vendor_onboarding_requests v WHERE ' . implode(' AND ', $where) .
@@ -167,19 +190,23 @@ try {
 
                 apiSuccess(['data' => $vendors, 'total' => $total, 'limit' => $limit, 'offset' => $offset]);
             } elseif ($method === 'GET' && $resourceId !== null && $subResource === null) {
+                if (!$tokenCanAccessVendor($resourceId)) apiError(404, 'Vendor not found');
                 $vendor = $db->fetchOne('SELECT * FROM vendor_onboarding_requests WHERE id = :id', [':id' => $resourceId]);
                 if (!$vendor) apiError(404, 'Vendor not found');
                 // Remove BLOB fields from API response
                 unset($vendor['vendor_favicon']);
                 apiSuccess(['data' => $vendor]);
             } elseif ($method === 'GET' && $resourceId !== null && $subResource === 'srs') {
+                if (!$tokenCanAccessVendor($resourceId)) apiError(404, 'Vendor not found');
                 $scores = $db->fetchAll('SELECT * FROM vendor_srs_scores WHERE vendor_id = :id ORDER BY scored_at DESC LIMIT 10', [':id' => $resourceId]);
                 apiSuccess(['data' => $scores]);
             } elseif ($method === 'GET' && $resourceId !== null && $subResource === 'assessments') {
+                if (!$tokenCanAccessVendor($resourceId)) apiError(404, 'Vendor not found');
                 $assessments = $db->fetchAll('SELECT id, vendor_id, template_id, status, created_at, completed_at FROM vendor_assessments WHERE vendor_id = :id ORDER BY created_at DESC', [':id' => $resourceId]);
                 apiSuccess(['data' => $assessments]);
             } elseif ($method === 'PUT' && $resourceId !== null && $subResource === null) {
                 if (!$apiService->hasWriteAccess($token)) apiError(403, 'Write access required');
+                if (!$tokenCanAccessVendor($resourceId)) apiError(404, 'Vendor not found');
                 $vendor = $db->fetchOne('SELECT id FROM vendor_onboarding_requests WHERE id = :id', [':id' => $resourceId]);
                 if (!$vendor) apiError(404, 'Vendor not found');
                 $input = json_decode(file_get_contents('php://input'), true);
@@ -189,6 +216,10 @@ try {
                 $validStatuses = ['draft', 'submitted', 'in_review', 'approved', 'rejected', 'inactive', 'evaluation'];
                 if (isset($input['status']) && !in_array($input['status'], $validStatuses, true)) {
                     apiError(400, 'Invalid status. Allowed: ' . implode(', ', $validStatuses));
+                }
+                // BrokenFunctionAuth fix: privileged status transitions require an elevated role.
+                if (isset($input['status']) && in_array($input['status'], ['approved', 'rejected', 'inactive'], true) && !$tokenCanApproveVendors) {
+                    apiError(403, 'Changing vendor status to ' . $input['status'] . ' requires elevated privileges');
                 }
                 if (isset($input['vendor_tier']) && !in_array($input['vendor_tier'], ['1', '2', '3'], true)) {
                     apiError(400, 'Invalid vendor_tier. Allowed: 1, 2, 3');

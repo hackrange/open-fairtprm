@@ -650,7 +650,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
         }
     } elseif (isset($_POST['unwaive_risk'])) {
         $waiverId = intval($_POST['waiver_id'] ?? 0);
-        if ($waiverId > 0) {
+        // BOLA fix: the waiver must belong to THIS vendor, else one vendor's page
+        // could delete another vendor's waiver (cross-object) by tampering waiver_id.
+        $ownWaiver = $waiverId > 0 ? $db->fetchOne(
+            'SELECT id FROM vendor_shodan_waivers WHERE id = :id AND vendor_onboarding_id = :vid',
+            [':id' => $waiverId, ':vid' => $vendorId]) : null;
+        if ($waiverId > 0 && !empty($ownWaiver)) {
             if ($shodanService->removeWaiver($waiverId)) {
                 $auth->audit($user['id'], 'vendor_unwaive_risk', 'vendor_shodan_waivers', $waiverId);
                 $shodanService->recalculateScoreFromFindings($vendorId);
@@ -659,6 +664,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
             } else {
                 $error = 'Failed to remove waiver.';
             }
+        } elseif ($waiverId > 0) {
+            $error = 'Failed to remove waiver.';
         }
     } elseif (isset($_POST['rescan_ip'])) {
         $rescanIp = trim($_POST['rescan_ip'] ?? '');

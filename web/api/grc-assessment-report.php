@@ -70,6 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'downloa
     }
 
     $fileName = $row['report_file_name'] ?: 'Cyber_Report.pdf';
+    // Header-injection hygiene: strip CR/LF/quote/NUL and any path component.
+    $fileName = str_replace(["\r", "\n", '"', "\0"], '', basename($fileName));
     header('Content-Type: application/pdf');
     header('Content-Disposition: attachment; filename="' . $fileName . '"');
     header('Content-Length: ' . strlen($pdfData));
@@ -83,6 +85,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'error' => 'Method not allowed.']);
+    exit;
+}
+
+// BOLA fix: the auditor role is read-only and must not author/overwrite report
+// content (the report page renders these fields read-only for auditors). Download
+// (GET, above) stays open to all reviewers; generation requires an editor role.
+if ($isAuditor && !$isAdmin && !$isCyberGRC && !$isContributor) {
+    http_response_code(403);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'error' => 'Read-only access: report generation requires editor privileges.']);
     exit;
 }
 

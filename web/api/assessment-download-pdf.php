@@ -62,6 +62,18 @@ if ($assessmentId) {
         http_response_code(404);
         die('Assessment not found.');
     }
+    // BOLA/IDOR fix: a scoped stakeholder may only export assessments for vendors
+    // they are linked to (matches vendor-assessment-view.php / the list scoping).
+    if (!$isAdmin && !$isCyberTPRM && !$isProcurement && !$isAuditor) {
+        $vrid = (int)($assessment['vendor_request_id'] ?? 0);
+        $link = $vrid ? Database::getInstance()->fetchOne(
+            'SELECT 1 AS x FROM vendor_onboarding_stakeholders WHERE request_id = :rid AND user_id = :uid',
+            [':rid' => $vrid, ':uid' => (int)$user['id']]) : null;
+        if (empty($link)) {
+            http_response_code(403);
+            die('Access denied.');
+        }
+    }
     $templateId = (int)$assessment['template_id'];
 }
 
