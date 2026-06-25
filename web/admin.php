@@ -137,6 +137,10 @@ if (isset($_GET['download_backup']) && $section === 'backup') {
 $error = '';
 $success = '';
 
+// Defense-in-depth: mark that section files are being loaded via the
+// admin dispatcher (each includes/admin/*.php refuses direct web access).
+define('ADMIN_DISPATCH', true);
+
 // Resolve the section file path once. Used for both POST handling and rendering.
 $sectionPath = __DIR__ . '/includes/admin/' . $sectionFiles[$section];
 

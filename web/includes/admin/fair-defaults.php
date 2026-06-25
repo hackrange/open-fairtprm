@@ -1,4 +1,5 @@
 <?php
+if (!defined('ADMIN_DISPATCH')) { http_response_code(403); exit('Forbidden'); }
 /**
  * Admin Section: FAIR Calculation Defaults
  *
