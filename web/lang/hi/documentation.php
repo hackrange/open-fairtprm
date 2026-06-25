@@ -5,7 +5,7 @@
                     <div class="cover-rule"></div>
                     <h1>प्लेटफ़ॉर्म दस्तावेज़ीकरण</h1>
                     <div class="cover-edition">Governance, Risk &amp; Compliance &bull; Third Party Risk Management</div>
-                    <div class="cover-version">संस्करण 2.6.1</div>
+                    <div class="cover-version">संस्करण 2.6.2</div>
                     <div class="cover-rule-bottom"></div>
                     <div class="cover-meta">
                         <strong>दिनांक:</strong> <?php echo date('F j, Y'); ?><br>
@@ -54,7 +54,7 @@
                 <div class="doc-body">
 
                 <h1>प्लेटफ़ॉर्म दस्तावेज़ीकरण</h1>
-                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; Version 2.6.1 &mdash; अंतिम अपडेट: <?php echo date('F j, Y'); ?></p>
+                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; Version 2.6.2 &mdash; अंतिम अपडेट: <?php echo date('F j, Y'); ?></p>
 
                 <div style="margin-bottom:20px;">
                     <button class="btn-doc" id="printBtn">PDF डाउनलोड करें</button>
@@ -137,11 +137,11 @@
 
 
 <!-- ================================================================
-     WHAT'S NEW IN 2.6.1
+     WHAT'S NEW IN 2.6.2
      ================================================================ -->
 <div class="doc-section" id="whats-new">
-    <h2>संस्करण 2.6.1 में क्या नया है</h2>
-    <p>Version 2.6.1 <strong>विक्रेता ऑनबोर्डिंग, खरीद सहयोग, बहु-भाषा समर्थन और शैडो-SaaS खोज</strong> पर केंद्रित कई सुविधाएं जोड़ता है। यदि आपने पहले के संस्करण का उपयोग किया है, तो यहाँ बताया गया है कि क्या नया है। प्रत्येक आइटम इस गाइड में बाद में उसके पूर्ण विवरण से लिंक करता है।</p>
+    <h2>संस्करण 2.6.2 में क्या नया है</h2>
+    <p>Version 2.6.2 <strong>विक्रेता ऑनबोर्डिंग, खरीद सहयोग, बहु-भाषा समर्थन और शैडो-SaaS खोज</strong> पर केंद्रित कई सुविधाएं जोड़ता है। यदि आपने पहले के संस्करण का उपयोग किया है, तो यहाँ बताया गया है कि क्या नया है। प्रत्येक आइटम इस गाइड में बाद में उसके पूर्ण विवरण से लिंक करता है।</p>
     <table class="doc-table">
         <tr><th>नई सुविधा</th><th>यह क्या करती है</th><th>किसके लिए है</th></tr>
         <tr><td><strong><a href="#language">भाषा सेटिंग</a></strong></td><td>प्लेटफ़ॉर्म को 8 भाषाओं में उपयोग करें। प्रत्येक व्यक्ति अपनी भाषा चुनता है; एडमिन तय करते हैं कि कौन सी भाषाएं उपलब्ध हैं।</td><td>सभी</td></tr>
@@ -157,12 +157,12 @@
         <tr><td><strong><a href="#admin-backup">बड़े डेटाबेस बैकअप</a></strong></td><td>बैकअप और रिस्टोर अब बिना टाइमआउट के मल्टी-गिगाबाइट डेटाबेस और बहुत बड़े रिकॉर्ड का समर्थन करते हैं।</td><td>Admins</td></tr>
     </table>
     <div class="callout callout-info">
-        <strong>मैं कैसे जानूं कि मैं किस संस्करण पर हूं?</strong> प्रशासक इंस्टॉल किए गए संस्करण को देखने के लिए <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> पर जा सकते हैं। यह गाइड <strong>v2.6.1</strong> का वर्णन करती है। देखें <a href="#admin-updates">प्लेटफ़ॉर्म अपडेट करना</a>।
+        <strong>मैं कैसे जानूं कि मैं किस संस्करण पर हूं?</strong> प्रशासक इंस्टॉल किए गए संस्करण को देखने के लिए <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> पर जा सकते हैं। यह गाइड <strong>v2.6.2</strong> का वर्णन करती है। देखें <a href="#admin-updates">प्लेटफ़ॉर्म अपडेट करना</a>।
     </div>
 </div>
 
 <div class="doc-section" id="language">
-    <h2>अपनी भाषा बदलना <span class="new-badge">2.6.1 में नया</span></h2>
+    <h2>अपनी भाषा बदलना <span class="new-badge">2.6.2 में नया</span></h2>
     <p>प्लेटफ़ॉर्म इंटरफ़ेस <strong>8 भाषाओं</strong> में प्रदर्शित किया जा सकता है। प्रत्येक व्यक्ति अपनी भाषा चुनता है &mdash; इसे बदलने से केवल <em>आपकी</em> स्क्रीन प्रभावित होती है, किसी और की नहीं। आपकी पसंद हर बार लॉग इन करने पर याद रखी जाती है।</p>
 
     <h3>उपलब्ध भाषाएं</h3>
@@ -214,7 +214,7 @@
      PHONE & VAT QUESTION TYPES + VENDOR DATA IMPROVEMENTS
      ================================================================ -->
 <div class="doc-section" id="question-types">
-    <h2>Phone &amp; VAT प्रश्न प्रकार <span class="new-badge">2.6.1 में नया</span></h2>
+    <h2>Phone &amp; VAT प्रश्न प्रकार <span class="new-badge">2.6.2 में नया</span></h2>
     <p><strong>Template Builder</strong> (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Assessment Templates</span>) में दो नए प्रश्न प्रकार जोड़े गए हैं जो संपर्क और कर विवरण को एक स्वच्छ, सुसंगत प्रारूप में कैप्चर करते हैं। इन्हें किसी भी मूल्यांकन या ऑनबोर्डिंग टेम्पलेट पर उपयोग किया जा सकता है, और अन्य प्रश्नों की तरह इन्हें एक विक्रेता फ़ील्ड से मैप किया जा सकता है ताकि उत्तर विक्रेता रिकॉर्ड पर जाए।</p>
 
     <h3>Phone</h3>
@@ -237,10 +237,10 @@
     <h3>VAT नंबर से विक्रेता खोजना</h3>
     <p>प्लेटफ़ॉर्म के ऊपरी-दाएं में <strong>quick search</strong> बॉक्स अब विक्रेता नाम, डोमेन और स्टेकहोल्डर के साथ-साथ VAT नंबर पर भी मेल खाता है। किसी विक्रेता के अपने नाम, डोमेन या VAT नंबर पर सीधे मेल हमेशा पहले दिखाए जाते हैं।</p>
 
-    <h2>Procurement Onboarding स्कोरिंग बैनर <span class="new-badge">2.6.1 में नया</span></h2>
+    <h2>Procurement Onboarding स्कोरिंग बैनर <span class="new-badge">2.6.2 में नया</span></h2>
     <p>जब किसी विक्रेता की <strong>Procurement Onboarding</strong> स्थिति <strong>No</strong> पर सेट होती है, तो एक बैनर अब स्पष्ट करता है कि <em>जब तक विक्रेता Procurement Onboarding पूरा नहीं करता, स्वचालित विक्रेता स्कोरिंग अक्षम है</em>। यह विक्रेता ऑनबोर्डिंग पृष्ठ और संबंधित मूल्यांकन प्रश्न के नीचे दोनों जगह दिखाई देता है, और उत्तर बदलने के साथ तुरंत अपडेट होता है।</p>
 
-    <h2>मूल्यांकन सबमिट करना: पहले आवश्यक फ़ील्ड जांची जाती हैं <span class="new-badge">2.6.1 में नया</span></h2>
+    <h2>मूल्यांकन सबमिट करना: पहले आवश्यक फ़ील्ड जांची जाती हैं <span class="new-badge">2.6.2 में नया</span></h2>
     <p>जब कोई विक्रेता मूल्यांकन पर <strong>Submit</strong> पर क्लिक करता है, तो प्लेटफ़ॉर्म अब जमाकर्ता के attestation विवरण मांगने से <em>पहले</em> यह जांचता है कि हर आवश्यक प्रश्न का उत्तर दिया गया है। पहले एक गायब उत्तर केवल attestation भरने के बाद रिपोर्ट किया जाता था, जिससे उसे दोबारा भरना पड़ता था।</p>
 </div>
 
@@ -248,7 +248,7 @@
      LARGE DATABASE BACKUPS
      ================================================================ -->
 <div class="doc-section" id="admin-backup">
-    <h2>बड़े डेटाबेस बैकअप &amp; रिस्टोर <span class="new-badge">2.6.1 में नया</span></h2>
+    <h2>बड़े डेटाबेस बैकअप &amp; रिस्टोर <span class="new-badge">2.6.2 में नया</span></h2>
     <p>बैकअप और रिस्टोर (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Backup</span>) अब टाइमआउट या मेमोरी समाप्त हुए बिना <strong>मल्टी-गिगाबाइट डेटाबेस</strong> और <strong>1&nbsp;GB</strong> के करीब पहुंचने वाले व्यक्तिगत रिकॉर्ड को संभालते हैं। पर्दे के पीछे डेटाबेस पैकेट सीमा, नेटवर्क टाइमआउट, अपलोड आकार और अनुरोध समय सीमाएं सभी को बहुत बड़े डेटा को समायोजित करने के लिए बढ़ाया गया था।</p>
     <div class="callout callout-info">
         <strong>बहुत बड़े डेटाबेस के लिए:</strong> मल्टी-गिगाबाइट फ़ाइल का बैकअप या रिस्टोर कुछ समय ले सकता है &mdash; जब तक यह समाप्त न हो, पृष्ठ खुला रखें। अत्यधिक बड़े डेटासेट (दसियों गिगाबाइट) सर्वर कमांड लाइन से रिस्टोर करना सबसे अच्छा है।
@@ -888,15 +888,15 @@
 
 <div class="doc-section" id="tprm-shadow-saas">
     <h2>Shadow SaaS खोज</h2>
-    <p>अपने संगठन में उपयोग किए जा रहे SaaS एप्लिकेशन खोजें जिन्हें औपचारिक रूप से अनुमोदित या मूल्यांकन नहीं किया गया हो। <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span> पर जाएं। v2.6.1 में यह सूची <a href="#shadow-saas-grip">Grip</a> या <a href="#shadow-saas-hero">Hero</a> Shadow SaaS एकीकरण द्वारा स्वचालित रूप से भरी जा सकती है, और अनुचित ऐप्स को <a href="#zscaler">Zscaler</a> में ब्लॉक किया जा सकता है।</p>
+    <p>अपने संगठन में उपयोग किए जा रहे SaaS एप्लिकेशन खोजें जिन्हें औपचारिक रूप से अनुमोदित या मूल्यांकन नहीं किया गया हो। <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span> पर जाएं। v2.6.2 में यह सूची <a href="#shadow-saas-grip">Grip</a> या <a href="#shadow-saas-hero">Hero</a> Shadow SaaS एकीकरण द्वारा स्वचालित रूप से भरी जा सकती है, और अनुचित ऐप्स को <a href="#zscaler">Zscaler</a> में ब्लॉक किया जा सकता है।</p>
 </div>
 
 
 <!-- ================================================================
-     VENDOR ONBOARDING & PROCUREMENT (NEW IN 2.6.1)
+     VENDOR ONBOARDING & PROCUREMENT (NEW IN 2.6.2)
      ================================================================ -->
 <div class="doc-section" id="onboarding-workflow">
-    <h2>विक्रेता ऑनबोर्डिंग &amp; Procurement Onboarding <span class="new-badge">2.6.1 में नया</span></h2>
+    <h2>विक्रेता ऑनबोर्डिंग &amp; Procurement Onboarding <span class="new-badge">2.6.2 में नया</span></h2>
     <p>एक <strong>vendor onboarding request</strong> वह तरीका है जिससे एक नया विक्रेता प्लेटफ़ॉर्म में प्रवेश करता है। यह पहले मसौदे से अंतिम निर्णय तक कई <strong>स्थितियों</strong> से गुजरता है। इससे पहले कि साइबर टीम किसी विक्रेता की समीक्षा करे, विक्रेता को पहले <strong>आपकी खरीद प्रक्रिया के माध्यम से ऑनबोर्ड किया जाना चाहिए</strong> और उसके पास एक वैध <strong>Vendor ID (VID)</strong> होनी चाहिए। यह अनुभाग बताता है क्यों, और यह बिल्कुल कैसे काम करता है।</p>
 
     <h3>ऑनबोर्डिंग यात्रा (स्थितियाँ)</h3>
@@ -927,7 +927,7 @@
     </ul>
     <figure class="doc-figure">
         <img src="app/docs/vendor-info-card.png" alt="Vendor Information card showing Procurement Onboarding and Vendor ID fields" loading="lazy">
-        <figcaption><strong>Vendor Information कार्ड।</strong> विक्रेता सबमिट होने से पहले <strong>Vendor ID (VID)</strong> और procurement-onboarding फ़ील्ड दोनों भरे होने चाहिए। <em>नोट:</em> पहले के रिलीज़ से अपग्रेड किए गए इंस्टेंस पर यह फ़ील्ड अभी भी <strong>"VSU Onboarded"</strong> पढ़ सकती है; v2.6.1 में इसे <strong>"Procurement Onboarding"</strong> लेबल किया गया है &mdash; यह वही फ़ील्ड है।</figcaption>
+        <figcaption><strong>Vendor Information कार्ड।</strong> विक्रेता सबमिट होने से पहले <strong>Vendor ID (VID)</strong> और procurement-onboarding फ़ील्ड दोनों भरे होने चाहिए। <em>नोट:</em> पहले के रिलीज़ से अपग्रेड किए गए इंस्टेंस पर यह फ़ील्ड अभी भी <strong>"VSU Onboarded"</strong> पढ़ सकती है; v2.6.2 में इसे <strong>"Procurement Onboarding"</strong> लेबल किया गया है &mdash; यह वही फ़ील्ड है।</figcaption>
     </figure>
 
     <h3>समीक्षा के लिए विक्रेता सबमिट करना</h3>
@@ -948,8 +948,8 @@
 </div>
 
 <div class="doc-section" id="ai-review">
-    <h2>विक्रेताओं के लिए AI Review <span class="new-badge">2.6.1 में नया</span></h2>
-    <p>कुछ विक्रेता ऐसी सेवाएं प्रदान करते हैं जो कृत्रिम बुद्धिमत्ता का उपयोग करती हैं। इन विक्रेताओं में अलग-अलग जोखिम हो सकते हैं, इसलिए v2.6.1 समीक्षा प्रक्रिया के दौरान उन्हें अलग से ट्रैक करने के लिए एक समर्पित <strong>AI Review</strong> स्थिति जोड़ता है।</p>
+    <h2>विक्रेताओं के लिए AI Review <span class="new-badge">2.6.2 में नया</span></h2>
+    <p>कुछ विक्रेता ऐसी सेवाएं प्रदान करते हैं जो कृत्रिम बुद्धिमत्ता का उपयोग करती हैं। इन विक्रेताओं में अलग-अलग जोखिम हो सकते हैं, इसलिए v2.6.2 समीक्षा प्रक्रिया के दौरान उन्हें अलग से ट्रैक करने के लिए एक समर्पित <strong>AI Review</strong> स्थिति जोड़ता है।</p>
 
     <h3>एक विक्रेता AI Review में कैसे प्रवेश करता है</h3>
     <p><strong>Vendor Information</strong> कार्ड पर एक <span class="field-label">Services Use AI</span> फ़ील्ड है। जब इसे <strong>Yes</strong> पर सेट किया जाता है, तो एक अधिकृत समीक्षक (एक <strong>Cyber TPRM</strong> उपयोगकर्ता या <strong>Administrator</strong>, विक्रेता संपादित करते समय) उस फ़ील्ड के ठीक नीचे एक <span class="btn-label">Force AI Review</span> लिंक देखता है।</p>
@@ -965,7 +965,7 @@
 </div>
 
 <div class="doc-section" id="procurement-cyber-status">
-    <h2>Procurement Cyber Status <span class="new-badge">2.6.1 में नया</span></h2>
+    <h2>Procurement Cyber Status <span class="new-badge">2.6.2 में नया</span></h2>
     <p><strong>Cyber Status</strong> पृष्ठ <strong>खरीद टीम</strong> को एक सरल, हमेशा-वर्तमान दृश्य देता है कि साइबर टीम किन विक्रेताओं की समीक्षा कर रही है और प्रत्येक पर नवीनतम क्या है &mdash; पूर्ण सुरक्षा टूलिंग तक पहुंच की आवश्यकता के बिना। साइबर टीम संक्षिप्त, दिनांकित अपडेट पोस्ट करती है; खरीद यहाँ (और एक साप्ताहिक ईमेल में) उन्हें पढ़ती है।</p>
     <p><span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Procurement</span> &rarr; <span class="menu-label">Cyber Status</span> से इसे खोलें। यह <strong>Procurement</strong>, <strong>Cyber TPRM</strong>, और <strong>Administrator</strong> उपयोगकर्ताओं के लिए उपलब्ध है।</p>
     <figure class="doc-figure">
@@ -1007,11 +1007,11 @@
 </div>
 
 <!-- ================================================================
-     INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.1)
+     INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.2)
      ================================================================ -->
 <div class="doc-section" id="shadow-saas-grip">
-    <h2>Grip Shadow SaaS Integration <span class="new-badge">2.6.1 में नया</span></h2>
-    <p>"Shadow SaaS" का अर्थ है क्लाउड ऐप जिन्हें कर्मचारी उपयोग करते हैं जिन्हें कभी औपचारिक रूप से अनुमोदित नहीं किया गया। <strong>Grip Security</strong> एक सेवा है जो इन ऐप्स को खोजती है। v2.6.1 में आप अपना Grip खाता कनेक्ट कर सकते हैं ताकि प्लेटफ़ॉर्म स्वचालित रूप से Grip द्वारा खोजे गए ऐप्स लाए &mdash; साथ में कितने लोग प्रत्येक का उपयोग करते हैं, एक जोखिम स्कोर और सुरक्षा अलर्ट &mdash; और उन्हें आपके <a href="#tprm-shadow-saas">Shadow SaaS</a> पृष्ठ पर सूचीबद्ध करें।</p>
+    <h2>Grip Shadow SaaS Integration <span class="new-badge">2.6.2 में नया</span></h2>
+    <p>"Shadow SaaS" का अर्थ है क्लाउड ऐप जिन्हें कर्मचारी उपयोग करते हैं जिन्हें कभी औपचारिक रूप से अनुमोदित नहीं किया गया। <strong>Grip Security</strong> एक सेवा है जो इन ऐप्स को खोजती है। v2.6.2 में आप अपना Grip खाता कनेक्ट कर सकते हैं ताकि प्लेटफ़ॉर्म स्वचालित रूप से Grip द्वारा खोजे गए ऐप्स लाए &mdash; साथ में कितने लोग प्रत्येक का उपयोग करते हैं, एक जोखिम स्कोर और सुरक्षा अलर्ट &mdash; और उन्हें आपके <a href="#tprm-shadow-saas">Shadow SaaS</a> पृष्ठ पर सूचीबद्ध करें।</p>
     <p>इसे एक प्रशासक द्वारा <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> पर <strong>Grip</strong> टैब पर कॉन्फ़िगर किया जाता है। Grip दो Shadow SaaS प्रदाताओं में से एक है (दूसरा <a href="#shadow-saas-hero">Hero</a> है); एक समय में केवल एक सक्षम हो सकता है।</p>
 
     <h3>Grip कनेक्ट करना (चरण दर चरण)</h3>
@@ -1039,7 +1039,7 @@
 </div>
 
 <div class="doc-section" id="shadow-saas-hero">
-    <h2>Hero Shadow SaaS Integration <span class="new-badge">2.6.1 में नया</span></h2>
+    <h2>Hero Shadow SaaS Integration <span class="new-badge">2.6.2 में नया</span></h2>
     <p><strong>HERO Security</strong> एक वैकल्पिक Shadow SaaS प्रदाता है। Grip के बजाय, आप एक HERO खाता कनेक्ट कर सकते हैं और प्लेटफ़ॉर्म HERO द्वारा खोजे गए विक्रेताओं को &mdash; उनकी स्थिति, एक जोखिम स्कोर, सबसे सक्रिय संपर्क और उपयोगकर्ता गणना के साथ &mdash; उसी <a href="#tprm-shadow-saas">Shadow SaaS</a> सूची में खींचता है। Grip और Hero <strong>परस्पर अनन्य</strong> हैं: Hero सक्षम करने से Grip स्वचालित रूप से अक्षम हो जाता है (और इसके विपरीत), इसलिए सूची हमेशा ठीक एक प्रदाता द्वारा फीड की जाती है।</p>
     <p>इसे एक प्रशासक द्वारा <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> पर <strong>Hero</strong> टैब पर कॉन्फ़िगर किया जाता है।</p>
 
@@ -1068,7 +1068,7 @@
 </div>
 
 <div class="doc-section" id="zscaler">
-    <h2>Zscaler Blocking Integration <span class="new-badge">2.6.1 में नया</span></h2>
+    <h2>Zscaler Blocking Integration <span class="new-badge">2.6.2 में नया</span></h2>
     <p><strong>Zscaler</strong> एक वेब-सुरक्षा सेवा है जो वेबसाइटों तक पहुंच को ब्लॉक कर सकती है। इस एकीकरण के साथ, जब आप Shadow SaaS पृष्ठ पर एक अनुचित ऐप को <strong>Deny</strong> करते हैं, तो प्लेटफ़ॉर्म स्वचालित रूप से उस ऐप के वेब डोमेन को आपके Zscaler खाते में एक ब्लॉकिंग सूची में जोड़ सकता है &mdash; ताकि लोग अब इसे नहीं पहुंच सकते। बाद में <strong>Allow</strong> क्लिक करने से ब्लॉक हट जाता है।</p>
     <p>इसे एक प्रशासक द्वारा <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> पर <strong>Zscaler Connection</strong> कार्ड पर कॉन्फ़िगर किया जाता है।</p>
 
@@ -1141,7 +1141,7 @@
     </table>
     <p>यदि SAML वास्तव में कॉन्फ़िगर नहीं किया गया है, तो स्विच को अनदेखा किया जाता है और स्थानीय लॉगिन हमेशा उपलब्ध रहता है (anti-lockout सुरक्षा जाल)।</p>
 
-    <h3>Break-glass: SAML और स्थानीय लॉगिन एक साथ अनुमति दें (config फ़ाइल) <span class="new-badge">2.6.1 में नया</span></h3>
+    <h3>Break-glass: SAML और स्थानीय लॉगिन एक साथ अनुमति दें (config फ़ाइल) <span class="new-badge">2.6.2 में नया</span></h3>
     <p>स्थानीय-लॉगिन स्विच दो तरीकों से सेट किया जा सकता है। config-file सेटिंग, जब मौजूद हो, <strong>डेटाबेस मान पर प्राथमिकता लेती है</strong> &mdash; एक break-glass नियंत्रण जिसे डेटाबेस पहुंच की आवश्यकता नहीं है, इसलिए आप हमेशा स्थानीय लॉगिन पुनर्स्थापित कर सकते हैं भले ही SSO खराब हो।</p>
     <table>
         <tr><th>कहाँ</th><th>कैसे</th></tr>
@@ -1162,8 +1162,8 @@
     <p>मूल्यांकन नोट परिष्कृत करना, नियंत्रण सुझाव, विक्रेता टिप्पणी, AI-सहायक FAIR जोखिम विश्लेषण और रिपोर्ट भाषा सहायता सहित AI-संचालित सुविधाएं सक्षम करें। एक प्रदाता चुनने और उसकी API कुंजी दर्ज करने के लिए <span class="menu-label">Admin</span> &rarr; <span class="menu-label">AI Platform</span> पर जाएं। एक समय में केवल एक प्लेटफ़ॉर्म सक्रिय होता है।</p>
     <p>समर्थित AI प्लेटफ़ॉर्म:</p>
     <ul>
-        <li><strong>Anthropic (Claude)</strong> <span class="new-badge">2.6.1 में नया</span> &mdash; Claude के native API से सीधे जुड़ता है (जैसे <code>claude-opus-4-8</code>)। अपनी Anthropic API कुंजी पेस्ट करें; endpoint डिफ़ॉल्ट रूप से मानक Messages URL पर होता है। लाइव <strong>web search</strong> का समर्थन करता है, इसलिए Breach Alerts और OSINT स्कैन वर्तमान, उद्धृत स्रोतों पर आधारित होते हैं।</li>
-        <li><strong>OpenAI (ChatGPT)</strong> <span class="new-badge">2.6.1 में नया</span> &mdash; OpenAI से सीधे जुड़ता है (जैसे <code>gpt-4o</code>)। अपनी OpenAI API कुंजी पेस्ट करें। Breach &amp; OSINT स्कैन के लिए यह एक वेब-खोज-सक्षम मॉडल (डिफ़ॉल्ट <code>gpt-4o-search-preview</code>) का उपयोग करता है ताकि वे स्कैन लाइव स्रोतों पर आधारित हों।</li>
+        <li><strong>Anthropic (Claude)</strong> <span class="new-badge">2.6.2 में नया</span> &mdash; Claude के native API से सीधे जुड़ता है (जैसे <code>claude-opus-4-8</code>)। अपनी Anthropic API कुंजी पेस्ट करें; endpoint डिफ़ॉल्ट रूप से मानक Messages URL पर होता है। लाइव <strong>web search</strong> का समर्थन करता है, इसलिए Breach Alerts और OSINT स्कैन वर्तमान, उद्धृत स्रोतों पर आधारित होते हैं।</li>
+        <li><strong>OpenAI (ChatGPT)</strong> <span class="new-badge">2.6.2 में नया</span> &mdash; OpenAI से सीधे जुड़ता है (जैसे <code>gpt-4o</code>)। अपनी OpenAI API कुंजी पेस्ट करें। Breach &amp; OSINT स्कैन के लिए यह एक वेब-खोज-सक्षम मॉडल (डिफ़ॉल्ट <code>gpt-4o-search-preview</code>) का उपयोग करता है ताकि वे स्कैन लाइव स्रोतों पर आधारित हों।</li>
         <li><strong>OpenWebUI</strong> &mdash; एक OpenAI-संगत endpoint के विरुद्ध JWT bearer token।</li>
         <li><strong>LibreChat</strong> &mdash; API-key auth, agent-based; agent अपना मॉडल और sampling प्रबंधित करता है।</li>
         <li><strong>Custom</strong> &mdash; किसी अन्य OpenAI-संगत (या orchestrator) endpoint के लिए curl-style headers + body template पेस्ट करें।</li>
@@ -1174,7 +1174,7 @@
 </div>
 
 <div class="doc-section" id="admin-updates">
-    <h2>प्लेटफ़ॉर्म अपडेट करना <span class="new-badge">2.6.1 में नया</span></h2>
+    <h2>प्लेटफ़ॉर्म अपडेट करना <span class="new-badge">2.6.2 में नया</span></h2>
     <p>प्रशासक प्लेटफ़ॉर्म के अंदर से नए संस्करणों की जांच कर सकते हैं और लागू कर सकते हैं। <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> पर जाएं।</p>
     <ol class="steps">
         <li><strong>Current Status</strong> कार्ड आपका <span class="field-label">Installed Version</span> और क्या कोई नया उपलब्ध है दिखाता है।</li>
@@ -1182,8 +1182,8 @@
         <li>यदि एक नया संस्करण सूचीबद्ध है, तो इसे लागू करने के लिए ऑन-स्क्रीन <strong>Upgrade</strong> क्रिया का पालन करें।</li>
     </ol>
     <figure class="doc-figure">
-        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.1" loading="lazy">
-        <figcaption><strong>Admin &rarr; Version.</strong> यहाँ इंस्टॉल किया गया संस्करण <strong>v2.6.1</strong> है और प्लेटफ़ॉर्म रिपोर्ट करता है कि यह अद्यतित है। यह वह जगह भी है जहाँ आप पुष्टि करते हैं कि यह मार्गदर्शिका किस संस्करण पर लागू होती है।</figcaption>
+        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.2" loading="lazy">
+        <figcaption><strong>Admin &rarr; Version.</strong> यहाँ इंस्टॉल किया गया संस्करण <strong>v2.6.2</strong> है और प्लेटफ़ॉर्म रिपोर्ट करता है कि यह अद्यतित है। यह वह जगह भी है जहाँ आप पुष्टि करते हैं कि यह मार्गदर्शिका किस संस्करण पर लागू होती है।</figcaption>
     </figure>
 </div>
 
@@ -1222,7 +1222,7 @@
             <div class="faq-body"><p>VID एक 4&ndash;8 अंकीय संख्या है जो विक्रेता के ऑनबोर्ड होने पर आपकी खरीद प्रणाली द्वारा विक्रेता को असाइन की जाती है। यह यहाँ विक्रेता को आपके खरीद और वित्त रिकॉर्ड से जोड़ता है। यदि आपके पास एक नहीं है, तो विक्रेता ने अभी तक खरीद ऑनबोर्डिंग पूरी नहीं की है।</p></div></details>
 
         <details class="faq-item"><summary>मेरे विक्रेता पर फ़ील्ड "VSU Onboarded" कहती है, लेकिन मार्गदर्शिका "Procurement Onboarding" कहती है। कौन सी सही है?<span class="faq-tag">Onboarding</span></summary>
-            <div class="faq-body"><p>वे एक ही फ़ील्ड हैं। इसे v2.6.1 में स्पष्ट <strong>"Procurement Onboarding"</strong> नाम दिया गया था। यदि आपकी स्क्रीन अभी भी <strong>"VSU Onboarded"</strong> दिखाती है, तो आपका इंस्टेंस अभी तक नवीनतम v2.6.1 image में अपग्रेड नहीं हुआ है &mdash; व्यवहार समान है।</p></div></details>
+            <div class="faq-body"><p>वे एक ही फ़ील्ड हैं। इसे v2.6.2 में स्पष्ट <strong>"Procurement Onboarding"</strong> नाम दिया गया था। यदि आपकी स्क्रीन अभी भी <strong>"VSU Onboarded"</strong> दिखाती है, तो आपका इंस्टेंस अभी तक नवीनतम v2.6.2 image में अपग्रेड नहीं हुआ है &mdash; व्यवहार समान है।</p></div></details>
 
         <details class="faq-item"><summary>एक विक्रेता के लिए "AI Review" का क्या अर्थ है?<span class="faq-tag">AI Review</span></summary>
             <div class="faq-body"><p>यह उन विक्रेताओं के लिए एक अलग समीक्षा स्थिति है जिनकी सेवाएं AI का उपयोग करती हैं, ताकि उन्हें सामान्य समीक्षाओं से अलग ट्रैक किया जा सके। एक Cyber TPRM उपयोगकर्ता या एडमिन <strong>Force AI Review</strong> लिंक के साथ एक विक्रेता को इसमें ले जाता है। देखें <a href="#ai-review">विक्रेताओं के लिए AI Review</a>।</p></div></details>
@@ -1261,7 +1261,7 @@
             <div class="faq-body"><p>हाँ। इस पृष्ठ के शीर्ष पर <strong>Download PDF</strong> पर क्लिक करें। यह कवर पृष्ठ, विषय-सूची और पृष्ठ संख्याओं के साथ एक स्वरूपित दस्तावेज़ तैयार करता है।</p></div></details>
 
         <details class="faq-item"><summary>मैं कैसे जानूं कि मैं किस संस्करण पर चल रहा हूं?<span class="faq-tag">General</span></summary>
-            <div class="faq-body"><p>प्रशासक <strong>Admin &rarr; Version</strong> जांच सकते हैं। यह मार्गदर्शिका <strong>v2.6.1</strong> का वर्णन करती है। देखें <a href="#admin-updates">प्लेटफ़ॉर्म अपडेट करना</a>।</p></div></details>
+            <div class="faq-body"><p>प्रशासक <strong>Admin &rarr; Version</strong> जांच सकते हैं। यह मार्गदर्शिका <strong>v2.6.2</strong> का वर्णन करती है। देखें <a href="#admin-updates">प्लेटफ़ॉर्म अपडेट करना</a>।</p></div></details>
 
     </div>
     <p class="faq-no-results" id="faqNoResults">आपकी खोज से कोई प्रश्न मेल नहीं खाता। एक अलग कीवर्ड आज़माएं।</p>
@@ -1362,7 +1362,7 @@
                     <a href="#navigation">साइडबार नेविगेट करना</a>
                     <a href="#roles">उपयोगकर्ता भूमिकाएं &amp; अनुमतियाँ</a>
                     <a href="#first-login">आपका पहला लॉगिन</a>
-                    <a href="#whats-new">2.6.1 में क्या नया है</a>
+                    <a href="#whats-new">2.6.2 में क्या नया है</a>
                     <a href="#language">अपनी भाषा बदलना</a>
                     <a href="#question-types">Phone &amp; VAT प्रश्न प्रकार</a>
 

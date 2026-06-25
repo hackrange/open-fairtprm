@@ -5,7 +5,7 @@
                     <div class="cover-rule"></div>
                     <h1>平台文档</h1>
                     <div class="cover-edition">Governance, Risk &amp; Compliance &bull; Third Party Risk Management</div>
-                    <div class="cover-version">版本 2.6.1</div>
+                    <div class="cover-version">版本 2.6.2</div>
                     <div class="cover-rule-bottom"></div>
                     <div class="cover-meta">
                         <strong>日期：</strong> <?php echo date('F j, Y'); ?><br>
@@ -54,7 +54,7 @@
                 <div class="doc-body">
 
                 <h1>平台文档</h1>
-                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; 版本 2.6.1 &mdash; 最后更新：<?php echo date('F j, Y'); ?></p>
+                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; 版本 2.6.2 &mdash; 最后更新：<?php echo date('F j, Y'); ?></p>
 
                 <div style="margin-bottom:20px;">
                     <button class="btn-doc" id="printBtn">下载 PDF</button>
@@ -137,11 +137,11 @@
 
 
 <!-- ================================================================
-     WHAT'S NEW IN 2.6.1
+     WHAT'S NEW IN 2.6.2
      ================================================================ -->
 <div class="doc-section" id="whats-new">
-    <h2>2.6.1 版本新功能</h2>
-    <p>版本 2.6.1 新增了多项功能，重点关注<strong>供应商入驻、采购协作、多语言支持和影子 SaaS 发现</strong>。如果您使用过早期版本，以下是新增内容。每一项均链接至本指南后续的完整演练说明。</p>
+    <h2>2.6.2 版本新功能</h2>
+    <p>版本 2.6.2 新增了多项功能，重点关注<strong>供应商入驻、采购协作、多语言支持和影子 SaaS 发现</strong>。如果您使用过早期版本，以下是新增内容。每一项均链接至本指南后续的完整演练说明。</p>
     <table class="doc-table">
         <tr><th>新功能</th><th>功能说明</th><th>适用对象</th></tr>
         <tr><td><strong><a href="#language">语言设置</a></strong></td><td>支持 8 种语言使用平台。每位用户自行选择语言；管理员决定哪些语言可用。</td><td>全体用户</td></tr>
@@ -157,12 +157,12 @@
         <tr><td><strong><a href="#admin-backup">大型数据库备份</a></strong></td><td>备份和恢复功能现在支持数 GB 大小的数据库和超大记录，不会超时。</td><td>管理员</td></tr>
     </table>
     <div class="callout callout-info">
-        <strong>如何确认我当前的版本？</strong>管理员可前往 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> 查看已安装的版本。本指南描述的是 <strong>v2.6.1</strong>。请参阅 <a href="#admin-updates">平台更新</a>。
+        <strong>如何确认我当前的版本？</strong>管理员可前往 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> 查看已安装的版本。本指南描述的是 <strong>v2.6.2</strong>。请参阅 <a href="#admin-updates">平台更新</a>。
     </div>
 </div>
 
 <div class="doc-section" id="language">
-    <h2>更改语言 <span class="new-badge">2.6.1 新功能</span></h2>
+    <h2>更改语言 <span class="new-badge">2.6.2 新功能</span></h2>
     <p>平台界面支持 <strong>8 种语言</strong>显示。每位用户自行选择语言 &mdash; 更改仅影响<em>您自己</em>的界面，不影响其他人。您的选择在每次登录后都会被记住。</p>
 
     <h3>可用语言</h3>
@@ -214,7 +214,7 @@
      PHONE & VAT QUESTION TYPES + VENDOR DATA IMPROVEMENTS
      ================================================================ -->
 <div class="doc-section" id="question-types">
-    <h2>电话和 VAT 问题类型 <span class="new-badge">2.6.1 新功能</span></h2>
+    <h2>电话和 VAT 问题类型 <span class="new-badge">2.6.2 新功能</span></h2>
     <p><strong>模板构建器</strong>（<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Assessment Templates</span>）新增两种问题类型，以简洁统一的格式采集联系方式和税务详情。这些类型可用于任何评估或入驻模板，与其他问题一样，可映射到供应商字段，使答案自动同步至供应商记录。</p>
 
     <h3>电话</h3>
@@ -237,10 +237,10 @@
     <h3>按 VAT 编号查找供应商</h3>
     <p>平台右上角的<strong>快速搜索</strong>框现在也支持按 VAT 编号匹配，与供应商名称、域名和利益相关者并列。供应商自身名称、域名或 VAT 编号的直接匹配项始终优先显示。</p>
 
-    <h2>采购入驻评分横幅 <span class="new-badge">2.6.1 新功能</span></h2>
+    <h2>采购入驻评分横幅 <span class="new-badge">2.6.2 新功能</span></h2>
     <p>当供应商的<strong>采购入驻</strong>状态设置为<strong>否</strong>时，现在将显示横幅，明确说明<em>在供应商完成采购入驻之前，自动供应商评分功能已禁用</em>。该横幅同时显示在供应商入驻页面和相应评估问题下方，并随答案变更即时更新。</p>
 
-    <h2>提交评估：首先检查必填字段 <span class="new-badge">2.6.1 新功能</span></h2>
+    <h2>提交评估：首先检查必填字段 <span class="new-badge">2.6.2 新功能</span></h2>
     <p>当供应商点击评估的<strong>提交</strong>按钮时，平台现在会在要求填写提交者证明信息<em>之前</em>先检查所有必填问题是否已回答。此前，缺少答案的情况只会在填写证明信息后才被报告，导致需要重新填写。</p>
 </div>
 
@@ -248,7 +248,7 @@
      LARGE DATABASE BACKUPS
      ================================================================ -->
 <div class="doc-section" id="admin-backup">
-    <h2>大型数据库备份与恢复 <span class="new-badge">2.6.1 新功能</span></h2>
+    <h2>大型数据库备份与恢复 <span class="new-badge">2.6.2 新功能</span></h2>
     <p>备份和恢复功能（<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Backup</span>）现在可以处理<strong>数 GB 大小的数据库</strong>和接近 <strong>1&nbsp;GB</strong> 的单条记录，而不会因超时或内存不足而中断操作。后台已相应提高了数据库数据包限制、网络超时、上传大小及请求时间限制，以适应超大数据。</p>
     <div class="callout callout-info">
         <strong>对于超大型数据库：</strong>多 GB 文件的备份或恢复可能需要一段时间 &mdash; 请保持页面打开直至操作完成。超大型数据集（数十 GB）最好通过服务器命令行进行恢复。
@@ -888,15 +888,15 @@
 
 <div class="doc-section" id="tprm-shadow-saas">
     <h2>影子 SaaS 发现</h2>
-    <p>发现组织内正在使用但可能未经正式批准或评估的 SaaS 应用。导航至 <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>。在 v2.6.1 中，此列表可通过 <a href="#shadow-saas-grip">Grip</a> 或 <a href="#shadow-saas-hero">Hero</a> 影子 SaaS 集成自动填充，未经授权的应用可在 <a href="#zscaler">Zscaler</a> 中进行封锁。</p>
+    <p>发现组织内正在使用但可能未经正式批准或评估的 SaaS 应用。导航至 <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>。在 v2.6.2 中，此列表可通过 <a href="#shadow-saas-grip">Grip</a> 或 <a href="#shadow-saas-hero">Hero</a> 影子 SaaS 集成自动填充，未经授权的应用可在 <a href="#zscaler">Zscaler</a> 中进行封锁。</p>
 </div>
 
 
 <!-- ================================================================
-     VENDOR ONBOARDING & PROCUREMENT (NEW IN 2.6.1)
+     VENDOR ONBOARDING & PROCUREMENT (NEW IN 2.6.2)
      ================================================================ -->
 <div class="doc-section" id="onboarding-workflow">
-    <h2>供应商入驻与采购入驻 <span class="new-badge">2.6.1 新功能</span></h2>
+    <h2>供应商入驻与采购入驻 <span class="new-badge">2.6.2 新功能</span></h2>
     <p><strong>供应商入驻申请</strong>是新供应商进入平台的方式，通过一系列<strong>状态</strong>从初始草稿推进至最终决策。在网络安全团队审查供应商之前，该供应商必须首先通过您的<strong>采购流程完成入驻</strong>并获得有效的<strong>供应商 ID（VID）</strong>。本节将解释原因及具体操作方式。</p>
 
     <h3>入驻流程（状态）</h3>
@@ -927,7 +927,7 @@
     </ul>
     <figure class="doc-figure">
         <img src="app/docs/vendor-info-card.png" alt="Vendor Information card showing Procurement Onboarding and Vendor ID fields" loading="lazy">
-        <figcaption><strong>供应商信息卡片。</strong>供应商提交之前，<strong>Vendor ID（VID）</strong>和采购入驻字段都需要填写。<em>注意：</em>在从早期版本升级的实例中，该字段可能仍显示为 <strong>"VSU Onboarded"</strong>；在 v2.6.1 中标签为 <strong>"Procurement Onboarding"</strong> &mdash; 是同一个字段。</figcaption>
+        <figcaption><strong>供应商信息卡片。</strong>供应商提交之前，<strong>Vendor ID（VID）</strong>和采购入驻字段都需要填写。<em>注意：</em>在从早期版本升级的实例中，该字段可能仍显示为 <strong>"VSU Onboarded"</strong>；在 v2.6.2 中标签为 <strong>"Procurement Onboarding"</strong> &mdash; 是同一个字段。</figcaption>
     </figure>
 
     <h3>提交供应商进行审查</h3>
@@ -948,8 +948,8 @@
 </div>
 
 <div class="doc-section" id="ai-review">
-    <h2>供应商 AI 审查 <span class="new-badge">2.6.1 新功能</span></h2>
-    <p>部分供应商提供使用人工智能的服务。这些供应商可能带来不同的风险，因此 v2.6.1 新增了专属的 <strong>AI Review</strong> 状态，在审查过程中对其进行单独跟踪。</p>
+    <h2>供应商 AI 审查 <span class="new-badge">2.6.2 新功能</span></h2>
+    <p>部分供应商提供使用人工智能的服务。这些供应商可能带来不同的风险，因此 v2.6.2 新增了专属的 <strong>AI Review</strong> 状态，在审查过程中对其进行单独跟踪。</p>
 
     <h3>供应商如何进入 AI 审查</h3>
     <p>在<strong>供应商信息</strong>卡片上有一个 <span class="field-label">Services Use AI</span> 字段。当此字段设置为<strong>是</strong>时，授权审查员（<strong>Cyber TPRM</strong> 用户或<strong>管理员</strong>，在编辑供应商时）将在该字段正下方看到 <span class="btn-label">Force AI Review</span> 链接。</p>
@@ -965,7 +965,7 @@
 </div>
 
 <div class="doc-section" id="procurement-cyber-status">
-    <h2>采购网络安全状态 <span class="new-badge">2.6.1 新功能</span></h2>
+    <h2>采购网络安全状态 <span class="new-badge">2.6.2 新功能</span></h2>
     <p><strong>网络安全状态</strong>页面为<strong>采购团队</strong>提供一个简洁、实时的视图，显示网络安全团队正在审查哪些供应商以及每个供应商的最新进展——无需访问完整的安全工具。网络安全团队发布简短的带日期更新；采购团队在此处（以及每周电子邮件中）查阅。</p>
     <p>从 <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Procurement</span> &rarr; <span class="menu-label">Cyber Status</span> 打开。<strong>Procurement</strong>、<strong>Cyber TPRM</strong> 和<strong>管理员</strong>用户均可访问。</p>
     <figure class="doc-figure">
@@ -1007,11 +1007,11 @@
 </div>
 
 <!-- ================================================================
-     INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.1)
+     INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.2)
      ================================================================ -->
 <div class="doc-section" id="shadow-saas-grip">
-    <h2>Grip 影子 SaaS 集成 <span class="new-badge">2.6.1 新功能</span></h2>
-    <p>"影子 SaaS"是指员工未经正式批准就在使用的云应用。<strong>Grip Security</strong> 是一项用于发现这些应用的服务。在 v2.6.1 中，您可以连接 Grip 账户，让平台自动拉取 Grip 发现的应用——包括每个应用的用户数量、风险评分和安全警报——并在您的 <a href="#tprm-shadow-saas">影子 SaaS</a> 页面上列出它们。</p>
+    <h2>Grip 影子 SaaS 集成 <span class="new-badge">2.6.2 新功能</span></h2>
+    <p>"影子 SaaS"是指员工未经正式批准就在使用的云应用。<strong>Grip Security</strong> 是一项用于发现这些应用的服务。在 v2.6.2 中，您可以连接 Grip 账户，让平台自动拉取 Grip 发现的应用——包括每个应用的用户数量、风险评分和安全警报——并在您的 <a href="#tprm-shadow-saas">影子 SaaS</a> 页面上列出它们。</p>
     <p>管理员在 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> 的 <strong>Grip</strong> 标签页中进行配置。Grip 是两个影子 SaaS 提供商之一（另一个是 <a href="#shadow-saas-hero">Hero</a>），每次只能启用其中一个。</p>
 
     <h3>连接 Grip（分步操作）</h3>
@@ -1039,7 +1039,7 @@
 </div>
 
 <div class="doc-section" id="shadow-saas-hero">
-    <h2>Hero 影子 SaaS 集成 <span class="new-badge">2.6.1 新功能</span></h2>
+    <h2>Hero 影子 SaaS 集成 <span class="new-badge">2.6.2 新功能</span></h2>
     <p><strong>HERO Security</strong> 是另一种影子 SaaS 提供商。您可以连接 HERO 账户（而非 Grip），平台将把 HERO 发现的供应商——包括状态、风险评分、最活跃联系人和用户数量——拉取到同一个 <a href="#tprm-shadow-saas">影子 SaaS</a> 列表中。Grip 和 Hero <strong>互斥</strong>：启用 Hero 会自动禁用 Grip（反之亦然），因此列表始终只由一个提供商提供数据。</p>
     <p>管理员在 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> 的 <strong>Hero</strong> 标签页中进行配置。</p>
 
@@ -1068,7 +1068,7 @@
 </div>
 
 <div class="doc-section" id="zscaler">
-    <h2>Zscaler 封锁集成 <span class="new-badge">2.6.1 新功能</span></h2>
+    <h2>Zscaler 封锁集成 <span class="new-badge">2.6.2 新功能</span></h2>
     <p><strong>Zscaler</strong> 是一种可以封锁网站访问的网络安全服务。通过此集成，当您在影子 SaaS 页面<strong>拒绝</strong>一个未经授权的应用时，平台可以自动将该应用的网络域名添加到您的 Zscaler 账户封锁列表中——使人们无法再访问该网站。之后点击<strong>允许</strong>将解除封锁。</p>
     <p>管理员在 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> 的 <strong>Zscaler Connection</strong> 卡片中进行配置。</p>
 
@@ -1141,7 +1141,7 @@
     </table>
     <p>如果 SAML 实际上未配置，该开关将被忽略，本地登录始终可用（防锁定安全网）。</p>
 
-    <h3>紧急访问：同时允许 SAML 和本地登录（配置文件） <span class="new-badge">2.6.1 新功能</span></h3>
+    <h3>紧急访问：同时允许 SAML 和本地登录（配置文件） <span class="new-badge">2.6.2 新功能</span></h3>
     <p>本地登录开关有两种设置方式。配置文件设置（如果存在）<strong>优先于数据库值</strong>——这是一种无需数据库访问的紧急访问控制，因此即使 SSO 出现问题，您也可以随时恢复本地登录。</p>
     <table>
         <tr><th>位置</th><th>方法</th></tr>
@@ -1162,8 +1162,8 @@
     <p>启用 AI 驱动的功能，包括评估备注优化、控制措施建议、供应商评注、AI 辅助 FAIR 风险分析和报告语言辅助。导航至 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">AI Platform</span> 选择提供商并输入 API 密钥，每次只有一个平台处于活跃状态。</p>
     <p>支持的 AI 平台：</p>
     <ul>
-        <li><strong>Anthropic (Claude)</strong> <span class="new-badge">2.6.1 新功能</span> &mdash; 直接连接到 Claude 的原生 API（例如 <code>claude-opus-4-8</code>）。粘贴您的 Anthropic API 密钥；端点默认为标准 Messages URL。支持实时<strong>网络搜索</strong>，因此违规警报和 OSINT 扫描基于当前的引用来源。</li>
-        <li><strong>OpenAI (ChatGPT)</strong> <span class="new-badge">2.6.1 新功能</span> &mdash; 直接连接到 OpenAI（例如 <code>gpt-4o</code>）。粘贴您的 OpenAI API 密钥。对于违规和 OSINT 扫描，使用具有网络搜索功能的模型（默认 <code>gpt-4o-search-preview</code>），确保扫描基于实时来源。</li>
+        <li><strong>Anthropic (Claude)</strong> <span class="new-badge">2.6.2 新功能</span> &mdash; 直接连接到 Claude 的原生 API（例如 <code>claude-opus-4-8</code>）。粘贴您的 Anthropic API 密钥；端点默认为标准 Messages URL。支持实时<strong>网络搜索</strong>，因此违规警报和 OSINT 扫描基于当前的引用来源。</li>
+        <li><strong>OpenAI (ChatGPT)</strong> <span class="new-badge">2.6.2 新功能</span> &mdash; 直接连接到 OpenAI（例如 <code>gpt-4o</code>）。粘贴您的 OpenAI API 密钥。对于违规和 OSINT 扫描，使用具有网络搜索功能的模型（默认 <code>gpt-4o-search-preview</code>），确保扫描基于实时来源。</li>
         <li><strong>OpenWebUI</strong> &mdash; 针对 OpenAI 兼容端点的 JWT 持有者令牌。</li>
         <li><strong>LibreChat</strong> &mdash; API 密钥身份验证，基于代理；代理自行管理其模型和采样。</li>
         <li><strong>自定义</strong> &mdash; 粘贴 curl 风格的标题和正文模板，适用于任何其他 OpenAI 兼容（或编排器）端点。</li>
@@ -1174,7 +1174,7 @@
 </div>
 
 <div class="doc-section" id="admin-updates">
-    <h2>平台更新 <span class="new-badge">2.6.1 新功能</span></h2>
+    <h2>平台更新 <span class="new-badge">2.6.2 新功能</span></h2>
     <p>管理员可以在平台内部检查并应用新版本。导航至 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span>。</p>
     <ol class="steps">
         <li><strong>当前状态</strong>卡片显示您的 <span class="field-label">已安装版本</span>以及是否有更新版本可用。</li>
@@ -1182,8 +1182,8 @@
         <li>如果列出了新版本，请按照屏幕上的<strong>升级</strong>操作进行应用。</li>
     </ol>
     <figure class="doc-figure">
-        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.1" loading="lazy">
-        <figcaption><strong>Admin &rarr; Version。</strong>此处安装的版本为 <strong>v2.6.1</strong>，平台报告已是最新版本。这也是确认本指南适用版本的地方。</figcaption>
+        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.2" loading="lazy">
+        <figcaption><strong>Admin &rarr; Version。</strong>此处安装的版本为 <strong>v2.6.2</strong>，平台报告已是最新版本。这也是确认本指南适用版本的地方。</figcaption>
     </figure>
 </div>
 
@@ -1222,7 +1222,7 @@
             <div class="faq-body"><p>VID 是供应商入驻时由采购系统分配给供应商的 4&ndash;8 位数字，它将此处的供应商与您的采购和财务记录关联起来。如果没有 VID，说明供应商尚未完成采购入驻。</p></div></details>
 
         <details class="faq-item"><summary>我的供应商页面显示的是"VSU Onboarded"，但指南上写的是"Procurement Onboarding"。哪个是正确的？<span class="faq-tag">入驻</span></summary>
-            <div class="faq-body"><p>它们是同一个字段。在 v2.6.1 中重命名为更清晰的 <strong>"Procurement Onboarding"</strong>。如果您的界面仍显示 <strong>"VSU Onboarded"</strong>，说明您的实例尚未升级到最新的 v2.6.1 镜像——功能完全相同。</p></div></details>
+            <div class="faq-body"><p>它们是同一个字段。在 v2.6.2 中重命名为更清晰的 <strong>"Procurement Onboarding"</strong>。如果您的界面仍显示 <strong>"VSU Onboarded"</strong>，说明您的实例尚未升级到最新的 v2.6.2 镜像——功能完全相同。</p></div></details>
 
         <details class="faq-item"><summary>供应商的"AI Review"状态是什么意思？<span class="faq-tag">AI 审查</span></summary>
             <div class="faq-body"><p>这是专为服务使用 AI 的供应商设立的独立审查状态，以便与普通审查分开追踪。Cyber TPRM 用户或管理员使用 <strong>Force AI Review</strong> 链接将供应商移入此状态。请参阅 <a href="#ai-review">供应商 AI 审查</a>。</p></div></details>
@@ -1261,7 +1261,7 @@
             <div class="faq-body"><p>可以。点击本页顶部的 <strong>Download PDF</strong>，将生成包含封面、目录和页码的格式化文档。</p></div></details>
 
         <details class="faq-item"><summary>如何确认我当前运行的版本？<span class="faq-tag">常规</span></summary>
-            <div class="faq-body"><p>管理员可以查看 <strong>Admin &rarr; Version</strong>。本指南描述的是 <strong>v2.6.1</strong>。请参阅 <a href="#admin-updates">平台更新</a>。</p></div></details>
+            <div class="faq-body"><p>管理员可以查看 <strong>Admin &rarr; Version</strong>。本指南描述的是 <strong>v2.6.2</strong>。请参阅 <a href="#admin-updates">平台更新</a>。</p></div></details>
 
     </div>
     <p class="faq-no-results" id="faqNoResults">没有与您搜索内容匹配的问题，请尝试其他关键词。</p>
@@ -1362,7 +1362,7 @@
                     <a href="#navigation">侧边栏导航</a>
                     <a href="#roles">用户角色与权限</a>
                     <a href="#first-login">首次登录</a>
-                    <a href="#whats-new">2.6.1 新功能</a>
+                    <a href="#whats-new">2.6.2 新功能</a>
                     <a href="#language">更改语言</a>
                     <a href="#question-types">电话和 VAT 问题类型</a>
 

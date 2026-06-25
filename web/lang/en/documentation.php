@@ -5,7 +5,7 @@
                     <div class="cover-rule"></div>
                     <h1>Platform Documentation</h1>
                     <div class="cover-edition">Governance, Risk &amp; Compliance &bull; Third Party Risk Management</div>
-                    <div class="cover-version">Version 2.6.1</div>
+                    <div class="cover-version">Version 2.6.2</div>
                     <div class="cover-rule-bottom"></div>
                     <div class="cover-meta">
                         <strong>Date:</strong> <?php echo date('F j, Y'); ?><br>
@@ -54,7 +54,7 @@
                 <div class="doc-body">
 
                 <h1>Platform Documentation</h1>
-                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; Version 2.6.1 &mdash; Last updated: <?php echo date('F j, Y'); ?></p>
+                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; Version 2.6.2 &mdash; Last updated: <?php echo date('F j, Y'); ?></p>
 
                 <div style="margin-bottom:20px;">
                     <button class="btn-doc" id="printBtn">Download PDF</button>
@@ -137,11 +137,11 @@
 
 
 <!-- ================================================================
-     WHAT'S NEW IN 2.6.1
+     WHAT'S NEW IN 2.6.2
      ================================================================ -->
 <div class="doc-section" id="whats-new">
-    <h2>What's New in Version 2.6.1</h2>
-    <p>Version 2.6.1 adds several features focused on <strong>vendor onboarding, procurement collaboration, multi-language support, and shadow-SaaS discovery</strong>. If you have used an earlier version, here is what is new. Each item links to its full walkthrough later in this guide.</p>
+    <h2>What's New in Version 2.6.2</h2>
+    <p>Version 2.6.2 adds several features focused on <strong>vendor onboarding, procurement collaboration, multi-language support, and shadow-SaaS discovery</strong>. If you have used an earlier version, here is what is new. Each item links to its full walkthrough later in this guide.</p>
     <table class="doc-table">
         <tr><th>New Feature</th><th>What It Does</th><th>Who It's For</th></tr>
         <tr><td><strong><a href="#language">Language settings</a></strong></td><td>Use the platform in 8 languages. Each person picks their own language; admins choose which languages are available.</td><td>Everyone</td></tr>
@@ -157,12 +157,12 @@
         <tr><td><strong><a href="#admin-backup">Large database backups</a></strong></td><td>Backup and restore now support multi-gigabyte databases and very large records without timing out.</td><td>Admins</td></tr>
     </table>
     <div class="callout callout-info">
-        <strong>How do I know which version I'm on?</strong> Administrators can go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> to see the installed version. This guide describes <strong>v2.6.1</strong>. See <a href="#admin-updates">Updating the Platform</a>.
+        <strong>How do I know which version I'm on?</strong> Administrators can go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> to see the installed version. This guide describes <strong>v2.6.2</strong>. See <a href="#admin-updates">Updating the Platform</a>.
     </div>
 </div>
 
 <div class="doc-section" id="language">
-    <h2>Changing Your Language <span class="new-badge">New in 2.6.1</span></h2>
+    <h2>Changing Your Language <span class="new-badge">New in 2.6.2</span></h2>
     <p>The platform interface can be displayed in <strong>8 languages</strong>. Every person chooses their own language &mdash; changing it only affects <em>your</em> screen, not anyone else's. Your choice is remembered every time you log in.</p>
 
     <h3>Languages available</h3>
@@ -214,7 +214,7 @@
      PHONE & VAT QUESTION TYPES + VENDOR DATA IMPROVEMENTS
      ================================================================ -->
 <div class="doc-section" id="question-types">
-    <h2>Phone &amp; VAT Question Types <span class="new-badge">New in 2.6.1</span></h2>
+    <h2>Phone &amp; VAT Question Types <span class="new-badge">New in 2.6.2</span></h2>
     <p>The <strong>Template Builder</strong> (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Assessment Templates</span>) gains two new question types that capture contact and tax details in a clean, consistent format. They can be used on any assessment or onboarding template, and like other questions they can be mapped to a vendor field so the answer flows onto the vendor record.</p>
 
     <h3>Phone</h3>
@@ -237,10 +237,10 @@
     <h3>Finding vendors by VAT number</h3>
     <p>The <strong>quick search</strong> box in the top-right of the platform now also matches on VAT number, alongside vendor name, domain, and stakeholder. Direct matches on a vendor's own name, domain, or VAT number are always shown first.</p>
 
-    <h2>Procurement Onboarding scoring banner <span class="new-badge">New in 2.6.1</span></h2>
+    <h2>Procurement Onboarding scoring banner <span class="new-badge">New in 2.6.2</span></h2>
     <p>When a vendor's <strong>Procurement Onboarding</strong> status is set to <strong>No</strong>, a banner now makes clear that <em>automated vendor scoring is disabled until the vendor completes Procurement Onboarding</em>. It appears both on the vendor onboarding page and beneath the matching assessment question, and updates immediately as the answer changes.</p>
 
-    <h2>Submitting an assessment: required fields checked first <span class="new-badge">New in 2.6.1</span></h2>
+    <h2>Submitting an assessment: required fields checked first <span class="new-badge">New in 2.6.2</span></h2>
     <p>When a vendor clicks <strong>Submit</strong> on an assessment, the platform now checks that every required question is answered <em>before</em> asking for the submitter's attestation details. Previously a missing answer was only reported after the attestation was filled in, forcing it to be re-entered.</p>
 </div>
 
@@ -248,7 +248,7 @@
      LARGE DATABASE BACKUPS
      ================================================================ -->
 <div class="doc-section" id="admin-backup">
-    <h2>Large Database Backups &amp; Restores <span class="new-badge">New in 2.6.1</span></h2>
+    <h2>Large Database Backups &amp; Restores <span class="new-badge">New in 2.6.2</span></h2>
     <p>Backup and restore (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Backup</span>) now handle <strong>multi-gigabyte databases</strong> and individual records approaching <strong>1&nbsp;GB</strong> without the operation being cut short by a timeout or running out of memory. Behind the scenes the database packet limit, network timeouts, upload size, and request time limits were all raised to accommodate very large data.</p>
     <div class="callout callout-info">
         <strong>For very large databases:</strong> A backup or restore of a multi-gigabyte file can take a while &mdash; leave the page open until it finishes. Extremely large datasets (tens of gigabytes) are best restored from the server command line.
@@ -888,15 +888,15 @@
 
 <div class="doc-section" id="tprm-shadow-saas">
     <h2>Shadow SaaS Discovery</h2>
-    <p>Discover SaaS applications being used across your organization that may not have been formally approved or assessed. Navigate to <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>. In v2.6.1 this list can be filled automatically by the <a href="#shadow-saas-grip">Grip</a> or <a href="#shadow-saas-hero">Hero</a> Shadow SaaS integration, and unsanctioned apps can be blocked in <a href="#zscaler">Zscaler</a>.</p>
+    <p>Discover SaaS applications being used across your organization that may not have been formally approved or assessed. Navigate to <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>. In v2.6.2 this list can be filled automatically by the <a href="#shadow-saas-grip">Grip</a> or <a href="#shadow-saas-hero">Hero</a> Shadow SaaS integration, and unsanctioned apps can be blocked in <a href="#zscaler">Zscaler</a>.</p>
 </div>
 
 
 <!-- ================================================================
-     VENDOR ONBOARDING & PROCUREMENT (NEW IN 2.6.1)
+     VENDOR ONBOARDING & PROCUREMENT (NEW IN 2.6.2)
      ================================================================ -->
 <div class="doc-section" id="onboarding-workflow">
-    <h2>Vendor Onboarding &amp; Procurement Onboarding <span class="new-badge">New in 2.6.1</span></h2>
+    <h2>Vendor Onboarding &amp; Procurement Onboarding <span class="new-badge">New in 2.6.2</span></h2>
     <p>A <strong>vendor onboarding request</strong> is how a new vendor enters the platform. It moves through a series of <strong>statuses</strong> from first draft to final decision. Before the cyber team will review a vendor, the vendor must first be <strong>onboarded through your procurement process</strong> and have a valid <strong>Vendor ID (VID)</strong>. This section explains why, and exactly how it works.</p>
 
     <h3>The onboarding journey (statuses)</h3>
@@ -927,7 +927,7 @@
     </ul>
     <figure class="doc-figure">
         <img src="app/docs/vendor-info-card.png" alt="Vendor Information card showing Procurement Onboarding and Vendor ID fields" loading="lazy">
-        <figcaption><strong>Vendor Information card.</strong> The <strong>Vendor ID (VID)</strong> and the procurement-onboarding field both need to be filled in before the vendor can be submitted. <em>Note:</em> on instances upgraded from an earlier release this field may still read <strong>"VSU Onboarded"</strong>; in v2.6.1 it is labelled <strong>"Procurement Onboarding"</strong> &mdash; it is the same field.</figcaption>
+        <figcaption><strong>Vendor Information card.</strong> The <strong>Vendor ID (VID)</strong> and the procurement-onboarding field both need to be filled in before the vendor can be submitted. <em>Note:</em> on instances upgraded from an earlier release this field may still read <strong>"VSU Onboarded"</strong>; in v2.6.2 it is labelled <strong>"Procurement Onboarding"</strong> &mdash; it is the same field.</figcaption>
     </figure>
 
     <h3>Submitting a vendor for review</h3>
@@ -948,8 +948,8 @@
 </div>
 
 <div class="doc-section" id="ai-review">
-    <h2>AI Review for Vendors <span class="new-badge">New in 2.6.1</span></h2>
-    <p>Some vendors provide services that use artificial intelligence. These vendors can carry different risks, so v2.6.1 adds a dedicated <strong>AI Review</strong> status to track them separately during the review process.</p>
+    <h2>AI Review for Vendors <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Some vendors provide services that use artificial intelligence. These vendors can carry different risks, so v2.6.2 adds a dedicated <strong>AI Review</strong> status to track them separately during the review process.</p>
 
     <h3>How a vendor enters AI Review</h3>
     <p>On the <strong>Vendor Information</strong> card there is a <span class="field-label">Services Use AI</span> field. When this is set to <strong>Yes</strong>, an authorized reviewer (a <strong>Cyber TPRM</strong> user or <strong>Administrator</strong>, while editing the vendor) sees a <span class="btn-label">Force AI Review</span> link directly beneath that field.</p>
@@ -965,7 +965,7 @@
 </div>
 
 <div class="doc-section" id="procurement-cyber-status">
-    <h2>Procurement Cyber Status <span class="new-badge">New in 2.6.1</span></h2>
+    <h2>Procurement Cyber Status <span class="new-badge">New in 2.6.2</span></h2>
     <p>The <strong>Cyber Status</strong> page gives the <strong>procurement team</strong> a simple, always-current view of which vendors the cyber team is reviewing and what the latest word is on each one &mdash; without needing access to the full security tooling. The cyber team posts short, dated updates; procurement reads them here (and in a weekly email).</p>
     <p>Open it from <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Procurement</span> &rarr; <span class="menu-label">Cyber Status</span>. It is available to <strong>Procurement</strong>, <strong>Cyber TPRM</strong>, and <strong>Administrator</strong> users.</p>
     <figure class="doc-figure">
@@ -1007,11 +1007,11 @@
 </div>
 
 <!-- ================================================================
-     INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.1)
+     INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.2)
      ================================================================ -->
 <div class="doc-section" id="shadow-saas-grip">
-    <h2>Grip Shadow SaaS Integration <span class="new-badge">New in 2.6.1</span></h2>
-    <p>"Shadow SaaS" means cloud apps that employees use which were never formally approved. <strong>Grip Security</strong> is a service that discovers these apps. In v2.6.1 you can connect your Grip account so the platform automatically pulls in the apps Grip finds &mdash; along with how many people use each one, a risk score, and security alerts &mdash; and lists them on your <a href="#tprm-shadow-saas">Shadow SaaS</a> page.</p>
+    <h2>Grip Shadow SaaS Integration <span class="new-badge">New in 2.6.2</span></h2>
+    <p>"Shadow SaaS" means cloud apps that employees use which were never formally approved. <strong>Grip Security</strong> is a service that discovers these apps. In v2.6.2 you can connect your Grip account so the platform automatically pulls in the apps Grip finds &mdash; along with how many people use each one, a risk score, and security alerts &mdash; and lists them on your <a href="#tprm-shadow-saas">Shadow SaaS</a> page.</p>
     <p>It is configured by an administrator at <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> on the <strong>Grip</strong> tab. Grip is one of two Shadow SaaS providers (the other is <a href="#shadow-saas-hero">Hero</a>); only one can be enabled at a time.</p>
 
     <h3>Connecting Grip (step by step)</h3>
@@ -1039,7 +1039,7 @@
 </div>
 
 <div class="doc-section" id="shadow-saas-hero">
-    <h2>Hero Shadow SaaS Integration <span class="new-badge">New in 2.6.1</span></h2>
+    <h2>Hero Shadow SaaS Integration <span class="new-badge">New in 2.6.2</span></h2>
     <p><strong>HERO Security</strong> is an alternative Shadow SaaS provider. Instead of Grip, you can connect a HERO account and the platform pulls the vendors HERO discovers &mdash; with their status, a risk score, the most-active contact, and a user count &mdash; into the same <a href="#tprm-shadow-saas">Shadow SaaS</a> list. Grip and Hero are <strong>mutually exclusive</strong>: enabling Hero automatically disables Grip (and vice-versa), so the list is always fed by exactly one provider.</p>
     <p>It is configured by an administrator at <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> on the <strong>Hero</strong> tab.</p>
 
@@ -1068,7 +1068,7 @@
 </div>
 
 <div class="doc-section" id="zscaler">
-    <h2>Zscaler Blocking Integration <span class="new-badge">New in 2.6.1</span></h2>
+    <h2>Zscaler Blocking Integration <span class="new-badge">New in 2.6.2</span></h2>
     <p><strong>Zscaler</strong> is a web-security service that can block access to websites. With this integration, when you <strong>Deny</strong> an unsanctioned app on the Shadow SaaS page, the platform can automatically add that app's web domain to a blocking list in your Zscaler account &mdash; so people can no longer reach it. Clicking <strong>Allow</strong> later removes the block.</p>
     <p>It is configured by an administrator at <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span>, on the <strong>Zscaler Connection</strong> card.</p>
 
@@ -1141,7 +1141,7 @@
     </table>
     <p>If SAML is not actually configured, the switch is ignored and local login always stays available (anti-lockout safety net).</p>
 
-    <h3>Break-glass: allow SAML and local login together (config file) <span class="new-badge">New in 2.6.1</span></h3>
+    <h3>Break-glass: allow SAML and local login together (config file) <span class="new-badge">New in 2.6.2</span></h3>
     <p>The local-login switch can be set two ways. The config-file setting, when present, <strong>takes precedence over the database value</strong> &mdash; a break-glass control that needs no database access, so you can always restore local login even if SSO is misbehaving.</p>
     <table>
         <tr><th>Where</th><th>How</th></tr>
@@ -1162,8 +1162,8 @@
     <p>Enable AI-powered features including assessment note refinement, control suggestions, vendor commentary, AI-assisted FAIR risk analysis, and report language assistance. Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">AI Platform</span> to choose a provider and enter its API key. Only one platform is active at a time.</p>
     <p>Supported AI platforms:</p>
     <ul>
-        <li><strong>Anthropic (Claude)</strong> <span class="new-badge">New in 2.6.1</span> &mdash; connects directly to Claude's native API (e.g. <code>claude-opus-4-8</code>). Paste your Anthropic API key; the endpoint defaults to the standard Messages URL. Supports live <strong>web search</strong>, so Breach Alerts and OSINT scans are grounded on current, cited sources.</li>
-        <li><strong>OpenAI (ChatGPT)</strong> <span class="new-badge">New in 2.6.1</span> &mdash; connects directly to OpenAI (e.g. <code>gpt-4o</code>). Paste your OpenAI API key. For Breach &amp; OSINT scans it uses a web-search-capable model (default <code>gpt-4o-search-preview</code>) so those scans are grounded on live sources.</li>
+        <li><strong>Anthropic (Claude)</strong> <span class="new-badge">New in 2.6.2</span> &mdash; connects directly to Claude's native API (e.g. <code>claude-opus-4-8</code>). Paste your Anthropic API key; the endpoint defaults to the standard Messages URL. Supports live <strong>web search</strong>, so Breach Alerts and OSINT scans are grounded on current, cited sources.</li>
+        <li><strong>OpenAI (ChatGPT)</strong> <span class="new-badge">New in 2.6.2</span> &mdash; connects directly to OpenAI (e.g. <code>gpt-4o</code>). Paste your OpenAI API key. For Breach &amp; OSINT scans it uses a web-search-capable model (default <code>gpt-4o-search-preview</code>) so those scans are grounded on live sources.</li>
         <li><strong>OpenWebUI</strong> &mdash; JWT bearer token against an OpenAI-compatible endpoint.</li>
         <li><strong>LibreChat</strong> &mdash; API-key auth, agent-based; the agent manages its own model and sampling.</li>
         <li><strong>Custom</strong> &mdash; paste a curl-style headers + body template for any other OpenAI-compatible (or orchestrator) endpoint.</li>
@@ -1174,7 +1174,7 @@
 </div>
 
 <div class="doc-section" id="admin-updates">
-    <h2>Updating the Platform <span class="new-badge">New in 2.6.1</span></h2>
+    <h2>Updating the Platform <span class="new-badge">New in 2.6.2</span></h2>
     <p>Administrators can check for and apply new versions from inside the platform. Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span>.</p>
     <ol class="steps">
         <li>The <strong>Current Status</strong> card shows your <span class="field-label">Installed Version</span> and whether a newer one is available.</li>
@@ -1182,8 +1182,8 @@
         <li>If a newer version is listed, follow the on-screen <strong>Upgrade</strong> action to apply it.</li>
     </ol>
     <figure class="doc-figure">
-        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.1" loading="lazy">
-        <figcaption><strong>Admin &rarr; Version.</strong> Here the installed version is <strong>v2.6.1</strong> and the platform reports it is up to date. This is also where you confirm which version this guide applies to.</figcaption>
+        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.2" loading="lazy">
+        <figcaption><strong>Admin &rarr; Version.</strong> Here the installed version is <strong>v2.6.2</strong> and the platform reports it is up to date. This is also where you confirm which version this guide applies to.</figcaption>
     </figure>
 </div>
 
@@ -1222,7 +1222,7 @@
             <div class="faq-body"><p>The VID is a 4&ndash;8 digit number assigned to the vendor by your procurement system when the vendor is onboarded. It links the vendor here to your procurement and finance records. If you don't have one, the vendor has not finished procurement onboarding yet.</p></div></details>
 
         <details class="faq-item"><summary>The field on my vendor says "VSU Onboarded", but the guide says "Procurement Onboarding". Which is it?<span class="faq-tag">Onboarding</span></summary>
-            <div class="faq-body"><p>They are the same field. It was renamed to the clearer <strong>"Procurement Onboarding"</strong> in v2.6.1. If your screen still shows <strong>"VSU Onboarded"</strong>, your instance hasn't been upgraded to the latest v2.6.1 image yet &mdash; the behaviour is identical.</p></div></details>
+            <div class="faq-body"><p>They are the same field. It was renamed to the clearer <strong>"Procurement Onboarding"</strong> in v2.6.2. If your screen still shows <strong>"VSU Onboarded"</strong>, your instance hasn't been upgraded to the latest v2.6.2 image yet &mdash; the behaviour is identical.</p></div></details>
 
         <details class="faq-item"><summary>What does "AI Review" mean for a vendor?<span class="faq-tag">AI Review</span></summary>
             <div class="faq-body"><p>It is a separate review status for vendors whose services use AI, so they can be tracked apart from ordinary reviews. A Cyber TPRM user or admin moves a vendor into it with the <strong>Force AI Review</strong> link. See <a href="#ai-review">AI Review for Vendors</a>.</p></div></details>
@@ -1261,7 +1261,7 @@
             <div class="faq-body"><p>Yes. Click <strong>Download PDF</strong> at the top of this page. It produces a formatted document with a cover page, table of contents, and page numbers.</p></div></details>
 
         <details class="faq-item"><summary>How do I know which version I'm running?<span class="faq-tag">General</span></summary>
-            <div class="faq-body"><p>Administrators can check <strong>Admin &rarr; Version</strong>. This guide describes <strong>v2.6.1</strong>. See <a href="#admin-updates">Updating the Platform</a>.</p></div></details>
+            <div class="faq-body"><p>Administrators can check <strong>Admin &rarr; Version</strong>. This guide describes <strong>v2.6.2</strong>. See <a href="#admin-updates">Updating the Platform</a>.</p></div></details>
 
     </div>
     <p class="faq-no-results" id="faqNoResults">No questions match your search. Try a different keyword.</p>
@@ -1362,7 +1362,7 @@
                     <a href="#navigation">Navigating the Sidebar</a>
                     <a href="#roles">User Roles &amp; Permissions</a>
                     <a href="#first-login">Your First Login</a>
-                    <a href="#whats-new">What's New in 2.6.1</a>
+                    <a href="#whats-new">What's New in 2.6.2</a>
                     <a href="#language">Changing Your Language</a>
                     <a href="#question-types">Phone &amp; VAT Question Types</a>
 

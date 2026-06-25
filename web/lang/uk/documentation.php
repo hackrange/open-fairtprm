@@ -5,7 +5,7 @@
                     <div class="cover-rule"></div>
                     <h1>Документація платформи</h1>
                     <div class="cover-edition">Governance, Risk &amp; Compliance &bull; Third Party Risk Management</div>
-                    <div class="cover-version">Версія 2.6.1</div>
+                    <div class="cover-version">Версія 2.6.2</div>
                     <div class="cover-rule-bottom"></div>
                     <div class="cover-meta">
                         <strong>Дата:</strong> <?php echo date('F j, Y'); ?><br>
@@ -54,7 +54,7 @@
                 <div class="doc-body">
 
                 <h1>Документація платформи</h1>
-                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; Version 2.6.1 &mdash; Останнє оновлення: <?php echo date('F j, Y'); ?></p>
+                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; Version 2.6.2 &mdash; Останнє оновлення: <?php echo date('F j, Y'); ?></p>
 
                 <div style="margin-bottom:20px;">
                     <button class="btn-doc" id="printBtn">Завантажити PDF</button>
@@ -137,11 +137,11 @@
 
 
 <!-- ================================================================
-     WHAT'S NEW IN 2.6.1
+     WHAT'S NEW IN 2.6.2
      ================================================================ -->
 <div class="doc-section" id="whats-new">
-    <h2>Що нового у версії 2.6.1</h2>
-    <p>Версія 2.6.1 додає кілька функцій, зосереджених на <strong>введенні постачальників, співпраці у закупівлях, підтримці кількох мов та виявленні тіньових SaaS</strong>. Якщо ви використовували попередню версію, ось що нового. Кожен пункт посилається на повний посібник пізніше в цьому керівництві.</p>
+    <h2>Що нового у версії 2.6.2</h2>
+    <p>Версія 2.6.2 додає кілька функцій, зосереджених на <strong>введенні постачальників, співпраці у закупівлях, підтримці кількох мов та виявленні тіньових SaaS</strong>. Якщо ви використовували попередню версію, ось що нового. Кожен пункт посилається на повний посібник пізніше в цьому керівництві.</p>
     <table class="doc-table">
         <tr><th>Нова функція</th><th>Що робить</th><th>Для кого</th></tr>
         <tr><td><strong><a href="#language">Налаштування мови</a></strong></td><td>Використовуйте платформу на 8 мовах. Кожна людина вибирає свою мову; адміністратори обирають, які мови доступні.</td><td>Усі</td></tr>
@@ -157,12 +157,12 @@
         <tr><td><strong><a href="#admin-backup">Резервне копіювання великих баз даних</a></strong></td><td>Резервне копіювання та відновлення тепер підтримує бази даних розміром у кілька гігабайт та дуже великі записи без перевищення часу очікування.</td><td>Admins</td></tr>
     </table>
     <div class="callout callout-info">
-        <strong>Як дізнатися, яка версія встановлена?</strong> Адміністратори можуть перейти до <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span>, щоб побачити встановлену версію. Цей посібник описує <strong>v2.6.1</strong>. Дивіться <a href="#admin-updates">Оновлення платформи</a>.
+        <strong>Як дізнатися, яка версія встановлена?</strong> Адміністратори можуть перейти до <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span>, щоб побачити встановлену версію. Цей посібник описує <strong>v2.6.2</strong>. Дивіться <a href="#admin-updates">Оновлення платформи</a>.
     </div>
 </div>
 
 <div class="doc-section" id="language">
-    <h2>Зміна мови <span class="new-badge">Нове у 2.6.1</span></h2>
+    <h2>Зміна мови <span class="new-badge">Нове у 2.6.2</span></h2>
     <p>Інтерфейс платформи може відображатися на <strong>8 мовах</strong>. Кожна людина вибирає свою мову &mdash; її зміна впливає тільки на <em>ваш</em> екран, а не на екрани інших. Ваш вибір запам'ятовується при кожному вході.</p>
 
     <h3>Доступні мови</h3>
@@ -214,7 +214,7 @@
      PHONE & VAT QUESTION TYPES + VENDOR DATA IMPROVEMENTS
      ================================================================ -->
 <div class="doc-section" id="question-types">
-    <h2>Типи питань «Телефон» та «ПДВ» <span class="new-badge">Нове у 2.6.1</span></h2>
+    <h2>Типи питань «Телефон» та «ПДВ» <span class="new-badge">Нове у 2.6.2</span></h2>
     <p><strong>Template Builder</strong> (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Assessment Templates</span>) отримує два нових типи питань, які фіксують контактні та податкові дані у чіткому, стандартному форматі. Їх можна використовувати в будь-якому шаблоні оцінювання або введення, і, як і інші питання, їх можна зіставити з полем постачальника, щоб відповідь потрапила до запису постачальника.</p>
 
     <h3>Телефон</h3>
@@ -237,10 +237,10 @@
     <h3>Пошук постачальників за номером ПДВ</h3>
     <p>Поле <strong>швидкого пошуку</strong> у верхньому правому куті платформи тепер також шукає збіги за номером ПДВ, поряд із назвою постачальника, доменом та зацікавленою стороною. Прямі збіги за власною назвою постачальника, доменом або номером ПДВ завжди відображаються першими.</p>
 
-    <h2>Банер оцінювання Procurement Onboarding <span class="new-badge">Нове у 2.6.1</span></h2>
+    <h2>Банер оцінювання Procurement Onboarding <span class="new-badge">Нове у 2.6.2</span></h2>
     <p>Коли статус <strong>Procurement Onboarding</strong> постачальника встановлений на <strong>No</strong>, банер тепер чітко вказує, що <em>автоматизоване оцінювання постачальника вимкнено до завершення Procurement Onboarding</em>. Він з'являється як на сторінці введення постачальника, так і під відповідним питанням оцінювання, та миттєво оновлюється зі зміною відповіді.</p>
 
-    <h2>Подання оцінювання: перевірка обов'язкових полів <span class="new-badge">Нове у 2.6.1</span></h2>
+    <h2>Подання оцінювання: перевірка обов'язкових полів <span class="new-badge">Нове у 2.6.2</span></h2>
     <p>Коли постачальник натискає <strong>Submit</strong> на оцінюванні, платформа тепер перевіряє, що на кожне обов'язкове питання дано відповідь <em>до</em> того, як запитати деталі attestation від того, хто подає. Раніше відсутня відповідь повідомлялася лише після заповнення attestation, що змушувало вводити її знову.</p>
 </div>
 
@@ -248,7 +248,7 @@
      LARGE DATABASE BACKUPS
      ================================================================ -->
 <div class="doc-section" id="admin-backup">
-    <h2>Резервне копіювання та відновлення великих баз даних <span class="new-badge">Нове у 2.6.1</span></h2>
+    <h2>Резервне копіювання та відновлення великих баз даних <span class="new-badge">Нове у 2.6.2</span></h2>
     <p>Резервне копіювання та відновлення (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Backup</span>) тепер обробляють <strong>бази даних розміром у кілька гігабайт</strong> та окремі записи обсягом до <strong>1&nbsp;ГБ</strong> без переривання операції через перевищення часу очікування або нестачу пам'яті. За лаштунками ліміт пакетів бази даних, мережеві тайм-аути, розмір завантаження та обмеження часу запиту були підвищені для обробки дуже великих даних.</p>
     <div class="callout callout-info">
         <strong>Для дуже великих баз даних:</strong> Резервне копіювання або відновлення файлу розміром у кілька гігабайт може зайняти деякий час &mdash; залиште сторінку відкритою до завершення. Дуже великі набори даних (десятки гігабайт) найкраще відновлювати з командного рядка сервера.
@@ -888,15 +888,15 @@
 
 <div class="doc-section" id="tprm-shadow-saas">
     <h2>Виявлення тіньових SaaS</h2>
-    <p>Виявляйте SaaS-додатки, що використовуються у вашій організації, які можуть не були офіційно схвалені або оцінені. Перейдіть до <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>. У v2.6.1 цей список може заповнюватися автоматично завдяки інтеграції <a href="#shadow-saas-grip">Grip</a> або <a href="#shadow-saas-hero">Hero</a> Shadow SaaS, а несанкціоновані додатки можна заблокувати в <a href="#zscaler">Zscaler</a>.</p>
+    <p>Виявляйте SaaS-додатки, що використовуються у вашій організації, які можуть не були офіційно схвалені або оцінені. Перейдіть до <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>. У v2.6.2 цей список може заповнюватися автоматично завдяки інтеграції <a href="#shadow-saas-grip">Grip</a> або <a href="#shadow-saas-hero">Hero</a> Shadow SaaS, а несанкціоновані додатки можна заблокувати в <a href="#zscaler">Zscaler</a>.</p>
 </div>
 
 
 <!-- ================================================================
-     VENDOR ONBOARDING & PROCUREMENT (NEW IN 2.6.1)
+     VENDOR ONBOARDING & PROCUREMENT (NEW IN 2.6.2)
      ================================================================ -->
 <div class="doc-section" id="onboarding-workflow">
-    <h2>Введення постачальників та Procurement Onboarding <span class="new-badge">Нове у 2.6.1</span></h2>
+    <h2>Введення постачальників та Procurement Onboarding <span class="new-badge">Нове у 2.6.2</span></h2>
     <p><strong>Запит на введення постачальника</strong> &mdash; це те, як новий постачальник потрапляє до платформи. Він проходить серію <strong>статусів</strong> від першого чернетки до остаточного рішення. Перш ніж команда кіберпеки переглядатиме постачальника, він повинен спочатку бути <strong>введений через ваш процес закупівель</strong> та мати дійсний <strong>ідентифікатор постачальника (VID)</strong>. У цьому розділі пояснюється чому і як це працює.</p>
 
     <h3>Шлях введення (статуси)</h3>
@@ -927,7 +927,7 @@
     </ul>
     <figure class="doc-figure">
         <img src="app/docs/vendor-info-card.png" alt="Vendor Information card showing Procurement Onboarding and Vendor ID fields" loading="lazy">
-        <figcaption><strong>Картка Vendor Information.</strong> <strong>Vendor ID (VID)</strong> та поле procurement-onboarding обидва повинні бути заповнені перед поданням постачальника. <em>Примітка:</em> на екземплярах, оновлених з попередніх релізів, це поле може все ще відображатися як <strong>«VSU Onboarded»</strong>; у v2.6.1 воно позначено як <strong>«Procurement Onboarding»</strong> &mdash; це те саме поле.</figcaption>
+        <figcaption><strong>Картка Vendor Information.</strong> <strong>Vendor ID (VID)</strong> та поле procurement-onboarding обидва повинні бути заповнені перед поданням постачальника. <em>Примітка:</em> на екземплярах, оновлених з попередніх релізів, це поле може все ще відображатися як <strong>«VSU Onboarded»</strong>; у v2.6.2 воно позначено як <strong>«Procurement Onboarding»</strong> &mdash; це те саме поле.</figcaption>
     </figure>
 
     <h3>Подання постачальника на перевірку</h3>
@@ -948,8 +948,8 @@
 </div>
 
 <div class="doc-section" id="ai-review">
-    <h2>AI Review для постачальників <span class="new-badge">Нове у 2.6.1</span></h2>
-    <p>Деякі постачальники надають послуги, що використовують штучний інтелект. Такі постачальники можуть нести різні ризики, тому у v2.6.1 додано спеціальний статус <strong>AI Review</strong> для їх окремого відстеження в процесі перевірки.</p>
+    <h2>AI Review для постачальників <span class="new-badge">Нове у 2.6.2</span></h2>
+    <p>Деякі постачальники надають послуги, що використовують штучний інтелект. Такі постачальники можуть нести різні ризики, тому у v2.6.2 додано спеціальний статус <strong>AI Review</strong> для їх окремого відстеження в процесі перевірки.</p>
 
     <h3>Як постачальник потрапляє до AI Review</h3>
     <p>На картці <strong>Vendor Information</strong> є поле <span class="field-label">Services Use AI</span>. Коли воно встановлено на <strong>Yes</strong>, авторизований перевіряючий (користувач <strong>Cyber TPRM</strong> або <strong>Administrator</strong>, у режимі редагування постачальника) бачить посилання <span class="btn-label">Force AI Review</span> безпосередньо під цим полем.</p>
@@ -965,7 +965,7 @@
 </div>
 
 <div class="doc-section" id="procurement-cyber-status">
-    <h2>Procurement Cyber Status <span class="new-badge">Нове у 2.6.1</span></h2>
+    <h2>Procurement Cyber Status <span class="new-badge">Нове у 2.6.2</span></h2>
     <p>Сторінка <strong>Cyber Status</strong> надає <strong>команді закупівель</strong> простий, завжди актуальний вигляд того, яких постачальників переглядає команда кіберпеки та яка остання інформація по кожному з них &mdash; без необхідності доступу до повного інструментарію безпеки. Команда кіберпеки публікує короткі, датовані оновлення; закупівля читає їх тут (і у щотижневому електронному листі).</p>
     <p>Відкрийте його з <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Procurement</span> &rarr; <span class="menu-label">Cyber Status</span>. Доступно для користувачів <strong>Procurement</strong>, <strong>Cyber TPRM</strong> та <strong>Administrator</strong>.</p>
     <figure class="doc-figure">
@@ -1007,11 +1007,11 @@
 </div>
 
 <!-- ================================================================
-     INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.1)
+     INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.2)
      ================================================================ -->
 <div class="doc-section" id="shadow-saas-grip">
-    <h2>Інтеграція Grip Shadow SaaS <span class="new-badge">Нове у 2.6.1</span></h2>
-    <p>«Shadow SaaS» означає хмарні додатки, які використовують співробітники, але які ніколи не були офіційно схвалені. <strong>Grip Security</strong> — це сервіс, що виявляє такі додатки. У v2.6.1 ви можете підключити свій обліковий запис Grip, щоб платформа автоматично завантажувала додатки, які знаходить Grip &mdash; разом із кількістю користувачів кожного, оцінкою ризику та сповіщеннями безпеки &mdash; і відображала їх на сторінці <a href="#tprm-shadow-saas">Shadow SaaS</a>.</p>
+    <h2>Інтеграція Grip Shadow SaaS <span class="new-badge">Нове у 2.6.2</span></h2>
+    <p>«Shadow SaaS» означає хмарні додатки, які використовують співробітники, але які ніколи не були офіційно схвалені. <strong>Grip Security</strong> — це сервіс, що виявляє такі додатки. У v2.6.2 ви можете підключити свій обліковий запис Grip, щоб платформа автоматично завантажувала додатки, які знаходить Grip &mdash; разом із кількістю користувачів кожного, оцінкою ризику та сповіщеннями безпеки &mdash; і відображала їх на сторінці <a href="#tprm-shadow-saas">Shadow SaaS</a>.</p>
     <p>Налаштовується адміністратором у <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> на вкладці <strong>Grip</strong>. Grip — один із двох провайдерів Shadow SaaS (інший — <a href="#shadow-saas-hero">Hero</a>); одночасно може бути увімкнено лише одного.</p>
 
     <h3>Підключення Grip (покрокова інструкція)</h3>
@@ -1039,7 +1039,7 @@
 </div>
 
 <div class="doc-section" id="shadow-saas-hero">
-    <h2>Інтеграція Hero Shadow SaaS <span class="new-badge">Нове у 2.6.1</span></h2>
+    <h2>Інтеграція Hero Shadow SaaS <span class="new-badge">Нове у 2.6.2</span></h2>
     <p><strong>HERO Security</strong> — альтернативний провайдер Shadow SaaS. Замість Grip ви можете підключити обліковий запис HERO, і платформа завантажить постачальників, яких виявляє HERO &mdash; із їх статусом, оцінкою ризику, найактивнішим контактом та кількістю користувачів &mdash; до того самого списку <a href="#tprm-shadow-saas">Shadow SaaS</a>. Grip та Hero <strong>взаємно виключають одне одного</strong>: увімкнення Hero автоматично вимикає Grip (і навпаки), тому список завжди заповнюється рівно одним провайдером.</p>
     <p>Налаштовується адміністратором у <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> на вкладці <strong>Hero</strong>.</p>
 
@@ -1068,7 +1068,7 @@
 </div>
 
 <div class="doc-section" id="zscaler">
-    <h2>Інтеграція блокування Zscaler <span class="new-badge">Нове у 2.6.1</span></h2>
+    <h2>Інтеграція блокування Zscaler <span class="new-badge">Нове у 2.6.2</span></h2>
     <p><strong>Zscaler</strong> — це сервіс веб-безпеки, що може блокувати доступ до веб-сайтів. З цією інтеграцією, коли ви <strong>Deny</strong> (забороняєте) несанкціонований додаток на сторінці Shadow SaaS, платформа може автоматично додати веб-домен цього додатка до списку блокування у вашому обліковому записі Zscaler &mdash; щоб люди більше не могли до нього дістатися. Натискання <strong>Allow</strong> пізніше знімає блокування.</p>
     <p>Налаштовується адміністратором у <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span>, на картці <strong>Zscaler Connection</strong>.</p>
 
@@ -1141,7 +1141,7 @@
     </table>
     <p>Якщо SAML фактично не налаштований, перемикач ігнорується і локальний вхід завжди залишається доступним (захист від самоблокування).</p>
 
-    <h3>Break-glass: дозвіл SAML та локального входу одночасно (конфігураційний файл) <span class="new-badge">Нове у 2.6.1</span></h3>
+    <h3>Break-glass: дозвіл SAML та локального входу одночасно (конфігураційний файл) <span class="new-badge">Нове у 2.6.2</span></h3>
     <p>Перемикач локального входу можна встановити двома способами. Налаштування конфігураційного файлу, якщо воно присутнє, <strong>має пріоритет над значенням у базі даних</strong> &mdash; засіб break-glass, що не потребує доступу до бази даних, тому ви завжди можете відновити локальний вхід, навіть якщо SSO некоректно працює.</p>
     <table>
         <tr><th>Де</th><th>Як</th></tr>
@@ -1162,8 +1162,8 @@
     <p>Увімкніть функції на базі ШІ, включаючи вдосконалення нотаток оцінювання, пропозиції засобів контролю, коментарі щодо постачальників, аналіз ризиків FAIR за допомогою ШІ та мовну допомогу у звітах. Перейдіть до <span class="menu-label">Admin</span> &rarr; <span class="menu-label">AI Platform</span>, щоб вибрати провайдера та ввести його API-ключ. Одночасно активна лише одна платформа.</p>
     <p>Підтримувані платформи ШІ:</p>
     <ul>
-        <li><strong>Anthropic (Claude)</strong> <span class="new-badge">Нове у 2.6.1</span> &mdash; підключається безпосередньо до нативного API Claude (наприклад <code>claude-opus-4-8</code>). Вставте свій API-ключ Anthropic; кінцева точка за замовчуванням — стандартна URL-адреса Messages. Підтримує живий <strong>веб-пошук</strong>, тому Breach Alerts та OSINT-скани ґрунтуються на актуальних, цитованих джерелах.</li>
-        <li><strong>OpenAI (ChatGPT)</strong> <span class="new-badge">Нове у 2.6.1</span> &mdash; підключається безпосередньо до OpenAI (наприклад <code>gpt-4o</code>). Вставте свій API-ключ OpenAI. Для сканів Breach &amp; OSINT використовується модель із можливістю веб-пошуку (за замовчуванням <code>gpt-4o-search-preview</code>), тому ці скани ґрунтуються на живих джерелах.</li>
+        <li><strong>Anthropic (Claude)</strong> <span class="new-badge">Нове у 2.6.2</span> &mdash; підключається безпосередньо до нативного API Claude (наприклад <code>claude-opus-4-8</code>). Вставте свій API-ключ Anthropic; кінцева точка за замовчуванням — стандартна URL-адреса Messages. Підтримує живий <strong>веб-пошук</strong>, тому Breach Alerts та OSINT-скани ґрунтуються на актуальних, цитованих джерелах.</li>
+        <li><strong>OpenAI (ChatGPT)</strong> <span class="new-badge">Нове у 2.6.2</span> &mdash; підключається безпосередньо до OpenAI (наприклад <code>gpt-4o</code>). Вставте свій API-ключ OpenAI. Для сканів Breach &amp; OSINT використовується модель із можливістю веб-пошуку (за замовчуванням <code>gpt-4o-search-preview</code>), тому ці скани ґрунтуються на живих джерелах.</li>
         <li><strong>OpenWebUI</strong> &mdash; JWT bearer token для кінцевої точки, сумісної з OpenAI.</li>
         <li><strong>LibreChat</strong> &mdash; автентифікація за API-ключем, на основі агента; агент управляє власною моделлю та вибіркою.</li>
         <li><strong>Custom</strong> &mdash; вставте шаблон заголовків + тіла у стилі curl для будь-якої іншої кінцевої точки, сумісної з OpenAI (або оркестратора).</li>
@@ -1174,7 +1174,7 @@
 </div>
 
 <div class="doc-section" id="admin-updates">
-    <h2>Оновлення платформи <span class="new-badge">Нове у 2.6.1</span></h2>
+    <h2>Оновлення платформи <span class="new-badge">Нове у 2.6.2</span></h2>
     <p>Адміністратори можуть перевіряти та застосовувати нові версії зсередини платформи. Перейдіть до <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span>.</p>
     <ol class="steps">
         <li>Картка <strong>Current Status</strong> показує вашу <span class="field-label">Installed Version</span> та чи доступна новіша.</li>
@@ -1182,8 +1182,8 @@
         <li>Якщо перелічено новішу версію, дотримуйтесь екранної дії <strong>Upgrade</strong>, щоб застосувати її.</li>
     </ol>
     <figure class="doc-figure">
-        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.1" loading="lazy">
-        <figcaption><strong>Admin &rarr; Version.</strong> Тут встановлена версія <strong>v2.6.1</strong> та платформа повідомляє, що вона актуальна. Тут також підтверджується, до якої версії відноситься цей посібник.</figcaption>
+        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.2" loading="lazy">
+        <figcaption><strong>Admin &rarr; Version.</strong> Тут встановлена версія <strong>v2.6.2</strong> та платформа повідомляє, що вона актуальна. Тут також підтверджується, до якої версії відноситься цей посібник.</figcaption>
     </figure>
 </div>
 
@@ -1222,7 +1222,7 @@
             <div class="faq-body"><p>VID — це 4&ndash;8-значне число, присвоєне постачальнику вашою системою закупівель при введенні постачальника. Воно пов'язує постачальника тут з вашими записами закупівель і фінансів. Якщо у вас його немає, постачальник ще не завершив введення через закупівлі.</p></div></details>
 
         <details class="faq-item"><summary>Поле у мого постачальника написано «VSU Onboarded», а в посібнику — «Procurement Onboarding». Яке правильне?<span class="faq-tag">Onboarding</span></summary>
-            <div class="faq-body"><p>Це те саме поле. Воно було перейменовано на чіткіше <strong>«Procurement Onboarding»</strong> у v2.6.1. Якщо на вашому екрані досі відображається <strong>«VSU Onboarded»</strong>, ваш екземпляр ще не оновлено до останнього образу v2.6.1 &mdash; поведінка ідентична.</p></div></details>
+            <div class="faq-body"><p>Це те саме поле. Воно було перейменовано на чіткіше <strong>«Procurement Onboarding»</strong> у v2.6.2. Якщо на вашому екрані досі відображається <strong>«VSU Onboarded»</strong>, ваш екземпляр ще не оновлено до останнього образу v2.6.2 &mdash; поведінка ідентична.</p></div></details>
 
         <details class="faq-item"><summary>Що означає «AI Review» для постачальника?<span class="faq-tag">AI Review</span></summary>
             <div class="faq-body"><p>Це окремий статус перевірки для постачальників, чиї послуги використовують ШІ, щоб їх можна було відстежувати окремо від звичайних перевірок. Користувач Cyber TPRM або адміністратор переміщує постачальника туди за допомогою посилання <strong>Force AI Review</strong>. Дивіться <a href="#ai-review">AI Review для постачальників</a>.</p></div></details>
@@ -1261,7 +1261,7 @@
             <div class="faq-body"><p>Так. Натисніть <strong>Download PDF</strong> у верхній частині цієї сторінки. Це створює відформатований документ з титульною сторінкою, змістом та номерами сторінок.</p></div></details>
 
         <details class="faq-item"><summary>Як дізнатися, яка версія запущена?<span class="faq-tag">General</span></summary>
-            <div class="faq-body"><p>Адміністратори можуть перевірити <strong>Admin &rarr; Version</strong>. Цей посібник описує <strong>v2.6.1</strong>. Дивіться <a href="#admin-updates">Оновлення платформи</a>.</p></div></details>
+            <div class="faq-body"><p>Адміністратори можуть перевірити <strong>Admin &rarr; Version</strong>. Цей посібник описує <strong>v2.6.2</strong>. Дивіться <a href="#admin-updates">Оновлення платформи</a>.</p></div></details>
 
     </div>
     <p class="faq-no-results" id="faqNoResults">Жодне питання не відповідає вашому пошуку. Спробуйте інше ключове слово.</p>
@@ -1362,7 +1362,7 @@
                     <a href="#navigation">Навігація бічною панеллю</a>
                     <a href="#roles">Ролі та дозволи користувачів</a>
                     <a href="#first-login">Перший вхід</a>
-                    <a href="#whats-new">Що нового у 2.6.1</a>
+                    <a href="#whats-new">Що нового у 2.6.2</a>
                     <a href="#language">Зміна мови</a>
                     <a href="#question-types">Типи питань «Телефон» та «ПДВ»</a>
 

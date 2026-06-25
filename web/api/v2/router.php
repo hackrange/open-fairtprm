@@ -486,7 +486,7 @@ function generatePostmanCollection(array $swagger): array {
 
     return [
         'info' => [
-            'name' => 'TPRM & GRC API v2.5.7',
+            'name' => 'TPRM & GRC API v2.6.2',
             'schema' => 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
         ],
         'variable' => [

@@ -166,7 +166,7 @@ $csrfToken = $security->getCSRFToken();
         figure.doc-figure figcaption strong { color: #374151; }
         figure.doc-figure.narrow { max-width: 640px; }
 
-        /* "New in 2.6.1" badge */
+        /* "New in 2.6.2" badge */
         .new-badge { display: inline-block; vertical-align: middle; background: var(--theme-button-color, #ff6543); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 7px; border-radius: 10px; margin-left: 8px; }
 
         /* FAQ search + accordion */
@@ -211,7 +211,7 @@ $csrfToken = $security->getCSRFToken();
             /* Page setup & footer */
             @page {
                 margin: 2cm 2cm 2.8cm 2cm;
-                @bottom-left { content: "Fair TPRM & GRC Platform — v2.6.1"; font-size: 8px; color: #999; font-family: 'Roboto', sans-serif; }
+                @bottom-left { content: "Fair TPRM & GRC Platform — v2.6.2"; font-size: 8px; color: #999; font-family: 'Roboto', sans-serif; }
                 @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 8px; color: #999; font-family: 'Roboto', sans-serif; }
             }
 
@@ -349,7 +349,7 @@ include $docBody;
                 { label: '1.2 Navigating the Sidebar', id: 'navigation' },
                 { label: '1.3 User Roles & Permissions', id: 'roles' },
                 { label: '1.4 Your First Login', id: 'first-login' },
-                { label: '1.5 What’s New in Version 2.6.1', id: 'whats-new' },
+                { label: '1.5 What’s New in Version 2.6.2', id: 'whats-new' },
                 { label: '1.6 Changing Your Language', id: 'language' }
             ]},
             { heading: '2. GRC Module — Quick Start', entries: [
@@ -385,7 +385,7 @@ include $docBody;
                 { label: '4.7 4th Party Risk', id: 'tprm-fourth-party' },
                 { label: '4.8 Shadow SaaS Discovery', id: 'tprm-shadow-saas' }
             ]},
-            { heading: '5. Onboarding & Procurement (New in 2.6.1)', entries: [
+            { heading: '5. Onboarding & Procurement (New in 2.6.2)', entries: [
                 { label: '5.1 Vendor Onboarding & Procurement Onboarding', id: 'onboarding-workflow' },
                 { label: '5.2 AI Review for Vendors', id: 'ai-review' },
                 { label: '5.3 Procurement Cyber Status', id: 'procurement-cyber-status' },

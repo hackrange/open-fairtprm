@@ -379,13 +379,6 @@ if mysql -e "USE tprm" 2>/dev/null && mysql tprm -e "SELECT 1 FROM grc_framework
     echo "==> Seeding GRC catalog frameworks..."
     php /var/www/html/includes/seed_catalog_frameworks.php 2>&1 || true
 
-    # Apply seed description files AFTER catalog seeder populates framework requirements
-    for seed_sql in /var/www/html/sql_updates/v2.5.7_seed_*.sql; do
-        [ -f "$seed_sql" ] || continue
-        echo "==> Applying seed descriptions: $(basename "$seed_sql")..."
-        mysql --force tprm < "$seed_sql" 2>&1 | grep -v "^ERROR 1050\|^ERROR 1060\|^ERROR 1061\|^ERROR 1068\|^ERROR 1091\|^ERROR 1553" || true
-    done
-
     # Seed unified assessment question bank and framework mappings
     echo "==> Seeding unified question bank..."
     php /var/www/html/includes/seed_unified_questions.php 2>&1 || true

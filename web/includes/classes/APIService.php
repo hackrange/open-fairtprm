@@ -323,7 +323,7 @@ class APIService {
             'info' => [
                 'title' => 'TPRM & GRC Unified API',
                 'description' => 'RESTful API for Third-Party Risk Management and Governance, Risk & Compliance.',
-                'version' => '2.5.7',
+                'version' => '2.6.2',
                 'contact' => ['name' => 'API Support'],
             ],
             'servers' => [['url' => rtrim($baseUrl, '/') . '/api/v2']],

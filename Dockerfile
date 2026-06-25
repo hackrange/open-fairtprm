@@ -1,16 +1,16 @@
 # =============================================================================
-# Fair TPRM - v2.6.1
+# Fair TPRM - v2.6.2 (bleeding-edge / pre-release)
 #
-# Self-contained build. The base is dockerregistry.fairtprm.com/fairtprm:v2.6.1
-# itself — a single-layer flattened image that contains the full Fair TPRM
-# filesystem (OS, Apache, PHP, app code, vendor libs). The v2.6.1 base was
-# produced by flattening this overlay onto the prior v2.5.8 base (one-time
-# version bump); builds are now self-referential on v2.6.1.
+# Self-contained overlay build for the v2.6.2 line. The base is
+# dockerregistry.fairtprm.com/fairtprm:v2.6.1 — the published stable release, a
+# single-layer flattened image that contains the full Fair TPRM filesystem (OS,
+# Apache, PHP, app code, vendor libs). This Dockerfile overlays the v2.6.2
+# changes onto that v2.6.1 base and tags the result v2.6.2.
 #
 #     docker pull dockerregistry.fairtprm.com/fairtprm:v2.6.1
 #     docker buildx build --provenance=false --sbom=false \
-#         -t dockerregistry.fairtprm.com/fairtprm:v2.6.1 --load .
-#     docker push dockerregistry.fairtprm.com/fairtprm:v2.6.1
+#         -t dockerregistry.fairtprm.com/fairtprm:v2.6.2 --load .
+#     docker push dockerregistry.fairtprm.com/fairtprm:v2.6.2
 #     docker-compose down && docker-compose up -d
 #
 # Manifest format: ALWAYS build with --provenance=false --sbom=false and push
@@ -33,9 +33,9 @@
 # The RUN block is one logical shell line (Docker collapses \-continuations),
 # so it cannot contain `#` comments inside; the file groupings below are
 # organised by destination path, blank-line-separated for readability.
-# sql_updates is purged to a single authoritative schema file (v2.6.1.sql).
+# sql_updates is purged to a single authoritative schema file (v2.6.2.sql).
 # =============================================================================
-FROM dockerregistry.fairtprm.com/fairtprm:v2.5.8
+FROM dockerregistry.fairtprm.com/fairtprm:v2.6.1
 
 # Layer 1: stage every patch input under /tmp/build. One COPY per source tree
 # (php_patches and icons live under different paths in persistent/).
@@ -78,7 +78,7 @@ RUN set -e; \
            $pp/GripService.php $pp/HeroService.php \
            $pp/ZscalerService.php $pp/SAMLHandler.php \
            $pp/FaviconService.php $pp/ContinuousMonitor.php $pp/VirusScanService.php \
-           $pp/BackupService.php \
+           $pp/BackupService.php $pp/APIService.php \
            /var/www/html/includes/classes/; \
     \
     mkdir -p /var/www/html/includes/partials; \
@@ -123,9 +123,9 @@ RUN set -e; \
            $pp/vendor-srs-export.php $pp/vendor-srs-import.php \
            /var/www/html/; \
     \
-    cp -p  $pp/v2.6.1.sql /var/www/html/sql_updates/; \
+    cp -p  $pp/v2.6.2.sql /var/www/html/sql_updates/; \
     find /var/www/html/sql_updates -maxdepth 1 -type f \
-         ! -name 'v2.6.1.sql' ! -name 'index.html' -delete; \
+         ! -name 'v2.6.2.sql' ! -name 'index.html' -delete; \
     rm -rf /var/www/html/sql_updates/.applied_hashes; \
     \
     cp -p  $pp/grc-assessment-rules.conf /etc/modsecurity/grc-assessment-rules.conf; \
@@ -152,7 +152,7 @@ RUN set -e; \
     \
     rm -f /var/www/html/lockdown.php; \
     \
-    echo 'v2.6.1' > /var/www/html/VERSION; \
+    echo 'v2.6.2' > /var/www/html/VERSION; \
     chown -R www-data:www-data /var/www/html/; \
     rm -rf /tmp/build; \
     \
@@ -209,6 +209,7 @@ RUN set -e; \
         /var/www/html/includes/classes/FaviconService.php \
         /var/www/html/includes/classes/ContinuousMonitor.php \
         /var/www/html/includes/classes/VirusScanService.php \
+        /var/www/html/includes/classes/APIService.php \
         /var/www/html/includes/partials/vendor-tasks-data.php \
         /var/www/html/vendor/onelogin/php-saml/src/Saml2/Response.php \
         /var/www/html/config/config.sample.php \
@@ -323,7 +324,7 @@ RUN set -e; \
         /var/www/html/app/js/vat-input.js \
         /var/www/html/api/vat-validate.php \
         /var/www/html/api/template-question-save.php \
-        /var/www/html/sql_updates/v2.6.1.sql \
+        /var/www/html/sql_updates/v2.6.2.sql \
         /usr/local/bin/entrypoint.sh \
         /etc/mysql/mariadb.conf.d/99-fairtprm-tuning.cnf \
         /etc/apache2/conf-enabled/zz-fairtprm-timeout.conf \
@@ -334,6 +335,6 @@ RUN set -e; \
     ; do \
         if [ ! -f "$f" ]; then echo "MANIFEST FAIL: missing $f"; exit 1; fi; \
     done; \
-    stray="$(ls /var/www/html/sql_updates/*.sql 2>/dev/null | grep -v '/v2.6.1.sql$' || true)"; \
+    stray="$(ls /var/www/html/sql_updates/*.sql 2>/dev/null | grep -v '/v2.6.2.sql$' || true)"; \
     if [ -n "$stray" ]; then echo "CLEAN FAIL: stray schema files remain:"; echo "$stray"; exit 1; fi; \
-    echo "Manifest verification passed; sql_updates contains only v2.6.1.sql"
+    echo "Manifest verification passed; sql_updates contains only v2.6.2.sql"

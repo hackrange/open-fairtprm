@@ -1,5 +1,5 @@
 -- =============================================================================
--- FairTPRM v2.6.1 - Complete Database Schema and Seed Data
+-- FairTPRM v2.6.2 - Complete Database Schema and Seed Data
 -- 
 -- This file creates ALL required database objects and seeds default data.
 -- Safe to run on new or existing databases (idempotent).
@@ -2190,7 +2190,7 @@ UNLOCK TABLES;
 
 INSERT IGNORE INTO `app_config` (`config_key`, `config_value`) VALUES
 ('app_timezone', 'America/New_York'),
-('app_version', 'v2.6.1'),
+('app_version', 'v2.6.2'),
 ('auth_type', 'local'),
 ('local_login_enabled', '1'),
 ('break_glass_admin_username', 'admin'),
@@ -5990,5 +5990,5 @@ UPDATE email_templates
    AND available_variables NOT LIKE '%"assessment_name"%';
 
 -- =============================================================================
--- FairTPRM v2.6.1 schema and seed data complete
+-- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

@@ -1,4 +1,4 @@
-# Fair TPRM & GRC Platform v2.6.1
+# Fair TPRM & GRC Platform v2.6.2
 
 Third-Party Risk Management and Governance, Risk & Compliance platform with
 FAIR (Factor Analysis of Information Risk) quantitative analysis. Built on
@@ -6,6 +6,12 @@ PHP 8.5, Apache 2.4, MariaDB, ClamAV, and ModSecurity (WAF).
 
 **Author:** Tim Rice — Hack Range
 **Disclaimer:** Use this software at your own risk. No warranty provided.
+
+> ⚠️ **Pre-release branch.** This is the **v2.6.2** line — bleeding-edge and
+> **not yet production-ready**. It lives on the `2.6.2` git branch and is built
+> as the `dockerregistry.fairtprm.com/fairtprm:v2.6.2` image. For a stable
+> deployment, use the **v2.6.1** release on the `master`/`2.6.1` branches
+> instead. The setup steps below assume you want this pre-release line.
 
 ---
 
@@ -106,6 +112,11 @@ everything (Git, Docker, Docker Compose), clones the repository to
 ```bash
 curl -fsSL https://git.hackrange.com/trice/open-fairtprm/-/raw/master/setup_docker_install.sh -o /tmp/setup.sh && sudo bash /tmp/setup.sh
 ```
+
+> **Note:** this one-command bootstrap tracks the **stable** release (it pulls
+> the installer from `master`). To install **this v2.6.2 pre-release** instead,
+> use the step-by-step [Getting the Code](#getting-the-code) path below and
+> clone the `2.6.2` branch (`git clone -b 2.6.2 …`), then build with Docker.
 
 Or if you already have the repository cloned:
 
@@ -243,8 +254,8 @@ Now download the project files to your machine:
 # Navigate to where you want to store the project (e.g., your home directory)
 cd ~
 
-# Clone the repository
-git clone https://git.hackrange.com/trice/open-fairtprm.git
+# Clone the repository and check out the v2.6.2 pre-release branch
+git clone -b 2.6.2 https://git.hackrange.com/trice/open-fairtprm.git
 
 # Move into the project directory
 cd open-fairtprm
@@ -253,6 +264,8 @@ cd open-fairtprm
 > **What does `git clone` do?** It downloads a complete copy of the project
 > files from the server to your computer. You only need to do this once.
 > To get updates later, run `git pull` from inside the project directory.
+> The `-b 2.6.2` flag checks out this pre-release branch; omit it (or use
+> `-b master`) if you want the stable v2.6.1 line instead.
 
 You should now see files like `Dockerfile`, `docker-compose.yml`, `README.md`,
 and the `web/` and `docker/` directories:
@@ -390,7 +403,7 @@ docker compose build
 **Build directly with `docker build`:**
 
 ```bash
-docker build -t fairtprm:v2.6.1 .
+docker build -t fairtprm:v2.6.2 .
 ```
 
 **Run without Docker Compose (using `docker run`):**
@@ -402,7 +415,7 @@ docker run -d \
   -v fairtprm_persistent:/persistent \
   -v fairtprm_mariadb:/var/lib/mysql \
   --restart unless-stopped \
-  fairtprm:v2.6.1
+  fairtprm:v2.6.2
 ```
 
 ### Volumes and Persistence
@@ -496,7 +509,7 @@ manual execution.
 > to your server. If you haven't, run:
 > ```bash
 > sudo apt-get update && sudo apt-get install -y git
-> git clone https://git.hackrange.com/trice/open-fairtprm.git
+> git clone -b 2.6.2 https://git.hackrange.com/trice/open-fairtprm.git
 > cd open-fairtprm
 > ```
 
@@ -1116,7 +1129,7 @@ sudo certbot --nginx -d tprm.example.com
 ## Directory Structure
 
 ```
-docker_refactor_2.6.1/
+docker_refactor_2.6.2/
 ├── setup_docker_install.sh           # One-command setup script (Ubuntu 22.04/24.04)
 ├── Dockerfile                        # Docker image build instructions
 ├── docker-compose.yml                # Docker Compose orchestration
@@ -1138,7 +1151,7 @@ docker_refactor_2.6.1/
 │
 └── web/                              # Application source (→ /var/www/html)
     ├── .htaccess                     # URL rewrites, PHP overrides, API routing
-    ├── VERSION                       # Version identifier (v2.6.1)
+    ├── VERSION                       # Version identifier (v2.6.2)
     ├── composer.json / composer.lock  # PHP dependency definitions
     ├── index.php / index.html        # Landing page
     ├── login.php / logout.php        # Authentication
@@ -1227,7 +1240,7 @@ docker_refactor_2.6.1/
     │   └── grant_remote_access.sql   # User grants + seed data
     │
     ├── sql_updates/                  # Versioned SQL migrations
-    │   └── v2.6.1.sql                # Current version migration
+    │   └── v2.6.2.sql                # Current version migration
     │
     ├── cron/                         # Cron job scripts
     │   ├── rescore-queue.php

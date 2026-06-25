@@ -5,7 +5,7 @@
                     <div class="cover-rule"></div>
                     <h1>Documentação da Plataforma</h1>
                     <div class="cover-edition">Governança, Risco &amp; Conformidade &bull; Gestão de Risco de Terceiros</div>
-                    <div class="cover-version">Versão 2.6.1</div>
+                    <div class="cover-version">Versão 2.6.2</div>
                     <div class="cover-rule-bottom"></div>
                     <div class="cover-meta">
                         <strong>Data:</strong> <?php echo date('F j, Y'); ?><br>
@@ -54,7 +54,7 @@
                 <div class="doc-body">
 
                 <h1>Documentação da Plataforma</h1>
-                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; Version 2.6.1 &mdash; Última atualização: <?php echo date('F j, Y'); ?></p>
+                <p class="doc-subtitle">Fair TPRM &amp; GRC Platform &mdash; Version 2.6.2 &mdash; Última atualização: <?php echo date('F j, Y'); ?></p>
 
                 <div style="margin-bottom:20px;">
                     <button class="btn-doc" id="printBtn">Baixar PDF</button>
@@ -137,11 +137,11 @@
 
 
 <!-- ================================================================
-     WHAT'S NEW IN 2.6.1
+     WHAT'S NEW IN 2.6.2
      ================================================================ -->
 <div class="doc-section" id="whats-new">
-    <h2>O Que Há de Novo na Versão 2.6.1</h2>
-    <p>A versão 2.6.1 adiciona vários recursos com foco em <strong>integração de fornecedores, colaboração em compras, suporte a vários idiomas e descoberta de shadow SaaS</strong>. Se você usou uma versão anterior, veja o que é novo. Cada item tem um link para seu guia completo mais adiante neste documento.</p>
+    <h2>O Que Há de Novo na Versão 2.6.2</h2>
+    <p>A versão 2.6.2 adiciona vários recursos com foco em <strong>integração de fornecedores, colaboração em compras, suporte a vários idiomas e descoberta de shadow SaaS</strong>. Se você usou uma versão anterior, veja o que é novo. Cada item tem um link para seu guia completo mais adiante neste documento.</p>
     <table class="doc-table">
         <tr><th>Novo Recurso</th><th>O Que Faz</th><th>Para Quem É</th></tr>
         <tr><td><strong><a href="#language">Configurações de idioma</a></strong></td><td>Use a plataforma em 8 idiomas. Cada pessoa escolhe seu próprio idioma; os admins escolhem quais idiomas estão disponíveis.</td><td>Todos</td></tr>
@@ -157,12 +157,12 @@
         <tr><td><strong><a href="#admin-backup">Backups de banco de dados grandes</a></strong></td><td>O backup e a restauração agora suportam bancos de dados de vários gigabytes e registros muito grandes sem tempo limite.</td><td>Admins</td></tr>
     </table>
     <div class="callout callout-info">
-        <strong>Como saber qual versão estou usando?</strong> Os administradores podem ir a <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> para ver a versão instalada. Este guia descreve a <strong>v2.6.1</strong>. Consulte <a href="#admin-updates">Atualizando a Plataforma</a>.
+        <strong>Como saber qual versão estou usando?</strong> Os administradores podem ir a <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> para ver a versão instalada. Este guia descreve a <strong>v2.6.2</strong>. Consulte <a href="#admin-updates">Atualizando a Plataforma</a>.
     </div>
 </div>
 
 <div class="doc-section" id="language">
-    <h2>Alterando Seu Idioma <span class="new-badge">Novo em 2.6.1</span></h2>
+    <h2>Alterando Seu Idioma <span class="new-badge">Novo em 2.6.2</span></h2>
     <p>A interface da plataforma pode ser exibida em <strong>8 idiomas</strong>. Cada pessoa escolhe seu próprio idioma &mdash; alterar afeta apenas <em>sua</em> tela, não a de mais ninguém. Sua escolha é lembrada a cada vez que você faz login.</p>
 
     <h3>Idiomas disponíveis</h3>
@@ -214,7 +214,7 @@
      PHONE & VAT QUESTION TYPES + VENDOR DATA IMPROVEMENTS
      ================================================================ -->
 <div class="doc-section" id="question-types">
-    <h2>Tipos de Pergunta Telefone &amp; VAT <span class="new-badge">Novo em 2.6.1</span></h2>
+    <h2>Tipos de Pergunta Telefone &amp; VAT <span class="new-badge">Novo em 2.6.2</span></h2>
     <p>O <strong>Template Builder</strong> (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Assessment Templates</span>) ganha dois novos tipos de pergunta que capturam detalhes de contato e fiscais em um formato limpo e consistente. Eles podem ser usados em qualquer modelo de avaliação ou integração e, como outras perguntas, podem ser mapeados para um campo de fornecedor para que a resposta flua para o registro do fornecedor.</p>
 
     <h3>Telefone</h3>
@@ -237,10 +237,10 @@
     <h3>Encontrando fornecedores pelo número de VAT</h3>
     <p>A caixa de <strong>busca rápida</strong> no canto superior direito da plataforma agora também corresponde ao número de VAT, além do nome do fornecedor, domínio e stakeholder. Correspondências diretas com o nome, domínio ou número de VAT de um fornecedor são sempre exibidas primeiro.</p>
 
-    <h2>Banner de pontuação de Integração de Compras <span class="new-badge">Novo em 2.6.1</span></h2>
+    <h2>Banner de pontuação de Integração de Compras <span class="new-badge">Novo em 2.6.2</span></h2>
     <p>Quando o status de <strong>Procurement Onboarding</strong> de um fornecedor está definido como <strong>No</strong>, um banner agora deixa claro que <em>a pontuação automatizada do fornecedor está desativada até que o fornecedor conclua a Integração de Compras</em>. Ele aparece tanto na página de integração do fornecedor quanto abaixo da pergunta de avaliação correspondente, e é atualizado imediatamente conforme a resposta muda.</p>
 
-    <h2>Envio de avaliação: campos obrigatórios verificados primeiro <span class="new-badge">Novo em 2.6.1</span></h2>
+    <h2>Envio de avaliação: campos obrigatórios verificados primeiro <span class="new-badge">Novo em 2.6.2</span></h2>
     <p>Quando um fornecedor clica em <strong>Submit</strong> em uma avaliação, a plataforma agora verifica se cada pergunta obrigatória está respondida <em>antes</em> de solicitar os detalhes de atestação do remetente. Anteriormente, uma resposta faltando só era reportada após o preenchimento da atestação, obrigando a preenchê-la novamente.</p>
 </div>
 
@@ -248,7 +248,7 @@
      LARGE DATABASE BACKUPS
      ================================================================ -->
 <div class="doc-section" id="admin-backup">
-    <h2>Backups &amp; Restaurações de Banco de Dados Grandes <span class="new-badge">Novo em 2.6.1</span></h2>
+    <h2>Backups &amp; Restaurações de Banco de Dados Grandes <span class="new-badge">Novo em 2.6.2</span></h2>
     <p>O backup e a restauração (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Backup</span>) agora lidam com <strong>bancos de dados de vários gigabytes</strong> e registros individuais chegando a <strong>1&nbsp;GB</strong> sem que a operação seja interrompida por um tempo limite ou falta de memória. Em segundo plano, o limite de pacotes do banco de dados, os tempos limite de rede, o tamanho de upload e os limites de tempo de requisição foram todos aumentados para acomodar dados muito grandes.</p>
     <div class="callout callout-info">
         <strong>Para bancos de dados muito grandes:</strong> Um backup ou restauração de um arquivo de vários gigabytes pode demorar &mdash; deixe a página aberta até que termine. Conjuntos de dados extremamente grandes (dezenas de gigabytes) são melhor restaurados pela linha de comando do servidor.
@@ -888,15 +888,15 @@
 
 <div class="doc-section" id="tprm-shadow-saas">
     <h2>Descoberta de Shadow SaaS</h2>
-    <p>Descubra aplicativos SaaS sendo usados em toda a sua organização que podem não ter sido formalmente aprovados ou avaliados. Navegue até <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>. Na v2.6.1, esta lista pode ser preenchida automaticamente pela integração de Shadow SaaS <a href="#shadow-saas-grip">Grip</a> ou <a href="#shadow-saas-hero">Hero</a>, e aplicativos não autorizados podem ser bloqueados no <a href="#zscaler">Zscaler</a>.</p>
+    <p>Descubra aplicativos SaaS sendo usados em toda a sua organização que podem não ter sido formalmente aprovados ou avaliados. Navegue até <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Shadow SaaS</span>. Na v2.6.2, esta lista pode ser preenchida automaticamente pela integração de Shadow SaaS <a href="#shadow-saas-grip">Grip</a> ou <a href="#shadow-saas-hero">Hero</a>, e aplicativos não autorizados podem ser bloqueados no <a href="#zscaler">Zscaler</a>.</p>
 </div>
 
 
 <!-- ================================================================
-     VENDOR ONBOARDING & PROCUREMENT (NEW IN 2.6.1)
+     VENDOR ONBOARDING & PROCUREMENT (NEW IN 2.6.2)
      ================================================================ -->
 <div class="doc-section" id="onboarding-workflow">
-    <h2>Integração de Fornecedor &amp; Integração de Compras <span class="new-badge">Novo em 2.6.1</span></h2>
+    <h2>Integração de Fornecedor &amp; Integração de Compras <span class="new-badge">Novo em 2.6.2</span></h2>
     <p>Uma <strong>solicitação de integração de fornecedor</strong> é a forma como um novo fornecedor entra na plataforma. Ela passa por uma série de <strong>status</strong> desde o primeiro rascunho até a decisão final. Antes de a equipe cibernética revisar um fornecedor, ele deve primeiro ser <strong>integrado pelo seu processo de compras</strong> e ter um <strong>ID de Fornecedor (VID)</strong> válido. Esta seção explica o porquê e exatamente como funciona.</p>
 
     <h3>A jornada de integração (status)</h3>
@@ -927,7 +927,7 @@
     </ul>
     <figure class="doc-figure">
         <img src="app/docs/vendor-info-card.png" alt="Vendor Information card showing Procurement Onboarding and Vendor ID fields" loading="lazy">
-        <figcaption><strong>Cartão de Informações do Fornecedor.</strong> O <strong>Vendor ID (VID)</strong> e o campo de integração de compras precisam ser preenchidos antes que o fornecedor possa ser enviado. <em>Nota:</em> em instâncias atualizadas de uma versão anterior, este campo pode ainda aparecer como <strong>"VSU Onboarded"</strong>; na v2.6.1 está rotulado como <strong>"Procurement Onboarding"</strong> &mdash; é o mesmo campo.</figcaption>
+        <figcaption><strong>Cartão de Informações do Fornecedor.</strong> O <strong>Vendor ID (VID)</strong> e o campo de integração de compras precisam ser preenchidos antes que o fornecedor possa ser enviado. <em>Nota:</em> em instâncias atualizadas de uma versão anterior, este campo pode ainda aparecer como <strong>"VSU Onboarded"</strong>; na v2.6.2 está rotulado como <strong>"Procurement Onboarding"</strong> &mdash; é o mesmo campo.</figcaption>
     </figure>
 
     <h3>Enviando um fornecedor para revisão</h3>
@@ -948,8 +948,8 @@
 </div>
 
 <div class="doc-section" id="ai-review">
-    <h2>Revisão de IA para Fornecedores <span class="new-badge">Novo em 2.6.1</span></h2>
-    <p>Alguns fornecedores oferecem serviços que usam inteligência artificial. Esses fornecedores podem carregar riscos diferentes, por isso a v2.6.1 adiciona um status dedicado de <strong>AI Review</strong> para rastreá-los separadamente durante o processo de revisão.</p>
+    <h2>Revisão de IA para Fornecedores <span class="new-badge">Novo em 2.6.2</span></h2>
+    <p>Alguns fornecedores oferecem serviços que usam inteligência artificial. Esses fornecedores podem carregar riscos diferentes, por isso a v2.6.2 adiciona um status dedicado de <strong>AI Review</strong> para rastreá-los separadamente durante o processo de revisão.</p>
 
     <h3>Como um fornecedor entra em AI Review</h3>
     <p>No cartão <strong>Vendor Information</strong> há um campo <span class="field-label">Services Use AI</span>. Quando este está definido como <strong>Yes</strong>, um revisor autorizado (um usuário <strong>Cyber TPRM</strong> ou <strong>Administrator</strong>, enquanto edita o fornecedor) vê um link <span class="btn-label">Force AI Review</span> diretamente abaixo daquele campo.</p>
@@ -965,7 +965,7 @@
 </div>
 
 <div class="doc-section" id="procurement-cyber-status">
-    <h2>Status Cibernético de Compras <span class="new-badge">Novo em 2.6.1</span></h2>
+    <h2>Status Cibernético de Compras <span class="new-badge">Novo em 2.6.2</span></h2>
     <p>A página de <strong>Cyber Status</strong> dá à <strong>equipe de compras</strong> uma visão simples e sempre atualizada de quais fornecedores a equipe cibernética está revisando e qual é a última informação sobre cada um &mdash; sem precisar de acesso às ferramentas de segurança completas. A equipe cibernética publica atualizações curtas com data; compras as lê aqui (e em um e-mail semanal).</p>
     <p>Abra em <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Procurement</span> &rarr; <span class="menu-label">Cyber Status</span>. Disponível para usuários <strong>Procurement</strong>, <strong>Cyber TPRM</strong> e <strong>Administrator</strong>.</p>
     <figure class="doc-figure">
@@ -1007,11 +1007,11 @@
 </div>
 
 <!-- ================================================================
-     INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.1)
+     INTEGRATIONS: GRIP + ZSCALER (NEW IN 2.6.2)
      ================================================================ -->
 <div class="doc-section" id="shadow-saas-grip">
-    <h2>Integração Grip Shadow SaaS <span class="new-badge">Novo em 2.6.1</span></h2>
-    <p>"Shadow SaaS" significa aplicativos em nuvem que os funcionários usam sem aprovação formal. A <strong>Grip Security</strong> é um serviço que descobre esses aplicativos. Na v2.6.1, você pode conectar sua conta Grip para que a plataforma importe automaticamente os aplicativos que o Grip encontra &mdash; junto com quantas pessoas usam cada um, uma pontuação de risco e alertas de segurança &mdash; e os liste na sua página de <a href="#tprm-shadow-saas">Shadow SaaS</a>.</p>
+    <h2>Integração Grip Shadow SaaS <span class="new-badge">Novo em 2.6.2</span></h2>
+    <p>"Shadow SaaS" significa aplicativos em nuvem que os funcionários usam sem aprovação formal. A <strong>Grip Security</strong> é um serviço que descobre esses aplicativos. Na v2.6.2, você pode conectar sua conta Grip para que a plataforma importe automaticamente os aplicativos que o Grip encontra &mdash; junto com quantas pessoas usam cada um, uma pontuação de risco e alertas de segurança &mdash; e os liste na sua página de <a href="#tprm-shadow-saas">Shadow SaaS</a>.</p>
     <p>É configurado por um administrador em <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> na aba <strong>Grip</strong>. Grip é um dos dois provedores de Shadow SaaS (o outro é o <a href="#shadow-saas-hero">Hero</a>); apenas um pode ser habilitado por vez.</p>
 
     <h3>Conectando o Grip (passo a passo)</h3>
@@ -1039,7 +1039,7 @@
 </div>
 
 <div class="doc-section" id="shadow-saas-hero">
-    <h2>Integração Hero Shadow SaaS <span class="new-badge">Novo em 2.6.1</span></h2>
+    <h2>Integração Hero Shadow SaaS <span class="new-badge">Novo em 2.6.2</span></h2>
     <p>A <strong>HERO Security</strong> é um provedor alternativo de Shadow SaaS. Em vez do Grip, você pode conectar uma conta HERO e a plataforma puxa os fornecedores que o HERO descobre &mdash; com seu status, uma pontuação de risco, o contato mais ativo e uma contagem de usuários &mdash; para a mesma lista de <a href="#tprm-shadow-saas">Shadow SaaS</a>. Grip e Hero são <strong>mutuamente exclusivos</strong>: habilitar o Hero desabilita automaticamente o Grip (e vice-versa), portanto a lista é sempre alimentada por exatamente um provedor.</p>
     <p>É configurado por um administrador em <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> na aba <strong>Hero</strong>.</p>
 
@@ -1068,7 +1068,7 @@
 </div>
 
 <div class="doc-section" id="zscaler">
-    <h2>Integração de Bloqueio Zscaler <span class="new-badge">Novo em 2.6.1</span></h2>
+    <h2>Integração de Bloqueio Zscaler <span class="new-badge">Novo em 2.6.2</span></h2>
     <p>O <strong>Zscaler</strong> é um serviço de segurança web que pode bloquear o acesso a sites. Com esta integração, quando você <strong>Deny</strong> um aplicativo não autorizado na página Shadow SaaS, a plataforma pode adicionar automaticamente o domínio web desse aplicativo a uma lista de bloqueio na sua conta Zscaler &mdash; para que as pessoas não possam mais acessá-lo. Clicar em <strong>Allow</strong> posteriormente remove o bloqueio.</p>
     <p>É configurado por um administrador em <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span>, no cartão <strong>Zscaler Connection</strong>.</p>
 
@@ -1141,7 +1141,7 @@
     </table>
     <p>Se o SAML não estiver realmente configurado, o interruptor é ignorado e o login local sempre permanece disponível (rede de segurança anti-bloqueio).</p>
 
-    <h3>Break-glass: permitir SAML e login local juntos (arquivo de configuração) <span class="new-badge">Novo em 2.6.1</span></h3>
+    <h3>Break-glass: permitir SAML e login local juntos (arquivo de configuração) <span class="new-badge">Novo em 2.6.2</span></h3>
     <p>O interruptor de login local pode ser definido de duas maneiras. A configuração do arquivo de configuração, quando presente, <strong>tem precedência sobre o valor do banco de dados</strong> &mdash; um controle de break-glass que não precisa de acesso ao banco de dados, para que você sempre possa restaurar o login local mesmo que o SSO esteja com problemas.</p>
     <table>
         <tr><th>Onde</th><th>Como</th></tr>
@@ -1162,8 +1162,8 @@
     <p>Habilite recursos com IA, incluindo refinamento de notas de avaliação, sugestões de controle, comentários sobre fornecedores, análise de risco FAIR assistida por IA e assistência de idioma em relatórios. Navegue até <span class="menu-label">Admin</span> &rarr; <span class="menu-label">AI Platform</span> para escolher um provedor e inserir sua chave de API. Apenas uma plataforma está ativa por vez.</p>
     <p>Plataformas de IA suportadas:</p>
     <ul>
-        <li><strong>Anthropic (Claude)</strong> <span class="new-badge">Novo em 2.6.1</span> &mdash; conecta-se diretamente à API nativa do Claude (ex.: <code>claude-opus-4-8</code>). Cole sua chave de API Anthropic; o endpoint usa por padrão a URL padrão de Mensagens. Suporta <strong>pesquisa web</strong> ao vivo, portanto os Alertas de Violação e varreduras OSINT são fundamentados em fontes atuais e citadas.</li>
-        <li><strong>OpenAI (ChatGPT)</strong> <span class="new-badge">Novo em 2.6.1</span> &mdash; conecta-se diretamente ao OpenAI (ex.: <code>gpt-4o</code>). Cole sua chave de API OpenAI. Para varreduras de Violação &amp; OSINT, usa um modelo com capacidade de pesquisa web (padrão <code>gpt-4o-search-preview</code>) para que essas varreduras sejam fundamentadas em fontes ao vivo.</li>
+        <li><strong>Anthropic (Claude)</strong> <span class="new-badge">Novo em 2.6.2</span> &mdash; conecta-se diretamente à API nativa do Claude (ex.: <code>claude-opus-4-8</code>). Cole sua chave de API Anthropic; o endpoint usa por padrão a URL padrão de Mensagens. Suporta <strong>pesquisa web</strong> ao vivo, portanto os Alertas de Violação e varreduras OSINT são fundamentados em fontes atuais e citadas.</li>
+        <li><strong>OpenAI (ChatGPT)</strong> <span class="new-badge">Novo em 2.6.2</span> &mdash; conecta-se diretamente ao OpenAI (ex.: <code>gpt-4o</code>). Cole sua chave de API OpenAI. Para varreduras de Violação &amp; OSINT, usa um modelo com capacidade de pesquisa web (padrão <code>gpt-4o-search-preview</code>) para que essas varreduras sejam fundamentadas em fontes ao vivo.</li>
         <li><strong>OpenWebUI</strong> &mdash; token bearer JWT contra um endpoint compatível com OpenAI.</li>
         <li><strong>LibreChat</strong> &mdash; autenticação por chave de API, baseada em agente; o agente gerencia seu próprio modelo e amostragem.</li>
         <li><strong>Custom</strong> &mdash; cole um modelo de cabeçalhos + corpo estilo curl para qualquer outro endpoint compatível com OpenAI (ou orquestrador).</li>
@@ -1174,7 +1174,7 @@
 </div>
 
 <div class="doc-section" id="admin-updates">
-    <h2>Atualizando a Plataforma <span class="new-badge">Novo em 2.6.1</span></h2>
+    <h2>Atualizando a Plataforma <span class="new-badge">Novo em 2.6.2</span></h2>
     <p>Os administradores podem verificar e aplicar novas versões de dentro da plataforma. Navegue até <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span>.</p>
     <ol class="steps">
         <li>O cartão <strong>Current Status</strong> mostra sua <span class="field-label">Installed Version</span> e se há uma versão mais recente disponível.</li>
@@ -1182,8 +1182,8 @@
         <li>Se uma versão mais recente estiver listada, siga a ação de <strong>Upgrade</strong> na tela para aplicá-la.</li>
     </ol>
     <figure class="doc-figure">
-        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.1" loading="lazy">
-        <figcaption><strong>Admin &rarr; Version.</strong> Aqui a versão instalada é <strong>v2.6.1</strong> e a plataforma informa que está atualizada. Este também é o lugar onde você confirma a qual versão este guia se aplica.</figcaption>
+        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.2" loading="lazy">
+        <figcaption><strong>Admin &rarr; Version.</strong> Aqui a versão instalada é <strong>v2.6.2</strong> e a plataforma informa que está atualizada. Este também é o lugar onde você confirma a qual versão este guia se aplica.</figcaption>
     </figure>
 </div>
 
@@ -1222,7 +1222,7 @@
             <div class="faq-body"><p>O VID é um número de 4&ndash;8 dígitos atribuído ao fornecedor pelo seu sistema de compras quando o fornecedor é integrado. Ele vincula o fornecedor aqui aos seus registros de compras e financeiros. Se você não tem um, o fornecedor ainda não concluiu a integração de compras.</p></div></details>
 
         <details class="faq-item"><summary>O campo no meu fornecedor diz "VSU Onboarded", mas o guia diz "Procurement Onboarding". Qual é o correto?<span class="faq-tag">Onboarding</span></summary>
-            <div class="faq-body"><p>São o mesmo campo. Foi renomeado para o mais claro <strong>"Procurement Onboarding"</strong> na v2.6.1. Se a sua tela ainda mostra <strong>"VSU Onboarded"</strong>, sua instância ainda não foi atualizada para a imagem mais recente da v2.6.1 &mdash; o comportamento é idêntico.</p></div></details>
+            <div class="faq-body"><p>São o mesmo campo. Foi renomeado para o mais claro <strong>"Procurement Onboarding"</strong> na v2.6.2. Se a sua tela ainda mostra <strong>"VSU Onboarded"</strong>, sua instância ainda não foi atualizada para a imagem mais recente da v2.6.2 &mdash; o comportamento é idêntico.</p></div></details>
 
         <details class="faq-item"><summary>O que significa "AI Review" para um fornecedor?<span class="faq-tag">AI Review</span></summary>
             <div class="faq-body"><p>É um status de revisão separado para fornecedores cujos serviços usam IA, para que possam ser rastreados separadamente das revisões comuns. Um usuário Cyber TPRM ou admin move um fornecedor para ele com o link <strong>Force AI Review</strong>. Veja <a href="#ai-review">Revisão de IA para Fornecedores</a>.</p></div></details>
@@ -1261,7 +1261,7 @@
             <div class="faq-body"><p>Sim. Clique em <strong>Download PDF</strong> no topo desta página. Isso produz um documento formatado com uma página de capa, índice e números de página.</p></div></details>
 
         <details class="faq-item"><summary>Como sei qual versão estou executando?<span class="faq-tag">General</span></summary>
-            <div class="faq-body"><p>Os administradores podem verificar em <strong>Admin &rarr; Version</strong>. Este guia descreve a <strong>v2.6.1</strong>. Veja <a href="#admin-updates">Atualizando a Plataforma</a>.</p></div></details>
+            <div class="faq-body"><p>Os administradores podem verificar em <strong>Admin &rarr; Version</strong>. Este guia descreve a <strong>v2.6.2</strong>. Veja <a href="#admin-updates">Atualizando a Plataforma</a>.</p></div></details>
 
     </div>
     <p class="faq-no-results" id="faqNoResults">Nenhuma pergunta corresponde à sua pesquisa. Tente uma palavra-chave diferente.</p>
@@ -1362,7 +1362,7 @@
                     <a href="#navigation">Navegando pela Barra Lateral</a>
                     <a href="#roles">Funções de Usuário &amp; Permissões</a>
                     <a href="#first-login">Seu Primeiro Login</a>
-                    <a href="#whats-new">O Que Há de Novo em 2.6.1</a>
+                    <a href="#whats-new">O Que Há de Novo em 2.6.2</a>
                     <a href="#language">Alterando Seu Idioma</a>
                     <a href="#question-types">Tipos de Pergunta Telefone &amp; VAT</a>
 
