@@ -134,6 +134,7 @@ try {
                 'description'            => $action['description'],
                 'assignees'              => $assignees,
                 'notify_assignees'       => !empty($action['notify_assignees']),
+                'notify_emails'          => $action['notify_emails'] ?? '',
             ], $actor);
 
             if (empty($result['error'])) {

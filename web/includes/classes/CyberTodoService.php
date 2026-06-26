@@ -884,6 +884,7 @@ class CyberTodoService
         $description = trim((string)($params['description'] ?? ''));
         $templateId  = !empty($params['assessment_template_id']) ? (int)$params['assessment_template_id'] : null;
         $notify      = !empty($params['notify_assignees']);
+        $notifyEmailsRaw = trim((string)($params['notify_emails'] ?? ''));
 
         // Explicit assignees (cyber_tprm users chosen on the Action Plan).
         $assigneeIds = [];
@@ -979,9 +980,23 @@ class CyberTodoService
                 $resultId = $firstTodoId;
             }
 
-            // Optionally email each assignee about the action.
+            // Optionally email about the action. An explicit notify_emails list
+            // overrides the assignees' account emails; otherwise fall back to them.
             if ($notify) {
-                $this->notifyScheduledActionAssignees($recipients, $label, $vendorName, $actorUserId);
+                $emailList = [];
+                if ($notifyEmailsRaw !== '') {
+                    foreach (explode(',', $notifyEmailsRaw) as $e) {
+                        $e = trim($e);
+                        if ($e !== '' && filter_var($e, FILTER_VALIDATE_EMAIL)) { $emailList[$e] = $e; }
+                    }
+                } else {
+                    foreach ($recipients as $r) {
+                        if (!empty($r['email']) && filter_var($r['email'], FILTER_VALIDATE_EMAIL)) { $emailList[$r['email']] = $r['email']; }
+                    }
+                }
+                if (!empty($emailList)) {
+                    $this->notifyScheduledActionAssignees(array_values($emailList), $label, $vendorName, $actorUserId);
+                }
             }
 
             return ['result_type' => $resultType, 'result_id' => $resultId, 'error' => null];
@@ -994,12 +1009,12 @@ class CyberTodoService
      * Email each recipient that has an address, reusing the case-assignment
      * template. Failures are logged, never fatal to the action.
      */
-    private function notifyScheduledActionAssignees(array $recipients, string $label, string $vendorName, int $actorUserId): void
+    private function notifyScheduledActionAssignees(array $emailList, string $label, string $vendorName, int $actorUserId): void
     {
         $emails = [];
-        foreach ($recipients as $r) {
-            $e = $r['email'] ?? null;
-            if ($e && filter_var($e, FILTER_VALIDATE_EMAIL)) { $emails[$e] = $e; }
+        foreach ($emailList as $e) {
+            $e = trim((string)$e);
+            if ($e !== '' && filter_var($e, FILTER_VALIDATE_EMAIL)) { $emails[$e] = $e; }
         }
         if (empty($emails)) { return; }
 

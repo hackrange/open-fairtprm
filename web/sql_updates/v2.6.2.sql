@@ -313,6 +313,7 @@ CREATE TABLE IF NOT EXISTS `vendor_scheduled_actions` (
   `description` text DEFAULT NULL COMMENT 'Carried into the generated Cyber To-Do',
   `assignees` text DEFAULT NULL COMMENT 'JSON array of cyber_tprm user ids to assign the generated To-Do to',
   `notify_assignees` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Email each assignee when the action fires',
+  `notify_emails` text DEFAULT NULL COMMENT 'Editable comma-separated notification addresses; overrides assignee account emails when set',
   `status` enum('pending','in_progress','problem','completed','cancelled') NOT NULL DEFAULT 'pending' COMMENT 'User-editable workflow status; firing is tracked by executed_at',
   `result_type` varchar(50) DEFAULT NULL COMMENT 'Table the result row lives in (vendor_assessments, cyber_todo_activities, ...)',
   `result_id` int(10) unsigned DEFAULT NULL COMMENT 'Id of the row created when the action fired',
@@ -5354,6 +5355,15 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'vendor_scheduled_actions' AND column_name = 'notify_assignees') = 0,
   'ALTER TABLE `vendor_scheduled_actions` ADD COLUMN `notify_assignees` TINYINT(1) NOT NULL DEFAULT 0 AFTER `assignees`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- vendor_scheduled_actions.notify_emails (editable notification addresses)
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_scheduled_actions' AND column_name = 'notify_emails') = 0,
+  'ALTER TABLE `vendor_scheduled_actions` ADD COLUMN `notify_emails` TEXT DEFAULT NULL AFTER `notify_assignees`',
   'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;

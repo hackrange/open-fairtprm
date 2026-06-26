@@ -23,6 +23,24 @@
 require_once 'includes/init.php';
 requireAuth();
 
+/**
+ * Normalize a comma-separated list of notification email addresses: trim, drop
+ * blanks and anything that isn't a valid email, de-dupe, and re-join. Returns a
+ * clean comma-separated string (empty string if none valid).
+ */
+if (!function_exists('sanitizeNotifyEmails')) {
+    function sanitizeNotifyEmails($raw): string {
+        $raw = trim((string)$raw);
+        if ($raw === '') { return ''; }
+        $valid = [];
+        foreach (explode(',', $raw) as $part) {
+            $p = trim($part);
+            if ($p !== '' && filter_var($p, FILTER_VALIDATE_EMAIL)) { $valid[$p] = $p; }
+        }
+        return implode(', ', array_values($valid));
+    }
+}
+
 // Load the SRS (Security Rating Service) integration -- this talks to UpGuard
 // to get vendor security scores. Because trusting vendors at their word is so 2005.
 require_once __DIR__ . '/includes/classes/SRSService.php';
@@ -492,7 +510,7 @@ if ($showVendorTabs) {
             );
             // cyber_tprm members who can be assigned a scheduled action
             $scheduledActionAssignees = $db->fetchAll(
-                "SELECT u.id, u.full_name, u.username
+                "SELECT u.id, u.full_name, u.username, u.email
                  FROM users u
                  JOIN user_acl_groups ug ON ug.user_id = u.id
                  JOIN acl_groups g ON g.id = ug.group_id
@@ -1228,6 +1246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_scheduled_acti
         $saDescription = trim($security->cleanInput($_POST['sa_description'] ?? ''));
         $saTemplateId = intval($_POST['sa_assessment_template_id'] ?? 0);
         $saNotify = !empty($_POST['sa_notify']) ? 1 : 0;
+        $saNotifyEmails = sanitizeNotifyEmails($_POST['sa_notify_emails'] ?? '');
 
         // Assignees must be cyber_tprm members. Validate each id against the group.
         $saAssignees = [];
@@ -1277,6 +1296,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_scheduled_acti
                     'description' => $saDescription,
                     'assignees' => !empty($saAssignees) ? json_encode($saAssignees) : null,
                     'notify_assignees' => $saNotify,
+                    'notify_emails' => $saNotifyEmails !== '' ? $saNotifyEmails : null,
                     'status' => 'pending',
                     'created_by' => $user['id'],
                 ]);
@@ -1365,6 +1385,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_scheduled_action
                 $eDescription = trim($security->cleanInput($_POST['sa_description'] ?? ''));
                 $eTemplateId = intval($_POST['sa_assessment_template_id'] ?? 0);
                 $eNotify = !empty($_POST['sa_notify']) ? 1 : 0;
+                $eNotifyEmails = sanitizeNotifyEmails($_POST['sa_notify_emails'] ?? '');
                 $validActions = ['contact_vendor', 'contact_stakeholder', 'send_assessment', 'force_annual_review'];
                 $dateOk = (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', $eDate) && strtotime($eDate) !== false;
 
@@ -1404,6 +1425,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_scheduled_action
                     $update['description'] = $eDescription;
                     $update['assignees'] = !empty($eAssignees) ? json_encode($eAssignees) : null;
                     $update['notify_assignees'] = $eNotify;
+                    $update['notify_emails'] = $eNotifyEmails !== '' ? $eNotifyEmails : null;
                     $auditNew = array_merge($auditNew, ['action' => $eAction, 'scheduled_date' => $eDate, 'assignees' => $eAssignees, 'notify_assignees' => $eNotify]);
                 }
             }
@@ -3999,10 +4021,12 @@ function getFieldValue($request, $field, $default = '') {
                         'completed'   => '#16a34a',
                         'cancelled'   => '#6b7280',
                     ];
-                    // id => display name lookup for assignee chips
+                    // id => display name / email lookup for assignee chips + prefill
                     $saAssigneeNames = [];
+                    $saAssigneeEmails = [];
                     foreach ($scheduledActionAssignees as $u) {
                         $saAssigneeNames[(int)$u['id']] = $u['full_name'] ?: $u['username'];
+                        if (!empty($u['email'])) { $saAssigneeEmails[(int)$u['id']] = $u['email']; }
                     }
                 ?>
                 <div id="vendorTabContent_action_plan" style="<?php echo $activeTab !== 'action_plan' ? 'display: none;' : ''; ?>">
@@ -4079,6 +4103,19 @@ function getFieldValue($request, $field, $default = '') {
                                         <input type="checkbox" name="sa_notify" value="1" <?php echo !empty($selectedAction['notify_assignees']) ? 'checked' : ''; ?>> Email assigned individuals when this action fires
                                     </label>
                                 <?php endif; ?>
+                            </div>
+                            <?php
+                                $selNotifyEmails = trim((string)($selectedAction['notify_emails'] ?? ''));
+                                if ($selNotifyEmails === '' && !empty($selAssigneeIds)) {
+                                    $tmpEmails = [];
+                                    foreach ($selAssigneeIds as $aid) { if (!empty($saAssigneeEmails[$aid])) { $tmpEmails[] = $saAssigneeEmails[$aid]; } }
+                                    $selNotifyEmails = implode(', ', $tmpEmails);
+                                }
+                            ?>
+                            <div style="margin-bottom: 14px;">
+                                <label style="display:block; font-size:13px; font-weight:500; color:#333; margin-bottom:6px;">Notification email addresses</label>
+                                <input type="text" name="sa_notify_emails" value="<?php echo e($selNotifyEmails); ?>" placeholder="name@example.com, name2@example.com" style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px;">
+                                <div style="font-size:11px; color:#9ca3af; margin-top:4px;">Comma-separated. Leave blank to use the assigned individuals' account emails.</div>
                             </div>
                             <div style="margin-bottom: 14px;">
                                 <label style="display:block; font-size:13px; font-weight:500; color:#333; margin-bottom:6px;">Description <span style="color:#dc2626;">*</span></label>
@@ -4312,6 +4349,12 @@ function getFieldValue($request, $field, $default = '') {
                                             <input type="checkbox" name="sa_notify" value="1"> Email assigned individuals when this action fires
                                         </label>
                                     <?php endif; ?>
+                                </div>
+
+                                <div style="margin-bottom: 16px;">
+                                    <label style="display: block; font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">Notification email addresses</label>
+                                    <input type="text" name="sa_notify_emails" placeholder="name@example.com, name2@example.com" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                    <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">Comma-separated. Leave blank to use the assigned individuals' account emails.</div>
                                 </div>
 
                                 <div style="margin-bottom: 20px;">
