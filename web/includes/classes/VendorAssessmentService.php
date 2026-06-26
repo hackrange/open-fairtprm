@@ -1882,9 +1882,16 @@ class VendorAssessmentService {
 
                     $resp = $responses[$q['id']] ?? null;
                     $val = $resp ? (string)$resp['response_value'] : '';
-                    if ($val !== '' && ($q['question_type'] ?? '') === 'checkbox') {
+                    // Multi-select types (checkbox / button_group_multi) persist a JSON
+                    // array. Expose both a flat selected-list (for editing) and a
+                    // human-readable display string (for the read-only view).
+                    $valList = [];
+                    if ($val !== '' && in_array($q['question_type'] ?? '', ['checkbox', 'button_group_multi'], true)) {
                         $decoded = json_decode($val, true);
-                        if (is_array($decoded)) $val = implode(', ', $decoded);
+                        if (is_array($decoded)) {
+                            $valList = array_values(array_map('strval', $decoded));
+                            $val = implode(', ', $valList);
+                        }
                     }
 
                     $out[$fn] = [
@@ -2045,9 +2052,16 @@ class VendorAssessmentService {
 
                     $resp = $responses[$q['id']] ?? null;
                     $val = $resp ? (string)$resp['response_value'] : '';
-                    if ($val !== '' && ($q['question_type'] ?? '') === 'checkbox') {
+                    // Multi-select types (checkbox / button_group_multi) persist a JSON
+                    // array. Expose both a flat selected-list (for editing) and a
+                    // human-readable display string (for the read-only view).
+                    $valList = [];
+                    if ($val !== '' && in_array($q['question_type'] ?? '', ['checkbox', 'button_group_multi'], true)) {
                         $decoded = json_decode($val, true);
-                        if (is_array($decoded)) $val = implode(', ', $decoded);
+                        if (is_array($decoded)) {
+                            $valList = array_values(array_map('strval', $decoded));
+                            $val = implode(', ', $valList);
+                        }
                     }
 
                     // Editable when viewer holds an explicit edit grant at the section OR
@@ -2059,6 +2073,7 @@ class VendorAssessmentService {
                         'field_name'    => $fn,
                         'label'         => $q['question_text'] ?? $fn,
                         'value'         => $val,
+                        'value_list'    => $valList,
                         'type'          => $q['question_type'] ?? 'text',
                         'options'       => $q['options'] ?? null,
                         'section'       => $sec['name'] ?? '',

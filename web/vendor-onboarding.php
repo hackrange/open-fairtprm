@@ -2293,6 +2293,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
             );
             $postedCustom = $_POST['custom'] ?? [];
             if (!is_array($postedCustom)) $postedCustom = [];
+            // Multi-select fields (checkbox / button_group_multi) submit nothing when
+            // every option is unchecked, so a hidden marker tells us the field was on
+            // the form and an empty selection means "clear it".
+            $postedCustomPresent = $_POST['custom_present'] ?? [];
+            if (!is_array($postedCustomPresent)) $postedCustomPresent = [];
 
             if (empty($editableCustom)) {
                 $error = 'There are no custom onboarding fields to update.';
@@ -2306,19 +2311,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                     // can_edit is recomputed server-side from the role grants, so a
                     // view-only user cannot write a field by forging the POST.
                     if (empty($cf['can_edit'])) continue;
-                    if (!array_key_exists($fn, $postedCustom)) continue;
-                    $val = $postedCustom[$fn];
-                    if (is_array($val)) $val = implode(', ', array_map('strval', $val));
-                    $val = trim((string)$val);
-                    // Canonicalise widget-backed types so they store uniformly
-                    // regardless of how they were typed (mirrors the standard
-                    // contact fields). The phone/VAT widgets already submit a
-                    // canonical hidden value; this is the belt-and-suspenders.
                     $cfWriteType = $cf['type'] ?? '';
-                    if ($cfWriteType === 'phone') {
-                        $val = phone_normalize_e164($val);
-                    } elseif ($cfWriteType === 'vat') {
-                        $val = vat_normalize($val);
+                    $isMultiSelect = in_array($cfWriteType, ['checkbox', 'button_group_multi'], true);
+                    $submitted = array_key_exists($fn, $postedCustom)
+                              || ($isMultiSelect && !empty($postedCustomPresent[$fn]));
+                    if (!$submitted) continue;
+
+                    if ($isMultiSelect) {
+                        // Store the selected options as a JSON array, matching how the
+                        // assessment platform persists multi-select answers.
+                        $arr = $postedCustom[$fn] ?? [];
+                        if (!is_array($arr)) $arr = ($arr === '' || $arr === null) ? [] : [$arr];
+                        $arr = array_values(array_filter(array_map('strval', $arr), function ($v) { return $v !== ''; }));
+                        $val = empty($arr) ? '' : json_encode($arr);
+                    } else {
+                        $val = $postedCustom[$fn];
+                        if (is_array($val)) $val = implode(', ', array_map('strval', $val));
+                        $val = trim((string)$val);
+                        // Canonicalise widget-backed types so they store uniformly
+                        // regardless of how they were typed (mirrors the standard
+                        // contact fields). The phone/VAT widgets already submit a
+                        // canonical hidden value; this is the belt-and-suspenders.
+                        if ($cfWriteType === 'phone') {
+                            $val = phone_normalize_e164($val);
+                        } elseif ($cfWriteType === 'vat') {
+                            $val = vat_normalize($val);
+                        }
                     }
                     $toWrite[$fn] = $val;
                 }
@@ -3734,6 +3752,18 @@ function getFieldValue($request, $field, $default = '') {
                                             <option value="<?php echo e($opt); ?>" <?php echo ($opt === $cf['value']) ? 'selected' : ''; ?>><?php echo e($opt); ?></option>
                                             <?php endforeach; ?>
                                         </select>
+                                        <?php elseif (in_array($cfType, ['checkbox', 'button_group_multi'], true)):
+                                            $opts = $customOptionList($cf['options'] ?? null);
+                                            $selList = is_array($cf['value_list'] ?? null) ? $cf['value_list'] : array(); ?>
+                                        <input type="hidden" name="custom_present[<?php echo e($cf['field_name']); ?>]" value="1">
+                                        <div style="display:flex; flex-wrap:wrap; gap:6px 16px;">
+                                            <?php foreach ($opts as $opt): ?>
+                                            <label style="display:inline-flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+                                                <input type="checkbox" name="<?php echo $cfName; ?>[]" value="<?php echo e($opt); ?>" <?php echo in_array($opt, $selList, true) ? 'checked' : ''; ?>>
+                                                <?php echo e($opt); ?>
+                                            </label>
+                                            <?php endforeach; ?>
+                                        </div>
                                         <?php elseif ($cfType === 'phone'): ?>
                                         <?php echo phone_render_widget($cfNameRaw, $cf['value'], ['id' => $cfWidgetId]); ?>
                                         <?php elseif ($cfType === 'vat'): ?>
