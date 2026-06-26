@@ -1866,6 +1866,140 @@ class VendorAssessmentService {
     }
 
     /**
+     * Editable view of a vendor's custom onboarding fields. Unlike
+     * getCustomOnboardingData (which is value-driven and only surfaces fields the
+     * vendor already has assessment responses for), this is TEMPLATE-driven: it
+     * returns every custom field defined on the onboarding-category template(s),
+     * with the vendor's current value (empty string when not yet answered or when
+     * the vendor has no onboarding assessment at all). This powers the editable
+     * Custom Data tab so a field shows up the moment it's added to the template,
+     * even for onboarding requests created without an assessment.
+     *
+     * Role gating mirrors getCustomOnboardingData: when $viewer is supplied, any
+     * section/question the viewer cannot see is omitted.
+     *
+     * @param int        $vendorRequestId vendor_onboarding_requests.id
+     * @param array|null $viewer ['groups'=>string[], 'super'=>bool]; null = no gating
+     * @return array field_name => [field_name,label,value,type,options,section,template_id,template_name,question_id]
+     */
+    public function getOnboardingCustomFields($vendorRequestId, $viewer = null) {
+        $vendorRequestId = (int)$vendorRequestId;
+        if ($vendorRequestId <= 0) return [];
+
+        $known = $this->getVendorColumnSet();
+        $vg = $viewer['groups'] ?? [];
+        $vs = !empty($viewer['super']);
+
+        // Newest assessment per onboarding template for this vendor (for values).
+        $assessments = $this->db->fetchAll(
+            "SELECT va.id, va.template_id
+             FROM vendor_assessments va
+             JOIN assessment_templates t ON va.template_id = t.id
+             WHERE va.vendor_request_id = :rid AND t.category = 'onboarding'
+             ORDER BY va.created_at DESC, va.id DESC",
+            [':rid' => $vendorRequestId]
+        );
+        $tplAssessment = [];
+        foreach ($assessments as $a) {
+            if (!isset($tplAssessment[$a['template_id']])) $tplAssessment[$a['template_id']] = $a['id'];
+        }
+
+        // Display every onboarding-category template's custom fields, so a newly
+        // added field appears even before the vendor has an assessment.
+        $tplRows = $this->db->fetchAll(
+            "SELECT id, name FROM assessment_templates WHERE category = 'onboarding' ORDER BY id"
+        );
+
+        $out = [];
+        foreach ($tplRows as $t) {
+            $tid = (int)$t['id'];
+            $aid = $tplAssessment[$tid] ?? null;
+            $responses = $aid ? $this->getResponses($aid) : [];
+            foreach ($this->getSections($tid) as $sec) {
+                $secVisible = ($viewer === null) || self::roleGatePasses($sec['visible_roles'] ?? null, $vg, $vs);
+                foreach ($this->getQuestions($sec['id']) as $q) {
+                    $fn = trim((string)($q['field_name'] ?? ''));
+                    if ($fn === '' || isset($known[strtolower($fn)])) continue; // skip standard/unmapped
+                    if (isset($out[$fn])) continue;                            // first template wins
+                    if ($viewer !== null && (!$secVisible || !self::roleGatePasses($q['visible_roles'] ?? null, $vg, $vs))) continue;
+
+                    $resp = $responses[$q['id']] ?? null;
+                    $val = $resp ? (string)$resp['response_value'] : '';
+                    if ($val !== '' && ($q['question_type'] ?? '') === 'checkbox') {
+                        $decoded = json_decode($val, true);
+                        if (is_array($decoded)) $val = implode(', ', $decoded);
+                    }
+
+                    $out[$fn] = [
+                        'field_name'    => $fn,
+                        'label'         => $q['question_text'] ?? $fn,
+                        'value'         => $val,
+                        'type'          => $q['question_type'] ?? 'text',
+                        'options'       => $q['options'] ?? null,
+                        'section'       => $sec['name'] ?? '',
+                        'template_id'   => $tid,
+                        'template_name' => $t['name'] ?? '',
+                        'question_id'   => (int)$q['id'],
+                    ];
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Return the id of this vendor's onboarding assessment, creating a minimal
+     * holder if none exists. Onboarding custom-field answers live in
+     * vendor_assessment_responses, which require an assessment row; requests
+     * created via the onboarding form/import never get one, so we create it
+     * lazily on first save. The holder is status 'completed' (the onboarding
+     * request itself owns the workflow) so it never appears as an outstanding
+     * task. Returns 0 if no onboarding template exists.
+     *
+     * @param int      $vendorRequestId vendor_onboarding_requests.id
+     * @param int|null $createdBy        user id to attribute the row to
+     * @param int|null $templateId       specific onboarding template (defaults to the first)
+     * @return int assessment id, or 0
+     */
+    public function ensureOnboardingAssessment($vendorRequestId, $createdBy = null, $templateId = null) {
+        $vendorRequestId = (int)$vendorRequestId;
+        if ($vendorRequestId <= 0) return 0;
+
+        $sql = "SELECT va.id
+                FROM vendor_assessments va
+                JOIN assessment_templates t ON va.template_id = t.id
+                WHERE va.vendor_request_id = :rid AND t.category = 'onboarding'";
+        $params = [':rid' => $vendorRequestId];
+        if ($templateId) { $sql .= " AND va.template_id = :tid"; $params[':tid'] = (int)$templateId; }
+        $sql .= " ORDER BY va.created_at DESC, va.id DESC LIMIT 1";
+        $existing = $this->db->fetchOne($sql, $params);
+        if ($existing) return (int)$existing['id'];
+
+        if (!$templateId) {
+            $t = $this->db->fetchOne("SELECT id FROM assessment_templates WHERE category = 'onboarding' ORDER BY id LIMIT 1");
+            if (!$t) return 0;
+            $templateId = (int)$t['id'];
+        }
+
+        $req = $this->db->fetchOne(
+            'SELECT vendor_name, primary_contact_email FROM vendor_onboarding_requests WHERE id = :id',
+            [':id' => $vendorRequestId]
+        );
+        $vendorName  = ($req && $req['vendor_name'] !== null && $req['vendor_name'] !== '') ? $req['vendor_name'] : ('Vendor #' . $vendorRequestId);
+        $vendorEmail = ($req && !empty($req['primary_contact_email'])) ? $req['primary_contact_email'] : '';
+
+        return (int)$this->db->insert('vendor_assessments', [
+            'uuid'              => $this->generateUUID(),
+            'template_id'       => $templateId,
+            'vendor_request_id' => $vendorRequestId,
+            'vendor_name'       => $vendorName,
+            'vendor_email'      => $vendorEmail,
+            'status'            => 'completed',
+            'created_by'        => $createdBy,
+        ]);
+    }
+
+    /**
      * Write a single custom-field value for a vendor by upserting the response on
      * the matching question of the vendor's existing ONBOARDING assessment. Used by
      * the CSV importer. Does NOT create assessments — "update existing only": if the

@@ -312,7 +312,9 @@ if ($requestId) {
     }
     // Role-gated by the current user (super admins see all). Restricted fields the
     // viewer can't see are dropped from the Custom Data tab and the Vendor tab.
-    $customOnboardingData = $vasForExtras->getCustomOnboardingData($requestId, ['groups' => $viewerGroups, 'super' => $viewerSuper]);
+    // Template-driven so every custom field shows up (editable, empty when unanswered)
+    // even for onboarding requests that have no assessment yet.
+    $customOnboardingData = $vasForExtras->getOnboardingCustomFields($requestId, ['groups' => $viewerGroups, 'super' => $viewerSuper]);
     $hiddenOnboardingFields = $vasForExtras->getHiddenOnboardingFieldNames($requestId, $viewerGroups, $viewerSuper);
 }
 
@@ -1832,6 +1834,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
             }
         }
 
+        // UPDATE CUSTOM ONBOARDING DATA: persist the editable Custom Data tab.
+        // Values land in vendor_assessment_responses via the shared service. We
+        // re-derive the viewer's visible custom fields server-side and only write
+        // those, so a user who cannot see a role-restricted field cannot set it
+        // either (no trusting the posted field list). A holder onboarding
+        // assessment is created lazily on first save.
+        if ($action === 'update_custom_onboarding' && $canEdit && $editMode && $requestId > 0) {
+            if (!isset($vasForExtras)) {
+                require_once __DIR__ . '/includes/classes/VendorAssessmentService.php';
+                $vasForExtras = new VendorAssessmentService();
+            }
+            $editableCustom = $vasForExtras->getOnboardingCustomFields(
+                $requestId,
+                ['groups' => $acl->getUserGroups(), 'super' => (bool)$session->get('is_super_admin')]
+            );
+            $postedCustom = $_POST['custom'] ?? [];
+            if (!is_array($postedCustom)) $postedCustom = [];
+
+            if (empty($editableCustom)) {
+                $error = 'There are no custom onboarding fields to update.';
+            } else {
+                // Only persist fields that were actually submitted AND are visible to
+                // this editor. Skip the lazy assessment creation entirely if nothing
+                // applies, so we never leave an empty phantom assessment behind.
+                $toWrite = [];
+                foreach ($editableCustom as $fn => $cf) {
+                    if (!array_key_exists($fn, $postedCustom)) continue;
+                    $val = $postedCustom[$fn];
+                    if (is_array($val)) $val = implode(', ', array_map('strval', $val));
+                    $toWrite[$fn] = trim((string)$val);
+                }
+
+                if (empty($toWrite)) {
+                    $error = 'No custom field values were submitted.';
+                } else {
+                    try {
+                        $vasForExtras->ensureOnboardingAssessment($requestId, $user['id']);
+                        $written = 0;
+                        foreach ($toWrite as $fn => $val) {
+                            if ($vasForExtras->setCustomOnboardingValue($requestId, $fn, $val)) $written++;
+                        }
+                        $auth->audit($user['id'], 'vendor_custom_onboarding_update', 'vendor_onboarding_requests', $requestId, [
+                            'fields' => array_keys($toWrite)
+                        ]);
+                        $success = 'Custom data updated successfully.';
+                        // Re-read so the tab reflects the saved values.
+                        $customOnboardingData = $vasForExtras->getOnboardingCustomFields(
+                            $requestId,
+                            ['groups' => $viewerGroups, 'super' => $viewerSuper]
+                        );
+                    } catch (Exception $e) {
+                        error_log('Custom onboarding update error: ' . $e->getMessage());
+                        $error = 'Failed to update custom data. Please try again.';
+                    }
+                }
+            }
+        }
+
         // REASSIGN STAKEHOLDER: Change the assigned stakeholder for this vendor.
         if (isset($_POST['reassign_stakeholder']) && $canAssignStakeholders && $editMode && $requestId > 0) {
             $newStakeholderId = intval($_POST['stakeholder_user_id'] ?? 0);
@@ -3134,7 +3194,29 @@ function getFieldValue($request, $field, $default = '') {
                         foreach ($customOnboardingData as $cf) {
                             $customBySection[$cf['section'] !== '' ? $cf['section'] : 'Custom Fields'][] = $cf;
                         }
+                        // Editable by anyone who can edit the vendor record. Role-restricted
+                        // fields are already filtered out of $customOnboardingData upstream,
+                        // and the save handler re-checks, so what isn't shown can't be set.
+                        $canEditCustom = !empty($canEdit) && $editMode;
+                        // Parse a question's stored options into a flat list of choice strings.
+                        $customOptionList = function ($raw) {
+                            if (is_array($raw)) return array_values(array_filter(array_map('strval', $raw), function ($s) { return $s !== ''; }));
+                            $raw = (string)$raw;
+                            if ($raw === '') return [];
+                            $decoded = json_decode($raw, true);
+                            if (is_array($decoded)) {
+                                $vals = [];
+                                foreach ($decoded as $d) { $vals[] = is_array($d) ? (string)($d['value'] ?? $d['label'] ?? '') : (string)$d; }
+                                return array_values(array_filter($vals, function ($s) { return $s !== ''; }));
+                            }
+                            return array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $raw)), function ($s) { return $s !== ''; }));
+                        };
                         ?>
+                        <?php if ($canEditCustom): ?>
+                        <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=custom_data" id="customDataForm">
+                            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                            <input type="hidden" name="action" value="update_custom_onboarding">
+                        <?php endif; ?>
                         <?php foreach ($customBySection as $sectionName => $fields): ?>
                         <div style="margin-bottom: 22px;">
                             <div style="font-weight: 600; font-size: 13px; color: #444; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0;"><?php echo e($sectionName); ?></div>
@@ -3144,11 +3226,37 @@ function getFieldValue($request, $field, $default = '') {
                                     <div style="font-size: 13px; color: #333; font-weight: 500;"><?php echo e($cf['label']); ?></div>
                                     <div style="font-size: 11px; color: #9ca3af; font-family: monospace; margin-top: 2px;"><?php echo e($cf['field_name']); ?></div>
                                 </div>
-                                <div style="font-size: 13px; color: <?php echo ($cf['value'] === '' ? '#9ca3af' : '#1f2937'); ?>; flex: 1; word-break: break-word;"><?php echo $cf['value'] === '' ? '&mdash;' : nl2br(e($cf['value'])); ?></div>
+                                <div style="flex: 1; word-break: break-word;">
+                                    <?php if ($canEditCustom):
+                                        $cfName = 'custom[' . e($cf['field_name']) . ']';
+                                        $cfType = $cf['type'] ?? 'text';
+                                        if ($cfType === 'textarea'): ?>
+                                        <textarea name="<?php echo $cfName; ?>" rows="3" class="form-control" style="width:100%; font-size:13px;"><?php echo e($cf['value']); ?></textarea>
+                                        <?php elseif (in_array($cfType, ['select', 'radio', 'button_group'], true)):
+                                            $opts = $customOptionList($cf['options'] ?? null); ?>
+                                        <select name="<?php echo $cfName; ?>" class="form-control" style="width:100%; font-size:13px;">
+                                            <option value="">&mdash; Select &mdash;</option>
+                                            <?php foreach ($opts as $opt): ?>
+                                            <option value="<?php echo e($opt); ?>" <?php echo ($opt === $cf['value']) ? 'selected' : ''; ?>><?php echo e($opt); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <?php else: ?>
+                                        <input type="<?php echo ($cfType === 'number') ? 'number' : (($cfType === 'date') ? 'date' : (($cfType === 'email') ? 'email' : 'text')); ?>" name="<?php echo $cfName; ?>" value="<?php echo e($cf['value']); ?>" class="form-control" style="width:100%; font-size:13px;">
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span style="font-size: 13px; color: <?php echo ($cf['value'] === '' ? '#9ca3af' : '#1f2937'); ?>;"><?php echo $cf['value'] === '' ? '&mdash;' : nl2br(e($cf['value'])); ?></span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                             <?php endforeach; ?>
                         </div>
                         <?php endforeach; ?>
+                        <?php if ($canEditCustom): ?>
+                            <div style="margin-top: 18px;">
+                                <button type="submit" class="btn btn-primary" style="padding: 9px 22px; font-size: 13px;">Save Custom Data</button>
+                            </div>
+                        </form>
+                        <?php endif; ?>
                     </div>
                 </div><!-- /vendorTabContent_custom_data -->
                 <?php endif; ?>
