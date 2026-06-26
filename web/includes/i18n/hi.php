@@ -1105,6 +1105,8 @@ return [
     'admin_assessment-templates.label_question_text' => 'प्रश्न पाठ',
     'admin_assessment-templates.label_question_type' => 'प्रश्न प्रकार',
     'admin_assessment-templates.label_required' => 'आवश्यक?',
+    'admin_assessment-templates.label_visible_roles' => 'भूमिकाओं के लिए दृश्यमान',
+    'admin_assessment-templates.visible_roles_hint' => 'सभी को दिखाने के लिए सभी अनचेक छोड़ें। प्रतिबंधित करने पर यह विक्रेता फ़ॉर्म और चयनित भूमिका रहित उपयोगकर्ताओं से छिप जाता है (सुपर एडमिन इसे हमेशा देखते हैं)।',
     'admin_assessment-templates.label_section_name' => 'अनुभाग का नाम',
     'admin_assessment-templates.label_show_when' => 'तब दिखाएँ जब प्रश्न:',
     'admin_assessment-templates.label_template_name' => 'टेम्पलेट का नाम',

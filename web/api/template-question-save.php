@@ -42,6 +42,8 @@ $options = $_POST['options'] ?? '';
 $fieldName = trim($_POST['field_name'] ?? '');
 $dependsOnQuestionId = intval($_POST['depends_on_question_id'] ?? 0);
 $dependsOnValue = trim($_POST['depends_on_value'] ?? '');
+// Role visibility (onboarding templates) — sanitized to known role slugs or null.
+$visibleRoles = VendorAssessmentService::sanitizeVisibleRoles($_POST['visible_roles'] ?? '');
 
 if (!$sectionId || empty($questionText)) {
     echo json_encode(['success' => false, 'message' => 'Section ID and question text are required', 'csrf_token' => $security->getCSRFToken()]);
@@ -63,6 +65,7 @@ $data = [
     'field_name' => $fieldName ?: null,
     'depends_on_question_id' => $dependsOnQuestionId ?: null,
     'depends_on_value' => $dependsOnValue ?: null,
+    'visible_roles' => $visibleRoles,
 ];
 
 try {

@@ -478,7 +478,7 @@ foreach ($editTemplate['sections'] as $sec) {
                     <?php if ($sIdx < count($editTemplate['sections']) - 1): ?>
                     <button type="button" class="btn btn-sm btn-secondary" data-action="reorderSection" data-args="<?php echo e(json_encode([$sec['id'], 'down'])); ?>" title="<?php echo e(t('admin_assessment-templates.title_move_down')); ?>">&#9660;</button>
                     <?php endif; ?>
-                    <button type="button" class="btn btn-sm btn-primary" data-action="editSection" data-args="<?php echo e(json_encode([$sec['id'], $sec['name'], $sec['description'] ?? ''])); ?>"><?php echo e(t('admin_assessment-templates.action_edit')); ?></button>
+                    <button type="button" class="btn btn-sm btn-primary" data-action="editSection" data-args="<?php echo e(json_encode([$sec['id'], $sec['name'], $sec['description'] ?? '', $sec['visible_roles'] ?? ''])); ?>"><?php echo e(t('admin_assessment-templates.action_edit')); ?></button>
                     <button type="button" class="btn btn-sm" style="background:#ef4444;color:white;" data-action="deleteSection" data-arg="<?php echo $sec['id']; ?>"><?php echo e(t('admin_assessment-templates.action_delete')); ?></button>
                 </div>
             </div>
@@ -524,6 +524,19 @@ foreach ($editTemplate['sections'] as $sec) {
     </div>
 </div>
 
+<?php
+// Role visibility options for onboarding-template sections/questions. Keys are the
+// role slugs persisted in visible_roles (matches VendorAssessmentService::VISIBILITY_ROLES).
+// 'super_admin' is the is_super_admin flag, not an ACL group. Empty selection = visible to all.
+$visibilityRoles = [
+    'stakeholder'   => 'Stakeholder',
+    'cyber_tprm'    => 'Cyber TPRM',
+    'administrator' => 'Administrator',
+    'auditor'       => 'Auditor',
+    'procurement'   => 'Procurement',
+    'super_admin'   => 'Super Admin',
+];
+?>
 <!-- Section Modal -->
 <div id="sectionModal" class="modal">
     <div class="modal-content">
@@ -538,6 +551,19 @@ foreach ($editTemplate['sections'] as $sec) {
             <label><?php echo e(t('admin_assessment-templates.label_description')); ?></label>
             <textarea id="sectionModalDesc" class="form-control" rows="2"></textarea>
         </div>
+        <?php if ($templateCategory === 'onboarding'): ?>
+        <div class="form-group" style="border-top:1px solid #e5e7eb; padding-top:12px;">
+            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;"><?php echo e(t('admin_assessment-templates.label_visible_roles')); ?></label>
+            <small style="color:#666; display:block; margin-bottom:8px;"><?php echo e(t('admin_assessment-templates.visible_roles_hint')); ?></small>
+            <div id="sectionModalVisibleRoles" style="display:flex; flex-wrap:wrap; gap:14px;">
+                <?php foreach ($visibilityRoles as $slug => $label): ?>
+                <label style="display:flex; align-items:center; gap:5px; font-weight:normal; font-size:13px; cursor:pointer;">
+                    <input type="checkbox" class="sec-visible-role" value="<?php echo e($slug); ?>"> <?php echo e($label); ?>
+                </label>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
         <div style="display:flex; gap:10px; margin-top:20px;">
             <button type="button" class="btn btn-primary" data-action="saveSection"><?php echo e(t('admin_assessment-templates.btn_save_section')); ?></button>
             <button type="button" class="btn btn-secondary" data-close="sectionModal"><?php echo e(t('admin_assessment-templates.btn_cancel')); ?></button>
@@ -634,6 +660,19 @@ foreach ($editTemplate['sections'] as $sec) {
                 </div>
             </div>
         </div>
+        <?php if ($templateCategory === 'onboarding'): ?>
+        <div class="form-group" style="border-top:1px solid #e5e7eb; padding-top:15px; margin-top:15px;">
+            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;"><?php echo e(t('admin_assessment-templates.label_visible_roles')); ?></label>
+            <small style="color:#666; display:block; margin-bottom:8px;"><?php echo e(t('admin_assessment-templates.visible_roles_hint')); ?></small>
+            <div id="qModalVisibleRoles" style="display:flex; flex-wrap:wrap; gap:14px;">
+                <?php foreach ($visibilityRoles as $slug => $label): ?>
+                <label style="display:flex; align-items:center; gap:5px; font-weight:normal; font-size:13px; cursor:pointer;">
+                    <input type="checkbox" class="q-visible-role" value="<?php echo e($slug); ?>"> <?php echo e($label); ?>
+                </label>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
         <div style="display:flex; gap:10px; margin-top:20px;">
             <button type="button" class="btn btn-primary" data-action="saveQuestion"><?php echo e(t('admin_assessment-templates.btn_save_question')); ?></button>
             <button type="button" class="btn btn-secondary" data-close="questionModal"><?php echo e(t('admin_assessment-templates.btn_cancel')); ?></button>

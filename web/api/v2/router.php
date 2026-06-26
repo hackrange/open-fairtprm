@@ -195,6 +195,30 @@ try {
                 if (!$vendor) apiError(404, 'Vendor not found');
                 // Remove BLOB fields from API response
                 unset($vendor['vendor_favicon']);
+                // Include custom onboarding data: template-defined custom fields that
+                // have no vendor_onboarding_requests column (values from assessment
+                // responses). Same source as the Custom Data tab + CSV export.
+                require_once dirname(dirname(__DIR__)) . '/includes/classes/VendorAssessmentService.php';
+                $vasApi = new VendorAssessmentService();
+                // Role gating: an API key inherits the visibility of its owning user.
+                // Blank any standard onboarding columns, and skip any custom fields,
+                // the token owner could not see in the GUI (no BOLA/IDOR via API).
+                foreach ($vasApi->getHiddenOnboardingFieldNames($resourceId, $tokenGroups, $tokenIsSuperAdmin) as $hiddenFnl => $_unused) {
+                    if (array_key_exists($hiddenFnl, $vendor)) $vendor[$hiddenFnl] = null;
+                }
+                $apiViewer = ['groups' => $tokenGroups, 'super' => $tokenIsSuperAdmin];
+                $customData = [];
+                foreach ($vasApi->getCustomOnboardingData($resourceId, $apiViewer) as $cf) {
+                    $customData[] = [
+                        'field_name'    => $cf['field_name'],
+                        'label'         => $cf['label'],
+                        'value'         => $cf['value'],
+                        'type'          => $cf['type'],
+                        'section'       => $cf['section'],
+                        'template_name' => $cf['template_name'],
+                    ];
+                }
+                $vendor['custom_onboarding_data'] = $customData;
                 apiSuccess(['data' => $vendor]);
             } elseif ($method === 'GET' && $resourceId !== null && $subResource === 'srs') {
                 if (!$tokenCanAccessVendor($resourceId)) apiError(404, 'Vendor not found');

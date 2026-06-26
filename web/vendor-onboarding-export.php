@@ -76,6 +76,34 @@ $query = "
 $requests = $db->fetchAll($query, $params);
 
 // ============================================================================
+// CUSTOM ONBOARDING FIELDS
+// Build the union of custom field_names across the exported vendors so each
+// becomes its own "custom:<field_name>" column. Values come from the shared
+// VendorAssessmentService helper (same source as the Custom Data tab + API).
+// ============================================================================
+require_once __DIR__ . '/includes/classes/VendorAssessmentService.php';
+$vasExport = new VendorAssessmentService();
+// Viewer context for role gating: the exporting user only gets custom/standard
+// onboarding fields they are permitted to see in the GUI (no IDOR via export).
+$expViewerGroups = $acl->getUserGroups();
+$expViewerSuper  = (bool)Session::getInstance()->get('is_super_admin');
+$expViewer = ['groups' => $expViewerGroups, 'super' => $expViewerSuper];
+$hiddenByVendor = [];    // vendorId => [lowercased standard field_name => true]
+$customByVendor = [];    // vendorId => [field_name => value]
+$customFieldNames = [];  // ordered union of custom field_names
+foreach ($requests as $req) {
+    $hiddenByVendor[$req['id']] = $vasExport->getHiddenOnboardingFieldNames($req['id'], $expViewerGroups, $expViewerSuper);
+    $cd = $vasExport->getCustomOnboardingData($req['id'], $expViewer);
+    if (empty($cd)) continue;
+    $vals = [];
+    foreach ($cd as $fn => $cf) {
+        $vals[$fn] = $cf['value'];
+        if (!in_array($fn, $customFieldNames, true)) $customFieldNames[] = $fn;
+    }
+    $customByVendor[$req['id']] = $vals;
+}
+
+// ============================================================================
 // CSV OUTPUT
 // Set headers to force download, then pump out the data. The filename
 // includes a timestamp so you can tell exports apart.
@@ -145,11 +173,20 @@ $headers = [
     'Updated At'
 ];
 
+// Append one column per discovered custom field, keyed by its stable field_name.
+foreach ($customFieldNames as $fn) {
+    $headers[] = 'custom:' . $fn;
+}
+
 fputcsv($output, $headers);
 
 // Export each record as a CSV row -- null coalescing everywhere because
 // not every field is guaranteed to be populated
 foreach ($requests as $req) {
+    // Blank any standard onboarding columns this exporter is not permitted to see.
+    foreach ($hiddenByVendor[$req['id']] ?? [] as $hiddenFnl => $_unused) {
+        if (array_key_exists($hiddenFnl, $req)) $req[$hiddenFnl] = '';
+    }
     $row = [
         $req['id'],
         $req['vendor_name'] ?? '',
@@ -207,6 +244,11 @@ foreach ($requests as $req) {
         $req['submitted_at'] ?? '',
         $req['updated_at'] ?? ''
     ];
+
+    // Append this vendor's custom field values, aligned to the header union.
+    foreach ($customFieldNames as $fn) {
+        $row[] = $customByVendor[$req['id']][$fn] ?? '';
+    }
 
     fputcsv($output, array_map('csvSafeCell', $row)); // SECURITY: neutralize CSV formula injection
 }

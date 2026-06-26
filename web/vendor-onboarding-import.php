@@ -104,6 +104,14 @@ if (isset($_GET['download_template'])) {
         'stakeholder_username'
     ];
 
+    // Append a custom:<field_name> column for each custom field defined on any
+    // onboarding template, so importers know exactly which custom fields exist.
+    require_once __DIR__ . '/includes/classes/VendorAssessmentService.php';
+    $tplCustomFields = (new VendorAssessmentService())->getOnboardingCustomFieldNames();
+    foreach ($tplCustomFields as $fn) {
+        $headers[] = 'custom:' . $fn;
+    }
+
     fputcsv($output, $headers);
 
     // A realistic-looking sample row so people don't have to guess the format
@@ -154,6 +162,13 @@ if (isset($_GET['download_template'])) {
         'jsmith'                          // stakeholder_username
     ];
 
+    // One (blank) sample cell per custom field column, keeping the row aligned
+    // with the header. Custom values are only written to vendors that already have
+    // a matching onboarding assessment question.
+    foreach ($tplCustomFields as $fn) {
+        $sampleData[] = '';
+    }
+
     fputcsv($output, $sampleData);
     fclose($output);
     exit;
@@ -195,6 +210,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
             $updateCount = 0;
             $errorCount = 0;
             $importedVendorIds = []; // Track for audit trail
+            // Custom onboarding field import (custom:<field_name> columns)
+            $customWrittenCount = 0;
+            $customSkippedCount = 0;
+            require_once __DIR__ . '/includes/classes/VendorAssessmentService.php';
+            $vasImport = new VendorAssessmentService();
 
             // ================================================================
             // VALID ENUM VALUES
@@ -452,6 +472,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                             }
                         }
 
+                        // ====================================================
+                        // CUSTOM ONBOARDING FIELDS
+                        // Any "custom:<field_name>" column is written back to the
+                        // vendor's existing onboarding assessment response (matched
+                        // by question field_name). Update-existing-only: a value with
+                        // no matching assessment/question is skipped and reported.
+                        // Blank cells are left alone (never wipe existing answers).
+                        // ====================================================
+                        $customSkippedFields = [];
+                        foreach ($row as $colKey => $colVal) {
+                            if (strncmp((string)$colKey, 'custom:', 7) !== 0) continue;
+                            $fieldName = trim(substr($colKey, 7));
+                            $colVal = trim((string)$colVal);
+                            if ($fieldName === '' || $colVal === '') continue;
+                            if ($vasImport->setCustomOnboardingValue($recordId, $fieldName, $colVal)) {
+                                $customWrittenCount++;
+                            } else {
+                                $customSkippedCount++;
+                                $customSkippedFields[] = $fieldName;
+                            }
+                        }
+                        $customMessage = '';
+                        if (!empty($customSkippedFields)) {
+                            $customMessage = ' (Custom fields skipped — no onboarding assessment/question: '
+                                . implode(', ', array_slice($customSkippedFields, 0, 5))
+                                . (count($customSkippedFields) > 5 ? '…' : '') . ')';
+                        }
+
                         $actionLabel = $isUpdate ? 'Updated' : 'Imported';
                         $successCount++;
                         if ($isUpdate) { $updateCount++; } else { $createCount++; }
@@ -461,7 +509,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                             'vendor' => $row['vendor_name'],
                             'vendor_id' => $recordId,
                             'status' => 'success',
-                            'message' => $actionLabel . ' successfully' . $stakeholderMessage
+                            'message' => $actionLabel . ' successfully' . $stakeholderMessage . $customMessage
                         ];
 
                     } catch (Exception $e) {
@@ -543,6 +591,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                 $success = "Import completed: {$successCount} records processed ({$createCount} created, {$updateCount} updated)";
                 if ($errorCount > 0) {
                     $success .= ", {$errorCount} records failed";
+                }
+                if ($customWrittenCount > 0 || $customSkippedCount > 0) {
+                    $success .= ". Custom fields: {$customWrittenCount} updated";
+                    if ($customSkippedCount > 0) {
+                        $success .= ", {$customSkippedCount} skipped (no matching onboarding assessment/question)";
+                    }
                 }
 
             } catch (Exception $e) {

@@ -37,6 +37,8 @@ $templateId = intval($_POST['template_id'] ?? 0);
 $sectionId = intval($_POST['section_id'] ?? 0);
 $name = trim($_POST['name'] ?? '');
 $description = trim($_POST['description'] ?? '');
+// Role visibility (onboarding templates) — sanitized to known role slugs or null.
+$visibleRoles = VendorAssessmentService::sanitizeVisibleRoles($_POST['visible_roles'] ?? '');
 
 if (!$templateId || empty($name)) {
     echo json_encode(['success' => false, 'message' => 'Template ID and name are required', 'csrf_token' => $security->getCSRFToken()]);
@@ -44,11 +46,12 @@ if (!$templateId || empty($name)) {
 }
 
 try {
+    $sectionData = ['name' => $name, 'description' => $description, 'visible_roles' => $visibleRoles];
     if ($sectionId) {
-        $svc->updateSection($sectionId, ['name' => $name, 'description' => $description]);
+        $svc->updateSection($sectionId, $sectionData);
         $resultId = $sectionId;
     } else {
-        $resultId = $svc->createSection($templateId, ['name' => $name, 'description' => $description]);
+        $resultId = $svc->createSection($templateId, $sectionData);
     }
 
     echo json_encode(['success' => true, 'section_id' => $resultId, 'csrf_token' => $security->getCSRFToken()]);

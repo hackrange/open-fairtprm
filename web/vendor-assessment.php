@@ -91,6 +91,17 @@ if ($assessment['status'] === 'completed' && !$forceEdit) {
 
 // Load up the sections, figure out how far along the vendor is, and grab existing responses
 $sections = $assessmentService->getSections($assessment['template_id']);
+
+// Onboarding role visibility: hide role-restricted sections from this viewer. The
+// public vendor (no login) has no role, so any restricted section/question is
+// internal-only and hidden from them; logged-in privileged viewers see what their
+// role allows; super admins see everything. (Safe to call on this public page.)
+$vaViewerGroups = ACL::getInstance()->getUserGroups();
+$vaViewerSuper = (bool)$session->get('is_super_admin');
+$sections = array_values(array_filter($sections, function($s) use ($vaViewerGroups, $vaViewerSuper) {
+    return VendorAssessmentService::roleGatePasses($s['visible_roles'] ?? null, $vaViewerGroups, $vaViewerSuper);
+}));
+
 $completionStatus = $assessmentService->getCompletionStatus($assessment['id']);
 $responses = $assessmentService->getResponses($assessment['id']);
 
@@ -141,6 +152,10 @@ $currentQuestions = [];
 if ($currentSectionIndex >= 0 && isset($sections[$currentSectionIndex])) {
     $currentSection = $sections[$currentSectionIndex];
     $currentQuestions = $assessmentService->getQuestions($currentSection['id']);
+    // Drop role-restricted questions this viewer can't see (section already passed).
+    $currentQuestions = array_values(array_filter($currentQuestions, function($q) use ($vaViewerGroups, $vaViewerSuper) {
+        return VendorAssessmentService::roleGatePasses($q['visible_roles'] ?? null, $vaViewerGroups, $vaViewerSuper);
+    }));
     if ($isMinimal) {
         $currentQuestions = array_values(array_filter($currentQuestions, function($q) {
             return !empty($q['include_in_minimal']);

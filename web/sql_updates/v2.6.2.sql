@@ -160,6 +160,7 @@ CREATE TABLE IF NOT EXISTS `assessment_questions` (
   `triggers_assessment_template_id` int(11) DEFAULT NULL,
   `triggers_on_value` varchar(255) DEFAULT NULL,
   `include_in_minimal` tinyint(1) DEFAULT 0 COMMENT 'When the template is in minimal certificate mode, only questions flagged here are presented/required',
+  `visible_roles` text DEFAULT NULL COMMENT 'JSON array of role slugs allowed to see this question/field (onboarding templates only); NULL/empty = visible to all',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_section_sort` (`section_id`,`sort_order`),
   KEY `idx_depends_on` (`depends_on_question_id`),
@@ -171,6 +172,7 @@ CREATE TABLE IF NOT EXISTS `assessment_sections` (
   `name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
   `sort_order` int(11) DEFAULT 0,
+  `visible_roles` text DEFAULT NULL COMMENT 'JSON array of role slugs allowed to see this section (onboarding templates only); NULL/empty = visible to all',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_template_sort` (`template_id`,`sort_order`),
   CONSTRAINT `assessment_sections_ibfk_1` FOREIGN KEY (`template_id`) REFERENCES `assessment_templates` (`id`) ON DELETE CASCADE
@@ -5300,6 +5302,24 @@ WHERE vsf.cve_id IS NOT NULL AND vsf.cve_id != '';
 -- Uses information_schema checks via PREPARE/EXECUTE so adding an existing
 -- column or index is a no-op rather than an error on either platform.
 -- =============================================================================
+
+-- assessment_sections.visible_roles (per-section onboarding role visibility)
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'assessment_sections' AND column_name = 'visible_roles') = 0,
+  'ALTER TABLE `assessment_sections` ADD COLUMN `visible_roles` TEXT DEFAULT NULL AFTER `sort_order`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- assessment_questions.visible_roles (per-question/field onboarding role visibility)
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'assessment_questions' AND column_name = 'visible_roles') = 0,
+  'ALTER TABLE `assessment_questions` ADD COLUMN `visible_roles` TEXT DEFAULT NULL AFTER `include_in_minimal`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- grc_frameworks.compliance_year
 SET @sql = IF(

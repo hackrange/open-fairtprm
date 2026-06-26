@@ -238,6 +238,9 @@ try {
          ORDER BY a.completed_at DESC LIMIT 5",
         [':id' => $vendorId]
     );
+    // Onboarding role visibility: don't surface restricted answers in this report.
+    $dsViewerGroups = $acl->getUserGroups();
+    $dsViewerSuper = (bool)$session->get('is_super_admin');
     foreach ($completedAssessments as $ca) {
         $sections = $assessmentService->getSections($ca['template_id']);
         $responses = $assessmentService->getResponses($ca['id']);
@@ -245,10 +248,12 @@ try {
         $totalQuestions = 0;
         $sectionCount = count($sections);
         foreach ($sections as $section) {
+            if (!VendorAssessmentService::roleGatePasses($section['visible_roles'] ?? null, $dsViewerGroups, $dsViewerSuper)) continue;
             $questions = $assessmentService->getQuestions($section['id']);
             $totalQuestions += count($questions);
             $sectionName = strtolower($section['name'] ?? '');
             foreach ($questions as $q) {
+                if (!VendorAssessmentService::roleGatePasses($q['visible_roles'] ?? null, $dsViewerGroups, $dsViewerSuper)) continue;
                 $qId = $q['id'];
                 $hasAnswer = isset($responses[$qId]) && ($responses[$qId]['response_value'] ?? '') !== '';
                 if ($hasAnswer) $totalAnswered++;

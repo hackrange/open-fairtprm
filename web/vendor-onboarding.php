@@ -254,6 +254,11 @@ if ($editMode && $requestId) {
     }
 }
 
+// Viewer role context for onboarding role-based field visibility (section + question
+// gates). Empty group list + non-super (e.g. the vendor) only sees unrestricted items.
+$viewerGroups = $acl->getUserGroups();
+$viewerSuper = (bool)$session->get('is_super_admin');
+
 // For completed assessments, load responses that aren't mapped to built-in fields
 $assessmentExtraData = [];
 if (!empty($linkedAssessments)) {
@@ -264,10 +269,13 @@ if (!empty($linkedAssessments)) {
             $sections = $vasForExtras->getSections($la['template_id']);
             $extras = [];
             foreach ($sections as $sec) {
+                // Section role gate — restricted sections are hidden from viewers who lack the role.
+                if (!VendorAssessmentService::roleGatePasses($sec['visible_roles'] ?? null, $viewerGroups, $viewerSuper)) continue;
                 $questions = $vasForExtras->getQuestions($sec['id']);
                 $responses = $vasForExtras->getResponses($la['id']);
                 $sectionExtras = [];
                 foreach ($questions as $q) {
+                    if (!VendorAssessmentService::roleGatePasses($q['visible_roles'] ?? null, $viewerGroups, $viewerSuper)) continue;
                     if (empty($q['field_name'])) {
                         $resp = $responses[$q['id']] ?? null;
                         $val = $resp ? $resp['response_value'] : '';
@@ -289,6 +297,23 @@ if (!empty($linkedAssessments)) {
             }
         }
     }
+}
+
+// Custom onboarding fields: questions on this vendor's onboarding template(s) whose
+// field_name is a NEW custom field (no vendor_onboarding_requests column). Surfaced
+// in the "Custom Data" tab. Shares one source of truth with the CSV export/import
+// and the /vendors/{id} API (VendorAssessmentService::getCustomOnboardingData).
+$customOnboardingData = [];
+$hiddenOnboardingFields = [];
+if ($requestId) {
+    if (!isset($vasForExtras)) {
+        require_once __DIR__ . '/includes/classes/VendorAssessmentService.php';
+        $vasForExtras = new VendorAssessmentService();
+    }
+    // Role-gated by the current user (super admins see all). Restricted fields the
+    // viewer can't see are dropped from the Custom Data tab and the Vendor tab.
+    $customOnboardingData = $vasForExtras->getCustomOnboardingData($requestId, ['groups' => $viewerGroups, 'super' => $viewerSuper]);
+    $hiddenOnboardingFields = $vasForExtras->getHiddenOnboardingFieldNames($requestId, $viewerGroups, $viewerSuper);
 }
 
 // SRS integration display names and scoring config
@@ -2551,7 +2576,7 @@ function getFieldValue($request, $field, $default = '') {
                 <?php
                 // Determine which tab to show (from URL param after note redirect, etc.)
                 $activeTab = isset($_GET['tab']) ? $_GET['tab'] : 'vendor';
-                if (!in_array($activeTab, ['vendor', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors'])) {
+                if (!in_array($activeTab, ['vendor', 'custom_data', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors'])) {
                     $activeTab = 'vendor';
                 }
                 // Procurement-only users cannot access FAIR or Assessments tabs
@@ -2567,6 +2592,13 @@ function getFieldValue($request, $field, $default = '') {
                         style="padding: 10px 18px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'vendor' ? 'var(--theme-header-color)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'vendor' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'vendor' ? 'var(--theme-header-color)' : '#6b7280'; ?>; margin-bottom: -2px;">
                         Vendor
                     </button>
+                    <?php if (!empty($customOnboardingData)): ?>
+                    <button type="button" data-action="showVendorTab" data-arg="custom_data" id="vendorTab_custom_data" class="vendor-section-tab"
+                        style="padding: 10px 18px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'custom_data' ? 'var(--theme-header-color)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'custom_data' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'custom_data' ? 'var(--theme-header-color)' : '#6b7280'; ?>; margin-bottom: -2px;">
+                        Custom Data
+                        <span style="background: var(--theme-header-color); color: white; font-size: 10px; padding: 2px 7px; border-radius: 10px; margin-left: 4px;"><?php echo count($customOnboardingData); ?></span>
+                    </button>
+                    <?php endif; ?>
                     <button type="button" data-action="showVendorTab" data-arg="notes" id="vendorTab_notes" class="vendor-section-tab"
                         style="padding: 10px 18px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'notes' ? 'var(--theme-header-color)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'notes' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'notes' ? 'var(--theme-header-color)' : '#6b7280'; ?>; margin-bottom: -2px;">
                         Case Management
@@ -2676,7 +2708,11 @@ function getFieldValue($request, $field, $default = '') {
                         'primary_contact_title', 'primary_contact_phone'];
                     // Helper: render a dual-mode field (display + edit input)
                     function dualField($request, $field, $label, $type = 'text', $options = []) {
-                        global $canEdit, $canEditProcurementFields, $procurementEditableFields;
+                        global $canEdit, $canEditProcurementFields, $procurementEditableFields, $hiddenOnboardingFields;
+                        // Onboarding role visibility: a restricted field the viewer can't see is
+                        // omitted entirely (the save handler only updates posted fields, so this
+                        // never wipes the value).
+                        if (!empty($hiddenOnboardingFields) && isset($hiddenOnboardingFields[strtolower($field)])) return;
                         $val = getFieldValue($request, $field);
                         echo '<div class="vendor-field-row">';
                         echo '<span class="vendor-field-label">' . e($label) . '</span>';
@@ -2803,7 +2839,8 @@ function getFieldValue($request, $field, $default = '') {
                     }
                     // Helper: render justification field (not editable by procurement)
                     function dualJustification($request, $field, $label = '') {
-                        global $canEdit;
+                        global $canEdit, $hiddenOnboardingFields;
+                        if (!empty($hiddenOnboardingFields) && isset($hiddenOnboardingFields[strtolower($field)])) return;
                         $val = getFieldValue($request, $field);
                         echo '<div class="vendor-field-justification-wrap">';
                         if ($val) echo '<div class="vendor-field-justification vendor-field-display">' . e($val) . '</div>';
@@ -3081,6 +3118,40 @@ function getFieldValue($request, $field, $default = '') {
                 </div>
                 <?php endif; ?>
                 </div><!-- /vendorTabContent_vendor -->
+
+
+                <?php if ($showVendorTabs && !empty($customOnboardingData)): ?>
+                <!-- Tab: Custom Data -->
+                <div id="vendorTabContent_custom_data" style="<?php echo $activeTab !== 'custom_data' ? 'display: none;' : ''; ?>">
+                    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 25px;">
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="margin: 0 0 4px; font-size: 18px; font-weight: 600; color: #333;">Custom Data<?php if (!empty($request['vendor_name'])): ?> (<?php echo e($request['vendor_name']); ?>)<?php endif; ?></h3>
+                            <p style="margin: 0; color: #6b7280; font-size: 13px;">Custom onboarding fields defined on this vendor's onboarding template that are not part of the standard vendor record.</p>
+                        </div>
+                        <?php
+                        // Group the custom fields by their template section for display.
+                        $customBySection = [];
+                        foreach ($customOnboardingData as $cf) {
+                            $customBySection[$cf['section'] !== '' ? $cf['section'] : 'Custom Fields'][] = $cf;
+                        }
+                        ?>
+                        <?php foreach ($customBySection as $sectionName => $fields): ?>
+                        <div style="margin-bottom: 22px;">
+                            <div style="font-weight: 600; font-size: 13px; color: #444; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0;"><?php echo e($sectionName); ?></div>
+                            <?php foreach ($fields as $cf): ?>
+                            <div style="display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f7f7f7; align-items: flex-start;">
+                                <div style="min-width: 240px; max-width: 240px;">
+                                    <div style="font-size: 13px; color: #333; font-weight: 500;"><?php echo e($cf['label']); ?></div>
+                                    <div style="font-size: 11px; color: #9ca3af; font-family: monospace; margin-top: 2px;"><?php echo e($cf['field_name']); ?></div>
+                                </div>
+                                <div style="font-size: 13px; color: <?php echo ($cf['value'] === '' ? '#9ca3af' : '#1f2937'); ?>; flex: 1; word-break: break-word;"><?php echo $cf['value'] === '' ? '&mdash;' : nl2br(e($cf['value'])); ?></div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div><!-- /vendorTabContent_custom_data -->
+                <?php endif; ?>
 
 
                 <?php if ($showVendorTabs): ?>
@@ -5666,7 +5737,7 @@ function getFieldValue($request, $field, $default = '') {
 
         // Tab switching for vendor detail tabs
         function showVendorTab(section) {
-            const sections = ['vendor', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors'];
+            const sections = ['vendor', 'custom_data', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors'];
             sections.forEach(function(s) {
                 var el = document.getElementById('vendorTabContent_' + s);
                 var tab = document.getElementById('vendorTab_' + s);

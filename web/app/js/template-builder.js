@@ -28,6 +28,28 @@ function reloadPage() {
 }
 
 // ============================================================
+// ROLE VISIBILITY HELPERS (onboarding templates only)
+// The .sec-visible-role / .q-visible-role checkboxes only exist when the
+// template category is 'onboarding', so every helper is a no-op otherwise.
+// ============================================================
+
+function setRoleCheckboxes(selector, roles) {
+    var arr = [];
+    if (Array.isArray(roles)) {
+        arr = roles;
+    } else if (typeof roles === 'string' && roles) {
+        try { var p = JSON.parse(roles); if (Array.isArray(p)) arr = p; } catch (e) {}
+    }
+    document.querySelectorAll(selector).forEach(function(cb) { cb.checked = arr.indexOf(cb.value) !== -1; });
+}
+
+function getRoleCheckboxes(selector) {
+    var out = [];
+    document.querySelectorAll(selector).forEach(function(cb) { if (cb.checked) out.push(cb.value); });
+    return out;
+}
+
+// ============================================================
 // SECTION OPERATIONS
 // ============================================================
 
@@ -35,14 +57,16 @@ function addSection() {
     document.getElementById('sectionModalId').value = '';
     document.getElementById('sectionModalName').value = '';
     document.getElementById('sectionModalDesc').value = '';
+    setRoleCheckboxes('.sec-visible-role', []);
     document.getElementById('sectionModalTitle').textContent = 'Add Section';
     document.getElementById('sectionModal').style.display = 'block';
 }
 
-function editSection(sectionId, name, description) {
+function editSection(sectionId, name, description, visibleRoles) {
     document.getElementById('sectionModalId').value = sectionId;
     document.getElementById('sectionModalName').value = name;
     document.getElementById('sectionModalDesc').value = description;
+    setRoleCheckboxes('.sec-visible-role', visibleRoles);
     document.getElementById('sectionModalTitle').textContent = 'Edit Section';
     document.getElementById('sectionModal').style.display = 'block';
 }
@@ -57,7 +81,8 @@ function saveSection() {
     var data = {
         template_id: templateId,
         name: name,
-        description: desc
+        description: desc,
+        visible_roles: JSON.stringify(getRoleCheckboxes('.sec-visible-role'))
     };
     if (sectionId) data.section_id = sectionId;
 
@@ -131,6 +156,7 @@ function addQuestion(sectionId) {
     document.getElementById('qModalOptions').value = '';
     document.getElementById('qModalDependsOn').value = '';
     document.getElementById('qModalDependsValue').innerHTML = '<option value="">--</option>';
+    setRoleCheckboxes('.q-visible-role', []);
     document.getElementById('questionModalTitle').textContent = 'Add Question';
     toggleOptionsEditor();
     document.getElementById('questionModal').style.display = 'block';
@@ -172,6 +198,8 @@ function editQuestion(questionId) {
             document.getElementById('qModalDependsValue').value = q.depends_on_value;
         }, 50);
     }
+
+    setRoleCheckboxes('.q-visible-role', q.visible_roles);
 
     document.getElementById('questionModalTitle').textContent = 'Edit Question';
     toggleOptionsEditor();
@@ -272,7 +300,8 @@ function saveQuestion() {
         options: options,
         field_name: fieldName,
         depends_on_question_id: dependsOn || '',
-        depends_on_value: dependsValue || ''
+        depends_on_value: dependsValue || '',
+        visible_roles: JSON.stringify(getRoleCheckboxes('.q-visible-role'))
     };
     if (questionId) data.question_id = questionId;
 

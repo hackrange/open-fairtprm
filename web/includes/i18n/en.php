@@ -1132,6 +1132,8 @@ return [
     'admin_assessment-templates.label_question_text' => 'Question Text',
     'admin_assessment-templates.label_question_type' => 'Question Type',
     'admin_assessment-templates.label_required' => 'Required?',
+    'admin_assessment-templates.label_visible_roles' => 'Visible to Roles',
+    'admin_assessment-templates.visible_roles_hint' => 'Leave all unchecked to show this to everyone. Restricting hides it from the vendor form and from users without a selected role (super admins always see it).',
     'admin_assessment-templates.label_section_name' => 'Section Name',
     'admin_assessment-templates.label_show_when' => 'Show when question:',
     'admin_assessment-templates.label_template_name' => 'Template Name',

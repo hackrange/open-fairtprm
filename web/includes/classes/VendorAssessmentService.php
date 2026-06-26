@@ -20,8 +20,55 @@ class VendorAssessmentService {
     /**
      * Grab the database singleton and we're off to the races.
      */
+    /**
+     * The role slugs that can be granted per-section / per-question visibility on
+     * ONBOARDING templates. 'super_admin' is the is_super_admin flag (not an ACL
+     * group). Empty selection on a section/question = visible to everyone.
+     */
+    const VISIBILITY_ROLES = ['stakeholder', 'cyber_tprm', 'administrator', 'auditor', 'procurement', 'super_admin'];
+
     public function __construct() {
         $this->db = Database::getInstance();
+    }
+
+    /**
+     * Decode a visible_roles value (JSON string or array) into a clean slug list.
+     */
+    private static function decodeRoles($value) {
+        if (is_array($value)) {
+            $arr = $value;
+        } elseif (is_string($value) && $value !== '') {
+            $arr = json_decode($value, true);
+        } else {
+            $arr = [];
+        }
+        if (!is_array($arr)) $arr = [];
+        return array_values(array_filter(array_map('strval', $arr), function ($r) { return $r !== ''; }));
+    }
+
+    /**
+     * Sanitize a visible_roles input (from the template builder) down to the known
+     * VISIBILITY_ROLES, returning a JSON string or null when nothing valid remains.
+     */
+    public static function sanitizeVisibleRoles($value) {
+        $valid = array_values(array_intersect(self::decodeRoles($value), self::VISIBILITY_ROLES));
+        return empty($valid) ? null : json_encode($valid);
+    }
+
+    /**
+     * Decide whether a viewer may see an item given its visible_roles value.
+     * Empty/NULL restriction = visible to everyone. Super admins always pass.
+     * Otherwise the viewer must belong to one of the listed groups.
+     *
+     * @param mixed $visibleRoles JSON string / array stored on the section or question
+     * @param array $viewerGroups the viewer's ACL group slugs
+     * @param bool  $isSuperAdmin whether the viewer has the is_super_admin flag
+     */
+    public static function roleGatePasses($visibleRoles, array $viewerGroups, $isSuperAdmin) {
+        if ($isSuperAdmin) return true;
+        $roles = self::decodeRoles($visibleRoles);
+        if (empty($roles)) return true; // unrestricted
+        return count(array_intersect($viewerGroups, $roles)) > 0;
     }
 
     /**
@@ -414,6 +461,7 @@ class VendorAssessmentService {
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
             'sort_order' => ($max['max_order'] ?? 0) + 1,
+            'visible_roles' => array_key_exists('visible_roles', $data) ? $data['visible_roles'] : null,
         ]);
     }
 
@@ -421,10 +469,14 @@ class VendorAssessmentService {
      * Update a section's name and description.
      */
     public function updateSection($sectionId, $data) {
-        return $this->db->update('assessment_sections', [
+        $update = [
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
-        ], 'id = :id', [':id' => $sectionId]);
+        ];
+        if (array_key_exists('visible_roles', $data)) {
+            $update['visible_roles'] = $data['visible_roles'];
+        }
+        return $this->db->update('assessment_sections', $update, 'id = :id', [':id' => $sectionId]);
     }
 
     /**
@@ -482,6 +534,7 @@ class VendorAssessmentService {
             'field_name' => !empty($data['field_name']) ? $data['field_name'] : null,
             'depends_on_question_id' => !empty($data['depends_on_question_id']) ? (int)$data['depends_on_question_id'] : null,
             'depends_on_value' => $data['depends_on_value'] ?? null,
+            'visible_roles' => array_key_exists('visible_roles', $data) ? $data['visible_roles'] : null,
         ]);
     }
 
@@ -499,6 +552,9 @@ class VendorAssessmentService {
             'depends_on_question_id' => !empty($data['depends_on_question_id']) ? (int)$data['depends_on_question_id'] : null,
             'depends_on_value' => $data['depends_on_value'] ?? null,
         ];
+        if (array_key_exists('visible_roles', $data)) {
+            $update['visible_roles'] = $data['visible_roles'];
+        }
         return $this->db->update('assessment_questions', $update, 'id = :id', [':id' => $questionId]);
     }
 
@@ -1637,6 +1693,226 @@ class VendorAssessmentService {
         }
 
         return $result;
+    }
+
+    /**
+     * Set of lower-cased column names on vendor_onboarding_requests. A question
+     * whose field_name matches one of these is a BUILT-IN field (already exported
+     * and returned via the request row); anything else with a field_name is a NEW
+     * custom field. Cached for the request lifetime.
+     */
+    private function getVendorColumnSet() {
+        static $cols = null;
+        if ($cols !== null) return $cols;
+        $cols = [];
+        try {
+            foreach ($this->db->fetchAll('SHOW COLUMNS FROM vendor_onboarding_requests') as $r) {
+                $name = $r['Field'] ?? ($r['field'] ?? null);
+                if ($name) $cols[strtolower($name)] = true;
+            }
+        } catch (Exception $e) {
+            $cols = [];
+        }
+        return $cols;
+    }
+
+    /**
+     * Custom onboarding fields for a vendor: questions in the vendor's
+     * ONBOARDING-category assessment template(s) whose field_name is defined but
+     * is NOT a real vendor_onboarding_requests column (i.e. a NEW custom field).
+     * Values come from vendor_assessment_responses. Keyed by field_name; when the
+     * same field_name appears in more than one assessment the newest one wins.
+     *
+     * Each entry: field_name, label, value, type, section, template_id,
+     * template_name, assessment_id, question_id.
+     *
+     * @param int $vendorRequestId vendor_onboarding_requests.id
+     * @return array<string,array>
+     */
+    /**
+     * @param int        $vendorRequestId vendor_onboarding_requests.id
+     * @param array|null $viewer When provided, role-gates the result so a viewer only
+     *                           sees fields whose section AND question allow their role.
+     *                           Shape: ['groups' => string[], 'super' => bool]. Null = no
+     *                           gating (full data — used by trusted/internal callers).
+     */
+    public function getCustomOnboardingData($vendorRequestId, $viewer = null) {
+        $vendorRequestId = (int)$vendorRequestId;
+        if ($vendorRequestId <= 0) return [];
+
+        $known = $this->getVendorColumnSet();
+        $vg = $viewer['groups'] ?? [];
+        $vs = !empty($viewer['super']);
+
+        $assessments = $this->db->fetchAll(
+            "SELECT va.id, va.template_id, t.name AS template_name
+             FROM vendor_assessments va
+             JOIN assessment_templates t ON va.template_id = t.id
+             WHERE va.vendor_request_id = :rid AND t.category = 'onboarding'
+             ORDER BY va.created_at DESC, va.id DESC",
+            [':rid' => $vendorRequestId]
+        );
+
+        $out = [];
+        foreach ($assessments as $a) {
+            $responses = $this->getResponses($a['id']);
+            foreach ($this->getSections($a['template_id']) as $sec) {
+                // Section-level role gate (only enforced when a viewer is supplied).
+                $secVisible = ($viewer === null) || self::roleGatePasses($sec['visible_roles'] ?? null, $vg, $vs);
+                foreach ($this->getQuestions($sec['id']) as $q) {
+                    $fn = trim((string)($q['field_name'] ?? ''));
+                    // Skip unmapped questions and built-in (real column) fields.
+                    if ($fn === '' || isset($known[strtolower($fn)])) continue;
+                    // Newest assessment already supplied this field_name.
+                    if (isset($out[$fn])) continue;
+                    // Question-level role gate (section AND question must pass).
+                    if ($viewer !== null && (!$secVisible || !self::roleGatePasses($q['visible_roles'] ?? null, $vg, $vs))) continue;
+
+                    $resp = $responses[$q['id']] ?? null;
+                    $val = $resp ? (string)$resp['response_value'] : '';
+                    if ($val !== '' && ($q['question_type'] ?? '') === 'checkbox') {
+                        $decoded = json_decode($val, true);
+                        if (is_array($decoded)) $val = implode(', ', $decoded);
+                    }
+
+                    $out[$fn] = [
+                        'field_name'    => $fn,
+                        'label'         => $q['question_text'] ?? $fn,
+                        'value'         => $val,
+                        'type'          => $q['question_type'] ?? 'text',
+                        'section'       => $sec['name'] ?? '',
+                        'template_id'   => (int)$a['template_id'],
+                        'template_name' => $a['template_name'] ?? '',
+                        'assessment_id' => (int)$a['id'],
+                        'question_id'   => (int)$q['id'],
+                    ];
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Lower-cased set (field_name => true) of onboarding fields the viewer must NOT
+     * see — i.e. questions mapped to a field_name (standard OR custom) whose section
+     * or question role gate the viewer fails — across the vendor's onboarding
+     * template(s). A field visible in ANY of the vendor's onboarding templates is
+     * not hidden. Used to redact the Vendor tab, CSV export, and the API vendor row.
+     * Super admins are never restricted (returns empty).
+     *
+     * @param int   $vendorRequestId vendor_onboarding_requests.id
+     * @param array $viewerGroups    viewer's ACL group slugs
+     * @param bool  $isSuperAdmin    viewer's is_super_admin flag
+     * @return array<string,bool>
+     */
+    public function getHiddenOnboardingFieldNames($vendorRequestId, array $viewerGroups, $isSuperAdmin) {
+        $vendorRequestId = (int)$vendorRequestId;
+        if ($vendorRequestId <= 0 || $isSuperAdmin) return [];
+
+        $assessments = $this->db->fetchAll(
+            "SELECT DISTINCT va.template_id
+             FROM vendor_assessments va
+             JOIN assessment_templates t ON va.template_id = t.id
+             WHERE va.vendor_request_id = :rid AND t.category = 'onboarding'",
+            [':rid' => $vendorRequestId]
+        );
+
+        $visibleAnywhere = []; // field_name(lc) => bool (visible in at least one template)
+        foreach ($assessments as $a) {
+            foreach ($this->getSections($a['template_id']) as $sec) {
+                $secVisible = self::roleGatePasses($sec['visible_roles'] ?? null, $viewerGroups, $isSuperAdmin);
+                foreach ($this->getQuestions($sec['id']) as $q) {
+                    $fn = trim((string)($q['field_name'] ?? ''));
+                    if ($fn === '') continue;
+                    $fnl = strtolower($fn);
+                    $visible = $secVisible && self::roleGatePasses($q['visible_roles'] ?? null, $viewerGroups, $isSuperAdmin);
+                    $visibleAnywhere[$fnl] = ($visibleAnywhere[$fnl] ?? false) || $visible;
+                }
+            }
+        }
+
+        $hidden = [];
+        foreach ($visibleAnywhere as $fnl => $vis) {
+            if (!$vis) $hidden[$fnl] = true;
+        }
+        return $hidden;
+    }
+
+    /**
+     * Distinct custom field_names defined across ALL onboarding-category templates
+     * (questions whose field_name is set but is not a real vendor column). Used to
+     * build the CSV import template's custom:<field_name> columns so admins know
+     * which custom fields they can populate.
+     *
+     * @return string[]
+     */
+    public function getOnboardingCustomFieldNames() {
+        $known = $this->getVendorColumnSet();
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT q.field_name
+             FROM assessment_questions q
+             JOIN assessment_sections s ON q.section_id = s.id
+             JOIN assessment_templates t ON s.template_id = t.id
+             WHERE t.category = 'onboarding'
+               AND q.field_name IS NOT NULL AND q.field_name <> ''
+             ORDER BY q.field_name"
+        );
+        $out = [];
+        foreach ($rows as $r) {
+            $fn = trim((string)$r['field_name']);
+            if ($fn !== '' && !isset($known[strtolower($fn)])) $out[] = $fn;
+        }
+        return $out;
+    }
+
+    /**
+     * Write a single custom-field value for a vendor by upserting the response on
+     * the matching question of the vendor's existing ONBOARDING assessment. Used by
+     * the CSV importer. Does NOT create assessments — "update existing only": if the
+     * vendor has no onboarding assessment containing a question with this field_name,
+     * nothing is written and false is returned.
+     *
+     * @return bool true if a response row was inserted/updated, false if no target existed
+     */
+    public function setCustomOnboardingValue($vendorRequestId, $fieldName, $value) {
+        $vendorRequestId = (int)$vendorRequestId;
+        $fieldName = trim((string)$fieldName);
+        if ($vendorRequestId <= 0 || $fieldName === '') return false;
+
+        // Never let a built-in column masquerade as a custom field here.
+        if (isset($this->getVendorColumnSet()[strtolower($fieldName)])) return false;
+
+        $assessments = $this->db->fetchAll(
+            "SELECT va.id, va.template_id
+             FROM vendor_assessments va
+             JOIN assessment_templates t ON va.template_id = t.id
+             WHERE va.vendor_request_id = :rid AND t.category = 'onboarding'
+             ORDER BY va.created_at DESC, va.id DESC",
+            [':rid' => $vendorRequestId]
+        );
+
+        foreach ($assessments as $a) {
+            $q = $this->db->fetchOne(
+                "SELECT q.id
+                 FROM assessment_questions q
+                 JOIN assessment_sections s ON q.section_id = s.id
+                 WHERE s.template_id = :tid AND q.field_name = :fn
+                 ORDER BY s.sort_order, q.sort_order
+                 LIMIT 1",
+                [':tid' => $a['template_id'], ':fn' => $fieldName]
+            );
+            if (!$q) continue;
+
+            // Upsert keyed by the (assessment_id, question_id) unique constraint.
+            $this->db->query(
+                "INSERT INTO vendor_assessment_responses (assessment_id, question_id, response_value)
+                 VALUES (:aid, :qid, :val)
+                 ON DUPLICATE KEY UPDATE response_value = VALUES(response_value), updated_at = current_timestamp()",
+                [':aid' => $a['id'], ':qid' => $q['id'], ':val' => (string)$value]
+            );
+            return true;
+        }
+        return false;
     }
 
     /**

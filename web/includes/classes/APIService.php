@@ -361,10 +361,10 @@ class APIService {
             '/vendors/{id}' => [
                 'get' => [
                     'summary' => 'Get vendor details',
-                    'description' => 'Retrieve full details for a single vendor by ID.',
+                    'description' => 'Retrieve full details for a single vendor by ID. The response also includes a "custom_onboarding_data" array: custom fields defined on the vendor\'s onboarding template that have no standard vendor column (each entry has field_name, label, value, type, section, template_name).',
                     'tags' => ['TPRM'],
                     'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'description' => 'Vendor ID', 'schema' => ['type' => 'integer']]],
-                    'responses' => ['200' => ['description' => 'Vendor details'], '404' => ['description' => 'Vendor not found']],
+                    'responses' => ['200' => ['description' => 'Vendor details, including custom_onboarding_data[]'], '404' => ['description' => 'Vendor not found']],
                 ],
                 'put' => [
                     'summary' => 'Update vendor',

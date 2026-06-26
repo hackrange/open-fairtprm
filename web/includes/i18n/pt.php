@@ -1105,6 +1105,8 @@ return [
     'admin_assessment-templates.label_question_text' => 'Texto da Pergunta',
     'admin_assessment-templates.label_question_type' => 'Tipo de Pergunta',
     'admin_assessment-templates.label_required' => 'Obrigatório?',
+    'admin_assessment-templates.label_visible_roles' => 'Visível para funções',
+    'admin_assessment-templates.visible_roles_hint' => 'Deixe tudo desmarcado para mostrar a todos. Restringir oculta-o do formulário do fornecedor e de usuários sem uma função selecionada (superadministradores sempre veem).',
     'admin_assessment-templates.label_section_name' => 'Nome da Seção',
     'admin_assessment-templates.label_show_when' => 'Exibir quando a pergunta:',
     'admin_assessment-templates.label_template_name' => 'Nome do Modelo',

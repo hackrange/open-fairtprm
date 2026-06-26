@@ -1105,6 +1105,8 @@ return [
     'admin_assessment-templates.label_question_text' => 'Testo della domanda',
     'admin_assessment-templates.label_question_type' => 'Tipo di domanda',
     'admin_assessment-templates.label_required' => 'Obbligatorio?',
+    'admin_assessment-templates.label_visible_roles' => 'Visibile ai ruoli',
+    'admin_assessment-templates.visible_roles_hint' => 'Lascia tutto deselezionato per mostrarlo a tutti. La restrizione lo nasconde dal modulo del fornitore e agli utenti senza un ruolo selezionato (i super amministratori lo vedono sempre).',
     'admin_assessment-templates.label_section_name' => 'Nome sezione',
     'admin_assessment-templates.label_show_when' => 'Mostra quando la domanda:',
     'admin_assessment-templates.label_template_name' => 'Nome del modello',

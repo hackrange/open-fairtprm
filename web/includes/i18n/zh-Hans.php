@@ -1105,6 +1105,8 @@ return [
     'admin_assessment-templates.label_question_text' => '问题文本',
     'admin_assessment-templates.label_question_type' => '问题类型',
     'admin_assessment-templates.label_required' => '是否必填?',
+    'admin_assessment-templates.label_visible_roles' => '对角色可见',
+    'admin_assessment-templates.visible_roles_hint' => '全部不勾选则对所有人可见。限制后将对供应商表单及无所选角色的用户隐藏（超级管理员始终可见）。',
     'admin_assessment-templates.label_section_name' => '章节名称',
     'admin_assessment-templates.label_show_when' => '显示条件(当问题):',
     'admin_assessment-templates.label_template_name' => '模板名称',

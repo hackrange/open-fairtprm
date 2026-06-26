@@ -1105,6 +1105,8 @@ return [
     'admin_assessment-templates.label_question_text' => 'Текст запитання',
     'admin_assessment-templates.label_question_type' => 'Тип запитання',
     'admin_assessment-templates.label_required' => 'Обов\'язкове?',
+    'admin_assessment-templates.label_visible_roles' => 'Видимо для ролей',
+    'admin_assessment-templates.visible_roles_hint' => 'Залиште все непозначеним, щоб показати всім. Обмеження приховує це від форми постачальника та користувачів без вибраної ролі (суперадміністратори завжди бачать).',
     'admin_assessment-templates.label_section_name' => 'Назва розділу',
     'admin_assessment-templates.label_show_when' => 'Показувати, коли запитання:',
     'admin_assessment-templates.label_template_name' => 'Назва шаблону',
