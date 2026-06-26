@@ -850,6 +850,207 @@ class CyberTodoService
         );
     }
 
+    // ========================================================================
+    // Scheduled Actions (Action Plan tab) -- shared executor used by BOTH the
+    // "Run Onboarding Scheduled Actions" cron and the manual Create To-Do modal.
+    // Each supported action is tied to a vendor and, when it fires, leaves a
+    // Cyber To-Do trail linking back to that vendor's Action Plan tab.
+    // ========================================================================
+
+    /** Action keys understood by executeScheduledAction(). */
+    public const SCHEDULED_ACTION_LABELS = [
+        'contact_vendor'      => 'Contact Vendor',
+        'contact_stakeholder' => 'Contact Stakeholder',
+        'send_assessment'     => 'Send Assessment',
+        'force_annual_review' => 'Force Annual Review',
+    ];
+
+    /**
+     * Execute one action against a vendor. Used by the cron (for a due
+     * vendor_scheduled_actions row) and by the cyber-todo modal (immediately).
+     *
+     * $params: request_id (int), action (string key above),
+     *          assessment_template_id (int|null, send_assessment only),
+     *          description (string, carried into the To-Do).
+     * $actorUserId: the user the action is attributed to (cron passes a system/admin id).
+     *
+     * Returns ['result_type'=>?string, 'result_id'=>?int, 'error'=>?string].
+     * A non-null 'error' means nothing was performed (caller should mark failed).
+     */
+    public function executeScheduledAction(array $params, int $actorUserId): array
+    {
+        $requestId   = (int)($params['request_id'] ?? 0);
+        $action      = (string)($params['action'] ?? '');
+        $description = trim((string)($params['description'] ?? ''));
+        $templateId  = !empty($params['assessment_template_id']) ? (int)$params['assessment_template_id'] : null;
+
+        if (!isset(self::SCHEDULED_ACTION_LABELS[$action])) {
+            return ['result_type' => null, 'result_id' => null, 'error' => 'Unknown action: ' . $action];
+        }
+        $label = self::SCHEDULED_ACTION_LABELS[$action];
+
+        $vendor = $this->db->fetchOne(
+            "SELECT * FROM vendor_onboarding_requests WHERE id = :id",
+            [':id' => $requestId]
+        );
+        if (!$vendor) {
+            return ['result_type' => null, 'result_id' => null, 'error' => 'Vendor not found (id ' . $requestId . ')'];
+        }
+
+        $vendorName  = $vendor['vendor_name'] ?? ('Vendor #' . $requestId);
+        $stakeholder = $this->resolveScheduledActionStakeholder($requestId);
+        $link        = baseUrl('vendor-onboarding.php?id=' . $requestId . '&tab=action_plan');
+
+        // Every generated To-Do carries the configured description plus a deep
+        // link back to the vendor's Action Plan tab.
+        $base = ($description !== '' ? $description : $label);
+        $todoDesc = $base . "\n\nVendor: " . $vendorName . "\nAction Plan: " . $link;
+
+        try {
+            switch ($action) {
+                case 'send_assessment':
+                    if (!$templateId) {
+                        return ['result_type' => null, 'result_id' => null, 'error' => 'No assessment template selected'];
+                    }
+                    $res = $this->dispatchSendAssessment($vendor, $templateId, $actorUserId);
+                    if (!empty($res['error'])) {
+                        return ['result_type' => null, 'result_id' => null, 'error' => $res['error']];
+                    }
+                    $sentLine = $res['email_success']
+                        ? ('Assessment "' . $res['assessment_name'] . '" sent to ' . $res['sent_to'] . '.')
+                        : ('Assessment "' . $res['assessment_name'] . '" created (email not sent — check Email Settings). Vendor link issued.');
+                    $this->addActivity(
+                        'custom', 'vendor_onboarding_requests', $requestId, 'action',
+                        $label, $sentLine . "\n\n" . $todoDesc, 'open', null, $actorUserId, $stakeholder['user_id']
+                    );
+                    return ['result_type' => 'vendor_assessments', 'result_id' => $res['assessment_id'], 'error' => null];
+
+                case 'force_annual_review':
+                    // Force the review DUE now -- NOT markAnnualReview(), which marks it complete.
+                    $this->db->query(
+                        "UPDATE vendor_onboarding_requests SET last_annual_review_due = CURDATE() WHERE id = :id",
+                        [':id' => $requestId]
+                    );
+                    $who = $stakeholder['name'] ?? 'Unknown';
+                    $this->addActivity(
+                        'annual_review', 'vendor_onboarding_requests', $requestId, 'action',
+                        $label, 'Annual review forced due. Stakeholder: ' . $who . "\n\n" . $todoDesc,
+                        'open', date('Y-m-d'), $actorUserId, $stakeholder['user_id']
+                    );
+                    return ['result_type' => 'vendor_onboarding_requests', 'result_id' => $requestId, 'error' => null];
+
+                case 'contact_vendor':
+                case 'contact_stakeholder':
+                default:
+                    $this->addActivity(
+                        'custom', 'vendor_onboarding_requests', $requestId, 'action',
+                        $label, $todoDesc, 'open', null, $actorUserId, $stakeholder['user_id']
+                    );
+                    return ['result_type' => 'cyber_todo_activities', 'result_id' => (int)$this->db->lastInsertId(), 'error' => null];
+            }
+        } catch (Exception $e) {
+            return ['result_type' => null, 'result_id' => null, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Resolve the human a scheduled action should target/assign to, using the
+     * same precedence as getAnnualReviewsDue(): assigned stakeholder, then owner,
+     * then the record creator. Returns ['user_id'=>?int,'name'=>?string,'email'=>?string].
+     */
+    private function resolveScheduledActionStakeholder(int $requestId): array
+    {
+        $row = $this->db->fetchOne(
+            "SELECT COALESCE(su.id, ou.id, cu.id)               AS user_id,
+                    COALESCE(su.full_name, ou.full_name, cu.full_name) AS name,
+                    COALESCE(su.email, ou.email, cu.email)      AS email
+             FROM vendor_onboarding_requests r
+             LEFT JOIN users cu ON r.created_by = cu.id
+             LEFT JOIN vendor_onboarding_stakeholders vs ON r.id = vs.request_id AND vs.role = 'stakeholder'
+             LEFT JOIN users su ON vs.user_id = su.id
+             LEFT JOIN vendor_onboarding_stakeholders vo ON r.id = vo.request_id AND vo.role = 'owner'
+             LEFT JOIN users ou ON vo.user_id = ou.id
+             WHERE r.id = :id
+             ORDER BY vs.assigned_at DESC, vo.assigned_at DESC
+             LIMIT 1",
+            [':id' => $requestId]
+        );
+        return [
+            'user_id' => ($row && !empty($row['user_id'])) ? (int)$row['user_id'] : null,
+            'name'    => $row['name'] ?? null,
+            'email'   => $row['email'] ?? null,
+        ];
+    }
+
+    /**
+     * Create + send a Vendor Assessment to the vendor's primary contact, mirroring
+     * api/send-assessment-email.php. Returns
+     * ['error'=>?string,'assessment_id'=>int,'assessment_name'=>string,'sent_to'=>string,'email_success'=>bool].
+     */
+    private function dispatchSendAssessment(array $vendor, int $templateId, int $actorUserId): array
+    {
+        require_once __DIR__ . '/VendorAssessmentService.php';
+        require_once __DIR__ . '/EmailService.php';
+        require_once __DIR__ . '/Encryption.php';
+
+        $template = $this->db->fetchOne(
+            "SELECT id, name FROM assessment_templates WHERE id = :id AND category = 'vendor_assessment' AND is_active = 1",
+            [':id' => $templateId]
+        );
+        if (!$template) {
+            return ['error' => 'Assessment template unavailable (id ' . $templateId . ')'];
+        }
+
+        $vendorName  = $vendor['vendor_name'] ?? '';
+        $contactName = !empty($vendor['primary_contact_details']) ? $vendor['primary_contact_details'] : null;
+        $vendorEmail = trim((string)($vendor['primary_contact_email'] ?? ''));
+        if ($vendorEmail === '' || !filter_var($vendorEmail, FILTER_VALIDATE_EMAIL)) {
+            return ['error' => 'Vendor has no valid primary contact email'];
+        }
+
+        $vas = new VendorAssessmentService();
+        $created = $vas->createAssessment(
+            $templateId, $vendorName, $vendorEmail, $contactName, $vendorEmail,
+            (int)$vendor['id'], $actorUserId, 30, false
+        );
+        $assessmentId = (int)$created['id'];
+        $uuid         = $created['uuid'];
+        $expiresAt    = $created['expires_at'] ?? null;
+        $assessmentUrl = baseUrl("vendor-assessment.php?token={$uuid}");
+
+        $emailSuccess = false;
+        $emailService = new EmailService($this->db, new Encryption());
+        if ($emailService->isEnabled()) {
+            $sent = $emailService->sendAssessmentEmail(
+                $vendorEmail, $vendorName, $assessmentUrl, $contactName,
+                $templateId, $contactName, $expiresAt, $template['name']
+            );
+            $emailSuccess = !empty($sent['success']);
+            if ($emailSuccess) {
+                // Record in tracking table so the reminder cron won't re-send.
+                try {
+                    $expiresDate = $expiresAt ? date('Y-m-d', strtotime($expiresAt)) : date('Y-m-d', strtotime('+30 days'));
+                    $this->db->query(
+                        "INSERT INTO vendor_assessment_reminders (assessment_id, reminder_type, expires_at, sent_at, email_sent_to, status)
+                         VALUES (?, 'initial', ?, NOW(), ?, 'sent')
+                         ON DUPLICATE KEY UPDATE status = 'sent', sent_at = NOW(), email_sent_to = VALUES(email_sent_to)",
+                        [$assessmentId, $expiresDate, $vendorEmail]
+                    );
+                } catch (Exception $e) {
+                    error_log('Scheduled action: assessment reminder tracking insert failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        return [
+            'error'           => null,
+            'assessment_id'   => $assessmentId,
+            'assessment_name' => $template['name'],
+            'sent_to'         => $vendorEmail,
+            'email_success'   => $emailSuccess,
+        ];
+    }
+
     /**
      * Close/complete a todo item by adding a closure activity.
      */

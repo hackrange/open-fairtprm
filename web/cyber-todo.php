@@ -49,6 +49,16 @@ require_once __DIR__ . '/includes/classes/SRSService.php';
 $srsService = new SRSService();
 $todoService = new CyberTodoService($db, $srsService);
 
+// Vendor Assessment templates offered by the "Send Assessment" action.
+$vendorAssessmentTemplates = [];
+try {
+    $vendorAssessmentTemplates = $db->fetchAll(
+        "SELECT id, name FROM assessment_templates WHERE category = 'vendor_assessment' AND is_active = 1 ORDER BY name ASC"
+    );
+} catch (Exception $e) {
+    // assessment_templates may not exist on very old schemas
+}
+
 $error = '';
 $success = '';
 
@@ -69,6 +79,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // scraped CSRF token cannot mutate or delete data.
         http_response_code(403);
         $error = t('cyber-todo.readonly_role');
+    } elseif (isset($_POST['add_activity']) && in_array(trim($_POST['activity_title'] ?? ''), ['Send Assessment', 'Force Annual Review'], true)) {
+        // Action Plan actions invoked immediately from the manual Create Todo modal.
+        // These actually perform the action (send the assessment / force the review)
+        // via the same executor the Vendor Remediation Schedule cron uses.
+        $title = trim($_POST['activity_title'] ?? '');
+        $referenceId = intval($_POST['reference_id'] ?? 0);
+        $description = trim($_POST['activity_description'] ?? $_POST['description'] ?? '');
+        $templateId = !empty($_POST['assessment_template_id']) ? intval($_POST['assessment_template_id']) : null;
+        $actionKey = $title === 'Send Assessment' ? 'send_assessment' : 'force_annual_review';
+
+        if ($referenceId <= 0) {
+            $error = t('cyber-todo.select_valid_vendor');
+        } elseif ($description === '') {
+            $error = t('cyber-todo.enter_description');
+        } elseif ($actionKey === 'send_assessment' && !$templateId) {
+            $error = t('cyber-todo.select_valid_vendor');
+        } else {
+            try {
+                $result = $todoService->executeScheduledAction([
+                    'request_id' => $referenceId,
+                    'action' => $actionKey,
+                    'assessment_template_id' => $templateId,
+                    'description' => $description,
+                ], (int)$user['id']);
+                if (empty($result['error'])) {
+                    $auth->audit($user['id'], 'todo_action_plan_immediate', 'vendor_onboarding_requests', $referenceId, [
+                        'new' => ['action' => $actionKey, 'assessment_template_id' => $templateId]
+                    ]);
+                    $success = t('cyber-todo.activity_added');
+                } else {
+                    $error = $result['error'];
+                }
+            } catch (Exception $e) {
+                error_log('Immediate action plan error: ' . $e->getMessage());
+                $error = t('cyber-todo.activity_add_failed');
+            }
+        }
     } elseif (isset($_POST['add_activity'])) {
         $todoType = $_POST['todo_type'] ?? '';
         $referenceType = $_POST['reference_type'] ?? '';
@@ -1753,10 +1800,22 @@ foreach ($todoItems as $ti) {
 
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;">Title <span style="color: #dc2626;">*</span></label>
-                    <select name="activity_title" required style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white;">
+                    <select name="activity_title" id="todoTitleSelect" required style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white;">
                         <option value="">-- Select Title --</option>
                         <option value="Contact Vendor">Contact Vendor</option>
                         <option value="Contact Stakeholder">Contact Stakeholder</option>
+                        <option value="Send Assessment">Send Assessment</option>
+                        <option value="Force Annual Review">Force Annual Review</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 20px; display: none;" id="todoAssessmentGroup">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;">Vendor Assessment <span style="color: #dc2626;">*</span></label>
+                    <select name="assessment_template_id" id="todoAssessmentSelect" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white;">
+                        <option value="">-- Select Assessment --</option>
+                        <?php foreach ($vendorAssessmentTemplates as $tpl): ?>
+                        <option value="<?php echo (int)$tpl['id']; ?>"><?php echo e($tpl['name']); ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
 
@@ -1777,6 +1836,23 @@ foreach ($todoItems as $ti) {
             </form>
         </div>
     </div>
+
+    <script nonce="<?php echo cspNonce(); ?>">
+        // Show the Vendor Assessment picker only for the "Send Assessment" title.
+        document.addEventListener('DOMContentLoaded', function() {
+            var titleSelect = document.getElementById('todoTitleSelect');
+            var assessmentGroup = document.getElementById('todoAssessmentGroup');
+            var assessmentSelect = document.getElementById('todoAssessmentSelect');
+            if (titleSelect && assessmentGroup && assessmentSelect) {
+                titleSelect.addEventListener('change', function() {
+                    var isSend = titleSelect.value === 'Send Assessment';
+                    assessmentGroup.style.display = isSend ? 'block' : 'none';
+                    assessmentSelect.required = isSend;
+                    if (!isSend) assessmentSelect.value = '';
+                });
+            }
+        });
+    </script>
 
     <script nonce="<?php echo cspNonce(); ?>">
         // AJAX vendor typeahead (uses api/search-vendors.php instead of inline JSON)

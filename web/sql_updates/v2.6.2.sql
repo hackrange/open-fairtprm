@@ -304,6 +304,25 @@ CREATE TABLE IF NOT EXISTS `cyber_todo_snoozes` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_unique_snooze` (`todo_type`,`reference_type`,`reference_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS `vendor_scheduled_actions` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `request_id` int(10) unsigned NOT NULL COMMENT 'vendor_onboarding_requests.id this action belongs to',
+  `action` varchar(50) NOT NULL COMMENT 'contact_vendor|contact_stakeholder|send_assessment|force_annual_review',
+  `assessment_template_id` int(11) DEFAULT NULL COMMENT 'Vendor Assessment template to send (send_assessment only)',
+  `scheduled_date` date NOT NULL COMMENT 'Date the action becomes due',
+  `description` text DEFAULT NULL COMMENT 'Carried into the generated Cyber To-Do',
+  `status` enum('pending','executed','cancelled','failed') NOT NULL DEFAULT 'pending',
+  `result_type` varchar(50) DEFAULT NULL COMMENT 'Table the result row lives in (vendor_assessments, cyber_todo_activities, ...)',
+  `result_id` int(10) unsigned DEFAULT NULL COMMENT 'Id of the row created when the action fired',
+  `error` text DEFAULT NULL COMMENT 'Failure detail when status=failed',
+  `executed_at` datetime DEFAULT NULL,
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_vsa_request` (`request_id`),
+  KEY `idx_vsa_due` (`status`,`scheduled_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS `domainexclusions` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `subdomain` varchar(64) NOT NULL COMMENT 'Subdomain to exclude from scanning',
@@ -2301,6 +2320,11 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`) VALUES
 ('breach_alert_last_run', ''),
 ('cron_breach_monitor_enabled', '1'),
 ('cron_breach_monitor_schedule', '0 7 * * *');
+
+-- Onboarding Scheduled Actions processor (Action Plan tab). Daily at 7 AM.
+INSERT IGNORE INTO `app_config` (`config_key`, `config_value`) VALUES
+('cron_onboarding_scheduled_actions_enabled', '1'),
+('cron_onboarding_scheduled_actions_schedule', '0 7 * * *');
 
 -- =============================================================================
 -- Microsoft 365 Graph API email transport config (folded in from the former

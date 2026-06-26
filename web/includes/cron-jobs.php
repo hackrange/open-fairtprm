@@ -148,6 +148,15 @@ function cronJobDefinitions(): array
             'timeout'         => 600,
             'history_key'     => 'procurement-digest',
         ],
+        'onboarding_scheduled_actions' => [
+            'name'            => 'Vendor Remediation Schedule',
+            'description'     => 'Fires due vendor Action Plan items (send assessment, force annual review, contact vendor/stakeholder)',
+            'script'          => 'onboarding-scheduled-actions.php',
+            'log'             => '/var/log/php/cron-onboarding-scheduled-actions.log',
+            'default_schedule' => '0 7 * * *',
+            'timeout'         => 600,
+            'history_key'     => 'onboarding-scheduled-actions',
+        ],
         // Shared Shadow SaaS rehydration. Runs whichever single provider (Grip or
         // Hero) is enabled — they are mutually exclusive. Managed on the Shadow
         // SaaS admin page (admin.php?section=shadow-saas), NOT the Scheduler page,

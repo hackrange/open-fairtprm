@@ -241,6 +241,7 @@ RUN set -e; \
         /var/www/html/cron/shadow-saas-sync.php \
         /var/www/html/cron/grc-task-digest.php \
         /var/www/html/cron/procurement-digest.php \
+        /var/www/html/cron/onboarding-scheduled-actions.php \
         /var/www/html/app/grip-reference/grip-openapi.yaml \
         /var/www/html/app/grip-reference/grip-postman-collection.json \
         /var/www/html/app/hero-reference/hero-openapi.yaml \

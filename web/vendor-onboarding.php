@@ -353,6 +353,9 @@ $shodanUseCron = ($_cronRow && $_cronRow['config_value'] === '1');
 $showVendorTabs = $editMode && $requestId && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder);
 $canAddNotes = $editMode && $requestId > 0 && ($isAdmin || $isProcurement || $isCyberTPRM || $isStakeholder) && !$isProcurementOnly;
 
+// Action Plan (Vendor Remediation Schedule) is restricted to admin / cyber_tprm.
+$canManageScheduledActions = $editMode && $requestId > 0 && ($isAdmin || $isCyberTPRM);
+
 // Role-based assignee group restrictions for case management
 $allowedNoteGroups = '';
 if ($isAdmin || $isCyberTPRM || $isProcurement) {
@@ -363,6 +366,9 @@ if ($isAdmin || $isCyberTPRM || $isProcurement) {
 
 $vendorNotes = [];
 $vendorNotesCount = 0;
+$scheduledActions = [];
+$scheduledActionsCount = 0;
+$scheduledActionAssessments = [];
 $openCasesCount = 0;
 $closedCasesCount = 0;
 $vendorRisksCount = 0;
@@ -445,6 +451,31 @@ if ($showVendorTabs) {
         }
     } catch (Exception $e) {
         // Table may not exist yet
+    }
+
+    // Action Plan: scheduled actions for this vendor (admin / cyber_tprm only)
+    if ($canManageScheduledActions) {
+        try {
+            $scheduledActions = $db->fetchAll(
+                "SELECT sa.*, t.name AS assessment_name, u.full_name AS created_by_name
+                 FROM vendor_scheduled_actions sa
+                 LEFT JOIN assessment_templates t ON sa.assessment_template_id = t.id
+                 LEFT JOIN users u ON sa.created_by = u.id
+                 WHERE sa.request_id = :request_id
+                 ORDER BY FIELD(sa.status,'pending','failed','executed','cancelled'), sa.scheduled_date ASC, sa.id ASC",
+                [':request_id' => $requestId]
+            );
+            $scheduledActionsCount = 0;
+            foreach ($scheduledActions as $sa) {
+                if ($sa['status'] === 'pending') { $scheduledActionsCount++; }
+            }
+            // Vendor Assessment templates available for the "Send Assessment" action
+            $scheduledActionAssessments = $db->fetchAll(
+                "SELECT id, name FROM assessment_templates WHERE category = 'vendor_assessment' AND is_active = 1 ORDER BY name ASC"
+            );
+        } catch (Exception $e) {
+            // Table may not exist yet
+        }
     }
 
     // SRS Risks (summary counts)
@@ -1132,6 +1163,116 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_note']) && $editM
             } catch (Exception $e) {
                 error_log('Add note error: ' . $e->getMessage());
                 $error = 'Failed to add note. Please try again.';
+            }
+        }
+    }
+}
+
+// ============================================================
+// ACTION PLAN HANDLERS (Vendor Remediation Schedule)
+// Create / cancel / delete per-vendor scheduled actions. Restricted to
+// admin and cyber_tprm. The "Vendor Remediation Schedule" cron later fires
+// any pending action whose scheduled_date has arrived.
+// ============================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_scheduled_action']) && $editMode && $requestId > 0 && ($isAdmin || $isCyberTPRM)) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request - security token mismatch.';
+    } else {
+        $saAction = trim($_POST['sa_action'] ?? '');
+        $saDate = trim($security->cleanInput($_POST['sa_date'] ?? ''));
+        $saDescription = trim($security->cleanInput($_POST['sa_description'] ?? ''));
+        $saTemplateId = intval($_POST['sa_assessment_template_id'] ?? 0);
+
+        $validActions = ['contact_vendor', 'contact_stakeholder', 'send_assessment', 'force_annual_review'];
+        $dateOk = (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', $saDate) && strtotime($saDate) !== false;
+
+        if (!in_array($saAction, $validActions, true)) {
+            $error = 'Please choose a valid action.';
+        } elseif (!$dateOk) {
+            $error = 'Please choose a valid date.';
+        } elseif ($saDescription === '') {
+            $error = 'A description is required.';
+        } elseif ($saAction === 'send_assessment') {
+            // The template must exist and be an active Vendor Assessment.
+            $tpl = $db->fetchOne(
+                "SELECT id FROM assessment_templates WHERE id = :id AND category = 'vendor_assessment' AND is_active = 1",
+                [':id' => $saTemplateId]
+            );
+            if (!$tpl) {
+                $error = 'Please select a valid Vendor Assessment.';
+            }
+        }
+
+        if (empty($error)) {
+            try {
+                $db->insert('vendor_scheduled_actions', [
+                    'request_id' => $requestId,
+                    'action' => $saAction,
+                    'assessment_template_id' => ($saAction === 'send_assessment' && $saTemplateId > 0) ? $saTemplateId : null,
+                    'scheduled_date' => $saDate,
+                    'description' => $saDescription,
+                    'status' => 'pending',
+                    'created_by' => $user['id'],
+                ]);
+                $auth->audit($user['id'], 'scheduled_action_create', 'vendor_scheduled_actions', $requestId, [
+                    'new' => ['action' => $saAction, 'scheduled_date' => $saDate, 'assessment_template_id' => $saTemplateId ?: null, 'vendor_request_id' => $requestId]
+                ]);
+                redirect('vendor-onboarding.php?id=' . $requestId . '&tab=action_plan&success_action=1');
+            } catch (Exception $e) {
+                error_log('Create scheduled action error: ' . $e->getMessage());
+                $error = 'Failed to create the scheduled action. Please try again.';
+            }
+        }
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_scheduled_action']) && $editMode && $requestId > 0 && ($isAdmin || $isCyberTPRM)) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request - security token mismatch.';
+    } else {
+        $saId = intval($_POST['scheduled_action_id'] ?? 0);
+        if ($saId > 0) {
+            try {
+                // Only a still-pending action belonging to THIS vendor can be cancelled.
+                $db->query(
+                    "UPDATE vendor_scheduled_actions SET status = 'cancelled', updated_at = NOW()
+                     WHERE id = :id AND request_id = :rid AND status = 'pending'",
+                    [':id' => $saId, ':rid' => $requestId]
+                );
+                $auth->audit($user['id'], 'scheduled_action_cancel', 'vendor_scheduled_actions', $saId, [
+                    'new' => ['status' => 'cancelled', 'vendor_request_id' => $requestId]
+                ]);
+                redirect('vendor-onboarding.php?id=' . $requestId . '&tab=action_plan&success_action=2');
+            } catch (Exception $e) {
+                error_log('Cancel scheduled action error: ' . $e->getMessage());
+                $error = 'Failed to cancel the scheduled action.';
+            }
+        }
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_scheduled_action']) && $editMode && $requestId > 0 && ($isAdmin || $isCyberTPRM)) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request - security token mismatch.';
+    } else {
+        $saId = intval($_POST['scheduled_action_id'] ?? 0);
+        if ($saId > 0) {
+            try {
+                // An executed action is a historical record -- only remove items
+                // that have not fired (pending/cancelled/failed). Vendor scope is
+                // enforced in the WHERE clause as defense in depth.
+                $db->query(
+                    "DELETE FROM vendor_scheduled_actions
+                     WHERE id = :id AND request_id = :rid AND status IN ('pending','cancelled','failed')",
+                    [':id' => $saId, ':rid' => $requestId]
+                );
+                $auth->audit($user['id'], 'scheduled_action_delete', 'vendor_scheduled_actions', $saId, [
+                    'new' => ['vendor_request_id' => $requestId]
+                ]);
+                redirect('vendor-onboarding.php?id=' . $requestId . '&tab=action_plan&success_action=3');
+            } catch (Exception $e) {
+                error_log('Delete scheduled action error: ' . $e->getMessage());
+                $error = 'Failed to delete the scheduled action.';
             }
         }
     }
@@ -2602,6 +2743,12 @@ function getFieldValue($request, $field, $default = '') {
                 <?php if (isset($_GET['success_note'])): ?>
                     <div class="alert alert-success">Note added successfully.</div>
                 <?php endif; ?>
+                <?php if (isset($_GET['success_action'])): ?>
+                    <div class="alert alert-success"><?php
+                        $sa = $_GET['success_action'];
+                        echo $sa === '2' ? 'Scheduled action cancelled.' : ($sa === '3' ? 'Scheduled action deleted.' : 'Scheduled action created.');
+                    ?></div>
+                <?php endif; ?>
 
                 <?php if ($editMode && $request && $request['status'] === 'inactive'): ?>
                     <div class="alert alert-warning">This vendor has been marked as inactive. Use the Administrative Actions below to change its status.</div>
@@ -2641,7 +2788,11 @@ function getFieldValue($request, $field, $default = '') {
                 <?php
                 // Determine which tab to show (from URL param after note redirect, etc.)
                 $activeTab = isset($_GET['tab']) ? $_GET['tab'] : 'vendor';
-                if (!in_array($activeTab, ['vendor', 'custom_data', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors'])) {
+                if (!in_array($activeTab, ['vendor', 'custom_data', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors', 'action_plan'])) {
+                    $activeTab = 'vendor';
+                }
+                // Action Plan is admin/cyber_tprm only
+                if ($activeTab === 'action_plan' && !$canManageScheduledActions) {
                     $activeTab = 'vendor';
                 }
                 // Procurement-only users cannot access FAIR or Assessments tabs
@@ -2671,6 +2822,15 @@ function getFieldValue($request, $field, $default = '') {
                             <span style="background: var(--theme-header-color); color: white; font-size: 10px; padding: 2px 7px; border-radius: 10px; margin-left: 4px;"><?php echo $vendorNotesCount; ?></span>
                         <?php endif; ?>
                     </button>
+                    <?php if ($canManageScheduledActions): ?>
+                    <button type="button" data-action="showVendorTab" data-arg="action_plan" id="vendorTab_action_plan" class="vendor-section-tab"
+                        style="padding: 10px 18px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'action_plan' ? 'var(--theme-header-color)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'action_plan' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'action_plan' ? 'var(--theme-header-color)' : '#6b7280'; ?>; margin-bottom: -2px;">
+                        Action Plan
+                        <?php if ($scheduledActionsCount > 0): ?>
+                            <span style="background: var(--theme-header-color); color: white; font-size: 10px; padding: 2px 7px; border-radius: 10px; margin-left: 4px;"><?php echo $scheduledActionsCount; ?></span>
+                        <?php endif; ?>
+                    </button>
+                    <?php endif; ?>
                     <?php if (!$isStakeholderOnly && !$isProcurementOnly): ?>
                     <button type="button" data-action="showVendorTab" data-arg="assessments" id="vendorTab_assessments" class="vendor-section-tab"
                         style="padding: 10px 18px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'assessments' ? 'var(--theme-header-color)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'assessments' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'assessments' ? 'var(--theme-header-color)' : '#6b7280'; ?>; margin-bottom: -2px;">
@@ -3538,6 +3698,169 @@ function getFieldValue($request, $field, $default = '') {
                 </div>
                 <?php endif; ?>
 
+                <!-- Tab: Action Plan (Vendor Remediation Schedule) -->
+                <?php if ($canManageScheduledActions): ?>
+                <?php
+                    $saActionLabels = [
+                        'contact_vendor'      => 'Contact Vendor',
+                        'contact_stakeholder' => 'Contact Stakeholder',
+                        'send_assessment'     => 'Send Assessment',
+                        'force_annual_review' => 'Force Annual Review',
+                    ];
+                    $saStatusColors = [
+                        'pending'   => '#2563eb',
+                        'executed'  => '#16a34a',
+                        'failed'    => '#dc2626',
+                        'cancelled' => '#6b7280',
+                    ];
+                ?>
+                <div id="vendorTabContent_action_plan" style="<?php echo $activeTab !== 'action_plan' ? 'display: none;' : ''; ?>">
+                    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 25px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #333;">Action Plan</h3>
+                            <button type="button" id="createScheduledActionBtn" class="btn btn-primary" style="padding: 8px 18px; font-size: 13px;">+ Create Action</button>
+                        </div>
+                        <p style="margin: 0 0 20px 0; font-size: 13px; color: #6b7280;">Schedule a future action for this vendor. The <strong>Vendor Remediation Schedule</strong> runs daily and fires each action once its date arrives, creating a linked Cyber To-Do.</p>
+
+                        <?php if (empty($scheduledActions)): ?>
+                            <div style="text-align: center; padding: 40px 20px; color: #9ca3af; font-size: 14px;">No scheduled actions yet. Click <strong>+ Create Action</strong> to add one.</div>
+                        <?php else: ?>
+                            <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="text-align: left; color: #6b7280; border-bottom: 1px solid #e5e7eb;">
+                                        <th style="padding: 8px 10px;">Date</th>
+                                        <th style="padding: 8px 10px;">Action</th>
+                                        <th style="padding: 8px 10px;">Description</th>
+                                        <th style="padding: 8px 10px;">Status</th>
+                                        <th style="padding: 8px 10px; text-align: right;">Manage</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($scheduledActions as $sa):
+                                    $saLabel = $saActionLabels[$sa['action']] ?? $sa['action'];
+                                    $saColor = $saStatusColors[$sa['status']] ?? '#6b7280';
+                                ?>
+                                    <tr style="border-bottom: 1px solid #f3f4f6; vertical-align: top;">
+                                        <td style="padding: 10px;"><?php echo e(date('M j, Y', strtotime($sa['scheduled_date']))); ?></td>
+                                        <td style="padding: 10px;">
+                                            <?php echo e($saLabel); ?>
+                                            <?php if ($sa['action'] === 'send_assessment' && !empty($sa['assessment_name'])): ?>
+                                                <div style="color: #6b7280; font-size: 12px;"><?php echo e($sa['assessment_name']); ?></div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td style="padding: 10px; max-width: 360px; word-break: break-word; color: #374151;"><?php echo nl2br(e($sa['description'] ?? '')); ?>
+                                            <?php if ($sa['status'] === 'failed' && !empty($sa['error'])): ?>
+                                                <div style="color: #dc2626; font-size: 12px; margin-top: 4px;">Error: <?php echo e($sa['error']); ?></div>
+                                            <?php elseif ($sa['status'] === 'executed' && !empty($sa['executed_at'])): ?>
+                                                <div style="color: #16a34a; font-size: 12px; margin-top: 4px;">Fired <?php echo e(formatLocalTime($sa['executed_at'])); ?></div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td style="padding: 10px;"><span style="display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; background: <?php echo $saColor; ?>;"><?php echo e(ucfirst($sa['status'])); ?></span></td>
+                                        <td style="padding: 10px; text-align: right; white-space: nowrap;">
+                                            <?php if ($sa['status'] === 'pending'): ?>
+                                                <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan" style="display: inline;" onsubmit="return confirm('Cancel this scheduled action?');">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                                    <input type="hidden" name="cancel_scheduled_action" value="1">
+                                                    <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$sa['id']; ?>">
+                                                    <button type="submit" style="padding: 4px 10px; font-size: 12px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 4px; cursor: pointer;">Cancel</button>
+                                                </form>
+                                            <?php endif; ?>
+                                            <?php if (in_array($sa['status'], ['pending','cancelled','failed'], true)): ?>
+                                                <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan" style="display: inline;" onsubmit="return confirm('Delete this scheduled action?');">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                                    <input type="hidden" name="delete_scheduled_action" value="1">
+                                                    <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$sa['id']; ?>">
+                                                    <button type="submit" style="padding: 4px 10px; font-size: 12px; border: 1px solid #fecaca; background: white; color: #dc2626; border-radius: 4px; cursor: pointer;">Delete</button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span style="color: #9ca3af; font-size: 12px;">&mdash;</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Create Scheduled Action Modal -->
+                    <div id="scheduledActionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+                        <div style="background: white; padding: 30px; border-radius: 8px; max-width: 560px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto;">
+                            <h3 style="margin: 0 0 20px 0; color: #333; font-size: 20px;">Create Scheduled Action</h3>
+                            <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan" id="scheduledActionForm">
+                                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                <input type="hidden" name="create_scheduled_action" value="1">
+
+                                <div style="margin-bottom: 16px;">
+                                    <label style="display: block; font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">Action <span style="color: #dc2626;">*</span></label>
+                                    <select name="sa_action" id="saActionSelect" required style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white;">
+                                        <option value="">-- Select Action --</option>
+                                        <option value="contact_vendor">Contact Vendor</option>
+                                        <option value="contact_stakeholder">Contact Stakeholder</option>
+                                        <option value="send_assessment">Send Assessment</option>
+                                        <option value="force_annual_review">Force Annual Review</option>
+                                    </select>
+                                </div>
+
+                                <div style="margin-bottom: 16px; display: none;" id="saAssessmentGroup">
+                                    <label style="display: block; font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">Vendor Assessment <span style="color: #dc2626;">*</span></label>
+                                    <select name="sa_assessment_template_id" id="saAssessmentSelect" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white;">
+                                        <option value="">-- Select Assessment --</option>
+                                        <?php foreach ($scheduledActionAssessments as $tpl): ?>
+                                        <option value="<?php echo (int)$tpl['id']; ?>"><?php echo e($tpl['name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div style="margin-bottom: 16px;">
+                                    <label style="display: block; font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">Date <span style="color: #dc2626;">*</span></label>
+                                    <input type="date" name="sa_date" required style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                </div>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label style="display: block; font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">Description <span style="color: #dc2626;">*</span></label>
+                                    <textarea name="sa_description" required rows="4" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; resize: vertical;" placeholder="Describe this scheduled action (carried into the generated To-Do)..."></textarea>
+                                </div>
+
+                                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                                    <button type="button" id="scheduledActionCancelBtn" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer;">Cancel</button>
+                                    <button type="submit" style="padding: 10px 20px; background: var(--theme-button-color); color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;">Create Action</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <script nonce="<?php echo cspNonce(); ?>">
+                (function() {
+                    var modal = document.getElementById('scheduledActionModal');
+                    var openBtn = document.getElementById('createScheduledActionBtn');
+                    var cancelBtn = document.getElementById('scheduledActionCancelBtn');
+                    var actionSelect = document.getElementById('saActionSelect');
+                    var assessmentGroup = document.getElementById('saAssessmentGroup');
+                    var assessmentSelect = document.getElementById('saAssessmentSelect');
+                    if (!modal || !openBtn) return;
+
+                    function toggleAssessment() {
+                        var isSend = actionSelect.value === 'send_assessment';
+                        assessmentGroup.style.display = isSend ? 'block' : 'none';
+                        assessmentSelect.required = isSend;
+                        if (!isSend) assessmentSelect.value = '';
+                    }
+                    function openModal() { modal.style.display = 'flex'; }
+                    function closeModal() { modal.style.display = 'none'; }
+
+                    openBtn.addEventListener('click', openModal);
+                    cancelBtn.addEventListener('click', closeModal);
+                    actionSelect.addEventListener('change', toggleAssessment);
+                    modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+                    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+                    toggleAssessment();
+                })();
+                </script>
+                <?php endif; ?>
+
                 <!-- Tab: Assessments -->
                 <?php if (!$isProcurementOnly): ?>
                 <div id="vendorTabContent_assessments" style="<?php echo $activeTab !== 'assessments' ? 'display: none;' : ''; ?>">
@@ -4246,7 +4569,7 @@ function getFieldValue($request, $field, $default = '') {
                             /* Hide everything except the report during print */
                             .main-sidebar, .top-header, .vendor-section-tab, #vendorTabContent_vendor,
                             #vendorTabContent_notes, #vendorTabContent_assessments, #vendorTabContent_fair,
-                            #vendorTabContent_documents { display: none !important; }
+                            #vendorTabContent_documents, #vendorTabContent_action_plan { display: none !important; }
                         }
                         .proc-report .proc-container { max-width: 8.5in; margin: 0 auto; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 10pt; line-height: 1.5; color: #1f2937; }
                         .proc-report .proc-report-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 3px solid <?php echo e($headerColor); ?>; margin-bottom: 16px; }
@@ -5866,7 +6189,7 @@ function getFieldValue($request, $field, $default = '') {
 
         // Tab switching for vendor detail tabs
         function showVendorTab(section) {
-            const sections = ['vendor', 'custom_data', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors'];
+            const sections = ['vendor', 'custom_data', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors', 'action_plan'];
             sections.forEach(function(s) {
                 var el = document.getElementById('vendorTabContent_' + s);
                 var tab = document.getElementById('vendorTab_' + s);
