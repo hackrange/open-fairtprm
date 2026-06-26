@@ -883,6 +883,17 @@ class CyberTodoService
         $action      = (string)($params['action'] ?? '');
         $description = trim((string)($params['description'] ?? ''));
         $templateId  = !empty($params['assessment_template_id']) ? (int)$params['assessment_template_id'] : null;
+        $notify      = !empty($params['notify_assignees']);
+
+        // Explicit assignees (cyber_tprm users chosen on the Action Plan).
+        $assigneeIds = [];
+        if (!empty($params['assignees']) && is_array($params['assignees'])) {
+            foreach ($params['assignees'] as $aid) {
+                $aid = (int)$aid;
+                if ($aid > 0) { $assigneeIds[$aid] = $aid; }
+            }
+            $assigneeIds = array_values($assigneeIds);
+        }
 
         if (!isset(self::SCHEDULED_ACTION_LABELS[$action])) {
             return ['result_type' => null, 'result_id' => null, 'error' => 'Unknown action: ' . $action];
@@ -901,55 +912,116 @@ class CyberTodoService
         $stakeholder = $this->resolveScheduledActionStakeholder($requestId);
         $link        = baseUrl('vendor-onboarding.php?id=' . $requestId . '&tab=action_plan');
 
+        // Who receives the generated To-Do (and the optional email): the chosen
+        // assignees, or the resolved stakeholder when none were selected.
+        $recipients = [];
+        if (!empty($assigneeIds)) {
+            $ph = implode(',', array_fill(0, count($assigneeIds), '?'));
+            foreach ($this->db->fetchAll("SELECT id, full_name, email FROM users WHERE id IN ($ph)", $assigneeIds) as $u) {
+                $recipients[] = ['id' => (int)$u['id'], 'name' => $u['full_name'] ?? null, 'email' => $u['email'] ?? null];
+            }
+        }
+        if (empty($recipients)) {
+            $recipients[] = ['id' => $stakeholder['user_id'], 'name' => $stakeholder['name'], 'email' => $stakeholder['email']];
+        }
+
         // Every generated To-Do carries the configured description plus a deep
         // link back to the vendor's Action Plan tab.
         $base = ($description !== '' ? $description : $label);
         $todoDesc = $base . "\n\nVendor: " . $vendorName . "\nAction Plan: " . $link;
 
         try {
-            switch ($action) {
-                case 'send_assessment':
-                    if (!$templateId) {
-                        return ['result_type' => null, 'result_id' => null, 'error' => 'No assessment template selected'];
-                    }
-                    $res = $this->dispatchSendAssessment($vendor, $templateId, $actorUserId);
-                    if (!empty($res['error'])) {
-                        return ['result_type' => null, 'result_id' => null, 'error' => $res['error']];
-                    }
-                    $sentLine = $res['email_success']
-                        ? ('Assessment "' . $res['assessment_name'] . '" sent to ' . $res['sent_to'] . '.')
-                        : ('Assessment "' . $res['assessment_name'] . '" created (email not sent — check Email Settings). Vendor link issued.');
-                    $this->addActivity(
-                        'custom', 'vendor_onboarding_requests', $requestId, 'action',
-                        $label, $sentLine . "\n\n" . $todoDesc, 'open', null, $actorUserId, $stakeholder['user_id']
-                    );
-                    return ['result_type' => 'vendor_assessments', 'result_id' => $res['assessment_id'], 'error' => null];
+            $todoType    = 'custom';
+            $todoDueDate = null;
+            $effectNote  = '';
+            $resultType  = 'cyber_todo_activities';
+            $resultId    = null;
 
-                case 'force_annual_review':
-                    // Force the review DUE now -- NOT markAnnualReview(), which marks it complete.
-                    $this->db->query(
-                        "UPDATE vendor_onboarding_requests SET last_annual_review_due = CURDATE() WHERE id = :id",
-                        [':id' => $requestId]
-                    );
-                    $who = $stakeholder['name'] ?? 'Unknown';
-                    $this->addActivity(
-                        'annual_review', 'vendor_onboarding_requests', $requestId, 'action',
-                        $label, 'Annual review forced due. Stakeholder: ' . $who . "\n\n" . $todoDesc,
-                        'open', date('Y-m-d'), $actorUserId, $stakeholder['user_id']
-                    );
-                    return ['result_type' => 'vendor_onboarding_requests', 'result_id' => $requestId, 'error' => null];
-
-                case 'contact_vendor':
-                case 'contact_stakeholder':
-                default:
-                    $this->addActivity(
-                        'custom', 'vendor_onboarding_requests', $requestId, 'action',
-                        $label, $todoDesc, 'open', null, $actorUserId, $stakeholder['user_id']
-                    );
-                    return ['result_type' => 'cyber_todo_activities', 'result_id' => (int)$this->db->lastInsertId(), 'error' => null];
+            // Perform the action's side effect ONCE, before fanning out To-Dos.
+            if ($action === 'send_assessment') {
+                if (!$templateId) {
+                    return ['result_type' => null, 'result_id' => null, 'error' => 'No assessment template selected'];
+                }
+                $res = $this->dispatchSendAssessment($vendor, $templateId, $actorUserId);
+                if (!empty($res['error'])) {
+                    return ['result_type' => null, 'result_id' => null, 'error' => $res['error']];
+                }
+                $effectNote = ($res['email_success']
+                    ? 'Assessment "' . $res['assessment_name'] . '" sent to ' . $res['sent_to'] . '.'
+                    : 'Assessment "' . $res['assessment_name'] . '" created (email not sent — check Email Settings). Vendor link issued.') . "\n\n";
+                $resultType = 'vendor_assessments';
+                $resultId   = $res['assessment_id'];
+            } elseif ($action === 'force_annual_review') {
+                // Force the review DUE now -- NOT markAnnualReview(), which marks it complete.
+                $this->db->query(
+                    "UPDATE vendor_onboarding_requests SET last_annual_review_due = CURDATE() WHERE id = :id",
+                    [':id' => $requestId]
+                );
+                $effectNote  = 'Annual review forced due. Stakeholder: ' . ($stakeholder['name'] ?? 'Unknown') . "\n\n";
+                $todoType    = 'annual_review';
+                $todoDueDate = date('Y-m-d');
+                $resultType  = 'vendor_onboarding_requests';
+                $resultId    = $requestId;
             }
+
+            $fullDesc = $effectNote . $todoDesc;
+
+            // One To-Do per recipient so each shows up in their assigned queue.
+            $firstTodoId = null;
+            foreach ($recipients as $rcpt) {
+                $this->addActivity(
+                    $todoType, 'vendor_onboarding_requests', $requestId, 'action',
+                    $label, $fullDesc, 'open', $todoDueDate, $actorUserId, $rcpt['id']
+                );
+                if ($firstTodoId === null) { $firstTodoId = (int)$this->db->lastInsertId(); }
+            }
+            if ($resultType === 'cyber_todo_activities' && $resultId === null) {
+                $resultId = $firstTodoId;
+            }
+
+            // Optionally email each assignee about the action.
+            if ($notify) {
+                $this->notifyScheduledActionAssignees($recipients, $label, $vendorName, $actorUserId);
+            }
+
+            return ['result_type' => $resultType, 'result_id' => $resultId, 'error' => null];
         } catch (Exception $e) {
             return ['result_type' => null, 'result_id' => null, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Email each recipient that has an address, reusing the case-assignment
+     * template. Failures are logged, never fatal to the action.
+     */
+    private function notifyScheduledActionAssignees(array $recipients, string $label, string $vendorName, int $actorUserId): void
+    {
+        $emails = [];
+        foreach ($recipients as $r) {
+            $e = $r['email'] ?? null;
+            if ($e && filter_var($e, FILTER_VALIDATE_EMAIL)) { $emails[$e] = $e; }
+        }
+        if (empty($emails)) { return; }
+
+        require_once __DIR__ . '/EmailService.php';
+        require_once __DIR__ . '/Encryption.php';
+        try {
+            $emailService = new EmailService($this->db, new Encryption());
+            if (!$emailService->isEnabled()) { return; }
+            $assigner = 'Vendor Remediation Schedule';
+            $actor = $this->db->fetchOne("SELECT full_name FROM users WHERE id = :id", [':id' => $actorUserId]);
+            if ($actor && !empty($actor['full_name'])) { $assigner = $actor['full_name']; }
+            foreach ($emails as $email) {
+                try {
+                    $emailService->sendCaseAssignmentNotification(
+                        ['title' => $label, 'vendor_name' => $vendorName], $email, $assigner
+                    );
+                } catch (Exception $e) {
+                    error_log('Scheduled action assignee email failed: ' . $e->getMessage());
+                }
+            }
+        } catch (Exception $e) {
+            error_log('Scheduled action notify setup failed: ' . $e->getMessage());
         }
     }
 

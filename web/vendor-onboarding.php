@@ -369,6 +369,7 @@ $vendorNotesCount = 0;
 $scheduledActions = [];
 $scheduledActionsCount = 0;
 $scheduledActionAssessments = [];
+$scheduledActionAssignees = [];
 $openCasesCount = 0;
 $closedCasesCount = 0;
 $vendorRisksCount = 0;
@@ -473,6 +474,34 @@ if ($showVendorTabs) {
             $scheduledActionAssessments = $db->fetchAll(
                 "SELECT id, name FROM assessment_templates WHERE category = 'vendor_assessment' AND is_active = 1 ORDER BY name ASC"
             );
+            // cyber_tprm members who can be assigned a scheduled action
+            $scheduledActionAssignees = $db->fetchAll(
+                "SELECT u.id, u.full_name, u.username
+                 FROM users u
+                 JOIN user_acl_groups ug ON ug.user_id = u.id
+                 JOIN acl_groups g ON g.id = ug.group_id
+                 WHERE g.group_name = 'cyber_tprm' AND (u.is_active IS NULL OR u.is_active = 1)
+                 ORDER BY u.full_name ASC, u.username ASC"
+            );
+            // Detail view: a single selected action + its status-note thread
+            $selectedAction = null;
+            $selectedActionNotes = [];
+            if (!empty($_GET['action_id'])) {
+                $selId = (int)$_GET['action_id'];
+                foreach ($scheduledActions as $sa) {
+                    if ((int)$sa['id'] === $selId) { $selectedAction = $sa; break; }
+                }
+                if ($selectedAction) {
+                    $selectedActionNotes = $db->fetchAll(
+                        "SELECT a.*, u.full_name AS created_by_name
+                         FROM cyber_todo_activities a
+                         LEFT JOIN users u ON a.created_by = u.id
+                         WHERE a.reference_type = 'vendor_scheduled_actions' AND a.reference_id = :sid
+                         ORDER BY a.created_at ASC",
+                        [':sid' => $selId]
+                    );
+                }
+            }
         } catch (Exception $e) {
             // Table may not exist yet
         }
@@ -1182,6 +1211,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_scheduled_acti
         $saDate = trim($security->cleanInput($_POST['sa_date'] ?? ''));
         $saDescription = trim($security->cleanInput($_POST['sa_description'] ?? ''));
         $saTemplateId = intval($_POST['sa_assessment_template_id'] ?? 0);
+        $saNotify = !empty($_POST['sa_notify']) ? 1 : 0;
+
+        // Assignees must be cyber_tprm members. Validate each id against the group.
+        $saAssignees = [];
+        $rawAssignees = $_POST['sa_assignees'] ?? [];
+        if (is_array($rawAssignees) && !empty($rawAssignees)) {
+            $ids = array_values(array_unique(array_filter(array_map('intval', $rawAssignees), function ($v) { return $v > 0; })));
+            if (!empty($ids)) {
+                $ph = implode(',', array_fill(0, count($ids), '?'));
+                $valid = $db->fetchAll(
+                    "SELECT DISTINCT u.id FROM users u
+                     JOIN user_acl_groups ug ON ug.user_id = u.id
+                     JOIN acl_groups g ON g.id = ug.group_id
+                     WHERE g.group_name = 'cyber_tprm' AND u.id IN ($ph)",
+                    $ids
+                );
+                foreach ($valid as $v) { $saAssignees[] = (int)$v['id']; }
+            }
+        }
 
         $validActions = ['contact_vendor', 'contact_stakeholder', 'send_assessment', 'force_annual_review'];
         $dateOk = (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', $saDate) && strtotime($saDate) !== false;
@@ -1211,11 +1259,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_scheduled_acti
                     'assessment_template_id' => ($saAction === 'send_assessment' && $saTemplateId > 0) ? $saTemplateId : null,
                     'scheduled_date' => $saDate,
                     'description' => $saDescription,
+                    'assignees' => !empty($saAssignees) ? json_encode($saAssignees) : null,
+                    'notify_assignees' => $saNotify,
                     'status' => 'pending',
                     'created_by' => $user['id'],
                 ]);
                 $auth->audit($user['id'], 'scheduled_action_create', 'vendor_scheduled_actions', $requestId, [
-                    'new' => ['action' => $saAction, 'scheduled_date' => $saDate, 'assessment_template_id' => $saTemplateId ?: null, 'vendor_request_id' => $requestId]
+                    'new' => ['action' => $saAction, 'scheduled_date' => $saDate, 'assessment_template_id' => $saTemplateId ?: null, 'assignees' => $saAssignees, 'notify_assignees' => $saNotify, 'vendor_request_id' => $requestId]
                 ]);
                 redirect('vendor-onboarding.php?id=' . $requestId . '&tab=action_plan&success_action=1');
             } catch (Exception $e) {
@@ -1258,12 +1308,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_scheduled_acti
         $saId = intval($_POST['scheduled_action_id'] ?? 0);
         if ($saId > 0) {
             try {
-                // An executed action is a historical record -- only remove items
-                // that have not fired (pending/cancelled/failed). Vendor scope is
-                // enforced in the WHERE clause as defense in depth.
+                // Vendor scope is enforced in the WHERE clause as defense in depth.
                 $db->query(
-                    "DELETE FROM vendor_scheduled_actions
-                     WHERE id = :id AND request_id = :rid AND status IN ('pending','cancelled','failed')",
+                    "DELETE FROM vendor_scheduled_actions WHERE id = :id AND request_id = :rid",
                     [':id' => $saId, ':rid' => $requestId]
                 );
                 $auth->audit($user['id'], 'scheduled_action_delete', 'vendor_scheduled_actions', $saId, [
@@ -1273,6 +1320,121 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_scheduled_acti
             } catch (Exception $e) {
                 error_log('Delete scheduled action error: ' . $e->getMessage());
                 $error = 'Failed to delete the scheduled action.';
+            }
+        }
+    }
+}
+
+// Edit a scheduled action. Status is always editable; the schedule fields are
+// only editable while the action has not yet fired (executed_at IS NULL).
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_scheduled_action']) && $editMode && $requestId > 0 && ($isAdmin || $isCyberTPRM)) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request - security token mismatch.';
+    } else {
+        $saId = intval($_POST['scheduled_action_id'] ?? 0);
+        $row = $saId > 0 ? $db->fetchOne("SELECT * FROM vendor_scheduled_actions WHERE id = :id AND request_id = :rid", [':id' => $saId, ':rid' => $requestId]) : null;
+        if (!$row) {
+            $error = 'Scheduled action not found.';
+        } else {
+            $validStatuses = ['pending', 'in_progress', 'problem', 'completed', 'cancelled'];
+            $newStatus = in_array(($_POST['sa_status'] ?? ''), $validStatuses, true) ? $_POST['sa_status'] : $row['status'];
+
+            $update = ['status' => $newStatus, 'updated_at' => date('Y-m-d H:i:s')];
+            $auditNew = ['status' => $newStatus];
+
+            // Schedule fields are only editable before the action fires.
+            if (empty($row['executed_at']) && isset($_POST['sa_action'])) {
+                $eAction = trim($_POST['sa_action'] ?? '');
+                $eDate = trim($security->cleanInput($_POST['sa_date'] ?? ''));
+                $eDescription = trim($security->cleanInput($_POST['sa_description'] ?? ''));
+                $eTemplateId = intval($_POST['sa_assessment_template_id'] ?? 0);
+                $eNotify = !empty($_POST['sa_notify']) ? 1 : 0;
+                $validActions = ['contact_vendor', 'contact_stakeholder', 'send_assessment', 'force_annual_review'];
+                $dateOk = (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', $eDate) && strtotime($eDate) !== false;
+
+                // Validate assignees against cyber_tprm membership.
+                $eAssignees = [];
+                $rawA = $_POST['sa_assignees'] ?? [];
+                if (is_array($rawA) && !empty($rawA)) {
+                    $ids = array_values(array_unique(array_filter(array_map('intval', $rawA), function ($v) { return $v > 0; })));
+                    if (!empty($ids)) {
+                        $ph = implode(',', array_fill(0, count($ids), '?'));
+                        $valid = $db->fetchAll(
+                            "SELECT DISTINCT u.id FROM users u
+                             JOIN user_acl_groups ug ON ug.user_id = u.id
+                             JOIN acl_groups g ON g.id = ug.group_id
+                             WHERE g.group_name = 'cyber_tprm' AND u.id IN ($ph)",
+                            $ids
+                        );
+                        foreach ($valid as $v) { $eAssignees[] = (int)$v['id']; }
+                    }
+                }
+
+                if (!in_array($eAction, $validActions, true)) {
+                    $error = 'Please choose a valid action.';
+                } elseif (!$dateOk) {
+                    $error = 'Please choose a valid date.';
+                } elseif ($eDescription === '') {
+                    $error = 'A description is required.';
+                } elseif ($eAction === 'send_assessment') {
+                    $tpl = $db->fetchOne("SELECT id FROM assessment_templates WHERE id = :id AND category = 'vendor_assessment' AND is_active = 1", [':id' => $eTemplateId]);
+                    if (!$tpl) { $error = 'Please select a valid Vendor Assessment.'; }
+                }
+
+                if (empty($error)) {
+                    $update['action'] = $eAction;
+                    $update['assessment_template_id'] = ($eAction === 'send_assessment' && $eTemplateId > 0) ? $eTemplateId : null;
+                    $update['scheduled_date'] = $eDate;
+                    $update['description'] = $eDescription;
+                    $update['assignees'] = !empty($eAssignees) ? json_encode($eAssignees) : null;
+                    $update['notify_assignees'] = $eNotify;
+                    $auditNew = array_merge($auditNew, ['action' => $eAction, 'scheduled_date' => $eDate, 'assignees' => $eAssignees, 'notify_assignees' => $eNotify]);
+                }
+            }
+
+            if (empty($error)) {
+                try {
+                    $db->update('vendor_scheduled_actions', $update, 'id = :id AND request_id = :rid', [':id' => $saId, ':rid' => $requestId]);
+                    $auth->audit($user['id'], 'scheduled_action_edit', 'vendor_scheduled_actions', $saId, ['new' => $auditNew]);
+                    redirect('vendor-onboarding.php?id=' . $requestId . '&tab=action_plan&action_id=' . $saId . '&success_action=4');
+                } catch (Exception $e) {
+                    error_log('Edit scheduled action error: ' . $e->getMessage());
+                    $error = 'Failed to update the scheduled action.';
+                }
+            }
+        }
+    }
+}
+
+// Add a status note to a scheduled action (stored as a cyber_todo_activities row
+// keyed to the action, mirroring the case-note model).
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_scheduled_action_note']) && $editMode && $requestId > 0 && ($isAdmin || $isCyberTPRM)) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request - security token mismatch.';
+    } else {
+        $saId = intval($_POST['scheduled_action_id'] ?? 0);
+        $noteText = trim($security->cleanInput($_POST['sa_note'] ?? ''));
+        $row = $saId > 0 ? $db->fetchOne("SELECT id FROM vendor_scheduled_actions WHERE id = :id AND request_id = :rid", [':id' => $saId, ':rid' => $requestId]) : null;
+        if (!$row) {
+            $error = 'Scheduled action not found.';
+        } elseif ($noteText === '') {
+            $error = 'Please enter a note.';
+        } else {
+            try {
+                $db->insert('cyber_todo_activities', [
+                    'todo_type' => 'custom',
+                    'reference_type' => 'vendor_scheduled_actions',
+                    'reference_id' => $saId,
+                    'activity_type' => 'note',
+                    'description' => $noteText,
+                    'status' => 'open',
+                    'created_by' => $user['id'],
+                ]);
+                $auth->audit($user['id'], 'scheduled_action_add_note', 'vendor_scheduled_actions', $saId, ['new' => ['vendor_request_id' => $requestId]]);
+                redirect('vendor-onboarding.php?id=' . $requestId . '&tab=action_plan&action_id=' . $saId . '&success_action=5');
+            } catch (Exception $e) {
+                error_log('Add scheduled action note error: ' . $e->getMessage());
+                $error = 'Failed to add the note.';
             }
         }
     }
@@ -1306,15 +1468,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_case']) && $edit
                 );
                 if (!$caseRow) {
                     $error = 'Case not found or does not belong to this vendor.';
-                } elseif (intval($caseRow['created_by']) !== intval($user['id'])) {
+                } elseif (!$isAdmin && intval($caseRow['created_by']) !== intval($user['id'])) {
                     $error = 'You can only edit your own cases.';
                 } elseif ($caseRow['status'] === 'closed') {
                     $error = 'Closed cases cannot be edited. Reopen the case first.';
                 } else {
-                    $db->query(
-                        "UPDATE cyber_todo_activities SET title = :title, description = :description, updated_at = NOW() WHERE id = :id AND created_by = :uid",
-                        [':title' => $newTitle, ':description' => $newDescription, ':id' => $editCaseId, ':uid' => $user['id']]
-                    );
+                    // Administrators may edit any case; authors only their own (guard kept in WHERE).
+                    if ($isAdmin) {
+                        $db->query(
+                            "UPDATE cyber_todo_activities SET title = :title, description = :description, updated_at = NOW() WHERE id = :id",
+                            [':title' => $newTitle, ':description' => $newDescription, ':id' => $editCaseId]
+                        );
+                    } else {
+                        $db->query(
+                            "UPDATE cyber_todo_activities SET title = :title, description = :description, updated_at = NOW() WHERE id = :id AND created_by = :uid",
+                            [':title' => $newTitle, ':description' => $newDescription, ':id' => $editCaseId, ':uid' => $user['id']]
+                        );
+                    }
                     $auth->audit($user['id'], 'case_edit_note', 'cyber_todo_activities', $editCaseId, [
                         'new' => ['title' => $newTitle, 'vendor_request_id' => $requestId]
                     ]);
@@ -1343,27 +1513,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_case']) && $ed
                 );
                 if (!$caseRow) {
                     $error = 'Case not found or does not belong to this vendor.';
-                } elseif (intval($caseRow['created_by']) !== intval($user['id'])) {
+                } elseif (!$isAdmin && intval($caseRow['created_by']) !== intval($user['id'])) {
                     $error = 'You can only delete your own cases.';
                 } elseif ($caseRow['status'] === 'closed') {
                     $error = 'Closed cases cannot be deleted. Reopen the case first.';
                 } else {
-                    // Don't let a case delete destroy other users' responses -- if anyone
-                    // else has replied, the thread is shared and must be Closed, not deleted.
-                    $otherReply = $db->fetchOne(
-                        "SELECT id FROM cyber_todo_activities WHERE parent_id = :pid AND reference_type = 'vendor_onboarding_requests' AND reference_id = :rid AND created_by != :uid LIMIT 1",
-                        [':pid' => $deleteCaseId, ':rid' => $requestId, ':uid' => $user['id']]
-                    );
+                    // For a non-admin author, don't let a delete destroy other users'
+                    // responses -- if anyone else replied, the thread is shared and must
+                    // be Closed, not deleted. Administrators may remove the whole thread.
+                    $otherReply = null;
+                    if (!$isAdmin) {
+                        $otherReply = $db->fetchOne(
+                            "SELECT id FROM cyber_todo_activities WHERE parent_id = :pid AND reference_type = 'vendor_onboarding_requests' AND reference_id = :rid AND created_by != :uid LIMIT 1",
+                            [':pid' => $deleteCaseId, ':rid' => $requestId, ':uid' => $user['id']]
+                        );
+                    }
                     if ($otherReply) {
                         $error = 'This case has responses from other users and cannot be deleted. Close it instead.';
                     } else {
-                        // Safe to remove: only the author's own replies (if any) go with it.
+                        // Remove the case and all of its replies (admin), or the author's
+                        // own case + own replies (non-admin -- guaranteed no others above).
                         $db->query(
                             "DELETE FROM cyber_todo_activities WHERE reference_type = 'vendor_onboarding_requests' AND reference_id = :rid AND (id = :id OR parent_id = :pid)",
                             [':rid' => $requestId, ':id' => $deleteCaseId, ':pid' => $deleteCaseId]
                         );
                         $auth->audit($user['id'], 'case_delete_note', 'cyber_todo_activities', $deleteCaseId, [
-                            'new' => ['vendor_request_id' => $requestId]
+                            'new' => ['vendor_request_id' => $requestId, 'as_admin' => $isAdmin ? 1 : 0]
                         ]);
                         redirect('vendor-onboarding.php?id=' . $requestId . '&tab=notes');
                     }
@@ -1397,15 +1572,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_reply']) && $edi
                 );
                 if (!$replyRow) {
                     $error = 'Reply not found or does not belong to this vendor.';
-                } elseif (intval($replyRow['created_by']) !== intval($user['id'])) {
+                } elseif (!$isAdmin && intval($replyRow['created_by']) !== intval($user['id'])) {
                     $error = 'You can only edit your own replies.';
                 } elseif ($replyRow['parent_status'] === 'closed') {
                     $error = 'Responses on a closed case cannot be edited. Reopen the case first.';
                 } else {
-                    $db->query(
-                        "UPDATE cyber_todo_activities SET description = :description, updated_at = NOW() WHERE id = :id AND created_by = :uid",
-                        [':description' => $newDescription, ':id' => $editReplyId, ':uid' => $user['id']]
-                    );
+                    if ($isAdmin) {
+                        $db->query(
+                            "UPDATE cyber_todo_activities SET description = :description, updated_at = NOW() WHERE id = :id",
+                            [':description' => $newDescription, ':id' => $editReplyId]
+                        );
+                    } else {
+                        $db->query(
+                            "UPDATE cyber_todo_activities SET description = :description, updated_at = NOW() WHERE id = :id AND created_by = :uid",
+                            [':description' => $newDescription, ':id' => $editReplyId, ':uid' => $user['id']]
+                        );
+                    }
                     $auth->audit($user['id'], 'case_edit_reply', 'cyber_todo_activities', $editReplyId, [
                         'new' => ['vendor_request_id' => $requestId]
                     ]);
@@ -1437,15 +1619,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_reply']) && $e
                 );
                 if (!$replyRow) {
                     $error = 'Reply not found or does not belong to this vendor.';
-                } elseif (intval($replyRow['created_by']) !== intval($user['id'])) {
+                } elseif (!$isAdmin && intval($replyRow['created_by']) !== intval($user['id'])) {
                     $error = 'You can only delete your own replies.';
                 } elseif ($replyRow['parent_status'] === 'closed') {
                     $error = 'Responses on a closed case cannot be deleted. Reopen the case first.';
                 } else {
-                    $db->query(
-                        "DELETE FROM cyber_todo_activities WHERE id = :id AND created_by = :uid",
-                        [':id' => $deleteReplyId, ':uid' => $user['id']]
-                    );
+                    if ($isAdmin) {
+                        $db->query(
+                            "DELETE FROM cyber_todo_activities WHERE id = :id",
+                            [':id' => $deleteReplyId]
+                        );
+                    } else {
+                        $db->query(
+                            "DELETE FROM cyber_todo_activities WHERE id = :id AND created_by = :uid",
+                            [':id' => $deleteReplyId, ':uid' => $user['id']]
+                        );
+                    }
                     $auth->audit($user['id'], 'case_delete_reply', 'cyber_todo_activities', $deleteReplyId, [
                         'new' => ['vendor_request_id' => $requestId]
                     ]);
@@ -2745,8 +2934,8 @@ function getFieldValue($request, $field, $default = '') {
                 <?php endif; ?>
                 <?php if (isset($_GET['success_action'])): ?>
                     <div class="alert alert-success"><?php
-                        $sa = $_GET['success_action'];
-                        echo $sa === '2' ? 'Scheduled action cancelled.' : ($sa === '3' ? 'Scheduled action deleted.' : 'Scheduled action created.');
+                        $saMsgs = ['1' => 'Scheduled action created.', '2' => 'Scheduled action cancelled.', '3' => 'Scheduled action deleted.', '4' => 'Scheduled action updated.', '5' => 'Status note added.'];
+                        echo $saMsgs[$_GET['success_action']] ?? 'Scheduled action saved.';
                     ?></div>
                 <?php endif; ?>
 
@@ -3502,9 +3691,9 @@ function getFieldValue($request, $field, $default = '') {
                                                     </button>
                                                 </form>
                                                 <?php endif; ?>
-                                                <?php if ($canAddNotes && (int)$note['created_by'] === (int)$user['id'] && $note['status'] !== 'closed'): ?>
+                                                <?php if ($canAddNotes && ($isAdmin || (int)$note['created_by'] === (int)$user['id']) && $note['status'] !== 'closed'): ?>
                                                 <button type="button" data-toggle="editCase_<?php echo intval($note['id']); ?>" style="font-size: 10px; padding: 2px 8px; border-radius: 10px; border: 1px solid #d1d5db; background: #fff; color: #666; cursor: pointer; white-space: nowrap;" title="Edit this case">Edit</button>
-                                                <?php if (!$caseHasOtherReplies): ?>
+                                                <?php if (!$caseHasOtherReplies || $isAdmin): ?>
                                                 <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=notes" style="display: inline; margin: 0;" data-confirm="Delete this case? This cannot be undone.">
                                                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                                     <input type="hidden" name="delete_case" value="1">
@@ -3544,7 +3733,7 @@ function getFieldValue($request, $field, $default = '') {
                                     </div>
 
                                     <!-- Inline case edit form (author only, hidden by default; frozen once closed) -->
-                                    <?php if ($canAddNotes && (int)$note['created_by'] === (int)$user['id'] && $note['status'] !== 'closed'): ?>
+                                    <?php if ($canAddNotes && ($isAdmin || (int)$note['created_by'] === (int)$user['id']) && $note['status'] !== 'closed'): ?>
                                     <div id="editCase_<?php echo intval($note['id']); ?>" style="display: none; padding: 0 16px 14px 16px;">
                                         <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=notes">
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -3574,7 +3763,7 @@ function getFieldValue($request, $field, $default = '') {
                                                     &middot; <?php echo date('M j, Y g:i A', strtotime($reply['created_at'])); ?>
                                                 </div>
                                                 <div style="font-size: 13px; color: #333; line-height: 1.5;"><?php echo nl2br(e($reply['description'])); ?></div>
-                                                <?php if ($canAddNotes && (int)$reply['created_by'] === (int)$user['id'] && $note['status'] !== 'closed'): ?>
+                                                <?php if ($canAddNotes && ($isAdmin || (int)$reply['created_by'] === (int)$user['id']) && $note['status'] !== 'closed'): ?>
                                                 <div style="margin-top: 6px; display: flex; gap: 10px;">
                                                     <button type="button" data-toggle="editReply_<?php echo intval($reply['id']); ?>" style="font-size: 11px; color: #6b7280; background: none; border: none; cursor: pointer; padding: 0;">Edit</button>
                                                     <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=notes" style="display: inline; margin: 0;" data-confirm="Delete this response? This cannot be undone.">
@@ -3707,20 +3896,161 @@ function getFieldValue($request, $field, $default = '') {
                         'send_assessment'     => 'Send Assessment',
                         'force_annual_review' => 'Force Annual Review',
                     ];
-                    $saStatusColors = [
-                        'pending'   => '#2563eb',
-                        'executed'  => '#16a34a',
-                        'failed'    => '#dc2626',
-                        'cancelled' => '#6b7280',
+                    $saStatusLabels = [
+                        'pending'     => 'Pending',
+                        'in_progress' => 'In Progress',
+                        'problem'     => 'Problem',
+                        'completed'   => 'Completed',
+                        'cancelled'   => 'Cancelled',
                     ];
+                    $saStatusColors = [
+                        'pending'     => '#2563eb',
+                        'in_progress' => '#d97706',
+                        'problem'     => '#dc2626',
+                        'completed'   => '#16a34a',
+                        'cancelled'   => '#6b7280',
+                    ];
+                    // id => display name lookup for assignee chips
+                    $saAssigneeNames = [];
+                    foreach ($scheduledActionAssignees as $u) {
+                        $saAssigneeNames[(int)$u['id']] = $u['full_name'] ?: $u['username'];
+                    }
                 ?>
                 <div id="vendorTabContent_action_plan" style="<?php echo $activeTab !== 'action_plan' ? 'display: none;' : ''; ?>">
                     <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 25px;">
+                        <?php if ($selectedAction):
+                            $selStatus = $selectedAction['status'];
+                            $selFired = !empty($selectedAction['executed_at']);
+                            $selAssigneeIds = !empty($selectedAction['assignees']) ? array_map('intval', (json_decode($selectedAction['assignees'], true) ?: [])) : [];
+                            $selActionLabel = $saActionLabels[$selectedAction['action']] ?? $selectedAction['action'];
+                            $selColor = $saStatusColors[$selectedAction['status']] ?? '#6b7280';
+                        ?>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #333;"><?php echo e($selActionLabel); ?></h3>
+                            <a href="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan" style="font-size: 13px; color: var(--theme-header-color); text-decoration: none;">&larr; Back to Action Plan</a>
+                        </div>
+
+                        <div style="display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 20px; font-size: 13px; color: #374151;">
+                            <div><span style="color:#6b7280;">Due Date:</span> <strong><?php echo e(date('M j, Y', strtotime($selectedAction['scheduled_date']))); ?></strong></div>
+                            <div><span style="color:#6b7280;">Status:</span> <span style="display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; background: <?php echo $selColor; ?>;"><?php echo e($saStatusLabels[$selStatus] ?? ucfirst($selStatus)); ?></span></div>
+                            <?php if ($selectedAction['action'] === 'send_assessment' && !empty($selectedAction['assessment_name'])): ?>
+                            <div><span style="color:#6b7280;">Assessment:</span> <strong><?php echo e($selectedAction['assessment_name']); ?></strong></div>
+                            <?php endif; ?>
+                            <?php if ($selFired): ?>
+                            <div style="color:#16a34a;">Fired <?php echo e(formatLocalTime($selectedAction['executed_at'])); ?></div>
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($selStatus === 'problem' && !empty($selectedAction['error'])): ?>
+                        <div style="background:#fef2f2; border:1px solid #fecaca; color:#dc2626; padding:10px 12px; border-radius:6px; font-size:13px; margin-bottom:18px;">Error: <?php echo e($selectedAction['error']); ?></div>
+                        <?php endif; ?>
+
+                        <!-- Edit / status form -->
+                        <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan&action_id=<?php echo (int)$selectedAction['id']; ?>" style="border:1px solid #e5e7eb; border-radius:8px; padding:18px; margin-bottom:22px;">
+                            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                            <input type="hidden" name="edit_scheduled_action" value="1">
+                            <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$selectedAction['id']; ?>">
+                            <div style="font-weight:600; font-size:14px; color:#333; margin-bottom:14px;"><?php echo $selFired ? 'Update Status' : 'Edit Action'; ?></div>
+
+                            <?php if (!$selFired): ?>
+                            <div style="margin-bottom: 14px;">
+                                <label style="display:block; font-size:13px; font-weight:500; color:#333; margin-bottom:6px;">Action <span style="color:#dc2626;">*</span></label>
+                                <select name="sa_action" id="saEditActionSelect" required style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px; background:white;">
+                                    <?php foreach ($saActionLabels as $akey => $alabel): ?>
+                                    <option value="<?php echo e($akey); ?>" <?php echo $selectedAction['action'] === $akey ? 'selected' : ''; ?>><?php echo e($alabel); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 14px; <?php echo $selectedAction['action'] === 'send_assessment' ? '' : 'display:none;'; ?>" id="saEditAssessmentGroup">
+                                <label style="display:block; font-size:13px; font-weight:500; color:#333; margin-bottom:6px;">Vendor Assessment <span style="color:#dc2626;">*</span></label>
+                                <select name="sa_assessment_template_id" id="saEditAssessmentSelect" style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px; background:white;">
+                                    <option value="">-- Select Assessment --</option>
+                                    <?php foreach ($scheduledActionAssessments as $tpl): ?>
+                                    <option value="<?php echo (int)$tpl['id']; ?>" <?php echo (int)$selectedAction['assessment_template_id'] === (int)$tpl['id'] ? 'selected' : ''; ?>><?php echo e($tpl['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 14px;">
+                                <label style="display:block; font-size:13px; font-weight:500; color:#333; margin-bottom:6px;">Due Date <span style="color:#dc2626;">*</span></label>
+                                <input type="date" name="sa_date" required value="<?php echo e($selectedAction['scheduled_date']); ?>" style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px;">
+                            </div>
+                            <div style="margin-bottom: 14px;">
+                                <label style="display:block; font-size:13px; font-weight:500; color:#333; margin-bottom:6px;">Assign to (Cyber TPRM)</label>
+                                <?php if (empty($scheduledActionAssignees)): ?>
+                                    <div style="font-size:12px; color:#9ca3af;">No Cyber TPRM users available.</div>
+                                <?php else: ?>
+                                    <div style="max-height:140px; overflow-y:auto; border:1px solid #ddd; border-radius:6px; padding:8px 10px;">
+                                        <?php foreach ($scheduledActionAssignees as $u): ?>
+                                        <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#333; padding:3px 0; cursor:pointer;">
+                                            <input type="checkbox" name="sa_assignees[]" value="<?php echo (int)$u['id']; ?>" <?php echo in_array((int)$u['id'], $selAssigneeIds, true) ? 'checked' : ''; ?>>
+                                            <?php echo e($u['full_name'] ?: $u['username']); ?>
+                                        </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#333; margin-top:8px; cursor:pointer;">
+                                        <input type="checkbox" name="sa_notify" value="1" <?php echo !empty($selectedAction['notify_assignees']) ? 'checked' : ''; ?>> Email assigned individuals when this action fires
+                                    </label>
+                                <?php endif; ?>
+                            </div>
+                            <div style="margin-bottom: 14px;">
+                                <label style="display:block; font-size:13px; font-weight:500; color:#333; margin-bottom:6px;">Description <span style="color:#dc2626;">*</span></label>
+                                <textarea name="sa_description" required rows="3" style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px; resize:vertical;"><?php echo e($selectedAction['description'] ?? ''); ?></textarea>
+                            </div>
+                            <?php else: ?>
+                            <p style="font-size:12px; color:#6b7280; margin:0 0 14px 0;">This action has already fired, so only its status can be changed.</p>
+                            <?php endif; ?>
+
+                            <div style="margin-bottom: 16px;">
+                                <label style="display:block; font-size:13px; font-weight:500; color:#333; margin-bottom:6px;">Status</label>
+                                <select name="sa_status" style="width:100%; max-width:260px; padding:10px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px; background:white;">
+                                    <?php foreach ($saStatusLabels as $skey => $slabel): ?>
+                                    <option value="<?php echo e($skey); ?>" <?php echo $selStatus === $skey ? 'selected' : ''; ?>><?php echo e($slabel); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <button type="submit" style="padding:9px 18px; background:var(--theme-button-color); color:white; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer;">Save Changes</button>
+                        </form>
+
+                        <!-- Status notes thread -->
+                        <div style="font-weight:600; font-size:14px; color:#333; margin-bottom:10px;">Status Notes</div>
+                        <?php if (empty($selectedActionNotes)): ?>
+                            <div style="color:#9ca3af; font-size:13px; margin-bottom:14px;">No status notes yet.</div>
+                        <?php else: ?>
+                            <div style="margin-bottom:14px;">
+                                <?php foreach ($selectedActionNotes as $n): ?>
+                                <div style="border-left:3px solid #e5e7eb; padding:6px 12px; margin-bottom:10px;">
+                                    <div style="font-size:12px; color:#6b7280; margin-bottom:3px;"><?php echo e($n['created_by_name'] ?? 'User'); ?> &middot; <?php echo e(formatLocalTime($n['created_at'])); ?></div>
+                                    <div style="font-size:13px; color:#374151; word-break:break-word;"><?php echo nl2br(e($n['description'] ?? '')); ?></div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                        <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan&action_id=<?php echo (int)$selectedAction['id']; ?>">
+                            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                            <input type="hidden" name="add_scheduled_action_note" value="1">
+                            <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$selectedAction['id']; ?>">
+                            <textarea name="sa_note" required rows="2" placeholder="Add a status note..." style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px; resize:vertical; margin-bottom:8px;"></textarea>
+                            <button type="submit" style="padding:8px 16px; background:#374151; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">Add Note</button>
+                        </form>
+
+                        <script nonce="<?php echo cspNonce(); ?>">
+                        (function() {
+                            var sel = document.getElementById('saEditActionSelect');
+                            var grp = document.getElementById('saEditAssessmentGroup');
+                            var asel = document.getElementById('saEditAssessmentSelect');
+                            if (!sel || !grp) return;
+                            sel.addEventListener('change', function() {
+                                var isSend = sel.value === 'send_assessment';
+                                grp.style.display = isSend ? 'block' : 'none';
+                                if (asel) asel.required = isSend;
+                            });
+                        })();
+                        </script>
+                        <?php else: ?>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                             <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #333;">Action Plan</h3>
                             <button type="button" id="createScheduledActionBtn" class="btn btn-primary" style="padding: 8px 18px; font-size: 13px;">+ Create Action</button>
                         </div>
-                        <p style="margin: 0 0 20px 0; font-size: 13px; color: #6b7280;">Schedule a future action for this vendor. The <strong>Vendor Remediation Schedule</strong> runs daily and fires each action once its date arrives, creating a linked Cyber To-Do.</p>
+                        <p style="margin: 0 0 20px 0; font-size: 13px; color: #6b7280;">Schedule a future action for this vendor. The <strong>Vendor Remediation Schedule</strong> runs daily and fires each action once its date arrives, creating a linked Cyber To-Do. Click an action to edit it, change status, or add status notes.</p>
 
                         <?php if (empty($scheduledActions)): ?>
                             <div style="text-align: center; padding: 40px 20px; color: #9ca3af; font-size: 14px;">No scheduled actions yet. Click <strong>+ Create Action</strong> to add one.</div>
@@ -3729,9 +4059,10 @@ function getFieldValue($request, $field, $default = '') {
                             <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                                 <thead>
                                     <tr style="text-align: left; color: #6b7280; border-bottom: 1px solid #e5e7eb;">
-                                        <th style="padding: 8px 10px;">Date</th>
+                                        <th style="padding: 8px 10px;">Due Date</th>
                                         <th style="padding: 8px 10px;">Action</th>
                                         <th style="padding: 8px 10px;">Description</th>
+                                        <th style="padding: 8px 10px;">Assignees</th>
                                         <th style="padding: 8px 10px;">Status</th>
                                         <th style="padding: 8px 10px; text-align: right;">Manage</th>
                                     </tr>
@@ -3741,41 +4072,46 @@ function getFieldValue($request, $field, $default = '') {
                                     $saLabel = $saActionLabels[$sa['action']] ?? $sa['action'];
                                     $saColor = $saStatusColors[$sa['status']] ?? '#6b7280';
                                 ?>
+                                    <?php $saDetailUrl = 'vendor-onboarding.php?id=' . $requestId . '&tab=action_plan&action_id=' . (int)$sa['id']; ?>
                                     <tr style="border-bottom: 1px solid #f3f4f6; vertical-align: top;">
                                         <td style="padding: 10px;"><?php echo e(date('M j, Y', strtotime($sa['scheduled_date']))); ?></td>
                                         <td style="padding: 10px;">
-                                            <?php echo e($saLabel); ?>
+                                            <a href="<?php echo e($saDetailUrl); ?>" style="color: var(--theme-header-color); font-weight: 500; text-decoration: none;"><?php echo e($saLabel); ?></a>
                                             <?php if ($sa['action'] === 'send_assessment' && !empty($sa['assessment_name'])): ?>
                                                 <div style="color: #6b7280; font-size: 12px;"><?php echo e($sa['assessment_name']); ?></div>
                                             <?php endif; ?>
                                         </td>
-                                        <td style="padding: 10px; max-width: 360px; word-break: break-word; color: #374151;"><?php echo nl2br(e($sa['description'] ?? '')); ?>
-                                            <?php if ($sa['status'] === 'failed' && !empty($sa['error'])): ?>
+                                        <td style="padding: 10px; max-width: 320px; word-break: break-word; color: #374151;"><?php echo nl2br(e($sa['description'] ?? '')); ?>
+                                            <?php if ($sa['status'] === 'problem' && !empty($sa['error'])): ?>
                                                 <div style="color: #dc2626; font-size: 12px; margin-top: 4px;">Error: <?php echo e($sa['error']); ?></div>
-                                            <?php elseif ($sa['status'] === 'executed' && !empty($sa['executed_at'])): ?>
+                                            <?php elseif (!empty($sa['executed_at'])): ?>
                                                 <div style="color: #16a34a; font-size: 12px; margin-top: 4px;">Fired <?php echo e(formatLocalTime($sa['executed_at'])); ?></div>
                                             <?php endif; ?>
                                         </td>
-                                        <td style="padding: 10px;"><span style="display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; background: <?php echo $saColor; ?>;"><?php echo e(ucfirst($sa['status'])); ?></span></td>
-                                        <td style="padding: 10px; text-align: right; white-space: nowrap;">
-                                            <?php if ($sa['status'] === 'pending'): ?>
-                                                <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan" style="display: inline;" onsubmit="return confirm('Cancel this scheduled action?');">
-                                                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                                                    <input type="hidden" name="cancel_scheduled_action" value="1">
-                                                    <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$sa['id']; ?>">
-                                                    <button type="submit" style="padding: 4px 10px; font-size: 12px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 4px; cursor: pointer;">Cancel</button>
-                                                </form>
-                                            <?php endif; ?>
-                                            <?php if (in_array($sa['status'], ['pending','cancelled','failed'], true)): ?>
-                                                <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan" style="display: inline;" onsubmit="return confirm('Delete this scheduled action?');">
-                                                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                                                    <input type="hidden" name="delete_scheduled_action" value="1">
-                                                    <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$sa['id']; ?>">
-                                                    <button type="submit" style="padding: 4px 10px; font-size: 12px; border: 1px solid #fecaca; background: white; color: #dc2626; border-radius: 4px; cursor: pointer;">Delete</button>
-                                                </form>
+                                        <td style="padding: 10px; color: #374151;">
+                                            <?php
+                                                $saAssigneeIds = !empty($sa['assignees']) ? (json_decode($sa['assignees'], true) ?: []) : [];
+                                                $saNames = [];
+                                                foreach ($saAssigneeIds as $aid) { if (isset($saAssigneeNames[(int)$aid])) { $saNames[] = $saAssigneeNames[(int)$aid]; } }
+                                            ?>
+                                            <?php if (!empty($saNames)): ?>
+                                                <?php echo e(implode(', ', $saNames)); ?>
+                                                <?php if (!empty($sa['notify_assignees'])): ?>
+                                                    <div style="color: #2563eb; font-size: 11px; margin-top: 2px;">&#9993; Email on fire</div>
+                                                <?php endif; ?>
                                             <?php else: ?>
-                                                <span style="color: #9ca3af; font-size: 12px;">&mdash;</span>
+                                                <span style="color: #9ca3af; font-size: 12px;">Stakeholder</span>
                                             <?php endif; ?>
+                                        </td>
+                                        <td style="padding: 10px;"><span style="display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; background: <?php echo $saColor; ?>;"><?php echo e($saStatusLabels[$sa['status']] ?? ucfirst($sa['status'])); ?></span></td>
+                                        <td style="padding: 10px; text-align: right; white-space: nowrap;">
+                                            <a href="<?php echo e($saDetailUrl); ?>" style="padding: 4px 10px; font-size: 12px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 4px; cursor: pointer; text-decoration: none;">Open</a>
+                                            <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan" style="display: inline;" onsubmit="return confirm('Delete this scheduled action?');">
+                                                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                                <input type="hidden" name="delete_scheduled_action" value="1">
+                                                <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$sa['id']; ?>">
+                                                <button type="submit" style="padding: 4px 10px; font-size: 12px; border: 1px solid #fecaca; background: white; color: #dc2626; border-radius: 4px; cursor: pointer;">Delete</button>
+                                            </form>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -3783,6 +4119,7 @@ function getFieldValue($request, $field, $default = '') {
                             </table>
                             </div>
                         <?php endif; ?>
+                        <?php endif; /* end selectedAction detail vs list */ ?>
                     </div>
 
                     <!-- Create Scheduled Action Modal -->
@@ -3815,8 +4152,27 @@ function getFieldValue($request, $field, $default = '') {
                                 </div>
 
                                 <div style="margin-bottom: 16px;">
-                                    <label style="display: block; font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">Date <span style="color: #dc2626;">*</span></label>
+                                    <label style="display: block; font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">Due Date <span style="color: #dc2626;">*</span></label>
                                     <input type="date" name="sa_date" required style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                </div>
+
+                                <div style="margin-bottom: 16px;">
+                                    <label style="display: block; font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">Assign to (Cyber TPRM)</label>
+                                    <?php if (empty($scheduledActionAssignees)): ?>
+                                        <div style="font-size: 12px; color: #9ca3af;">No Cyber TPRM users available. The action will fall back to the vendor stakeholder.</div>
+                                    <?php else: ?>
+                                        <div style="max-height: 140px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 8px 10px;">
+                                            <?php foreach ($scheduledActionAssignees as $u): ?>
+                                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #333; padding: 3px 0; cursor: pointer;">
+                                                <input type="checkbox" name="sa_assignees[]" value="<?php echo (int)$u['id']; ?>">
+                                                <?php echo e($u['full_name'] ?: $u['username']); ?>
+                                            </label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #333; margin-top: 8px; cursor: pointer;">
+                                            <input type="checkbox" name="sa_notify" value="1"> Email assigned individuals when this action fires
+                                        </label>
+                                    <?php endif; ?>
                                 </div>
 
                                 <div style="margin-bottom: 20px;">

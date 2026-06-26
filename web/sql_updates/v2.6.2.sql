@@ -311,7 +311,9 @@ CREATE TABLE IF NOT EXISTS `vendor_scheduled_actions` (
   `assessment_template_id` int(11) DEFAULT NULL COMMENT 'Vendor Assessment template to send (send_assessment only)',
   `scheduled_date` date NOT NULL COMMENT 'Date the action becomes due',
   `description` text DEFAULT NULL COMMENT 'Carried into the generated Cyber To-Do',
-  `status` enum('pending','executed','cancelled','failed') NOT NULL DEFAULT 'pending',
+  `assignees` text DEFAULT NULL COMMENT 'JSON array of cyber_tprm user ids to assign the generated To-Do to',
+  `notify_assignees` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Email each assignee when the action fires',
+  `status` enum('pending','in_progress','problem','completed','cancelled') NOT NULL DEFAULT 'pending' COMMENT 'User-editable workflow status; firing is tracked by executed_at',
   `result_type` varchar(50) DEFAULT NULL COMMENT 'Table the result row lives in (vendor_assessments, cyber_todo_activities, ...)',
   `result_id` int(10) unsigned DEFAULT NULL COMMENT 'Id of the row created when the action fired',
   `error` text DEFAULT NULL COMMENT 'Failure detail when status=failed',
@@ -5336,6 +5338,41 @@ SET @sql = IF(
   'ALTER TABLE `assessment_sections` ADD COLUMN `visible_roles` TEXT DEFAULT NULL AFTER `sort_order`',
   'DO 0'
 );
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- vendor_scheduled_actions.assignees (multi-assign cyber_tprm users for Action Plan)
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_scheduled_actions' AND column_name = 'assignees') = 0,
+  'ALTER TABLE `vendor_scheduled_actions` ADD COLUMN `assignees` TEXT DEFAULT NULL AFTER `description`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- vendor_scheduled_actions.notify_assignees (email assignees when the action fires)
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_scheduled_actions' AND column_name = 'notify_assignees') = 0,
+  'ALTER TABLE `vendor_scheduled_actions` ADD COLUMN `notify_assignees` TINYINT(1) NOT NULL DEFAULT 0 AFTER `assignees`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- vendor_scheduled_actions.status: move from the original execution-lifecycle enum
+-- (pending/executed/cancelled/failed) to a user-editable workflow enum. Firing is
+-- now tracked by executed_at, so legacy executed->in_progress, failed->problem.
+-- Only runs when the table exists; widen, migrate, then narrow (idempotent).
+SET @vsa_exists = (SELECT COUNT(*) FROM information_schema.tables
+  WHERE table_schema = DATABASE() AND table_name = 'vendor_scheduled_actions');
+SET @sql = IF(@vsa_exists = 1,
+  "ALTER TABLE `vendor_scheduled_actions` MODIFY COLUMN `status` ENUM('pending','in_progress','problem','completed','cancelled','executed','failed') NOT NULL DEFAULT 'pending'",
+  'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+UPDATE `vendor_scheduled_actions` SET `status` = 'in_progress' WHERE `status` = 'executed';
+UPDATE `vendor_scheduled_actions` SET `status` = 'problem'     WHERE `status` = 'failed';
+SET @sql = IF(@vsa_exists = 1,
+  "ALTER TABLE `vendor_scheduled_actions` MODIFY COLUMN `status` ENUM('pending','in_progress','problem','completed','cancelled') NOT NULL DEFAULT 'pending'",
+  'DO 0');
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- assessment_questions.visible_roles (per-question/field onboarding role visibility)
