@@ -402,6 +402,29 @@ if ($searchMode === 'subprocessors') {
     $spConcentration = array_values($spConcentration);
     $spConcPg = Pagination::paginate(count($spConcentration), $spConcParams['per_page'], $spConcParams['page']);
     $spConcentrationPage = array_slice($spConcentration, $spConcPg['offset'], $spConcParams['per_page']);
+
+    // Per-subprocessor vendor lists (id + name) for the "Send Assessment" selector.
+    // Built once and keyed by subprocessor id; the bulk_assign_assessment POST handler
+    // re-validates every vendor id, so this is only used to populate the selection UI.
+    $spVendorsBySub = [];
+    if (!empty($spConcentrationPage)) {
+        try {
+            $spVendorRows = $db->fetchAll(
+                "SELECT DISTINCT m.subprocessor_id, v.id AS vendor_id, v.vendor_name
+                 FROM vendor_subprocessor_mappings m
+                 JOIN vendor_onboarding_requests v ON m.vendor_onboarding_id = v.id
+                 ORDER BY v.vendor_name ASC"
+            );
+            foreach ($spVendorRows as $vr) {
+                $spVendorsBySub[(int)$vr['subprocessor_id']][] = [
+                    'id'   => (int)$vr['vendor_id'],
+                    'name' => $vr['vendor_name'],
+                ];
+            }
+        } catch (Exception $e) {
+            $spVendorsBySub = [];
+        }
+    }
 }
 
 // Handle CSV exports
@@ -726,6 +749,17 @@ function renderCveBadges($cvesRaw): string {
                     </div>
                 </div>
 
+                <?php if (!empty($bulkAssessmentMessage)): ?>
+                <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; font-size: 13px; color: #166534;">
+                    <?php echo e($bulkAssessmentMessage); ?>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($bulkAssessmentError)): ?>
+                <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; font-size: 13px; color: #991b1b;">
+                    <?php echo e($bulkAssessmentError); ?>
+                </div>
+                <?php endif; ?>
+
                 <?php if (!empty($spConcentrationRaw)): ?>
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
@@ -754,6 +788,9 @@ function renderCveBadges($cvesRaw): string {
                                     <a href="<?php echo Pagination::buildSortUrl('vendor_count', $spSortCol, $spSortDir, 'sp_'); ?>" style="text-decoration: none; color: inherit;"><?php echo e(t('fourth-party-risk.col_vendor_count')); ?><?php echo Pagination::getSortIndicator('vendor_count', $spSortCol, $spSortDir); ?></a>
                                 </th>
                                 <th><?php echo e(t('fourth-party-risk.col_vendors')); ?></th>
+                                <?php if (!$isAuditor): ?>
+                                <th style="text-align: right;"><?php echo e(t('fourth-party-risk.col_actions')); ?></th>
+                                <?php endif; ?>
                             </tr>
                         </thead>
                         <tbody>
@@ -769,10 +806,20 @@ function renderCveBadges($cvesRaw): string {
                                 <td style="font-size: 13px; color: #6b7280;"><?php echo e($sp['country'] ?? ''); ?></td>
                                 <td style="text-align: right; font-weight: 700; font-size: 15px; color: <?php echo (int)$sp['vendor_count'] > 1 ? '#7c3aed' : 'var(--theme-header-color, #2563eb)'; ?>;"><?php echo (int)$sp['vendor_count']; ?></td>
                                 <td style="font-size: 12px; color: #6b7280; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?php echo e($sp['vendor_names']); ?>"><?php echo e($sp['vendor_names']); ?></td>
+                                <?php if (!$isAuditor): ?>
+                                <td style="text-align: right; white-space: nowrap;">
+                                    <button type="button" class="sp-send-assessment-btn"
+                                            data-sp-name="<?php echo e($sp['subprocessor_name']); ?>"
+                                            data-sp-vendors='<?php echo e(json_encode($spVendorsBySub[(int)$sp['id']] ?? [], JSON_UNESCAPED_UNICODE)); ?>'
+                                            style="padding: 6px 12px; background: var(--theme-button-color); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                                        <?php echo e(t('fourth-party-risk.send_assessment')); ?>
+                                    </button>
+                                </td>
+                                <?php endif; ?>
                             </tr>
                             <?php endforeach; ?>
                             <?php if (empty($spConcentrationPage)): ?>
-                            <tr><td colspan="5" style="text-align: center; padding: 20px; color: #9ca3af;"><?php echo e(t('fourth-party-risk.no_subprocessors_filter')); ?></td></tr>
+                            <tr><td colspan="<?php echo $isAuditor ? 5 : 6; ?>" style="text-align: center; padding: 20px; color: #9ca3af;"><?php echo e(t('fourth-party-risk.no_subprocessors_filter')); ?></td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -1510,6 +1557,29 @@ function renderCveBadges($cvesRaw): string {
                 </form>
             </div>
         </div>
+
+        <!-- Subprocessor "Send Assessment" vendor selector -->
+        <div id="spVendorSelectModal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+            <div style="background: white; border-radius: 12px; width: 95%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.25);">
+                <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 18px; color: #1f2937;"><?php echo e(t('fourth-party-risk.send_assessment')); ?></h3>
+                    <button type="button" id="spVendorSelectClose" style="background: none; border: none; font-size: 24px; color: #9ca3af; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                </div>
+                <div style="padding: 24px;">
+                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #6b7280;"><?php echo e(t('fourth-party-risk.select_vendors_to_assess')); ?></p>
+                    <div id="spVendorSelectSubName" style="font-size: 14px; font-weight: 700; color: #1f2937; margin-bottom: 14px;"></div>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: #374151; margin: 0 0 8px 0; user-select: none;">
+                        <input type="checkbox" id="spVendorSelectAll" style="width: 16px; height: 16px; cursor: pointer;">
+                        <?php echo e(t('fourth-party-risk.select_all_visible')); ?>
+                    </label>
+                    <div id="spVendorSelectList" style="max-height: 260px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; background: #f9fafb;"></div>
+                </div>
+                <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; background: #f9fafb; border-radius: 0 0 12px 12px;">
+                    <button type="button" id="spVendorSelectCancel" style="padding: 10px 20px; background: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;">Cancel</button>
+                    <button type="button" id="spVendorSelectContinue" disabled style="padding: 10px 20px; background: var(--theme-button-color); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; opacity: 0.5;"><?php echo e(t('fourth-party-risk.assign_assessment')); ?> (<span id="spVendorSelectCount">0</span>)</button>
+                </div>
+            </div>
+        </div>
         <?php endif; ?>
 
         <footer class="footer">
@@ -1916,6 +1986,133 @@ function renderCveBadges($cvesRaw): string {
         modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+        });
+    })();
+
+    // Subprocessor "Send Assessment" — pick vendors using a subprocessor, then assign
+    (function() {
+        var modal = document.getElementById('spVendorSelectModal');
+        var bulkModal = document.getElementById('bulkAssessmentModal');
+        if (!modal || !bulkModal) return;
+        var subNameEl = document.getElementById('spVendorSelectSubName');
+        var listEl = document.getElementById('spVendorSelectList');
+        var selectAll = document.getElementById('spVendorSelectAll');
+        var continueBtn = document.getElementById('spVendorSelectContinue');
+        var countSpan = document.getElementById('spVendorSelectCount');
+        var closeBtn = document.getElementById('spVendorSelectClose');
+        var cancelBtn = document.getElementById('spVendorSelectCancel');
+        var vendorIdsInput = document.getElementById('bulkAssessmentVendorIds');
+        var vendorSummary = document.getElementById('bulkAssessmentVendorSummary');
+        var vendorList = document.getElementById('bulkAssessmentVendorList');
+
+        function getCheckboxes() { return listEl.querySelectorAll('.sp-vendor-cb'); }
+        function getChecked() { return listEl.querySelectorAll('.sp-vendor-cb:checked'); }
+
+        function updateState() {
+            var all = getCheckboxes();
+            var count = getChecked().length;
+            countSpan.textContent = count;
+            continueBtn.disabled = count === 0;
+            continueBtn.style.opacity = count === 0 ? '0.5' : '1';
+            if (all.length === 0 || count === 0) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            } else if (count === all.length) {
+                selectAll.checked = true;
+                selectAll.indeterminate = false;
+            } else {
+                selectAll.checked = false;
+                selectAll.indeterminate = true;
+            }
+        }
+
+        function openModal(name, vendors) {
+            subNameEl.textContent = name;
+            listEl.innerHTML = '';
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+            if (!vendors.length) {
+                var empty = document.createElement('div');
+                empty.style.cssText = 'padding: 8px 0; font-size: 13px; color: #9ca3af;';
+                empty.textContent = 'No vendors are linked to this subprocessor.';
+                listEl.appendChild(empty);
+            }
+            vendors.forEach(function(v) {
+                var label = document.createElement('label');
+                label.style.cssText = 'display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #374151; cursor: pointer;';
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.className = 'sp-vendor-cb';
+                cb.value = String(v.id);
+                cb.setAttribute('data-vendor-name', v.name);
+                cb.style.cssText = 'width: 15px; height: 15px; cursor: pointer;';
+                var span = document.createElement('span');
+                span.textContent = v.name;
+                label.appendChild(cb);
+                label.appendChild(span);
+                listEl.appendChild(label);
+            });
+            updateState();
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() { modal.style.display = 'none'; }
+
+        document.querySelectorAll('.sp-send-assessment-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var name = btn.getAttribute('data-sp-name') || '';
+                var vendors = [];
+                try { vendors = JSON.parse(btn.getAttribute('data-sp-vendors') || '[]'); } catch (e) { vendors = []; }
+                openModal(name, vendors);
+            });
+        });
+
+        selectAll.addEventListener('change', function() {
+            var checked = this.checked;
+            getCheckboxes().forEach(function(cb) { cb.checked = checked; });
+            updateState();
+        });
+        listEl.addEventListener('change', function(e) {
+            if (e.target.classList.contains('sp-vendor-cb')) updateState();
+        });
+
+        continueBtn.addEventListener('click', function() {
+            var checked = getChecked();
+            if (!checked.length) return;
+            var ids = [], names = [];
+            checked.forEach(function(cb) {
+                ids.push(parseInt(cb.value, 10));
+                names.push(cb.getAttribute('data-vendor-name'));
+            });
+            vendorIdsInput.value = JSON.stringify(ids);
+            vendorSummary.textContent = ids.length + ' vendor' + (ids.length !== 1 ? 's' : '') + ' selected';
+            vendorList.innerHTML = names.map(function(n) {
+                return '<div style="padding: 3px 0; border-bottom: 1px solid #f3f4f6;">' + n.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
+            }).join('');
+            closeModal();
+            bulkModal.style.display = 'flex';
+        });
+
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+        });
+
+        // The Assign Assessment modal's own close/cancel handlers live in the
+        // blast/cve IIFEs, which early-return in subprocessors mode (their
+        // toolbars don't render there). Wire them here so the modal is always
+        // dismissable when opened from the subprocessor flow. Idempotent with
+        // the blast/cve wiring in technology/CVE modes (both just hide it).
+        var bulkClose = document.getElementById('bulkAssessmentClose');
+        var bulkCancel = document.getElementById('bulkAssessmentCancel');
+        function closeBulk() { bulkModal.style.display = 'none'; }
+        if (bulkClose) bulkClose.addEventListener('click', closeBulk);
+        if (bulkCancel) bulkCancel.addEventListener('click', closeBulk);
+        bulkModal.addEventListener('click', function(e) { if (e.target === bulkModal) closeBulk(); });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && bulkModal.style.display === 'flex') closeBulk();
         });
     })();
 
