@@ -2309,7 +2309,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                     if (!array_key_exists($fn, $postedCustom)) continue;
                     $val = $postedCustom[$fn];
                     if (is_array($val)) $val = implode(', ', array_map('strval', $val));
-                    $toWrite[$fn] = trim((string)$val);
+                    $val = trim((string)$val);
+                    // Canonicalise widget-backed types so they store uniformly
+                    // regardless of how they were typed (mirrors the standard
+                    // contact fields). The phone/VAT widgets already submit a
+                    // canonical hidden value; this is the belt-and-suspenders.
+                    $cfWriteType = $cf['type'] ?? '';
+                    if ($cfWriteType === 'phone') {
+                        $val = phone_normalize_e164($val);
+                    } elseif ($cfWriteType === 'vat') {
+                        $val = vat_normalize($val);
+                    }
+                    $toWrite[$fn] = $val;
                 }
 
                 if (empty($toWrite)) {
@@ -3708,7 +3719,11 @@ function getFieldValue($request, $field, $default = '') {
                                 <div style="flex: 1; word-break: break-word;">
                                     <?php if ($fieldEditable):
                                         $cfName = 'custom[' . e($cf['field_name']) . ']';
+                                        // Raw (un-escaped) name for widget helpers, which
+                                        // escape the name attribute themselves.
+                                        $cfNameRaw = 'custom[' . $cf['field_name'] . ']';
                                         $cfType = $cf['type'] ?? 'text';
+                                        $cfWidgetId = 'cf_' . preg_replace('/[^a-zA-Z0-9_]/', '_', (string)$cf['field_name']);
                                         if ($cfType === 'textarea'): ?>
                                         <textarea name="<?php echo $cfName; ?>" rows="3" class="form-control" style="width:100%; font-size:13px;"><?php echo e($cf['value']); ?></textarea>
                                         <?php elseif (in_array($cfType, ['select', 'radio', 'button_group'], true)):
@@ -3719,11 +3734,25 @@ function getFieldValue($request, $field, $default = '') {
                                             <option value="<?php echo e($opt); ?>" <?php echo ($opt === $cf['value']) ? 'selected' : ''; ?>><?php echo e($opt); ?></option>
                                             <?php endforeach; ?>
                                         </select>
+                                        <?php elseif ($cfType === 'phone'): ?>
+                                        <?php echo phone_render_widget($cfNameRaw, $cf['value'], ['id' => $cfWidgetId]); ?>
+                                        <?php elseif ($cfType === 'vat'): ?>
+                                        <?php echo vat_render_widget($cfNameRaw, $cf['value'], ['id' => $cfWidgetId, 'vies_endpoint' => 'api/vat-validate.php']); ?>
                                         <?php else: ?>
                                         <input type="<?php echo ($cfType === 'number') ? 'number' : (($cfType === 'date') ? 'date' : (($cfType === 'email') ? 'email' : 'text')); ?>" name="<?php echo $cfName; ?>" value="<?php echo e($cf['value']); ?>" class="form-control" style="width:100%; font-size:13px;">
                                         <?php endif; ?>
-                                    <?php else: ?>
-                                        <span style="font-size: 13px; color: <?php echo ($cf['value'] === '' ? '#9ca3af' : '#1f2937'); ?>;"><?php echo $cf['value'] === '' ? '&mdash;' : nl2br(e($cf['value'])); ?></span>
+                                    <?php else:
+                                        $cfDispType = $cf['type'] ?? 'text';
+                                        $cfRaw = (string)$cf['value'];
+                                        if ($cfRaw === '') {
+                                            $cfDisp = '&mdash;';
+                                        } elseif ($cfDispType === 'phone') {
+                                            $cfDisp = '<a href="tel:' . e(phone_normalize_e164($cfRaw)) . '">' . e(phone_display($cfRaw)) . '</a>';
+                                        } else {
+                                            $cfDisp = nl2br(e($cfRaw));
+                                        }
+                                    ?>
+                                        <span style="font-size: 13px; color: <?php echo ($cf['value'] === '' ? '#9ca3af' : '#1f2937'); ?>;"><?php echo $cfDisp; ?></span>
                                         <?php if ($customEditMode && empty($cf['can_edit'])): ?><span style="font-size: 11px; color: #9ca3af; margin-left: 8px;">(view only)</span><?php endif; ?>
                                     <?php endif; ?>
                                 </div>
