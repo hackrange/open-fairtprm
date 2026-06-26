@@ -299,6 +299,9 @@ foreach ($editTemplate['sections'] as $sec) {
 // Load field references for the field_name dropdown
 // Filter by template category + 'all', so only relevant fields show
 $templateCategory = $editTemplate['category'] ?? 'vendor_assessment';
+// Custom (added) section/question id maps — role controls in the builder only apply
+// to these; standard/default onboarding questions never show the role controls.
+$builderCustomMaps = $assessmentService->getOnboardingCustomMaps($editTemplate['id']);
 try {
     $db->getConnection()->exec("CREATE TABLE IF NOT EXISTS field_references (
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -478,7 +481,7 @@ foreach ($editTemplate['sections'] as $sec) {
                     <?php if ($sIdx < count($editTemplate['sections']) - 1): ?>
                     <button type="button" class="btn btn-sm btn-secondary" data-action="reorderSection" data-args="<?php echo e(json_encode([$sec['id'], 'down'])); ?>" title="<?php echo e(t('admin_assessment-templates.title_move_down')); ?>">&#9660;</button>
                     <?php endif; ?>
-                    <button type="button" class="btn btn-sm btn-primary" data-action="editSection" data-args="<?php echo e(json_encode([$sec['id'], $sec['name'], $sec['description'] ?? '', $sec['visible_roles'] ?? ''])); ?>"><?php echo e(t('admin_assessment-templates.action_edit')); ?></button>
+                    <button type="button" class="btn btn-sm btn-primary" data-action="editSection" data-args="<?php echo e(json_encode([$sec['id'], $sec['name'], $sec['description'] ?? '', $sec['visible_roles'] ?? '', $sec['editable_roles'] ?? ''])); ?>"><?php echo e(t('admin_assessment-templates.action_edit')); ?></button>
                     <button type="button" class="btn btn-sm" style="background:#ef4444;color:white;" data-action="deleteSection" data-arg="<?php echo $sec['id']; ?>"><?php echo e(t('admin_assessment-templates.action_delete')); ?></button>
                 </div>
             </div>
@@ -552,6 +555,8 @@ $visibilityRoles = [
             <textarea id="sectionModalDesc" class="form-control" rows="2"></textarea>
         </div>
         <?php if ($templateCategory === 'onboarding'): ?>
+        <!-- Role controls apply only to custom (added) sections; JS hides them for standard sections. -->
+        <div id="sectionModalRoleControls" style="display:none;">
         <div class="form-group" style="border-top:1px solid #e5e7eb; padding-top:12px;">
             <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;"><?php echo e(t('admin_assessment-templates.label_visible_roles')); ?></label>
             <small style="color:#666; display:block; margin-bottom:8px;"><?php echo e(t('admin_assessment-templates.visible_roles_hint')); ?></small>
@@ -563,6 +568,18 @@ $visibilityRoles = [
                 <?php endforeach; ?>
             </div>
         </div>
+        <div class="form-group">
+            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;"><?php echo e(t('admin_assessment-templates.label_editable_roles')); ?></label>
+            <small style="color:#666; display:block; margin-bottom:8px;"><?php echo e(t('admin_assessment-templates.editable_roles_hint')); ?></small>
+            <div id="sectionModalEditableRoles" style="display:flex; flex-wrap:wrap; gap:14px;">
+                <?php foreach ($visibilityRoles as $slug => $label): ?>
+                <label style="display:flex; align-items:center; gap:5px; font-weight:normal; font-size:13px; cursor:pointer;">
+                    <input type="checkbox" class="sec-editable-role" value="<?php echo e($slug); ?>"> <?php echo e($label); ?>
+                </label>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        </div><!-- /sectionModalRoleControls -->
         <?php endif; ?>
         <div style="display:flex; gap:10px; margin-top:20px;">
             <button type="button" class="btn btn-primary" data-action="saveSection"><?php echo e(t('admin_assessment-templates.btn_save_section')); ?></button>
@@ -661,6 +678,8 @@ $visibilityRoles = [
             </div>
         </div>
         <?php if ($templateCategory === 'onboarding'): ?>
+        <!-- Role controls apply only to custom (added) questions; JS hides them for standard/default questions. -->
+        <div id="qModalRoleControls" style="display:none;">
         <div class="form-group" style="border-top:1px solid #e5e7eb; padding-top:15px; margin-top:15px;">
             <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;"><?php echo e(t('admin_assessment-templates.label_visible_roles')); ?></label>
             <small style="color:#666; display:block; margin-bottom:8px;"><?php echo e(t('admin_assessment-templates.visible_roles_hint')); ?></small>
@@ -671,7 +690,17 @@ $visibilityRoles = [
                 </label>
                 <?php endforeach; ?>
             </div>
+            <label style="font-weight:600; font-size:13px; display:block; margin:14px 0 4px;"><?php echo e(t('admin_assessment-templates.label_editable_roles')); ?></label>
+            <small style="color:#666; display:block; margin-bottom:8px;"><?php echo e(t('admin_assessment-templates.editable_roles_hint')); ?></small>
+            <div id="qModalEditableRoles" style="display:flex; flex-wrap:wrap; gap:14px;">
+                <?php foreach ($visibilityRoles as $slug => $label): ?>
+                <label style="display:flex; align-items:center; gap:5px; font-weight:normal; font-size:13px; cursor:pointer;">
+                    <input type="checkbox" class="q-editable-role" value="<?php echo e($slug); ?>"> <?php echo e($label); ?>
+                </label>
+                <?php endforeach; ?>
+            </div>
         </div>
+        </div><!-- /qModalRoleControls -->
         <?php endif; ?>
         <div style="display:flex; gap:10px; margin-top:20px;">
             <button type="button" class="btn btn-primary" data-action="saveQuestion"><?php echo e(t('admin_assessment-templates.btn_save_question')); ?></button>
@@ -681,6 +710,13 @@ $visibilityRoles = [
 </div>
 
 <style>
+/* Keep tall modals (e.g. the Question editor with options + conditional logic +
+   role controls) usable on short viewports by scrolling within the modal. */
+#questionModal .modal-content,
+#sectionModal .modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+}
 .builder-section {
     border: 1px solid #e5e7eb;
     border-radius: 8px;
@@ -732,6 +768,9 @@ $visibilityRoles = [
 const templateId = <?php echo $editTemplate['id']; ?>;
 let csrfToken = <?php echo json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 const allQuestions = <?php echo json_encode($allQuestionsFlat, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+// Custom (added) section/question ids — only these expose the role controls in the builder.
+const customSectionIds = <?php echo json_encode(array_values(array_map('intval', array_keys($builderCustomMaps['sections'])))); ?>;
+const customQuestionIds = <?php echo json_encode(array_values(array_map('intval', array_keys($builderCustomMaps['questions'])))); ?>;
 
 // Question data cache for editing
 const questionDataCache = <?php echo json_encode(

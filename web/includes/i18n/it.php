@@ -1107,6 +1107,8 @@ return [
     'admin_assessment-templates.label_required' => 'Obbligatorio?',
     'admin_assessment-templates.label_visible_roles' => 'Visibile ai ruoli',
     'admin_assessment-templates.visible_roles_hint' => 'Lascia tutto deselezionato per mostrarlo a tutti. La restrizione lo nasconde dal modulo del fornitore e agli utenti senza un ruolo selezionato (i super amministratori lo vedono sempre).',
+    'admin_assessment-templates.label_editable_roles' => 'Ruoli con visibilità e modifica',
+    'admin_assessment-templates.editable_roles_hint' => 'Se non ne selezioni nessuno, nessuno potrà modificare questo campo personalizzato (sola lettura) finché non concedi un ruolo; i super amministratori possono sempre.',
     'admin_assessment-templates.label_section_name' => 'Nome sezione',
     'admin_assessment-templates.label_show_when' => 'Mostra quando la domanda:',
     'admin_assessment-templates.label_template_name' => 'Nome del modello',

@@ -1134,6 +1134,8 @@ return [
     'admin_assessment-templates.label_required' => 'Required?',
     'admin_assessment-templates.label_visible_roles' => 'Visible to Roles',
     'admin_assessment-templates.visible_roles_hint' => 'Leave all unchecked to show this to everyone. Restricting hides it from the vendor form and from users without a selected role (super admins always see it).',
+    'admin_assessment-templates.label_editable_roles' => 'Visible and Editable Roles',
+    'admin_assessment-templates.editable_roles_hint' => 'Leave all unchecked and no one can edit this custom field (view-only) until you grant a role; super admins always can.',
     'admin_assessment-templates.label_section_name' => 'Section Name',
     'admin_assessment-templates.label_show_when' => 'Show when question:',
     'admin_assessment-templates.label_template_name' => 'Template Name',

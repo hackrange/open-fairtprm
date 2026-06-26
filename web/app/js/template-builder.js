@@ -53,20 +53,38 @@ function getRoleCheckboxes(selector) {
 // SECTION OPERATIONS
 // ============================================================
 
+// Role controls (visible/editable) only apply to CUSTOM (added) sections/questions.
+// Standard/default onboarding questions never show them (they are not gated).
+function setRoleControlsVisible(containerId, show) {
+    var el = document.getElementById(containerId);
+    if (el) el.style.display = show ? 'block' : 'none';
+}
+function isCustomSectionId(id) {
+    return typeof customSectionIds !== 'undefined' && customSectionIds.indexOf(parseInt(id, 10)) !== -1;
+}
+function isCustomQuestionId(id) {
+    return typeof customQuestionIds !== 'undefined' && customQuestionIds.indexOf(parseInt(id, 10)) !== -1;
+}
+
 function addSection() {
     document.getElementById('sectionModalId').value = '';
     document.getElementById('sectionModalName').value = '';
     document.getElementById('sectionModalDesc').value = '';
     setRoleCheckboxes('.sec-visible-role', []);
+    setRoleCheckboxes('.sec-editable-role', []);
+    // A new section is an addition => custom => allow role controls.
+    setRoleControlsVisible('sectionModalRoleControls', true);
     document.getElementById('sectionModalTitle').textContent = 'Add Section';
     document.getElementById('sectionModal').style.display = 'block';
 }
 
-function editSection(sectionId, name, description, visibleRoles) {
+function editSection(sectionId, name, description, visibleRoles, editableRoles) {
     document.getElementById('sectionModalId').value = sectionId;
     document.getElementById('sectionModalName').value = name;
     document.getElementById('sectionModalDesc').value = description;
     setRoleCheckboxes('.sec-visible-role', visibleRoles);
+    setRoleCheckboxes('.sec-editable-role', editableRoles);
+    setRoleControlsVisible('sectionModalRoleControls', isCustomSectionId(sectionId));
     document.getElementById('sectionModalTitle').textContent = 'Edit Section';
     document.getElementById('sectionModal').style.display = 'block';
 }
@@ -82,7 +100,8 @@ function saveSection() {
         template_id: templateId,
         name: name,
         description: desc,
-        visible_roles: JSON.stringify(getRoleCheckboxes('.sec-visible-role'))
+        visible_roles: JSON.stringify(getRoleCheckboxes('.sec-visible-role')),
+        editable_roles: JSON.stringify(getRoleCheckboxes('.sec-editable-role'))
     };
     if (sectionId) data.section_id = sectionId;
 
@@ -157,6 +176,9 @@ function addQuestion(sectionId) {
     document.getElementById('qModalDependsOn').value = '';
     document.getElementById('qModalDependsValue').innerHTML = '<option value="">--</option>';
     setRoleCheckboxes('.q-visible-role', []);
+    setRoleCheckboxes('.q-editable-role', []);
+    // A new question is an addition => custom => allow role controls.
+    setRoleControlsVisible('qModalRoleControls', true);
     document.getElementById('questionModalTitle').textContent = 'Add Question';
     toggleOptionsEditor();
     document.getElementById('questionModal').style.display = 'block';
@@ -200,6 +222,8 @@ function editQuestion(questionId) {
     }
 
     setRoleCheckboxes('.q-visible-role', q.visible_roles);
+    setRoleCheckboxes('.q-editable-role', q.editable_roles);
+    setRoleControlsVisible('qModalRoleControls', isCustomQuestionId(questionId));
 
     document.getElementById('questionModalTitle').textContent = 'Edit Question';
     toggleOptionsEditor();
@@ -301,7 +325,8 @@ function saveQuestion() {
         field_name: fieldName,
         depends_on_question_id: dependsOn || '',
         depends_on_value: dependsValue || '',
-        visible_roles: JSON.stringify(getRoleCheckboxes('.q-visible-role'))
+        visible_roles: JSON.stringify(getRoleCheckboxes('.q-visible-role')),
+        editable_roles: JSON.stringify(getRoleCheckboxes('.q-editable-role'))
     };
     if (questionId) data.question_id = questionId;
 

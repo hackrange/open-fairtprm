@@ -98,8 +98,10 @@ $sections = $assessmentService->getSections($assessment['template_id']);
 // role allows; super admins see everything. (Safe to call on this public page.)
 $vaViewerGroups = ACL::getInstance()->getUserGroups();
 $vaViewerSuper = (bool)$session->get('is_super_admin');
-$sections = array_values(array_filter($sections, function($s) use ($vaViewerGroups, $vaViewerSuper) {
-    return VendorAssessmentService::roleGatePasses($s['visible_roles'] ?? null, $vaViewerGroups, $vaViewerSuper);
+// Custom (added) fields/sections are hidden by default; standard questions stay visible.
+$vaCustomMaps = $assessmentService->getOnboardingCustomMaps($assessment['template_id']);
+$sections = array_values(array_filter($sections, function($s) use ($vaViewerGroups, $vaViewerSuper, $vaCustomMaps) {
+    return VendorAssessmentService::roleCanSee($s['visible_roles'] ?? null, $s['editable_roles'] ?? null, $vaViewerGroups, $vaViewerSuper, isset($vaCustomMaps['sections'][(int)$s['id']]));
 }));
 
 $completionStatus = $assessmentService->getCompletionStatus($assessment['id']);
@@ -153,8 +155,8 @@ if ($currentSectionIndex >= 0 && isset($sections[$currentSectionIndex])) {
     $currentSection = $sections[$currentSectionIndex];
     $currentQuestions = $assessmentService->getQuestions($currentSection['id']);
     // Drop role-restricted questions this viewer can't see (section already passed).
-    $currentQuestions = array_values(array_filter($currentQuestions, function($q) use ($vaViewerGroups, $vaViewerSuper) {
-        return VendorAssessmentService::roleGatePasses($q['visible_roles'] ?? null, $vaViewerGroups, $vaViewerSuper);
+    $currentQuestions = array_values(array_filter($currentQuestions, function($q) use ($vaViewerGroups, $vaViewerSuper, $vaCustomMaps) {
+        return VendorAssessmentService::roleCanSee($q['visible_roles'] ?? null, $q['editable_roles'] ?? null, $vaViewerGroups, $vaViewerSuper, isset($vaCustomMaps['questions'][(int)$q['id']]));
     }));
     if ($isMinimal) {
         $currentQuestions = array_values(array_filter($currentQuestions, function($q) {

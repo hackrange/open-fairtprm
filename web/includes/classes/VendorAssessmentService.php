@@ -16,6 +16,8 @@
 
 class VendorAssessmentService {
     private $db;
+    /** @var array per-template custom-item maps cache (see getOnboardingCustomMaps) */
+    private $customMapsCache = [];
 
     /**
      * Grab the database singleton and we're off to the races.
@@ -69,6 +71,97 @@ class VendorAssessmentService {
         $roles = self::decodeRoles($visibleRoles);
         if (empty($roles)) return true; // unrestricted
         return count(array_intersect($viewerGroups, $roles)) > 0;
+    }
+
+    /**
+     * Sanitize an editable_roles input. Same role universe as visible_roles.
+     */
+    public static function sanitizeEditableRoles($value) {
+        return self::sanitizeVisibleRoles($value);
+    }
+
+    /**
+     * Decide whether a viewer may EDIT an item given its editable_roles value.
+     * Unlike visibility, an empty/NULL restriction means NO ONE may edit (edit is
+     * grant-only — "no one until granted"); a role must be explicitly listed.
+     * Super admins always pass.
+     *
+     * @param mixed $editableRoles JSON string / array stored on the section or question
+     * @param array $viewerGroups  the viewer's ACL group slugs
+     * @param bool  $isSuperAdmin  whether the viewer has the is_super_admin flag
+     */
+    public static function roleCanEdit($editableRoles, array $viewerGroups, $isSuperAdmin) {
+        if ($isSuperAdmin) return true;
+        $roles = self::decodeRoles($editableRoles);
+        if (empty($roles)) return false; // grant-only: nobody edits until a role is added
+        return count(array_intersect($viewerGroups, $roles)) > 0;
+    }
+
+    /**
+     * Decide whether a viewer may SEE an item. Edit access always implies
+     * visibility. Super admins always pass.
+     *
+     * The default for empty visible_roles depends on $isCustom:
+     *  - STANDARD items (isCustom=false): empty visible_roles = visible to ALL
+     *    (the original onboarding questions behave as they always have).
+     *  - CUSTOM items (isCustom=true): visibility is GRANT-ONLY — an empty
+     *    visible_roles means visible to NO ONE except super admins and any role
+     *    explicitly granted visible_roles or editable_roles. Added (custom) fields
+     *    and sections stay hidden until a role is granted.
+     *
+     * @param mixed $visibleRoles  visible_roles value on the section/question
+     * @param mixed $editableRoles editable_roles value on the section/question
+     * @param bool  $isCustom      whether the item is a custom onboarding field/section
+     */
+    public static function roleCanSee($visibleRoles, $editableRoles, array $viewerGroups, $isSuperAdmin, $isCustom = false) {
+        if ($isSuperAdmin) return true;
+        if ($isCustom) {
+            // Grant-only: must be explicitly listed under visible_roles...
+            $vis = self::decodeRoles($visibleRoles);
+            if (!empty($vis) && count(array_intersect($viewerGroups, $vis)) > 0) return true;
+        } else {
+            // Standard: empty visible_roles = visible to everyone.
+            if (self::roleGatePasses($visibleRoles, $viewerGroups, $isSuperAdmin)) return true;
+        }
+        // ...or hold edit access, which always implies visibility.
+        return self::roleCanEdit($editableRoles, $viewerGroups, $isSuperAdmin);
+    }
+
+    /**
+     * Per-template custom maps: which sections and questions are "custom" (i.e.
+     * added beyond the original onboarding questions). A question is custom when
+     * its field_name is set but is NOT a real vendor_onboarding_requests column.
+     * A section is custom when it contains no standard (real-column) question.
+     * Only onboarding-category templates have this distinction; for any other
+     * category every item is treated as standard (empty maps).
+     *
+     * Result: ['sections' => [sectionId => true], 'questions' => [questionId => true]].
+     * Cached per template id for the lifetime of the service instance.
+     */
+    public function getOnboardingCustomMaps($templateId) {
+        $templateId = (int)$templateId;
+        if (isset($this->customMapsCache[$templateId])) return $this->customMapsCache[$templateId];
+
+        $out = ['sections' => [], 'questions' => []];
+        $tpl = $this->db->fetchOne('SELECT category FROM assessment_templates WHERE id = :id', [':id' => $templateId]);
+        if (!$tpl || ($tpl['category'] ?? '') !== 'onboarding') {
+            return $this->customMapsCache[$templateId] = $out;
+        }
+        $known = $this->getVendorColumnSet();
+        foreach ($this->getSections($templateId) as $sec) {
+            $sectionHasStandard = false;
+            foreach ($this->getQuestions($sec['id']) as $q) {
+                $fn = trim((string)($q['field_name'] ?? ''));
+                if ($fn === '') continue;                       // informational: neither custom nor standard
+                if (isset($known[strtolower($fn)])) {
+                    $sectionHasStandard = true;                 // maps to a real column => standard
+                } else {
+                    $out['questions'][(int)$q['id']] = true;    // custom field
+                }
+            }
+            if (!$sectionHasStandard) $out['sections'][(int)$sec['id']] = true; // custom section
+        }
+        return $this->customMapsCache[$templateId] = $out;
     }
 
     /**
@@ -462,6 +555,7 @@ class VendorAssessmentService {
             'description' => $data['description'] ?? '',
             'sort_order' => ($max['max_order'] ?? 0) + 1,
             'visible_roles' => array_key_exists('visible_roles', $data) ? $data['visible_roles'] : null,
+            'editable_roles' => array_key_exists('editable_roles', $data) ? $data['editable_roles'] : null,
         ]);
     }
 
@@ -475,6 +569,9 @@ class VendorAssessmentService {
         ];
         if (array_key_exists('visible_roles', $data)) {
             $update['visible_roles'] = $data['visible_roles'];
+        }
+        if (array_key_exists('editable_roles', $data)) {
+            $update['editable_roles'] = $data['editable_roles'];
         }
         return $this->db->update('assessment_sections', $update, 'id = :id', [':id' => $sectionId]);
     }
@@ -535,6 +632,7 @@ class VendorAssessmentService {
             'depends_on_question_id' => !empty($data['depends_on_question_id']) ? (int)$data['depends_on_question_id'] : null,
             'depends_on_value' => $data['depends_on_value'] ?? null,
             'visible_roles' => array_key_exists('visible_roles', $data) ? $data['visible_roles'] : null,
+            'editable_roles' => array_key_exists('editable_roles', $data) ? $data['editable_roles'] : null,
         ]);
     }
 
@@ -554,6 +652,9 @@ class VendorAssessmentService {
         ];
         if (array_key_exists('visible_roles', $data)) {
             $update['visible_roles'] = $data['visible_roles'];
+        }
+        if (array_key_exists('editable_roles', $data)) {
+            $update['editable_roles'] = $data['editable_roles'];
         }
         return $this->db->update('assessment_questions', $update, 'id = :id', [':id' => $questionId]);
     }
@@ -1756,17 +1857,20 @@ class VendorAssessmentService {
         $out = [];
         foreach ($assessments as $a) {
             $responses = $this->getResponses($a['id']);
+            $maps = $this->getOnboardingCustomMaps($a['template_id']);
             foreach ($this->getSections($a['template_id']) as $sec) {
                 // Section-level role gate (only enforced when a viewer is supplied).
-                $secVisible = ($viewer === null) || self::roleGatePasses($sec['visible_roles'] ?? null, $vg, $vs);
+                $secCustom = isset($maps['sections'][(int)$sec['id']]);
+                $secVisible = ($viewer === null) || self::roleCanSee($sec['visible_roles'] ?? null, $sec['editable_roles'] ?? null, $vg, $vs, $secCustom);
                 foreach ($this->getQuestions($sec['id']) as $q) {
                     $fn = trim((string)($q['field_name'] ?? ''));
                     // Skip unmapped questions and built-in (real column) fields.
                     if ($fn === '' || isset($known[strtolower($fn)])) continue;
                     // Newest assessment already supplied this field_name.
                     if (isset($out[$fn])) continue;
-                    // Question-level role gate (section AND question must pass).
-                    if ($viewer !== null && (!$secVisible || !self::roleGatePasses($q['visible_roles'] ?? null, $vg, $vs))) continue;
+                    // Question-level role gate (section AND question must pass). These are
+                    // custom fields, so visibility is grant-only. Edit access implies visibility.
+                    if ($viewer !== null && (!$secVisible || !self::roleCanSee($q['visible_roles'] ?? null, $q['editable_roles'] ?? null, $vg, $vs, true))) continue;
 
                     $resp = $responses[$q['id']] ?? null;
                     $val = $resp ? (string)$resp['response_value'] : '';
@@ -1819,13 +1923,16 @@ class VendorAssessmentService {
 
         $visibleAnywhere = []; // field_name(lc) => bool (visible in at least one template)
         foreach ($assessments as $a) {
+            $maps = $this->getOnboardingCustomMaps($a['template_id']);
             foreach ($this->getSections($a['template_id']) as $sec) {
-                $secVisible = self::roleGatePasses($sec['visible_roles'] ?? null, $viewerGroups, $isSuperAdmin);
+                $secCustom = isset($maps['sections'][(int)$sec['id']]);
+                $secVisible = self::roleCanSee($sec['visible_roles'] ?? null, $sec['editable_roles'] ?? null, $viewerGroups, $isSuperAdmin, $secCustom);
                 foreach ($this->getQuestions($sec['id']) as $q) {
                     $fn = trim((string)($q['field_name'] ?? ''));
                     if ($fn === '') continue;
                     $fnl = strtolower($fn);
-                    $visible = $secVisible && self::roleGatePasses($q['visible_roles'] ?? null, $viewerGroups, $isSuperAdmin);
+                    $qCustom = isset($maps['questions'][(int)$q['id']]);
+                    $visible = $secVisible && self::roleCanSee($q['visible_roles'] ?? null, $q['editable_roles'] ?? null, $viewerGroups, $isSuperAdmin, $qCustom);
                     $visibleAnywhere[$fnl] = ($visibleAnywhere[$fnl] ?? false) || $visible;
                 }
             }
@@ -1915,13 +2022,18 @@ class VendorAssessmentService {
             $tid = (int)$t['id'];
             $aid = $tplAssessment[$tid] ?? null;
             $responses = $aid ? $this->getResponses($aid) : [];
+            $maps = $this->getOnboardingCustomMaps($tid);
             foreach ($this->getSections($tid) as $sec) {
-                $secVisible = ($viewer === null) || self::roleGatePasses($sec['visible_roles'] ?? null, $vg, $vs);
+                $secCustom = isset($maps['sections'][(int)$sec['id']]);
+                $secVisible = ($viewer === null) || self::roleCanSee($sec['visible_roles'] ?? null, $sec['editable_roles'] ?? null, $vg, $vs, $secCustom);
+                // Section-level edit grant (a viewer with section edit can edit all its questions).
+                $secEditable = ($viewer === null) ? true : self::roleCanEdit($sec['editable_roles'] ?? null, $vg, $vs);
                 foreach ($this->getQuestions($sec['id']) as $q) {
                     $fn = trim((string)($q['field_name'] ?? ''));
                     if ($fn === '' || isset($known[strtolower($fn)])) continue; // skip standard/unmapped
                     if (isset($out[$fn])) continue;                            // first template wins
-                    if ($viewer !== null && (!$secVisible || !self::roleGatePasses($q['visible_roles'] ?? null, $vg, $vs))) continue;
+                    // Custom fields: visibility is grant-only (isCustom=true).
+                    if ($viewer !== null && (!$secVisible || !self::roleCanSee($q['visible_roles'] ?? null, $q['editable_roles'] ?? null, $vg, $vs, true))) continue;
 
                     $resp = $responses[$q['id']] ?? null;
                     $val = $resp ? (string)$resp['response_value'] : '';
@@ -1929,6 +2041,11 @@ class VendorAssessmentService {
                         $decoded = json_decode($val, true);
                         if (is_array($decoded)) $val = implode(', ', $decoded);
                     }
+
+                    // Editable when viewer holds an explicit edit grant at the section OR
+                    // question level (grant-only; empty editable_roles = nobody). When no
+                    // viewer is supplied (internal/full access) everything is editable.
+                    $canEdit = ($viewer === null) || $secEditable || self::roleCanEdit($q['editable_roles'] ?? null, $vg, $vs);
 
                     $out[$fn] = [
                         'field_name'    => $fn,
@@ -1940,6 +2057,7 @@ class VendorAssessmentService {
                         'template_id'   => $tid,
                         'template_name' => $t['name'] ?? '',
                         'question_id'   => (int)$q['id'],
+                        'can_edit'      => (bool)$canEdit,
                     ];
                 }
             }

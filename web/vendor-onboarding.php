@@ -267,15 +267,16 @@ if (!empty($linkedAssessments)) {
     foreach ($linkedAssessments as $la) {
         if ($la['status'] === 'completed') {
             $sections = $vasForExtras->getSections($la['template_id']);
+            $extraMaps = $vasForExtras->getOnboardingCustomMaps($la['template_id']);
             $extras = [];
             foreach ($sections as $sec) {
                 // Section role gate — restricted sections are hidden from viewers who lack the role.
-                if (!VendorAssessmentService::roleGatePasses($sec['visible_roles'] ?? null, $viewerGroups, $viewerSuper)) continue;
+                if (!VendorAssessmentService::roleCanSee($sec['visible_roles'] ?? null, $sec['editable_roles'] ?? null, $viewerGroups, $viewerSuper, isset($extraMaps['sections'][(int)$sec['id']]))) continue;
                 $questions = $vasForExtras->getQuestions($sec['id']);
                 $responses = $vasForExtras->getResponses($la['id']);
                 $sectionExtras = [];
                 foreach ($questions as $q) {
-                    if (!VendorAssessmentService::roleGatePasses($q['visible_roles'] ?? null, $viewerGroups, $viewerSuper)) continue;
+                    if (!VendorAssessmentService::roleCanSee($q['visible_roles'] ?? null, $q['editable_roles'] ?? null, $viewerGroups, $viewerSuper, isset($extraMaps['questions'][(int)$q['id']]))) continue;
                     if (empty($q['field_name'])) {
                         $resp = $responses[$q['id']] ?? null;
                         $val = $resp ? $resp['response_value'] : '';
@@ -1860,6 +1861,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                 // applies, so we never leave an empty phantom assessment behind.
                 $toWrite = [];
                 foreach ($editableCustom as $fn => $cf) {
+                    // Grant-only: only persist fields this viewer is permitted to EDIT.
+                    // can_edit is recomputed server-side from the role grants, so a
+                    // view-only user cannot write a field by forging the POST.
+                    if (empty($cf['can_edit'])) continue;
                     if (!array_key_exists($fn, $postedCustom)) continue;
                     $val = $postedCustom[$fn];
                     if (is_array($val)) $val = implode(', ', array_map('strval', $val));
@@ -3194,10 +3199,18 @@ function getFieldValue($request, $field, $default = '') {
                         foreach ($customOnboardingData as $cf) {
                             $customBySection[$cf['section'] !== '' ? $cf['section'] : 'Custom Fields'][] = $cf;
                         }
-                        // Editable by anyone who can edit the vendor record. Role-restricted
-                        // fields are already filtered out of $customOnboardingData upstream,
-                        // and the save handler re-checks, so what isn't shown can't be set.
-                        $canEditCustom = !empty($canEdit) && $editMode;
+                        // Custom-field editing is grant-only: a field is editable only when the
+                        // viewer holds an explicit edit grant (can_edit, computed per role in the
+                        // service) AND can edit the vendor record. A view-only user (e.g. a
+                        // stakeholder without an edit grant) gets no Edit button and read-only
+                        // fields. The tab opens read-only; ?edit=1 switches to the edit form.
+                        $anyCustomEditable = false;
+                        if (!empty($canEdit) && $editMode) {
+                            foreach ($customOnboardingData as $cf) {
+                                if (!empty($cf['can_edit'])) { $anyCustomEditable = true; break; }
+                            }
+                        }
+                        $customEditMode = $anyCustomEditable && (($_GET['edit'] ?? '') === '1');
                         // Parse a question's stored options into a flat list of choice strings.
                         $customOptionList = function ($raw) {
                             if (is_array($raw)) return array_values(array_filter(array_map('strval', $raw), function ($s) { return $s !== ''; }));
@@ -3212,7 +3225,12 @@ function getFieldValue($request, $field, $default = '') {
                             return array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $raw)), function ($s) { return $s !== ''; }));
                         };
                         ?>
-                        <?php if ($canEditCustom): ?>
+                        <?php if (!$customEditMode && $anyCustomEditable): ?>
+                        <div style="margin-bottom: 16px;">
+                            <a href="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=custom_data&edit=1" class="btn btn-secondary" style="padding: 7px 18px; font-size: 13px;">Edit</a>
+                        </div>
+                        <?php endif; ?>
+                        <?php if ($customEditMode): ?>
                         <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=custom_data" id="customDataForm">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="action" value="update_custom_onboarding">
@@ -3220,14 +3238,15 @@ function getFieldValue($request, $field, $default = '') {
                         <?php foreach ($customBySection as $sectionName => $fields): ?>
                         <div style="margin-bottom: 22px;">
                             <div style="font-weight: 600; font-size: 13px; color: #444; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0;"><?php echo e($sectionName); ?></div>
-                            <?php foreach ($fields as $cf): ?>
+                            <?php foreach ($fields as $cf):
+                                $fieldEditable = $customEditMode && !empty($cf['can_edit']);
+                            ?>
                             <div style="display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f7f7f7; align-items: flex-start;">
                                 <div style="min-width: 240px; max-width: 240px;">
                                     <div style="font-size: 13px; color: #333; font-weight: 500;"><?php echo e($cf['label']); ?></div>
-                                    <div style="font-size: 11px; color: #9ca3af; font-family: monospace; margin-top: 2px;"><?php echo e($cf['field_name']); ?></div>
                                 </div>
                                 <div style="flex: 1; word-break: break-word;">
-                                    <?php if ($canEditCustom):
+                                    <?php if ($fieldEditable):
                                         $cfName = 'custom[' . e($cf['field_name']) . ']';
                                         $cfType = $cf['type'] ?? 'text';
                                         if ($cfType === 'textarea'): ?>
@@ -3245,15 +3264,17 @@ function getFieldValue($request, $field, $default = '') {
                                         <?php endif; ?>
                                     <?php else: ?>
                                         <span style="font-size: 13px; color: <?php echo ($cf['value'] === '' ? '#9ca3af' : '#1f2937'); ?>;"><?php echo $cf['value'] === '' ? '&mdash;' : nl2br(e($cf['value'])); ?></span>
+                                        <?php if ($customEditMode && empty($cf['can_edit'])): ?><span style="font-size: 11px; color: #9ca3af; margin-left: 8px;">(view only)</span><?php endif; ?>
                                     <?php endif; ?>
                                 </div>
                             </div>
                             <?php endforeach; ?>
                         </div>
                         <?php endforeach; ?>
-                        <?php if ($canEditCustom): ?>
-                            <div style="margin-top: 18px;">
+                        <?php if ($customEditMode): ?>
+                            <div style="margin-top: 18px; display: flex; gap: 10px;">
                                 <button type="submit" class="btn btn-primary" style="padding: 9px 22px; font-size: 13px;">Save Custom Data</button>
+                                <a href="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=custom_data" class="btn btn-secondary" style="padding: 9px 22px; font-size: 13px;">Cancel</a>
                             </div>
                         </form>
                         <?php endif; ?>

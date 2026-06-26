@@ -1107,6 +1107,8 @@ return [
     'admin_assessment-templates.label_required' => 'आवश्यक?',
     'admin_assessment-templates.label_visible_roles' => 'भूमिकाओं के लिए दृश्यमान',
     'admin_assessment-templates.visible_roles_hint' => 'सभी को दिखाने के लिए सभी अनचेक छोड़ें। प्रतिबंधित करने पर यह विक्रेता फ़ॉर्म और चयनित भूमिका रहित उपयोगकर्ताओं से छिप जाता है (सुपर एडमिन इसे हमेशा देखते हैं)।',
+    'admin_assessment-templates.label_editable_roles' => 'देखने और संपादित करने वाली भूमिकाएँ',
+    'admin_assessment-templates.editable_roles_hint' => 'यदि कोई चयनित नहीं है, तो भूमिका दिए जाने तक कोई इस कस्टम फ़ील्ड को संपादित नहीं कर सकता (केवल-पढ़ने योग्य); सुपर एडमिन हमेशा कर सकते हैं।',
     'admin_assessment-templates.label_section_name' => 'अनुभाग का नाम',
     'admin_assessment-templates.label_show_when' => 'तब दिखाएँ जब प्रश्न:',
     'admin_assessment-templates.label_template_name' => 'टेम्पलेट का नाम',

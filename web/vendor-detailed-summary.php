@@ -244,16 +244,17 @@ try {
     foreach ($completedAssessments as $ca) {
         $sections = $assessmentService->getSections($ca['template_id']);
         $responses = $assessmentService->getResponses($ca['id']);
+        $dsCustomMaps = $assessmentService->getOnboardingCustomMaps($ca['template_id']);
         $totalAnswered = 0;
         $totalQuestions = 0;
         $sectionCount = count($sections);
         foreach ($sections as $section) {
-            if (!VendorAssessmentService::roleGatePasses($section['visible_roles'] ?? null, $dsViewerGroups, $dsViewerSuper)) continue;
+            if (!VendorAssessmentService::roleCanSee($section['visible_roles'] ?? null, $section['editable_roles'] ?? null, $dsViewerGroups, $dsViewerSuper, isset($dsCustomMaps['sections'][(int)$section['id']]))) continue;
             $questions = $assessmentService->getQuestions($section['id']);
             $totalQuestions += count($questions);
             $sectionName = strtolower($section['name'] ?? '');
             foreach ($questions as $q) {
-                if (!VendorAssessmentService::roleGatePasses($q['visible_roles'] ?? null, $dsViewerGroups, $dsViewerSuper)) continue;
+                if (!VendorAssessmentService::roleCanSee($q['visible_roles'] ?? null, $q['editable_roles'] ?? null, $dsViewerGroups, $dsViewerSuper, isset($dsCustomMaps['questions'][(int)$q['id']]))) continue;
                 $qId = $q['id'];
                 $hasAnswer = isset($responses[$qId]) && ($responses[$qId]['response_value'] ?? '') !== '';
                 if ($hasAnswer) $totalAnswered++;

@@ -1107,6 +1107,8 @@ return [
     'admin_assessment-templates.label_required' => 'Obligatoire ?',
     'admin_assessment-templates.label_visible_roles' => 'Visible selon les rôles',
     'admin_assessment-templates.visible_roles_hint' => 'Laissez tout décoché pour l\'afficher à tous. La restriction le masque du formulaire fournisseur et des utilisateurs sans rôle sélectionné (les super-administrateurs le voient toujours).',
+    'admin_assessment-templates.label_editable_roles' => 'Rôles pouvant voir et modifier',
+    'admin_assessment-templates.editable_roles_hint' => 'Si rien n\'est coché, personne ne peut modifier ce champ personnalisé (lecture seule) tant qu\'un rôle n\'est pas accordé ; les super administrateurs le peuvent toujours.',
     'admin_assessment-templates.label_section_name' => 'Nom de la section',
     'admin_assessment-templates.label_show_when' => 'Afficher lorsque la question :',
     'admin_assessment-templates.label_template_name' => 'Nom du modèle',

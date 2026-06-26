@@ -1107,6 +1107,8 @@ return [
     'admin_assessment-templates.label_required' => 'Обов\'язкове?',
     'admin_assessment-templates.label_visible_roles' => 'Видимо для ролей',
     'admin_assessment-templates.visible_roles_hint' => 'Залиште все непозначеним, щоб показати всім. Обмеження приховує це від форми постачальника та користувачів без вибраної ролі (суперадміністратори завжди бачать).',
+    'admin_assessment-templates.label_editable_roles' => 'Ролі з переглядом і редагуванням',
+    'admin_assessment-templates.editable_roles_hint' => 'Якщо нічого не позначено, ніхто не може редагувати це користувацьке поле (лише перегляд), доки не надано роль; суперадміністратори можуть завжди.',
     'admin_assessment-templates.label_section_name' => 'Назва розділу',
     'admin_assessment-templates.label_show_when' => 'Показувати, коли запитання:',
     'admin_assessment-templates.label_template_name' => 'Назва шаблону',

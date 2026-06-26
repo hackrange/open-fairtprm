@@ -1107,6 +1107,8 @@ return [
     'admin_assessment-templates.label_required' => 'Obrigatório?',
     'admin_assessment-templates.label_visible_roles' => 'Visível para funções',
     'admin_assessment-templates.visible_roles_hint' => 'Deixe tudo desmarcado para mostrar a todos. Restringir oculta-o do formulário do fornecedor e de usuários sem uma função selecionada (superadministradores sempre veem).',
+    'admin_assessment-templates.label_editable_roles' => 'Funções com visualização e edição',
+    'admin_assessment-templates.editable_roles_hint' => 'Se nenhuma for marcada, ninguém poderá editar este campo personalizado (somente leitura) até conceder uma função; os superadministradores sempre podem.',
     'admin_assessment-templates.label_section_name' => 'Nome da Seção',
     'admin_assessment-templates.label_show_when' => 'Exibir quando a pergunta:',
     'admin_assessment-templates.label_template_name' => 'Nome do Modelo',

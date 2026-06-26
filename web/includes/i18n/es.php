@@ -1107,6 +1107,8 @@ return [
     'admin_assessment-templates.label_required' => '¿Obligatorio?',
     'admin_assessment-templates.label_visible_roles' => 'Visible para roles',
     'admin_assessment-templates.visible_roles_hint' => 'Deje todo sin marcar para mostrarlo a todos. Al restringir, se oculta del formulario del proveedor y de los usuarios sin un rol seleccionado (los superadministradores siempre lo ven).',
+    'admin_assessment-templates.label_editable_roles' => 'Roles con visibilidad y edición',
+    'admin_assessment-templates.editable_roles_hint' => 'Si no marca ninguno, nadie podrá editar este campo personalizado (solo lectura) hasta que conceda un rol; los superadministradores siempre pueden.',
     'admin_assessment-templates.label_section_name' => 'Nombre de la sección',
     'admin_assessment-templates.label_show_when' => 'Mostrar cuando la pregunta:',
     'admin_assessment-templates.label_template_name' => 'Nombre de la plantilla',

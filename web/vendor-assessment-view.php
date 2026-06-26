@@ -63,8 +63,9 @@ $sections = $assessmentService->getSections($assessment['template_id']);
 // Onboarding role visibility: hide role-restricted sections from this reviewer.
 $avViewerGroups = ACL::getInstance()->getUserGroups();
 $avViewerSuper = (bool)$session->get('is_super_admin');
-$sections = array_values(array_filter($sections, function($s) use ($avViewerGroups, $avViewerSuper) {
-    return VendorAssessmentService::roleGatePasses($s['visible_roles'] ?? null, $avViewerGroups, $avViewerSuper);
+$avCustomMaps = $assessmentService->getOnboardingCustomMaps($assessment['template_id']);
+$sections = array_values(array_filter($sections, function($s) use ($avViewerGroups, $avViewerSuper, $avCustomMaps) {
+    return VendorAssessmentService::roleCanSee($s['visible_roles'] ?? null, $s['editable_roles'] ?? null, $avViewerGroups, $avViewerSuper, isset($avCustomMaps['sections'][(int)$s['id']]));
 }));
 $responses = $assessmentService->getResponses($assessment['id']);
 $completionStatus = $assessmentService->getCompletionStatus($assessment['id']);
@@ -468,8 +469,8 @@ $csrfToken = $security->generateCSRFToken();
             // Load questions for this section and check completion
             $questions = $assessmentService->getQuestions($section['id']);
             // Drop role-restricted questions this reviewer can't see.
-            $questions = array_values(array_filter($questions, function($q) use ($avViewerGroups, $avViewerSuper) {
-                return VendorAssessmentService::roleGatePasses($q['visible_roles'] ?? null, $avViewerGroups, $avViewerSuper);
+            $questions = array_values(array_filter($questions, function($q) use ($avViewerGroups, $avViewerSuper, $avCustomMaps) {
+                return VendorAssessmentService::roleCanSee($q['visible_roles'] ?? null, $q['editable_roles'] ?? null, $avViewerGroups, $avViewerSuper, isset($avCustomMaps['questions'][(int)$q['id']]));
             }));
             $sectionStatus = $completionStatus['sections'][$section['id']] ?? ['complete' => false];
         ?>
