@@ -668,6 +668,14 @@ class VendorAssessmentService {
             'UPDATE assessment_questions SET depends_on_question_id = NULL, depends_on_value = NULL WHERE depends_on_question_id = :qid',
             [':qid' => $questionId]
         );
+        // Remove any stored answers for this field FIRST. The responses.question_id
+        // foreign key is RESTRICT, so the question delete below would otherwise fail
+        // whenever a vendor has answered it. Deleting a field intentionally discards
+        // the data it holds (the UI warns the user before this runs).
+        $this->db->query(
+            'DELETE FROM vendor_assessment_responses WHERE question_id = :qid',
+            [':qid' => $questionId]
+        );
         return $this->db->query('DELETE FROM assessment_questions WHERE id = :id', [':id' => $questionId]);
     }
 

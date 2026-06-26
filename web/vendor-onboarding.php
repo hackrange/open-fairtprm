@@ -370,6 +370,7 @@ $scheduledActions = [];
 $scheduledActionsCount = 0;
 $scheduledActionAssessments = [];
 $scheduledActionAssignees = [];
+$scheduledActionNotesByAction = [];
 $openCasesCount = 0;
 $closedCasesCount = 0;
 $vendorRisksCount = 0;
@@ -463,12 +464,27 @@ if ($showVendorTabs) {
                  LEFT JOIN assessment_templates t ON sa.assessment_template_id = t.id
                  LEFT JOIN users u ON sa.created_by = u.id
                  WHERE sa.request_id = :request_id
-                 ORDER BY FIELD(sa.status,'pending','failed','executed','cancelled'), sa.scheduled_date ASC, sa.id ASC",
+                 ORDER BY FIELD(sa.status,'pending','in_progress','problem','completed','cancelled'), sa.scheduled_date ASC, sa.id ASC",
                 [':request_id' => $requestId]
             );
             $scheduledActionsCount = 0;
             foreach ($scheduledActions as $sa) {
-                if ($sa['status'] === 'pending') { $scheduledActionsCount++; }
+                if (!in_array($sa['status'], ['completed', 'cancelled'], true)) { $scheduledActionsCount++; }
+            }
+            // Status notes for every action (for the inline expand-on-click view)
+            $scheduledActionNotesByAction = [];
+            if (!empty($scheduledActions)) {
+                $saIds = array_map(function ($x) { return (int)$x['id']; }, $scheduledActions);
+                $ph = implode(',', array_fill(0, count($saIds), '?'));
+                $allSaNotes = $db->fetchAll(
+                    "SELECT a.*, u.full_name AS created_by_name
+                     FROM cyber_todo_activities a
+                     LEFT JOIN users u ON a.created_by = u.id
+                     WHERE a.reference_type = 'vendor_scheduled_actions' AND a.reference_id IN ($ph)
+                     ORDER BY a.created_at ASC",
+                    $saIds
+                );
+                foreach ($allSaNotes as $an) { $scheduledActionNotesByAction[(int)$an['reference_id']][] = $an; }
             }
             // Vendor Assessment templates available for the "Send Assessment" action
             $scheduledActionAssessments = $db->fetchAll(
@@ -1435,6 +1451,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_scheduled_action_
             } catch (Exception $e) {
                 error_log('Add scheduled action note error: ' . $e->getMessage());
                 $error = 'Failed to add the note.';
+            }
+        }
+    }
+}
+
+// Edit / delete a status note on a scheduled action. Allowed for the note's
+// author or an administrator. The note must belong to a scheduled action of THIS
+// vendor (joined via vendor_scheduled_actions.request_id) -- defense in depth so a
+// forged id cannot reach another vendor's note.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_scheduled_action_note']) && $editMode && $requestId > 0 && ($isAdmin || $isCyberTPRM)) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request - security token mismatch.';
+    } else {
+        $noteId = intval($_POST['note_id'] ?? 0);
+        $saId = intval($_POST['scheduled_action_id'] ?? 0);
+        $noteText = trim($security->cleanInput($_POST['sa_note'] ?? ''));
+        $noteRow = $noteId > 0 ? $db->fetchOne(
+            "SELECT a.id, a.created_by FROM cyber_todo_activities a
+             JOIN vendor_scheduled_actions sa ON a.reference_id = sa.id
+             WHERE a.id = :id AND a.reference_type = 'vendor_scheduled_actions' AND sa.request_id = :rid",
+            [':id' => $noteId, ':rid' => $requestId]
+        ) : null;
+        if (!$noteRow) {
+            $error = 'Status note not found.';
+        } elseif (!$isAdmin && intval($noteRow['created_by']) !== intval($user['id'])) {
+            $error = 'You can only edit your own status notes.';
+        } elseif ($noteText === '') {
+            $error = 'Please enter a note.';
+        } else {
+            try {
+                if ($isAdmin) {
+                    $db->query("UPDATE cyber_todo_activities SET description = :d, updated_at = NOW() WHERE id = :id", [':d' => $noteText, ':id' => $noteId]);
+                } else {
+                    $db->query("UPDATE cyber_todo_activities SET description = :d, updated_at = NOW() WHERE id = :id AND created_by = :uid", [':d' => $noteText, ':id' => $noteId, ':uid' => $user['id']]);
+                }
+                $auth->audit($user['id'], 'scheduled_action_edit_note', 'cyber_todo_activities', $noteId, ['new' => ['vendor_request_id' => $requestId, 'scheduled_action_id' => $saId]]);
+                redirect('vendor-onboarding.php?id=' . $requestId . '&tab=action_plan&action_id=' . $saId . '&success_action=6');
+            } catch (Exception $e) {
+                error_log('Edit scheduled action note error: ' . $e->getMessage());
+                $error = 'Failed to update the note.';
+            }
+        }
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_scheduled_action_note']) && $editMode && $requestId > 0 && ($isAdmin || $isCyberTPRM)) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request - security token mismatch.';
+    } else {
+        $noteId = intval($_POST['note_id'] ?? 0);
+        $saId = intval($_POST['scheduled_action_id'] ?? 0);
+        $noteRow = $noteId > 0 ? $db->fetchOne(
+            "SELECT a.id, a.created_by FROM cyber_todo_activities a
+             JOIN vendor_scheduled_actions sa ON a.reference_id = sa.id
+             WHERE a.id = :id AND a.reference_type = 'vendor_scheduled_actions' AND sa.request_id = :rid",
+            [':id' => $noteId, ':rid' => $requestId]
+        ) : null;
+        if (!$noteRow) {
+            $error = 'Status note not found.';
+        } elseif (!$isAdmin && intval($noteRow['created_by']) !== intval($user['id'])) {
+            $error = 'You can only delete your own status notes.';
+        } else {
+            try {
+                if ($isAdmin) {
+                    $db->query("DELETE FROM cyber_todo_activities WHERE id = :id", [':id' => $noteId]);
+                } else {
+                    $db->query("DELETE FROM cyber_todo_activities WHERE id = :id AND created_by = :uid", [':id' => $noteId, ':uid' => $user['id']]);
+                }
+                $auth->audit($user['id'], 'scheduled_action_delete_note', 'cyber_todo_activities', $noteId, ['new' => ['vendor_request_id' => $requestId, 'scheduled_action_id' => $saId]]);
+                redirect('vendor-onboarding.php?id=' . $requestId . '&tab=action_plan&action_id=' . $saId . '&success_action=7');
+            } catch (Exception $e) {
+                error_log('Delete scheduled action note error: ' . $e->getMessage());
+                $error = 'Failed to delete the note.';
             }
         }
     }
@@ -2934,7 +3023,7 @@ function getFieldValue($request, $field, $default = '') {
                 <?php endif; ?>
                 <?php if (isset($_GET['success_action'])): ?>
                     <div class="alert alert-success"><?php
-                        $saMsgs = ['1' => 'Scheduled action created.', '2' => 'Scheduled action cancelled.', '3' => 'Scheduled action deleted.', '4' => 'Scheduled action updated.', '5' => 'Status note added.'];
+                        $saMsgs = ['1' => 'Scheduled action created.', '2' => 'Scheduled action cancelled.', '3' => 'Scheduled action deleted.', '4' => 'Scheduled action updated.', '5' => 'Status note added.', '6' => 'Status note updated.', '7' => 'Status note deleted.'];
                         echo $saMsgs[$_GET['success_action']] ?? 'Scheduled action saved.';
                     ?></div>
                 <?php endif; ?>
@@ -4016,10 +4105,41 @@ function getFieldValue($request, $field, $default = '') {
                             <div style="color:#9ca3af; font-size:13px; margin-bottom:14px;">No status notes yet.</div>
                         <?php else: ?>
                             <div style="margin-bottom:14px;">
-                                <?php foreach ($selectedActionNotes as $n): ?>
+                                <?php foreach ($selectedActionNotes as $n):
+                                    $canManageNote = $isAdmin || (int)$n['created_by'] === (int)$user['id'];
+                                ?>
                                 <div style="border-left:3px solid #e5e7eb; padding:6px 12px; margin-bottom:10px;">
-                                    <div style="font-size:12px; color:#6b7280; margin-bottom:3px;"><?php echo e($n['created_by_name'] ?? 'User'); ?> &middot; <?php echo e(formatLocalTime($n['created_at'])); ?></div>
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                                        <div style="font-size:12px; color:#6b7280; margin-bottom:3px;"><?php echo e($n['created_by_name'] ?? 'User'); ?> &middot; <?php echo e(formatLocalTime($n['created_at'])); ?></div>
+                                        <?php if ($canManageNote): ?>
+                                        <div style="display:flex; gap:10px; white-space:nowrap;">
+                                            <button type="button" data-toggle="editSaNote_<?php echo (int)$n['id']; ?>" style="font-size:11px; color:#6b7280; background:none; border:none; cursor:pointer; padding:0;">Edit</button>
+                                            <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan&action_id=<?php echo (int)$selectedAction['id']; ?>" style="display:inline; margin:0;" onsubmit="return confirm('Delete this status note?');">
+                                                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                                <input type="hidden" name="delete_scheduled_action_note" value="1">
+                                                <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$selectedAction['id']; ?>">
+                                                <input type="hidden" name="note_id" value="<?php echo (int)$n['id']; ?>">
+                                                <button type="submit" style="font-size:11px; color:#dc2626; background:none; border:none; cursor:pointer; padding:0;">Delete</button>
+                                            </form>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
                                     <div style="font-size:13px; color:#374151; word-break:break-word;"><?php echo nl2br(e($n['description'] ?? '')); ?></div>
+                                    <?php if ($canManageNote): ?>
+                                    <div id="editSaNote_<?php echo (int)$n['id']; ?>" style="display:none; margin-top:8px;">
+                                        <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan&action_id=<?php echo (int)$selectedAction['id']; ?>">
+                                            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                            <input type="hidden" name="edit_scheduled_action_note" value="1">
+                                            <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$selectedAction['id']; ?>">
+                                            <input type="hidden" name="note_id" value="<?php echo (int)$n['id']; ?>">
+                                            <textarea name="sa_note" required rows="2" style="width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; resize:vertical; box-sizing:border-box; margin-bottom:6px;"><?php echo e($n['description'] ?? ''); ?></textarea>
+                                            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                                <button type="button" data-close="editSaNote_<?php echo (int)$n['id']; ?>" style="padding:5px 12px; border:1px solid #d1d5db; background:#fff; color:#666; border-radius:6px; cursor:pointer; font-size:12px;">Cancel</button>
+                                                <button type="submit" style="padding:5px 12px; border:none; background:var(--theme-button-color); color:white; border-radius:6px; cursor:pointer; font-size:12px; font-weight:500;">Save</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                                 <?php endforeach; ?>
                             </div>
@@ -4072,28 +4192,31 @@ function getFieldValue($request, $field, $default = '') {
                                     $saLabel = $saActionLabels[$sa['action']] ?? $sa['action'];
                                     $saColor = $saStatusColors[$sa['status']] ?? '#6b7280';
                                 ?>
-                                    <?php $saDetailUrl = 'vendor-onboarding.php?id=' . $requestId . '&tab=action_plan&action_id=' . (int)$sa['id']; ?>
+                                    <?php
+                                        $saDetailUrl = 'vendor-onboarding.php?id=' . $requestId . '&tab=action_plan&action_id=' . (int)$sa['id'];
+                                        $saRowNotes = $scheduledActionNotesByAction[(int)$sa['id']] ?? [];
+                                        $saToggle = 'saRowNotes_' . (int)$sa['id'];
+                                        $saAssigneeIds = !empty($sa['assignees']) ? (json_decode($sa['assignees'], true) ?: []) : [];
+                                        $saNames = [];
+                                        foreach ($saAssigneeIds as $aid) { if (isset($saAssigneeNames[(int)$aid])) { $saNames[] = $saAssigneeNames[(int)$aid]; } }
+                                    ?>
                                     <tr style="border-bottom: 1px solid #f3f4f6; vertical-align: top;">
-                                        <td style="padding: 10px;"><?php echo e(date('M j, Y', strtotime($sa['scheduled_date']))); ?></td>
-                                        <td style="padding: 10px;">
-                                            <a href="<?php echo e($saDetailUrl); ?>" style="color: var(--theme-header-color); font-weight: 500; text-decoration: none;"><?php echo e($saLabel); ?></a>
+                                        <td data-toggle="<?php echo $saToggle; ?>" style="padding: 10px; cursor: pointer;"><?php echo e(date('M j, Y', strtotime($sa['scheduled_date']))); ?></td>
+                                        <td data-toggle="<?php echo $saToggle; ?>" style="padding: 10px; cursor: pointer;">
+                                            <span style="color: var(--theme-header-color); font-weight: 500;"><?php echo e($saLabel); ?></span>
+                                            <?php if (!empty($saRowNotes)): ?><span style="font-size:11px; color:#6b7280;"> (<?php echo count($saRowNotes); ?> note<?php echo count($saRowNotes) === 1 ? '' : 's'; ?>)</span><?php endif; ?>
                                             <?php if ($sa['action'] === 'send_assessment' && !empty($sa['assessment_name'])): ?>
                                                 <div style="color: #6b7280; font-size: 12px;"><?php echo e($sa['assessment_name']); ?></div>
                                             <?php endif; ?>
                                         </td>
-                                        <td style="padding: 10px; max-width: 320px; word-break: break-word; color: #374151;"><?php echo nl2br(e($sa['description'] ?? '')); ?>
+                                        <td data-toggle="<?php echo $saToggle; ?>" style="padding: 10px; max-width: 320px; word-break: break-word; color: #374151; cursor: pointer;"><?php echo nl2br(e($sa['description'] ?? '')); ?>
                                             <?php if ($sa['status'] === 'problem' && !empty($sa['error'])): ?>
                                                 <div style="color: #dc2626; font-size: 12px; margin-top: 4px;">Error: <?php echo e($sa['error']); ?></div>
                                             <?php elseif (!empty($sa['executed_at'])): ?>
                                                 <div style="color: #16a34a; font-size: 12px; margin-top: 4px;">Fired <?php echo e(formatLocalTime($sa['executed_at'])); ?></div>
                                             <?php endif; ?>
                                         </td>
-                                        <td style="padding: 10px; color: #374151;">
-                                            <?php
-                                                $saAssigneeIds = !empty($sa['assignees']) ? (json_decode($sa['assignees'], true) ?: []) : [];
-                                                $saNames = [];
-                                                foreach ($saAssigneeIds as $aid) { if (isset($saAssigneeNames[(int)$aid])) { $saNames[] = $saAssigneeNames[(int)$aid]; } }
-                                            ?>
+                                        <td data-toggle="<?php echo $saToggle; ?>" style="padding: 10px; color: #374151; cursor: pointer;">
                                             <?php if (!empty($saNames)): ?>
                                                 <?php echo e(implode(', ', $saNames)); ?>
                                                 <?php if (!empty($sa['notify_assignees'])): ?>
@@ -4103,15 +4226,31 @@ function getFieldValue($request, $field, $default = '') {
                                                 <span style="color: #9ca3af; font-size: 12px;">Stakeholder</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td style="padding: 10px;"><span style="display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; background: <?php echo $saColor; ?>;"><?php echo e($saStatusLabels[$sa['status']] ?? ucfirst($sa['status'])); ?></span></td>
+                                        <td data-toggle="<?php echo $saToggle; ?>" style="padding: 10px; cursor: pointer;"><span style="display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; background: <?php echo $saColor; ?>;"><?php echo e($saStatusLabels[$sa['status']] ?? ucfirst($sa['status'])); ?></span></td>
                                         <td style="padding: 10px; text-align: right; white-space: nowrap;">
-                                            <a href="<?php echo e($saDetailUrl); ?>" style="padding: 4px 10px; font-size: 12px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 4px; cursor: pointer; text-decoration: none;">Open</a>
+                                            <a href="<?php echo e($saDetailUrl); ?>" style="padding: 4px 10px; font-size: 12px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 4px; cursor: pointer; text-decoration: none;">Edit</a>
                                             <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan" style="display: inline;" onsubmit="return confirm('Delete this scheduled action?');">
                                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                                 <input type="hidden" name="delete_scheduled_action" value="1">
                                                 <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$sa['id']; ?>">
                                                 <button type="submit" style="padding: 4px 10px; font-size: 12px; border: 1px solid #fecaca; background: white; color: #dc2626; border-radius: 4px; cursor: pointer;">Delete</button>
                                             </form>
+                                        </td>
+                                    </tr>
+                                    <tr id="<?php echo $saToggle; ?>" style="display: none; background: #f9fafb;">
+                                        <td colspan="6" style="padding: 12px 16px;">
+                                            <div style="font-size: 12px; font-weight: 600; color: #666; margin-bottom: 8px;">Status Notes</div>
+                                            <?php if (empty($saRowNotes)): ?>
+                                                <div style="font-size: 13px; color: #9ca3af; margin-bottom: 8px;">No status notes yet.</div>
+                                            <?php else: ?>
+                                                <?php foreach ($saRowNotes as $rn): ?>
+                                                <div style="border-left: 3px solid #e5e7eb; padding: 4px 10px; margin-bottom: 8px;">
+                                                    <div style="font-size: 11px; color: #6b7280;"><?php echo e($rn['created_by_name'] ?? 'User'); ?> &middot; <?php echo e(formatLocalTime($rn['created_at'])); ?></div>
+                                                    <div style="font-size: 13px; color: #374151; word-break: break-word;"><?php echo nl2br(e($rn['description'] ?? '')); ?></div>
+                                                </div>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
+                                            <a href="<?php echo e($saDetailUrl); ?>" style="font-size: 12px; color: var(--theme-header-color); text-decoration: none;">Edit action &amp; manage notes &rarr;</a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

@@ -342,7 +342,7 @@ function saveQuestion() {
 }
 
 function deleteQuestion(questionId, sectionId) {
-    if (!confirm('Delete this question? This cannot be undone.')) return;
+    if (!confirm('Delete this field?\n\nWARNING: any data already stored for this field (across all vendors) will be permanently removed along with it. This cannot be undone.')) return;
 
     builderFetch('api/template-question-delete.php', {
         question_id: questionId,
