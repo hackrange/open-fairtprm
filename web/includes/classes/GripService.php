@@ -701,25 +701,49 @@ class GripService
                 $data['vendor_count']         = 0;
             }
 
-            try {
-                $res = $breach->createAlert($data);
-            } catch (Throwable $e) {
-                error_log('Grip breach createAlert failed for ' . $appName . ': ' . $e->getMessage());
-                continue;
+            // Has this Grip app already produced a breach? Key off the stored
+            // grip_saas_id so a Shadow SaaS breach can be promoted to a vendor
+            // breach when that vendor is onboarded later — without creating a
+            // duplicate even when the Grip app name and vendor name differ.
+            $existing = ($gripId !== '')
+                ? $this->db->fetchOne("SELECT id FROM cyber_breach_alerts WHERE grip_saas_id = :g ORDER BY id LIMIT 1", [':g' => $gripId])
+                : null;
+
+            $newId = 0;
+            if ($existing) {
+                $newId = (int)$existing['id'];
+            } else {
+                try {
+                    $res = $breach->createAlert($data);
+                } catch (Throwable $e) {
+                    error_log('Grip breach createAlert failed for ' . $appName . ': ' . $e->getMessage());
+                    continue;
+                }
+                if (!empty($res['success']))      { $created++; $newId = (int)$res['id']; }
+                elseif (!empty($res['existing_id'])) { $newId = (int)$res['existing_id']; }
             }
-            if (!empty($res['success'])) $created++;
 
             // Persist impacted user count, the Grip app id, and the resolved domain
             // (columns added in v2.6.2.sql) so the Breach UI can drill into affected
-            // users and label the alert "Company (domain)". Applied on both a fresh
-            // create and a dedup hit (existing_id) so re-syncs backfill older rows.
-            // Guarded so a pre-migration schema can't fatal the sync.
-            $newId = (int)($res['id'] ?? ($res['existing_id'] ?? 0));
+            // users and label the alert "Company (domain)". Applied on create and on
+            // re-sync so older rows backfill. Guarded so a pre-migration schema can't
+            // fatal the sync.
             if ($newId > 0) {
                 $upd = [];
                 if ($impacted !== null) $upd['impacted_user_count'] = $impacted;
                 if ($gripId !== '')     $upd['grip_saas_id'] = $gripId;
                 if ($domain !== '')     $upd['affected_domain'] = $domain;
+                // Promote to a vendor breach (moves it into "Your Vendors" and drops the
+                // Shadow SaaS indicator) when the vendor is now onboarded. The impacted
+                // user count / Grip app id are preserved, so the affected-users drill-down
+                // stays available.
+                if ($vendor) {
+                    $upd['title']                = $this->clip($vendor['vendor_name'] . ' — security incident reported by Grip', 500);
+                    $upd['affected_entity']      = $vendor['vendor_name'];
+                    $upd['affected_entity_type'] = 'vendor';
+                    $upd['affected_vendor_ids']  = json_encode([(int)$vendor['id']]);
+                    $upd['vendor_count']         = 1;
+                }
                 if ($upd) {
                     try { $this->db->update('cyber_breach_alerts', $upd, 'id = :id', [':id' => $newId]); }
                     catch (Throwable $e) { error_log('Grip breach row enrich failed: ' . $e->getMessage()); }
