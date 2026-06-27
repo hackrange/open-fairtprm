@@ -117,7 +117,14 @@ class BreachAlertService {
 
         $update = ['status' => $status];
 
-        if ($status === 'acknowledged') {
+        if ($status === 'new') {
+            // Reverting to New (e.g. Un-Acknowledge) clears prior workflow stamps
+            // so the alert genuinely shows as not acknowledged / not investigated.
+            $update['acknowledged_by']  = null;
+            $update['acknowledged_at']  = null;
+            $update['investigating_by'] = null;
+            $update['investigating_at'] = null;
+        } elseif ($status === 'acknowledged') {
             $update['acknowledged_by'] = $userId;
             $update['acknowledged_at'] = date('Y-m-d H:i:s');
         } elseif ($status === 'investigating') {

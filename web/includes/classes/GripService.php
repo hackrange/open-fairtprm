@@ -30,6 +30,8 @@ class GripService
     private string $apiToken = '';
     private bool $enabled = false;
     private bool $breachSyncEnabled = false;
+    /** Per-run cache of grip_id => resolved registrable domain. */
+    private array $appDomainCache = [];
 
     public function __construct()
     {
@@ -638,7 +640,11 @@ class GripService
             $appRow  = $gripId !== ''
                 ? $this->db->fetchOne("SELECT name, domain, number_of_users FROM shadow_saas_grip_apps WHERE grip_id = :g", [':g' => $gripId])
                 : null;
-            $domain  = trim((string)($appRow['domain'] ?? ''));
+            // Resolve the app's registrable domain from Grip's telemetry: the apps
+            // mirror, the Shadow SaaS list, then a live single-app API fetch. This
+            // keeps the breach labelled "Company (domain)" even for incident apps
+            // that aren't in the local Shadow SaaS list (e.g. OpenAI).
+            $domain  = $this->resolveGripAppDomain($gripId, trim((string)($appRow['domain'] ?? '')));
             $appName = trim((string)($rel['name'] ?? '')) ?: trim((string)($appRow['name'] ?? ''));
             if ($appName === '') $appName = $domain;
             if ($appName === '') continue; // nothing to key the breach on
@@ -701,20 +707,22 @@ class GripService
                 error_log('Grip breach createAlert failed for ' . $appName . ': ' . $e->getMessage());
                 continue;
             }
-            if (!empty($res['success'])) {
-                $created++;
-                // Persist impacted user count + the Grip app id (columns added in
-                // v2.6.2.sql) so the Breach UI can drill into affected users.
-                // Guarded so a pre-migration schema can't fatal the sync.
-                $newId = (int)($res['id'] ?? 0);
-                if ($newId > 0) {
-                    $upd = [];
-                    if ($impacted !== null) $upd['impacted_user_count'] = $impacted;
-                    if ($gripId !== '')     $upd['grip_saas_id'] = $gripId;
-                    if ($upd) {
-                        try { $this->db->update('cyber_breach_alerts', $upd, 'id = :id', [':id' => $newId]); }
-                        catch (Throwable $e) { error_log('Grip breach row enrich failed: ' . $e->getMessage()); }
-                    }
+            if (!empty($res['success'])) $created++;
+
+            // Persist impacted user count, the Grip app id, and the resolved domain
+            // (columns added in v2.6.2.sql) so the Breach UI can drill into affected
+            // users and label the alert "Company (domain)". Applied on both a fresh
+            // create and a dedup hit (existing_id) so re-syncs backfill older rows.
+            // Guarded so a pre-migration schema can't fatal the sync.
+            $newId = (int)($res['id'] ?? ($res['existing_id'] ?? 0));
+            if ($newId > 0) {
+                $upd = [];
+                if ($impacted !== null) $upd['impacted_user_count'] = $impacted;
+                if ($gripId !== '')     $upd['grip_saas_id'] = $gripId;
+                if ($domain !== '')     $upd['affected_domain'] = $domain;
+                if ($upd) {
+                    try { $this->db->update('cyber_breach_alerts', $upd, 'id = :id', [':id' => $newId]); }
+                    catch (Throwable $e) { error_log('Grip breach row enrich failed: ' . $e->getMessage()); }
                 }
             }
 
@@ -727,6 +735,45 @@ class GripService
             }
         }
         return $created;
+    }
+
+    /**
+     * Resolve a Grip SaaS app's registrable domain, most-local source first:
+     *   1. the value already known to the caller (apps-mirror domain),
+     *   2. the apps mirror url, 3. the Shadow SaaS list (vendor_domain),
+     *   4. a live single-app API fetch (GET /public/saas/{id} → url) — Grip's
+     *      domain telemetry, which covers incident apps absent from local tables.
+     * Cached per run. Returns '' when no domain can be determined.
+     */
+    private function resolveGripAppDomain(string $gripId, string $known = ''): string
+    {
+        $known = trim($known);
+        if ($known !== '') return $known;
+        if ($gripId === '') return '';
+        if (array_key_exists($gripId, $this->appDomainCache)) return $this->appDomainCache[$gripId];
+
+        $domain = '';
+        $row = $this->db->fetchOne("SELECT domain, url FROM shadow_saas_grip_apps WHERE grip_id = :g", [':g' => $gripId]);
+        if ($row) {
+            $domain = trim((string)($row['domain'] ?? ''));
+            if ($domain === '' && !empty($row['url'])) $domain = (string)self::extractDomain($row['url']);
+        }
+        if ($domain === '') {
+            $ss = $this->db->fetchOne("SELECT vendor_domain FROM shadow_saas WHERE grip_id = :g LIMIT 1", [':g' => $gripId]);
+            if ($ss) $domain = trim((string)($ss['vendor_domain'] ?? ''));
+        }
+        if ($domain === '' && $this->isConfigured()) {
+            try {
+                $res = $this->request('/' . rawurlencode($gripId));
+                if (!empty($res['success']) && is_array($res['data']) && !empty($res['data']['url'])) {
+                    $domain = (string)self::extractDomain($res['data']['url']);
+                }
+            } catch (Throwable $e) {
+                error_log('Grip app domain fetch failed for ' . $gripId . ': ' . $e->getMessage());
+            }
+        }
+        $this->appDomainCache[$gripId] = $domain;
+        return $domain;
     }
 
     /**
@@ -797,6 +844,19 @@ class GripService
             catch (Throwable $e) { error_log('Grip app-user insert failed: ' . $e->getMessage()); }
         }
         return $count;
+    }
+
+    /**
+     * Public, on-demand refresh of one app's user snapshot. Used by the
+     * grip-saas-users.php drill-down to lazily populate
+     * shadow_saas_grip_app_users the first time a (non-breached) app's user
+     * count is opened, since the breach projection only snapshots breached apps.
+     * No-op unless Grip is configured. @return int users stored
+     */
+    public function refreshAppUsers(string $gripId): int
+    {
+        if (!$this->isConfigured()) return 0;
+        return $this->syncAppUsers($gripId);
     }
 
     // ------------------------------------------------------------------

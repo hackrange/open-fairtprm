@@ -1558,7 +1558,20 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             ?>
                             <td style="font-size: 12px; color: #374151; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?php echo e($rtClean); ?>"><?php echo e($rtClean); ?></td>
                             <td style="font-size: 12px; color: #374151;"><?php echo e($entry['application_category'] ?? '—'); ?></td>
-                            <td style="text-align: center; font-size: 13px; color: #374151;"><?php echo $entry['number_of_users'] !== null ? number_format((int)$entry['number_of_users']) : '—'; ?></td>
+                            <td style="text-align: center; font-size: 13px; color: #374151;"><?php
+                                if ($entry['number_of_users'] !== null) {
+                                    $userCount = number_format((int)$entry['number_of_users']);
+                                    // Grip-sourced apps expose a per-app user roster; link the count to the
+                                    // drill-down (new tab). Param is "id" so Pagination preserves it across pages.
+                                    if (!empty($entry['grip_id']) && ($entry['source'] ?? '') === 'grip') {
+                                        echo '<a href="grip-saas-users.php?id=' . urlencode($entry['grip_id']) . '" target="_blank" rel="noopener" title="' . e('View the users Grip observed for this application') . '" style="color:#2563eb;font-weight:600;text-decoration:none;">' . $userCount . ' &#8599;</a>';
+                                    } else {
+                                        echo $userCount;
+                                    }
+                                } else {
+                                    echo '—';
+                                }
+                            ?></td>
                             <td style="text-align: center;">
                                 <?php if ($avgScore !== null): ?>
                                 <span style="font-weight: 600; font-size: 13px; color: #374151;"><?php echo $avgScore; ?>%</span>

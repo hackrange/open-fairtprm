@@ -5494,6 +5494,17 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
+-- cyber_breach_alerts.affected_domain — the affected application's registrable
+-- domain (Grip url telemetry). Lets the Breach UI label Grip alerts as
+-- "Company (domain.com)" even when the app isn't in the local Shadow SaaS list.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND column_name = 'affected_domain') = 0,
+  'ALTER TABLE `cyber_breach_alerts` ADD COLUMN `affected_domain` VARCHAR(255) DEFAULT NULL AFTER `grip_saas_id`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
 -- =============================================================================
 -- vendor_onboarding_requests: Cost Center and Project (Engagement Details)
 -- =============================================================================

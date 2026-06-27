@@ -68,6 +68,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManage) {
                 $msg = $result['error'] ?? t('breach-alerts.delete_failed');
                 $msgType = 'danger';
             }
+        } elseif ($action === 'bulk_action') {
+            // Bulk multi-select: acknowledge / false-positive / delete several alerts at once.
+            $bulkOp = $_POST['bulk_op'] ?? '';
+            $ids = array_values(array_unique(array_filter(
+                array_map('intval', (array)($_POST['alert_ids'] ?? [])),
+                function ($v) { return $v > 0; }
+            )));
+            if (empty($ids)) {
+                $msg = t('breach-alerts.bulk_none_selected');
+                $msgType = 'danger';
+            } elseif (!in_array($bulkOp, ['acknowledge', 'false_positive', 'delete'], true)) {
+                $msg = t('breach-alerts.update_failed');
+                $msgType = 'danger';
+            } elseif ($bulkOp === 'delete' && !$isAdmin) {
+                $msg = t('breach-alerts.delete_failed');
+                $msgType = 'danger';
+            } else {
+                $done = 0; $failed = 0;
+                foreach ($ids as $bid) {
+                    if ($bulkOp === 'delete') {
+                        $r = $breachService->deleteAlert($bid);
+                    } else {
+                        $st = $bulkOp === 'acknowledge' ? 'acknowledged' : 'false_positive';
+                        $r = $breachService->updateStatus($bid, $st, (int)$user['id'], null);
+                    }
+                    if (!empty($r['success'])) { $done++; } else { $failed++; }
+                }
+                $verb = $bulkOp === 'delete' ? t('breach-alerts.bulk_verb_deleted')
+                      : ($bulkOp === 'acknowledge' ? t('breach-alerts.bulk_verb_acknowledged')
+                                                   : t('breach-alerts.bulk_verb_false_positive'));
+                $msg = $done . ' ' . t('breach-alerts.bulk_alerts') . ' ' . $verb
+                     . ($failed ? ' · ' . $failed . ' ' . t('breach-alerts.bulk_skipped') : '');
+                $msgType = $done ? 'success' : 'danger';
+            }
         } elseif ($action === 'scan_company' && $isAdmin) {
             if ($breachService->queueScan((int)$user['id'], 'company')) {
                 $msg = t('breach-alerts.company_scan_queued');
@@ -118,7 +152,24 @@ foreach ($countSource as $a) {
 
 // Apply filters for display
 $displayAlerts = $vendorsOnly ? $vendorAlerts : $allAlerts;
-$alerts = $statusFilter ? array_filter($displayAlerts, function($a) use ($statusFilter) { return $a['status'] === $statusFilter; }) : $displayAlerts;
+// Default (unfiltered) view hides false positives — they only appear when the
+// "False Positive" status filter is explicitly selected.
+$alerts = $statusFilter
+    ? array_filter($displayAlerts, function($a) use ($statusFilter) { return $a['status'] === $statusFilter; })
+    : array_filter($displayAlerts, function($a) { return ($a['status'] ?? '') !== 'false_positive'; });
+
+// Resolve registrable domains for Grip-sourced alerts so they can be shown as
+// "Company (domain.com)". Sourced from the Shadow SaaS list (vendor_domain),
+// keyed by the Grip app id stored on the alert. Built once per page.
+$gripDomainMap = [];
+$gripAlertIds = [];
+foreach ($alerts as $a) {
+    if (!empty($a['grip_saas_id'])) $gripAlertIds[(string)$a['grip_saas_id']] = true;
+}
+foreach (array_keys($gripAlertIds) as $gid) {
+    $dr = $db->fetchOne("SELECT vendor_domain FROM shadow_saas WHERE grip_id = :g LIMIT 1", [':g' => $gid]);
+    $gripDomainMap[$gid] = trim((string)($dr['vendor_domain'] ?? ''));
+}
 
 // Severity colors
 $severityColors = [
@@ -336,6 +387,30 @@ $pageKey = 'breach_alerts';
             </div>
             </div>
 
+            <!-- Bulk action toolbar -->
+            <?php if ($canManage && !empty($alerts)): ?>
+            <div id="bulk-toolbar" style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 16px;margin-bottom:12px;position:sticky;top:0;z-index:5;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer;margin:0;">
+                    <input type="checkbox" id="bulk-select-all" style="width:16px;height:16px;cursor:pointer;">
+                    <span style="color:#6b7280;"><?php echo e(t('breach-alerts.bulk_check_all')); ?></span>
+                    <span id="bulk-count" style="font-weight:600;"><?php echo e(t('breach-alerts.bulk_selected_zero')); ?></span>
+                </label>
+                <div style="margin-left:auto;display:flex;gap:8px;">
+                    <button type="button" class="btn btn-xs btn-info" data-bulk-op="acknowledge"><?php echo e(t('breach-alerts.acknowledge_btn')); ?></button>
+                    <button type="button" class="btn btn-xs" style="background:#6b7280;color:#fff;" data-bulk-op="false_positive"><?php echo e(t('breach-alerts.false_positive_btn')); ?></button>
+                    <?php if ($isAdmin): ?>
+                    <button type="button" class="btn btn-xs btn-danger" data-bulk-op="delete"><?php echo e(t('breach-alerts.delete_btn')); ?></button>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <form id="bulk-form" method="POST" style="display:none;">
+                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                <input type="hidden" name="action" value="bulk_action">
+                <input type="hidden" name="bulk_op" id="bulk-op-input" value="">
+                <div id="bulk-id-container"></div>
+            </form>
+            <?php endif; ?>
+
             <!-- Alerts List -->
             <?php if (empty($alerts)): ?>
             <div style="text-align:center;padding:60px 20px;color:#6b7280;background:#fff;border:1px solid #e5e7eb;border-radius:8px;">
@@ -348,11 +423,28 @@ $pageKey = 'breach_alerts';
                 $sc = $severityColors[$alert['severity']] ?? $severityColors['medium'];
                 $sources = json_decode($alert['source_urls'] ?? '[]', true) ?: [];
                 $vendorIds = json_decode($alert['affected_vendor_ids'] ?? '[]', true) ?: [];
+                // For Grip-sourced alerts, surface the domain as "Company (domain.com)".
+                // Prefer the domain stored on the alert (Grip url telemetry); fall back
+                // to the Shadow SaaS list lookup for older rows.
+                $displayTitle = (string)$alert['title'];
+                $gripDom = trim((string)($alert['affected_domain'] ?? ''));
+                if ($gripDom === '' && !empty($alert['grip_saas_id'])) {
+                    $gripDom = $gripDomainMap[(string)$alert['grip_saas_id']] ?? '';
+                }
+                if ($gripDom !== '') {
+                    $ent = trim((string)($alert['affected_entity'] ?? ''));
+                    if ($ent !== '' && strpos($ent, '(') === false && strncmp($displayTitle, $ent, strlen($ent)) === 0) {
+                        $displayTitle = $ent . ' (' . $gripDom . ')' . substr($displayTitle, strlen($ent));
+                    }
+                }
             ?>
             <div class="alert-card" style="border-left: 4px solid <?php echo $sc['border']; ?>;">
                 <div class="alert-card-header">
+                    <?php if ($canManage): ?>
+                    <input type="checkbox" class="bulk-cb" value="<?php echo (int)$alert['id']; ?>" data-status="<?php echo e($alert['status']); ?>" title="<?php echo e(t('breach-alerts.bulk_select_one')); ?>" style="width:16px;height:16px;cursor:pointer;flex:0 0 auto;" onclick="event.stopPropagation();">
+                    <?php endif; ?>
                     <span class="severity-badge" style="background:<?php echo $sc['badge']; ?>;"><?php echo strtoupper(e($alert['severity'])); ?></span>
-                    <span style="flex:1;font-weight:600;color:#333;font-size:14px;"><?php echo e($alert['title']); ?></span>
+                    <span style="flex:1;font-weight:600;color:#333;font-size:14px;"><?php echo e($displayTitle); ?></span>
                     <span class="entity-type-badge<?php echo ($alert['alert_type'] === 'osint_exposure') ? ' osint' : ''; ?>"><?php echo e($alertTypeLabels[$alert['alert_type']] ?? $alert['alert_type']); ?></span>
                     <?php if (($alert['affected_entity_type'] ?? '') === 'shadow_saas'): ?>
                     <span class="entity-type-badge shadow-saas" title="<?php echo e(t('breach-alerts.shadow_saas_title')); ?>"><?php echo e(t('breach-alerts.shadow_saas_label'));
@@ -478,6 +570,7 @@ $pageKey = 'breach_alerts';
                         <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><input type="hidden" name="new_status" value="false_positive"><button type="submit" name="action" value="update_status" class="btn btn-xs" style="background:#6b7280;color:#fff;" data-confirm="Mark this alert as a false positive?"><?php echo e(t('breach-alerts.false_positive_btn')); ?></button></form>
                         <?php endif; ?>
                         <?php if ($alert['status'] === 'acknowledged'): ?>
+                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><input type="hidden" name="new_status" value="new"><button type="submit" name="action" value="update_status" class="btn btn-xs" style="background:#6b7280;color:#fff;"><?php echo e(t('breach-alerts.unacknowledge_btn')); ?></button></form>
                         <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="alert_id" value="<?php echo $alert['id']; ?>"><input type="hidden" name="new_status" value="investigating"><button type="submit" name="action" value="update_status" class="btn btn-xs btn-warning"><?php echo e(t('breach-alerts.start_investigation_btn')); ?></button></form>
                         <?php endif; ?>
                         <?php if ($alert['status'] === 'investigating'): ?>
@@ -542,6 +635,59 @@ document.querySelectorAll('[data-confirm]').forEach(function(el) {
         }
     });
 });
+
+// Bulk multi-select (acknowledge / false positive / delete)
+(function() {
+    var toolbar = document.getElementById('bulk-toolbar');
+    if (!toolbar) return;
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('.bulk-cb'));
+    var selectAll = document.getElementById('bulk-select-all');
+    var countEl = document.getElementById('bulk-count');
+    var form = document.getElementById('bulk-form');
+    var idContainer = document.getElementById('bulk-id-container');
+    var opInput = document.getElementById('bulk-op-input');
+    var labels = <?php echo json_encode([
+        'zero'          => t('breach-alerts.bulk_selected_zero'),
+        'one'           => t('breach-alerts.bulk_selected_one'),
+        'many'          => t('breach-alerts.bulk_selected_many'),
+        'confirmDelete' => t('breach-alerts.bulk_confirm_delete'),
+        'confirmFp'     => t('breach-alerts.bulk_confirm_false_positive'),
+    ]); ?>;
+
+    function selected() { return boxes.filter(function(b) { return b.checked; }); }
+    function refresh() {
+        var n = selected().length;
+        // Toolbar (with Check All) stays visible at all times.
+        if (n === 0) countEl.textContent = '';
+        else if (n === 1) countEl.textContent = labels.one;
+        else countEl.textContent = labels.many.replace('%d', n);
+        selectAll.checked = n > 0 && n === boxes.length;
+        selectAll.indeterminate = n > 0 && n < boxes.length;
+    }
+    boxes.forEach(function(b) { b.addEventListener('change', refresh); });
+    selectAll.addEventListener('change', function() {
+        boxes.forEach(function(b) { b.checked = selectAll.checked; });
+        refresh();
+    });
+    toolbar.querySelectorAll('[data-bulk-op]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var ids = selected().map(function(b) { return b.value; });
+            if (!ids.length) return;
+            var op = btn.getAttribute('data-bulk-op');
+            if (op === 'delete' && !confirm(labels.confirmDelete.replace('%d', ids.length))) return;
+            if (op === 'false_positive' && !confirm(labels.confirmFp.replace('%d', ids.length))) return;
+            idContainer.innerHTML = '';
+            ids.forEach(function(id) {
+                var inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = 'alert_ids[]'; inp.value = id;
+                idContainer.appendChild(inp);
+            });
+            opInput.value = op;
+            form.submit();
+        });
+    });
+    refresh();
+})();
 
 // Background scan polling
 (function() {
