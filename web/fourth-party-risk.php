@@ -180,13 +180,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $bulkAssessmentError = 'Invalid assessment template.';
         } else {
             $created = 0;
+            $emailed = 0;
             $skipped = 0;
+            $failed = 0;
             $skippedNames = [];
+            $failedNames = [];
+
+            // Stand up the email service once for the whole batch. A failure here
+            // (or email being disabled) must not block assessment creation -- the
+            // reminder cron's Phase 1 picks up any unsent assessment later because
+            // we populate vendor_contact_email below.
+            $emailService = null;
+            $emailEnabled = false;
+            try {
+                require_once __DIR__ . '/includes/classes/EmailService.php';
+                $encryption = new Encryption();
+                $emailService = new EmailService($db, $encryption);
+                $emailEnabled = $emailService->isEnabled();
+            } catch (Exception $e) {
+                error_log('Bulk assessment email service init failed: ' . $e->getMessage());
+            }
+
             foreach ($vendorIds as $vid) {
                 $vid = intval($vid);
                 if (!$vid) continue;
                 $vendor = $db->fetchOne(
-                    'SELECT id, vendor_name, primary_contact_email FROM vendor_onboarding_requests WHERE id = :id',
+                    'SELECT id, vendor_name, primary_contact_email, primary_contact_details FROM vendor_onboarding_requests WHERE id = :id',
                     [':id' => $vid]
                 );
                 if (!$vendor || empty($vendor['primary_contact_email'])) {
@@ -194,13 +213,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     if ($vendor) $skippedNames[] = $vendor['vendor_name'];
                     continue;
                 }
+                $contactEmail = $vendor['primary_contact_email'];
+                $contactName = !empty($vendor['primary_contact_details']) ? $vendor['primary_contact_details'] : null;
                 try {
-                    $assessmentService->createAssessment(
+                    // Populate BOTH vendor_email AND vendor_contact_email (5th arg):
+                    // the single-send logic and the reminder cron both gate on and
+                    // deliver to vendor_contact_email, so leaving it NULL orphans the
+                    // record from every send path. This is the bug that left ids
+                    // 529-637 undelivered.
+                    $result = $assessmentService->createAssessment(
                         $templateId,
                         $vendor['vendor_name'],
-                        $vendor['primary_contact_email'],
-                        null,
-                        null,
+                        $contactEmail,
+                        $contactName,
+                        $contactEmail,
                         $vendor['id'],
                         $user['id'],
                         $expiresInDays
@@ -210,9 +236,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     error_log('Bulk assessment create failed for vendor ' . $vid . ': ' . $e->getMessage());
                     $skipped++;
                     $skippedNames[] = $vendor['vendor_name'];
+                    continue;
+                }
+
+                // Auto-send the assessment email and record the 'initial' tracking
+                // row, mirroring the proven single-create path in
+                // vendor-assessments.php. One failed send must not abort the batch;
+                // the cron will retry it since vendor_contact_email is set.
+                if ($emailEnabled && $emailService) {
+                    try {
+                        $assessmentUrl = baseUrl('vendor-assessment.php?token=' . $result['uuid']);
+                        $emailResult = $emailService->sendAssessmentEmail(
+                            $contactEmail,
+                            $vendor['vendor_name'],
+                            $assessmentUrl,
+                            $contactName,
+                            $templateId,
+                            $contactName,
+                            $result['expires_at']
+                        );
+                        if (!empty($emailResult['success'])) {
+                            $emailed++;
+                            try {
+                                $expiresDate = !empty($result['expires_at']) ? date('Y-m-d', strtotime($result['expires_at'])) : date('Y-m-d', strtotime('+30 days'));
+                                $db->query(
+                                    "INSERT INTO vendor_assessment_reminders (assessment_id, reminder_type, expires_at, sent_at, email_sent_to, status)
+                                     VALUES (?, 'initial', ?, NOW(), ?, 'sent')
+                                     ON DUPLICATE KEY UPDATE status = 'sent', sent_at = NOW(), email_sent_to = VALUES(email_sent_to)",
+                                    [$result['id'], $expiresDate, $contactEmail]
+                                );
+                            } catch (Exception $trackEx) {
+                                error_log('Bulk assessment reminder tracking insert failed for assessment ' . $result['id'] . ': ' . $trackEx->getMessage());
+                            }
+                        } else {
+                            $failed++;
+                            $failedNames[] = $vendor['vendor_name'];
+                            error_log('Bulk assessment email send failed for vendor ' . $vid . ': ' . ($emailResult['message'] ?? 'unknown error'));
+                        }
+                    } catch (Exception $emailEx) {
+                        $failed++;
+                        $failedNames[] = $vendor['vendor_name'];
+                        error_log('Bulk assessment email send exception for vendor ' . $vid . ': ' . $emailEx->getMessage());
+                    }
                 }
             }
-            $bulkAssessmentMessage = "Created {$created} assessment(s).";
+
+            $bulkAssessmentMessage = "Created {$created} assessment(s)";
+            if ($emailEnabled) {
+                $bulkAssessmentMessage .= ", emailed {$emailed}";
+                if ($failed > 0) {
+                    $bulkAssessmentMessage .= ", {$failed} email(s) failed and will be retried by the reminder cron"
+                        . (!empty($failedNames) ? ' (' . implode(', ', array_slice($failedNames, 0, 5)) . (count($failedNames) > 5 ? '...' : '') . ')' : '');
+                }
+            } else {
+                $bulkAssessmentMessage .= ' (email sending is disabled; the reminder cron will deliver these once enabled)';
+            }
+            $bulkAssessmentMessage .= '.';
             if ($skipped > 0) {
                 $bulkAssessmentMessage .= " {$skipped} vendor(s) skipped (no email on file"
                     . (!empty($skippedNames) ? ': ' . implode(', ', array_slice($skippedNames, 0, 5)) : '')
