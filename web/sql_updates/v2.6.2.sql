@@ -5462,7 +5462,37 @@ ALTER TABLE `cyber_breach_alerts`
     MODIFY COLUMN `alert_type` ENUM('data_breach','cyber_attack','vulnerability','supply_chain','ransomware','osint_exposure','other') NOT NULL DEFAULT 'other';
 
 ALTER TABLE `cyber_breach_alerts`
-    MODIFY COLUMN `affected_entity_type` ENUM('vendor','subprocessor','technology','organization') NOT NULL DEFAULT 'vendor';
+    MODIFY COLUMN `affected_entity_type` ENUM('vendor','subprocessor','technology','organization','shadow_saas') NOT NULL DEFAULT 'vendor';
+
+-- cyber_breach_alerts.impacted_user_count — number of users potentially impacted,
+-- populated by the Grip breach feed (GripService). For a Grip "Shadow SaaS"
+-- breach (no onboarded vendor) this drives the "Shadow SaaS / N users" indicator.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND column_name = 'impacted_user_count') = 0,
+  'ALTER TABLE `cyber_breach_alerts` ADD COLUMN `impacted_user_count` INT UNSIGNED DEFAULT NULL AFTER `vendor_count`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- cyber_breach_alerts.grip_saas_id — the Grip SaaS application id behind a Grip
+-- breach. Links the breach to its impacted-user snapshot (shadow_saas_grip_app_users)
+-- so the Breach Alerts UI can drill into the affected users.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND column_name = 'grip_saas_id') = 0,
+  'ALTER TABLE `cyber_breach_alerts` ADD COLUMN `grip_saas_id` VARCHAR(64) DEFAULT NULL AFTER `impacted_user_count`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.statistics
+   WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND index_name = 'idx_grip_saas_id') = 0,
+  'ALTER TABLE `cyber_breach_alerts` ADD INDEX `idx_grip_saas_id` (`grip_saas_id`)',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- =============================================================================
 -- vendor_onboarding_requests: Cost Center and Project (Engagement Details)
@@ -5695,6 +5725,35 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_sync_log` (
   PRIMARY KEY (`id`),
   KEY `idx_status` (`status`),
   KEY `idx_started_at` (`started_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Per-SaaS-app user snapshot (Grip GET /public/saas/{id}/users). Hydrated by
+-- GripService for apps that have a Grip security incident, so the Breach Alerts
+-- UI can drill from a breach into the users potentially impacted. Keyed by the
+-- Grip SaaS app id + the Grip user id.
+CREATE TABLE IF NOT EXISTS `shadow_saas_grip_app_users` (
+  `grip_saas_id`        varchar(64) NOT NULL COMMENT 'Grip SaaS application id',
+  `user_grip_id`        varchar(64) NOT NULL COMMENT 'Grip user id',
+  `mail`                varchar(320) DEFAULT NULL,
+  `full_name`           varchar(255) DEFAULT NULL,
+  `display_name`        varchar(255) DEFAULT NULL,
+  `organizational_unit` varchar(255) DEFAULT NULL,
+  `manager_email`       varchar(320) DEFAULT NULL,
+  `user_type`           varchar(64) DEFAULT NULL,
+  `authentication_type` varchar(64) DEFAULT NULL,
+  `sso`                 tinyint(1) DEFAULT NULL,
+  `unique_scopes_count` int(10) unsigned DEFAULT NULL,
+  `number_of_saas`      int(10) unsigned DEFAULT NULL,
+  `has_active_mailbox`  tinyint(1) DEFAULT NULL,
+  `first_event_time`    datetime DEFAULT NULL COMMENT 'Per-app first event (saasUser.firstEventTime)',
+  `latest_event_time`   datetime DEFAULT NULL,
+  `last_usage`          datetime DEFAULT NULL,
+  `platforms_activity`  longtext DEFAULT NULL COMMENT 'JSON array',
+  `raw_payload`         longtext DEFAULT NULL COMMENT 'Full original JSON ({user, saasUser})',
+  `last_synced_at`      timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`grip_saas_id`,`user_grip_id`),
+  KEY `idx_grip_saas_id` (`grip_saas_id`),
+  KEY `idx_mail` (`mail`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================

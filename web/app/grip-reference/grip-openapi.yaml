@@ -1,262 +1,5098 @@
-openapi: 3.0.3
+# Grip Security Public API — bundled reference for the FairTPRM Shadow SaaS
+# integration. Generated from the tenant's live /public/openapi.json.
+# Auth: access-token header. Served admin-only via reference-doc.php.
+openapi: 3.1.0
 info:
   title: Grip Security Public API
-  description: |
-    Reverse-engineered reference for the Grip Security public SaaS API as
-    consumed by the FairTPRM Shadow SaaS integration. Endpoints below were
-    confirmed by live calls against the documented base URL
-    (https://tenant.dep.grip.security/public/saas) using the `access-token`
-    header. The official documentation portal is at apidocs.grip.security.
-  version: "0.1"
+  version: '1.0'
+  description: 'Reference for the Grip Security public API consumed by the FairTPRM
+
+    Shadow SaaS integration. This document is a faithful mirror of the
+
+    tenant''s own auto-generated specification, fetched live from
+
+    https://<tenant>.dep.grip.security/public/openapi.json (FastAPI/OpenAPI
+
+    3.1.0). The official documentation portal is at apidocs.grip.security.
+
+
+    Authentication: send the tenant administrator API key in the
+
+    `access-token` HTTP header on every request (security scheme
+
+    `APIKeyHeader`). Bearer / X-API-Key / Basic are all rejected with 401.
+
+
+    Pagination: list endpoints accept `offset` (zero-based) and `limit`.
+
+    Iterate with offset until a page returns fewer rows than the limit.
+
+
+    The FairTPRM integration normalizes each SaaS `url` to its registrable
+
+    domain (e.g. https://www.united.com -> united.com) for vendor matching.'
   contact:
     name: Grip Security
     url: https://apidocs.grip.security/docs/api-docs/16b5e21308a0e-grip
 servers:
-  - url: https://{tenant}.dep.grip.security/public
-    description: Tenant base URL (e.g. tenant=hr)
-    variables:
-      tenant:
-        default: hr
-        description: Grip tenant prefix (e.g. "hr", "demo")
+- url: https://{tenant}.dep.grip.security/public
+  description: Grip tenant base URL. The tenant prefix is the first part of the Grip Portal URL.
+  variables:
+    tenant:
+      default: tenant
+      description: Grip tenant prefix — the first part of your Grip Portal URL (replace with your tenant).
 security:
-  - AccessToken: []
+- APIKeyHeader: []
+tags:
+- name: Users
+  description: Grip Users Public API
+- name: SaaS Application
+  description: Grip SaaS Public API
+- name: Workflows
+  description: Grip Workflows Public API
+- name: SaaS User
+  description: Grip SaaS users Public API
+- name: Posture Management
+  description: Grip Posture Management Public API
+- name: AuditLogs
+  description: Grip Audit logs Public API
+- name: Alerts V2
+  description: Grip Alerts Public API
+- name: AI Agents
+  description: Grip AI Agents Public API
+paths:
+  /users:
+    get:
+      tags:
+      - Users
+      summary: List Users
+      description: Retrieve a list of all the users in the organization, including organizational data
+        and grip data. The list is paginated using Query Parameters.
+      operationId: _users_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will set the maximum amount of users which will return
+            from a single query. <br>`>= 1` `<= 500`
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of users which will return from
+          a single query. <br>`>= 1` `<= 500`
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will get only users after this offset. If there are 200
+            users in a page, the offset for page 2 will be 200. <br>`>= 0`
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only users after this offset. If there are 200
+          users in a page, the offset for page 2 will be 200. <br>`>= 0`
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+                title: Response List Users Users Get
+          headers:
+            next:
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/users?offset=400&limit=200
+              schema:
+                type: integer
+            prev:
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/users?offset=200&limit=200
+              schema:
+                type: integer
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /users/{user_mail}/id:
+    get:
+      tags:
+      - Users
+      summary: Get User ID
+      description: Retrieve the userID out of the user email address.
+      operationId: _users_user_mail_id_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: user_mail
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Mail
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /users/{user_id}:
+    get:
+      tags:
+      - Users
+      summary: Get User
+      description: Retrieve the information of the user with the matching user mail.
+      operationId: _users_user_id_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /users/{user_id}/saas:
+    get:
+      tags:
+      - Users
+      summary: Get SaaS applications for user
+      operationId: _users_user_id_saas_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will set the maximum amount of saas apps which will return
+            from a single query. <br>`>= 1` `<= 500`
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of saas apps which will return
+          from a single query. <br>`>= 1` `<= 500`
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will get only saas apps after this offset. If there are
+            200 saas apps in a page, the offset for page 2 will be 200. <br>`>= 0`
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only saas apps after this offset. If there are
+          200 saas apps in a page, the offset for page 2 will be 200. <br>`>= 0`
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSaasApps'
+                title: Response Get Saas Apps Of User Users  User Id  Saas Get
+          headers:
+            next:
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/users/{user_id}/saas?offset=400&limit=200
+              schema:
+                type: integer
+            prev:
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/users/{user_id}/saas?offset=200&limit=200
+              schema:
+                type: integer
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /users/{user_id}/label:
+    post:
+      tags:
+      - Users
+      summary: User Label
+      description: Add a label for a specific user id. If the specific label already exists in the env,
+        it will add it to the user. If it doesn't it will create it and add it to the user.
+      operationId: _users_user_id_label_post
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Label'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateLabelMessage'
+        '409':
+          description: Label already exists
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Users
+      summary: Delete a User Label
+      description: Delete a specific label from the user.
+      operationId: _users_user_id_label_delete
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Label'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteLabelMessage'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /saas:
+    get:
+      tags:
+      - SaaS Application
+      summary: List SaaS
+      description: Retrieve a list of all the SaaS in the organization, including organizational data
+        and grip data. The list is paginated using Query Parameters. Use limit and offsets to paginate
+        the data.
+      operationId: _saas_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will set the maximum amount of saas apps which will return
+            from a single query. <br>`>= 1` `<= 500`
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of saas apps which will return
+          from a single query. <br>`>= 1` `<= 500`
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will get only saas apps after this offset. If there are
+            200 saas apps in a page, the offset for page 2 will be 200. <br>`>= 0`
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only saas apps after this offset. If there are
+          200 saas apps in a page, the offset for page 2 will be 200. <br>`>= 0`
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Saas'
+                title: Response List Saas Saas Get
+          headers:
+            next:
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/saas?offset=400&limit=200
+              schema:
+                type: integer
+            prev:
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/saas?offset=200&limit=200
+              schema:
+                type: integer
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /saas/{saas_id}:
+    get:
+      tags:
+      - SaaS Application
+      summary: Get SaaS
+      description: Retrieve the information of the SaaS with the matching SaaS ID.
+      operationId: _saas_saas_id_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: saas_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Saas Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Saas'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /saas/{saas_name}/id:
+    get:
+      tags:
+      - SaaS Application
+      summary: Get Saas ID by SaaS Name
+      description: 'Retrieve the saas application id of a SaaS by it''s name. The result will be in array,
+        in case there is more than one SaaS with the same name.
+
+        Do not call this endpoint if you need to get the data of a SaaS application. Use the `get_saas_by_name`
+        endpoint instead.'
+      operationId: _saas_saas_name_id_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: saas_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Saas Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: uuid
+                title: Response Get Saas Id By Name Saas  Saas Name  Id Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /saas/name/{saas_name}:
+    get:
+      tags:
+      - SaaS Application
+      summary: Get Saas Details by SaaS Name
+      description: Retrieve the information of the SaaS by it's name. This is the optimal way to get the
+        data of SaaS applications based on name only. Use it when you need to get the data without having
+        Grip's SaaS ID.
+      operationId: _saas_name_saas_name_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: saas_name
+        in: path
+        required: true
+        schema:
+          type: string
+          description: The name of the SaaS application to get the data for
+          title: Saas Name
+        description: The name of the SaaS application to get the data for
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Saas'
+                title: Response Get Saas By Name
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /saas/{saas_id}/users:
+    get:
+      tags:
+      - SaaS Application
+      summary: Get Users For SaaS Application
+      description: Retrieve a list of all the users in a specific saas.
+      operationId: _saas_saas_id_users_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: saas_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Saas Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will set the maximum amount of users which will return
+            from a single query. <br>`>= 1` `<= 500`
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of users which will return from
+          a single query. <br>`>= 1` `<= 500`
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will get only users after this offset. If there are 200
+            users in a page, the offset for page 2 will be 200.  <br>`>= 0`
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only users after this offset. If there are 200
+          users in a page, the offset for page 2 will be 200.  <br>`>= 0`
+      - name: filter_access_removed
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: If true, will filter out users who have had access removed.
+          default: false
+          title: Filter Access Removed
+        description: If true, will filter out users who have had access removed.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SaasUsersData'
+                title: Response Get Users For Saas Saas  Saas Id  Users Get
+          headers:
+            next:
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/saas/{saasId}/users?offset=400&limit=200
+              schema:
+                type: string
+            prev:
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/saas/{saasId}/users?offset=200&limit=200
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /saas/{saas_id}/label:
+    post:
+      tags:
+      - SaaS Application
+      summary: Create Label
+      operationId: _saas_saas_id_label_post
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: saas_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Saas Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Label'
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - SaaS Application
+      summary: Delete Label
+      operationId: _saas_saas_id_label_delete
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: saas_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Saas Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Label'
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /saas/{saas_id}/update-primary-contact:
+    post:
+      tags:
+      - SaaS Application
+      summary: Update primary contact
+      description: Update primary contact of a specific saas
+      operationId: _saas_saas_id_update-primary-contact_post
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: saas_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Saas Id
+      - name: user_id
+        in: query
+        required: true
+        schema:
+          type: string
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /saas/{saas_id}/sanction_status:
+    post:
+      tags:
+      - SaaS Application
+      summary: Update sanction status
+      description: Updates the sanction state of a specified SaaS application based on the provided input.
+      operationId: _saas_saas_id_sanction_status_post
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: saas_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Saas Id
+      - name: new_sanction_state
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/SanctionState'
+          title: The sanction new status
+      - name: comment
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Optional comment
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Optional user email
+          description: If not received it will be the token name
+        description: If not received it will be the token name
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workflows/{workflow_id}/status:
+    get:
+      tags:
+      - Workflows
+      summary: Status of a workflow
+      description: Retrieve the status of a workflow
+      operationId: _workflows_workflow_id_status_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Workflow Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowStatus'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseError'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workflows/{workflow_id}/actions/{action_id}:
+    get:
+      tags:
+      - Workflows
+      summary: Status of a workflow action
+      description: Retrieve the status of a workflow action
+      operationId: _workflows_workflow_id_actions_action_id_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Workflow Id
+      - name: action_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Action Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowActionStatus'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseError'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workflows/accessRemoval/employee/{workflow_id}/status:
+    get:
+      tags:
+      - Workflows
+      summary: Status employee access removal
+      description: "Please note: this endpoint will be deprecated as of September 21, 2025. 'actionID'\
+        \ represents the request ID going forward. Refer to the new [endpoint](4116f308ba4bb-get-access-revocation-status).\n\
+        \n Retrieve the result of a specific employee access revocation."
+      operationId: _workflows_accessRemoval_employee_workflow_id_status_get
+      deprecated: true
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workflow Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeAccessRemovalWorkflowStatus'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-sunset: '2048-09-12'
+  /workflows/accessRemoval/saas/{workflow_id}/status:
+    get:
+      tags:
+      - Workflows
+      summary: Status SaaS Access Removal
+      description: Retrieve the result of a specific SaaS access removal workflow.
+      operationId: _workflows_accessRemoval_saas_workflow_id_status_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workflow Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaasAccessRemovalWorkflowStatus'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-internal: true
+  /workflows/accessRemoval/employee:
+    get:
+      tags:
+      - Workflows
+      summary: List employees access removal workflows
+      description: "Retrieve the results of all employees access removal workflows. \n Please note: this\
+        \ endpoint will be deprecated as of September 21, 2025."
+      operationId: _workflows_accessRemoval_employee_get
+      deprecated: true
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          description: For pagination purposes. Will set the maximum amount of workflows which will return
+            from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of workflows which will return
+          from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: For pagination purposes. Will get only workflows after this offset. If there are
+            200 workflows in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only workflows after this offset. If there are
+          200 workflows in a page, the offset for page 2 will be 200.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmployeeAccessRemovalWorkflow'
+                title: Response List Emplyee Access Removal Workflows Workflows Accessremoval Employee
+                  Get
+          headers:
+            next:
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/accessRemoval/employee?offset=400&limit=200
+              type: string
+            prev:
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/accessRemoval/employee?offset=200&limit=200
+              type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-sunset: '2048-09-12'
+  /workflows/justification:
+    get:
+      tags:
+      - Workflows
+      summary: List justification workflows
+      description: "Retrieve the results of all justification workflows. \n Please note: this endpoint\
+        \ will be deprecated as of September 21, 2025."
+      operationId: _workflows_justification_get
+      deprecated: true
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          description: For pagination purposes. Will set the maximum amount of workflows which will return
+            from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of workflows which will return
+          from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: For pagination purposes. Will get only workflows after this offset. If there are
+            200 workflows in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only workflows after this offset. If there are
+          200 workflows in a page, the offset for page 2 will be 200.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JustificationWorkflow'
+                title: Response List Justification Workflows Justification Get
+          headers:
+            next:
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/justification?offset=400&limit=200
+              type: integer
+            prev:
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/justification?offset=200&limit=200
+              type: integer
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-sunset: '2048-09-12'
+  /workflows/justification/{workflow_id}/justificationLink:
+    get:
+      tags:
+      - Workflows
+      summary: Get justification link
+      description: "Retrieve the link to the form sent to the user, by the workflow ID. \n Please note:\
+        \ this endpoint will be deprecated as of September 21, 2025."
+      operationId: _workflows_justification_workflow_id_justificationLink_get
+      deprecated: true
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workflow Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JustificationWorkflowLink'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-sunset: '2048-09-12'
+  /workflows/justification/{workflow_id}/status:
+    get:
+      tags:
+      - Workflows
+      summary: Status justification
+      description: "Retrieve the status of the justification workflow. \n Please note: this endpoint will\
+        \ be deprecated as of September 21, 2025."
+      operationId: _workflows_justification_workflow_id_status_get
+      deprecated: true
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workflow Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JustificationWorkflowStatus'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-sunset: '2048-09-12'
+  /workflows/offboarding:
+    get:
+      tags:
+      - Workflows
+      summary: List offboarding workflows
+      description: "Please note: this endpoint will be deprecated as of September 21, 2025.\n\n Retrieve\
+        \ the results of all offboarding workflows."
+      operationId: _workflows_offboarding_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          description: For pagination purposes. Will set the maximum amount of workflows which will return
+            from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of workflows which will return
+          from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: For pagination purposes. Will get only workflows after this offset. If there are
+            200 workflows in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only workflows after this offset. If there are
+          200 workflows in a page, the offset for page 2 will be 200.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OffboardingWorkflow'
+                title: Response List Offboarding Workflows Workflows Offboarding Get
+          headers:
+            next:
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/offboarding?offset=400&limit=200
+              type: string
+            prev:
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/offboarding?offset=200&limit=200
+              type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workflows/offboarding/{workflow_id}/status:
+    get:
+      tags:
+      - Workflows
+      summary: Status offboarding
+      description: "Please note: this endpoint will be deprecated as of September 21, 2025.\n    Retrieves\
+        \ the status of an offboarding workflow.\n    This API endpoint will return the results as they\
+        \ are displayed in the Grip portal."
+      operationId: _workflows_offboarding_workflow_id_status_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workflow Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OffboardingWorkflowStatus'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workflows/offboarding/{workflow_id}/userstatus:
+    get:
+      tags:
+      - Workflows
+      summary: Status offboarded user
+      description: "Please note: this endpoint will be deprecated as of September 21, 2025.\n\nRetrieve\
+        \ the status of an offboarding workflow, with results for supported applications. \n\nThis endpoint\
+        \ is intended for automation. \n\nIt doesn't reflect the status of the workflow the same way the\
+        \ Grip portal would. \n\nWith this endpoint, any access revocation tasks that are still under\
+        \ manual review will be reported as finished. \n\nThis is unlike the Grip portal where workflows\
+        \ are considered in progress while being reviewed.\n\nThis endpoint will only work on offboarding\
+        \ workflows executed on a single employee."
+      operationId: _workflows_offboarding_workflow_id_userstatus_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workflow Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OffboardedUserStatus'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workflows/{workflow_id}/run:
+    post:
+      tags:
+      - Workflows
+      summary: Run Workflow By ID
+      description: "Run a workflow for the workflow ID.\nEvery workflow should contain at least one of\
+        \ the following:\n    \n* app_name / app_id in case of Application-based workflow\n    \n* identity_email\
+        \ / identity_id in case of Identity-based workflow"
+      operationId: _workflows_workflow_id_run_post
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Workflow Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunWorkflowInput'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRunIds'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workflows/{workflow_run_id}/cancel:
+    post:
+      tags:
+      - Workflows
+      summary: Cancel Workflow by Workflow Run ID
+      description: Cancel a workflow run by the workflow run ID.
+      operationId: _workflows_workflow_run_id_cancel_post
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflow_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Workflow Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelWorkflowMessage'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workflows/accessRemoval/employee/start:
+    post:
+      tags:
+      - Workflows
+      summary: Start employee access removal
+      description: "Please note: this endpoint will be deprecated as of September 21, 2025. 'actionID'\
+        \ represents the request ID going forward. Refer to the new [endpoint](a40d967e3147c-start-access-revocation).\n\
+        \n Start an employee access revocation task on specific employee for selected SaaS."
+      operationId: _workflows_accessRemoval_employee_start_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartEmployeeAccessRemovalInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartedWorkflowId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      deprecated: true
+      security:
+      - APIKeyHeader: []
+      x-sunset: '2048-09-12'
+  /workflows/accessRemoval/saas/start:
+    post:
+      tags:
+      - Workflows
+      summary: Start SaaS Access Removal Workflow
+      description: Start an SaaS access removal workflow on specific SaaS application for selected employee.
+      operationId: _workflows_accessRemoval_saas_start_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartSaasAccessRemovalInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartedWorkflowId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      x-internal: true
+  /workflows/accessRemoval/employee/stop:
+    post:
+      tags:
+      - Workflows
+      summary: Stop Employee Access Removal
+      description: 'Please note: this endpoint will be deprecated as of September 21, 2025. ''actionID''
+        represents the request ID going forward. Refer to the new [endpoint](7a10116c1a37d-cancel-access-revocation).
+
+
+        Stop the process of employee access revocation.'
+      operationId: _workflows_accessRemoval_employee_stop_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StopAccessRemovalWorkflowInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      deprecated: true
+      security:
+      - APIKeyHeader: []
+      x-sunset: '2048-09-12'
+  /workflows/accessRemoval/saas/stop:
+    post:
+      tags:
+      - Workflows
+      summary: Stop SaaS Access Removal
+      description: Stop the process of SaaS access removal.
+      operationId: _workflows_accessRemoval_saas_stop_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StopAccessRemovalWorkflowInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      x-internal: true
+  /workflows/justification/start:
+    post:
+      tags:
+      - Workflows
+      summary: Start justification
+      description: "Start the process of justification. \n Please note: this endpoint will be deprecated\
+        \ as of September 21, 2025. Refer to the new [endpoint](dc6b0f9306561-send-justification-request)."
+      operationId: _workflows_justification_start_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartJustificationWorkflowInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartedWorkflowId'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorWithDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      deprecated: true
+      security:
+      - APIKeyHeader: []
+      x-sunset: '2048-09-12'
+  /workflows/justification/start-non-communication:
+    post:
+      tags:
+      - Workflows
+      summary: Start non-communication justification
+      operationId: _workflows_justification_start-non-communication_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartJustificationWorkflowInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JustificationWorkflowLink'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      x-internal: true
+  /workflows/justification/stop:
+    post:
+      tags:
+      - Workflows
+      summary: Stop Justification Workflow
+      description: "Stop the process of justification. \n Please note: this endpoint will be deprecated\
+        \ as of September 21, 2025. Refer to the new [endpoint](0d815514796ab-cancel-justification-request)."
+      operationId: _workflows_justification_stop_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JustificationAbortInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      deprecated: true
+      security:
+      - APIKeyHeader: []
+      x-sunset: '2048-09-12'
+  /workflows/offboarding/start:
+    post:
+      tags:
+      - Workflows
+      summary: Start offboarding
+      description: "Please note: this endpoint will be deprecated as of September 21, 2025.\n    \nStart\
+        \ an offboarding workflow for the specific users.\nEvery workflow should contains:\n    \n* Name\n\
+        \    \n* List of users ids, specified with their inheritor mailbox in case they are deactivated\
+        \ in the mail platform.\n    \n* Turn on enhanced mode if needed"
+      operationId: _workflows_offboarding_start_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartOffboardingInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartedWorkflowId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+  /workflows/offboarding/stop:
+    post:
+      tags:
+      - Workflows
+      summary: Stop offboarding
+      description: 'Please note: this endpoint will be deprecated as of September 21, 2025.
+
+
+        Stop the process of offboarding.'
+      operationId: _workflows_offboarding_stop_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OffboardingStopInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+  /saasUser/{saas_app_user_id}:
+    get:
+      tags:
+      - SaaS User
+      summary: Get Saas User
+      description: Retrieve all the data on a specific saas application user.
+      operationId: _saasUser_saas_app_user_id_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: saas_app_user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Saas App User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaasUser'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /audit-trail:
+    get:
+      tags:
+      - AuditLogs
+      summary: List Audit Logs
+      description: Retrieve a list of audit logs from the Grip system. The list is paginated using Query
+        Parameters.
+      operationId: _audit-trail_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will set the maximum amount of audit logs which will return
+            from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of audit logs which will return
+          from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will get only audit logs after this offset. If there are
+            200 audit logs in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only audit logs after this offset. If there are
+          200 audit logs in a page, the offset for page 2 will be 200.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLog'
+                title: Response List Logs Audit Trail Get
+          headers:
+            next:
+              schema:
+                type: integer
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+            prev:
+              schema:
+                type: integer
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /alerts/{alert_readable_id}:
+    get:
+      tags:
+      - Alerts
+      summary: Get Alert
+      description: Retrieve the information of the alert with the matching alert ID.
+      operationId: _alerts_alert_readable_id_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: alert_readable_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Alert Readable Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertPayload'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /alerts:
+    get:
+      tags:
+      - Alerts
+      summary: List Alerts
+      description: Retrieve a list of alerts from the Grip system. The list is paginated using Query Parameters.
+      operationId: _alerts_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: alert_severity
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: If set, returns only alert with the given severity
+          title: Alert Severity
+        description: If set, returns only alert with the given severity
+      - name: alert_type
+        in: query
+        required: false
+        schema:
+          type: string
+          description: If set, returns only alert with the given type
+          title: Alert Type
+        description: If set, returns only alert with the given type
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+          description: If set, returns only alert with the given category
+          title: Category
+        description: If set, returns only alert with the given category
+      - name: related_entity_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+          description: If set, returns only alert with the given entity. Must be set with `related_entity_type`
+          title: Related Entity Id
+        description: If set, returns only alert with the given entity. Must be set with `related_entity_type`
+      - name: related_entity_type
+        in: query
+        required: false
+        schema:
+          enum:
+          - saas
+          - identity
+          - ai_agent
+          type: string
+          description: If set, returns only alert with the given entity. Must be set with `related_entity_id`
+          title: Related Entity Type
+        description: If set, returns only alert with the given entity. Must be set with `related_entity_id`
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will set the maximum amount of audit logs which will return
+            from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of audit logs which will return
+          from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will get only audit logs after this offset. If there are
+            200 audit logs in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only audit logs after this offset. If there are
+          200 audit logs in a page, the offset for page 2 will be 200.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AlertPayload'
+                title: Response List Alerts Alerts Get
+          headers:
+            next:
+              schema:
+                type: integer
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+            prev:
+              schema:
+                type: integer
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/alerts/{alert_readable_id}:
+    get:
+      tags:
+      - Alerts V2
+      summary: Get Alert
+      description: Retrieve the information of the alert with the matching alert ID.
+      operationId: _v2_alerts_alert_readable_id_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: alert_readable_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Alert Readable Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyAlertPayload'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/alerts:
+    get:
+      tags:
+      - Alerts V2
+      summary: List Alerts
+      description: Retrieve a list of alerts from the Grip system. The list is paginated using Query Parameters.
+      operationId: _v2_alerts_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: alert_severity
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: If set, returns only alert with the given severity
+          title: Alert Severity
+        description: If set, returns only alert with the given severity
+      - name: alert_type
+        in: query
+        required: false
+        schema:
+          type: string
+          description: If set, returns only alert with the given type
+          title: Alert Type
+        description: If set, returns only alert with the given type
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+          description: If set, returns only alert with the given category
+          title: Category
+        description: If set, returns only alert with the given category
+      - name: related_entity_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+          description: If set, returns only alert with the given entity. Must be set with `related_entity_type`
+          title: Related Entity Id
+        description: If set, returns only alert with the given entity. Must be set with `related_entity_type`
+      - name: related_entity_type
+        in: query
+        required: false
+        schema:
+          enum:
+          - saas
+          - identity
+          - ai_agent
+          - extension
+          type: string
+          description: If set, returns only alert with the given entity. Must be set with `related_entity_id`
+          title: Related Entity Type
+        description: If set, returns only alert with the given entity. Must be set with `related_entity_id`
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will set the maximum amount of audit logs which will return
+            from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of audit logs which will return
+          from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will get only audit logs after this offset. If there are
+            200 audit logs in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only audit logs after this offset. If there are
+          200 audit logs in a page, the offset for page 2 will be 200.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyAlertPayload'
+                title: Response List Alerts V2 Alerts Get
+          headers:
+            next:
+              schema:
+                type: integer
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+            prev:
+              schema:
+                type: integer
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /actions/justification/{request_id}/status:
+    get:
+      tags:
+      - Actions
+      summary: Get justification request status
+      description: Retrieve the status of the justification request.
+      operationId: _actions_justification_request_id_status_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: request_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          description: The ID of the request.
+          title: Request Id
+        description: The ID of the request.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCommunicationRequestStatusOutput'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /actions/justification/{request_id}/link:
+    get:
+      tags:
+      - Actions
+      summary: Get justification request link
+      description: Retrieve the link of the justification request.
+      operationId: _actions_justification_request_id_link_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: request_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          description: The ID of the request.
+          title: Request Id
+        description: The ID of the request.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: string
+                title: Response Get Justification Request Link Actions Justification  Request Id  Link
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /actions/accessRevocation/employee/{action_id}/status:
+    get:
+      tags:
+      - Actions
+      summary: Get Access Revocation Status
+      description: Retrieve the result of a specific employee access revocation.
+      operationId: _actions_accessRevocation_employee_action_id_status_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: action_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Action Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeAccessRevocationStatus'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /actions/justification/send:
+    post:
+      tags:
+      - Actions
+      summary: Send Justification Request
+      description: Initiates a request for a user to justify their use of an application. The request
+        can be sent to users identified by either user ID or email
+      operationId: _actions_justification_send_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserCommunicationInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateUserCommunicationOutput'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseError'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+  /actions/justification/cancel:
+    post:
+      tags:
+      - Actions
+      summary: Cancel Justification Request
+      description: Cancels an open justification request. The request can be canceled using its unique
+        request ID.
+      operationId: _actions_justification_cancel_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelUserCommunicationInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelUserCommunicationOutput'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorWithErrorCode'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+  /actions/accessRevocation/employee/start:
+    post:
+      tags:
+      - Actions
+      summary: Start Access Revocation
+      description: Start an employee access revocation task on specific employee for selected SaaS.
+      operationId: _actions_accessRevocation_employee_start_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeAccessRevocationStartInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeAccessRevocationStartOutput'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+  /actions/accessRevocation/employee/stop:
+    post:
+      tags:
+      - Actions
+      summary: Cancel Access Revocation
+      description: Stop the process of employee access revocation.
+      operationId: _actions_accessRevocation_employee_stop_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeAccessRevocationStopInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+  /posture-checks:
+    get:
+      tags:
+      - Posture Management
+      summary: List Posture Checks
+      description: For pagination purposes. Will set the maximum amount of posture checks which will return
+        from a single query.
+      operationId: _posture-checks_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          description: For pagination purposes. Will set the maximum amount of posture checks which will
+            return from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of posture checks which will
+          return from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: For pagination purposes. Will get only posture checks after this offset. If there
+            are 200 posture checks in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only posture checks after this offset. If there
+          are 200 posture checks in a page, the offset for page 2 will be 200.
+      - name: posture_check_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by posture check ID (e.g. Salesforce 1.1)
+          title: Posture Check Id
+        description: Filter by posture check ID (e.g. Salesforce 1.1)
+      - name: security_domain
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by security domain name
+          title: Security Domain
+        description: Filter by security domain name
+      - name: severity
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/SspmPolicySeverity'
+          - type: 'null'
+          description: Filter by severity
+          title: Severity
+        description: Filter by severity
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/SspmPolicyStatus'
+          - type: 'null'
+          description: Filter by status
+          title: Status
+        description: Filter by status
+      - name: module
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by module name
+          title: Module
+        description: Filter by module name
+      - name: tenant_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by tenant display name
+          title: Tenant Name
+        description: Filter by tenant display name
+      - name: integration_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/SspmIntegrationType'
+          - type: 'null'
+          description: Filter by integration type
+          title: Integration Type
+        description: Filter by integration type
+      - name: tenant_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by tenant ID
+          title: Tenant Id
+        description: Filter by tenant ID
+      - name: has_findings
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter by whether the posture check has currently violating findings
+          title: Has Findings
+        description: Filter by whether the posture check has currently violating findings
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PostureCheck'
+                title: Response List Posture Checks Posture Checks Get
+          headers:
+            next:
+              schema:
+                type: integer
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+            prev:
+              schema:
+                type: integer
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /posture-checks/{posture_check_uuid}/findings:
+    get:
+      tags:
+      - Posture Management
+      summary: List Findings for Posture Check
+      description: Retrieve the findings details within each posture check by using the corresponding
+        posture check ID.
+      operationId: _posture-checks_posture_check_uuid_findings_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: posture_check_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Posture Check Uuid
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          description: For pagination purposes. Will set the maximum amount of findings which will return
+            from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of findings which will return
+          from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: For pagination purposes. Will get only findings after this offset. If there are
+            200 findings in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only findings after this offset. If there are 200
+          findings in a page, the offset for page 2 will be 200.
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ViolatingEntityStatus'
+          - type: 'null'
+          description: Filter by finding status
+          title: Status
+        description: Filter by finding status
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PostureCheckFinding'
+                title: Response List Findings Posture Checks  Posture Check Uuid  Findings Get
+          headers:
+            next:
+              schema:
+                type: integer
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+            prev:
+              schema:
+                type: integer
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ai-agents:
+    get:
+      tags:
+      - AI Agents
+      summary: List AI Agents
+      description: Retrieve a list of all AI agents in the organization with their related data.
+      operationId: _ai-agents_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          description: For pagination purposes. Will set the maximum amount of AI agents which will return
+            from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of AI agents which will return
+          from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: For pagination purposes. Will get only AI agents after this offset. If there are
+            200 AI agents in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only AI agents after this offset. If there are
+          200 AI agents in a page, the offset for page 2 will be 200.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AIAgent'
+                title: Response List Ai Agents Ai Agents Get
+          headers:
+            next:
+              schema:
+                type: integer
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+            prev:
+              schema:
+                type: integer
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-internal: true
 components:
+  schemas:
+    AIAgent:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: The AI agent ID in Grip system
+          examples:
+          - 3a6aaaf9-ce37-423e-ba3a-4b02fc2e90ca
+        aiAgentApiId:
+          type: string
+          title: Aiagentapiid
+          description: The AI agent API ID
+        name:
+          type: string
+          title: Name
+          description: The AI agent name
+        siteUrl:
+          type: string
+          title: Siteurl
+          description: The site URL of the AI agent
+        ownerEmail:
+          type: string
+          title: Owneremail
+          description: The owner email
+        ownerId:
+          type: string
+          title: Ownerid
+          description: The owner ID
+        creationDate:
+          type: string
+          format: date-time
+          title: Creationdate
+          description: The creation date
+        lastSeen:
+          type: string
+          format: date-time
+          title: Lastseen
+          description: The last seen date
+        lastUsage:
+          type: string
+          format: date-time
+          title: Lastusage
+          description: The last usage date
+        score:
+          type: integer
+          title: Score
+          description: The risk score
+        sanctionState:
+          type: string
+          title: Sanctionstate
+          description: The sanction state of the AI agent
+          default: New
+        sharingAttributes:
+          type: string
+          title: Sharingattributes
+          description: The sharing attributes
+        isConnectedToInternet:
+          type: boolean
+          title: Isconnectedtointernet
+          description: Whether the AI agent is connected to the internet
+        knowledgeFiles:
+          items:
+            $ref: '#/components/schemas/AIAgentKnowledgeFile'
+          type: array
+          title: Knowledgefiles
+          description: The knowledge files associated with the AI agent
+        identitiesPermissions:
+          items:
+            $ref: '#/components/schemas/AIAgentIdentityPermission'
+          type: array
+          title: Identitiespermissions
+          description: The identity permissions associated with the AI agent
+        saasScopes:
+          items:
+            $ref: '#/components/schemas/AIAgentSaasScope'
+          type: array
+          title: Saasscopes
+          description: The SaaS scopes associated with the AI agent
+      type: object
+      required:
+      - id
+      - name
+      title: AIAgent
+    AIAgentIdentityPermission:
+      properties:
+        recipientEmail:
+          type: string
+          title: Recipientemail
+          description: The recipient email address
+        recipientId:
+          type: string
+          title: Recipientid
+          description: The recipient ID
+        permission:
+          type: string
+          title: Permission
+          description: The permission type
+      type: object
+      required:
+      - recipientEmail
+      - permission
+      title: AIAgentIdentityPermission
+    AIAgentKnowledgeFile:
+      properties:
+        fileApiId:
+          type: string
+          title: Fileapiid
+          description: The file API ID
+        fileName:
+          type: string
+          title: Filename
+          description: The file name
+        fileFormat:
+          type: string
+          title: Fileformat
+          description: The file format
+      type: object
+      required:
+      - fileName
+      - fileFormat
+      title: AIAgentKnowledgeFile
+    AIAgentSaasScope:
+      properties:
+        saasApplicationId:
+          type: string
+          format: uuid
+          title: Saasapplicationid
+          description: The SaaS application ID
+          examples:
+          - 3a6aaaf9-ce37-423e-ba3a-4b02fc2e90ca
+        saasApplicationName:
+          type: string
+          title: Saasapplicationname
+          description: The SaaS application name
+        saasApplicationSiteUrl:
+          type: string
+          title: Saasapplicationsiteurl
+          description: The SaaS application site URL
+        nhiAuthType:
+          type: string
+          title: Nhiauthtype
+          description: The NHI authentication type
+        scope:
+          type: string
+          title: Scope
+          description: The scope
+        creationDate:
+          type: string
+          format: date-time
+          title: Creationdate
+          description: The creation date of the scope
+      type: object
+      required:
+      - saasApplicationId
+      - saasApplicationName
+      title: AIAgentSaasScope
+    AIDepth:
+      properties:
+        level:
+          type: string
+          title: Level
+        description:
+          type: string
+          title: Description
+      type: object
+      required:
+      - level
+      - description
+      title: AIDepth
+    AccessRemovalResult:
+      properties:
+        saasId:
+          type: string
+          title: Saasid
+          description: The ID of the SaaS in Grip system
+        saasName:
+          type: string
+          title: Saasname
+          description: The name of the SaaS
+        saasUserId:
+          type: string
+          title: Saasuserid
+          description: "The saas-application-user id in Grip system. The saasUserId represents the connection\
+            \ between a \n specific saas and a specific user."
+          examples:
+          - 3a6aaaf9-ce37-423e-ba3a-4b02fc2e90ca
+        enhancedMode:
+          type: boolean
+          title: Enhancedmode
+          description: Yes/No
+        result:
+          type: string
+          title: Result
+          description: "Completed successfuly/unsuccessfully \nAllowed values: Successful, Unsuccessful,\
+            \ Rejected, In Progress"
+          examples:
+          - Successful
+      type: object
+      required:
+      - saasId
+      - saasName
+      - saasUserId
+      - enhancedMode
+      - result
+      title: AccessRemovalResult
+    AlertAIAgent:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        entityType:
+          type: string
+          const: ai_agent
+          title: Entitytype
+          default: ai_agent
+      type: object
+      required:
+      - id
+      - name
+      title: AlertAIAgent
+    AlertExtension:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        entityType:
+          type: string
+          const: extension
+          title: Entitytype
+          default: extension
+      type: object
+      required:
+      - id
+      - name
+      title: AlertExtension
+    AlertIdentity:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        entityType:
+          type: string
+          const: identity
+          title: Entitytype
+          default: identity
+      type: object
+      required:
+      - id
+      - name
+      title: AlertIdentity
+    AlertPayload:
+      properties:
+        alertId:
+          type: string
+          title: Alertid
+        alertType:
+          type: string
+          title: Alerttype
+        alertSeverity:
+          type: string
+          title: Alertseverity
+        createdAt:
+          type: string
+          title: Createdat
+        updatedAt:
+          type: string
+          title: Updatedat
+        category:
+          type: string
+          title: Category
+        uniqueFieldsData:
+          type: object
+          title: Uniquefieldsdata
+        description:
+          type: string
+          title: Description
+        mitigationSteps:
+          $ref: '#/components/schemas/MitigationSteps'
+        potentialImpacts:
+          items:
+            type: string
+          type: array
+          title: Potentialimpacts
+        relatedEntity:
+          anyOf:
+          - $ref: '#/components/schemas/AlertIdentity'
+          - $ref: '#/components/schemas/AlertSaasApplication'
+          - $ref: '#/components/schemas/AlertAIAgent'
+          - $ref: '#/components/schemas/AlertExtension'
+          - type: 'null'
+          title: Relatedentity
+        alertUrl:
+          type: string
+          title: Alerturl
+        status:
+          type: string
+          title: Status
+      type: object
+      required:
+      - alertId
+      - alertType
+      - alertSeverity
+      - createdAt
+      - updatedAt
+      - category
+      - description
+      - mitigationSteps
+      - potentialImpacts
+      - relatedEntity
+      - alertUrl
+      - status
+      title: AlertPayload
+    AlertSaasApplication:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        entityType:
+          type: string
+          const: saas_application
+          title: Entitytype
+          default: saas_application
+      type: object
+      required:
+      - id
+      - name
+      title: AlertSaasApplication
+    AuditLog:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        gripUser:
+          type: string
+          title: Gripuser
+        action:
+          type: string
+          title: Action
+        additionalInfo:
+          type: object
+          title: Additionalinfo
+      type: object
+      required:
+      - id
+      - timestamp
+      - gripUser
+      - action
+      title: AuditLog
+    BaseError:
+      properties:
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - message
+      title: BaseError
+    CancelUserCommunicationInput:
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          title: Requestid
+          description: The ID of the request.
+      type: object
+      title: CancelUserCommunicationInput
+    CancelUserCommunicationOutput:
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          title: Requestid
+          description: The ID of the request.
+      type: object
+      title: CancelUserCommunicationOutput
+    CancelWorkflowMessage:
+      properties:
+        message:
+          type: string
+          title: Message
+          description: The cancellation status message
+      type: object
+      required:
+      - message
+      title: CancelWorkflowMessage
+    ComplianceControl:
+      properties:
+        framework:
+          type: string
+          title: Framework
+          description: The compliance framework name
+        controlPath:
+          type: string
+          title: Controlpath
+          description: The full control path within the framework
+      type: object
+      required:
+      - framework
+      - controlPath
+      title: ComplianceControl
+    CorpusSupportStatus:
+      type: string
+      enum:
+      - supported
+      - unsupported
+      - experimental
+      title: CorpusSupportStatus
+    CreateLabelMessage:
+      properties:
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - message
+      title: CreateLabelMessage
+    CreateUserCommunicationInput:
+      properties:
+        userId:
+          type: string
+          format: uuid
+          title: Userid
+          description: The ID of the user in Grip Platform.
+        userEmail:
+          type: string
+          title: Useremail
+          description: The email of the user in Grip Platform.
+        saasApplicationId:
+          type: string
+          format: uuid
+          title: Saasapplicationid
+          description: The ID of the saas application in Grip Platform.
+        communicationPlatform:
+          $ref: '#/components/schemas/UserCommunicationPlatform'
+          title: Communicationplatform
+          description: The Communication Platform (Email, Slack, Teams, etc.)
+      type: object
+      required:
+      - saasApplicationId
+      title: CreateUserCommunicationInput
+    CreateUserCommunicationOutput:
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          title: Requestid
+          description: The ID of the request.
+      type: object
+      title: CreateUserCommunicationOutput
+    DeleteLabelMessage:
+      properties:
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - message
+      title: DeleteLabelMessage
+    EmployeeAccessRemovalWorkflow:
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+          description: The ID of the workflow in Grip
+        status:
+          type: string
+          title: Status
+          description: "Status of the workflow \nAllowed values: Completed, In Progress, Skipped"
+          examples:
+          - Completed
+        createdBy:
+          type: string
+          title: Createdby
+          description: Workflow creator mail address
+        startedAt:
+          type: string
+          format: date-time
+          title: Startedat
+          description: Workflow creation time and date
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Workflow completion time and date
+        userDisplayName:
+          type: string
+          title: Userdisplayname
+          description: The display name of the user. Can be either full name or mail address.
+        userFullName:
+          type: string
+          title: Userfullname
+          description: The full name of the user
+        numberOfSaas:
+          type: integer
+          title: Numberofsaas
+          description: Number of SaaS to remove access from
+        userMail:
+          type: string
+          title: Usermail
+          description: The mail address of the user
+        managerEmail:
+          type: string
+          title: Manageremail
+          description: Employee manager mail address
+      type: object
+      required:
+      - workflowId
+      - status
+      - createdBy
+      - startedAt
+      - userDisplayName
+      - numberOfSaas
+      - userMail
+      title: EmployeeAccessRemovalWorkflow
+    EmployeeAccessRemovalWorkflowStatus:
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+          description: The ID of the workflow in Grip
+        status:
+          type: string
+          title: Status
+          description: "Status of the workflow \nAllowed values: Completed, In Progress, Skipped"
+          examples:
+          - Completed
+        createdBy:
+          type: string
+          title: Createdby
+          description: Workflow creator mail address
+        startedAt:
+          type: string
+          format: date-time
+          title: Startedat
+          description: Workflow creation time and date
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Workflow completion time and date
+        userId:
+          type: string
+          title: Userid
+          description: The ID of the user in Grip system. The userId is the base for every API query.
+          examples:
+          - 8e6afaf9-ce27-419e-bf33-4b02fc2e90ca
+        userMail:
+          type: string
+          title: Usermail
+          description: The mail address of the user
+        userFullName:
+          type: string
+          title: Userfullname
+          description: The full name of the user
+        userDisplayName:
+          type: string
+          title: Userdisplayname
+          description: The display name of the user. Can be either full name or mail address
+        saasResults:
+          items:
+            $ref: '#/components/schemas/AccessRemovalResult'
+          type: array
+          title: Saasresults
+      type: object
+      required:
+      - workflowId
+      - status
+      - createdBy
+      - startedAt
+      - userId
+      - userMail
+      - userDisplayName
+      - saasResults
+      title: EmployeeAccessRemovalWorkflowStatus
+    EmployeeAccessRevocationStartInput:
+      properties:
+        userId:
+          type: string
+          format: uuid
+          title: Userid
+          description: The ID of the user in Grip system
+        saasIds:
+          items:
+            type: string
+            format: uuid
+          type: array
+          title: Saasids
+          description: The ID's of the SaaS in Grip system
+        inheritorMailbox:
+          type: string
+          title: Inheritormailbox
+          description: The inheritor mail address, in case the user is inactive. Default is User's original
+            mailbox
+          examples:
+          - inheritor@grip.security
+        managerApprovalEmail:
+          type: string
+          title: Managerapprovalemail
+          description: If empty, run the task without manager approval
+      type: object
+      required:
+      - userId
+      - saasIds
+      title: EmployeeAccessRevocationStartInput
+    EmployeeAccessRevocationStartOutput:
+      properties:
+        actionID:
+          type: string
+          format: uuid
+          title: Actionid
+          description: The ID access revocation task
+      type: object
+      title: EmployeeAccessRevocationStartOutput
+    EmployeeAccessRevocationStatus:
+      properties:
+        actionID:
+          type: string
+          format: uuid
+          title: Actionid
+          description: The unique identifier of the access revocation process
+        status:
+          type: string
+          title: Status
+          description: 'Access revocation process status: In Progress / Skipped / Completed'
+          examples:
+          - Completed
+        createdBy:
+          type: string
+          title: Createdby
+          description: Email address or token name of the user that initiated the process
+        startedAt:
+          type: string
+          format: date-time
+          title: Startedat
+          description: Date and timestamp the process started
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Date and timestamp the process was completed or skipped
+        userId:
+          type: string
+          title: Userid
+          description: The ID of the user in Grip system. The userId is the base for every API query.
+          examples:
+          - 8e6afaf9-ce27-419e-bf33-4b02fc2e90ca
+        userMail:
+          type: string
+          title: Usermail
+          description: The mail address of the user
+        userFullName:
+          type: string
+          title: Userfullname
+          description: The full name of the user
+        userDisplayName:
+          type: string
+          title: Userdisplayname
+          description: The display name of the user. Can be either full name or mail address
+        details:
+          type: string
+          title: Details
+          description: Lists the reason the access revocation was skipped, if skipped
+      type: object
+      required:
+      - actionID
+      - status
+      - createdBy
+      - startedAt
+      - userId
+      - userMail
+      - userDisplayName
+      title: EmployeeAccessRevocationStatus
+    EmployeeAccessRevocationStopInput:
+      properties:
+        actionID:
+          type: string
+          format: uuid
+          title: Actionid
+          description: The ID access revocation task
+      type: object
+      required:
+      - actionID
+      title: EmployeeAccessRevocationStopInput
+    EntityType:
+      type: string
+      enum:
+      - Application
+      - Identity
+      title: EntityType
+    ErrorWithDetail:
+      properties:
+        message:
+          type: string
+          title: Message
+        detail:
+          type: string
+          title: Detail
+      type: object
+      required:
+      - message
+      title: ErrorWithDetail
+    ErrorWithErrorCode:
+      properties:
+        message:
+          type: string
+          title: Message
+        error_code:
+          type: string
+          title: Error Code
+        email:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Email
+      type: object
+      required:
+      - message
+      - error_code
+      title: ErrorWithErrorCode
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    IDPConnectedSaas:
+      properties:
+        saasId:
+          type: string
+          format: uuid
+          title: Saasid
+        saasName:
+          type: string
+          title: Saasname
+        idpProvider:
+          type: string
+          title: Idpprovider
+        autType:
+          type: string
+          title: Auttype
+      type: object
+      required:
+      - saasId
+      - saasName
+      - idpProvider
+      - autType
+      title: IDPConnectedSaas
+    JustificationAbortInput:
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+      type: object
+      required:
+      - workflowId
+      title: JustificationAbortInput
+    JustificationWorkflow:
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+          description: The ID of the workflow in Grip
+        status:
+          type: string
+          title: Status
+          description: "Status of the workflow \nAllowed values: Completed, In Progress, Skipped"
+          examples:
+          - Completed
+        createdBy:
+          type: string
+          title: Createdby
+          description: Workflow creator mail address
+        startedAt:
+          type: string
+          format: date-time
+          title: Startedat
+          description: Workflow creation time and date
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Workflow completion time and date
+        saasName:
+          type: string
+          title: Saasname
+        recipientName:
+          type: string
+          title: Recipientname
+        recipientMail:
+          type: string
+          title: Recipientmail
+      type: object
+      required:
+      - workflowId
+      - status
+      - createdBy
+      - startedAt
+      - saasName
+      - recipientName
+      - recipientMail
+      title: JustificationWorkflow
+    JustificationWorkflowLink:
+      properties:
+        link:
+          type: string
+          title: Link
+      type: object
+      required:
+      - link
+      title: JustificationWorkflowLink
+    JustificationWorkflowStatus:
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+          description: The ID of the workflow in Grip
+        status:
+          type: string
+          title: Status
+          description: "Status of the workflow \nAllowed values: Completed, In Progress, Skipped"
+          examples:
+          - Completed
+        createdBy:
+          type: string
+          title: Createdby
+          description: Workflow creator mail address
+        startedAt:
+          type: string
+          format: date-time
+          title: Startedat
+          description: Workflow creation time and date
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Workflow completion time and date
+        saasName:
+          type: string
+          title: Saasname
+        recipientName:
+          type: string
+          title: Recipientname
+        recipientMail:
+          type: string
+          title: Recipientmail
+        saasId:
+          type: string
+          title: Saasid
+        response:
+          type: object
+          title: Response
+      type: object
+      required:
+      - workflowId
+      - status
+      - createdBy
+      - startedAt
+      - saasName
+      - recipientName
+      - recipientMail
+      - saasId
+      title: JustificationWorkflowStatus
+    Label:
+      properties:
+        label:
+          type: string
+          title: Label
+      type: object
+      required:
+      - label
+      title: Label
+    MitigationSteps:
+      properties:
+        header:
+          type: string
+          title: Header
+        steps:
+          items:
+            type: string
+          type: array
+          title: Steps
+      type: object
+      required:
+      - header
+      - steps
+      title: MitigationSteps
+    OAuthGripData:
+      properties:
+        high:
+          $ref: '#/components/schemas/OAuthScopes'
+        medium:
+          $ref: '#/components/schemas/OAuthScopes'
+        low:
+          $ref: '#/components/schemas/OAuthScopes'
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - high
+      - medium
+      - low
+      - total
+      title: OAuthGripData
+    OAuthScopes:
+      properties:
+        scopes:
+          items:
+            $ref: '#/components/schemas/Scope'
+          type: array
+          title: Scopes
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - scopes
+      - count
+      title: OAuthScopes
+    OffboardedUserAccessRemovalResult:
+      properties:
+        supportedForAccessRemoval:
+          items:
+            $ref: '#/components/schemas/SupportedForAccessRemoval'
+          type: array
+          title: Supportedforaccessremoval
+        unsupportedForAccessRemoval:
+          items:
+            $ref: '#/components/schemas/UnsupportedForAccessRemoval'
+          type: array
+          title: Unsupportedforaccessremoval
+        idpConnected:
+          items:
+            $ref: '#/components/schemas/IDPConnectedSaas'
+          type: array
+          title: Idpconnected
+      type: object
+      required:
+      - supportedForAccessRemoval
+      - unsupportedForAccessRemoval
+      - idpConnected
+      title: OffboardedUserAccessRemovalResult
+    OffboardedUserStatus:
+      properties:
+        userMail:
+          type: string
+          title: Usermail
+          description: The mail address of the user
+        userFullName:
+          type: string
+          title: Userfullname
+          description: The full name of the user
+        status:
+          $ref: '#/components/schemas/OffboardingStatus'
+          description: 'Allowed values: Completed, In Progress'
+          examples:
+          - Completed
+        startedAt:
+          type: string
+          format: date-time
+          title: Startedat
+          description: Workflow creation time and date
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Workflow completion time and date
+        results:
+          $ref: '#/components/schemas/OffboardedUserAccessRemovalResult'
+      type: object
+      required:
+      - userMail
+      - status
+      - startedAt
+      - completedAt
+      - results
+      title: OffboardedUserStatus
+    OffboardingResult:
+      properties:
+        userMail:
+          type: string
+          title: Usermail
+          description: The mail address of the user
+        userFullName:
+          type: string
+          title: Userfullname
+          description: The full name of the user
+        userDisplayName:
+          type: string
+          title: Userdisplayname
+        status:
+          $ref: '#/components/schemas/OffboardingStatus'
+          description: Offboarded in progress/ offboarded successfully/ offboarded unsuccessful.
+        statusReason:
+          type: string
+          title: Statusreason
+          description: Elaborate description on the returned status
+        saasResults:
+          items:
+            $ref: '#/components/schemas/AccessRemovalResult'
+          type: array
+          title: Saasresults
+      type: object
+      required:
+      - userMail
+      - userDisplayName
+      - status
+      - saasResults
+      title: OffboardingResult
+    OffboardingStatus:
+      type: string
+      enum:
+      - In Progress
+      - Skipped
+      - Completed
+      title: OffboardingStatus
+    OffboardingStopInput:
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+      type: object
+      required:
+      - workflowId
+      title: OffboardingStopInput
+    OffboardingWorkflow:
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+          description: The ID of the workflow in Grip
+        status:
+          type: string
+          title: Status
+          description: "Status of the workflow \nAllowed values: Completed, In Progress, Skipped"
+          examples:
+          - Completed
+        createdBy:
+          type: string
+          title: Createdby
+          description: Workflow creator mail address
+        startedAt:
+          type: string
+          format: date-time
+          title: Startedat
+          description: Workflow creation time and date
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Workflow completion time and date
+        workflowName:
+          type: string
+          title: Workflowname
+          description: "The name of the workflow in Grip. This field can be chosen by the user, and it\
+            \ is not mandatory. \n\n Default value: Timestamp in the format 'yy-mm-ss hh-mm-ss'"
+          examples:
+          - 22-11-10 15-52
+        numberOfEmployees:
+          type: integer
+          title: Numberofemployees
+          description: Number of employees for offboarding
+      type: object
+      required:
+      - workflowId
+      - status
+      - createdBy
+      - startedAt
+      - workflowName
+      - numberOfEmployees
+      title: OffboardingWorkflow
+    OffboardingWorkflowStatus:
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+          description: The ID of the workflow in Grip
+        status:
+          type: string
+          title: Status
+          description: "Status of the workflow \nAllowed values: Completed, In Progress, Skipped"
+          examples:
+          - Completed
+        createdBy:
+          type: string
+          title: Createdby
+          description: Workflow creator mail address
+        startedAt:
+          type: string
+          format: date-time
+          title: Startedat
+          description: Workflow creation time and date
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Workflow completion time and date
+        workflowName:
+          type: string
+          title: Workflowname
+          description: "The name of the workflow in Grip. This field can be chosen by the user, and it\
+            \ is not mandatory. \n\n Default value: Timestamp in the format 'yy-mm-ss hh-mm-ss'"
+          examples:
+          - 22-11-10 15-52
+        numberOfEmployees:
+          type: integer
+          title: Numberofemployees
+          description: Number of employees for offboarding
+        results:
+          items:
+            $ref: '#/components/schemas/OffboardingResult'
+          type: array
+          title: Results
+      type: object
+      required:
+      - workflowId
+      - status
+      - createdBy
+      - startedAt
+      - workflowName
+      - numberOfEmployees
+      - results
+      title: OffboardingWorkflowStatus
+    OnboardedStatus:
+      type: string
+      enum:
+      - Undetermined
+      - Onboarded
+      - Offboarded
+      - Deleted
+      title: OnboardedStatus
+    Platform:
+      type: string
+      enum:
+      - gw
+      - o365
+      - onelogin
+      - okta
+      - auth0
+      - duo
+      - jumpcloud
+      - exchange
+      - pingone
+      - pingfederate
+      - crowdstrike
+      - mcas
+      - file_system
+      - ibm
+      - manual_import
+      - bamboo_merge_hris
+      - hibob_merge_hris
+      - salesforce
+      - openai
+      - dataverse
+      - github
+      - slack
+      - snowflake
+      - claude
+      title: Platform
+    PolicyAlertPayload:
+      properties:
+        alertId:
+          type: string
+          title: Alertid
+        alertType:
+          type: string
+          title: Alerttype
+        alertSeverity:
+          type: string
+          title: Alertseverity
+        createdAt:
+          type: string
+          title: Createdat
+        updatedAt:
+          type: string
+          title: Updatedat
+        category:
+          type: string
+          title: Category
+        uniqueFieldsData:
+          type: object
+          title: Uniquefieldsdata
+        description:
+          type: string
+          title: Description
+        mitigationSteps:
+          $ref: '#/components/schemas/MitigationSteps'
+        potentialImpacts:
+          items:
+            type: string
+          type: array
+          title: Potentialimpacts
+        relatedEntity:
+          anyOf:
+          - $ref: '#/components/schemas/AlertIdentity'
+          - $ref: '#/components/schemas/AlertSaasApplication'
+          - $ref: '#/components/schemas/AlertAIAgent'
+          - $ref: '#/components/schemas/AlertExtension'
+          - type: 'null'
+          title: Relatedentity
+        alertUrl:
+          type: string
+          title: Alerturl
+        status:
+          type: string
+          title: Status
+        alertName:
+          type: string
+          title: Alertname
+        policyReadableId:
+          type: integer
+          title: Policyreadableid
+        mitigationDescription:
+          type: string
+          title: Mitigationdescription
+        relatedEntityId:
+          type: string
+          title: Relatedentityid
+        relatedEntityType:
+          type: string
+          title: Relatedentitytype
+        relatedEntityName:
+          type: string
+          title: Relatedentityname
+        relatedIdentityMail:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Relatedidentitymail
+        lastUsed:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Lastused
+      type: object
+      required:
+      - alertId
+      - alertType
+      - alertSeverity
+      - createdAt
+      - updatedAt
+      - category
+      - description
+      - mitigationSteps
+      - potentialImpacts
+      - relatedEntity
+      - alertUrl
+      - status
+      - alertName
+      - policyReadableId
+      - mitigationDescription
+      - relatedEntityId
+      - relatedEntityType
+      - relatedEntityName
+      title: PolicyAlertPayload
+    PostureCheck:
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          title: Uuid
+          description: Unique identifier for this posture check result. Use this UUID to fetch findings.
+        postureCheckId:
+          type: string
+          title: Posturecheckid
+          description: Human-readable posture check identifier (e.g. Salesforce 1.1)
+        description:
+          type: string
+          title: Description
+          description: Description of what this posture check validates
+        securityDomain:
+          type: string
+          title: Securitydomain
+          description: The security domain this check belongs to
+        severity:
+          type: string
+          title: Severity
+          description: 'Severity level: High, Medium, or Low'
+        severityOverrideReason:
+          type: string
+          title: Severityoverridereason
+          description: If the severity was manually overridden, contains the reason provided by the user
+        status:
+          type: string
+          title: Status
+          description: 'Effective status as displayed in the dashboard: Pass, Fail, Excluded, Pending,
+            or Undetectable'
+        statusOverrideReason:
+          type: string
+          title: Statusoverridereason
+          description: If the status was manually overridden, contains the reason provided by the user
+        module:
+          type: string
+          title: Module
+          description: The SSPM module this check belongs to
+        tenantName:
+          type: string
+          title: Tenantname
+          description: Display name of the SSPM integration tenant
+        integrationType:
+          type: string
+          title: Integrationtype
+          description: Type of the SSPM integration (e.g. Okta, Google Workspace)
+        tenantId:
+          type: string
+          title: Tenantid
+          description: Tenant identifier of the SSPM integration
+        findingsCount:
+          type: integer
+          title: Findingscount
+          description: Number of currently violating entities (findings)
+        reportDetails:
+          type: string
+          title: Reportdetails
+          description: Additional details from the posture check scan
+        riskDescription:
+          type: string
+          title: Riskdescription
+          description: Description of the risk associated with this check failing
+        mitigationSteps:
+          type: string
+          title: Mitigationsteps
+          description: Recommended steps to mitigate the risk
+        compliance:
+          items:
+            $ref: '#/components/schemas/ComplianceControl'
+          type: array
+          title: Compliance
+          description: Compliance controls associated with this posture check (only from enabled frameworks)
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+          description: Timestamp of the latest result for this posture check
+      type: object
+      required:
+      - uuid
+      - postureCheckId
+      - severity
+      - status
+      - module
+      - findingsCount
+      - updatedAt
+      title: PostureCheck
+    PostureCheckFinding:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique identifier for this finding
+        postureCheckId:
+          type: string
+          title: Posturecheckid
+          description: Human-readable posture check identifier (e.g. Salesforce 1.1)
+        module:
+          type: string
+          title: Module
+          description: The SSPM module this check belongs to
+        tenantName:
+          type: string
+          title: Tenantname
+          description: Display name of the SSPM integration tenant
+        tenantId:
+          type: string
+          title: Tenantid
+          description: Tenant identifier of the SSPM integration
+        integrationType:
+          type: string
+          title: Integrationtype
+          description: Type of the SSPM integration (e.g. Okta, Google Workspace)
+        entityCategory:
+          type: string
+          title: Entitycategory
+          description: 'Category of the violating entity: identity or resource'
+        entityType:
+          type: string
+          title: Entitytype
+          description: Type of the violating entity
+        entityIdentifier:
+          type: string
+          title: Entityidentifier
+          description: Identifier of the violating entity
+        externalEntityId:
+          type: string
+          title: Externalentityid
+          description: External identifier of the entity in the source system
+        displayName:
+          type: string
+          title: Displayname
+          description: Display name of the violating entity
+        status:
+          type: string
+          title: Status
+          description: 'Finding status: Open, In Review, or Excluded'
+        exclusionExpiresAt:
+          type: string
+          format: date-time
+          title: Exclusionexpiresat
+          description: When the Excluded or In Review status expires. Null if status is Open or if the
+            exclusion is permanent
+        isCurrentlyViolating:
+          type: boolean
+          title: Iscurrentlyviolating
+          description: Whether the entity is currently in a violating state
+        lastDetectedAt:
+          type: string
+          format: date-time
+          title: Lastdetectedat
+          description: When this violation was last detected
+        stoppedViolatingAt:
+          type: string
+          format: date-time
+          title: Stoppedviolatingat
+          description: When the entity stopped violating, if applicable
+        extraData:
+          type: object
+          title: Extradata
+          description: Additional data about the entity (e.g. creation date, resource info)
+      type: object
+      required:
+      - id
+      - postureCheckId
+      - module
+      - entityCategory
+      - entityType
+      - entityIdentifier
+      - displayName
+      - status
+      - isCurrentlyViolating
+      - lastDetectedAt
+      title: PostureCheckFinding
+    PrimaryContact:
+      properties:
+        email:
+          type: string
+          title: Email
+        userId:
+          type: string
+          format: uuid
+          title: Userid
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - email
+      - userId
+      title: PrimaryContact
+    RunWorkflowInput:
+      properties:
+        identityEmail:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: string
+          title: Identityemail
+          description: The identities email in Grip's identity profile page. This field should be selected
+            if the workflow entity is 'Identity', it is preferable to enter identity_id than identity_email.
+            This value can get list.
+          examples:
+          - a@b.com
+        identityId:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: string
+          title: Identityid
+          description: The identities id in Grip. It can be copied from the URL path of the identity's
+            profile page in Grip. This field should be selected if the workflow entity is 'Identity',
+            this field is preferable to enter when using this type of workflow. This value can get list.
+          examples:
+          - 7b91f95a-d088-4740-bf5a-f2d8b7e54e07
+        appName:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: string
+          title: Appname
+          description: The application name in Grip's app portfolio page. This field should be selected
+            if the workflow entity is 'App', it is preferable to enter app_id than app_name. This value
+            can get list.
+          examples:
+          - Zapier
+        appId:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: string
+          title: Appid
+          description: The application id in Grip. It can be copied from the URL path of the app's portfolio
+            page in Grip. This field should be selected if the workflow entity is 'App', this field is
+            preferable to enter when using this type of workflow. This value can get list.
+          examples:
+          - 8d96942a-ff58-4c40-8cf5-aee5db4fe67
+        inheritorEmail:
+          type: string
+          title: Inheritoremail
+          description: The inheritor email for the given users. This field is relevant only for identity
+            values, and should be filled only if the users' mailbox is inactive.
+          examples:
+          - a@b.com
+      type: object
+      title: RunWorkflowInput
+    Saas:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: The ID of the SaaS in Grip system
+        name:
+          type: string
+          title: Name
+          description: The name of the SaaS
+        url:
+          type: string
+          title: Url
+          description: The SaaS website URL
+        logoUrl:
+          type: string
+          title: Logourl
+          description: The SaaS logo URL
+        gripData:
+          $ref: '#/components/schemas/SaasGripData'
+      type: object
+      required:
+      - id
+      - name
+      - gripData
+      title: Saas
+    SaasAccessRemovalEmployeeResult:
+      properties:
+        result:
+          type: string
+          title: Result
+        userId:
+          type: string
+          title: Userid
+        userName:
+          type: string
+          title: Username
+        saasUserId:
+          type: string
+          format: uuid
+          title: Saasuserid
+      type: object
+      required:
+      - result
+      - userId
+      - userName
+      - saasUserId
+      title: SaasAccessRemovalEmployeeResult
+    SaasAccessRemovalWorkflowStatus:
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+          description: The ID of the workflow in Grip
+        status:
+          type: string
+          title: Status
+          description: "Status of the workflow \nAllowed values: Completed, In Progress, Skipped"
+          examples:
+          - Completed
+        createdBy:
+          type: string
+          title: Createdby
+          description: Workflow creator mail address
+        startedAt:
+          type: string
+          format: date-time
+          title: Startedat
+          description: Workflow creation time and date
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Workflow completion time and date
+        saasName:
+          type: string
+          title: Saasname
+          description: The SaaS name
+        saasId:
+          type: string
+          format: uuid
+          title: Saasid
+          description: The ID of the SaaS in Grip system. The Id is the base for every API query.
+          examples:
+          - 8e6afaf9-ce27-419e-bf33-4b02fc2e90ca
+        enhancedMode:
+          type: boolean
+          title: Enhancedmode
+          description: Yes/No
+        businessOwner:
+          type: string
+          title: Businessowner
+          description: If empty, run the workflow without business owner approval
+        employeeResults:
+          items:
+            $ref: '#/components/schemas/SaasAccessRemovalEmployeeResult'
+          type: array
+          title: Employeeresults
+      type: object
+      required:
+      - workflowId
+      - status
+      - createdBy
+      - startedAt
+      - saasName
+      - saasId
+      - enhancedMode
+      - businessOwner
+      - employeeResults
+      title: SaasAccessRemovalWorkflowStatus
+    SaasGripData:
+      properties:
+        numberOfUsers:
+          type: integer
+          title: Numberofusers
+          description: The number of users discovered for the SaaS application
+        numberOfOnboardedUsers:
+          type: integer
+          title: Numberofonboardedusers
+          description: The number of onboarded users (active accounts) for the SaaS application
+        numberOfOffboardedUsers:
+          type: integer
+          title: Numberofoffboardedusers
+          description: The number of offboarded users (inactive accounts) for the SaaS application
+        SSOPercentage:
+          type: integer
+          title: Ssopercentage
+          description: The percentage of the users connected with SSO. Integer value between 0 and 100.
+        accessRemovalSupport:
+          $ref: '#/components/schemas/CorpusSupportStatus'
+          description: The SaaS is supported/Unsupported for access removal.
+        riskScore:
+          type: integer
+          title: Riskscore
+          description: Risk score of the SaaS determined by Grip
+        sanctionTag:
+          $ref: '#/components/schemas/SanctionTag'
+          description: Sanction/Unsanction tag
+        labels:
+          items:
+            type: string
+          type: array
+          title: Labels
+          description: List of the labels assigned for the SaaS
+        buisnessOwner:
+          type: string
+          title: Buisnessowner
+          description: ID of the buisness owner
+        category:
+          type: string
+          title: Category
+        appInstancesCount:
+          type: integer
+          title: Appinstancescount
+        sourcePlatforms:
+          items:
+            type: string
+          type: array
+          title: Sourceplatforms
+        lastKnownUsage:
+          type: string
+          format: date-time
+          title: Lastknownusage
+        assets:
+          items:
+            type: string
+          type: array
+          title: Assets
+        compliances:
+          items:
+            type: string
+          type: array
+          title: Compliances
+        primaryContact:
+          $ref: '#/components/schemas/PrimaryContact'
+          title: Primarycontact
+        oauthScopes:
+          $ref: '#/components/schemas/OAuthGripData'
+        saasUsersRoles:
+          items:
+            $ref: '#/components/schemas/SaasUserRole'
+          type: array
+          title: Saasusersroles
+          description: List of the roles assigned for the users by saas
+        firstEventTime:
+          type: string
+          format: date-time
+          title: Firsteventtime
+          description: The first event ever encountered for the user
+        latestEventTime:
+          type: string
+          format: date-time
+          title: Latesteventtime
+          description: The latest event encountered for the user
+        uniqueScopesCount:
+          type: integer
+          title: Uniquescopescount
+          description: The number of unique scopes for this saas
+        samlSupported:
+          additionalProperties:
+            type: string
+          type: object
+          title: Samlsupported
+          description: SAML supported platforms and their integration links.
+        mfaSupported:
+          type: string
+          title: Mfasupported
+          description: Link to MFA setup instructions for the saas.
+        termsAndConditions:
+          $ref: '#/components/schemas/TermsAndConditions'
+          title: Termsandconditions
+          description: AI Privacy & Data-handling information.
+        aiDepth:
+          $ref: '#/components/schemas/AIDepth'
+          title: Aidepth
+          description: The AI depth of the SaaS.
+        securityScorecardRating:
+          type: string
+          title: Securityscorecardrating
+          description: The SecurityScorecard cybersecurity rating (A/B/C/D/F), or null if unavailable.
+      type: object
+      required:
+      - numberOfUsers
+      - numberOfOnboardedUsers
+      - numberOfOffboardedUsers
+      - SSOPercentage
+      - accessRemovalSupport
+      - sanctionTag
+      - labels
+      - buisnessOwner
+      - appInstancesCount
+      - sourcePlatforms
+      - assets
+      - compliances
+      - oauthScopes
+      title: SaasGripData
+    SaasUser:
+      properties:
+        saasUserId:
+          type: string
+          format: uuid
+          title: Saasuserid
+          description: The saas-application-user id in Grip system. The saasUserId represents the connection
+            between a specific saas and a specific user.
+          examples:
+          - 3a6aaaf9-ce37-423e-ba3a-4b02fc2e90ca
+        authenticationType:
+          type: string
+          title: Authenticationtype
+        firstEventTime:
+          type: string
+          format: date-time
+          title: Firsteventtime
+          description: The first event ever encountered for the user
+        latestEventTime:
+          type: string
+          format: date-time
+          title: Latesteventtime
+          description: The latest event encountered for the user
+        SSO:
+          type: boolean
+          title: Sso
+          description: Yes/No
+        uniqueScopesCount:
+          type: integer
+          title: Uniquescopescount
+        lastUsage:
+          type: string
+          format: date-time
+          title: Lastusage
+          description: The last usage of the user in the saas
+        userId:
+          type: string
+          format: uuid
+          title: Userid
+        saasId:
+          type: string
+          format: uuid
+          title: Saasid
+      type: object
+      required:
+      - saasUserId
+      - authenticationType
+      - SSO
+      - userId
+      - saasId
+      title: SaasUser
+    SaasUserRole:
+      properties:
+        userId:
+          type: string
+          format: uuid
+          title: Userid
+        userRoles:
+          items:
+            type: string
+          type: array
+          title: Userroles
+        userEmail:
+          type: string
+          title: Useremail
+      type: object
+      required:
+      - userId
+      - userRoles
+      title: SaasUserRole
+    SaasUsersData:
+      properties:
+        user:
+          $ref: '#/components/schemas/UserDataForSaas'
+        saasUser:
+          $ref: '#/components/schemas/SaasUser'
+      type: object
+      required:
+      - user
+      - saasUser
+      title: SaasUsersData
+    SanctionState:
+      type: string
+      enum:
+      - Sanctioned
+      - NotSanctioned
+      - Tolerated
+      - UnderReview
+      - New
+      title: SanctionState
+    SanctionTag:
+      type: string
+      enum:
+      - sanctioned
+      - unsanctioned
+      - tolerated
+      - under review
+      - new
+      - untagged
+      title: SanctionTag
+    Scope:
+      properties:
+        scope:
+          type: string
+          title: Scope
+        type:
+          type: string
+          title: Type
+        delegation:
+          type: string
+          title: Delegation
+      type: object
+      required:
+      - scope
+      - type
+      title: Scope
+    SspmIntegrationType:
+      type: string
+      enum:
+      - Microsoft 365
+      - Google Workspace
+      - Okta
+      - Salesforce
+      - Slack
+      - ServiceNow
+      - Zoom
+      - Snowflake
+      - Github
+      - Atlassian
+      - Smartsheet
+      - Box
+      - Asana
+      - Dropbox
+      - Tableau
+      - NetSuite
+      - OpenAI
+      - Auth0
+      - Workday
+      - GitLab
+      - Cursor
+      - Anthropic
+      - Zendesk
+      - HubSpot
+      - Meraki
+      - Monday
+      - VeevaVault
+      - Oracle Cloud Identity
+      - SentinelOne
+      - Linear
+      title: SspmIntegrationType
+    SspmPolicySeverity:
+      type: string
+      enum:
+      - High
+      - Medium
+      - Low
+      title: SspmPolicySeverity
+    SspmPolicyStatus:
+      type: string
+      enum:
+      - Pass
+      - Fail
+      - Undetectable
+      - Pending
+      - Excluded
+      title: SspmPolicyStatus
+    StartEmployeeAccessRemovalInput:
+      properties:
+        userId:
+          type: string
+          format: uuid
+          title: Userid
+          description: The ID of the user in Grip system
+        saasIds:
+          items:
+            type: string
+            format: uuid
+          type: array
+          title: Saasids
+          description: The ID's of the SaaS in Grip system
+        workflowName:
+          type: string
+          title: Workflowname
+          description: The name of the workflow in Grip. This field can be chosen by the user, and it
+            is not mandatory.
+          examples:
+          - 22-11-10 15-52
+        inheritorMailbox:
+          type: string
+          title: Inheritormailbox
+          description: The inheritor mail address, in case the user is inactive. Default is User's original
+            mailbox
+          examples:
+          - inheritor@grip.security
+        managerApprovalEmail:
+          type: string
+          title: Managerapprovalemail
+          description: If empty, run the workflow without manager approval
+      type: object
+      required:
+      - userId
+      - saasIds
+      title: StartEmployeeAccessRemovalInput
+    StartJustificationWorkflowInput:
+      properties:
+        userId:
+          type: string
+          format: uuid
+          title: Userid
+        saasApplicationId:
+          type: string
+          format: uuid
+          title: Saasapplicationid
+        workflowName:
+          type: string
+          title: Workflowname
+        userEmail:
+          type: string
+          title: Useremail
+        templateId:
+          type: string
+          format: uuid
+          title: Templateid
+      type: object
+      required:
+      - saasApplicationId
+      title: StartJustificationWorkflowInput
+    StartOffboardingInput:
+      properties:
+        usersToOffboard:
+          items:
+            $ref: '#/components/schemas/UserToOffboard'
+          type: array
+          title: Userstooffboard
+          description: List of users to be offboarded, including their inheritor mailbox.
+        enableEnhancedMode:
+          type: boolean
+          title: Enableenhancedmode
+          description: True if the user wants to run the offboarding on enhanced-mode applications. False
+            if not
+          default: false
+        workflowName:
+          type: string
+          title: Workflowname
+          description: The name of the workflow in Grip. This field can be chosen by the user, and it
+            is not mandatory.
+          examples:
+          - 22-11-10 15-52
+      type: object
+      required:
+      - usersToOffboard
+      title: StartOffboardingInput
+    StartSaasAccessRemovalInput:
+      properties:
+        saasId:
+          type: string
+          format: uuid
+          title: Saasid
+          description: The ID's of the SaaS in Grip system
+        userIds:
+          items:
+            type: string
+            format: uuid
+          type: array
+          title: Userids
+          description: The ID of the user in Grip system
+        workflowName:
+          type: string
+          title: Workflowname
+          description: "The name of the workflow in Grip. This field can be chosen by the user, and it\
+            \ is not mandatory.\n\n        Default value: Timestamp in the format \"yy-mm-ss hh-mm-ss\""
+          examples:
+          - 22-11-10 15-52
+        managerApprovalEmail:
+          type: string
+          title: Managerapprovalemail
+          description: If empty, run the workflow without manager approval
+        inheritorMailbox:
+          type: string
+          title: Inheritormailbox
+          description: The inheritor mail address, in case the user is inactive. Default is User's original
+            mailbox.
+          examples:
+          - inheritor@grip.security
+      type: object
+      required:
+      - saasId
+      - userIds
+      title: StartSaasAccessRemovalInput
+    StartedWorkflowId:
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+          description: The ID of the workflow in Grip. If the workflow is already in progress, return
+            the currently running Id.
+      type: object
+      required:
+      - workflowId
+      title: StartedWorkflowId
+    StopAccessRemovalWorkflowInput:
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+          description: The ID of the workflow in Grip
+      type: object
+      required:
+      - workflowId
+      title: StopAccessRemovalWorkflowInput
+    SupportedForAccessRemoval:
+      properties:
+        saasId:
+          type: string
+          format: uuid
+          title: Saasid
+        saasName:
+          type: string
+          title: Saasname
+        accessRemovalResult:
+          type: string
+          title: Accessremovalresult
+          description: 'Allowed values: Successful, Unsuccessful, In Progress, Skipped'
+          examples:
+          - Successful
+      type: object
+      required:
+      - saasId
+      - saasName
+      title: SupportedForAccessRemoval
+    TermsAndConditions:
+      properties:
+        questions:
+          items:
+            $ref: '#/components/schemas/TermsAndConditionsQuestion'
+          type: array
+          title: Questions
+        references:
+          items:
+            $ref: '#/components/schemas/TermsAndConditionsReference'
+          type: array
+          title: References
+      type: object
+      title: TermsAndConditions
+    TermsAndConditionsQuestion:
+      properties:
+        question:
+          type: string
+          title: Question
+        answer:
+          type: string
+          title: Answer
+        detailedAnswer:
+          type: string
+          title: Detailedanswer
+      type: object
+      required:
+      - question
+      - answer
+      title: TermsAndConditionsQuestion
+    TermsAndConditionsReference:
+      properties:
+        title:
+          type: string
+          title: Title
+        url:
+          type: string
+          title: Url
+      type: object
+      required:
+      - title
+      - url
+      title: TermsAndConditionsReference
+    UnsupportedForAccessRemoval:
+      properties:
+        saasId:
+          type: string
+          format: uuid
+          title: Saasid
+        saasName:
+          type: string
+          title: Saasname
+      type: object
+      required:
+      - saasId
+      - saasName
+      title: UnsupportedForAccessRemoval
+    User:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: The ID of the user in Grip system
+          examples:
+          - 8e6afaf9-ce27-419e-bf33-4b02fc2e90ca
+        mail:
+          type: string
+          title: Mail
+          description: The mail address of the user
+          examples:
+          - example@grip.security
+        aliases:
+          items:
+            type: string
+          type: array
+          title: Aliases
+          description: List of the user's aliases in the mail platform
+        fullName:
+          type: string
+          title: Fullname
+          description: The full name of the user
+          examples:
+          - Anonymous Anonymous
+        displayName:
+          type: string
+          title: Displayname
+          description: The display name of the user. Can be either full name or mail address
+        organizationalUnit:
+          type: string
+          title: Organizationalunit
+          description: The organizational unit of the user in the default identity platform (null if none)
+          examples:
+          - Marketing
+        managerEmail:
+          type: string
+          title: Manageremail
+          description: The mail address of the user's manager (null if none)
+          examples:
+          - manager@grip.security
+        gripData:
+          $ref: '#/components/schemas/UserGripData'
+          description: Data gathered by Grip.
+        customFields:
+          type: object
+          title: Customfields
+        type:
+          type: string
+          title: Type
+      type: object
+      required:
+      - id
+      - mail
+      - aliases
+      - displayName
+      - gripData
+      title: User
+    UserActivity:
+      properties:
+        platformsActivity:
+          items:
+            $ref: '#/components/schemas/UserPlatformActivity'
+          type: array
+          title: Platformsactivity
+        hasActiveMailbox:
+          type: boolean
+          title: Hasactivemailbox
+          description: True if the user currently has an active mailbox. Flase if not, null if unknown
+      type: object
+      required:
+      - platformsActivity
+      title: UserActivity
+    UserCommunicationPlatform:
+      type: string
+      enum:
+      - Email
+      - Slack
+      - Microsoft Teams
+      title: UserCommunicationPlatform
+    UserCommunicationRequestStatus:
+      type: string
+      enum:
+      - Sent
+      - Recieved
+      - Responded
+      - Canceled
+      - Reminded
+      title: UserCommunicationRequestStatus
+    UserCommunicationRequestStatusOutput:
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          title: Requestid
+          description: The ID of the request.
+        status:
+          $ref: '#/components/schemas/UserCommunicationRequestStatus'
+          description: The status of the request.
+        createdBy:
+          type: string
+          title: Createdby
+          description: Email address or token name of the requestor.
+        startedAt:
+          type: string
+          format: date-time
+          title: Startedat
+          description: Date and timestamp the request was sent.
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Date and timestamp the request was responded.
+        recipientName:
+          type: string
+          title: Recipientname
+          description: The recipient of the request.
+        recipientMail:
+          type: string
+          title: Recipientmail
+          description: The mail of the recipient.
+        saasId:
+          type: string
+          format: uuid
+          title: Saasid
+          description: The ID of the saas application.
+        saasName:
+          type: string
+          title: Saasname
+          description: The name of the saas application.
+        response:
+          type: object
+          title: Response
+          description: The response of the request.
+      type: object
+      required:
+      - requestId
+      - status
+      - createdBy
+      - startedAt
+      title: UserCommunicationRequestStatusOutput
+    UserDataForSaas:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: The ID of the user in Grip system
+          examples:
+          - 8e6afaf9-ce27-419e-bf33-4b02fc2e90ca
+        mail:
+          type: string
+          title: Mail
+          description: The mail address of the user
+          examples:
+          - example@grip.security
+        aliases:
+          items:
+            type: string
+          type: array
+          title: Aliases
+          description: List of the user's aliases in the mail platform
+        fullName:
+          type: string
+          title: Fullname
+          description: The full name of the user
+          examples:
+          - Anonymous Anonymous
+        displayName:
+          type: string
+          title: Displayname
+          description: The display name of the user. Can be either full name or mail address
+        organizationalUnit:
+          type: string
+          title: Organizationalunit
+          description: The organizational unit of the user in the default identity platform (null if none)
+          examples:
+          - Marketing
+        managerEmail:
+          type: string
+          title: Manageremail
+          description: The mail address of the user's manager (null if none)
+          examples:
+          - manager@grip.security
+        gripData:
+          $ref: '#/components/schemas/UserGripDataForSaas'
+          description: Data gathered by Grip.
+        customFields:
+          type: object
+          title: Customfields
+        type:
+          type: string
+          title: Type
+      type: object
+      required:
+      - id
+      - mail
+      - aliases
+      - displayName
+      - gripData
+      title: UserDataForSaas
+    UserGripData:
+      properties:
+        numberOfSaas:
+          type: integer
+          title: Numberofsaas
+          description: The number of SaaS applications discovered for the user <br>`>= 0`
+          examples:
+          - '5'
+        SSOPercentage:
+          type: integer
+          title: Ssopercentage
+          description: The percentage of the apps connected to SSO for the user. Integer value between
+            0 and 100.
+          examples:
+          - '32'
+        activity:
+          $ref: '#/components/schemas/UserActivity'
+          description: Object for the activity status of the user in his platforms
+        labels:
+          items:
+            type: string
+          type: array
+          title: Labels
+          description: List of the labels assigned for the user
+        firstEventTime:
+          type: string
+          format: date-time
+          title: Firsteventtime
+          description: The first event ever encountered for the user
+        latestEventTime:
+          type: string
+          format: date-time
+          title: Latesteventtime
+          description: The latest event encountered for the user
+        lastUsage:
+          type: string
+          format: date-time
+          title: Lastusage
+        offboardingWorkflowStatus:
+          type: string
+          title: Offboardingworkflowstatus
+        offboardingWorkflowTimestamp:
+          type: string
+          format: date-time
+          title: Offboardingworkflowtimestamp
+        roles:
+          items:
+            $ref: '#/components/schemas/UserRole'
+          type: array
+          title: Roles
+          description: List of the roles assigned for the user by saas
+      type: object
+      required:
+      - numberOfSaas
+      - SSOPercentage
+      - activity
+      - labels
+      title: UserGripData
+    UserGripDataForSaas:
+      properties:
+        numberOfSaas:
+          type: integer
+          title: Numberofsaas
+          description: The number of SaaS applications discovered for the user <br>`>= 0`
+          examples:
+          - '5'
+        SSOPercentage:
+          type: integer
+          title: Ssopercentage
+          description: The percentage of the apps connected to SSO for the user. Integer value between
+            0 and 100.
+          examples:
+          - '32'
+        activity:
+          $ref: '#/components/schemas/UserActivity'
+          description: Object for the activity status of the user in his platforms
+        labels:
+          items:
+            type: string
+          type: array
+          title: Labels
+          description: List of the labels assigned for the user
+        firstEventTime:
+          type: string
+          format: date-time
+          title: Firsteventtime
+          description: The first event ever encountered for the user
+        latestEventTime:
+          type: string
+          format: date-time
+          title: Latesteventtime
+          description: The latest event encountered for the user
+        lastUsage:
+          type: string
+          format: date-time
+          title: Lastusage
+      type: object
+      required:
+      - numberOfSaas
+      - SSOPercentage
+      - activity
+      - labels
+      title: UserGripDataForSaas
+    UserId:
+      properties:
+        userId:
+          type: string
+          format: uuid
+          title: Userid
+          description: The ID of the user in Grip system. The userId is the base for every API query.
+          examples:
+          - 8e6afaf9-ce27-419e-bf33-4b02fc2e90ca
+      type: object
+      required:
+      - userId
+      title: UserId
+    UserPlatformActivity:
+      properties:
+        platform:
+          $ref: '#/components/schemas/Platform'
+          description: Name of the platform
+          examples:
+          - gw
+        status:
+          $ref: '#/components/schemas/OnboardedStatus'
+          description: The activity status of the user in the platform
+          examples:
+          - Offboarded
+      type: object
+      required:
+      - status
+      title: UserPlatformActivity
+    UserRole:
+      properties:
+        saas_application_id:
+          type: string
+          format: uuid
+          title: Saas Application Id
+        user_roles:
+          items:
+            type: string
+          type: array
+          title: User Roles
+        saas_name:
+          type: string
+          title: Saas Name
+          description: The name of the SaaS application
+      type: object
+      required:
+      - saas_application_id
+      - user_roles
+      title: UserRole
+    UserSaasApps:
+      properties:
+        saas:
+          $ref: '#/components/schemas/Saas'
+          description: Retrieve a list of all the SaaS in the organization, including organizational data
+            and grip data. The list is paginated using Query Parameters.
+        saasUser:
+          $ref: '#/components/schemas/SaasUser'
+      type: object
+      required:
+      - saas
+      - saasUser
+      title: UserSaasApps
+    UserToOffboard:
+      properties:
+        userId:
+          type: string
+          format: uuid
+          title: Userid
+          description: The ID of the user in Grip system. The userId is the base for every API query.
+            Either the userId or the userEmail field is required.
+          examples:
+          - 8e6afaf9-ce27-419e-bf33-4b02fc2e90ca
+        inheritorMailbox:
+          type: string
+          title: Inheritormailbox
+          description: The inheritor mail address, in case the user is inactive. Default is User's original
+            mailbox
+          examples:
+          - inheritor@grip.security
+        userEmail:
+          type: string
+          title: Useremail
+          description: The email address of the user in Grip system. Either the userEmail or the userId
+            field is required.
+          examples:
+          - user1@org.com
+      type: object
+      title: UserToOffboard
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    ViolatingEntityStatus:
+      type: string
+      enum:
+      - Open
+      - In Review
+      - Excluded
+      title: ViolatingEntityStatus
+    WorkflowActionListItem:
+      properties:
+        actionName:
+          type: string
+          title: Actionname
+          description: The action name in the workflow run
+        status:
+          type: string
+          title: Status
+          description: The status of the action in the workflow run
+        selfUrl:
+          type: string
+          title: Selfurl
+          description: The self link for the action in the workflow run for more details
+      type: object
+      required:
+      - actionName
+      - status
+      title: WorkflowActionListItem
+    WorkflowActionStatus:
+      properties:
+        status:
+          type: string
+          title: Status
+          description: The status of the action in the workflow run
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+          description: Timestamp when the action was started
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Timestamp when the action was completed
+        details:
+          title: Details
+          description: Additional details about the action
+        actionType:
+          type: string
+          title: Actiontype
+          description: The type of the action in the workflow run
+        actionName:
+          type: string
+          title: Actionname
+          description: The name of the action in the workflow run
+        statusDetails:
+          type: string
+          title: Statusdetails
+          description: Details about the status of the action in the workflow run
+      type: object
+      required:
+      - status
+      - createdAt
+      - completedAt
+      - actionType
+      - actionName
+      title: WorkflowActionStatus
+    WorkflowApiStatus:
+      type: string
+      enum:
+      - Completed
+      - In Progress
+      - Skipped
+      title: WorkflowApiStatus
+    WorkflowRunIds:
+      properties:
+        workflowRunIds:
+          additionalProperties:
+            type: string
+            format: uuid
+          type: object
+          title: Workflowrunids
+          description: The ID of the workflow in Grip. If the workflow is already in progress, return
+            the currently running ID.
+      type: object
+      required:
+      - workflowRunIds
+      title: WorkflowRunIds
+    WorkflowStatus:
+      properties:
+        status:
+          $ref: '#/components/schemas/WorkflowApiStatus'
+        statusDetails:
+          type: string
+          title: Statusdetails
+          description: Details about the status of the workflow run
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+          description: Timestamp when the workflow was started
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Timestamp when the workflow was completed
+        actions:
+          items:
+            $ref: '#/components/schemas/WorkflowActionListItem'
+          type: array
+          title: Actions
+          description: The list of actions in the workflow
+        entityType:
+          $ref: '#/components/schemas/EntityType'
+          description: The type of the entity in the workflow
+        entityId:
+          type: string
+          title: Entityid
+          description: The ID of the entity in the workflow
+        createdBy:
+          type: string
+          title: Createdby
+          description: The initiator of the workflow run
+      type: object
+      required:
+      - status
+      - statusDetails
+      - createdAt
+      - completedAt
+      - actions
+      - entityType
+      - entityId
+      - createdBy
+      title: WorkflowStatus
   securitySchemes:
-    AccessToken:
+    APIKeyHeader:
       type: apiKey
       in: header
       name: access-token
-      description: Administrator API key for the tenant. Pass as the `access-token` HTTP header.
-  parameters:
-    Offset:
-      name: offset
-      in: query
-      schema: { type: integer, minimum: 0, default: 0 }
-      description: Zero-based pagination offset.
-    Limit:
-      name: limit
-      in: query
-      schema: { type: integer, minimum: 1, maximum: 200, default: 200 }
-      description: Page size. The API caps responses at 200 items per page; iterate with offset until a page returns fewer items than the limit.
-  schemas:
-    SaaS:
-      type: object
-      properties:
-        id:        { type: string, format: uuid, example: "0012f8ac-4673-4c06-ac63-9ddef3ec68ca" }
-        name:      { type: string, example: "ZoomInfo" }
-        url:       { type: string, example: "http://www.zoominfo.com" }
-        logoUrl:   { type: string, nullable: true }
-        gripData:
-          type: object
-          properties:
-            numberOfUsers:            { type: integer }
-            numberOfOnboardedUsers:   { type: integer }
-            numberOfOffboardedUsers:  { type: integer }
-            SSOPercentage:            { type: integer }
-            accessRemovalSupport:     { type: string, enum: [supported, experimental, unsupported] }
-            riskScore:                { type: integer }
-            sanctionTag:              { type: string, example: sanctioned }
-            labels:                   { type: array, items: { type: string } }
-            buisnessOwner:            { type: string, format: uuid, description: "Note: API field name is misspelled — it is buisnessOwner, not businessOwner." }
-            category:                 { type: string }
-            appInstancesCount:        { type: integer }
-            sourcePlatforms:          { type: array, items: { type: string } }
-            lastKnownUsage:           { type: string, format: date-time, nullable: true }
-            assets:                   { type: array, items: { type: string } }
-            compliances:              { type: array, items: { type: string } }
-            primaryContact:
-              type: object
-              properties:
-                email:  { type: string, format: email }
-                userId: { type: string, format: uuid }
-                name:   { type: string }
-            oauthScopes:
-              type: object
-              properties:
-                high:   { $ref: '#/components/schemas/OAuthBucket' }
-                medium: { $ref: '#/components/schemas/OAuthBucket' }
-                low:    { $ref: '#/components/schemas/OAuthBucket' }
-                total:  { type: integer }
-            saasUsersRoles:           { type: array, items: { type: object } }
-            firstEventTime:           { type: string, format: date-time, nullable: true }
-            latestEventTime:          { type: string, format: date-time, nullable: true }
-            uniqueScopesCount:        { type: integer }
-            samlSupported:            { type: object, additionalProperties: { type: string } }
-            mfaSupported:             { type: string, nullable: true }
-            termsAndConditions:
-              type: object
-              properties:
-                questions:  { nullable: true }
-                references: { nullable: true }
-            aiDepth:
-              type: object
-              properties:
-                level:       { type: string, example: "AI Copilot Experience" }
-                description: { type: string }
-    OAuthBucket:
-      type: object
-      properties:
-        scopes:
-          type: array
-          items:
-            type: object
-            properties:
-              scope:      { type: string }
-              type:       { type: string, example: "Delegated" }
-              delegation: { type: string, example: "Specific" }
-        count: { type: integer }
-    User:
-      type: object
-      properties:
-        id:                  { type: string, format: uuid }
-        mail:                { type: string, format: email }
-        aliases:             { type: array, items: { type: string } }
-        fullName:            { type: string }
-        displayName:         { type: string }
-        organizationalUnit:  { type: string, nullable: true }
-        managerEmail:        { type: string, format: email, nullable: true }
-        type:                { type: string, example: User }
-        customFields:        { type: object, nullable: true }
-        gripData:
-          type: object
-          properties:
-            numberOfSaas:                   { type: integer }
-            SSOPercentage:                  { type: integer }
-            activity:
-              type: object
-              properties:
-                platformsActivity:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      platform: { type: string }
-                      status:   { type: string }
-                hasActiveMailbox: { type: boolean }
-            labels:                         { type: array, items: { type: string } }
-            firstEventTime:                 { type: string, format: date-time, nullable: true }
-            latestEventTime:                { type: string, format: date-time, nullable: true }
-            lastUsage:                      { type: string, format: date-time, nullable: true }
-            offboardingWorkflowStatus:      { type: string, nullable: true }
-            offboardingWorkflowTimestamp:   { type: string, format: date-time, nullable: true }
-            roles:                          { type: array, items: { type: object } }
-    Alert:
-      type: object
-      properties:
-        alertId:          { type: string, example: "HER-1" }
-        alertType:        { type: string }
-        alertSeverity:    { type: string, enum: [Low, Medium, High, Critical] }
-        category:         { type: string }
-        status:           { type: string, enum: [open, closed, in_progress] }
-        description:      { type: string }
-        mitigationSteps:
-          type: object
-          properties:
-            header: { type: string }
-            steps:  { type: array, items: { type: string } }
-        potentialImpacts: { type: array, items: { type: string } }
-        uniqueFieldsData: { type: object }
-        relatedEntity:
-          type: object
-          properties:
-            id:         { type: string }
-            name:       { type: string }
-            entityType: { type: string, example: saas_application }
-        alertUrl:         { type: string, format: uri }
-        createdAt:        { type: string, format: date-time }
-        updatedAt:        { type: string, format: date-time }
-paths:
-  /saas:
-    get:
-      summary: List SaaS applications
-      description: |
-        Returns a paginated array of SaaS applications discovered by Grip.
-        Iterate with `offset`/`limit`; the response also exposes a `next`
-        HTTP header containing the URL for the next page (offset advanced
-        by `limit`). When a page returns fewer rows than `limit`, the
-        caller has reached the end.
-      operationId: listSaas
-      parameters:
-        - $ref: '#/components/parameters/Offset'
-        - $ref: '#/components/parameters/Limit'
-      responses:
-        '200':
-          description: Array of SaaS apps
-          headers:
-            next:
-              description: URL of the next page (omitted when this is the last page).
-              schema: { type: string, format: uri }
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/SaaS' }
-        '401': { description: Unauthorized — missing or invalid access-token. }
-  /saas/{id}:
-    get:
-      summary: Get a SaaS application by Grip id
-      operationId: getSaas
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      responses:
-        '200':
-          description: A single SaaS app
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/SaaS' }
-        '404': { description: Not found }
-  /saas/name/{name}:
-    get:
-      summary: Look up SaaS apps by display name
-      description: Returns an array of SaaS apps whose name matches `{name}`.
-      operationId: getSaasIdByName
-      parameters:
-        - name: name
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Array of matching SaaS apps
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/SaaS' }
-  /users:
-    get:
-      summary: List users
-      description: |
-        Paginated list of users discovered across all integrated platforms.
-        Use the same offset/limit pattern as /saas.
-      operationId: listUsers
-      parameters:
-        - $ref: '#/components/parameters/Offset'
-        - $ref: '#/components/parameters/Limit'
-      responses:
-        '200':
-          description: Array of users
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/User' }
-  /alerts:
-    get:
-      summary: List alerts
-      description: Paginated list of security alerts raised by Grip.
-      operationId: listAlerts
-      parameters:
-        - $ref: '#/components/parameters/Offset'
-        - $ref: '#/components/parameters/Limit'
-      responses:
-        '200':
-          description: Array of alerts
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/Alert' }

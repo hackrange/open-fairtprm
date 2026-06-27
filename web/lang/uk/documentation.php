@@ -1016,7 +1016,7 @@
 
     <h3>Підключення Grip (покрокова інструкція)</h3>
     <ol class="steps">
-        <li>У Grip створіть <strong>API-токен</strong> та запишіть базову URL-адресу вашого тенанту (вона закінчується на <code>/public/saas</code>, наприклад <code>https://acme.dep.grip.security/public/saas</code>).</li>
+        <li>У Grip створіть <strong>API-токен</strong> та запишіть базову URL-адресу вашого тенанту (вона закінчується на <code>/public/saas</code>, наприклад <code>https://tenant.dep.grip.security/public/saas</code>).</li>
         <li>На платформі перейдіть до <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> та знайдіть картку <strong>Grip Security Connection</strong>.</li>
         <li>Встановіть прапорець <span class="field-label">Enable Grip Security integration</span>.</li>
         <li>Вставте URL-адресу вашого тенанту у <span class="field-label">Server (Tenant Base URL)</span> та токен у <span class="field-label">API Token</span>.</li>

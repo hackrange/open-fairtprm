@@ -1016,7 +1016,7 @@
 
     <h3>Connexion à Grip (étape par étape)</h3>
     <ol class="steps">
-        <li>Dans Grip, créez un <strong>jeton API</strong> et notez l'URL de base de votre tenant (elle se termine par <code>/public/saas</code>, par exemple <code>https://acme.dep.grip.security/public/saas</code>).</li>
+        <li>Dans Grip, créez un <strong>jeton API</strong> et notez l'URL de base de votre tenant (elle se termine par <code>/public/saas</code>, par exemple <code>https://tenant.dep.grip.security/public/saas</code>).</li>
         <li>Dans la plateforme, allez dans <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> et trouvez la carte <strong>Connexion Grip Security</strong>.</li>
         <li>Cochez <span class="field-label">Activer l'intégration Grip Security</span>.</li>
         <li>Collez l'URL de votre tenant dans <span class="field-label">Serveur (URL de base du tenant)</span> et votre jeton dans <span class="field-label">Jeton API</span>.</li>

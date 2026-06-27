@@ -1016,7 +1016,7 @@
 
     <h3>Conectando o Grip (passo a passo)</h3>
     <ol class="steps">
-        <li>No Grip, crie um <strong>token de API</strong> e anote a URL base do seu locatário (termina em <code>/public/saas</code>, por exemplo <code>https://acme.dep.grip.security/public/saas</code>).</li>
+        <li>No Grip, crie um <strong>token de API</strong> e anote a URL base do seu locatário (termina em <code>/public/saas</code>, por exemplo <code>https://tenant.dep.grip.security/public/saas</code>).</li>
         <li>Na plataforma, vá para <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> e encontre o cartão <strong>Grip Security Connection</strong>.</li>
         <li>Marque <span class="field-label">Enable Grip Security integration</span>.</li>
         <li>Cole a URL do seu locatário em <span class="field-label">Server (Tenant Base URL)</span> e seu token em <span class="field-label">API Token</span>.</li>

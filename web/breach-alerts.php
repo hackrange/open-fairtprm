@@ -237,6 +237,7 @@ $pageKey = 'breach_alerts';
         .status-pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
         .entity-type-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: #e0e7ff; color: #3730a3; }
         .entity-type-badge.osint { background: #fce7f3; color: #9d174d; }
+        .entity-type-badge.shadow-saas { background: #fef3c7; color: #92400e; }
         .source-link { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; font-size: 12px; color: #166534; text-decoration: none; margin: 2px; }
         .source-link:hover { background: #dcfce7; }
         .stat-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 20px; text-align: center; }
@@ -353,7 +354,18 @@ $pageKey = 'breach_alerts';
                     <span class="severity-badge" style="background:<?php echo $sc['badge']; ?>;"><?php echo strtoupper(e($alert['severity'])); ?></span>
                     <span style="flex:1;font-weight:600;color:#333;font-size:14px;"><?php echo e($alert['title']); ?></span>
                     <span class="entity-type-badge<?php echo ($alert['alert_type'] === 'osint_exposure') ? ' osint' : ''; ?>"><?php echo e($alertTypeLabels[$alert['alert_type']] ?? $alert['alert_type']); ?></span>
-                    <?php if ($alert['vendor_count'] > 0): ?>
+                    <?php if (($alert['affected_entity_type'] ?? '') === 'shadow_saas'): ?>
+                    <span class="entity-type-badge shadow-saas" title="<?php echo e(t('breach-alerts.shadow_saas_title')); ?>"><?php echo e(t('breach-alerts.shadow_saas_label'));
+                        if (!empty($alert['impacted_user_count'])) {
+                            $cntLbl = (int)$alert['impacted_user_count'] . ' ' . e(t('breach-alerts.users_label'));
+                            if (!empty($alert['grip_saas_id'])) {
+                                echo ' / <a href="grip-saas-users.php?id=' . urlencode($alert['grip_saas_id']) . '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' . $cntLbl . '</a>';
+                            } else {
+                                echo ' / ' . $cntLbl;
+                            }
+                        }
+                    ?></span>
+                    <?php elseif ($alert['vendor_count'] > 0): ?>
                     <span class="vendor-impact"><?php echo (int)$alert['vendor_count']; ?> <?php echo e(t('breach-alerts.vendors_label')); ?></span>
                     <?php endif; ?>
                     <span class="status-pill" style="background:<?php echo $alert['status'] === 'new' ? '#fef2f2' : ($alert['status'] === 'resolved' ? '#dcfce7' : '#f3f4f6'); ?>;color:<?php echo $alert['status'] === 'new' ? '#991b1b' : ($alert['status'] === 'resolved' ? '#166534' : '#374151'); ?>;"><?php echo e($statusLabels[$alert['status']] ?? $alert['status']); ?></span>
@@ -369,8 +381,20 @@ $pageKey = 'breach_alerts';
                         </div>
                         <div>
                             <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.entity_type')); ?></div>
-                            <div style="font-size:14px;color:#111827;font-weight:500;text-transform:capitalize;"><?php echo e($alert['affected_entity_type']); ?></div>
+                            <div style="font-size:14px;color:#111827;font-weight:500;text-transform:capitalize;"><?php echo ($alert['affected_entity_type'] ?? '') === 'shadow_saas' ? e(t('breach-alerts.shadow_saas_label')) : e($alert['affected_entity_type']); ?></div>
                         </div>
+                        <?php if (isset($alert['impacted_user_count']) && $alert['impacted_user_count'] !== null && $alert['impacted_user_count'] !== ''): ?>
+                        <div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.users_impacted')); ?></div>
+                            <div style="font-size:14px;color:#111827;font-weight:500;"><?php
+                                if (!empty($alert['grip_saas_id'])) {
+                                    echo '<a href="grip-saas-users.php?id=' . urlencode($alert['grip_saas_id']) . '" target="_blank" rel="noopener">' . (int)$alert['impacted_user_count'] . ' &#8599;</a>';
+                                } else {
+                                    echo (int)$alert['impacted_user_count'];
+                                }
+                            ?></div>
+                        </div>
+                        <?php endif; ?>
                         <?php if ($alert['affected_technology']): ?>
                         <div>
                             <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.technology')); ?></div>

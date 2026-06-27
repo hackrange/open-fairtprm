@@ -64,6 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
 
                 $settings['grip_enabled']  = isset($_POST['grip_enabled']) ? '1' : '0';
                 $settings['grip_base_url'] = $rawBase;
+                // Flow Grip "Security Incident Detected" alerts into the Breach Alerts
+                // system on each hydration. Also requires Grip enabled (above) and the
+                // Breach/Cyber Alert master switch (admin.php?section=email).
+                $settings['grip_breach_sync_enabled'] = isset($_POST['grip_breach_sync_enabled']) ? '1' : '0';
 
                 $newToken = trim($_POST['grip_api_token'] ?? '');
                 if ($newToken !== '') {
@@ -500,6 +504,13 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
                 <div class="form-help">Sent as the <code>access-token</code> HTTP header on every request. Leave blank to keep the existing token.</div>
             </div>
         </div>
+        <div class="form-group" style="margin-top: 4px;">
+            <label class="checkbox-label">
+                <input type="checkbox" name="grip_breach_sync_enabled" value="1" <?php echo ($gripCfg['breach_sync_enabled'] ?? '0') === '1' ? 'checked' : ''; ?>>
+                <span>Flow Grip breach information into Breach&nbsp;/&nbsp;Cyber Alerts</span>
+            </label>
+            <div class="form-help">On each scheduled rehydration (and the manual <strong>Run&nbsp;Now</strong> below), Grip "Security Incident Detected" alerts are written into the <a href="breach-alerts.php">Breach&nbsp;/&nbsp;Cyber Alerts</a> system (deduplicated). Breaches for an onboarded vendor are linked to that vendor; breaches for an app with no onboarded vendor are still recorded and tagged <strong>Shadow&nbsp;SaaS</strong> with the number of users potentially impacted. Requires Grip enabled (above) <em>and</em> the Breach&nbsp;/&nbsp;Cyber Alert setting under <a href="admin.php?section=email">Email &amp; Alerts</a>.</div>
+        </div>
         <div style="display: flex; gap: 10px; margin-top: 8px;">
             <button type="submit" name="update_grip" class="btn btn-primary">Save Configuration</button>
             <button type="submit" name="test_grip_connection" class="btn btn-secondary">Test Connection</button>
@@ -547,15 +558,21 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
 
 <div class="card">
     <h3>API Reference</h3>
-    <p style="color: #666; line-height: 1.6;">Endpoint inventory for the Grip Security public API used by this integration. Domain extraction normalizes URLs to their registrable domain (e.g. <code>https://www.united.com</code> → <code>united.com</code>, <code>http://color.redhat.com</code> → <code>redhat.com</code>).</p>
+    <p style="color: #666; line-height: 1.6;">Endpoint inventory for the Grip Security public API (server base <code>https://&lt;tenant&gt;.dep.grip.security/public</code>, auto-generated OpenAPI 3.1). The FairTPRM sync consumes the read (GET) endpoints marked <em>used by sync</em>; the complete inventory &mdash; including the Users, Workflows, Posture&nbsp;Management, AuditLogs, Alerts / Alerts&nbsp;V2, Actions, and AI&nbsp;Agents groups &mdash; is in the OpenAPI and Postman downloads below. Domain extraction normalizes URLs to their registrable domain (e.g. <code>https://www.united.com</code> → <code>united.com</code>, <code>http://color.redhat.com</code> → <code>redhat.com</code>).</p>
     <table>
         <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
         <tbody>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas</code></td><td>List SaaS apps (paginated; <code>offset</code> + <code>limit</code>).</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas</code></td><td>List SaaS apps (paginated; <code>offset</code> + <code>limit</code>). <em>Used by sync.</em></td></tr>
             <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/{id}</code></td><td>Get a single SaaS app by Grip UUID.</td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/name/{name}</code></td><td>Find SaaS apps by display name.</td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/users</code></td><td>List discovered users.</td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/alerts</code></td><td>List security alerts with severity, mitigation, and related entity.</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/{name}/id</code></td><td>Get a SaaS app's Grip ID by display name.</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/name/{name}</code></td><td>Get full SaaS details by display name.</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/{id}/users</code></td><td>List users of a SaaS application.</td></tr>
+            <tr><td><span class="badge badge-success">POST</span></td><td><code>/public/saas/{id}/label</code></td><td>Add a label to a SaaS app.</td></tr>
+            <tr><td><span class="badge badge-danger">DELETE</span></td><td><code>/public/saas/{id}/label</code></td><td>Remove a label from a SaaS app.</td></tr>
+            <tr><td><span class="badge badge-success">POST</span></td><td><code>/public/saas/{id}/update-primary-contact</code></td><td>Set the primary contact (<code>user_id</code>).</td></tr>
+            <tr><td><span class="badge badge-success">POST</span></td><td><code>/public/saas/{id}/sanction_status</code></td><td>Update sanction state (<code>new_sanction_state</code>).</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/users</code></td><td>List discovered users. <em>Used by sync.</em></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/alerts</code></td><td>List security alerts (severity, mitigation, related entity). <em>Used by sync.</em></td></tr>
         </tbody>
     </table>
     <div style="display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap;">

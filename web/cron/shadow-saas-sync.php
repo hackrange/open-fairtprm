@@ -93,9 +93,9 @@ try {
     $elapsed = round(microtime(true) - $start, 2);
     if (!empty($res['success'])) {
         fwrite(STDOUT, sprintf(
-            "[shadow-saas-sync] %s OK in %ss — apps=%d users=%d alerts=%d shadow_saas=%d\n",
+            "[shadow-saas-sync] %s OK in %ss — apps=%d users=%d alerts=%d shadow_saas=%d breaches=%d\n",
             $activeName, $elapsed, $res['apps_fetched'] ?? 0, $res['users_fetched'] ?? 0,
-            $res['alerts_fetched'] ?? 0, $res['shadow_saas_upserted'] ?? 0
+            $res['alerts_fetched'] ?? 0, $res['shadow_saas_upserted'] ?? 0, $res['breaches_created'] ?? 0
         ));
         exit(0);
     }

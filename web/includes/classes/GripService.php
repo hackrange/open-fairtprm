@@ -3,7 +3,7 @@
  * GripService — Grip Security public API client + Shadow SaaS ingest.
  *
  * Talks to the Grip Security public SaaS API (default base
- * https://<tenant>.dep.grip.security/public/saas) and hydrates the
+ * https://tenant.dep.grip.security/public/saas) and hydrates the
  * shadow_saas_grip_* mirror tables, then projects normalized rows into
  * the existing shadow_saas table so the existing UI can render Grip data
  * with no further wiring.
@@ -29,6 +29,7 @@ class GripService
     private string $baseUrl = '';
     private string $apiToken = '';
     private bool $enabled = false;
+    private bool $breachSyncEnabled = false;
 
     public function __construct()
     {
@@ -48,9 +49,10 @@ class GripService
                 ? $encryption->decrypt($row['config_value'])
                 : $row['config_value'];
             switch ($row['config_key']) {
-                case 'grip_enabled':   $this->enabled = ($val === '1'); break;
-                case 'grip_base_url':  $this->baseUrl = is_string($val) ? trim($val) : ''; break;
-                case 'grip_api_token': $this->apiToken = is_string($val) ? trim($val) : ''; break;
+                case 'grip_enabled':            $this->enabled = ($val === '1'); break;
+                case 'grip_base_url':           $this->baseUrl = is_string($val) ? trim($val) : ''; break;
+                case 'grip_api_token':          $this->apiToken = is_string($val) ? trim($val) : ''; break;
+                case 'grip_breach_sync_enabled':$this->breachSyncEnabled = ($val === '1'); break;
             }
         }
         if ($this->baseUrl === '') $this->baseUrl = self::DEFAULT_BASE_URL;
@@ -226,6 +228,7 @@ class GripService
         $logId = $this->openSyncLog($triggerSource, $userId);
         $appsCount = $usersCount = $alertsCount = $shadowUpserts = 0;
         $appsRemoved = $usersRemoved = $alertsRemoved = $shadowRemoved = 0;
+        $breachesCreated = 0;
         try {
             // Use the DB clock as the tombstone reference so PHP/MySQL
             // clock skew can't trip the cleanup. Grab it BEFORE any upsert
@@ -284,6 +287,25 @@ class GripService
                 );
             }
 
+            // Optional: flow Grip "Security Incident Detected" alerts into the
+            // Breach Alerts system. Gated by three switches (all required):
+            //   1. Grip Shadow SaaS enabled  — implicit (this sync only runs for
+            //      the enabled provider), but re-checked defensively.
+            //   2. grip_breach_sync_enabled  — the per-feature toggle on the
+            //      Shadow SaaS > Grip admin tab.
+            //   3. breach_alert_enabled      — the Breach/Cyber Alert master
+            //      switch on admin.php?section=email.
+            // Only onboarded (approved) vendors receive breach rows, and
+            // BreachAlertService::createAlert() dedups so re-runs never duplicate.
+            // Reuses $alertsData already fetched above — no extra Grip API call.
+            if ($this->breachSyncEnabled && $this->enabled && $this->isBreachSystemEnabled() && !empty($alertsData)) {
+                try {
+                    $breachesCreated = $this->projectIncidentAlertsToBreachSystem($alertsData);
+                } catch (Throwable $e) {
+                    error_log('Grip breach projection failed: ' . $e->getMessage());
+                }
+            }
+
             $this->closeSyncLog($logId, 'success', $appsCount, $usersCount, $alertsCount, $shadowUpserts, null);
             return [
                 'success'              => true,
@@ -295,6 +317,7 @@ class GripService
                 'users_removed'        => $usersRemoved,
                 'alerts_removed'       => $alertsRemoved,
                 'shadow_saas_removed'  => $shadowRemoved,
+                'breaches_created'     => $breachesCreated,
                 'log_id'               => $logId,
             ];
         } catch (Throwable $e) {
@@ -561,8 +584,230 @@ class GripService
     }
 
     // ------------------------------------------------------------------
+    // Breach projection (optional — Grip security incidents -> Breach Alerts)
+    // ------------------------------------------------------------------
+
+    /**
+     * Whether the Breach / Cyber Alert subsystem itself is enabled
+     * (admin.php?section=email -> breach_alert_enabled). The Grip breach feed
+     * must never write into a disabled breach system. Mirrors the gate used by
+     * cron/breach-monitor.php.
+     */
+    private function isBreachSystemEnabled(): bool
+    {
+        try {
+            $r = $this->db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'breach_alert_enabled'");
+            return $r && ($r['config_value'] ?? '') === '1';
+        } catch (Throwable $e) { return false; }
+    }
+
+    /**
+     * Project Grip "Security Incident Detected" alerts into the Breach Alerts
+     * system (cyber_breach_alerts, via BreachAlertService). Each such alert is a
+     * breach/incident Grip has flagged against a SaaS application.
+     *
+     *  - If the app's registrable domain matches an ONBOARDED (approved) vendor,
+     *    the breach is linked to that vendor (affected_entity_type 'vendor').
+     *  - Otherwise the breach is STILL recorded, tagged as Shadow SaaS
+     *    (affected_entity_type 'shadow_saas') with the number of users
+     *    potentially impacted, so an admin sees e.g. "Shadow SaaS / 17 users".
+     *
+     * createAlert() dedups on affected_entity|alert_type, so re-runs (scheduled
+     * or manual) never create duplicates. Reuses the alerts already fetched by
+     * syncAll() — no additional Grip API call.
+     *
+     * @return int number of NEW breach rows created this run.
+     */
+    private function projectIncidentAlertsToBreachSystem(array $alerts): int
+    {
+        if (!class_exists('BreachAlertService')) {
+            error_log('Grip breach projection: BreachAlertService unavailable');
+            return 0;
+        }
+        $breach  = BreachAlertService::getInstance();
+        $created = 0;
+
+        foreach ($alerts as $a) {
+            // Grip's breach/incident alerts are exactly this alertType; everything
+            // else (unmanaged app, OAuth grant, etc.) is posture noise, not a breach.
+            if (($a['alertType'] ?? '') !== 'Security Incident Detected') continue;
+            $rel = is_array($a['relatedEntity'] ?? null) ? $a['relatedEntity'] : [];
+            if (($rel['entityType'] ?? '') !== 'saas_application') continue;
+
+            $gripId  = (string)($rel['id'] ?? '');
+            $appRow  = $gripId !== ''
+                ? $this->db->fetchOne("SELECT name, domain, number_of_users FROM shadow_saas_grip_apps WHERE grip_id = :g", [':g' => $gripId])
+                : null;
+            $domain  = trim((string)($appRow['domain'] ?? ''));
+            $appName = trim((string)($rel['name'] ?? '')) ?: trim((string)($appRow['name'] ?? ''));
+            if ($appName === '') $appName = $domain;
+            if ($appName === '') continue; // nothing to key the breach on
+            $impacted = (isset($appRow['number_of_users']) && $appRow['number_of_users'] !== null)
+                ? (int)$appRow['number_of_users'] : null;
+
+            // Onboarded (approved) vendor match by registrable domain.
+            $vendor = null;
+            if ($domain !== '') {
+                $vendor = $this->db->fetchOne(
+                    "SELECT id, vendor_name FROM vendor_onboarding_requests WHERE vendor_domain = :d AND status = 'approved' LIMIT 1",
+                    [':d' => $domain]
+                );
+            }
+
+            $sev = strtolower((string)($a['alertSeverity'] ?? 'high'));
+            if (!in_array($sev, ['critical', 'high', 'medium', 'low'], true)) $sev = 'high';
+
+            $uf       = is_array($a['uniqueFieldsData'] ?? null) ? $a['uniqueFieldsData'] : [];
+            $moreUrl  = trim((string)($uf['more_info_url'] ?? ''));
+            $detected = $this->parseDate($a['createdAt'] ?? null);
+            $descr    = trim((string)($a['description'] ?? ''));
+
+            $meta = [];
+            if ($detected)          $meta[] = 'Detected by Grip: ' . $detected;
+            if ($impacted !== null) $meta[] = $impacted . ' user(s) potentially impacted in your environment';
+            if (!empty($uf['incident_type']) && is_array($uf['incident_type'])) {
+                $meta[] = 'Incident type: ' . implode(', ', array_map('strval', $uf['incident_type']));
+            }
+            $meta[]  = 'Source: Grip Security' . (!empty($a['alertId']) ? ' (alert ' . $a['alertId'] . ')' : '') . '.';
+            $summary = trim($descr . ($meta ? "\n\n" . implode("\n", $meta) : ''));
+
+            $sources = [];
+            if ($moreUrl !== '')        $sources[] = $moreUrl;
+            if (!empty($a['alertUrl'])) $sources[] = $a['alertUrl'];
+
+            $data = [
+                'alert_type'  => 'data_breach',
+                'severity'    => $sev,
+                'summary'     => $summary,
+                'source_urls' => $sources,
+            ];
+            if ($vendor) {
+                $data['title']                = $this->clip($vendor['vendor_name'] . ' — security incident reported by Grip', 500);
+                $data['affected_entity']      = $vendor['vendor_name'];
+                $data['affected_entity_type'] = 'vendor';
+                $data['affected_vendor_ids']  = json_encode([(int)$vendor['id']]);
+                $data['vendor_count']         = 1;
+            } else {
+                // No onboarded vendor — record as a Shadow SaaS breach.
+                $data['title']                = $this->clip($appName . ' — security incident reported by Grip', 500);
+                $data['affected_entity']      = $appName;
+                $data['affected_entity_type'] = 'shadow_saas';
+                $data['vendor_count']         = 0;
+            }
+
+            try {
+                $res = $breach->createAlert($data);
+            } catch (Throwable $e) {
+                error_log('Grip breach createAlert failed for ' . $appName . ': ' . $e->getMessage());
+                continue;
+            }
+            if (!empty($res['success'])) {
+                $created++;
+                // Persist impacted user count + the Grip app id (columns added in
+                // v2.6.2.sql) so the Breach UI can drill into affected users.
+                // Guarded so a pre-migration schema can't fatal the sync.
+                $newId = (int)($res['id'] ?? 0);
+                if ($newId > 0) {
+                    $upd = [];
+                    if ($impacted !== null) $upd['impacted_user_count'] = $impacted;
+                    if ($gripId !== '')     $upd['grip_saas_id'] = $gripId;
+                    if ($upd) {
+                        try { $this->db->update('cyber_breach_alerts', $upd, 'id = :id', [':id' => $newId]); }
+                        catch (Throwable $e) { error_log('Grip breach row enrich failed: ' . $e->getMessage()); }
+                    }
+                }
+            }
+
+            // Snapshot this app's users into shadow_saas_grip_app_users for the
+            // breach drill-down, regardless of dedup outcome, so the affected-users
+            // list stays current. Best-effort: a failure never aborts the sync.
+            if ($gripId !== '') {
+                try { $this->syncAppUsers($gripId); }
+                catch (Throwable $e) { error_log('Grip app-users snapshot failed for ' . $gripId . ': ' . $e->getMessage()); }
+            }
+        }
+        return $created;
+    }
+
+    /**
+     * Live fetch of the users for one Grip SaaS app
+     * (GET /public/saas/{id}/users). Returns the raw array of {user, saasUser}.
+     */
+    public function getUsersForApp(string $gripId): array
+    {
+        $gripId = trim($gripId);
+        if ($gripId === '') return [];
+        // Paginate — large apps can have many users (offset/limit, like the other
+        // Grip list endpoints). Iterate until a short page.
+        $all = [];
+        $offset = 0;
+        $base = '/' . rawurlencode($gripId) . '/users';
+        while (true) {
+            $res = $this->request($base, ['offset' => $offset, 'limit' => self::PAGE_SIZE]);
+            if (!$res['success'] || !is_array($res['data'])) break;
+            $page = $res['data'];
+            if (empty($page)) break;
+            foreach ($page as $row) $all[] = $row;
+            if (count($page) < self::PAGE_SIZE) break;
+            $offset += self::PAGE_SIZE;
+        }
+        return $all;
+    }
+
+    /**
+     * Refresh the per-app user snapshot (shadow_saas_grip_app_users) for one Grip
+     * SaaS app — replaces the app's rows wholesale (per-app sets are small).
+     * @return int users stored
+     */
+    private function syncAppUsers(string $gripId): int
+    {
+        $gripId = trim($gripId);
+        if ($gripId === '') return 0;
+        $users = $this->getUsersForApp($gripId);
+        $this->db->delete('shadow_saas_grip_app_users', 'grip_saas_id = :g', [':g' => $gripId]);
+        $count = 0;
+        foreach ($users as $entry) {
+            $u   = is_array($entry['user'] ?? null) ? $entry['user'] : [];
+            $su  = is_array($entry['saasUser'] ?? null) ? $entry['saasUser'] : [];
+            $g   = is_array($u['gripData'] ?? null) ? $u['gripData'] : [];
+            $act = is_array($g['activity'] ?? null) ? $g['activity'] : [];
+            $userGripId = (string)($u['id'] ?? ($su['userId'] ?? ''));
+            if ($userGripId === '') continue;
+            $row = [
+                'grip_saas_id'        => $gripId,
+                'user_grip_id'        => $userGripId,
+                'mail'                => $u['mail'] ?? null,
+                'full_name'           => $u['fullName'] ?? null,
+                'display_name'        => $u['displayName'] ?? null,
+                'organizational_unit' => $u['organizationalUnit'] ?? null,
+                'manager_email'       => $u['managerEmail'] ?? null,
+                'user_type'           => $u['type'] ?? null,
+                'authentication_type' => $su['authenticationType'] ?? null,
+                'sso'                 => isset($su['SSO']) ? (int)(bool)$su['SSO'] : null,
+                'unique_scopes_count' => isset($su['uniqueScopesCount']) ? (int)$su['uniqueScopesCount'] : null,
+                'number_of_saas'      => isset($g['numberOfSaas']) ? (int)$g['numberOfSaas'] : null,
+                'has_active_mailbox'  => isset($act['hasActiveMailbox']) ? (int)(bool)$act['hasActiveMailbox'] : null,
+                'first_event_time'    => $this->parseDate($su['firstEventTime'] ?? ($g['firstEventTime'] ?? null)),
+                'latest_event_time'   => $this->parseDate($su['latestEventTime'] ?? ($g['latestEventTime'] ?? null)),
+                'last_usage'          => $this->parseDate($su['lastUsage'] ?? ($g['lastUsage'] ?? null)),
+                'platforms_activity'  => json_encode($act['platformsActivity'] ?? []),
+                'raw_payload'         => json_encode($entry),
+            ];
+            try { $this->db->insert('shadow_saas_grip_app_users', $row); $count++; }
+            catch (Throwable $e) { error_log('Grip app-user insert failed: ' . $e->getMessage()); }
+        }
+        return $count;
+    }
+
+    // ------------------------------------------------------------------
     // Tiny helpers
     // ------------------------------------------------------------------
+
+    /** Trim a string to a max length (multibyte-safe). */
+    private function clip(string $s, int $max): string
+    {
+        return (mb_strlen($s) > $max) ? mb_substr($s, 0, $max) : $s;
+    }
 
     private function upsert(string $table, array $row, string $key): void
     {

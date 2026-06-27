@@ -144,6 +144,27 @@ class BreachAlertService {
         $this->db->update('cyber_breach_alerts', ['email_sent_at' => date('Y-m-d H:i:s')], 'id = :id', [':id' => $id]);
     }
 
+    /**
+     * New, not-yet-emailed alerts that qualify for the breach digest: alerts
+     * affecting a monitored vendor (vendor_count > 0) plus Grip-sourced Shadow
+     * SaaS breaches (no onboarded vendor, but still worth notifying). Driven by
+     * email_sent_at and source-agnostic, so alerts created outside the
+     * breach-monitor run — e.g. the Grip Shadow SaaS breach feed in
+     * GripService::syncAll() — are included the next time the digest cron fires.
+     * Resolved / false-positive alerts are never (re)emailed.
+     */
+    public function getPendingDigestAlerts(int $limit = 200): array {
+        return $this->db->fetchAll(
+            "SELECT * FROM cyber_breach_alerts
+             WHERE email_sent_at IS NULL
+               AND status NOT IN ('resolved','false_positive')
+               AND (vendor_count > 0 OR affected_entity_type = 'shadow_saas')
+             ORDER BY created_at DESC
+             LIMIT :limit",
+            [':limit' => (int)$limit]
+        );
+    }
+
     // =========================================================================
     // ON-DEMAND SCAN STATUS (background queue pattern)
     // =========================================================================

@@ -134,29 +134,25 @@ try {
         }
     }
 
-    // Send digest email for all new alerts (one email per recipient)
-    if (!$dryRun && !empty($newAlertIds)) {
-        $recipientsRow = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'breach_alert_recipients'");
-        $recipientStr  = $recipientsRow['config_value'] ?? '';
-        $recipients    = array_filter(array_map('trim', explode(',', $recipientStr)));
+    // Send the digest for every NEW, not-yet-emailed qualifying alert. Driven by
+    // email_sent_at (not just this run's $newAlertIds), so breaches created by
+    // other sources since the last digest — notably the Grip Shadow SaaS breach
+    // feed (GripService::syncAll) — are included when this cron fires. Qualifying
+    // = vendor-relevant alerts (vendor_count > 0) plus Grip "Shadow SaaS" breaches.
+    if (!$dryRun) {
+        $digestAlerts = $breachService->getPendingDigestAlerts();
 
-        if (!empty($recipients)) {
-            try {
-                require_once APP_ROOT . '/includes/classes/EmailService.php';
-                $emailService = new EmailService($db, new Encryption());
+        if (!empty($digestAlerts)) {
+            $recipientsRow = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'breach_alert_recipients'");
+            $recipientStr  = $recipientsRow['config_value'] ?? '';
+            $recipients    = array_filter(array_map('trim', explode(',', $recipientStr)));
 
-                if ($emailService->isEnabled()) {
-                    // Collect only vendor-relevant alerts for digest
-                    // (alerts matching a monitored vendor or technology concentration)
-                    $digestAlerts = [];
-                    foreach ($newAlertIds as $alertId) {
-                        $alert = $breachService->getAlert($alertId);
-                        if ($alert && (int)($alert['vendor_count'] ?? 0) > 0) {
-                            $digestAlerts[] = $alert;
-                        }
-                    }
+            if (!empty($recipients)) {
+                try {
+                    require_once APP_ROOT . '/includes/classes/EmailService.php';
+                    $emailService = new EmailService($db, new Encryption());
 
-                    if (!empty($digestAlerts)) {
+                    if ($emailService->isEnabled()) {
                         foreach ($recipients as $email) {
                             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) continue;
 
@@ -170,23 +166,25 @@ try {
                             }
                         }
 
-                        // Mark all alerts as emailed
-                        foreach ($newAlertIds as $alertId) {
-                            $breachService->markEmailSent($alertId);
+                        // Mark every digested alert as emailed so it isn't re-sent.
+                        foreach ($digestAlerts as $da) {
+                            $breachService->markEmailSent((int)$da['id']);
                         }
-                    }
 
-                    if ($verbose) {
-                        CronHelper::info("Sent digest email to {$emailed} recipient(s) covering " . count($digestAlerts) . " alert(s)");
+                        if ($verbose) {
+                            CronHelper::info("Sent digest email to {$emailed} recipient(s) covering " . count($digestAlerts) . " alert(s)");
+                        }
+                    } else {
+                        CronHelper::warn("Email is disabled; skipping notifications.");
                     }
-                } else {
-                    CronHelper::warn("Email is disabled; skipping notifications.");
+                } catch (Exception $e) {
+                    $errors[] = "Email setup failed: " . $e->getMessage();
                 }
-            } catch (Exception $e) {
-                $errors[] = "Email setup failed: " . $e->getMessage();
+            } elseif ($verbose) {
+                CronHelper::info("No breach alert recipients configured. Skipping email.");
             }
         } elseif ($verbose) {
-            CronHelper::info("No breach alert recipients configured. Skipping email.");
+            CronHelper::info("No new alerts pending email.");
         }
     }
 

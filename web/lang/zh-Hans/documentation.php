@@ -1016,7 +1016,7 @@
 
     <h3>连接 Grip（分步操作）</h3>
     <ol class="steps">
-        <li>在 Grip 中，创建一个 <strong>API 令牌</strong>，并记下租户的基础 URL（以 <code>/public/saas</code> 结尾，例如 <code>https://acme.dep.grip.security/public/saas</code>）。</li>
+        <li>在 Grip 中，创建一个 <strong>API 令牌</strong>，并记下租户的基础 URL（以 <code>/public/saas</code> 结尾，例如 <code>https://tenant.dep.grip.security/public/saas</code>）。</li>
         <li>在平台中，前往 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span>，找到 <strong>Grip Security Connection</strong> 卡片。</li>
         <li>勾选 <span class="field-label">Enable Grip Security integration</span>。</li>
         <li>将租户 URL 粘贴到 <span class="field-label">Server (Tenant Base URL)</span>，将令牌粘贴到 <span class="field-label">API Token</span>。</li>

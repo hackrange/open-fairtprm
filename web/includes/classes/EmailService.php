@@ -2034,18 +2034,31 @@ TEXT;
                 $summary = htmlspecialchars($alert['summary'] ?? '', ENT_QUOTES, 'UTF-8');
                 $date = date('M j, Y g:i A', strtotime($alert['created_at'] ?? 'now'));
 
+                // Shadow SaaS / impacted-users indicator (Grip breach feed). A
+                // Shadow SaaS breach has no onboarded vendor; show the tag plus
+                // the count of users potentially impacted, e.g. "Shadow SaaS / 17 users".
+                $isShadow = (($alert['affected_entity_type'] ?? '') === 'shadow_saas');
+                $impacted = (isset($alert['impacted_user_count']) && $alert['impacted_user_count'] !== null && $alert['impacted_user_count'] !== '')
+                    ? (int)$alert['impacted_user_count'] : null;
+                $shadowTagHtml = $isShadow
+                    ? ' <span style="display:inline-block;background:#fef3c7;color:#92400e;font-size:11px;padding:1px 6px;border-radius:3px;font-weight:600;">Shadow SaaS' . ($impacted !== null ? ' / ' . $impacted . ' users' : '') . '</span>'
+                    : ($impacted !== null ? ' &middot; ' . $impacted . ' users impacted' : '');
+                $shadowTagText = $isShadow
+                    ? ' | Shadow SaaS' . ($impacted !== null ? " / {$impacted} users" : '')
+                    : ($impacted !== null ? " | {$impacted} users impacted" : '');
+
                 $alertRowsHtml .= '<tr><td style="padding:12px 15px;border-bottom:1px solid #e5e7eb;">'
                     . '<div style="margin-bottom:4px;">'
                     . '<span style="display:inline-block;background:' . $sc['badge'] . ';color:#fff;font-size:11px;padding:2px 8px;border-radius:3px;font-weight:600;text-transform:uppercase;margin-right:8px;">' . strtoupper($sev) . '</span>'
                     . '<strong style="color:#333;font-size:14px;">' . $title . '</strong>'
                     . '</div>'
-                    . '<div style="color:#666;font-size:13px;margin-bottom:4px;">' . $entity . ' &middot; ' . $type . ' &middot; ' . $date . '</div>'
+                    . '<div style="color:#666;font-size:13px;margin-bottom:4px;">' . $entity . ' &middot; ' . $type . ' &middot; ' . $date . $shadowTagHtml . '</div>'
                     . '<div style="color:#4b5563;font-size:13px;line-height:1.5;">' . $summary . '</div>'
                     . '</td></tr>';
 
                 $num = $i + 1;
                 $alertRowsText .= "{$num}. [" . strtoupper($sev) . "] " . ($alert['title'] ?? '') . "\n"
-                    . "   Entity: " . ($alert['affected_entity'] ?? '') . " | Type: {$type} | Date: {$date}\n"
+                    . "   Entity: " . ($alert['affected_entity'] ?? '') . " | Type: {$type} | Date: {$date}{$shadowTagText}\n"
                     . "   " . ($alert['summary'] ?? '') . "\n\n";
             }
 
