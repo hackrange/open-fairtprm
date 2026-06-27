@@ -71,6 +71,20 @@ if ($appName === '' || $appDomain === '') {
         if ($appUsers === null) $appUsers = $mirror['number_of_users'] ?? null;
     }
 }
+// Last resort: a breach alert linked to this app (e.g. a vendor breach enriched
+// with Grip telemetry) carries the entity name + domain even when the app isn't
+// in the Shadow SaaS tables.
+if ($appName === '' || $appDomain === '') {
+    $br = $db->fetchOne(
+        "SELECT affected_entity, affected_domain, impacted_user_count FROM cyber_breach_alerts WHERE grip_saas_id = :g AND affected_entity IS NOT NULL ORDER BY id LIMIT 1",
+        [':g' => $gripId]
+    );
+    if ($br) {
+        if ($appName === '')   $appName   = trim((string)($br['affected_entity'] ?? ''));
+        if ($appDomain === '') $appDomain = trim((string)($br['affected_domain'] ?? ''));
+        if ($appUsers === null && isset($br['impacted_user_count'])) $appUsers = $br['impacted_user_count'];
+    }
+}
 if ($appName === '') $appName = $gripId;
 
 // Pagination — 100/500/1000 per page for large datasets.
@@ -84,40 +98,73 @@ $params = Pagination::getParams([
 ]);
 $sortCol = in_array($params['sort_column'], $validSort, true) ? $params['sort_column'] : 'full_name';
 $sortDir = $params['sort_dir'] === 'DESC' ? 'DESC' : 'ASC';
+// A sort (?sort=) or an SSO filter (?filter=) narrows/orders across the whole
+// roster, so those views read from the local snapshot. The unfiltered, unsorted
+// default view serves a single page straight from Grip (fast).
+$sortActive = isset($_GET['sort']);
+$authFilter = (string)($_GET['filter'] ?? '');     // '', 'sso', 'nosso', 'saml', 'credentials'
+if (!in_array($authFilter, ['sso', 'nosso', 'saml', 'credentials'], true)) $authFilter = '';
+$authWhere  = '';
+$authParams = [':g' => $gripId];
+if ($authFilter === 'sso')             { $authWhere = ' AND sso = 1'; }
+elseif ($authFilter === 'nosso')       { $authWhere = ' AND (sso = 0 OR sso IS NULL)'; }
+elseif ($authFilter === 'saml')        { $authWhere = ' AND authentication_type LIKE :auth'; $authParams[':auth'] = 'SAML%'; }
+elseif ($authFilter === 'credentials') { $authWhere = ' AND authentication_type = :auth'; $authParams[':auth'] = 'Credentials'; }
+$needsSnapshot = $sortActive || $authFilter !== '';
 
-$total = (int)($db->fetchOne(
+require_once CLASSES_PATH . '/GripService.php';
+$grip = new GripService();
+$gripReady = $grip->isConfigured();
+
+$snapCount = (int)($db->fetchOne(
     "SELECT COUNT(*) AS c FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g",
     [':g' => $gripId]
 )['c'] ?? 0);
 
-// Lazy-populate: most Shadow SaaS rows never went through the breach projection,
-// so their user snapshot is empty. The first time this drill-down is opened for
-// such an app, fetch the roster live from Grip and cache it. Best-effort —
-// silently leaves $total at 0 if Grip is unconfigured or the call fails.
-if ($total === 0 && file_exists(CLASSES_PATH . '/GripService.php')) {
-    require_once CLASSES_PATH . '/GripService.php';
+$users = [];
+$total = 0;
+$usedFast = false;
+
+if (!$needsSnapshot && $gripReady) {
+    // FAST PATH — fetch only the requested page live from Grip (e.g. 100 of
+    // 4862). Total comes from the app's user telemetry so paging is correct
+    // without loading the whole roster. Falls through to the snapshot if the
+    // live fetch yields nothing (Grip unreachable).
+    $total = ($appUsers !== null && (int)$appUsers > 0) ? (int)$appUsers : $snapCount;
+    $pg = Pagination::paginate($total, $params['per_page'], $params['page']);
     try {
-        $grip = new GripService();
-        if ($grip->isConfigured()) {
-            $grip->refreshAppUsers($gripId);
-            $total = (int)($db->fetchOne(
-                "SELECT COUNT(*) AS c FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g",
-                [':g' => $gripId]
-            )['c'] ?? 0);
-        }
+        $users = $grip->getAppUsersPage($gripId, $pg['offset'], $params['per_page']);
     } catch (Throwable $e) {
-        error_log('grip-saas-users lazy populate failed: ' . $e->getMessage());
+        error_log('grip-saas-users live page fetch failed: ' . $e->getMessage());
+    }
+    if (!empty($users)) {
+        $usedFast = true;
+        if ($total === 0) { // telemetry unknown — reflect at least what we fetched
+            $total = $pg['offset'] + count($users);
+            $pg = Pagination::paginate($total, $params['per_page'], $params['page']);
+        }
     }
 }
 
-$pg = Pagination::paginate($total, $params['per_page'], $params['page']);
-
-$users = $db->fetchAll(
-    "SELECT * FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g
-     ORDER BY ({$sortCol} IS NULL), {$sortCol} {$sortDir}
-     LIMIT :lim OFFSET :off",
-    [':g' => $gripId, ':lim' => $params['per_page'], ':off' => $pg['offset']]
-);
+if (!$usedFast) {
+    // SNAPSHOT PATH — sorting / SSO-filtering needs the full roster, so build the
+    // snapshot once (cached for later visits) and read from the DB.
+    if ($snapCount === 0 && $gripReady) {
+        try { $grip->refreshAppUsers($gripId); }
+        catch (Throwable $e) { error_log('grip-saas-users snapshot build failed: ' . $e->getMessage()); }
+    }
+    $total = (int)($db->fetchOne(
+        "SELECT COUNT(*) AS c FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g{$authWhere}",
+        $authParams
+    )['c'] ?? 0);
+    $pg = Pagination::paginate($total, $params['per_page'], $params['page']);
+    $users = $db->fetchAll(
+        "SELECT * FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g{$authWhere}
+         ORDER BY ({$sortCol} IS NULL), {$sortCol} {$sortDir}
+         LIMIT :lim OFFSET :off",
+        $authParams + [':lim' => $params['per_page'], ':off' => $pg['offset']]
+    );
+}
 
 // Helpers ---------------------------------------------------------------------
 function gsuDate($v): string {
@@ -143,6 +190,19 @@ function gsuInitials(string $name, string $mail): string {
 function gsuColor(string $seed): string {
     $palette = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#9333ea', '#ca8a04'];
     return $palette[abs(crc32($seed)) % count($palette)];
+}
+// A sortable column header — links to itself with the toggled direction and shows
+// the active sort arrow. Resets to page 1; preserves the app id and page size.
+function gsuSortHeader(string $label, string $col, string $gripId, string $curCol, string $curDir, int $perPage, string $filter = ''): string {
+    $isActive = ($curCol === $col);
+    $newDir   = ($isActive && $curDir === 'ASC') ? 'desc' : 'asc';
+    $arrow    = $isActive ? ($curDir === 'ASC' ? ' &#9650;' : ' &#9660;') : '';
+    $q = ['id' => $gripId, 'per_page' => $perPage, 'sort' => $col, 'order' => $newDir];
+    if ($filter !== '') $q['filter'] = $filter;
+    $qs = http_build_query($q);
+    return '<th><a href="?' . e($qs) . '" title="Sort by ' . e($label) . '"'
+         . ' style="color:' . ($isActive ? 'var(--theme-button-color)' : 'inherit') . ';text-decoration:none;white-space:nowrap;">'
+         . e($label) . $arrow . '</a></th>';
 }
 ?><!DOCTYPE html>
 <html lang="en">
@@ -287,7 +347,24 @@ function gsuColor(string $seed): string {
 
                 <p style="color:#6b7280;font-size:13px;margin:-8px 0 18px;">Users potentially impacted by a Grip-detected security incident affecting this application, as observed by Grip Security.</p>
 
-                <?php if (empty($users)): ?>
+                <?php $filterOpts = ['' => 'All', 'sso' => 'SSO', 'nosso' => 'No SSO', 'saml' => 'SAML 2.0', 'credentials' => 'Credentials']; ?>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+                    <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-right:4px;">Authentication</span>
+                    <?php foreach ($filterOpts as $fk => $fl):
+                        $fActive = ($authFilter === $fk);
+                        $fq = ['id' => $gripId, 'per_page' => (int)$params['per_page']];
+                        if ($fk !== '') $fq['filter'] = $fk;
+                    ?>
+                    <a href="?<?php echo e(http_build_query($fq)); ?>" style="font-size:13px;padding:5px 12px;border-radius:6px;text-decoration:none;border:1px solid #e5e7eb;<?php echo $fActive ? 'background:var(--theme-button-color);color:#fff;border-color:var(--theme-button-color);font-weight:600;' : 'background:#fff;color:#374151;'; ?>"><?php echo e($fl); ?></a>
+                    <?php endforeach; ?>
+                </div>
+
+                <?php if (empty($users) && $authFilter !== ''): ?>
+                    <div class="empty-state">
+                        <h3>No matching users</h3>
+                        <div>No users match the selected authentication filter for this application.</div>
+                    </div>
+                <?php elseif (empty($users)): ?>
                     <div class="empty-state">
                         <h3>No users available</h3>
                         <div>No user roster is available for this application yet.<br>
@@ -299,14 +376,19 @@ function gsuColor(string $seed): string {
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>User</th>
-                                <th>Org Unit</th>
-                                <th>Manager</th>
+                                <?php
+                                    $pp = (int)$params['per_page'];
+                                    echo gsuSortHeader('User', 'full_name', $gripId, $sortCol, $sortDir, $pp, $authFilter);
+                                    echo gsuSortHeader('Org Unit', 'organizational_unit', $gripId, $sortCol, $sortDir, $pp, $authFilter);
+                                    echo gsuSortHeader('Manager', 'manager_email', $gripId, $sortCol, $sortDir, $pp, $authFilter);
+                                ?>
                                 <th>Auth</th>
                                 <th>SSO</th>
-                                <th>First Event</th>
-                                <th>Latest Event</th>
-                                <th>Last Usage</th>
+                                <?php
+                                    echo gsuSortHeader('First Event', 'first_event_time', $gripId, $sortCol, $sortDir, $pp, $authFilter);
+                                    echo gsuSortHeader('Latest Event', 'latest_event_time', $gripId, $sortCol, $sortDir, $pp, $authFilter);
+                                    echo gsuSortHeader('Last Usage', 'last_usage', $gripId, $sortCol, $sortDir, $pp, $authFilter);
+                                ?>
                                 <th>Platforms</th>
                                 <th># SaaS</th>
                             </tr>

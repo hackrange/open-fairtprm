@@ -1343,6 +1343,7 @@ return [
     'breach-alerts.access_denied' => 'Access denied. Breach/Cyber Alerts requires cyber_tprm, administrator, or auditor role.',
     'breach-alerts.acknowledge_btn' => 'Acknowledge',
     'breach-alerts.unacknowledge_btn' => 'Un-Acknowledge',
+    'breach-alerts.false_positive_by' => 'Marked False Positive By',
     'breach-alerts.acknowledged_by' => 'Acknowledged By',
     'breach-alerts.bulk_check_all' => 'Check all',
     'breach-alerts.bulk_select_one' => 'Select this alert',

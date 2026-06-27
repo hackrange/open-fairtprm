@@ -308,6 +308,17 @@ class GripService
                 }
             }
 
+            // Attach Grip user telemetry to vendor breaches (from any source) whose
+            // vendor maps to a known Grip app — so onboarded vendors show the same
+            // impacted-user count + drill-down as Grip-detected Shadow SaaS breaches.
+            if ($this->breachSyncEnabled && $this->enabled && $this->isBreachSystemEnabled()) {
+                try {
+                    $this->enrichVendorBreachesWithGripTelemetry($apps);
+                } catch (Throwable $e) {
+                    error_log('Grip vendor-breach telemetry enrich failed: ' . $e->getMessage());
+                }
+            }
+
             $this->closeSyncLog($logId, 'success', $appsCount, $usersCount, $alertsCount, $shadowUpserts, null);
             return [
                 'success'              => true,
@@ -762,6 +773,71 @@ class GripService
     }
 
     /**
+     * Attach Grip user telemetry to existing vendor breaches. A breach about an
+     * onboarded vendor may have come from another source (the AI breach monitor)
+     * and so carry no Grip data. When that vendor's registrable domain matches a
+     * known Grip SaaS app, stamp the breach with the app's user count + id (and
+     * snapshot its users) so it shows the same impacted-user drill-down as a
+     * Grip-detected Shadow SaaS breach. Only fills gaps — never overwrites a
+     * breach that already has a Grip app id. @return int breaches enriched
+     */
+    private function enrichVendorBreachesWithGripTelemetry(array $apps): int
+    {
+        // Build a registrable-domain → {grip_id, users} map from the apps already
+        // fetched this run (authoritative; the persisted mirror is sparse). When a
+        // domain has several app instances, keep the one with the most users.
+        $byDomain = [];
+        foreach ($apps as $app) {
+            $gid = (string)($app['id'] ?? '');
+            $dom = !empty($app['url']) ? (string)self::extractDomain($app['url']) : '';
+            if ($gid === '' || $dom === '') continue;
+            $g   = is_array($app['gripData'] ?? null) ? $app['gripData'] : [];
+            $num = isset($g['numberOfUsers']) ? (int)$g['numberOfUsers'] : 0;
+            if (!isset($byDomain[$dom]) || $num > $byDomain[$dom]['num']) {
+                $byDomain[$dom] = ['grip_id' => $gid, 'num' => $num];
+            }
+        }
+        if (!$byDomain) return 0;
+
+        $enriched = 0;
+        $rows = $this->db->fetchAll(
+            "SELECT id, affected_vendor_ids, affected_domain FROM cyber_breach_alerts
+             WHERE affected_entity_type = 'vendor' AND (grip_saas_id IS NULL OR grip_saas_id = '')"
+        );
+        foreach ($rows as $r) {
+            // Resolve the vendor's registrable domain.
+            $domain = trim((string)($r['affected_domain'] ?? ''));
+            if ($domain === '') {
+                $ids = json_decode($r['affected_vendor_ids'] ?? '[]', true);
+                $vid = (is_array($ids) && !empty($ids)) ? (int)$ids[0] : 0;
+                if ($vid > 0) {
+                    $v = $this->db->fetchOne("SELECT vendor_domain FROM vendor_onboarding_requests WHERE id = :id", [':id' => $vid]);
+                    $domain = $v ? trim((string)($v['vendor_domain'] ?? '')) : '';
+                }
+            }
+            if ($domain === '') continue;
+            $domain = (string)self::extractDomain($domain) ?: $domain;
+            if (!isset($byDomain[$domain])) continue;
+
+            $app = $byDomain[$domain];
+            $upd = [
+                'grip_saas_id'        => $app['grip_id'],
+                'affected_domain'     => $domain,
+                'impacted_user_count' => (int)$app['num'],
+            ];
+            // The affected-users roster is captured lazily by grip-saas-users.php on
+            // first view, so no (potentially large) snapshot fetch is done here.
+            try {
+                $this->db->update('cyber_breach_alerts', $upd, 'id = :id', [':id' => (int)$r['id']]);
+                $enriched++;
+            } catch (Throwable $e) {
+                error_log('Vendor breach Grip enrich failed for alert ' . $r['id'] . ': ' . $e->getMessage());
+            }
+        }
+        return $enriched;
+    }
+
+    /**
      * Resolve a Grip SaaS app's registrable domain, most-local source first:
      *   1. the value already known to the caller (apps-mirror domain),
      *   2. the apps mirror url, 3. the Shadow SaaS list (vendor_domain),
@@ -836,38 +912,109 @@ class GripService
         if ($gripId === '') return 0;
         $users = $this->getUsersForApp($gripId);
         $this->db->delete('shadow_saas_grip_app_users', 'grip_saas_id = :g', [':g' => $gripId]);
-        $count = 0;
+
+        // Normalise, de-duplicating on the table's PK (grip_saas_id, user_grip_id)
+        // so a repeated user can't break a multi-row insert.
+        $rows = [];
         foreach ($users as $entry) {
-            $u   = is_array($entry['user'] ?? null) ? $entry['user'] : [];
-            $su  = is_array($entry['saasUser'] ?? null) ? $entry['saasUser'] : [];
-            $g   = is_array($u['gripData'] ?? null) ? $u['gripData'] : [];
-            $act = is_array($g['activity'] ?? null) ? $g['activity'] : [];
-            $userGripId = (string)($u['id'] ?? ($su['userId'] ?? ''));
-            if ($userGripId === '') continue;
-            $row = [
-                'grip_saas_id'        => $gripId,
-                'user_grip_id'        => $userGripId,
-                'mail'                => $u['mail'] ?? null,
-                'full_name'           => $u['fullName'] ?? null,
-                'display_name'        => $u['displayName'] ?? null,
-                'organizational_unit' => $u['organizationalUnit'] ?? null,
-                'manager_email'       => $u['managerEmail'] ?? null,
-                'user_type'           => $u['type'] ?? null,
-                'authentication_type' => $su['authenticationType'] ?? null,
-                'sso'                 => isset($su['SSO']) ? (int)(bool)$su['SSO'] : null,
-                'unique_scopes_count' => isset($su['uniqueScopesCount']) ? (int)$su['uniqueScopesCount'] : null,
-                'number_of_saas'      => isset($g['numberOfSaas']) ? (int)$g['numberOfSaas'] : null,
-                'has_active_mailbox'  => isset($act['hasActiveMailbox']) ? (int)(bool)$act['hasActiveMailbox'] : null,
-                'first_event_time'    => $this->parseDate($su['firstEventTime'] ?? ($g['firstEventTime'] ?? null)),
-                'latest_event_time'   => $this->parseDate($su['latestEventTime'] ?? ($g['latestEventTime'] ?? null)),
-                'last_usage'          => $this->parseDate($su['lastUsage'] ?? ($g['lastUsage'] ?? null)),
-                'platforms_activity'  => json_encode($act['platformsActivity'] ?? []),
-                'raw_payload'         => json_encode($entry),
-            ];
-            try { $this->db->insert('shadow_saas_grip_app_users', $row); $count++; }
-            catch (Throwable $e) { error_log('Grip app-user insert failed: ' . $e->getMessage()); }
+            $row = $this->mapGripAppUser($entry, $gripId);
+            if ($row !== null) $rows[(string)$row['user_grip_id']] = $row;
+        }
+        if (!$rows) return 0;
+
+        // Bulk insert in chunks — one statement per ~200 rows instead of one per
+        // user, so a large roster (thousands of users) loads in seconds, not
+        // minutes. Falls back to a single insert for any chunk that errors.
+        $cols  = array_keys(reset($rows));
+        $colSql = '`' . implode('`,`', $cols) . '`';
+        $count = 0;
+        foreach (array_chunk(array_values($rows), 200) as $chunk) {
+            $placeholders = [];
+            $bind = [];
+            foreach ($chunk as $i => $row) {
+                $ph = [];
+                foreach ($cols as $c) { $k = ':' . $c . $i; $ph[] = $k; $bind[$k] = $row[$c]; }
+                $placeholders[] = '(' . implode(',', $ph) . ')';
+            }
+            $sql = "INSERT INTO `shadow_saas_grip_app_users` ($colSql) VALUES " . implode(',', $placeholders);
+            try {
+                $this->db->query($sql, $bind);
+                $count += count($chunk);
+            } catch (Throwable $e) {
+                error_log('Grip app-user bulk insert failed, falling back per-row: ' . $e->getMessage());
+                foreach ($chunk as $row) {
+                    try { $this->db->insert('shadow_saas_grip_app_users', $row); $count++; }
+                    catch (Throwable $e2) { error_log('Grip app-user insert failed: ' . $e2->getMessage()); }
+                }
+            }
         }
         return $count;
+    }
+
+    /**
+     * Normalise one Grip {user, saasUser} entry into a shadow_saas_grip_app_users
+     * row (same shape whether persisted or rendered live). Returns null if the
+     * entry has no user id. Used by both the snapshot sync and the live page fetch.
+     */
+    private function mapGripAppUser(array $entry, string $gripId): ?array
+    {
+        $u   = is_array($entry['user'] ?? null) ? $entry['user'] : [];
+        $su  = is_array($entry['saasUser'] ?? null) ? $entry['saasUser'] : [];
+        $g   = is_array($u['gripData'] ?? null) ? $u['gripData'] : [];
+        $act = is_array($g['activity'] ?? null) ? $g['activity'] : [];
+        $userGripId = (string)($u['id'] ?? ($su['userId'] ?? ''));
+        if ($userGripId === '') return null;
+        return [
+            'grip_saas_id'        => $gripId,
+            'user_grip_id'        => $userGripId,
+            'mail'                => $u['mail'] ?? null,
+            'full_name'           => $u['fullName'] ?? null,
+            'display_name'        => $u['displayName'] ?? null,
+            'organizational_unit' => $u['organizationalUnit'] ?? null,
+            'manager_email'       => $u['managerEmail'] ?? null,
+            'user_type'           => $u['type'] ?? null,
+            'authentication_type' => $su['authenticationType'] ?? null,
+            'sso'                 => isset($su['SSO']) ? (int)(bool)$su['SSO'] : null,
+            'unique_scopes_count' => isset($su['uniqueScopesCount']) ? (int)$su['uniqueScopesCount'] : null,
+            'number_of_saas'      => isset($g['numberOfSaas']) ? (int)$g['numberOfSaas'] : null,
+            'has_active_mailbox'  => isset($act['hasActiveMailbox']) ? (int)(bool)$act['hasActiveMailbox'] : null,
+            'first_event_time'    => $this->parseDate($su['firstEventTime'] ?? ($g['firstEventTime'] ?? null)),
+            'latest_event_time'   => $this->parseDate($su['latestEventTime'] ?? ($g['latestEventTime'] ?? null)),
+            'last_usage'          => $this->parseDate($su['lastUsage'] ?? ($g['lastUsage'] ?? null)),
+            'platforms_activity'  => json_encode($act['platformsActivity'] ?? []),
+            'raw_payload'         => json_encode($entry),
+        ];
+    }
+
+    /**
+     * Fetch a single page of an app's users live from Grip, normalised to the
+     * snapshot row shape — so the drill-down can render just the requested page
+     * (e.g. 100 of 4862) instead of syncing the whole roster on first view.
+     * @return array list of normalised user rows for [offset, offset+limit)
+     */
+    public function getAppUsersPage(string $gripId, int $offset, int $limit): array
+    {
+        $gripId = trim($gripId);
+        if ($gripId === '' || !$this->isConfigured()) return [];
+        $offset = max(0, $offset);
+        $limit  = max(1, min($limit, 1000));
+        $base   = '/' . rawurlencode($gripId) . '/users';
+        $rows   = [];
+        $cursor = $offset;
+        // Grip caps a page at PAGE_SIZE, so gather in chunks until we have $limit.
+        while (count($rows) < $limit) {
+            $chunk = min(self::PAGE_SIZE, $limit - count($rows));
+            $res = $this->request($base, ['offset' => $cursor, 'limit' => $chunk]);
+            if (empty($res['success']) || !is_array($res['data']) || empty($res['data'])) break;
+            foreach ($res['data'] as $entry) {
+                $row = $this->mapGripAppUser($entry, $gripId);
+                if ($row !== null) $rows[] = $row;
+            }
+            $got = count($res['data']);
+            $cursor += $got;
+            if ($got < $chunk) break;
+        }
+        return $rows;
     }
 
     /**

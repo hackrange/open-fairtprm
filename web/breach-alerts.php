@@ -299,6 +299,7 @@ $pageKey = 'breach_alerts';
         .filter-tab:hover { background: #f9fafb; color: #374151; }
         .filter-tab.active { background: var(--theme-header-color); color: #fff; border-color: var(--theme-header-color); }
         .vendor-impact { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #fef3c7; border-radius: 4px; font-size: 11px; color: #92400e; font-weight: 600; }
+        .users-impact { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #dbeafe; border-radius: 4px; font-size: 11px; color: #1e40af; font-weight: 600; }
         @media (max-width: 768px) {
             .main-layout { flex-direction: column; }
             .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #e5e7eb; }
@@ -458,6 +459,16 @@ $pageKey = 'breach_alerts';
                         }
                     ?></span>
                     <?php elseif ($alert['vendor_count'] > 0): ?>
+                    <?php if (!empty($alert['impacted_user_count'])): ?>
+                    <span class="users-impact" title="<?php echo e(t('breach-alerts.users_impacted')); ?>"><?php
+                        $uLbl = number_format((int)$alert['impacted_user_count']) . ' ' . e(t('breach-alerts.users_label'));
+                        if (!empty($alert['grip_saas_id'])) {
+                            echo '<a href="grip-saas-users.php?id=' . urlencode($alert['grip_saas_id']) . '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">' . $uLbl . ' &#8599;</a>';
+                        } else {
+                            echo $uLbl;
+                        }
+                    ?></span>
+                    <?php endif; ?>
                     <span class="vendor-impact"><?php echo (int)$alert['vendor_count']; ?> <?php echo e(t('breach-alerts.vendors_label')); ?></span>
                     <?php endif; ?>
                     <span class="status-pill" style="background:<?php echo $alert['status'] === 'new' ? '#fef2f2' : ($alert['status'] === 'resolved' ? '#dcfce7' : '#f3f4f6'); ?>;color:<?php echo $alert['status'] === 'new' ? '#991b1b' : ($alert['status'] === 'resolved' ? '#166534' : '#374151'); ?>;"><?php echo e($statusLabels[$alert['status']] ?? $alert['status']); ?></span>
@@ -503,21 +514,24 @@ $pageKey = 'breach_alerts';
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php echo date('M j, Y g:i A', strtotime($alert['email_sent_at'])); ?></div>
                         </div>
                         <?php endif; ?>
-                        <?php if (!empty($alert['acknowledged_by_name'])): ?>
+                        <?php // Workflow stamps only show for the states that earn them, so a
+                              // reverted (New) alert never displays a stale "Resolved By", etc.
+                        ?>
+                        <?php if (!empty($alert['acknowledged_by_name']) && in_array($alert['status'], ['acknowledged','investigating','resolved'], true)): ?>
                         <div>
                             <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.acknowledged_by')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php echo e($alert['acknowledged_by_name']); ?><?php if ($alert['acknowledged_at']): ?> <span style="font-size:12px;color:#9ca3af;font-weight:400;"><?php echo date('M j, g:i A', strtotime($alert['acknowledged_at'])); ?></span><?php endif; ?></div>
                         </div>
                         <?php endif; ?>
-                        <?php if (!empty($alert['investigating_by_name'])): ?>
+                        <?php if (!empty($alert['investigating_by_name']) && in_array($alert['status'], ['investigating','resolved'], true)): ?>
                         <div>
                             <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#ea580c;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.investigating_by')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php echo e($alert['investigating_by_name']); ?><?php if ($alert['investigating_at']): ?> <span style="font-size:12px;color:#9ca3af;font-weight:400;"><?php echo date('M j, g:i A', strtotime($alert['investigating_at'])); ?></span><?php endif; ?></div>
                         </div>
                         <?php endif; ?>
-                        <?php if (!empty($alert['resolved_by_name'])): ?>
+                        <?php if (!empty($alert['resolved_by_name']) && in_array($alert['status'], ['resolved','false_positive'], true)): ?>
                         <div>
-                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#16a34a;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.resolved_by')); ?></div>
+                            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#16a34a;font-weight:600;margin-bottom:4px;"><?php echo e($alert['status'] === 'false_positive' ? t('breach-alerts.false_positive_by') : t('breach-alerts.resolved_by')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php echo e($alert['resolved_by_name']); ?><?php if ($alert['resolved_at']): ?> <span style="font-size:12px;color:#9ca3af;font-weight:400;"><?php echo date('M j, g:i A', strtotime($alert['resolved_at'])); ?></span><?php endif; ?></div>
                         </div>
                         <?php endif; ?>
