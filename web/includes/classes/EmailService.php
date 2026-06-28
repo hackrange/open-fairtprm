@@ -1681,7 +1681,12 @@ TEXT;
             $mail = $this->createMailer();
             $mail->addAddress($recipientEmail);
 
-            $caseUrl = baseUrl('vendor-onboarding-list.php?view=expiring_contracts');
+            // Default target is the procurement expiring-contracts list, but a
+            // caller (e.g. a fired scheduled action) can override it with a deep
+            // link to the relevant page via $caseData['url'].
+            $caseUrl = !empty($caseData['url'])
+                ? (string)$caseData['url']
+                : baseUrl('vendor-onboarding-list.php?view=expiring_contracts');
 
             $vars = [
                 'case_title' => htmlspecialchars($caseData['title'] ?? 'Contract Case', ENT_QUOTES, 'UTF-8'),

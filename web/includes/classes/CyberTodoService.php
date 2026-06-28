@@ -995,7 +995,7 @@ class CyberTodoService
                     }
                 }
                 if (!empty($emailList)) {
-                    $this->notifyScheduledActionAssignees(array_values($emailList), $label, $vendorName, $actorUserId);
+                    $this->notifyScheduledActionAssignees(array_values($emailList), $label, $vendorName, $actorUserId, $link);
                 }
             }
 
@@ -1009,7 +1009,7 @@ class CyberTodoService
      * Email each recipient that has an address, reusing the case-assignment
      * template. Failures are logged, never fatal to the action.
      */
-    private function notifyScheduledActionAssignees(array $emailList, string $label, string $vendorName, int $actorUserId): void
+    private function notifyScheduledActionAssignees(array $emailList, string $label, string $vendorName, int $actorUserId, string $link = ''): void
     {
         $emails = [];
         foreach ($emailList as $e) {
@@ -1029,7 +1029,7 @@ class CyberTodoService
             foreach ($emails as $email) {
                 try {
                     $emailService->sendCaseAssignmentNotification(
-                        ['title' => $label, 'vendor_name' => $vendorName], $email, $assigner
+                        ['title' => $label, 'vendor_name' => $vendorName, 'url' => $link], $email, $assigner
                     );
                 } catch (Exception $e) {
                     error_log('Scheduled action assignee email failed: ' . $e->getMessage());
