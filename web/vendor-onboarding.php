@@ -3719,6 +3719,17 @@ function getFieldValue($request, $field, $default = '') {
                         $ts = strtotime((string)$v);
                         return e($ts ? date('M j, Y', $ts) : (string)$v);
                     };
+                    // Round SecurityScorecard badge (A/B/C/D/F), matching shadow-saas.php /
+                    // vendor-srs-list.php. Grip exposes only a letter grade, no number.
+                    $gripSscBadge = function ($rating) {
+                        $r = strtoupper(trim((string)$rating));
+                        if (!in_array($r, ['A', 'B', 'C', 'D', 'F'], true)) {
+                            return '<span style="color:#9ca3af;">&mdash;</span>';
+                        }
+                        $map = ['A' => ['#dcfce7', '#166534'], 'B' => ['#d1fae5', '#065f46'], 'C' => ['#fef3c7', '#92400e'], 'D' => ['#ffedd5', '#9a3412'], 'F' => ['#fee2e2', '#991b1b']];
+                        [$bg, $fg] = $map[$r];
+                        return '<span title="SecurityScorecard rating ' . $r . '" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-weight:700;font-size:11px;background:' . $bg . ';color:' . $fg . ';">' . $r . '</span>';
+                    };
                     $rowStyle  = 'display:flex; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid #f1f3f5;';
                     $lblStyle  = 'color:#6b7280; font-size:13px; font-weight:500;';
                     $valStyle  = 'color:#111827; font-size:13px; font-weight:600; text-align:right; word-break:break-word;';
@@ -3763,6 +3774,10 @@ function getFieldValue($request, $field, $default = '') {
                         <!-- Vendor Information -->
                         <div style="<?php echo $cardStyle; ?>">
                             <h3 style="<?php echo $hdrStyle; ?>">Vendor Information</h3>
+                            <div style="<?php echo $rowStyle; ?>">
+                                <span style="<?php echo $lblStyle; ?>">Security Scorecard</span>
+                                <span style="<?php echo $valStyle; ?> display:inline-flex; align-items:center; justify-content:flex-end;"><?php echo $gripSscBadge($request['security_scorecard_rating'] ?? null); ?></span>
+                            </div>
                             <div style="<?php echo $rowStyle; ?>">
                                 <span style="<?php echo $lblStyle; ?>">Category</span>
                                 <span style="<?php echo $valStyle; ?>"><?php echo $gripShow($gripSaasData['category'] ?? null); ?></span>
