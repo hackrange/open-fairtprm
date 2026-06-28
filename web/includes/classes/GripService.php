@@ -999,6 +999,25 @@ class GripService
     }
 
     /**
+     * Live fetch of a single Grip SaaS app's detail (GET /public/saas/{id}).
+     * Returns the raw app record (name, url, gripData, ...) or null. Used to
+     * resolve an app's display name/domain when it's absent from local tables
+     * (e.g. an onboarded vendor's app, excluded from the Shadow SaaS mirror).
+     */
+    public function getAppDetail(string $gripId): ?array
+    {
+        $gripId = trim($gripId);
+        if ($gripId === '') return null;
+        try {
+            $res = $this->request('/' . rawurlencode($gripId));
+            if (!empty($res['success']) && is_array($res['data'] ?? null)) return $res['data'];
+        } catch (Throwable $e) {
+            error_log('Grip app detail fetch failed for ' . $gripId . ': ' . $e->getMessage());
+        }
+        return null;
+    }
+
+    /**
      * Live fetch of the users for one Grip SaaS app
      * (GET /public/saas/{id}/users). Returns the raw array of {user, saasUser}.
      */

@@ -71,6 +71,25 @@ if ($appName === '' || $appDomain === '') {
         if ($appUsers === null) $appUsers = $mirror['number_of_users'] ?? null;
     }
 }
+// Onboarded vendors are excluded from the Shadow SaaS tables, so resolve the
+// name/domain from the vendor record whose curated Grip telemetry carries this
+// app id (grip_app_data JSON, stamped during sync). json_encode emits the key
+// without spaces, so a LIKE on "grip_id":"<id>" is an exact, safe match.
+if ($appName === '' || $appDomain === '') {
+    $vr = $db->fetchOne(
+        "SELECT vendor_name, vendor_domain, grip_app_data FROM vendor_onboarding_requests
+         WHERE grip_app_data LIKE :pat AND status != 'inactive' ORDER BY id LIMIT 1",
+        [':pat' => '%"grip_id":"' . $gripId . '"%']
+    );
+    if ($vr) {
+        if ($appName === '')   $appName   = trim((string)($vr['vendor_name'] ?? ''));
+        if ($appDomain === '') $appDomain = trim((string)($vr['vendor_domain'] ?? ''));
+        if ($appUsers === null && !empty($vr['grip_app_data'])) {
+            $gad = json_decode($vr['grip_app_data'], true);
+            if (is_array($gad) && isset($gad['number_of_users'])) $appUsers = (int)$gad['number_of_users'];
+        }
+    }
+}
 // Last resort: a breach alert linked to this app (e.g. a vendor breach enriched
 // with Grip telemetry) carries the entity name + domain even when the app isn't
 // in the Shadow SaaS tables.
@@ -85,7 +104,7 @@ if ($appName === '' || $appDomain === '') {
         if ($appUsers === null && isset($br['impacted_user_count'])) $appUsers = $br['impacted_user_count'];
     }
 }
-if ($appName === '') $appName = $gripId;
+// (Final live-API fallback + gripId default happen below, once GripService is up.)
 
 // Pagination — 100/500/1000 per page for large datasets.
 $validSort = ['full_name', 'mail', 'organizational_unit', 'manager_email', 'first_event_time', 'latest_event_time', 'last_usage'];
@@ -115,6 +134,19 @@ $needsSnapshot = $sortActive || $authFilter !== '';
 require_once CLASSES_PATH . '/GripService.php';
 $grip = new GripService();
 $gripReady = $grip->isConfigured();
+
+// Final fallback: ask Grip directly for the app's name/domain. Covers apps that
+// aren't in any local table (e.g. an onboarded vendor's app excluded from the
+// Shadow SaaS mirror, with no linked breach). Only when still unresolved.
+if (($appName === '' || $appDomain === '') && $gripReady) {
+    $detail = $grip->getAppDetail($gripId);
+    if (is_array($detail)) {
+        if ($appName === '' && !empty($detail['name'])) $appName = (string)$detail['name'];
+        if ($appDomain === '' && !empty($detail['url'])) $appDomain = (string)GripService::extractDomain($detail['url']);
+        if ($appUsers === null && isset($detail['gripData']['numberOfUsers'])) $appUsers = (int)$detail['gripData']['numberOfUsers'];
+    }
+}
+if ($appName === '') $appName = $gripId;
 
 $snapCount = (int)($db->fetchOne(
     "SELECT COUNT(*) AS c FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g",
