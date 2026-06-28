@@ -244,6 +244,12 @@ class GripService
             $shadowUpserts   = (int)($shadowResult['upserts'] ?? 0);
             $shadowGripIds   = $shadowResult['grip_ids'] ?? [];
 
+            // SecurityScorecard ratings for onboarded vendors (matched by domain to
+            // a Grip app). Onboarded vendors are excluded from the Shadow SaaS list,
+            // so their SSC rating is stamped on vendor_onboarding_requests directly.
+            try { $this->enrichVendorScorecardRatings($apps); }
+            catch (Throwable $e) { error_log('Grip vendor SSC enrich failed: ' . $e->getMessage()); }
+
             // Cooperative cancellation: an admin can abort a running sync from the
             // Last Sync card, which flips this run's status to 'aborting'.
             if ($this->isCancelled($logId)) {
@@ -560,6 +566,10 @@ class GripService
                 'number_of_users'      => isset($g['numberOfUsers']) ? (int)$g['numberOfUsers'] : null,
                 'application_category' => $g['category'] ?? null,
                 'mfasupport'           => !empty($g['mfaSupported']) ? 'yes' : null,
+                // SecurityScorecard letter rating (A/B/C/D/F) — Grip exposes no
+                // numeric SSC score, only this grade.
+                'security_scorecard_rating' => (isset($g['securityScorecardRating']) && is_string($g['securityScorecardRating']) && $g['securityScorecardRating'] !== '')
+                    ? strtoupper(substr(trim($g['securityScorecardRating']), 0, 1)) : null,
                 'grip_id'              => $gripId,
                 'source'               => 'grip',
             ];
@@ -835,6 +845,41 @@ class GripService
             }
         }
         return $enriched;
+    }
+
+    /**
+     * Stamp onboarded vendors with the SecurityScorecard letter rating (A/B/C/D/F)
+     * of the Grip app matching their registrable domain. Builds the domain→rating
+     * map from the apps already fetched this run (the persisted mirror is sparse).
+     * Onboarded vendors are excluded from the Shadow SaaS list, so this is how they
+     * get an SSC value for the sortable column on vendor-srs-list.php.
+     */
+    private function enrichVendorScorecardRatings(array $apps): void
+    {
+        $byDomain = [];
+        foreach ($apps as $app) {
+            $dom = !empty($app['url']) ? (string)self::extractDomain($app['url']) : '';
+            if ($dom === '') continue;
+            $g = is_array($app['gripData'] ?? null) ? $app['gripData'] : [];
+            $r = (isset($g['securityScorecardRating']) && is_string($g['securityScorecardRating']) && $g['securityScorecardRating'] !== '')
+                ? strtoupper(substr(trim($g['securityScorecardRating']), 0, 1)) : '';
+            if ($r === '' || !in_array($r, ['A', 'B', 'C', 'D', 'F'], true)) continue;
+            // First non-empty wins; app instances of one domain share a rating.
+            if (!isset($byDomain[$dom])) $byDomain[$dom] = $r;
+        }
+        if (!$byDomain) return;
+        foreach ($byDomain as $dom => $rating) {
+            try {
+                $this->db->update(
+                    'vendor_onboarding_requests',
+                    ['security_scorecard_rating' => $rating],
+                    "LOWER(vendor_domain) = :d AND status != 'inactive'",
+                    [':d' => strtolower($dom)]
+                );
+            } catch (Throwable $e) {
+                error_log('Vendor SSC rating update failed for ' . $dom . ': ' . $e->getMessage());
+            }
+        }
     }
 
     /**

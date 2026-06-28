@@ -573,7 +573,7 @@ if ($statFilter === 'needs_rescore') {
 
 // Pagination and sorting via reusable helper
 require_once __DIR__ . '/includes/classes/Pagination.php';
-$validSortColumns = ['vendor_name', 'vendor_tier', 'current_srs_score', 'last_srs_score_at', 'scheduled_score_at', 'stakeholder_name', 'avg_score'];
+$validSortColumns = ['vendor_name', 'vendor_tier', 'current_srs_score', 'last_srs_score_at', 'scheduled_score_at', 'stakeholder_name', 'avg_score', 'security_scorecard_rating'];
 if ($shodanColumnsExist) {
     $validSortColumns[] = 'current_shodan_score';
 }
@@ -585,7 +585,7 @@ $pgParams = Pagination::getParams([
 ]);
 $sortColumn = $pgParams['sort_column'];
 // Defense-in-depth: map validated sort columns to their SQL expressions
-$safeColumns = array_fill_keys(['vendor_name', 'vendor_tier', 'current_srs_score', 'last_srs_score_at', 'scheduled_score_at', 'stakeholder_name', 'avg_score', 'current_shodan_score'], true);
+$safeColumns = array_fill_keys(['vendor_name', 'vendor_tier', 'current_srs_score', 'last_srs_score_at', 'scheduled_score_at', 'stakeholder_name', 'avg_score', 'current_shodan_score', 'security_scorecard_rating'], true);
 $sortColumn = isset($safeColumns[$sortColumn]) ? $sortColumn : 'vendor_name';
 $sortOrder = $pgParams['sort_dir'];
 $perPage = $pgParams['per_page'];
@@ -876,7 +876,7 @@ $groupBy = "GROUP BY r.id, r.vendor_name, r.vendor_domain, r.vendor_tier, r.vend
              r.current_srs_score, r.last_srs_score_at{$shodanGroupCols},
              r.status, r.created_at,
              r.primary_contact_email, r.primary_contact_details, r.primary_contact_title, r.primary_contact_phone,
-             r.product_service_description, r.vendor_use_ai";
+             r.product_service_description, r.security_scorecard_rating, r.vendor_use_ai";
 
 // ====================================================================
 // COUNT QUERY (total filtered rows)
@@ -907,6 +907,7 @@ $orderMap = [
     'scheduled_score_at' => 'scheduled_score_at',
     'stakeholder_name' => 'stakeholder_name',
     'avg_score' => 'avg_score',
+    'security_scorecard_rating' => '(security_scorecard_rating IS NULL), security_scorecard_rating',
 ];
 $sqlOrderCol = $orderMap[$sortColumn] ?? 'r.vendor_name';
 
@@ -918,7 +919,7 @@ $dataQuery = "
            r.current_srs_score, r.last_srs_score_at{$shodanSelectCols},
            r.status, r.created_at, r.vendor_use_ai,
            r.primary_contact_email, r.primary_contact_details, r.primary_contact_title, r.primary_contact_phone,
-           r.product_service_description,
+           r.product_service_description, r.security_scorecard_rating,
            MAX(COALESCE(stakeholder_user.full_name, owner_user.full_name)) as stakeholder_name,
            MAX(COALESCE(stakeholder_user.email, owner_user.email)) as stakeholder_email,
            ({$avgScoreExpr}) AS avg_score,
@@ -1029,7 +1030,7 @@ if ($includeShadowSaas) {
                ss.current_srs_score, ss.last_srs_score_at{$ssShodanCols},
                'shadow_saas' AS status, ss.created_at,
                NULL AS primary_contact_email, NULL AS primary_contact_details, NULL AS primary_contact_title, NULL AS primary_contact_phone,
-               NULL AS product_service_description,
+               NULL AS product_service_description, ss.security_scorecard_rating,
                ss.relationship_manager AS stakeholder_name,
                NULL AS stakeholder_email,
                ({$ssAvgScoreExpr}) AS avg_score,
@@ -1046,7 +1047,7 @@ if ($includeShadowSaas) {
                r.current_srs_score, r.last_srs_score_at{$shodanSelectCols},
                r.status, r.created_at,
                r.primary_contact_email, r.primary_contact_details, r.primary_contact_title, r.primary_contact_phone,
-               r.product_service_description,
+               r.product_service_description, r.security_scorecard_rating,
                MAX(COALESCE(stakeholder_user.full_name, owner_user.full_name)) as stakeholder_name,
                MAX(COALESCE(stakeholder_user.email, owner_user.email)) as stakeholder_email,
                ({$avgScoreExpr}) AS avg_score,
@@ -1063,17 +1064,38 @@ if ($includeShadowSaas) {
     // Merge params from both queries
     $combinedParams = array_merge($params, $ssParams);
 
+    // Sort un-rated (NULL) SSC rows last regardless of direction.
+    $combinedOrderBy = $sortColumn === 'security_scorecard_rating'
+        ? "(combined.security_scorecard_rating IS NULL), combined.security_scorecard_rating {$sortOrder}"
+        : "combined.{$sortColumn} {$sortOrder}";
     $combinedQuery = "
         SELECT * FROM (
             {$mainDataQuery}
             UNION ALL
             {$shadowSaasSelect}
         ) AS combined
-        ORDER BY combined.{$sortColumn} {$sortOrder}
+        ORDER BY {$combinedOrderBy}
         LIMIT {$perPage} OFFSET {$offset}
     ";
 
     $paginatedVendors = $db->fetchAll($combinedQuery, $combinedParams);
+}
+
+// SecurityScorecard "SSC" column (just left of Avg Score) shows only when Grip is
+// connected — Grip is the rating's source. The rating itself comes from the row's
+// own security_scorecard_rating (stamped on vendors during the Grip sync, and on
+// shadow_saas rows), so the column is sortable.
+$sscColumn = (function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1');
+if (!function_exists('sscBadge')) {
+    function sscBadge($rating): string {
+        $r = strtoupper(trim((string)$rating));
+        if (!in_array($r, ['A', 'B', 'C', 'D', 'F'], true)) {
+            return '<span style="color:#9ca3af;font-size:11px;">—</span>';
+        }
+        $map = ['A' => ['#dcfce7', '#166534'], 'B' => ['#d1fae5', '#065f46'], 'C' => ['#fef3c7', '#92400e'], 'D' => ['#ffedd5', '#9a3412'], 'F' => ['#fee2e2', '#991b1b']];
+        [$bg, $fg] = $map[$r];
+        return '<span title="SecurityScorecard rating ' . $r . '" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-weight:700;font-size:11px;background:' . $bg . ';color:' . $fg . ';">' . $r . '</span>';
+    }
 }
 
 $displayTotalVendors = $totalVendors;
@@ -1861,6 +1883,13 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             </a>
                         </th>
                         <?php endif; ?>
+                        <?php if ($sscColumn): ?>
+                        <th class="sortable <?php echo $sortColumn === 'security_scorecard_rating' ? 'active' : ''; ?>" title="SecurityScorecard rating (Grip)">
+                            <a href="<?php echo buildSortUrl('security_scorecard_rating', $sortColumn, $sortOrder); ?>">
+                                SSC<span class="sort-icon"><?php echo getSortIndicator('security_scorecard_rating', $sortColumn, $sortOrder); ?></span>
+                            </a>
+                        </th>
+                        <?php endif; ?>
                         <th class="sortable <?php echo $sortColumn === 'avg_score' ? 'active' : ''; ?>">
                             <a href="<?php echo buildSortUrl('avg_score', $sortColumn, $sortOrder); ?>">
                                 <?php echo e(t('vendor-srs-list.col_avg_score')); ?><span class="sort-icon"><?php echo getSortIndicator('avg_score', $sortColumn, $sortOrder); ?></span>
@@ -1961,6 +1990,9 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             <?php endif; ?>
                         </td>
                         <?php endif; ?>
+                        <?php if ($sscColumn): ?>
+                        <td style="text-align: center;"><?php echo sscBadge($vendor['security_scorecard_rating'] ?? null); ?></td>
+                        <?php endif; ?>
                         <td>
                             <?php
                             $avgScore = $vendor['avg_score'];
@@ -2059,7 +2091,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     </tr>
                     <?php
                         // Prepare detail row data
-                        $colCount = 9 + ($shodanColumnsExist ? 1 : 0);
+                        $colCount = 9 + ($shodanColumnsExist ? 1 : 0) + ($sscColumn ? 1 : 0);
                         $contactName = $vendor['primary_contact_details'] ?? '';
                         $contactTitle = $vendor['primary_contact_title'] ?? '';
                         $contactPhone = $vendor['primary_contact_phone'] ?? '';

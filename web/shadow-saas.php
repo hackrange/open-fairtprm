@@ -965,7 +965,7 @@ $pgParams = Pagination::getParams([
     'per_page_options' => [100, 500, 1000],
     'sort_column' => 'created_at',
     'sort_dir' => 'DESC',
-    'valid_sort_columns' => ['vendor_name', 'vendor_domain', 'description', 'risk_score', 'risk_type', 'relationship_manager', 'number_of_users', 'application_category', 'breaches_in_three_years', 'downloadbytes', 'uploadbytes', 'filesharing', 'mfasupport', 'current_srs_score', 'current_shodan_score', 'status', 'created_at'],
+    'valid_sort_columns' => ['vendor_name', 'vendor_domain', 'description', 'risk_score', 'risk_type', 'relationship_manager', 'number_of_users', 'application_category', 'breaches_in_three_years', 'downloadbytes', 'uploadbytes', 'filesharing', 'mfasupport', 'security_scorecard_rating', 'current_srs_score', 'current_shodan_score', 'status', 'created_at'],
 ]);
 $sortColumn = $pgParams['sort_column'];
 $sortOrder = $pgParams['sort_dir'];
@@ -1456,6 +1456,22 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     <p style="margin-top: 8px; font-size: 13px;"><?php echo e(t('shadow-saas.no_entries_hint')); ?></p>
                 </div>
                 <?php else: ?>
+                <?php
+                    // SecurityScorecard "SSC" column shows only when Grip is connected
+                    // (Grip is the rating's data source). Letter grade A/B/C/D/F badge.
+                    $gripEnabled = (function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1');
+                    if (!function_exists('sscBadge')) {
+                        function sscBadge($rating): string {
+                            $r = strtoupper(trim((string)$rating));
+                            if (!in_array($r, ['A', 'B', 'C', 'D', 'F'], true)) {
+                                return '<span style="color:#9ca3af;font-size:11px;">—</span>';
+                            }
+                            $map = ['A' => ['#dcfce7', '#166534'], 'B' => ['#d1fae5', '#065f46'], 'C' => ['#fef3c7', '#92400e'], 'D' => ['#ffedd5', '#9a3412'], 'F' => ['#fee2e2', '#991b1b']];
+                            [$bg, $fg] = $map[$r];
+                            return '<span title="SecurityScorecard rating ' . $r . '" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-weight:700;font-size:11px;background:' . $bg . ';color:' . $fg . ';">' . $r . '</span>';
+                        }
+                    }
+                ?>
                 <table>
                     <thead>
                         <tr>
@@ -1490,6 +1506,13 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     <?php echo e(t('shadow-saas.col_users')); ?><span class="sort-icon"><?php echo getSortIndicator('number_of_users', $sortColumn, $sortOrder); ?></span>
                                 </a>
                             </th>
+                            <?php if ($gripEnabled): ?>
+                            <th class="sortable <?php echo $sortColumn === 'security_scorecard_rating' ? 'active' : ''; ?>" title="SecurityScorecard rating (Grip)">
+                                <a href="<?php echo buildSortUrl('security_scorecard_rating', $sortColumn, $sortOrder); ?>">
+                                    SSC<span class="sort-icon"><?php echo getSortIndicator('security_scorecard_rating', $sortColumn, $sortOrder); ?></span>
+                                </a>
+                            </th>
+                            <?php endif; ?>
                             <th><?php echo e(t('shadow-saas.col_avg_score')); ?></th>
                             <th class="sortable <?php echo $sortColumn === 'status' ? 'active' : ''; ?>">
                                 <a href="<?php echo buildSortUrl('status', $sortColumn, $sortOrder); ?>">
@@ -1564,7 +1587,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     // Grip-sourced apps expose a per-app user roster; link the count to the
                                     // drill-down (new tab). Param is "id" so Pagination preserves it across pages.
                                     if (!empty($entry['grip_id']) && ($entry['source'] ?? '') === 'grip') {
-                                        echo '<a href="grip-saas-users.php?id=' . urlencode($entry['grip_id']) . '" target="_blank" rel="noopener" title="' . e('View the users Grip observed for this application') . '" style="color:#2563eb;font-weight:600;text-decoration:none;">' . $userCount . ' &#8599;</a>';
+                                        echo '<a href="grip-saas-users.php?id=' . urlencode($entry['grip_id']) . '" target="_blank" rel="noopener" title="' . e('View the users Grip observed for this application') . '" style="color:#2563eb;font-weight:600;text-decoration:none;">' . $userCount . '</a>';
                                     } else {
                                         echo $userCount;
                                     }
@@ -1572,6 +1595,9 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     echo '—';
                                 }
                             ?></td>
+                            <?php if ($gripEnabled): ?>
+                            <td style="text-align: center;"><?php echo sscBadge($entry['security_scorecard_rating'] ?? null); ?></td>
+                            <?php endif; ?>
                             <td style="text-align: center;">
                                 <?php if ($avgScore !== null): ?>
                                 <span style="font-weight: 600; font-size: 13px; color: #374151;"><?php echo $avgScore; ?>%</span>
@@ -1624,7 +1650,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         </tr>
                         <!-- Detail row (hidden by default) -->
                         <tr class="detail-row">
-                            <td colspan="10">
+                            <td colspan="<?php echo $gripEnabled ? 11 : 10; ?>">
                                 <div class="detail-grid">
                                     <div class="detail-item">
                                         <span class="detail-label"><?php echo e(t('shadow-saas.detail_description')); ?></span>

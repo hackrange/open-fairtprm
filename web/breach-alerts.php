@@ -463,7 +463,7 @@ $pageKey = 'breach_alerts';
                     <span class="users-impact" title="<?php echo e(t('breach-alerts.users_impacted')); ?>"><?php
                         $uLbl = number_format((int)$alert['impacted_user_count']) . ' ' . e(t('breach-alerts.users_label'));
                         if (!empty($alert['grip_saas_id'])) {
-                            echo '<a href="grip-saas-users.php?id=' . urlencode($alert['grip_saas_id']) . '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">' . $uLbl . ' &#8599;</a>';
+                            echo '<a href="grip-saas-users.php?id=' . urlencode($alert['grip_saas_id']) . '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">' . $uLbl . '</a>';
                         } else {
                             echo $uLbl;
                         }
@@ -491,7 +491,7 @@ $pageKey = 'breach_alerts';
                             <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600;margin-bottom:4px;"><?php echo e(t('breach-alerts.users_impacted')); ?></div>
                             <div style="font-size:14px;color:#111827;font-weight:500;"><?php
                                 if (!empty($alert['grip_saas_id'])) {
-                                    echo '<a href="grip-saas-users.php?id=' . urlencode($alert['grip_saas_id']) . '" target="_blank" rel="noopener">' . (int)$alert['impacted_user_count'] . ' &#8599;</a>';
+                                    echo '<a href="grip-saas-users.php?id=' . urlencode($alert['grip_saas_id']) . '" target="_blank" rel="noopener">' . (int)$alert['impacted_user_count'] . '</a>';
                                 } else {
                                     echo (int)$alert['impacted_user_count'];
                                 }

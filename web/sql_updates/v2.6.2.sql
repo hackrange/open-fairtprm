@@ -5896,6 +5896,28 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
+-- shadow_saas.security_scorecard_rating — SecurityScorecard letter grade
+-- (A/B/C/D/F) from Grip telemetry. Grip exposes no numeric SSC score, only
+-- this rating; shown as the "SSC" badge on the Shadow SaaS and vendor SRS lists.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'security_scorecard_rating') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `security_scorecard_rating` VARCHAR(2) DEFAULT NULL COMMENT ''SecurityScorecard rating A/B/C/D/F (Grip)''',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- vendor_onboarding_requests.security_scorecard_rating — same Grip SSC letter
+-- grade for ONBOARDED vendors (matched by domain during sync), shown as the
+-- sortable "SSC" column on vendor-srs-list.php.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND column_name = 'security_scorecard_rating') = 0,
+  'ALTER TABLE `vendor_onboarding_requests` ADD COLUMN `security_scorecard_rating` VARCHAR(2) DEFAULT NULL COMMENT ''SecurityScorecard rating A/B/C/D/F (Grip)''',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
 -- Zscaler block state: tracks vendors whose domain has been pushed into
 -- the configured ZIA URL Category via the Deny button. The Allow button
 -- in shadow-saas.php is rendered iff is_zscaler_blocked = 1.
