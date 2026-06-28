@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS acl_groups (
     display_name TEXT NOT NULL,
     description TEXT,
     is_active INTEGER DEFAULT 1,
+    is_system INTEGER NOT NULL DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -1016,11 +1017,11 @@ CREATE INDEX IF NOT EXISTS idx_sessions_activity ON sessions(last_activity);
 -- =============================================================================
 
 -- Default ACL groups
-INSERT INTO acl_groups (group_name, display_name, description, is_active) VALUES
-('administrator', 'Administrator', 'Full administrative access to all features', 1),
-('cyber_tprm', 'Cyber TPRM', 'Cyber Third Party Risk Management team - can manage vendor assessments and FAIR analysis', 1),
-('procurement', 'Procurement', 'Procurement team - can create and manage vendor onboarding requests', 1),
-('stakeholder', 'Stakeholder', 'Stakeholders - can view and update assigned vendor onboarding requests', 1);
+INSERT INTO acl_groups (group_name, display_name, description, is_active, is_system) VALUES
+('administrator', 'Administrator', 'Full administrative access to all features', 1, 1),
+('cyber_tprm', 'Cyber TPRM', 'Cyber Third Party Risk Management team - can manage vendor assessments and FAIR analysis', 1, 1),
+('procurement', 'Procurement', 'Procurement team - can create and manage vendor onboarding requests', 1, 1),
+('stakeholder', 'Stakeholder', 'Stakeholders - can view and update assigned vendor onboarding requests', 1, 1);
 
 -- Default admin user (password: Admin@123 - CHANGE THIS IMMEDIATELY AFTER INSTALL)
 INSERT INTO users (username, password_hash, email, full_name, is_active, is_admin, is_super_admin, totp_enabled)

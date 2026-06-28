@@ -79,6 +79,7 @@ return [
     // --- Shared top bar (every authenticated page) ---
     'chrome.welcome' => 'Вітаємо,',
     'chrome.admin'   => 'Адмін',
+    'chrome.dashboard' => 'Панель',
     'chrome.profile' => 'Профіль',
     'chrome.logout'  => 'Вийти',
     'grc-audit-report.access_denied' => 'Доступ заборонено. Модуль GRC потребує ролі cyber_grc, administrator або auditor.',

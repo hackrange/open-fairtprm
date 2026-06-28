@@ -4203,16 +4203,20 @@ INSERT IGNORE INTO `grc_recommended_controls` VALUES
 -- Creates GRC-specific groups and permissions. Uses INSERT IGNORE with
 -- named columns (no hardcoded IDs) so they work on any installation.
 
-INSERT IGNORE INTO acl_groups (group_name, display_name, description, is_active)
+INSERT IGNORE INTO acl_groups (group_name, display_name, description, is_active, is_system)
 VALUES
-    ('auditor', 'Auditor', 'Read-only access to all modules. Cannot create, update, delete, or send.', 1),
-    ('cyber_grc', 'Cyber GRC', 'GRC Compliance team members - full access to GRC module', 1),
-    ('grc_contributors', 'GRC Contributors', 'GRC Contributors - IT and Compliance staff who provide evidence and complete assessment tasks', 1);
+    ('auditor', 'Auditor', 'Read-only access to all modules. Cannot create, update, delete, or send.', 1, 1),
+    ('cyber_grc', 'Cyber GRC', 'GRC Compliance team members - full access to GRC module', 1, 1),
+    ('grc_contributors', 'GRC Contributors', 'GRC Contributors - IT and Compliance staff who provide evidence and complete assessment tasks', 1, 1);
 
 -- Update display_name for any existing rows that may have empty display_name
 UPDATE acl_groups SET display_name = 'Auditor' WHERE group_name = 'auditor' AND (display_name IS NULL OR display_name = '');
 UPDATE acl_groups SET display_name = 'Cyber GRC' WHERE group_name = 'cyber_grc' AND (display_name IS NULL OR display_name = '');
 UPDATE acl_groups SET display_name = 'GRC Contributors' WHERE group_name = 'grc_contributors' AND (display_name IS NULL OR display_name = '');
+
+-- These three are shipped defaults too: protect them from deletion/renaming.
+-- Idempotent re-assertion in case the rows pre-existed the is_system column.
+UPDATE acl_groups SET is_system = 1 WHERE group_name IN ('auditor', 'cyber_grc', 'grc_contributors');
 
 -- GRC Permissions
 INSERT IGNORE INTO acl_permissions (permission_code, module, resource, action, description)

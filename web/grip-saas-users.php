@@ -5,9 +5,10 @@
  * Opened from the Shadow SaaS module list (the user-count on a Grip-sourced row
  * links here) and from a Grip breach entry on breach-alerts.php. Lists the users
  * Grip observed for a SaaS application — the people potentially impacted by a
- * breach — from the shadow_saas_grip_app_users snapshot. If the snapshot is empty
- * (the app never went through the breach projection) it is lazily populated from
- * Grip on first view.
+ * breach — from the shadow_saas_grip_app_users snapshot. In Live mode an empty
+ * snapshot is lazily populated from Grip on first view; in Local (Hydrated/cached)
+ * mode the page serves EXCLUSIVELY from the database and shows nothing when the
+ * snapshot is empty (it waits for the next sync — no per-view API calls).
  *
  * Read-only. Same access as breach alerts (admin / cyber_tprm / auditor).
  * Param: ?id=<grip SaaS application id>. Large lists are paginated (100/500/1000).
@@ -134,9 +135,12 @@ $needsSnapshot = $sortActive || $authFilter !== '';
 require_once CLASSES_PATH . '/GripService.php';
 $grip = new GripService();
 $gripReady = $grip->isConfigured();
-// Data-source mode. In 'local' (Hydrated/cached) mode the page reads exclusively
-// from the hydrated DB snapshot — no per-view live API calls. An empty per-app
-// snapshot is still lazily filled from the API once (read-through cache, below).
+// Data-source mode. In 'local' (Hydrated/cached) mode the page reads EXCLUSIVELY
+// from the hydrated DB snapshot — no per-view live API calls at all. If the
+// snapshot is empty (e.g. after a Truncate), nothing is shown until the next sync
+// repopulates it. Every live API call below (app detail, fast page fetch, and the
+// read-through snapshot build) is gated on $useLive, so none of them fire in Local
+// mode — that is what keeps "serve from the database only" actually true.
 $useLive = $gripReady && !$grip->useLocalData();
 
 // Final fallback: ask Grip directly for the app's name/domain. Covers apps that
@@ -183,23 +187,50 @@ if (!$needsSnapshot && $useLive) {
 }
 
 if (!$usedFast) {
-    // SNAPSHOT PATH — sorting / SSO-filtering needs the full roster, so build the
-    // snapshot once (cached for later visits) and read from the DB.
-    if ($snapCount === 0 && $gripReady) {
+    // SNAPSHOT PATH — read the roster from the hydrated DB snapshot.
+    //
+    // The on-demand build is gated on $useLive so it ONLY runs in Live mode (where
+    // sorting / SSO-filtering the full roster legitimately needs a live fetch). In
+    // Local (Hydrated/cached) mode we never call the Grip API on a page view: an
+    // empty snapshot stays empty and renders an empty roster until the next sync
+    // repopulates it. This is what makes "serve only from the database" hold.
+    if ($snapCount === 0 && $useLive) {
         try { $grip->refreshAppUsers($gripId); }
         catch (Throwable $e) { error_log('grip-saas-users snapshot build failed: ' . $e->getMessage()); }
     }
-    $total = (int)($db->fetchOne(
-        "SELECT COUNT(*) AS c FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g{$authWhere}",
+
+    // PII columns (mail, full_name, organizational_unit, manager_email, …) are
+    // encrypted at rest with a random IV, so they cannot be ORDER BY'd or matched
+    // in SQL. The non-PII auth filters ($authWhere: sso / authentication_type) DO
+    // run in SQL; we then fetch the whole (filtered) roster for this app, decrypt
+    // each row, and sort + paginate in PHP. Rosters are per-app and bounded, so
+    // this stays cheap. raw_payload is dropped before decrypt — it's a large blob
+    // we never render, and decrypting it per row would be pure waste.
+    $allRows = $db->fetchAll(
+        "SELECT * FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g{$authWhere}",
         $authParams
-    )['c'] ?? 0);
-    $pg = Pagination::paginate($total, $params['per_page'], $params['page']);
-    $users = $db->fetchAll(
-        "SELECT * FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g{$authWhere}
-         ORDER BY ({$sortCol} IS NULL), {$sortCol} {$sortDir}
-         LIMIT :lim OFFSET :off",
-        $authParams + [':lim' => $params['per_page'], ':off' => $pg['offset']]
     );
+    foreach ($allRows as &$__row) {
+        unset($__row['raw_payload']);
+        $__row = $grip->decryptGripRow('shadow_saas_grip_app_users', $__row);
+    }
+    unset($__row);
+
+    // Sort by the chosen column on the decrypted values. NULL/empty always sort
+    // last (matches the previous "ORDER BY (col IS NULL), col" SQL behaviour).
+    usort($allRows, function ($a, $b) use ($sortCol, $sortDir) {
+        $av = $a[$sortCol] ?? null; $bv = $b[$sortCol] ?? null;
+        $aEmpty = ($av === null || $av === ''); $bEmpty = ($bv === null || $bv === '');
+        if ($aEmpty && $bEmpty) return 0;
+        if ($aEmpty) return 1;
+        if ($bEmpty) return -1;
+        $cmp = strcasecmp((string)$av, (string)$bv);   // ISO dates compare correctly too
+        return $sortDir === 'DESC' ? -$cmp : $cmp;
+    });
+
+    $total = count($allRows);
+    $pg = Pagination::paginate($total, $params['per_page'], $params['page']);
+    $users = array_slice($allRows, $pg['offset'], $params['per_page']);
 }
 
 // Helpers ---------------------------------------------------------------------

@@ -325,6 +325,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['truncate_mirror_table
 }
 
 // ============================================================================
+// POST: truncate ALL locally-served Grip data in one action.
+//
+// Grip data lives locally in three places, not just the mirror tables:
+//   1. the shadow_saas_grip_* mirror tables (raw hydrated snapshot);
+//   2. rows projected into the shared shadow_saas table (source = 'grip');
+//   3. the curated grip_app_data JSON stamped onto vendor_onboarding_requests
+//      (this is what feeds the "SaaS Data" tab on the vendor page).
+// This clears all three so no stale Grip data is served. The next sync (in
+// Local mode) re-hydrates everything from the Grip API. Non-Grip shadow_saas
+// rows and every other vendor field are left untouched. The grip sync-log
+// history is intentionally preserved. Table names are hardcoded (never user
+// input), so interpolation is safe.
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['truncate_grip_data'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = 'Invalid request. Please try again.';
+    } else {
+        $gripMirrors = [
+            'shadow_saas_grip_apps', 'shadow_saas_grip_users',
+            'shadow_saas_grip_alerts', 'shadow_saas_grip_app_users',
+        ];
+        $truncated = [];
+        $failed = [];
+        foreach ($gripMirrors as $tbl) {
+            try {
+                $db->query("TRUNCATE TABLE `{$tbl}`");
+                $truncated[] = $tbl;
+            } catch (Throwable $e) {
+                error_log('Truncate Grip data failed for ' . $tbl . ': ' . $e->getMessage());
+                $failed[] = $tbl;
+            }
+        }
+
+        // Grip-projected rows in the shared shadow_saas table (scoped by source).
+        $saasRowsRemoved = 0;
+        try {
+            $saasRowsRemoved = $db->delete('shadow_saas', "source = 'grip'", []);
+        } catch (Throwable $e) {
+            error_log('Truncate Grip data: shadow_saas delete failed: ' . $e->getMessage());
+            $failed[] = 'shadow_saas';
+        }
+
+        // Curated Grip telemetry stamped on vendor records (the "SaaS Data" tab).
+        $vendorsCleared = 0;
+        try {
+            $vendorsCleared = $db->update(
+                'vendor_onboarding_requests',
+                ['grip_app_data' => null],
+                "grip_app_data IS NOT NULL AND grip_app_data <> ''",
+                []
+            );
+        } catch (Throwable $e) {
+            error_log('Truncate Grip data: vendor grip_app_data clear failed: ' . $e->getMessage());
+            $failed[] = 'vendor_onboarding_requests.grip_app_data';
+        }
+
+        $auth->audit($user['id'], 'shadow_saas_truncate_grip_all', 'shadow_saas_grip_*', null, [
+            'mirror_tables'    => $truncated,
+            'shadow_saas_rows' => $saasRowsRemoved,
+            'vendors_cleared'  => $vendorsCleared,
+            'failed'           => $failed,
+        ]);
+
+        if (empty($failed)) {
+            $success = 'All Grip data cleared: ' . count($truncated) . ' mirror table(s) truncated, '
+                . number_format($saasRowsRemoved) . ' Shadow SaaS row(s) removed, and '
+                . number_format($vendorsCleared) . ' vendor record(s) cleared of stamped Grip telemetry.';
+        } else {
+            $error = 'Grip data partially cleared. Failed on: ' . e(implode(', ', $failed)) . '. See the server log for details.';
+        }
+    }
+}
+
+// ============================================================================
 // POST: save HERO settings (mutually exclusive with Grip)
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_hero'])) {
@@ -438,8 +512,8 @@ $lastSync = null;
 try { $lastSync = $db->fetchOne("SELECT * FROM shadow_saas_grip_sync_log ORDER BY id DESC LIMIT 1"); } catch (Throwable $e) {}
 
 // Counts in mirror tables (best-effort; tables may not exist on first install)
-$counts = ['apps' => 0, 'users' => 0, 'alerts' => 0];
-foreach ([['shadow_saas_grip_apps','apps'],['shadow_saas_grip_users','users'],['shadow_saas_grip_alerts','alerts']] as [$tbl,$key]) {
+$counts = ['apps' => 0, 'users' => 0, 'alerts' => 0, 'app_users' => 0];
+foreach ([['shadow_saas_grip_apps','apps'],['shadow_saas_grip_users','users'],['shadow_saas_grip_alerts','alerts'],['shadow_saas_grip_app_users','app_users']] as [$tbl,$key]) {
     try { $r = $db->fetchOne("SELECT COUNT(*) AS cnt FROM {$tbl}"); $counts[$key] = (int)($r['cnt'] ?? 0); } catch (Throwable $e) {}
 }
 
@@ -547,6 +621,26 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
         <tr><th>Error</th><td style="color: #991b1b;"><?php echo e($lastSync['error_message']); ?></td></tr>
         <?php endif; ?>
     </table>
+
+    <?php
+    // Total rows currently held across all locally-served Grip mirror tables.
+    $gripLocalRows = $counts['apps'] + $counts['users'] + $counts['alerts'] + $counts['app_users'];
+    ?>
+    <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #eee;">
+        <form method="POST" action="admin.php?section=shadow-saas" style="margin: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+            <button type="submit" name="truncate_grip_data"
+                    data-confirm="Truncate ALL local Grip data? This permanently deletes every Grip mirror row (apps, users, alerts, per-app users), removes all Grip-projected Shadow SaaS rows, and clears the curated Grip telemetry stamped on vendor records (the vendor 'SaaS Data' tab). The next sync re-hydrates it from the Grip API. This cannot be undone."
+                    style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:8px 16px;font-size:13px;border-radius:4px;cursor:pointer;font-weight:600;white-space:nowrap;">
+                Truncate Data
+            </button>
+            <span style="color:#6b7280;font-size:12px;">
+                Clears all locally-served Grip data (mirror tables, Shadow SaaS Grip rows, and vendor SaaS&nbsp;Data tabs).
+                Currently holding <?php echo number_format($gripLocalRows); ?> mirror row<?php echo $gripLocalRows === 1 ? '' : 's'; ?>.
+            </span>
+        </form>
+    </div>
+
     <?php if (($lastSync['status'] ?? '') === 'running'): ?>
     <form method="POST" action="admin.php?section=shadow-saas" style="margin-top: 12px;">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">

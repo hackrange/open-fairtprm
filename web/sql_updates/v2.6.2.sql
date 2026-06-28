@@ -5624,7 +5624,7 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_apps` (
   `number_of_offboarded_users` int(10) unsigned DEFAULT NULL,
   `sso_percentage` int(10) unsigned DEFAULT NULL,
   `access_removal_support` varchar(50) DEFAULT NULL,
-  `business_owner` varchar(64) DEFAULT NULL,
+  `business_owner` text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
   `app_instances_count` int(10) unsigned DEFAULT NULL,
   `last_known_usage` datetime DEFAULT NULL,
   `first_event_time` datetime DEFAULT NULL,
@@ -5637,9 +5637,9 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_apps` (
   `oauth_high` int(10) unsigned DEFAULT NULL,
   `oauth_medium` int(10) unsigned DEFAULT NULL,
   `oauth_low` int(10) unsigned DEFAULT NULL,
-  `primary_contact_name` varchar(255) DEFAULT NULL,
-  `primary_contact_email` varchar(320) DEFAULT NULL,
-  `primary_contact_user_id` varchar(64) DEFAULT NULL,
+  `primary_contact_name` text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
+  `primary_contact_email` text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
+  `primary_contact_user_id` text DEFAULT NULL COMMENT 'Grip userId (email-format); PII: AES-encrypted at rest',
   `labels` longtext DEFAULT NULL COMMENT 'JSON array',
   `source_platforms` longtext DEFAULT NULL COMMENT 'JSON array',
   `assets` longtext DEFAULT NULL COMMENT 'JSON array',
@@ -5665,12 +5665,12 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_apps` (
 
 CREATE TABLE IF NOT EXISTS `shadow_saas_grip_users` (
   `grip_id` varchar(64) NOT NULL,
-  `mail` varchar(320) DEFAULT NULL,
-  `aliases` longtext DEFAULT NULL COMMENT 'JSON array',
-  `full_name` varchar(255) DEFAULT NULL,
-  `display_name` varchar(255) DEFAULT NULL,
-  `organizational_unit` varchar(255) DEFAULT NULL,
-  `manager_email` varchar(320) DEFAULT NULL,
+  `mail` text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
+  `aliases` longtext DEFAULT NULL COMMENT 'JSON array; PII: AES-encrypted at rest',
+  `full_name` text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
+  `display_name` text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
+  `organizational_unit` text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
+  `manager_email` text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
   `user_type` varchar(64) DEFAULT NULL,
   `number_of_saas` int(10) unsigned DEFAULT NULL,
   `sso_percentage` int(10) unsigned DEFAULT NULL,
@@ -5683,14 +5683,13 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_users` (
   `roles` longtext DEFAULT NULL COMMENT 'JSON array',
   `labels` longtext DEFAULT NULL COMMENT 'JSON array',
   `platforms_activity` longtext DEFAULT NULL COMMENT 'JSON array',
-  `custom_fields` longtext DEFAULT NULL COMMENT 'JSON',
-  `raw_payload` longtext DEFAULT NULL,
+  `custom_fields` longtext DEFAULT NULL COMMENT 'JSON; PII: AES-encrypted at rest',
+  `raw_payload` longtext DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
   `first_seen_at` timestamp NULL DEFAULT current_timestamp(),
   `last_synced_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`grip_id`),
-  KEY `idx_mail` (`mail`),
-  KEY `idx_full_name` (`full_name`),
-  KEY `idx_org_unit` (`organizational_unit`),
+  -- PII columns are encrypted at rest (random IV), so they are not indexable or
+  -- sortable in SQL; the former idx_mail/idx_full_name/idx_org_unit are dropped.
   KEY `idx_last_synced_at` (`last_synced_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -5745,11 +5744,11 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_sync_log` (
 CREATE TABLE IF NOT EXISTS `shadow_saas_grip_app_users` (
   `grip_saas_id`        varchar(64) NOT NULL COMMENT 'Grip SaaS application id',
   `user_grip_id`        varchar(64) NOT NULL COMMENT 'Grip user id',
-  `mail`                varchar(320) DEFAULT NULL,
-  `full_name`           varchar(255) DEFAULT NULL,
-  `display_name`        varchar(255) DEFAULT NULL,
-  `organizational_unit` varchar(255) DEFAULT NULL,
-  `manager_email`       varchar(320) DEFAULT NULL,
+  `mail`                text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
+  `full_name`           text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
+  `display_name`        text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
+  `organizational_unit` text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
+  `manager_email`       text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
   `user_type`           varchar(64) DEFAULT NULL,
   `authentication_type` varchar(64) DEFAULT NULL,
   `sso`                 tinyint(1) DEFAULT NULL,
@@ -5760,11 +5759,11 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_app_users` (
   `latest_event_time`   datetime DEFAULT NULL,
   `last_usage`          datetime DEFAULT NULL,
   `platforms_activity`  longtext DEFAULT NULL COMMENT 'JSON array',
-  `raw_payload`         longtext DEFAULT NULL COMMENT 'Full original JSON ({user, saasUser})',
+  `raw_payload`         longtext DEFAULT NULL COMMENT 'Full original JSON ({user, saasUser}); PII: AES-encrypted at rest',
   `last_synced_at`      timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`grip_saas_id`,`user_grip_id`),
-  KEY `idx_grip_saas_id` (`grip_saas_id`),
-  KEY `idx_mail` (`mail`)
+  -- mail/full_name/etc are encrypted at rest (random IV) -> not indexable; idx_mail dropped.
+  KEY `idx_grip_saas_id` (`grip_saas_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
@@ -6208,6 +6207,70 @@ UPDATE email_templates
    AND template_key IN ('assessment_request','assessment_7_days_before','assessment_3_days_before','assessment_expiry_day')
    AND available_variables LIKE '["vendor_name","assessment_url"%'
    AND available_variables NOT LIKE '%"assessment_name"%';
+
+-- =============================================================================
+-- Custom ACL groups: mark the built-in (system) groups so they can be protected
+-- from deletion/renaming while still allowing admins to create custom groups and
+-- clone permissions from an existing group. `is_system = 1` means "shipped default,
+-- non-deletable, frozen"; `is_system = 0` (the column default) means "admin-created,
+-- editable, deletable". Guarded via information_schema so re-runs are no-ops on both
+-- MySQL 8.0+ and MariaDB 10.5+.
+-- =============================================================================
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'acl_groups' AND column_name = 'is_system') = 0,
+  'ALTER TABLE `acl_groups` ADD COLUMN `is_system` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_active`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Flag the seven shipped default groups as system groups. Idempotent: the WHERE
+-- clause matches by the canonical group_name, and re-running simply re-asserts the
+-- value. Custom groups created later are left at is_system = 0.
+UPDATE `acl_groups`
+   SET `is_system` = 1
+ WHERE `group_name` IN (
+   'administrator', 'cyber_tprm', 'procurement', 'stakeholder',
+   'auditor', 'cyber_grc', 'grc_contributors'
+ );
+
+-- =============================================================================
+-- Grip Shadow SaaS PII-at-rest encryption.
+-- The Grip mirror tables hold personal data (emails, names, org units, manager,
+-- and the full raw payload). GripService now encrypts those columns with the
+-- app encryption key (config.php) before storing, and the UI decrypts on read.
+-- Encrypted blobs are base64 and exceed the old varchar widths, and random-IV
+-- ciphertext is neither indexable nor sortable, so for EXISTING databases we:
+--   1. drop the now-useless PII indexes (idx_mail / idx_full_name / idx_org_unit),
+--   2. widen the PII columns to TEXT.
+-- Guarded via information_schema so re-runs are no-ops on MySQL 8.0+ / MariaDB 10.5+.
+-- Fresh installs already get TEXT + no PII index from the CREATE TABLEs above.
+-- =============================================================================
+
+-- 1) Drop PII indexes (can't index TEXT; meaningless on ciphertext anyway).
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_users' AND index_name='idx_mail')>0,
+  'ALTER TABLE `shadow_saas_grip_users` DROP INDEX `idx_mail`', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_users' AND index_name='idx_full_name')>0,
+  'ALTER TABLE `shadow_saas_grip_users` DROP INDEX `idx_full_name`', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_users' AND index_name='idx_org_unit')>0,
+  'ALTER TABLE `shadow_saas_grip_users` DROP INDEX `idx_org_unit`', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_app_users' AND index_name='idx_mail')>0,
+  'ALTER TABLE `shadow_saas_grip_app_users` DROP INDEX `idx_mail`', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- 2) Widen PII columns to TEXT (one ALTER per table; proxy-guarded on the first col).
+SET @sql = IF((SELECT data_type FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_users' AND column_name='mail')='varchar',
+  'ALTER TABLE `shadow_saas_grip_users` MODIFY `mail` TEXT DEFAULT NULL, MODIFY `full_name` TEXT DEFAULT NULL, MODIFY `display_name` TEXT DEFAULT NULL, MODIFY `organizational_unit` TEXT DEFAULT NULL, MODIFY `manager_email` TEXT DEFAULT NULL', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+SET @sql = IF((SELECT data_type FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_app_users' AND column_name='mail')='varchar',
+  'ALTER TABLE `shadow_saas_grip_app_users` MODIFY `mail` TEXT DEFAULT NULL, MODIFY `full_name` TEXT DEFAULT NULL, MODIFY `display_name` TEXT DEFAULT NULL, MODIFY `organizational_unit` TEXT DEFAULT NULL, MODIFY `manager_email` TEXT DEFAULT NULL', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+SET @sql = IF((SELECT data_type FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_apps' AND column_name='primary_contact_email')='varchar',
+  'ALTER TABLE `shadow_saas_grip_apps` MODIFY `business_owner` TEXT DEFAULT NULL, MODIFY `primary_contact_name` TEXT DEFAULT NULL, MODIFY `primary_contact_email` TEXT DEFAULT NULL, MODIFY `primary_contact_user_id` TEXT DEFAULT NULL', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete

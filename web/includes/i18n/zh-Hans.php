@@ -79,6 +79,7 @@ return [
     // --- Shared top bar (every authenticated page) ---
     'chrome.welcome' => '欢迎，',
     'chrome.admin'   => '管理',
+    'chrome.dashboard' => '仪表板',
     'chrome.profile' => '个人资料',
     'chrome.logout'  => '退出',
     'grc-audit-report.access_denied' => '访问被拒绝。GRC 模块需要 cyber_grc、administrator 或 auditor 角色。',

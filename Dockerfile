@@ -75,7 +75,8 @@ RUN set -e; \
            $pp/assessment-templates.php $pp/api-integration.php \
            /var/www/html/includes/admin/; \
     \
-    cp -p  $pp/EmailService.php $pp/LockdownService.php $pp/BreachAlertService.php \
+    cp -p  $pp/ACL.php \
+           $pp/EmailService.php $pp/LockdownService.php $pp/BreachAlertService.php \
            $pp/AIPlatformService.php $pp/GitHubOSINTScanner.php \
            $pp/ShodanClient.php $pp/ShodanService.php $pp/Security.php \
            $pp/VendorAssessmentService.php $pp/AssessmentTranslationService.php \

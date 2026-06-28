@@ -5,6 +5,76 @@ All notable changes to the Fair TPRM & GRC Platform will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.6.2] - 2026-06-28
+
+> **Pre-release.** `2.6.2` is a bleeding-edge line ahead of the stable `2.6.1`
+> release; it ships to the `v2.6.2` image tag and the `2.6.2` branch only.
+
+### Added
+
+- **Access control — custom ACL groups.** Alongside the shipped default groups
+  (administrator, cyber_tprm, procurement, stakeholder, auditor, cyber_grc,
+  grc_contributors), super administrators can create custom groups, **copy
+  ("clone") permissions** from any existing group, and tune a per-permission
+  matrix with **Read vs Read/Write** capability presets. The default groups are
+  protected — non-deletable, name-locked, and their permission set is read-only.
+- **Grip Shadow SaaS — Live vs Local (Hydrated/cached) data source.** A toggle to
+  serve Grip data either live from the API per view or entirely from the hydrated
+  local database snapshot.
+- **Grip Shadow SaaS breach feed.** Grip "Security Incident Detected" alerts flow
+  into Breach / Cyber Alerts, with impacted-user counts, originating Grip SaaS app,
+  and affected domain; un-onboarded apps surface as "Shadow SaaS / N users", and a
+  breach drills into the affected-users roster (fast paged drill-down with filters).
+  A Shadow SaaS alert is promoted to a vendor breach if that app is later onboarded.
+- **Grip "Truncate Data" admin action.** One click in Shadow SaaS → Grip → Last Sync
+  clears all locally-served Grip data (mirror tables, Grip-projected `shadow_saas`
+  rows, and the curated telemetry stamped on vendor records), leaving non-Grip data
+  and sync history intact.
+- **Grip PII encrypted at rest.** Personal data in the Grip mirror tables (emails,
+  names, organizational unit, manager, primary contact, and the raw payload) is
+  encrypted with the application key (`config.php`) before being written, and
+  decrypted on read for the web GUI and API. Columns widen to `TEXT`, their plaintext
+  indexes are dropped, and sorting on those columns moves to the application layer.
+- **SecurityScorecard (SSC) rating.** An SSC letter-grade column on the Shadow SaaS
+  and vendor SRS lists, and on the vendor onboarding **SaaS Data** tab (Grip-sourced).
+- **Vendor Action Plan.** A per-vendor Action Plan tab plus a Vendor Remediation
+  Schedule cron: scheduled actions with due dates, multi-assignee support, email
+  notifications (editable recipient addresses), and editable/deletable status notes.
+- **Onboarding role-based field gating.** Per-section and per-question/field
+  **visibility** and **edit** grants (`visible_roles` / `editable_roles`), with
+  custom onboarding fields editable on the vendor page and hidden-by-default.
+- **Custom Data field types.** Multi-select (checkbox / button group), Phone, and
+  VAT question types render with their dedicated widgets.
+- **4th-Party Risk.** Bulk assessment assignment that sends emails and tracks
+  reminders, and a "Send Assessment to Subprocessor" concentration action.
+
+### Changed
+
+- **Grip Local (Hydrated/cached) mode is now strictly database-only.** Pages serve
+  exclusively from the hydrated snapshot with **no per-view Grip API calls**; an
+  empty snapshot renders empty until the next sync, rather than lazily re-fetching.
+- **Grip sync fully hydrates per-app user rosters in Local mode** — a sync now
+  snapshots the roster for **all** apps with users (not just breached/on-demand
+  apps), one Grip API call per app, so Local mode can serve every roster from the DB.
+- **`grip-saas-users`** resolves the app name for onboarded vendors, with a live
+  fallback in Live mode.
+- **Version cutover to 2.6.2** — Dockerfile reconcile, REST API version aligned to
+  2.6.2, and removal of a dead seed loop.
+
+### Fixed
+
+- **Scheduled-action email link** now deep-links to the vendor's Action Plan tab.
+- **Grip SaaS users page**: the Dashboard nav link rendered the raw translation key
+  `chrome.dashboard` instead of a localized label; the key is now defined in all 8
+  locales.
+- Custom Data badge rendering and the vendor-srs-list View Score / View Vendor links.
+
+### Security
+
+- **Admin section handlers** refuse direct web access (must be dispatched via
+  `admin.php`).
+- **BOLA/IDOR remediation** across object-access paths, plus OS package updates.
+
 ## [2.6.1] - 2026-06-17
 
 > **Later additions within 2.6.1 (2026-06-21)**

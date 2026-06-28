@@ -27,6 +27,26 @@ class ACL {
     // Gets cleared when group memberships or permissions change.
     private $cache = [];
 
+    // Group names reserved for the shipped/system groups. A custom (admin-created)
+    // group may NEVER use one of these. The names aren't just labels -- they carry
+    // hard-coded authorization meaning all over the app (e.g. hasGroup('administrator'),
+    // hasGroup('cyber_tprm')), so letting someone mint a group with one of these names
+    // would be a privilege-escalation path. Kept lowercase for case-insensitive checks.
+    const RESERVED_GROUP_NAMES = [
+        'administrator', 'cyber_tprm', 'procurement', 'stakeholder',
+        'auditor', 'cyber_grc', 'grc_contributors',
+        'super_admin', 'superadmin', 'admin', 'root',
+    ];
+
+    // Permission actions considered "read-like". Everything else is treated as a
+    // write/mutate capability. The admin UI uses this to offer Read vs Read & Write
+    // capability presets per resource, while still persisting individual codes.
+    // (A read grant must NEVER imply write; write implies read by also including
+    // the read-tier codes.)
+    const READ_ACTIONS = [
+        'read', 'read_own', 'read_assigned', 'view', 'list', 'export', 'download',
+    ];
+
     /**
      * Private constructor -- grabs DB and session instances.
      * Nothing fancy here, just wiring up dependencies.
@@ -435,6 +455,259 @@ class ACL {
             error_log('ACL Error: Failed to revoke permission from group - ' . $e->getMessage());
             return false;
         }
+    }
+
+    // ========================================================================
+    // Group management (custom groups, cloning, and the permission matrix)
+    //
+    // These power the admin "ACL Group Management" page. The shipped default
+    // groups are flagged is_system = 1 and are protected here: they cannot be
+    // renamed, deleted, or have their permission set rewritten. Admins create
+    // custom groups (is_system = 0), optionally copying ("cloning") an existing
+    // group's permissions as a starting point, then tune the permission matrix.
+    // ========================================================================
+
+    /**
+     * Get every group for the management UI -- including inactive and custom ones.
+     *
+     * Unlike getAllGroups() (which only returns active groups, for user/SAML
+     * assignment), this returns the full list so admins can see and manage
+     * deactivated custom groups too. System groups float to the top.
+     *
+     * @return array Array of group records (includes is_system, is_active)
+     */
+    public function getManagedGroups() {
+        return $this->db->fetchAll(
+            'SELECT * FROM acl_groups ORDER BY is_system DESC, display_name'
+        );
+    }
+
+    /**
+     * Look up a group by its primary key. Returns the full record or null.
+     *
+     * @param int $groupId
+     * @return array|null
+     */
+    public function getGroupById($groupId) {
+        return $this->db->fetchOne(
+            'SELECT * FROM acl_groups WHERE id = :id',
+            [':id' => (int)$groupId]
+        );
+    }
+
+    /**
+     * Get the full permission catalog (every defined permission code).
+     * Used to render the permission matrix and to whitelist incoming IDs.
+     *
+     * @return array Array of permission records, ordered for grouped display
+     */
+    public function getAllPermissions() {
+        return $this->db->fetchAll(
+            'SELECT * FROM acl_permissions ORDER BY module, resource, action'
+        );
+    }
+
+    /**
+     * Is this group a shipped/system default? System groups are protected from
+     * renaming, deletion, and permission edits.
+     *
+     * @param int $groupId
+     * @return bool
+     */
+    public function isSystemGroup($groupId) {
+        $group = $this->getGroupById($groupId);
+        return $group ? ((int)($group['is_system'] ?? 0) === 1) : false;
+    }
+
+    /**
+     * Classify a permission action as 'read' or 'write' capability.
+     * Read-like actions are read-only; anything else mutates state.
+     *
+     * @param string $action The acl_permissions.action value
+     * @return string 'read' or 'write'
+     */
+    public static function capabilityForAction($action) {
+        return in_array($action, self::READ_ACTIONS, true) ? 'read' : 'write';
+    }
+
+    /**
+     * Create a new custom ACL group, optionally cloning another group's permissions.
+     *
+     * Validates the machine name strictly (lowercase, starts with a letter, only
+     * letters/digits/underscores) and refuses reserved/system names and duplicates.
+     * The new group is always is_system = 0 (deletable, editable). If $copyFromGroupId
+     * is given, every permission held by that source group is copied to the new one.
+     *
+     * @param string   $groupName        Machine name (validated/normalized to lowercase)
+     * @param string   $displayName      Human-friendly label
+     * @param string   $description      Optional description
+     * @param int|null $copyFromGroupId  Source group to clone permissions from (or null)
+     * @param int|null $createdBy        Acting user id (null = current session user)
+     * @return int The new group's id
+     * @throws InvalidArgumentException on validation failure
+     */
+    public function createGroup($groupName, $displayName, $description = '', $copyFromGroupId = null, $createdBy = null) {
+        $groupName = strtolower(trim((string)$groupName));
+
+        if (!preg_match('/^[a-z][a-z0-9_]{1,63}$/', $groupName)) {
+            throw new InvalidArgumentException(
+                'Invalid group name. Use 2-64 characters: lowercase letters, numbers and underscores, starting with a letter.'
+            );
+        }
+        if (in_array($groupName, self::RESERVED_GROUP_NAMES, true)) {
+            throw new InvalidArgumentException('That group name is reserved for a system group.');
+        }
+        if ($this->getGroupByName($groupName)) {
+            throw new InvalidArgumentException('A group with that name already exists.');
+        }
+
+        $displayName = trim((string)$displayName);
+        if ($displayName === '') {
+            $displayName = $groupName;
+        }
+        if ($createdBy === null) {
+            $createdBy = $this->session->get('user_id');
+        }
+
+        $newId = (int)$this->db->insert('acl_groups', [
+            'group_name'   => $groupName,
+            'display_name' => $displayName,
+            'description'  => (string)$description,
+            'is_active'    => 1,
+            'is_system'    => 0,
+        ]);
+
+        if ($copyFromGroupId) {
+            $this->copyGroupPermissions((int)$copyFromGroupId, $newId, $createdBy);
+        }
+
+        return $newId;
+    }
+
+    /**
+     * Copy every permission held by a source group onto a target group.
+     * Idempotent per-permission (grantPermissionToGroup skips existing grants).
+     *
+     * @param int      $sourceGroupId
+     * @param int      $targetGroupId
+     * @param int|null $grantedBy
+     * @return int Number of permissions copied from the source
+     */
+    public function copyGroupPermissions($sourceGroupId, $targetGroupId, $grantedBy = null) {
+        if ($grantedBy === null) {
+            $grantedBy = $this->session->get('user_id');
+        }
+        $perms = $this->getGroupPermissions((int)$sourceGroupId);
+        foreach ($perms as $perm) {
+            $this->grantPermissionToGroup((int)$targetGroupId, (int)$perm['id'], $grantedBy);
+        }
+        return count($perms);
+    }
+
+    /**
+     * Update a custom group's display name, description, and active flag.
+     * The machine name (group_name) is immutable on purpose -- it is referenced
+     * by SAML mappings and any hard-coded checks. System groups cannot be edited.
+     *
+     * @param int    $groupId
+     * @param string $displayName
+     * @param string $description
+     * @param int    $isActive
+     * @return bool
+     * @throws RuntimeException if the group is a system group
+     */
+    public function updateGroup($groupId, $displayName, $description, $isActive = 1) {
+        if ($this->isSystemGroup($groupId)) {
+            throw new RuntimeException('System groups cannot be modified.');
+        }
+        $displayName = trim((string)$displayName);
+        if ($displayName === '') {
+            throw new InvalidArgumentException('Display name is required.');
+        }
+        $this->db->update('acl_groups', [
+            'display_name' => $displayName,
+            'description'  => (string)$description,
+            'is_active'    => $isActive ? 1 : 0,
+        ], 'id = :id', [':id' => (int)$groupId]);
+
+        $this->clearCacheForGroup($groupId);
+        return true;
+    }
+
+    /**
+     * Replace a custom group's entire permission set with the given list.
+     *
+     * This is the "save the matrix" operation: it wipes the group's current
+     * grants and re-inserts exactly the supplied permission IDs (each validated
+     * against the catalog). Runs in a transaction so a failure can't leave the
+     * group half-permissioned. System groups are read-only and rejected.
+     *
+     * @param int   $groupId
+     * @param array $permissionIds Permission IDs to grant (others are revoked)
+     * @param int|null $grantedBy
+     * @return bool
+     * @throws RuntimeException if the group is a system group
+     */
+    public function setGroupPermissions($groupId, array $permissionIds, $grantedBy = null) {
+        if ($this->isSystemGroup($groupId)) {
+            throw new RuntimeException('System group permissions are read-only.');
+        }
+        if ($grantedBy === null) {
+            $grantedBy = $this->session->get('user_id');
+        }
+        $groupId = (int)$groupId;
+
+        // Whitelist incoming IDs against the real catalog so a tampered form
+        // can't insert bogus permission rows.
+        $validIds = array_map('intval', array_column($this->getAllPermissions(), 'id'));
+        $wanted = [];
+        foreach ($permissionIds as $pid) {
+            $pid = (int)$pid;
+            if (in_array($pid, $validIds, true)) {
+                $wanted[$pid] = true; // dedupe
+            }
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $this->db->delete('acl_group_permissions', 'group_id = :gid', [':gid' => $groupId]);
+            foreach (array_keys($wanted) as $pid) {
+                $this->db->insert('acl_group_permissions', [
+                    'group_id'      => $groupId,
+                    'permission_id' => $pid,
+                    'granted_by'    => $grantedBy,
+                ]);
+            }
+            $this->db->commit();
+        } catch (Exception $e) {
+            $this->db->rollback();
+            error_log('ACL Error: Failed to set group permissions - ' . $e->getMessage());
+            throw $e;
+        }
+
+        $this->clearCacheForGroup($groupId);
+        return true;
+    }
+
+    /**
+     * Delete a custom group. System groups are protected and cannot be deleted.
+     * The is_system = 0 guard in the WHERE clause is a belt-and-suspenders check
+     * on top of the isSystemGroup() gate. Foreign keys cascade-clean the group's
+     * memberships and permission grants.
+     *
+     * @param int $groupId
+     * @return bool
+     * @throws RuntimeException if the group is a system group
+     */
+    public function deleteGroup($groupId) {
+        $groupId = (int)$groupId;
+        if ($this->isSystemGroup($groupId)) {
+            throw new RuntimeException('System groups cannot be deleted.');
+        }
+        // Clear caches for current members BEFORE the cascade removes the rows.
+        $this->clearCacheForGroup($groupId);
+        $this->db->delete('acl_groups', 'id = :id AND is_system = 0', [':id' => $groupId]);
+        return true;
     }
 
     /**

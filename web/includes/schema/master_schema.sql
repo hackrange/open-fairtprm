@@ -116,6 +116,9 @@ CREATE TABLE IF NOT EXISTS acl_groups (
     display_name VARCHAR(255) NOT NULL,
     description TEXT,
     is_active TINYINT(1) DEFAULT 1,
+    -- 1 = shipped default group (non-deletable, name-locked, frozen permissions);
+    -- 0 = admin-created custom group (editable + deletable).
+    is_system TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_group_name (group_name),
@@ -1106,12 +1109,12 @@ VALUES (
 ) ON DUPLICATE KEY UPDATE username = username;
 
 -- Default ACL groups (must be seeded BEFORE user_acl_groups assignment below)
-INSERT INTO acl_groups (group_name, display_name, description, is_active) VALUES
-('administrator', 'Administrator', 'Full administrative access to all features', 1),
-('cyber_tprm', 'Cyber TPRM', 'Cyber Third Party Risk Management team - can manage vendor assessments and FAIR analysis', 1),
-('procurement', 'Procurement', 'Procurement team - can create and manage vendor onboarding requests', 1),
-('stakeholder', 'Stakeholder', 'Stakeholders - can view and update assigned vendor onboarding requests', 1)
-ON DUPLICATE KEY UPDATE display_name = VALUES(display_name);
+INSERT INTO acl_groups (group_name, display_name, description, is_active, is_system) VALUES
+('administrator', 'Administrator', 'Full administrative access to all features', 1, 1),
+('cyber_tprm', 'Cyber TPRM', 'Cyber Third Party Risk Management team - can manage vendor assessments and FAIR analysis', 1, 1),
+('procurement', 'Procurement', 'Procurement team - can create and manage vendor onboarding requests', 1, 1),
+('stakeholder', 'Stakeholder', 'Stakeholders - can view and update assigned vendor onboarding requests', 1, 1)
+ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), is_system = VALUES(is_system);
 
 -- Assign admin to administrator group (after both users and acl_groups are seeded)
 INSERT IGNORE INTO user_acl_groups (user_id, group_id, assigned_by)

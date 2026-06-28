@@ -79,6 +79,7 @@ return [
     // --- Shared top bar (every authenticated page) ---
     'chrome.welcome' => 'स्वागत है,',
     'chrome.admin'   => 'एडमिन',
+    'chrome.dashboard' => 'डैशबोर्ड',
     'chrome.profile' => 'प्रोफ़ाइल',
     'chrome.logout'  => 'लॉग आउट',
     'grc-audit-report.access_denied' => 'पहुंच अस्वीकृत। GRC मॉड्यूल के लिए cyber_grc, administrator, या auditor भूमिका आवश्यक है।',

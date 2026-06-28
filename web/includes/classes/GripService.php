@@ -34,6 +34,59 @@ class GripService
     private string $dataSource = 'live';
     /** Per-run cache of grip_id => resolved registrable domain. */
     private array $appDomainCache = [];
+    /** Lazily-built Encryption helper (keyed from config.php encryption.key). */
+    private ?Encryption $enc = null;
+
+    // PII columns stored ENCRYPTED-AT-REST in each Grip mirror table. Encrypted on
+    // write (GripService), decrypted on read via decryptGripRow(). These hold
+    // personal data (emails, names, org units, manager, and the full raw payload),
+    // so they are never persisted in plaintext. The encrypted blob is base64 and
+    // larger than the source, so the underlying columns are TEXT (see v2.6.2.sql).
+    // NOTE: aggregate/app-level fields (counts, dates, categories, app name/domain)
+    // are NOT personal data and stay plaintext so they remain sortable/searchable.
+    private const ENCRYPTED_COLUMNS = [
+        'shadow_saas_grip_users'     => ['mail', 'full_name', 'display_name', 'organizational_unit', 'manager_email', 'aliases', 'custom_fields', 'raw_payload'],
+        'shadow_saas_grip_app_users' => ['mail', 'full_name', 'display_name', 'organizational_unit', 'manager_email', 'raw_payload'],
+        'shadow_saas_grip_apps'      => ['primary_contact_name', 'primary_contact_email', 'primary_contact_user_id', 'business_owner', 'raw_payload'],
+        'shadow_saas_grip_alerts'    => ['raw_payload'],
+    ];
+
+    /** Shared Encryption instance (key comes from config.php, same as everywhere else). */
+    private function enc(): Encryption
+    {
+        return $this->enc ??= new Encryption();
+    }
+
+    /**
+     * Encrypt the PII columns of a row for a given mirror table, in place.
+     * Null/empty values are left untouched. Safe to call right before insert/upsert.
+     */
+    private function encryptRow(string $table, array $row): array
+    {
+        foreach (self::ENCRYPTED_COLUMNS[$table] ?? [] as $col) {
+            if (array_key_exists($col, $row) && $row[$col] !== null && $row[$col] !== '') {
+                $row[$col] = $this->enc()->encrypt((string)$row[$col]);
+            }
+        }
+        return $row;
+    }
+
+    /**
+     * Decrypt the PII columns of a row read back from a mirror table, in place.
+     * Tolerant: a value that isn't valid ciphertext (e.g. legacy plaintext written
+     * before encryption shipped) is left exactly as-is rather than throwing, so a
+     * mixed table never breaks a page render. Pages call this on each DB-read row.
+     */
+    public function decryptGripRow(string $table, array $row): array
+    {
+        foreach (self::ENCRYPTED_COLUMNS[$table] ?? [] as $col) {
+            if (isset($row[$col]) && $row[$col] !== '') {
+                try { $row[$col] = $this->enc()->decrypt((string)$row[$col]); }
+                catch (Throwable $e) { /* not ciphertext (legacy plaintext) — keep original */ }
+            }
+        }
+        return $row;
+    }
 
     public function __construct()
     {
@@ -317,6 +370,27 @@ class GripService
                 );
             }
 
+            // FULL PER-APP USER HYDRATION (Local/Hydrated mode only).
+            //
+            // In Local mode the UI serves the per-app roster exclusively from
+            // shadow_saas_grip_app_users and never calls the API on a page view, so
+            // the sync must snapshot the roster for EVERY app that has users (not
+            // just breached apps, which the breach projection below already covers).
+            // One Grip API call per app — this is the deliberate cost of a fully
+            // DB-served Local mode. In Live mode this is skipped (the page fetches
+            // each app's roster on demand). Cooperative-cancellable; per-app failures
+            // are logged and never abort the run.
+            if ($this->useLocalData() && !empty($apps)) {
+                foreach ($apps as $app) {
+                    $appGid  = (string)($app['id'] ?? '');
+                    $nUsers  = (int)($app['gripData']['numberOfUsers'] ?? 0);
+                    if ($appGid === '' || $nUsers <= 0) continue;
+                    if ($this->isCancelled($logId)) break;
+                    try { $this->syncAppUsers($appGid); }
+                    catch (Throwable $e) { error_log('Grip per-app hydration failed for ' . $appGid . ': ' . $e->getMessage()); }
+                }
+            }
+
             // Optional: flow Grip "Security Incident Detected" alerts into the
             // Breach Alerts system. Gated by three switches (all required):
             //   1. Grip Shadow SaaS enabled  — implicit (this sync only runs for
@@ -452,7 +526,7 @@ class GripService
                 'raw_payload'                  => json_encode($app),
             ];
             if ($row['grip_id'] === '') continue;
-            $this->upsert('shadow_saas_grip_apps', $row, 'grip_id');
+            $this->upsert('shadow_saas_grip_apps', $this->encryptRow('shadow_saas_grip_apps', $row), 'grip_id');
             $count++;
         }
         return $count;
@@ -488,7 +562,7 @@ class GripService
                 'raw_payload'                    => json_encode($u),
             ];
             if ($row['grip_id'] === '') continue;
-            $this->upsert('shadow_saas_grip_users', $row, 'grip_id');
+            $this->upsert('shadow_saas_grip_users', $this->encryptRow('shadow_saas_grip_users', $row), 'grip_id');
             $count++;
         }
         return $count;
@@ -518,7 +592,7 @@ class GripService
                 'raw_payload'          => json_encode($a),
             ];
             if ($row['alert_id'] === '') continue;
-            $this->upsert('shadow_saas_grip_alerts', $row, 'alert_id');
+            $this->upsert('shadow_saas_grip_alerts', $this->encryptRow('shadow_saas_grip_alerts', $row), 'alert_id');
             $count++;
         }
         return $count;
@@ -1081,7 +1155,10 @@ class GripService
         $rows = [];
         foreach ($users as $entry) {
             $row = $this->mapGripAppUser($entry, $gripId);
-            if ($row !== null) $rows[(string)$row['user_grip_id']] = $row;
+            // Encrypt PII on the way to the DB. (mapGripAppUser is shared with the
+            // live page fetch, which renders plaintext, so we encrypt HERE on the
+            // persistence path only — never inside the mapper.)
+            if ($row !== null) $rows[(string)$row['user_grip_id']] = $this->encryptRow('shadow_saas_grip_app_users', $row);
         }
         if (!$rows) return 0;
 

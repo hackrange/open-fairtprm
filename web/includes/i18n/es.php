@@ -79,6 +79,7 @@ return [
     // --- Shared top bar (every authenticated page) ---
     'chrome.welcome' => 'Bienvenido,',
     'chrome.admin'   => 'Admin',
+    'chrome.dashboard' => 'Panel',
     'chrome.profile' => 'Perfil',
     'chrome.logout'  => 'Cerrar sesión',
     'grc-audit-report.access_denied' => 'Acceso denegado. El módulo GRC requiere el rol cyber_grc, administrator o auditor.',
