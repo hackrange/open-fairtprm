@@ -2048,7 +2048,8 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             <?php if ($isShadowSaas): ?>
                             <a href="shadow-saas.php?search=<?php echo urlencode($vendor['vendor_domain']); ?>" class="btn-sm btn-view"><?php echo e(t('vendor-srs-list.manage')); ?></a>
                             <?php else: ?>
-                            <a href="vendor-srs-details.php?id=<?php echo $vendor['id']; ?>" class="btn-sm btn-view"><?php echo e(t('vendor-srs-list.view')); ?></a>
+                            <a href="vendor-srs-details.php?id=<?php echo $vendor['id']; ?>" class="btn-sm btn-view"><?php echo e(t('vendor-srs-list.view_score')); ?></a>
+                            <a href="vendor-onboarding.php?id=<?php echo $vendor['id']; ?>" class="btn-sm btn-view"><?php echo e(t('vendor-srs-list.view_vendor')); ?></a>
                             <?php endif; ?>
                             <?php if (!$isShadowSaas && ($vendor['vendor_use_ai'] ?? '') === 'yes' && ($isAdmin || $isCyberTPRM || $acl->hasGroup('cyber_grc'))): ?>
                             <?php $existingAiBtn = $aiRiskMap[(int)$vendor['id']] ?? null; ?>

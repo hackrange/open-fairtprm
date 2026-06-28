@@ -610,6 +610,8 @@ return [
     'vendor-srs-list.status_current' => 'Current',
     'vendor-srs-list.manage' => 'Manage',
     'vendor-srs-list.view' => 'View',
+    'vendor-srs-list.view_score' => 'View Score',
+    'vendor-srs-list.view_vendor' => 'View Vendor',
     'vendor-srs-list.score_all' => 'Score All',
     'vendor-srs-list.score' => 'Score',
     'vendor-srs-list.detail_domain' => 'Domain',

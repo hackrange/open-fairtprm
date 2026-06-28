@@ -714,6 +714,19 @@ if ($showVendorTabs) {
     } catch (Exception $e) {}
     $hasScoreData = ($vendorLatestSrsScore || $vendorLatestShodanScore);
 
+    // Grip "SaaS Data" tab — curated telemetry stamped on the vendor record by
+    // GripService during sync (domain match). Only surfaced when Grip is enabled
+    // AND this vendor actually has matched app data.
+    $gripEnabled = (getAppConfig('grip_enabled', '0') === '1');
+    $gripSaasData = null;
+    if ($gripEnabled && !empty($request['grip_app_data'])) {
+        $decoded = json_decode($request['grip_app_data'], true);
+        if (is_array($decoded) && $decoded) {
+            $gripSaasData = $decoded;
+        }
+    }
+    $showGripSaasTab = ($gripEnabled && !empty($gripSaasData));
+
     // ============================================================
     // PROCUREMENT DETAILED SUMMARY — Additional Data Collection
     // Fetches data needed for the embedded vendor detailed summary report
@@ -3128,6 +3141,15 @@ function getFieldValue($request, $field, $default = '') {
                 if ($isProcurementOnly && in_array($activeTab, ['fair', 'assessments'])) {
                     $activeTab = 'vendor';
                 }
+                // Custom Data tab badge counts only POPULATED fields (a non-empty
+                // scalar value or a non-empty multi-select list), not the number of
+                // fields defined on the template. When nothing is filled in, no badge.
+                $customPopulatedCount = 0;
+                foreach ($customOnboardingData as $cf) {
+                    $hasVal = isset($cf['value']) && (string)$cf['value'] !== '';
+                    $hasList = !empty($cf['value_list']) && is_array($cf['value_list']);
+                    if ($hasVal || $hasList) $customPopulatedCount++;
+                }
                 ?>
 
                 <?php if ($showVendorTabs): ?>
@@ -3137,11 +3159,19 @@ function getFieldValue($request, $field, $default = '') {
                         style="padding: 10px 18px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'vendor' ? 'var(--theme-header-color)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'vendor' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'vendor' ? 'var(--theme-header-color)' : '#6b7280'; ?>; margin-bottom: -2px;">
                         Vendor
                     </button>
+                    <?php if ($showGripSaasTab): ?>
+                    <button type="button" data-action="showVendorTab" data-arg="saas_data" id="vendorTab_saas_data" class="vendor-section-tab"
+                        style="padding: 10px 18px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'saas_data' ? 'var(--theme-header-color)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'saas_data' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'saas_data' ? 'var(--theme-header-color)' : '#6b7280'; ?>; margin-bottom: -2px;">
+                        SaaS Data
+                    </button>
+                    <?php endif; ?>
                     <?php if (!empty($customOnboardingData)): ?>
                     <button type="button" data-action="showVendorTab" data-arg="custom_data" id="vendorTab_custom_data" class="vendor-section-tab"
                         style="padding: 10px 18px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'custom_data' ? 'var(--theme-header-color)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'custom_data' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'custom_data' ? 'var(--theme-header-color)' : '#6b7280'; ?>; margin-bottom: -2px;">
                         Custom Data
-                        <span style="background: var(--theme-header-color); color: white; font-size: 10px; padding: 2px 7px; border-radius: 10px; margin-left: 4px;"><?php echo count($customOnboardingData); ?></span>
+                        <?php if ($customPopulatedCount > 0): ?>
+                        <span style="background: var(--theme-header-color); color: white; font-size: 10px; padding: 2px 7px; border-radius: 10px; margin-left: 4px;"><?php echo (int)$customPopulatedCount; ?></span>
+                        <?php endif; ?>
                     </button>
                     <?php endif; ?>
                     <button type="button" data-action="showVendorTab" data-arg="notes" id="vendorTab_notes" class="vendor-section-tab"
@@ -3672,6 +3702,91 @@ function getFieldValue($request, $field, $default = '') {
                 </div>
                 <?php endif; ?>
                 </div><!-- /vendorTabContent_vendor -->
+
+
+                <?php if ($showGripSaasTab): ?>
+                <!-- Tab: SaaS Data (Grip telemetry) -->
+                <div id="vendorTabContent_saas_data" style="<?php echo $activeTab !== 'saas_data' ? 'display: none;' : ''; ?>">
+                    <?php
+                    // Display helper: scalar/array → escaped string or an em-dash.
+                    $gripShow = function ($v) {
+                        if ($v === null || $v === '' || $v === []) return '<span style="color:#9ca3af;">&mdash;</span>';
+                        if (is_array($v)) $v = implode(', ', $v);
+                        return e((string)$v);
+                    };
+                    $gripDate = function ($v) {
+                        if (empty($v)) return '<span style="color:#9ca3af;">&mdash;</span>';
+                        $ts = strtotime((string)$v);
+                        return e($ts ? date('M j, Y', $ts) : (string)$v);
+                    };
+                    $rowStyle  = 'display:flex; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid #f1f3f5;';
+                    $lblStyle  = 'color:#6b7280; font-size:13px; font-weight:500;';
+                    $valStyle  = 'color:#111827; font-size:13px; font-weight:600; text-align:right; word-break:break-word;';
+                    $cardStyle = 'flex:1 1 320px; min-width:280px; background:white; border:1px solid #e5e7eb; border-radius:8px; padding:25px;';
+                    $hdrStyle  = 'margin:0 0 16px; font-size:15px; font-weight:600; color:var(--theme-header-color); display:flex; align-items:center; gap:8px;';
+                    ?>
+                    <div style="display:flex; flex-wrap:wrap; gap:20px;">
+                        <!-- App Info -->
+                        <div style="<?php echo $cardStyle; ?>">
+                            <h3 style="<?php echo $hdrStyle; ?>">App Info</h3>
+                            <div style="<?php echo $rowStyle; ?>">
+                                <span style="<?php echo $lblStyle; ?>">First Discovered</span>
+                                <span style="<?php echo $valStyle; ?>"><?php echo $gripDate($gripSaasData['first_event_time'] ?? null); ?></span>
+                            </div>
+                            <div style="<?php echo $rowStyle; ?>">
+                                <span style="<?php echo $lblStyle; ?>">Active Accounts</span>
+                                <span style="<?php echo $valStyle; ?>">
+                                    <?php
+                                    if (isset($gripSaasData['number_of_users']) && $gripSaasData['number_of_users'] !== null) {
+                                        $accCount = number_format((int)$gripSaasData['number_of_users']);
+                                        $accGripId = (string)($gripSaasData['grip_id'] ?? '');
+                                        if ($accGripId !== '') {
+                                            echo '<a href="grip-saas-users.php?id=' . urlencode($accGripId) . '" target="_blank" rel="noopener" style="color:var(--theme-header-color); text-decoration:none;">' . e($accCount) . '</a>';
+                                        } else {
+                                            echo e($accCount);
+                                        }
+                                    } else {
+                                        echo '<span style="color:#9ca3af;">&mdash;</span>';
+                                    }
+                                    ?>
+                                </span>
+                            </div>
+                            <div style="<?php echo $rowStyle; ?>">
+                                <span style="<?php echo $lblStyle; ?>">Last Known Usage</span>
+                                <span style="<?php echo $valStyle; ?>"><?php echo $gripDate($gripSaasData['last_known_usage'] ?? null); ?></span>
+                            </div>
+                            <div style="<?php echo $rowStyle; ?> border-bottom:none;">
+                                <span style="<?php echo $lblStyle; ?>">App Classification</span>
+                                <span style="<?php echo $valStyle; ?>"><?php echo $gripShow($gripSaasData['sanction_tag'] ?? null); ?></span>
+                            </div>
+                        </div>
+                        <!-- Vendor Information -->
+                        <div style="<?php echo $cardStyle; ?>">
+                            <h3 style="<?php echo $hdrStyle; ?>">Vendor Information</h3>
+                            <div style="<?php echo $rowStyle; ?>">
+                                <span style="<?php echo $lblStyle; ?>">Category</span>
+                                <span style="<?php echo $valStyle; ?>"><?php echo $gripShow($gripSaasData['category'] ?? null); ?></span>
+                            </div>
+                            <div style="<?php echo $rowStyle; ?>">
+                                <span style="<?php echo $lblStyle; ?>">AI Depth</span>
+                                <span style="<?php echo $valStyle; ?>"><?php echo $gripShow($gripSaasData['ai_depth'] ?? null); ?></span>
+                            </div>
+                            <div style="<?php echo $rowStyle; ?>">
+                                <span style="<?php echo $lblStyle; ?>">Compliance</span>
+                                <span style="<?php echo $valStyle; ?>"><?php echo $gripShow($gripSaasData['compliances'] ?? null); ?></span>
+                            </div>
+                            <div style="<?php echo $rowStyle; ?>">
+                                <span style="<?php echo $lblStyle; ?>">SAML Support</span>
+                                <span style="<?php echo $valStyle; ?>"><?php echo $gripShow($gripSaasData['saml_supported'] ?? null); ?></span>
+                            </div>
+                            <div style="<?php echo $rowStyle; ?> border-bottom:none;">
+                                <span style="<?php echo $lblStyle; ?>">MFA Support</span>
+                                <span style="<?php echo $valStyle; ?>"><?php echo $gripShow($gripSaasData['mfa_supported'] ?? null); ?></span>
+                            </div>
+                        </div>
+                    </div>
+                </div><!-- /vendorTabContent_saas_data -->
+                <?php endif; ?>
 
 
                 <?php if ($showVendorTabs && !empty($customOnboardingData)): ?>
@@ -6786,7 +6901,7 @@ function getFieldValue($request, $field, $default = '') {
 
         // Tab switching for vendor detail tabs
         function showVendorTab(section) {
-            const sections = ['vendor', 'custom_data', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors', 'action_plan'];
+            const sections = ['vendor', 'saas_data', 'custom_data', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors', 'action_plan'];
             sections.forEach(function(s) {
                 var el = document.getElementById('vendorTabContent_' + s);
                 var tab = document.getElementById('vendorTab_' + s);

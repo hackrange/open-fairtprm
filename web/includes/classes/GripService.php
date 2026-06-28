@@ -856,6 +856,7 @@ class GripService
      */
     private function enrichVendorScorecardRatings(array $apps): void
     {
+        // domain => ['rating' => letter|'', 'data' => curated array|null]
         $byDomain = [];
         foreach ($apps as $app) {
             $dom = !empty($app['url']) ? (string)self::extractDomain($app['url']) : '';
@@ -863,23 +864,99 @@ class GripService
             $g = is_array($app['gripData'] ?? null) ? $app['gripData'] : [];
             $r = (isset($g['securityScorecardRating']) && is_string($g['securityScorecardRating']) && $g['securityScorecardRating'] !== '')
                 ? strtoupper(substr(trim($g['securityScorecardRating']), 0, 1)) : '';
-            if ($r === '' || !in_array($r, ['A', 'B', 'C', 'D', 'F'], true)) continue;
-            // First non-empty wins; app instances of one domain share a rating.
-            if (!isset($byDomain[$dom])) $byDomain[$dom] = $r;
+            if (!in_array($r, ['A', 'B', 'C', 'D', 'F'], true)) $r = '';
+            $data = $this->curateVendorGripAppData($g);
+            // Carry the Grip app id so the "SaaS Data" tab can deep-link the
+            // active-accounts count to grip-saas-users.php?id=<grip_id>.
+            $gid = (string)($app['id'] ?? '');
+            if ($data !== null && $gid !== '') $data['grip_id'] = $gid;
+            // First instance of a domain wins; merge so a later instance can fill
+            // a gap the first one left (rating present here, data present there).
+            if (!isset($byDomain[$dom])) {
+                $byDomain[$dom] = ['rating' => $r, 'data' => $data];
+            } else {
+                if ($byDomain[$dom]['rating'] === '' && $r !== '') $byDomain[$dom]['rating'] = $r;
+                if (empty($byDomain[$dom]['data']) && !empty($data))  $byDomain[$dom]['data'] = $data;
+            }
         }
         if (!$byDomain) return;
-        foreach ($byDomain as $dom => $rating) {
+        foreach ($byDomain as $dom => $info) {
+            $fields = [];
+            if ($info['rating'] !== '')    $fields['security_scorecard_rating'] = $info['rating'];
+            if (!empty($info['data']))     $fields['grip_app_data'] = json_encode($info['data']);
+            if (!$fields) continue;
             try {
                 $this->db->update(
                     'vendor_onboarding_requests',
-                    ['security_scorecard_rating' => $rating],
+                    $fields,
                     "LOWER(vendor_domain) = :d AND status != 'inactive'",
                     [':d' => strtolower($dom)]
                 );
             } catch (Throwable $e) {
-                error_log('Vendor SSC rating update failed for ' . $dom . ': ' . $e->getMessage());
+                error_log('Vendor Grip enrich update failed for ' . $dom . ': ' . $e->getMessage());
             }
         }
+    }
+
+    /**
+     * Curate the subset of a Grip app's gripData surfaced on the vendor-onboarding
+     * "SaaS Data" tab. Returns null when nothing useful is present so we never
+     * stamp an empty JSON blob over a vendor record. Values are normalized to
+     * display-ready scalars/arrays; the view does the final formatting.
+     */
+    private function curateVendorGripAppData(array $g): ?array
+    {
+        $ai = is_array($g['aiDepth'] ?? null) ? $g['aiDepth'] : [];
+        $aiLevel = trim((string)($ai['level'] ?? ''));
+        $aiDesc  = trim((string)($ai['description'] ?? ''));
+        $compliances = [];
+        if (is_array($g['compliances'] ?? null)) {
+            foreach ($g['compliances'] as $c) {
+                $c = trim((string)$c);
+                if ($c !== '') $compliances[] = $c;
+            }
+        }
+        // SAML/MFA support in Grip can be a bool, a string, or an object map.
+        $saml = $this->normalizeSupportFlag($g['samlSupported'] ?? null);
+        $mfa  = $this->normalizeSupportFlag($g['mfaSupported'] ?? null);
+
+        $data = [
+            'first_event_time'    => $this->parseDate($g['firstEventTime'] ?? null),
+            'number_of_users'     => isset($g['numberOfUsers']) ? (int)$g['numberOfUsers'] : null,
+            'last_known_usage'    => $this->parseDate($g['lastKnownUsage'] ?? null),
+            'sanction_tag'        => isset($g['sanctionTag']) && $g['sanctionTag'] !== '' ? (string)$g['sanctionTag'] : null,
+            'category'            => isset($g['category']) && $g['category'] !== '' ? (string)$g['category'] : null,
+            'ai_depth'            => ($aiLevel !== '' || $aiDesc !== '') ? trim($aiLevel . ($aiDesc !== '' ? ($aiLevel !== '' ? ' — ' : '') . $aiDesc : '')) : null,
+            'compliances'         => $compliances ?: null,
+            'saml_supported'      => $saml,
+            'mfa_supported'       => $mfa,
+        ];
+        foreach ($data as $v) {
+            if ($v !== null && $v !== [] && $v !== '') return $data;
+        }
+        return null;
+    }
+
+    /**
+     * Reduce Grip's SAML/MFA support telemetry (bool | string | object map of
+     * providers) to a human label: 'Yes'/'No', the raw string, or a comma list
+     * of the supported providers. Returns null when nothing is known.
+     */
+    private function normalizeSupportFlag($val): ?string
+    {
+        if ($val === null) return null;
+        if (is_bool($val)) return $val ? 'Yes' : 'No';
+        if (is_string($val)) { $val = trim($val); return $val !== '' ? $val : null; }
+        if (is_array($val)) {
+            $providers = [];
+            foreach ($val as $k => $v) {
+                $on = is_bool($v) ? $v : (is_string($v) ? !in_array(strtolower(trim($v)), ['', '0', 'false', 'no'], true) : (bool)$v);
+                if ($on) $providers[] = is_string($k) ? $k : (string)$v;
+            }
+            if ($providers) return implode(', ', $providers);
+            return !empty($val) ? 'Yes' : 'No';
+        }
+        return null;
     }
 
     /**

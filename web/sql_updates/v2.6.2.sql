@@ -5918,6 +5918,18 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
+-- vendor_onboarding_requests.grip_app_data — curated Grip SaaS telemetry (JSON)
+-- for the matched app: first discovered, active accounts, last usage, sanction,
+-- category, AI depth, compliances, SAML/MFA support. Powers the "SaaS Data" tab
+-- on vendor-onboarding.php. Stamped during the Grip sync (domain match).
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND column_name = 'grip_app_data') = 0,
+  'ALTER TABLE `vendor_onboarding_requests` ADD COLUMN `grip_app_data` TEXT DEFAULT NULL COMMENT ''Curated Grip SaaS app telemetry (JSON)''',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
 -- Zscaler block state: tracks vendors whose domain has been pushed into
 -- the configured ZIA URL Category via the Deny button. The Allow button
 -- in shadow-saas.php is rendered iff is_zscaler_blocked = 1.
