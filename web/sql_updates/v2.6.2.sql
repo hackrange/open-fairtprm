@@ -5652,6 +5652,7 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_apps` (
   `oauth_scopes_medium` longtext DEFAULT NULL COMMENT 'JSON array',
   `oauth_scopes_low` longtext DEFAULT NULL COMMENT 'JSON array',
   `raw_payload` longtext DEFAULT NULL COMMENT 'Full original JSON',
+  `roster_signature` varchar(80) DEFAULT NULL COMMENT 'Delta-hydration cache key: user counts + activity timestamps; unchanged => skip per-app roster re-fetch',
   `first_seen_at` timestamp NULL DEFAULT current_timestamp(),
   `last_synced_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`grip_id`),
@@ -5730,6 +5731,8 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_sync_log` (
   `users_fetched` int(10) unsigned DEFAULT 0,
   `alerts_fetched` int(10) unsigned DEFAULT 0,
   `shadow_saas_upserted` int(10) unsigned DEFAULT 0,
+  `roster_done` int(10) unsigned DEFAULT 0 COMMENT 'Per-app roster hydration progress: apps processed',
+  `roster_total` int(10) unsigned DEFAULT 0 COMMENT 'Per-app roster hydration progress: apps with users to process',
   `error_message` text DEFAULT NULL,
   `triggered_by` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -5759,11 +5762,14 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_app_users` (
   `latest_event_time`   datetime DEFAULT NULL,
   `last_usage`          datetime DEFAULT NULL,
   `platforms_activity`  longtext DEFAULT NULL COMMENT 'JSON array',
-  `raw_payload`         longtext DEFAULT NULL COMMENT 'Full original JSON ({user, saasUser}); PII: AES-encrypted at rest',
+  -- raw_payload intentionally omitted: it was an encrypted copy of the full entry
+  -- JSON that nothing renders yet dominated row size (~80%). The flattened columns
+  -- above carry everything the UI/API need.
   `last_synced_at`      timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`grip_saas_id`,`user_grip_id`),
-  -- mail/full_name/etc are encrypted at rest (random IV) -> not indexable; idx_mail dropped.
-  KEY `idx_grip_saas_id` (`grip_saas_id`)
+  -- The per-app lookup (WHERE grip_saas_id = ?) is served by the PRIMARY KEY's
+  -- leading column, so no separate index on grip_saas_id is needed. mail/full_name/
+  -- etc are encrypted at rest (random IV) -> not indexable; idx_mail dropped.
+  PRIMARY KEY (`grip_saas_id`,`user_grip_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
@@ -6270,6 +6276,36 @@ SET @sql = IF((SELECT data_type FROM information_schema.columns WHERE table_sche
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 SET @sql = IF((SELECT data_type FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_apps' AND column_name='primary_contact_email')='varchar',
   'ALTER TABLE `shadow_saas_grip_apps` MODIFY `business_owner` TEXT DEFAULT NULL, MODIFY `primary_contact_name` TEXT DEFAULT NULL, MODIFY `primary_contact_email` TEXT DEFAULT NULL, MODIFY `primary_contact_user_id` TEXT DEFAULT NULL', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Delta-hydration + live-progress columns (added if not already present).
+-- roster_signature lets the Grip sync skip re-fetching an app's roster when it
+-- hasn't changed; roster_done/roster_total drive the live % on the Last Sync card.
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_apps' AND column_name='roster_signature')=0,
+  'ALTER TABLE `shadow_saas_grip_apps` ADD COLUMN `roster_signature` varchar(80) DEFAULT NULL COMMENT ''Delta-hydration cache key'' AFTER `raw_payload`', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_sync_log' AND column_name='roster_done')=0,
+  'ALTER TABLE `shadow_saas_grip_sync_log` ADD COLUMN `roster_done` int(10) unsigned DEFAULT 0 AFTER `shadow_saas_upserted`', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_sync_log' AND column_name='roster_total')=0,
+  'ALTER TABLE `shadow_saas_grip_sync_log` ADD COLUMN `roster_total` int(10) unsigned DEFAULT 0 AFTER `roster_done`', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Roster-table slimming (one-time space reclaim on upgrade):
+--  1) Drop raw_payload — an encrypted full-JSON copy nothing renders that made up
+--     ~80% of the table. The DROP rebuilds the table, immediately reclaiming the
+--     space (e.g. ~800 MB -> ~180 MB on a fully-hydrated large tenant).
+--  2) Drop idx_grip_saas_id — redundant with the PRIMARY KEY's leading column.
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_app_users' AND index_name='idx_grip_saas_id')>0,
+  'ALTER TABLE `shadow_saas_grip_app_users` DROP INDEX `idx_grip_saas_id`', 'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+-- ", FORCE" makes the drop REBUILD the table so the freed space is actually
+-- reclaimed. Without it, MariaDB 10.11 drops the column instantly (metadata only)
+-- and the raw_payload bytes stay on disk until the rows are next rewritten. The
+-- rebuild is one-time (this guard is false once the column is gone) and fast
+-- (~16s for a ~300k-row / 1 GB roster; instant for small tenants).
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_app_users' AND column_name='raw_payload')>0,
+  'ALTER TABLE `shadow_saas_grip_app_users` DROP COLUMN `raw_payload`, FORCE', 'DO 0');
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- =============================================================================

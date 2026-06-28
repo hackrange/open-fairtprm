@@ -617,6 +617,9 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
         <tr><th>Users</th><td><?php echo (int)$lastSync['users_fetched']; ?></td></tr>
         <tr><th>Alerts</th><td><?php echo (int)$lastSync['alerts_fetched']; ?></td></tr>
         <tr><th>Shadow SaaS upserts</th><td><?php echo (int)$lastSync['shadow_saas_upserted']; ?></td></tr>
+        <?php if ((int)($lastSync['roster_total'] ?? 0) > 0): ?>
+        <tr><th>Rosters hydrated</th><td><?php echo number_format((int)$lastSync['roster_done']) . ' / ' . number_format((int)$lastSync['roster_total']) . ' apps with users'; ?></td></tr>
+        <?php endif; ?>
         <?php if (!empty($lastSync['error_message'])): ?>
         <tr><th>Error</th><td style="color: #991b1b;"><?php echo e($lastSync['error_message']); ?></td></tr>
         <?php endif; ?>
@@ -641,12 +644,51 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
         </form>
     </div>
 
-    <?php if (($lastSync['status'] ?? '') === 'running'): ?>
+    <?php if (($lastSync['status'] ?? '') === 'running'):
+        $rDone  = (int)($lastSync['roster_done'] ?? 0);
+        $rTotal = (int)($lastSync['roster_total'] ?? 0);
+        $rPct   = $rTotal > 0 ? min(100, (int)floor($rDone * 100 / $rTotal)) : 0;
+    ?>
+    <!-- Live roster-hydration progress. Polls the JSON status endpoint while the
+         sync runs and reloads the card when it finishes. -->
+    <div id="grip-sync-progress" style="margin-top: 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+            <span style="font-size:13px;color:#374151;font-weight:600;">Hydrating per-app rosters</span>
+            <span id="grip-sync-progress-label" style="font-size:13px;color:#374151;font-variant-numeric:tabular-nums;">
+                <?php echo $rTotal > 0 ? ($rPct . '% (' . number_format($rDone) . ' / ' . number_format($rTotal) . ' apps)') : 'starting…'; ?>
+            </span>
+        </div>
+        <div style="height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;">
+            <div id="grip-sync-progress-bar" style="height:100%;width:<?php echo $rPct; ?>%;background:#2563eb;border-radius:5px;transition:width .4s ease;"></div>
+        </div>
+    </div>
     <form method="POST" action="admin.php?section=shadow-saas" style="margin-top: 12px;">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="sync_provider" value="grip">
         <button type="submit" name="abort_shadow_sync" class="btn btn-secondary" data-confirm="Abort the running Grip sync?">Stop Sync</button>
     </form>
+    <script nonce="<?php echo cspNonce(); ?>">
+    (function () {
+        var bar = document.getElementById('grip-sync-progress-bar');
+        var label = document.getElementById('grip-sync-progress-label');
+        if (!bar || !label) return;
+        var timer = setInterval(function () {
+            fetch('admin.php?section=shadow-saas&grip_sync_status=1', { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (!d) return;
+                    // Sync finished (or aborted/errored) -> refresh to show final card.
+                    if (!d.running) { clearInterval(timer); window.location.reload(); return; }
+                    var pct = (d.percent === null || d.percent === undefined) ? 0 : d.percent;
+                    bar.style.width = pct + '%';
+                    label.textContent = (d.total > 0)
+                        ? (pct + '% (' + d.done.toLocaleString() + ' / ' + d.total.toLocaleString() + ' apps)')
+                        : 'starting…';
+                })
+                .catch(function () { /* transient — keep polling */ });
+        }, 2500);
+    })();
+    </script>
     <?php endif; ?>
 </div>
 <?php endif; ?>

@@ -204,8 +204,9 @@ if (!$usedFast) {
     // in SQL. The non-PII auth filters ($authWhere: sso / authentication_type) DO
     // run in SQL; we then fetch the whole (filtered) roster for this app, decrypt
     // each row, and sort + paginate in PHP. Rosters are per-app and bounded, so
-    // this stays cheap. raw_payload is dropped before decrypt — it's a large blob
-    // we never render, and decrypting it per row would be pure waste.
+    // this stays cheap. raw_payload is no longer stored on this table (it was a
+    // large blob we never render); the unset below is just defensive for any
+    // legacy rows that predate the column drop.
     $allRows = $db->fetchAll(
         "SELECT * FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g{$authWhere}",
         $authParams

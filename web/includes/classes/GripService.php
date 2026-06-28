@@ -24,6 +24,15 @@ class GripService
     private const DEFAULT_BASE_URL = 'https://tenant.dep.grip.security/public/saas';
     private const PAGE_SIZE = 200;
     private const REQUEST_TIMEOUT = 30;
+    private const CONNECT_TIMEOUT = 10;
+    // Transient-failure handling: how many times to retry a timed-out / 429 / 5xx
+    // request, and the exponential backoff base (ms). Backoff is capped and jittered.
+    private const MAX_RETRIES = 3;
+    private const BACKOFF_BASE_MS = 250;
+    private const BACKOFF_CAP_MS = 8000;
+    // Gentle pacing between per-app roster fetches so a full hydration does not
+    // hammer Grip's API. Skipped (delta) apps incur no call and no delay.
+    private const ROSTER_THROTTLE_MS = 100;
 
     private Database $db;
     private string $baseUrl = '';
@@ -46,7 +55,7 @@ class GripService
     // are NOT personal data and stay plaintext so they remain sortable/searchable.
     private const ENCRYPTED_COLUMNS = [
         'shadow_saas_grip_users'     => ['mail', 'full_name', 'display_name', 'organizational_unit', 'manager_email', 'aliases', 'custom_fields', 'raw_payload'],
-        'shadow_saas_grip_app_users' => ['mail', 'full_name', 'display_name', 'organizational_unit', 'manager_email', 'raw_payload'],
+        'shadow_saas_grip_app_users' => ['mail', 'full_name', 'display_name', 'organizational_unit', 'manager_email'],
         'shadow_saas_grip_apps'      => ['primary_contact_name', 'primary_contact_email', 'primary_contact_user_id', 'business_owner', 'raw_payload'],
         'shadow_saas_grip_alerts'    => ['raw_payload'],
     ];
@@ -142,34 +151,77 @@ class GripService
         }
         $url = $this->buildUrl($relativeUrl, $query);
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => self::REQUEST_TIMEOUT,
-            CURLOPT_HTTPHEADER     => [
-                'Accept: application/json',
-                'access-token: ' . $this->apiToken,
-                'User-Agent: FairTPRM-Grip-Integration/1.0',
-            ],
-            CURLOPT_FOLLOWLOCATION => false,
-        ]);
-        $body = curl_exec($ch);
-        $err  = curl_error($ch);
-        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        $attempt = 0;
+        while (true) {
+            $retryAfter = null; // seconds, parsed from a Retry-After response header
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => self::REQUEST_TIMEOUT,
+                CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT,
+                CURLOPT_HTTPHEADER     => [
+                    'Accept: application/json',
+                    'access-token: ' . $this->apiToken,
+                    'User-Agent: FairTPRM-Grip-Integration/1.0',
+                ],
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_HEADERFUNCTION => function ($ch, $header) use (&$retryAfter) {
+                    if (stripos($header, 'Retry-After:') === 0) {
+                        $val = trim(substr($header, 12));
+                        if (is_numeric($val)) {
+                            $retryAfter = (int)$val;
+                        } elseif (($ts = strtotime($val)) !== false) {
+                            $retryAfter = max(0, $ts - time());
+                        }
+                    }
+                    return strlen($header);
+                },
+            ]);
+            $body  = curl_exec($ch);
+            $errno = curl_errno($ch);
+            $err   = curl_error($ch);
+            $code  = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            // curl_close() is a deprecated no-op since PHP 8.0; the handle is freed
+            // when $ch goes out of scope. Unset to be explicit without the warning.
+            unset($ch);
 
-        if ($body === false) {
-            return ['success' => false, 'http_code' => $code, 'error' => $err ?: 'cURL error', 'data' => null];
+            // A timeout or dropped connection is worth retrying; so are 429 and 5xx.
+            // Numeric libcurl error codes: 28 operation timed out, 7 couldn't connect,
+            // 52 got nothing, 56 recv error, 55 send error, 35 SSL connect error.
+            $timedOut  = in_array($errno, [28, 7, 52, 56, 55, 35], true);
+            $transient = $timedOut || $code === 429 || ($code >= 500 && $code < 600);
+
+            if ($transient && $attempt < self::MAX_RETRIES) {
+                $attempt++;
+                if ($retryAfter !== null) {
+                    $waitMs = min($retryAfter * 1000, self::BACKOFF_CAP_MS * 2);
+                } else {
+                    $waitMs = min(self::BACKOFF_CAP_MS, self::BACKOFF_BASE_MS * (1 << ($attempt - 1)));
+                    $waitMs += random_int(0, (int)($waitMs / 2)); // jitter
+                }
+                usleep($waitMs * 1000);
+                continue;
+            }
+
+            if ($body === false) {
+                return [
+                    'success' => false, 'http_code' => $code,
+                    'error' => $err ?: 'cURL error', 'data' => null,
+                    'timed_out' => $timedOut, 'attempts' => $attempt + 1,
+                ];
+            }
+            $decoded = json_decode($body, true);
+            $jsonOk = (json_last_error() === JSON_ERROR_NONE);
+
+            return [
+                'success'   => ($code >= 200 && $code < 300 && $jsonOk),
+                'http_code' => $code,
+                'error'     => $jsonOk ? '' : ('Invalid JSON: ' . json_last_error_msg()),
+                'data'      => $jsonOk ? $decoded : null,
+                'timed_out' => false,
+                'attempts'  => $attempt + 1,
+            ];
         }
-        $decoded = json_decode($body, true);
-        $jsonOk = (json_last_error() === JSON_ERROR_NONE);
-
-        return [
-            'success'   => ($code >= 200 && $code < 300 && $jsonOk),
-            'http_code' => $code,
-            'error'     => $jsonOk ? '' : ('Invalid JSON: ' . json_last_error_msg()),
-            'data'      => $jsonOk ? $decoded : null,
-        ];
     }
 
     /**
@@ -293,15 +345,17 @@ class GripService
         $appsRemoved = $usersRemoved = $alertsRemoved = $shadowRemoved = 0;
         $breachesCreated = 0;
         try {
-            // Hydrated (cached) mode performs a FULL refresh: wipe the Grip mirror
-            // tables and rebuild them from the API on every run. This keeps the
-            // local snapshot an exact reflection of the API (no stale tombstones)
-            // and clears any prior contents (e.g. previously sanitized rows).
-            // shadow_saas itself is left intact so onboarded/dismissed admin state
-            // survives; only the grip_* mirror tables are truncated.
+            // Hydrated (cached) mode refreshes the Grip mirror from the API on every
+            // run. The bulk single-fetch tables (users, alerts) are cheap to rebuild
+            // wholesale, so we truncate them for an exact reflection. The APPS and
+            // per-app ROSTER tables are NOT truncated: they carry the delta state
+            // (roster_signature) and the cached rosters that let the next sync SKIP
+            // re-fetching unchanged apps — wiping them would force a full ~1-call-per-app
+            // re-hydration every run. Apps/app_users staleness is instead handled by
+            // upsert + tombstone (apps: last_synced_at; app_users: orphan cleanup below).
+            // shadow_saas itself is left intact so onboarded/dismissed admin state survives.
             if ($this->useLocalData()) {
-                foreach (['shadow_saas_grip_app_users', 'shadow_saas_grip_alerts',
-                          'shadow_saas_grip_users', 'shadow_saas_grip_apps'] as $mirror) {
+                foreach (['shadow_saas_grip_alerts', 'shadow_saas_grip_users'] as $mirror) {
                     try { $this->db->query("TRUNCATE TABLE `{$mirror}`"); }
                     catch (Throwable $e) { error_log("Grip hydrate truncate {$mirror} failed: " . $e->getMessage()); }
                 }
@@ -370,25 +424,77 @@ class GripService
                 );
             }
 
-            // FULL PER-APP USER HYDRATION (Local/Hydrated mode only).
+            // PER-APP USER HYDRATION (Local/Hydrated mode only).
             //
             // In Local mode the UI serves the per-app roster exclusively from
             // shadow_saas_grip_app_users and never calls the API on a page view, so
-            // the sync must snapshot the roster for EVERY app that has users (not
+            // the sync must snapshot the roster for every app that has users (not
             // just breached apps, which the breach projection below already covers).
-            // One Grip API call per app — this is the deliberate cost of a fully
-            // DB-served Local mode. In Live mode this is skipped (the page fetches
-            // each app's roster on demand). Cooperative-cancellable; per-app failures
-            // are logged and never abort the run.
+            //
+            // DELTA hydration: an app's roster is only re-fetched when it actually
+            // changed. We key on a roster signature (user count + latest/last-usage
+            // timestamps from the /saas list — already in hand, no extra call). When
+            // the signature matches the stored one AND we still hold a roster for the
+            // app, the cached rows are kept and NO API call is made. This drops a
+            // repeat sync from ~one-call-per-app to just the changed apps — far less
+            // taxing on Grip and much faster. Actual fetches are gently throttled.
+            // Cooperative-cancellable; per-app failures are logged, counted, and
+            // never abort the run (and never wipe a good cached roster).
+            $rosterFetched = $rosterSkipped = $rosterFailed = 0;
             if ($this->useLocalData() && !empty($apps)) {
+                // Worklist: apps that have users, mapped to their current signature.
+                $work = [];
                 foreach ($apps as $app) {
-                    $appGid  = (string)($app['id'] ?? '');
-                    $nUsers  = (int)($app['gripData']['numberOfUsers'] ?? 0);
-                    if ($appGid === '' || $nUsers <= 0) continue;
-                    if ($this->isCancelled($logId)) break;
-                    try { $this->syncAppUsers($appGid); }
-                    catch (Throwable $e) { error_log('Grip per-app hydration failed for ' . $appGid . ': ' . $e->getMessage()); }
+                    $appGid = (string)($app['id'] ?? '');
+                    $g = is_array($app['gripData'] ?? null) ? $app['gripData'] : [];
+                    if ($appGid === '' || (int)($g['numberOfUsers'] ?? 0) <= 0) continue;
+                    $work[$appGid] = $this->rosterSignature($g);
                 }
+
+                // Preload delta state in two queries: the stored signatures and which
+                // apps already hold a cached roster.
+                $storedSig = [];
+                foreach ($this->db->fetchAll("SELECT grip_id, roster_signature FROM shadow_saas_grip_apps WHERE roster_signature IS NOT NULL") as $r) {
+                    $storedSig[(string)$r['grip_id']] = (string)$r['roster_signature'];
+                }
+                $haveRoster = [];
+                foreach ($this->db->fetchAll("SELECT DISTINCT grip_saas_id FROM shadow_saas_grip_app_users") as $r) {
+                    $haveRoster[(string)$r['grip_saas_id']] = true;
+                }
+
+                $total = count($work);
+                $done = 0;
+                $this->setRosterProgress($logId, 0, $total);
+                foreach ($work as $appGid => $sig) {
+                    if ($this->isCancelled($logId)) break;
+                    $done++;
+                    // Unchanged signature + roster already cached -> keep cache, no call.
+                    if (isset($haveRoster[$appGid]) && ($storedSig[$appGid] ?? null) === $sig) {
+                        $rosterSkipped++;
+                        if ($done % 50 === 0 || $done === $total) $this->setRosterProgress($logId, $done, $total);
+                        continue;
+                    }
+                    try {
+                        $this->syncAppUsers($appGid);
+                        $this->db->update('shadow_saas_grip_apps', ['roster_signature' => $sig], 'grip_id = :g', [':g' => $appGid]);
+                        $rosterFetched++;
+                    } catch (Throwable $e) {
+                        $rosterFailed++;
+                        error_log('Grip per-app hydration failed for ' . $appGid . ': ' . $e->getMessage());
+                    }
+                    // Gentle pacing between actual API fetches (skips cost nothing).
+                    if (self::ROSTER_THROTTLE_MS > 0) usleep(self::ROSTER_THROTTLE_MS * 1000);
+                    if ($done % 10 === 0 || $done === $total) $this->setRosterProgress($logId, $done, $total);
+                }
+                $this->setRosterProgress($logId, $total, $total);
+
+                // Orphan cleanup: drop cached rosters whose app no longer exists in
+                // the mirror (the apps tombstone above already removed vanished apps).
+                try {
+                    $this->db->query("DELETE FROM shadow_saas_grip_app_users WHERE grip_saas_id NOT IN (SELECT grip_id FROM shadow_saas_grip_apps)");
+                } catch (Throwable $e) { error_log('Grip app_users orphan cleanup failed: ' . $e->getMessage()); }
+
+                error_log("Grip roster hydration: {$rosterFetched} fetched, {$rosterSkipped} unchanged, {$rosterFailed} failed of {$total} apps with users");
             }
 
             // Optional: flow Grip "Security Incident Detected" alerts into the
@@ -433,6 +539,9 @@ class GripService
                 'alerts_removed'       => $alertsRemoved,
                 'shadow_saas_removed'  => $shadowRemoved,
                 'breaches_created'     => $breachesCreated,
+                'rosters_fetched'      => $rosterFetched,
+                'rosters_unchanged'    => $rosterSkipped,
+                'rosters_failed'       => $rosterFailed,
                 'log_id'               => $logId,
             ];
         } catch (Throwable $e) {
@@ -451,6 +560,21 @@ class GripService
             'triggered_by'   => $userId,
         ]);
         return (int)$this->db->lastInsertId();
+    }
+
+    /**
+     * Record roster-hydration progress on the running sync-log row so the admin
+     * Last Sync card can render a live percentage. Best-effort: a failed update
+     * never disrupts the sync. $total of 0 means "no roster phase".
+     */
+    private function setRosterProgress(int $logId, int $done, int $total): void
+    {
+        try {
+            $this->db->update('shadow_saas_grip_sync_log', [
+                'roster_done'  => max(0, $done),
+                'roster_total' => max(0, $total),
+            ], 'id = :id', [':id' => $logId]);
+        } catch (Throwable $e) { /* progress is non-critical */ }
     }
 
     private function closeSyncLog(int $logId, string $status, int $apps, int $users, int $alerts, int $shadowSaas, ?string $err): void
@@ -1116,6 +1240,12 @@ class GripService
     /**
      * Live fetch of the users for one Grip SaaS app
      * (GET /public/saas/{id}/users). Returns the raw array of {user, saasUser}.
+     *
+     * A page request that still fails after request()'s built-in retry/backoff is
+     * a HARD failure: we throw rather than return a partial/empty roster, so the
+     * snapshot sync can preserve the app's existing rows instead of replacing a
+     * good roster with a truncated one. Callers that prefer best-effort (the live
+     * page) catch the exception.
      */
     public function getUsersForApp(string $gripId): array
     {
@@ -1128,7 +1258,11 @@ class GripService
         $base = '/' . rawurlencode($gripId) . '/users';
         while (true) {
             $res = $this->request($base, ['offset' => $offset, 'limit' => self::PAGE_SIZE]);
-            if (!$res['success'] || !is_array($res['data'])) break;
+            if (!$res['success']) {
+                $why = $res['error'] ?: ('HTTP ' . $res['http_code']);
+                throw new RuntimeException("Grip roster fetch failed for {$gripId} at offset {$offset}: {$why}");
+            }
+            if (!is_array($res['data'])) break;
             $page = $res['data'];
             if (empty($page)) break;
             foreach ($page as $row) $all[] = $row;
@@ -1143,12 +1277,33 @@ class GripService
      * SaaS app — replaces the app's rows wholesale (per-app sets are small).
      * @return int users stored
      */
+    /**
+     * Roster change signature for an app, derived from cheap fields already present
+     * in the /saas list response (no extra API call). When this is unchanged between
+     * syncs the per-app roster is treated as unchanged and skipped. We fold in the
+     * user counts plus the latest-activity / last-usage timestamps so both
+     * membership changes and activity changes invalidate the cache.
+     */
+    private function rosterSignature(array $gripData): string
+    {
+        return sha1(implode('|', [
+            (int)($gripData['numberOfUsers'] ?? 0),
+            (int)($gripData['numberOfOnboardedUsers'] ?? 0),
+            (int)($gripData['numberOfOffboardedUsers'] ?? 0),
+            (string)($gripData['latestEventTime'] ?? ''),
+            (string)($gripData['lastKnownUsage'] ?? ''),
+        ]));
+    }
+
     private function syncAppUsers(string $gripId): int
     {
         $gripId = trim($gripId);
         if ($gripId === '') return 0;
+
+        // Fetch FIRST. getUsersForApp() throws on a hard (post-retry) API failure,
+        // so a timeout propagates here BEFORE we touch the stored roster — the
+        // existing rows are left intact and the caller logs the app as failed.
         $users = $this->getUsersForApp($gripId);
-        $this->db->delete('shadow_saas_grip_app_users', 'grip_saas_id = :g', [':g' => $gripId]);
 
         // Normalise, de-duplicating on the table's PK (grip_saas_id, user_grip_id)
         // so a repeated user can't break a multi-row insert.
@@ -1160,35 +1315,38 @@ class GripService
             // persistence path only — never inside the mapper.)
             if ($row !== null) $rows[(string)$row['user_grip_id']] = $this->encryptRow('shadow_saas_grip_app_users', $row);
         }
-        if (!$rows) return 0;
 
-        // Bulk insert in chunks — one statement per ~200 rows instead of one per
-        // user, so a large roster (thousands of users) loads in seconds, not
-        // minutes. Falls back to a single insert for any chunk that errors.
-        $cols  = array_keys(reset($rows));
-        $colSql = '`' . implode('`,`', $cols) . '`';
-        $count = 0;
-        foreach (array_chunk(array_values($rows), 200) as $chunk) {
-            $placeholders = [];
-            $bind = [];
-            foreach ($chunk as $i => $row) {
-                $ph = [];
-                foreach ($cols as $c) { $k = ':' . $c . $i; $ph[] = $k; $bind[$k] = $row[$c]; }
-                $placeholders[] = '(' . implode(',', $ph) . ')';
-            }
-            $sql = "INSERT INTO `shadow_saas_grip_app_users` ($colSql) VALUES " . implode(',', $placeholders);
-            try {
-                $this->db->query($sql, $bind);
-                $count += count($chunk);
-            } catch (Throwable $e) {
-                error_log('Grip app-user bulk insert failed, falling back per-row: ' . $e->getMessage());
-                foreach ($chunk as $row) {
-                    try { $this->db->insert('shadow_saas_grip_app_users', $row); $count++; }
-                    catch (Throwable $e2) { error_log('Grip app-user insert failed: ' . $e2->getMessage()); }
+        // Replace the app's roster atomically: delete + re-insert inside one
+        // transaction so a mid-write error rolls back to the previous roster
+        // rather than leaving the app half-populated.
+        $this->db->beginTransaction();
+        try {
+            $this->db->delete('shadow_saas_grip_app_users', 'grip_saas_id = :g', [':g' => $gripId]);
+            $count = 0;
+            if ($rows) {
+                // Bulk insert in chunks — one statement per ~200 rows instead of one
+                // per user, so a large roster loads in seconds, not minutes.
+                $cols  = array_keys(reset($rows));
+                $colSql = '`' . implode('`,`', $cols) . '`';
+                foreach (array_chunk(array_values($rows), 200) as $chunk) {
+                    $placeholders = [];
+                    $bind = [];
+                    foreach ($chunk as $i => $row) {
+                        $ph = [];
+                        foreach ($cols as $c) { $k = ':' . $c . $i; $ph[] = $k; $bind[$k] = $row[$c]; }
+                        $placeholders[] = '(' . implode(',', $ph) . ')';
+                    }
+                    $sql = "INSERT INTO `shadow_saas_grip_app_users` ($colSql) VALUES " . implode(',', $placeholders);
+                    $this->db->query($sql, $bind);
+                    $count += count($chunk);
                 }
             }
+            $this->db->commit();
+            return $count;
+        } catch (Throwable $e) {
+            $this->db->rollback();
+            throw $e;
         }
-        return $count;
     }
 
     /**
@@ -1222,7 +1380,11 @@ class GripService
             'latest_event_time'   => $this->parseDate($su['latestEventTime'] ?? ($g['latestEventTime'] ?? null)),
             'last_usage'          => $this->parseDate($su['lastUsage'] ?? ($g['lastUsage'] ?? null)),
             'platforms_activity'  => json_encode($act['platformsActivity'] ?? []),
-            'raw_payload'         => json_encode($entry),
+            // NOTE: raw_payload is intentionally NOT stored on the per-app roster.
+            // It was an encrypted copy of the full entry JSON that nothing renders
+            // (grip-saas-users.php drops it before display) yet dominated this
+            // table's size (~80% of each row). Omitting it shrinks the roster table
+            // ~4-5x; the flattened columns above carry everything the UI/API need.
         ];
     }
 

@@ -12,13 +12,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Access control — custom ACL groups.** Alongside the shipped default groups
+- **Access control - custom ACL groups.** Alongside the shipped default groups
   (administrator, cyber_tprm, procurement, stakeholder, auditor, cyber_grc,
   grc_contributors), super administrators can create custom groups, **copy
   ("clone") permissions** from any existing group, and tune a per-permission
   matrix with **Read vs Read/Write** capability presets. The default groups are
-  protected — non-deletable, name-locked, and their permission set is read-only.
-- **Grip Shadow SaaS — Live vs Local (Hydrated/cached) data source.** A toggle to
+  protected - non-deletable, name-locked, and their permission set is read-only.
+- **Grip Shadow SaaS - Live vs Local (Hydrated/cached) data source.** A toggle to
   serve Grip data either live from the API per view or entirely from the hydrated
   local database snapshot.
 - **Grip Shadow SaaS breach feed.** Grip "Security Incident Detected" alerts flow
@@ -30,6 +30,9 @@ project adheres to [Semantic Versioning](https://semver.org/).
   clears all locally-served Grip data (mirror tables, Grip-projected `shadow_saas`
   rows, and the curated telemetry stamped on vendor records), leaving non-Grip data
   and sync history intact.
+- **Grip sync live progress.** The Shadow SaaS → Grip → Last Sync card shows a live
+  roster-hydration percentage (apps processed / total) above the Stop Sync button,
+  updating while a sync runs.
 - **Grip PII encrypted at rest.** Personal data in the Grip mirror tables (emails,
   names, organizational unit, manager, primary contact, and the raw payload) is
   encrypted with the application key (`config.php`) before being written, and
@@ -53,16 +56,37 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - **Grip Local (Hydrated/cached) mode is now strictly database-only.** Pages serve
   exclusively from the hydrated snapshot with **no per-view Grip API calls**; an
   empty snapshot renders empty until the next sync, rather than lazily re-fetching.
-- **Grip sync fully hydrates per-app user rosters in Local mode** — a sync now
+- **Grip sync hydrates per-app user rosters in Local mode, incrementally.** A sync
   snapshots the roster for **all** apps with users (not just breached/on-demand
-  apps), one Grip API call per app, so Local mode can serve every roster from the DB.
+  apps), so Local mode serves every roster from the DB - but re-fetches an app's
+  roster only when it has **changed** (keyed on user counts + activity timestamps
+  already returned by the app list). Unchanged apps are skipped with **no API
+  call**, cutting a steady-state re-sync from ~one-call-per-app down to just the
+  apps that changed. Roster fetches now **retry with exponential backoff** and honor
+  `Retry-After` on timeouts / 429 / 5xx, are gently throttled to ease load on the
+  Grip API, and **replace each roster atomically** so a failed fetch keeps the
+  cached roster instead of clearing it. Switching Live ↔ Local never deletes the
+  cache (only the Truncate action does).
+- **MariaDB tuning - InnoDB buffer pool 128M → 512M.** The stock pool cached only a
+  fraction of a data-heavy tenant's DB; 512M keeps the hot working set in RAM. The
+  pool is allocated lazily, so the many small tenants sharing the image are
+  unaffected.
+- **Grip roster table slimmed.** The per-app roster no longer stores the unused
+  encrypted `raw_payload` copy (the flattened columns carry everything rendered),
+  and a redundant index was dropped - shrinking a fully-hydrated roster table ~4-5x
+  (≈1 GB → ≈225 MB on a large tenant; the upgrade reclaims the space in place).
 - **`grip-saas-users`** resolves the app name for onboarded vendors, with a live
   fallback in Live mode.
-- **Version cutover to 2.6.2** — Dockerfile reconcile, REST API version aligned to
+- **Version cutover to 2.6.2** - Dockerfile reconcile, REST API version aligned to
   2.6.2, and removal of a dead seed loop.
 
 ### Fixed
 
+- **Grip rosters silently blanked on API timeouts.** In Local mode a per-app roster
+  was deleted *before* its re-fetch, so a Grip API timeout mid-sync left the app
+  with an empty roster (and a full hydration could blank hundreds of apps). Rosters
+  are now fetched first and replaced atomically, and a hard fetch failure preserves
+  the existing rows.
 - **Scheduled-action email link** now deep-links to the vendor's Action Plan tab.
 - **Grip SaaS users page**: the Dashboard nav link rendered the raw translation key
   `chrome.dashboard` instead of a localized label; the key is now defined in all 8

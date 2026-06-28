@@ -104,6 +104,36 @@ if (!array_key_exists($section, $sectionFiles)) {
 
 $isAdmin = $session->get('is_super_admin') || $auth->isAdmin() || hasGroup('administrator');
 
+// Live Grip sync progress (AJAX/JSON) — polled by the Shadow SaaS "Last Sync"
+// card to render the roster-hydration percentage. Must answer BEFORE any layout
+// HTML is emitted, so it lives here alongside the other pre-render handlers.
+if ($section === 'shadow-saas' && isset($_GET['grip_sync_status'])) {
+    header('Content-Type: application/json');
+    $out = ['status' => 'none', 'running' => false, 'done' => 0, 'total' => 0, 'percent' => null];
+    try {
+        $row = $db->fetchOne("SELECT status, started_at, finished_at, roster_done, roster_total
+                              FROM shadow_saas_grip_sync_log ORDER BY id DESC LIMIT 1");
+        if ($row) {
+            $done    = (int)($row['roster_done'] ?? 0);
+            $total   = (int)($row['roster_total'] ?? 0);
+            $running = ($row['status'] === 'running');
+            $out = [
+                'status'      => $row['status'],
+                'running'     => $running,
+                'done'        => $done,
+                'total'       => $total,
+                'percent'     => $total > 0 ? min(100, (int)floor($done * 100 / $total)) : ($running ? 0 : 100),
+                'started_at'  => $row['started_at'],
+                'finished_at' => $row['finished_at'],
+            ];
+        }
+    } catch (Throwable $e) {
+        $out['error'] = 'unavailable';
+    }
+    echo json_encode($out);
+    exit;
+}
+
 // Load BackupService only when we actually need it (backup section).
 // No sense dragging in the heavy machinery for every page load.
 if ($section === 'backup' || $section === 'version') {
