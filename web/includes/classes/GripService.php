@@ -30,6 +30,8 @@ class GripService
     private string $apiToken = '';
     private bool $enabled = false;
     private bool $breachSyncEnabled = false;
+    /** Data source mode: 'live' (query API per view) or 'local' (serve hydrated DB snapshot). */
+    private string $dataSource = 'live';
     /** Per-run cache of grip_id => resolved registrable domain. */
     private array $appDomainCache = [];
 
@@ -55,6 +57,7 @@ class GripService
                 case 'grip_base_url':           $this->baseUrl = is_string($val) ? trim($val) : ''; break;
                 case 'grip_api_token':          $this->apiToken = is_string($val) ? trim($val) : ''; break;
                 case 'grip_breach_sync_enabled':$this->breachSyncEnabled = ($val === '1'); break;
+                case 'grip_data_source':        $this->dataSource = ($val === 'local') ? 'local' : 'live'; break;
             }
         }
         if ($this->baseUrl === '') $this->baseUrl = self::DEFAULT_BASE_URL;
@@ -64,6 +67,11 @@ class GripService
     public function isConfigured(): bool { return $this->apiToken !== '' && $this->baseUrl !== ''; }
     public function isEnabled(): bool { return $this->enabled && $this->isConfigured(); }
     public function getBaseUrl(): string { return $this->baseUrl; }
+
+    /** Configured data source: 'live' (per-view API calls) or 'local' (hydrated DB snapshot). */
+    public function dataSource(): string { return $this->dataSource; }
+    /** True when the UI should read the hydrated DB snapshot instead of calling the live API. */
+    public function useLocalData(): bool { return $this->dataSource === 'local'; }
 
     // ------------------------------------------------------------------
     // HTTP
@@ -232,6 +240,20 @@ class GripService
         $appsRemoved = $usersRemoved = $alertsRemoved = $shadowRemoved = 0;
         $breachesCreated = 0;
         try {
+            // Hydrated (cached) mode performs a FULL refresh: wipe the Grip mirror
+            // tables and rebuild them from the API on every run. This keeps the
+            // local snapshot an exact reflection of the API (no stale tombstones)
+            // and clears any prior contents (e.g. previously sanitized rows).
+            // shadow_saas itself is left intact so onboarded/dismissed admin state
+            // survives; only the grip_* mirror tables are truncated.
+            if ($this->useLocalData()) {
+                foreach (['shadow_saas_grip_app_users', 'shadow_saas_grip_alerts',
+                          'shadow_saas_grip_users', 'shadow_saas_grip_apps'] as $mirror) {
+                    try { $this->db->query("TRUNCATE TABLE `{$mirror}`"); }
+                    catch (Throwable $e) { error_log("Grip hydrate truncate {$mirror} failed: " . $e->getMessage()); }
+                }
+            }
+
             // Use the DB clock as the tombstone reference so PHP/MySQL
             // clock skew can't trip the cleanup. Grab it BEFORE any upsert
             // bumps last_synced_at on the touched rows.

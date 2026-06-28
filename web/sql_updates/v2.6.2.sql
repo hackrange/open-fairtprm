@@ -5958,7 +5958,12 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) V
   ('grip_enabled',         '0',     0),
   ('grip_api_token',       '',      1),
   ('grip_cron_enabled',    '0',     0),
-  ('grip_cron_frequency',  'daily', 0);
+  ('grip_cron_frequency',  'daily', 0),
+  -- Data source for Grip Shadow SaaS views: 'live' = query the Grip API on
+  -- every page view (default, current behavior); 'local' = serve the hydrated
+  -- shadow_saas_grip_* DB snapshot (caching, lighter on the API) and full-refresh
+  -- (truncate + re-hydrate the mirror tables) on each sync.
+  ('grip_data_source',     'live',  0);
 
 -- HERO Security config (parallel to grip_*; mutually exclusive with Grip).
 -- client_secret encrypted; base_url seeded to the fixed public API host (not

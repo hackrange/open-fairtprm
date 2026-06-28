@@ -134,11 +134,15 @@ $needsSnapshot = $sortActive || $authFilter !== '';
 require_once CLASSES_PATH . '/GripService.php';
 $grip = new GripService();
 $gripReady = $grip->isConfigured();
+// Data-source mode. In 'local' (Hydrated/cached) mode the page reads exclusively
+// from the hydrated DB snapshot — no per-view live API calls. An empty per-app
+// snapshot is still lazily filled from the API once (read-through cache, below).
+$useLive = $gripReady && !$grip->useLocalData();
 
 // Final fallback: ask Grip directly for the app's name/domain. Covers apps that
 // aren't in any local table (e.g. an onboarded vendor's app excluded from the
 // Shadow SaaS mirror, with no linked breach). Only when still unresolved.
-if (($appName === '' || $appDomain === '') && $gripReady) {
+if (($appName === '' || $appDomain === '') && $useLive) {
     $detail = $grip->getAppDetail($gripId);
     if (is_array($detail)) {
         if ($appName === '' && !empty($detail['name'])) $appName = (string)$detail['name'];
@@ -157,7 +161,7 @@ $users = [];
 $total = 0;
 $usedFast = false;
 
-if (!$needsSnapshot && $gripReady) {
+if (!$needsSnapshot && $useLive) {
     // FAST PATH — fetch only the requested page live from Grip (e.g. 100 of
     // 4862). Total comes from the app's user telemetry so paging is correct
     // without loading the whole roster. Falls through to the snapshot if the

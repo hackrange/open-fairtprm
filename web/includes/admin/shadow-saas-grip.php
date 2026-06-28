@@ -64,6 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
 
                 $settings['grip_enabled']  = isset($_POST['grip_enabled']) ? '1' : '0';
                 $settings['grip_base_url'] = $rawBase;
+                // Data source: 'live' = query the Grip API on every view;
+                // 'local' = serve the hydrated DB snapshot (caching, lighter on the
+                // API) and full-refresh (truncate + re-hydrate) on each sync.
+                $settings['grip_data_source'] = (($_POST['grip_data_source'] ?? 'live') === 'local') ? 'local' : 'live';
                 // Flow Grip "Security Incident Detected" alerts into the Breach Alerts
                 // system on each hydration. Also requires Grip enabled (above) and the
                 // Breach/Cyber Alert master switch (admin.php?section=email).
@@ -510,6 +514,15 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
                 <span>Flow Grip breach information into Breach&nbsp;/&nbsp;Cyber Alerts</span>
             </label>
             <div class="form-help">On each scheduled rehydration (and the manual <strong>Run&nbsp;Now</strong> below), Grip "Security Incident Detected" alerts are written into the <a href="breach-alerts.php">Breach&nbsp;/&nbsp;Cyber Alerts</a> system (deduplicated). Breaches for an onboarded vendor are linked to that vendor; breaches for an app with no onboarded vendor are still recorded and tagged <strong>Shadow&nbsp;SaaS</strong> with the number of users potentially impacted. Requires Grip enabled (above) <em>and</em> the Breach&nbsp;/&nbsp;Cyber Alert setting under <a href="admin.php?section=email">Email &amp; Alerts</a>.</div>
+        </div>
+        <div class="form-group" style="margin-top: 4px;">
+            <label for="grip_data_source">Data source</label>
+            <?php $gripSrc = (($gripCfg['data_source'] ?? 'live') === 'local') ? 'local' : 'live'; ?>
+            <select id="grip_data_source" name="grip_data_source" class="form-control">
+                <option value="live"  <?php echo $gripSrc === 'live'  ? 'selected' : ''; ?>>Live — query the Grip API on every view</option>
+                <option value="local" <?php echo $gripSrc === 'local' ? 'selected' : ''; ?>>Local (Hydrated/cached) — serve from the database</option>
+            </select>
+            <div class="form-help"><strong>Live</strong> calls the Grip API for each page (always current, heavier on the API). <strong>Local (Hydrated/cached)</strong> serves the hydrated <code>shadow_saas_grip_*</code> tables in the database — lighter on the API — and a missing per-app snapshot is fetched from the API once, then cached. In Local mode, each sync <strong>fully refreshes</strong> the data: the Grip mirror tables are truncated and re-hydrated from the API.</div>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 8px;">
             <button type="submit" name="update_grip" class="btn btn-primary">Save Configuration</button>
