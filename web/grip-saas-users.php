@@ -1,14 +1,14 @@
 <?php
 /**
- * Grip SaaS App — Affected Users drill-down.
+ * Grip SaaS App - Affected Users drill-down.
  *
  * Opened from the Shadow SaaS module list (the user-count on a Grip-sourced row
  * links here) and from a Grip breach entry on breach-alerts.php. Lists the users
- * Grip observed for a SaaS application — the people potentially impacted by a
- * breach — from the shadow_saas_grip_app_users snapshot. In Live mode an empty
+ * Grip observed for a SaaS application - the people potentially impacted by a
+ * breach - from the shadow_saas_grip_app_users snapshot. In Live mode an empty
  * snapshot is lazily populated from Grip on first view; in Local (Hydrated/cached)
  * mode the page serves EXCLUSIVELY from the database and shows nothing when the
- * snapshot is empty (it waits for the next sync — no per-view API calls).
+ * snapshot is empty (it waits for the next sync - no per-view API calls).
  *
  * Read-only. Same access as breach alerts (admin / cyber_tprm / auditor).
  * Param: ?id=<grip SaaS application id>. Large lists are paginated (100/500/1000).
@@ -46,7 +46,7 @@ if (!preg_match('/^[A-Za-z0-9._-]{1,64}$/', $gripId)) {
     die('Invalid application id.');
 }
 
-// App context — vendor name / domain / user count. The Shadow SaaS list row the
+// App context - vendor name / domain / user count. The Shadow SaaS list row the
 // user clicked from is the authoritative source (vendor_name / vendor_domain);
 // fall back to the Grip apps mirror if this id isn't in shadow_saas.
 $appName     = '';
@@ -107,7 +107,7 @@ if ($appName === '' || $appDomain === '') {
 }
 // (Final live-API fallback + gripId default happen below, once GripService is up.)
 
-// Pagination — 100/500/1000 per page for large datasets.
+// Pagination - 100/500/1000 per page for large datasets.
 $validSort = ['full_name', 'mail', 'organizational_unit', 'manager_email', 'first_event_time', 'latest_event_time', 'last_usage'];
 $params = Pagination::getParams([
     'per_page'           => 100,
@@ -136,11 +136,11 @@ require_once CLASSES_PATH . '/GripService.php';
 $grip = new GripService();
 $gripReady = $grip->isConfigured();
 // Data-source mode. In 'local' (Hydrated/cached) mode the page reads EXCLUSIVELY
-// from the hydrated DB snapshot — no per-view live API calls at all. If the
+// from the hydrated DB snapshot - no per-view live API calls at all. If the
 // snapshot is empty (e.g. after a Truncate), nothing is shown until the next sync
 // repopulates it. Every live API call below (app detail, fast page fetch, and the
 // read-through snapshot build) is gated on $useLive, so none of them fire in Local
-// mode — that is what keeps "serve from the database only" actually true.
+// mode - that is what keeps "serve from the database only" actually true.
 $useLive = $gripReady && !$grip->useLocalData();
 
 // Final fallback: ask Grip directly for the app's name/domain. Covers apps that
@@ -166,7 +166,7 @@ $total = 0;
 $usedFast = false;
 
 if (!$needsSnapshot && $useLive) {
-    // FAST PATH — fetch only the requested page live from Grip (e.g. 100 of
+    // FAST PATH - fetch only the requested page live from Grip (e.g. 100 of
     // 4862). Total comes from the app's user telemetry so paging is correct
     // without loading the whole roster. Falls through to the snapshot if the
     // live fetch yields nothing (Grip unreachable).
@@ -187,7 +187,7 @@ if (!$needsSnapshot && $useLive) {
 }
 
 if (!$usedFast) {
-    // SNAPSHOT PATH — read the roster from the hydrated DB snapshot.
+    // SNAPSHOT PATH - read the roster from the hydrated DB snapshot.
     //
     // The on-demand build is gated on $useLive so it ONLY runs in Live mode (where
     // sorting / SSO-filtering the full roster legitimately needs a live fetch). In
@@ -259,7 +259,7 @@ function gsuColor(string $seed): string {
     $palette = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#9333ea', '#ca8a04'];
     return $palette[abs(crc32($seed)) % count($palette)];
 }
-// A sortable column header — links to itself with the toggled direction and shows
+// A sortable column header - links to itself with the toggled direction and shows
 // the active sort arrow. Resets to page 1; preserves the app id and page size.
 function gsuSortHeader(string $label, string $col, string $gripId, string $curCol, string $curDir, int $perPage, string $filter = ''): string {
     $isActive = ($curCol === $col);
@@ -534,7 +534,7 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
     </div>
 
     <script nonce="<?php echo cspNonce(); ?>">
-        // Per-page selector — preserves all current query params (incl. ?id=).
+        // Per-page selector - preserves all current query params (incl. ?id=).
         document.addEventListener('change', function (e) {
             var el = e.target.closest('[data-action="changePerPage"]');
             if (!el) return;

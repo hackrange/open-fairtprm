@@ -1,6 +1,6 @@
 <?php
 /**
- * GripService — Grip Security public API client + Shadow SaaS ingest.
+ * GripService - Grip Security public API client + Shadow SaaS ingest.
  *
  * Talks to the Grip Security public SaaS API (default base
  * https://tenant.dep.grip.security/public/saas) and hydrates the
@@ -12,11 +12,11 @@
  * Python client uses; Bearer/X-API-Key/Basic all return 401 on this API.
  *
  * Documented endpoints (apidocs.grip.security):
- *   GET  /public/saas                — list SaaS apps (paginated)
- *   GET  /public/saas/{id}           — get one SaaS by Grip id
- *   GET  /public/saas/name/{name}    — find SaaS id by name
- *   GET  /public/users               — list users
- *   GET  /public/alerts              — list alerts
+ *   GET  /public/saas                - list SaaS apps (paginated)
+ *   GET  /public/saas/{id}           - get one SaaS by Grip id
+ *   GET  /public/saas/name/{name}    - find SaaS id by name
+ *   GET  /public/users               - list users
+ *   GET  /public/alerts              - list alerts
  */
 
 class GripService
@@ -140,7 +140,7 @@ class GripService
     // ------------------------------------------------------------------
 
     /**
-     * Call a Grip endpoint. $path is appended to base URL — pass '' for the
+     * Call a Grip endpoint. $path is appended to base URL - pass '' for the
      * SaaS list endpoint, or '/users', '/alerts', '/{id}' as relative paths
      * (rooted at /public for /public/users and /public/alerts).
      */
@@ -314,7 +314,7 @@ class GripService
         $n = count($labels);
         if ($n <= 2) return implode('.', $labels);
 
-        // Two-label public suffixes we care about — keep last 3 labels for these.
+        // Two-label public suffixes we care about - keep last 3 labels for these.
         $multiLabelTlds = [
             'co.uk','org.uk','ac.uk','gov.uk','com.au','net.au','org.au','co.nz',
             'co.jp','com.br','com.mx','co.in','co.za','com.sg','com.cn',
@@ -350,7 +350,7 @@ class GripService
             // wholesale, so we truncate them for an exact reflection. The APPS and
             // per-app ROSTER tables are NOT truncated: they carry the delta state
             // (roster_signature) and the cached rosters that let the next sync SKIP
-            // re-fetching unchanged apps — wiping them would force a full ~1-call-per-app
+            // re-fetching unchanged apps - wiping them would force a full ~1-call-per-app
             // re-hydration every run. Apps/app_users staleness is instead handled by
             // upsert + tombstone (apps: last_synced_at; app_users: orphan cleanup below).
             // shadow_saas itself is left intact so onboarded/dismissed admin state survives.
@@ -392,7 +392,7 @@ class GripService
 
             // Tombstone cleanup: any row in a mirror table whose last_synced_at
             // pre-dates this run is no longer present in Grip. Skip cleanup
-            // when the corresponding fetch returned zero rows — that usually
+            // when the corresponding fetch returned zero rows - that usually
             // means a partial / failed pull and we don't want a bad fetch to
             // wipe the mirror.
             if (!empty($apps)) {
@@ -433,10 +433,10 @@ class GripService
             //
             // DELTA hydration: an app's roster is only re-fetched when it actually
             // changed. We key on a roster signature (user count + latest/last-usage
-            // timestamps from the /saas list — already in hand, no extra call). When
+            // timestamps from the /saas list - already in hand, no extra call). When
             // the signature matches the stored one AND we still hold a roster for the
             // app, the cached rows are kept and NO API call is made. This drops a
-            // repeat sync from ~one-call-per-app to just the changed apps — far less
+            // repeat sync from ~one-call-per-app to just the changed apps - far less
             // taxing on Grip and much faster. Actual fetches are gently throttled.
             // Cooperative-cancellable; per-app failures are logged, counted, and
             // never abort the run (and never wipe a good cached roster).
@@ -499,15 +499,15 @@ class GripService
 
             // Optional: flow Grip "Security Incident Detected" alerts into the
             // Breach Alerts system. Gated by three switches (all required):
-            //   1. Grip Shadow SaaS enabled  — implicit (this sync only runs for
+            //   1. Grip Shadow SaaS enabled  - implicit (this sync only runs for
             //      the enabled provider), but re-checked defensively.
-            //   2. grip_breach_sync_enabled  — the per-feature toggle on the
+            //   2. grip_breach_sync_enabled  - the per-feature toggle on the
             //      Shadow SaaS > Grip admin tab.
-            //   3. breach_alert_enabled      — the Breach/Cyber Alert master
+            //   3. breach_alert_enabled      - the Breach/Cyber Alert master
             //      switch on admin.php?section=email.
             // Only onboarded (approved) vendors receive breach rows, and
             // BreachAlertService::createAlert() dedups so re-runs never duplicate.
-            // Reuses $alertsData already fetched above — no extra Grip API call.
+            // Reuses $alertsData already fetched above - no extra Grip API call.
             if ($this->breachSyncEnabled && $this->enabled && $this->isBreachSystemEnabled() && !empty($alertsData)) {
                 try {
                     $breachesCreated = $this->projectIncidentAlertsToBreachSystem($alertsData);
@@ -517,7 +517,7 @@ class GripService
             }
 
             // Attach Grip user telemetry to vendor breaches (from any source) whose
-            // vendor maps to a known Grip app — so onboarded vendors show the same
+            // vendor maps to a known Grip app - so onboarded vendors show the same
             // impacted-user count + drill-down as Grip-detected Shadow SaaS breaches.
             if ($this->breachSyncEnabled && $this->enabled && $this->isBreachSystemEnabled()) {
                 try {
@@ -727,7 +727,7 @@ class GripService
      * continues to render. Match by grip_id (when present) or by domain;
      * otherwise insert new rows. Skip any domain already onboarded as a vendor.
      *
-     * Returns ['upserts' => int, 'grip_ids' => string[]] — the grip_ids
+     * Returns ['upserts' => int, 'grip_ids' => string[]] - the grip_ids
      * touched in this run feed the tombstone-delete pass in syncAll().
      */
     private function projectAppsToShadowSaas(array $apps, ?int $userId): array
@@ -786,7 +786,7 @@ class GripService
                 'number_of_users'      => isset($g['numberOfUsers']) ? (int)$g['numberOfUsers'] : null,
                 'application_category' => $g['category'] ?? null,
                 'mfasupport'           => !empty($g['mfaSupported']) ? 'yes' : null,
-                // SecurityScorecard letter rating (A/B/C/D/F) — Grip exposes no
+                // SecurityScorecard letter rating (A/B/C/D/F) - Grip exposes no
                 // numeric SSC score, only this grade.
                 'security_scorecard_rating' => (isset($g['securityScorecardRating']) && is_string($g['securityScorecardRating']) && $g['securityScorecardRating'] !== '')
                     ? strtoupper(substr(trim($g['securityScorecardRating']), 0, 1)) : null,
@@ -802,13 +802,13 @@ class GripService
                 $existing = $this->db->fetchOne("SELECT id, relationship_manager, status FROM shadow_saas WHERE vendor_domain = :d LIMIT 1", [':d' => $domain]);
             }
             if ($existing) {
-                // Dismissed rows are an explicit admin decision — leave them
+                // Dismissed rows are an explicit admin decision - leave them
                 // fully intact (no field updates from Grip).
                 if (($existing['status'] ?? '') === 'dismissed') {
                     continue;
                 }
                 // Only stamp the relationship manager if the row doesn't already
-                // have one — manual edits in the UI win over Grip's value.
+                // have one - manual edits in the UI win over Grip's value.
                 if (empty($existing['relationship_manager']) && $relationshipManager !== '') {
                     $update['relationship_manager'] = $relationshipManager;
                 }
@@ -827,7 +827,7 @@ class GripService
     }
 
     // ------------------------------------------------------------------
-    // Breach projection (optional — Grip security incidents -> Breach Alerts)
+    // Breach projection (optional - Grip security incidents -> Breach Alerts)
     // ------------------------------------------------------------------
 
     /**
@@ -857,7 +857,7 @@ class GripService
      *
      * createAlert() dedups on affected_entity|alert_type, so re-runs (scheduled
      * or manual) never create duplicates. Reuses the alerts already fetched by
-     * syncAll() — no additional Grip API call.
+     * syncAll() - no additional Grip API call.
      *
      * @return int number of NEW breach rows created this run.
      */
@@ -935,7 +935,7 @@ class GripService
                 $data['affected_vendor_ids']  = json_encode([(int)$vendor['id']]);
                 $data['vendor_count']         = 1;
             } else {
-                // No onboarded vendor — record as a Shadow SaaS breach.
+                // No onboarded vendor - record as a Shadow SaaS breach.
                 $data['title']                = $this->clip($appName . ' — security incident reported by Grip', 500);
                 $data['affected_entity']      = $appName;
                 $data['affected_entity_type'] = 'shadow_saas';
@@ -944,7 +944,7 @@ class GripService
 
             // Has this Grip app already produced a breach? Key off the stored
             // grip_saas_id so a Shadow SaaS breach can be promoted to a vendor
-            // breach when that vendor is onboarded later — without creating a
+            // breach when that vendor is onboarded later - without creating a
             // duplicate even when the Grip app name and vendor name differ.
             $existing = ($gripId !== '')
                 ? $this->db->fetchOne("SELECT id FROM cyber_breach_alerts WHERE grip_saas_id = :g ORDER BY id LIMIT 1", [':g' => $gripId])
@@ -1008,7 +1008,7 @@ class GripService
      * and so carry no Grip data. When that vendor's registrable domain matches a
      * known Grip SaaS app, stamp the breach with the app's user count + id (and
      * snapshot its users) so it shows the same impacted-user drill-down as a
-     * Grip-detected Shadow SaaS breach. Only fills gaps — never overwrites a
+     * Grip-detected Shadow SaaS breach. Only fills gaps - never overwrites a
      * breach that already has a Grip app id. @return int breaches enriched
      */
     private function enrichVendorBreachesWithGripTelemetry(array $apps): int
@@ -1183,7 +1183,7 @@ class GripService
      * Resolve a Grip SaaS app's registrable domain, most-local source first:
      *   1. the value already known to the caller (apps-mirror domain),
      *   2. the apps mirror url, 3. the Shadow SaaS list (vendor_domain),
-     *   4. a live single-app API fetch (GET /public/saas/{id} → url) — Grip's
+     *   4. a live single-app API fetch (GET /public/saas/{id} → url) - Grip's
      *      domain telemetry, which covers incident apps absent from local tables.
      * Cached per run. Returns '' when no domain can be determined.
      */
@@ -1251,7 +1251,7 @@ class GripService
     {
         $gripId = trim($gripId);
         if ($gripId === '') return [];
-        // Paginate — large apps can have many users (offset/limit, like the other
+        // Paginate - large apps can have many users (offset/limit, like the other
         // Grip list endpoints). Iterate until a short page.
         $all = [];
         $offset = 0;
@@ -1274,7 +1274,7 @@ class GripService
 
     /**
      * Refresh the per-app user snapshot (shadow_saas_grip_app_users) for one Grip
-     * SaaS app — replaces the app's rows wholesale (per-app sets are small).
+     * SaaS app - replaces the app's rows wholesale (per-app sets are small).
      * @return int users stored
      */
     /**
@@ -1301,7 +1301,7 @@ class GripService
         if ($gripId === '') return 0;
 
         // Fetch FIRST. getUsersForApp() throws on a hard (post-retry) API failure,
-        // so a timeout propagates here BEFORE we touch the stored roster — the
+        // so a timeout propagates here BEFORE we touch the stored roster - the
         // existing rows are left intact and the caller logs the app as failed.
         $users = $this->getUsersForApp($gripId);
 
@@ -1312,7 +1312,7 @@ class GripService
             $row = $this->mapGripAppUser($entry, $gripId);
             // Encrypt PII on the way to the DB. (mapGripAppUser is shared with the
             // live page fetch, which renders plaintext, so we encrypt HERE on the
-            // persistence path only — never inside the mapper.)
+            // persistence path only - never inside the mapper.)
             if ($row !== null) $rows[(string)$row['user_grip_id']] = $this->encryptRow('shadow_saas_grip_app_users', $row);
         }
 
@@ -1324,7 +1324,7 @@ class GripService
             $this->db->delete('shadow_saas_grip_app_users', 'grip_saas_id = :g', [':g' => $gripId]);
             $count = 0;
             if ($rows) {
-                // Bulk insert in chunks — one statement per ~200 rows instead of one
+                // Bulk insert in chunks - one statement per ~200 rows instead of one
                 // per user, so a large roster loads in seconds, not minutes.
                 $cols  = array_keys(reset($rows));
                 $colSql = '`' . implode('`,`', $cols) . '`';
@@ -1390,7 +1390,7 @@ class GripService
 
     /**
      * Fetch a single page of an app's users live from Grip, normalised to the
-     * snapshot row shape — so the drill-down can render just the requested page
+     * snapshot row shape - so the drill-down can render just the requested page
      * (e.g. 100 of 4862) instead of syncing the whole roster on first view.
      * @return array list of normalised user rows for [offset, offset+limit)
      */

@@ -1,7 +1,7 @@
 <?php
 if (!defined('ADMIN_DISPATCH')) { http_response_code(403); exit('Forbidden'); }
 /**
- * Admin Section: Shadow SaaS — Grip Security integration.
+ * Admin Section: Shadow SaaS - Grip Security integration.
  *
  * Same horizontal-tab format as admin.php?section=email; for now there's a
  * single tab ("Grip"). Configures the Grip tenant base URL + API token,
@@ -33,7 +33,7 @@ if (!in_array($shadowTab, ['grip', 'hero'], true)) {
 // The page renders two independent <form>s (connection card + schedule card),
 // each with its own "Save" button bound to name="update_grip". A hidden
 // grip_form input identifies which form was submitted so we only touch the
-// settings that belong to that form — saving the connection card no longer
+// settings that belong to that form - saving the connection card no longer
 // resets the cron schedule, and vice versa.
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
@@ -274,7 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_grip_now'])) {
 }
 
 // ============================================================================
-// POST: abort a running sync (cooperative — flips the run's status to 'aborting';
+// POST: abort a running sync (cooperative - flips the run's status to 'aborting';
 // the driver notices within a few iterations, stops, and releases its lock).
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['abort_shadow_sync'])) {
@@ -297,7 +297,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['abort_shadow_sync']))
 
 // ============================================================================
 // POST: truncate a Shadow SaaS mirror table (admin maintenance). Whitelisted
-// table names ONLY — the table name is never taken from raw user input.
+// table names ONLY - the table name is never taken from raw user input.
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['truncate_mirror_table'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
@@ -312,7 +312,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['truncate_mirror_table
             $error = 'Unknown mirror table.';
         } else {
             try {
-                // $tbl is constrained to the whitelist above — safe to interpolate.
+                // $tbl is constrained to the whitelist above - safe to interpolate.
                 $db->query("TRUNCATE TABLE `{$tbl}`");
                 $auth->audit($user['id'], 'shadow_saas_truncate_mirror', $tbl, null, ['table' => $tbl]);
                 $success = 'Mirror table ' . e($tbl) . ' truncated.';
@@ -532,7 +532,7 @@ foreach ([['shadow_saas_hero_vendors','vendors'],['shadow_saas_hero_users','user
     try { $r = $db->fetchOne("SELECT COUNT(*) AS cnt FROM {$tbl}"); $heroCounts[$key] = (int)($r['cnt'] ?? 0); } catch (Throwable $e) {}
 }
 
-// Shared rehydration schedule — stored under the cron_* convention and installed
+// Shared rehydration schedule - stored under the cron_* convention and installed
 // into the system crontab as the hidden shadow_saas_rehydrate job. Defaults match
 // the SQL seed (disabled, daily 2am) for the case where the keys aren't set yet.
 $rehydrateEnabled  = '0';

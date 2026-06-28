@@ -2344,7 +2344,7 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) V
 -- =============================================================================
 -- Fix UpGuard grade thresholds: older installs seeded raw-score values
 -- (850/700/500/300) which break percentage-mode grading. Only update if the
--- values still match the old wrong defaults — preserve user-customized values.
+-- values still match the old wrong defaults - preserve user-customized values.
 -- =============================================================================
 UPDATE `app_config` SET `config_value` = '90' WHERE `config_key` = 'upguard_grade_a_min' AND `config_value` = '850';
 UPDATE `app_config` SET `config_value` = '80' WHERE `config_key` = 'upguard_grade_b_min' AND `config_value` = '700';
@@ -5233,7 +5233,7 @@ WHERE s.Source = 'total average';
 -- =============================================================================
 -- SECTION 14b: Database Views
 -- Views used by the GRC dashboard, control coverage reporting, and CVE search.
--- CREATE OR REPLACE is idempotent — safe to run on every container start.
+-- CREATE OR REPLACE is idempotent - safe to run on every container start.
 -- =============================================================================
 
 -- View: view_grc_compliance_status
@@ -5457,14 +5457,14 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
--- Extend breach alert ENUM types (MODIFY is safe — adds new values, preserves existing data)
+-- Extend breach alert ENUM types (MODIFY is safe - adds new values, preserves existing data)
 ALTER TABLE `cyber_breach_alerts`
     MODIFY COLUMN `alert_type` ENUM('data_breach','cyber_attack','vulnerability','supply_chain','ransomware','osint_exposure','other') NOT NULL DEFAULT 'other';
 
 ALTER TABLE `cyber_breach_alerts`
     MODIFY COLUMN `affected_entity_type` ENUM('vendor','subprocessor','technology','organization','shadow_saas') NOT NULL DEFAULT 'vendor';
 
--- cyber_breach_alerts.impacted_user_count — number of users potentially impacted,
+-- cyber_breach_alerts.impacted_user_count - number of users potentially impacted,
 -- populated by the Grip breach feed (GripService). For a Grip "Shadow SaaS"
 -- breach (no onboarded vendor) this drives the "Shadow SaaS / N users" indicator.
 SET @sql = IF(
@@ -5475,7 +5475,7 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
--- cyber_breach_alerts.grip_saas_id — the Grip SaaS application id behind a Grip
+-- cyber_breach_alerts.grip_saas_id - the Grip SaaS application id behind a Grip
 -- breach. Links the breach to its impacted-user snapshot (shadow_saas_grip_app_users)
 -- so the Breach Alerts UI can drill into the affected users.
 SET @sql = IF(
@@ -5494,7 +5494,7 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
--- cyber_breach_alerts.affected_domain — the affected application's registrable
+-- cyber_breach_alerts.affected_domain - the affected application's registrable
 -- domain (Grip url telemetry). Lets the Breach UI label Grip alerts as
 -- "Company (domain.com)" even when the app isn't in the local Shadow SaaS list.
 SET @sql = IF(
@@ -5604,7 +5604,7 @@ PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- =============================================================================
 -- Grip Security integration (Shadow SaaS): mirror tables, shadow_saas link
--- columns, and app_config defaults. Idempotent — safe to re-run.
+-- columns, and app_config defaults. Idempotent - safe to re-run.
 -- =============================================================================
 
 -- Mirror tables for the Grip Security public API. Created here so fresh
@@ -5901,7 +5901,7 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
--- shadow_saas.security_scorecard_rating — SecurityScorecard letter grade
+-- shadow_saas.security_scorecard_rating - SecurityScorecard letter grade
 -- (A/B/C/D/F) from Grip telemetry. Grip exposes no numeric SSC score, only
 -- this rating; shown as the "SSC" badge on the Shadow SaaS and vendor SRS lists.
 SET @sql = IF(
@@ -5912,7 +5912,7 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
--- vendor_onboarding_requests.security_scorecard_rating — same Grip SSC letter
+-- vendor_onboarding_requests.security_scorecard_rating - same Grip SSC letter
 -- grade for ONBOARDED vendors (matched by domain during sync), shown as the
 -- sortable "SSC" column on vendor-srs-list.php.
 SET @sql = IF(
@@ -5923,7 +5923,7 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
--- vendor_onboarding_requests.grip_app_data — curated Grip SaaS telemetry (JSON)
+-- vendor_onboarding_requests.grip_app_data - curated Grip SaaS telemetry (JSON)
 -- for the matched app: first discovered, active accounts, last usage, sanction,
 -- category, AI depth, compliances, SAML/MFA support. Powers the "SaaS Data" tab
 -- on vendor-onboarding.php. Stamped during the Grip sync (domain match).
@@ -5956,7 +5956,7 @@ PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- Default app_config rows so fresh installs render the admin page with
 -- predictable values. INSERT IGNORE leaves any operator-customized values alone.
--- grip_base_url is intentionally NOT seeded — it's tenant-specific and the
+-- grip_base_url is intentionally NOT seeded - it's tenant-specific and the
 -- admin enters it in the UI; the PHP loader falls back to a sensible value
 -- when the row is absent.
 INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) VALUES
@@ -6018,7 +6018,7 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`) V
 
 -- Carry over the operator's old cadence preference (grip_cron_frequency) to the
 -- new schedule, best-effort, ONLY while the new schedule is still at its seeded
--- default — so it never overwrites a value set on the new card, and re-running is
+-- default - so it never overwrites a value set on the new card, and re-running is
 -- safe. The enabled flag is intentionally NOT migrated (see above). MySQL/MariaDB
 -- compatible (multi-table UPDATE + CASE).
 UPDATE `app_config` `dst`
@@ -6292,10 +6292,10 @@ SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schem
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- Roster-table slimming (one-time space reclaim on upgrade):
---  1) Drop raw_payload — an encrypted full-JSON copy nothing renders that made up
+--  1) Drop raw_payload - an encrypted full-JSON copy nothing renders that made up
 --     ~80% of the table. The DROP rebuilds the table, immediately reclaiming the
 --     space (e.g. ~800 MB -> ~180 MB on a fully-hydrated large tenant).
---  2) Drop idx_grip_saas_id — redundant with the PRIMARY KEY's leading column.
+--  2) Drop idx_grip_saas_id - redundant with the PRIMARY KEY's leading column.
 SET @sql = IF((SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='shadow_saas_grip_app_users' AND index_name='idx_grip_saas_id')>0,
   'ALTER TABLE `shadow_saas_grip_app_users` DROP INDEX `idx_grip_saas_id`', 'DO 0');
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;

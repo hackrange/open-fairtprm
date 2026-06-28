@@ -104,7 +104,7 @@ if (!array_key_exists($section, $sectionFiles)) {
 
 $isAdmin = $session->get('is_super_admin') || $auth->isAdmin() || hasGroup('administrator');
 
-// Live Grip sync progress (AJAX/JSON) — polled by the Shadow SaaS "Last Sync"
+// Live Grip sync progress (AJAX/JSON) - polled by the Shadow SaaS "Last Sync"
 // card to render the roster-hydration percentage. Must answer BEFORE any layout
 // HTML is emitted, so it lives here alongside the other pre-render handlers.
 if ($section === 'shadow-saas' && isset($_GET['grip_sync_status'])) {
