@@ -48,8 +48,20 @@ project adheres to [Semantic Versioning](https://semver.org/).
   custom onboarding fields editable on the vendor page and hidden-by-default.
 - **Custom Data field types.** Multi-select (checkbox / button group), Phone, and
   VAT question types render with their dedicated widgets.
-- **4th-Party Risk.** Bulk assessment assignment that sends emails and tracks
-  reminders, and a "Send Assessment to Subprocessor" concentration action.
+- **Custom vendor onboarding fields.** Onboarding templates can define custom
+  fields that have no standard vendor column; their values are captured per vendor
+  and editable on the vendor's **Custom Data** tab. Visibility and editing follow
+  the onboarding role-based field gating above.
+- **Custom onboarding fields in export and the API.** Custom field values are
+  surfaced beyond the UI: the vendor onboarding **CSV export** adds one
+  `custom:<field_name>` column per field (the union across exported vendors), and
+  the **REST API** single-vendor response returns a `custom_onboarding_data` array
+  (field_name, label, value, type, section, template_name). Both read from the same
+  source as the Custom Data tab and apply the same role-based visibility.
+- **4th-Party Risk.** Surface subprocessor concentration across your vendors and
+  act on it: bulk-assign assessments that send emails and track reminders, plus a
+  **Send Assessment** flow that picks the vendors leveraging a given subprocessor
+  and sends them an assessment survey (an RFI-style request for information).
 
 ### Changed
 
