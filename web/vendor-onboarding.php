@@ -2358,7 +2358,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                     $error = 'No custom field values were submitted.';
                 } else {
                     try {
-                        $vasForExtras->ensureOnboardingAssessment($requestId, $user['id']);
+                        // Each custom field carries the onboarding template that defines it.
+                        // Ensure a holder assessment exists for EACH of those templates before
+                        // writing. Without this, a vendor with no assessment (or only one for a
+                        // different onboarding template) gets a holder created against the
+                        // lowest-id onboarding template, which does not contain these questions,
+                        // so setCustomOnboardingValue() finds no target and silently writes nothing.
+                        $tplIds = [];
+                        foreach (array_keys($toWrite) as $fn) {
+                            $tid = (int)($editableCustom[$fn]['template_id'] ?? 0);
+                            if ($tid > 0) $tplIds[$tid] = true;
+                        }
+                        if (empty($tplIds)) {
+                            $vasForExtras->ensureOnboardingAssessment($requestId, $user['id']);
+                        } else {
+                            foreach (array_keys($tplIds) as $tid) {
+                                $vasForExtras->ensureOnboardingAssessment($requestId, $user['id'], $tid);
+                            }
+                        }
                         $written = 0;
                         foreach ($toWrite as $fn => $val) {
                             if ($vasForExtras->setCustomOnboardingValue($requestId, $fn, $val)) $written++;
@@ -2366,7 +2383,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                         $auth->audit($user['id'], 'vendor_custom_onboarding_update', 'vendor_onboarding_requests', $requestId, [
                             'fields' => array_keys($toWrite)
                         ]);
-                        $success = 'Custom data updated successfully.';
+                        if ($written > 0) {
+                            $success = 'Custom data updated successfully.';
+                        } else {
+                            // Never claim success when nothing persisted.
+                            $error = 'Custom data could not be saved (no matching onboarding field found). Please contact your administrator.';
+                        }
                         // Re-read so the tab reflects the saved values.
                         $customOnboardingData = $vasForExtras->getOnboardingCustomFields(
                             $requestId,

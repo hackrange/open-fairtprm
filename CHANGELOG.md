@@ -112,6 +112,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
   `chrome.dashboard` instead of a localized label; the key is now defined in all 8
   locales.
 - Custom Data badge rendering and the vendor-srs-list View Score / View Vendor links.
+- **Custom onboarding field values silently failed to save** while the UI reported
+  success. When a vendor had no onboarding assessment (or only one for a different
+  onboarding template), the save path created a holder against the lowest-id
+  onboarding template, which did not contain the edited custom questions, so every
+  write found no target and persisted nothing - yet "Custom data updated
+  successfully" was still shown. Saves are now anchored to each field's own
+  template_id (a holder is ensured per template), and success is reported only when
+  at least one value is actually written.
 
 ### Security
 
