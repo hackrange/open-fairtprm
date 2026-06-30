@@ -102,6 +102,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **FairSRS false positives reduced.** The Shodan-based security rating no longer
+  reports "Server Version Disclosed" for managed-edge `Server` headers the vendor
+  cannot change (e.g. AWS ELB's `awselb/2.0`, Cloudflare, CloudFront). It drops all
+  findings for RFC1918 / reserved IPs, which are not routable from the Internet. And
+  it discards CVEs attributed to multi-tenant CDN edges (Cloudflare, CloudFront,
+  Akamai, Fastly, Imperva, Sucuri, StackPath), where Shodan fingerprints the shared
+  edge fleet rather than the vendor's origin. Single-tenant load balancers (awselb,
+  bigip) still keep their proxied-port findings for triage.
 - **Grip rosters silently blanked on API timeouts.** In Local mode a per-app roster
   was deleted *before* its re-fetch, so a Grip API timeout mid-sync left the app
   with an empty roster (and a full hydration could blank hundreds of apps). Rosters

@@ -93,6 +93,7 @@ class ShodanClient
         ],
         'server' => [
             'cloudflare'      => 'Cloudflare',
+            'cloudfront'      => 'Amazon CloudFront',
             'akamaighost'     => 'Akamai',
             'amazons3'        => 'AWS S3',
             'awselb'          => 'AWS ELB',
@@ -111,6 +112,16 @@ class ShodanClient
             'imperva'         => 'Imperva',
             'sucuri'          => 'Sucuri',
         ],
+    ];
+
+    // Multi-tenant CDN / edge providers. Shodan fingerprints these shared edge
+    // fleets, never the vendor's origin, so ANY CVE attributed to one of their
+    // IPs is a false positive regardless of port. Deliberately EXCLUDES
+    // single-tenant load balancers (awselb, bigip): those front one specific
+    // origin, so their findings are kept for triage.
+    private const MULTI_TENANT_CDN = [
+        'cloudflare', 'cloudfront', 'akamai', 'akamaighost',
+        'fastly', 'incapsula', 'imperva', 'sucuri', 'stackpath', 'amazons3',
     ];
 
     // Reputable certificate authorities
@@ -1216,6 +1227,17 @@ class ShodanClient
             }
         }
 
+        // Drop RFC1918 / reserved / loopback / link-local IPs. They are not
+        // routable from the Internet, so no remotely-exploitable finding can
+        // attach to them. Shodan occasionally returns these from stale or
+        // split-horizon DNS records.
+        foreach ($hostnameToIp as $hn => $ip) {
+            if (!$this->isPublicIp($ip)) {
+                unset($hostnameToIp[$hn], $ipToHostnames[$ip]);
+                error_log("Shodan: Dropped non-public IP {$ip} ({$hn}) for {$domain}");
+            }
+        }
+
         $uniqueIps = array_unique(array_values($hostnameToIp));
 
         if (empty($uniqueIps)) {
@@ -1406,9 +1428,13 @@ class ShodanClient
         // are actually filtered/unreachable (confirmed by nmap). Remove them so they
         // don't inflate open port counts or trigger false-positive findings.
         $cdnIps = [];
+        $multiTenantCdnIps = [];
         foreach ($hostResults as $ip => $hostInfo) {
             if ($this->isCdnIp($hostInfo)) {
                 $cdnIps[$ip] = true;
+            }
+            if ($this->isMultiTenantCdnIp($hostInfo)) {
+                $multiTenantCdnIps[$ip] = true;
             }
         }
 
@@ -1444,21 +1470,16 @@ class ShodanClient
             });
             $allBanners = array_values($allBanners);
 
-            // Filter vulns on CDN IPs. Port-bound vulns: keep only if the port is
-            // CDN-proxied. Host-level vulns (no port): drop entirely — Shodan is
-            // fingerprinting the CDN edge fleet, not the vendor's origin, so any
-            // host-level CVE on a Cloudflare/Akamai/etc. IP is a false positive.
-            $allVulns = array_filter($allVulns, function ($vuln) use ($cdnIps) {
-                $vulnIp = $vuln['ip'] ?? '';
-                if (isset($cdnIps[$vulnIp])) {
-                    if (isset($vuln['port'])) {
-                        return in_array($vuln['port'], self::CDN_PROXIED_PORTS);
-                    }
-                    return false;
-                }
-                return true;
-            });
         }
+
+        // Drop CVE false positives in one pass. Runs unconditionally (not only
+        // when isCdnIp ports were trimmed above) so it also covers CloudFront
+        // edges detected solely by Server header / x-amz-cf-* response headers,
+        // and non-routable IPs. See keepVuln() for the exact rules.
+        $allVulns = array_filter(
+            $allVulns,
+            fn($vuln) => $this->keepVuln($vuln, $cdnIps, $multiTenantCdnIps)
+        );
 
         // Filter CVEs older than the configured minimum year
         if ($this->minCveYear > 0) {
@@ -2195,6 +2216,94 @@ class ShodanClient
     }
 
     /**
+     * True if the IP is a multi-tenant CDN/edge IP whose CVEs are always false
+     * positives (Shodan fingerprints the shared edge, not the vendor origin).
+     * Narrower than isCdnIp(): excludes single-tenant LBs (awselb/bigip).
+     */
+    private function isMultiTenantCdnIp(array $hostInfo): bool
+    {
+        $org = strtolower($hostInfo['org'] ?? '');
+        $isp = strtolower($hostInfo['isp'] ?? '');
+        foreach (self::MULTI_TENANT_CDN as $pat) {
+            if (stripos($org, $pat) !== false || stripos($isp, $pat) !== false) {
+                return true;
+            }
+        }
+        if (isset($hostInfo['data']) && is_array($hostInfo['data'])) {
+            foreach ($hostInfo['data'] as $banner) {
+                $server = strtolower($banner['http']['server'] ?? $banner['product'] ?? '');
+                foreach (self::MULTI_TENANT_CDN as $pat) {
+                    if (stripos($server, $pat) !== false) {
+                        return true;
+                    }
+                }
+                // CloudFront/Cloudflare edge headers (org string is often just "Amazon")
+                $hdrs = $this->extractHttpHeaders($banner);
+                if (isset($hdrs['x-amz-cf-id']) || isset($hdrs['x-amz-cf-pop']) || isset($hdrs['cf-ray'])) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * True if a Server header belongs to managed edge infrastructure (CDN/WAF/LB)
+     * whose version string the vendor cannot control or remove -- e.g. AWS ELB
+     * always emits "awselb/2.0". Such headers must NOT trigger a version-disclosure
+     * deduction; the disclosed version is the provider's, not the vendor's app.
+     */
+    private function isManagedEdgeServer(string $server): bool
+    {
+        $server = strtolower($server);
+        foreach (self::WAF_CDN_PATTERNS['server'] as $pattern => $name) {
+            if (stripos($server, $pattern) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * True only for globally-routable IPs. RFC1918 private ranges, loopback,
+     * link-local, and other reserved ranges are unreachable from the Internet,
+     * so no remotely-exploitable finding can legitimately attach to them.
+     */
+    private function isPublicIp(string $ip): bool
+    {
+        return filter_var(
+            $ip,
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+        ) !== false;
+    }
+
+    /**
+     * Decides whether a single CVE finding survives false-positive filtering.
+     *  - non-public IP (RFC1918/reserved): drop (not Internet-reachable)
+     *  - multi-tenant CDN edge: drop (Shodan sees the edge fleet, not the origin)
+     *  - other CDN/WAF/LB IP: keep only proxied-port vulns, drop host-level ones
+     *  - anything else (real origin): keep
+     */
+    private function keepVuln(array $vuln, array $cdnIps, array $multiTenantCdnIps): bool
+    {
+        $ip = $vuln['ip'] ?? '';
+        if ($ip !== '' && !$this->isPublicIp($ip)) {
+            return false;
+        }
+        if (isset($multiTenantCdnIps[$ip])) {
+            return false;
+        }
+        if (isset($cdnIps[$ip])) {
+            if (isset($vuln['port'])) {
+                return in_array($vuln['port'], self::CDN_PROXIED_PORTS);
+            }
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Analyzes network security posture.
      * Weight: 20%
      */
@@ -2506,8 +2615,13 @@ class ShodanClient
             // Check headers (parsed from banner.data since Shodan doesn't populate http.headers)
             $lowerHeaders = $this->extractHttpHeaders($banner);
 
-            // Server version disclosure
-            if (!empty($serverHeader) && preg_match('/\d+\.\d+/', $serverHeader)) {
+            // Server version disclosure -- skip managed edges (CDN/WAF/LB) whose
+            // Server header version is fixed by the provider and not removable by
+            // the vendor (e.g. AWS ELB always emits "awselb/2.0"). Penalizing it
+            // would flag infrastructure the vendor cannot change.
+            if (!empty($serverHeader)
+                && preg_match('/\d+\.\d+/', $serverHeader)
+                && !$this->isManagedEdgeServer($serverHeader)) {
                 $setFlag('version_disclosure', ['Server Header' => $serverHeader]);
             }
 
