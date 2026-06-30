@@ -5385,6 +5385,19 @@ SET @sql = IF(@vsa_exists = 1,
   'DO 0');
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
+-- assessment_questions.include_in_minimal -- MUST precede visible_roles below, which
+-- is added AFTER include_in_minimal. The master schema's assessment_questions predates
+-- this column, so the earlier CREATE TABLE IF NOT EXISTS is a no-op on installs whose
+-- table already exists; without adding it here first, the visible_roles/editable_roles
+-- ALTERs fail with "Unknown column 'include_in_minimal'" on every fresh seed.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'assessment_questions' AND column_name = 'include_in_minimal') = 0,
+  'ALTER TABLE `assessment_questions` ADD COLUMN `include_in_minimal` TINYINT(1) DEFAULT 0 COMMENT ''When the template is in minimal certificate mode, only questions flagged here are presented/required''',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
 -- assessment_questions.visible_roles (per-question/field onboarding role visibility)
 SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
@@ -6147,12 +6160,33 @@ CREATE TABLE IF NOT EXISTS `vendor_procurement_updates` (
   `status_at_update` varchar(20) DEFAULT NULL COMMENT 'Onboarding status at the time the update was provided',
   `created_by` int(10) unsigned DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `edited_at` timestamp NULL DEFAULT NULL COMMENT 'When the note was last edited (cyber-status note edit feature)',
+  `edited_by` int(10) unsigned DEFAULT NULL COMMENT 'User who last edited the note',
   PRIMARY KEY (`id`),
   KEY `idx_request_created` (`request_id`,`created_at`),
   KEY `idx_created_by` (`created_by`),
   CONSTRAINT `vendor_procurement_updates_ibfk_1` FOREIGN KEY (`request_id`) REFERENCES `vendor_onboarding_requests` (`id`) ON DELETE CASCADE,
   CONSTRAINT `vendor_procurement_updates_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- vendor_procurement_updates edit-trail columns for existing installs whose table
+-- predates them (the CREATE above only covers fresh installs). Idempotent; runs
+-- here -- AFTER the table is guaranteed to exist -- not in the ALTER section above.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_procurement_updates' AND column_name = 'edited_at') = 0,
+  'ALTER TABLE `vendor_procurement_updates` ADD COLUMN `edited_at` TIMESTAMP NULL DEFAULT NULL AFTER `created_at`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_procurement_updates' AND column_name = 'edited_by') = 0,
+  'ALTER TABLE `vendor_procurement_updates` ADD COLUMN `edited_by` INT(10) UNSIGNED DEFAULT NULL AFTER `edited_at`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- Procurement digest configuration (comma-separated recipients, like breach alerts).
 -- INSERT IGNORE preserves any values an admin has already customised.
@@ -6189,14 +6223,6 @@ PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 UPDATE `assessment_templates`
    SET `certificate_upload_mode` = 'skip'
  WHERE `allow_certificate_upload` = 1 AND (`certificate_upload_mode` IS NULL OR `certificate_upload_mode` = 'none');
-
-SET @sql = IF(
-  (SELECT COUNT(*) FROM information_schema.columns
-   WHERE table_schema = DATABASE() AND table_name = 'assessment_questions' AND column_name = 'include_in_minimal') = 0,
-  'ALTER TABLE `assessment_questions` ADD COLUMN `include_in_minimal` TINYINT(1) DEFAULT 0 COMMENT ''When the template is in minimal certificate mode, only questions flagged here are presented/required''',
-  'DO 0'
-);
-PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- =============================================================================
 -- Expose the {{assessment_name}} merge tag on the vendor assessment request and

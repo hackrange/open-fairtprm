@@ -108,6 +108,7 @@ if ($vendorId > 0) {
         try {
             $updates = $db->fetchAll("
                 SELECT pu.id, pu.update_text, pu.status_at_update, pu.created_at,
+                       pu.created_by, pu.edited_at,
                        u.full_name AS author_name
                 FROM vendor_procurement_updates pu
                 LEFT JOIN users u ON pu.created_by = u.id
@@ -580,8 +581,11 @@ function cyberStatusLabel($status) {
                     <?php else: ?>
                         <?php foreach ($updates as $upd):
                             $author = !empty($upd['author_name']) ? $upd['author_name'] : 'System';
+                            // Per-object authz: cyber_tprm / admin, or the note's own author.
+                            $isNoteAuthor = isset($upd['created_by']) && (int)$upd['created_by'] === (int)$user['id'];
+                            $canManageNote = $isAdmin || $isCyberTPRM || $isNoteAuthor;
                         ?>
-                        <div class="update-item">
+                        <div class="update-item" data-note-id="<?php echo (int)$upd['id']; ?>">
                             <div class="update-meta">
                                 <span><?php echo e(date('M j, Y g:i A', strtotime($upd['created_at']))); ?></span>
                                 <span class="update-author"><?php echo e($author); ?></span>
@@ -589,8 +593,25 @@ function cyberStatusLabel($status) {
                                     <?php $suStatus = $upd['status_at_update'] === 'ai_review' ? 'ai_review' : ($upd['status_at_update'] === 'in_review' ? 'in_review' : ''); ?>
                                     <span class="status-badge <?php echo e($suStatus); ?>"><?php echo e($upd['status_at_update']); ?></span>
                                 <?php endif; ?>
+                                <span class="note-edited-marker" style="font-size:12px; color:#9ca3af; font-style:italic;<?php echo empty($upd['edited_at']) ? ' display:none;' : ''; ?>">(edited<?php echo !empty($upd['edited_at']) ? ' ' . e(date('M j, Y g:i A', strtotime($upd['edited_at']))) : ''; ?>)</span>
+                                <?php if ($canManageNote): ?>
+                                <span class="note-actions" style="margin-left:auto; display:inline-flex; gap:10px;">
+                                    <button type="button" class="note-edit-btn" style="background:none; border:none; padding:0; color:#4f46e5; font-size:13px; cursor:pointer;">Edit</button>
+                                    <button type="button" class="note-delete-btn" style="background:none; border:none; padding:0; color:#dc2626; font-size:13px; cursor:pointer;">Delete</button>
+                                </span>
+                                <?php endif; ?>
                             </div>
-                            <div class="update-text"><?php echo nl2br(e($upd['update_text'])); ?></div>
+                            <div class="update-text" style="white-space:pre-wrap;"><?php echo e($upd['update_text']); ?></div>
+                            <?php if ($canManageNote): ?>
+                            <div class="note-edit-form" style="display:none; margin-top:8px;">
+                                <textarea class="note-edit-textarea" rows="4" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:inherit; box-sizing:border-box;"><?php echo e($upd['update_text']); ?></textarea>
+                                <div style="margin-top:6px; display:flex; gap:8px; align-items:center;">
+                                    <button type="button" class="note-edit-save" style="padding:6px 14px; border:none; border-radius:6px; background:#4f46e5; color:#fff; font-size:13px; font-weight:600; cursor:pointer;">Save</button>
+                                    <button type="button" class="note-edit-cancel" style="padding:6px 14px; border:1px solid #d1d5db; border-radius:6px; background:#fff; color:#374151; font-size:13px; cursor:pointer;">Cancel</button>
+                                    <span class="note-edit-msg" style="font-size:12px;"></span>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                         </div>
                         <?php endforeach; ?>
 
@@ -730,6 +751,100 @@ function cyberStatusLabel($status) {
                 }).catch(function() { pmSubmit.disabled = false; msg.style.color = '#dc2626'; msg.textContent = 'Network error.'; });
             });
         }
+    })();
+    </script>
+    <?php endif; ?>
+
+    <?php if ($selectedVendor): ?>
+    <!-- Inline edit / delete of procurement notes (api/procurement-note-manage.php).
+         Buttons are only rendered for notes the viewer may manage (cyber_tprm/admin
+         or the note's author); the server re-checks authorization on every call. -->
+    <script nonce="<?php echo cspNonce(); ?>">
+    (function() {
+        var csrf = <?php echo json_encode($csrfToken); ?>;
+        var panel = document.querySelector('.detail-panel');
+        if (!panel) return;
+
+        function post(payload) {
+            payload.csrf_token = csrf;
+            return fetch('api/procurement-note-manage.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(function(r) { return r.json(); });
+        }
+
+        panel.addEventListener('click', function(ev) {
+            var btn = ev.target;
+            if (!btn || !btn.closest) return;
+            var item = btn.closest('.update-item');
+            if (!item) return;
+            var noteId = parseInt(item.getAttribute('data-note-id'), 10);
+            if (!noteId) return;
+
+            var textEl  = item.querySelector('.update-text');
+            var form    = item.querySelector('.note-edit-form');
+            var actions = item.querySelector('.note-actions');
+
+            // --- Enter edit mode ---
+            if (btn.classList.contains('note-edit-btn')) {
+                if (textEl) textEl.style.display = 'none';
+                if (actions) actions.style.display = 'none';
+                if (form) {
+                    form.style.display = 'block';
+                    var ta = form.querySelector('.note-edit-textarea');
+                    if (ta) ta.focus();
+                }
+                return;
+            }
+
+            // --- Cancel edit ---
+            if (btn.classList.contains('note-edit-cancel')) {
+                if (form) form.style.display = 'none';
+                if (textEl) textEl.style.display = '';
+                if (actions) actions.style.display = '';
+                var cmsg = form ? form.querySelector('.note-edit-msg') : null;
+                if (cmsg) cmsg.textContent = '';
+                return;
+            }
+
+            // --- Save edit ---
+            if (btn.classList.contains('note-edit-save')) {
+                var ta2 = form ? form.querySelector('.note-edit-textarea') : null;
+                var msg = form ? form.querySelector('.note-edit-msg') : null;
+                var text = ta2 ? ta2.value.trim() : '';
+                if (!text) { if (msg) { msg.style.color = '#dc2626'; msg.textContent = 'Note text is required.'; } return; }
+                btn.disabled = true;
+                if (msg) { msg.style.color = '#6b7280'; msg.textContent = 'Saving...'; }
+                post({ action: 'edit', note_id: noteId, update_text: text }).then(function(resp) {
+                    btn.disabled = false;
+                    if (!resp.success) { if (msg) { msg.style.color = '#dc2626'; msg.textContent = resp.error || 'Failed to save.'; } return; }
+                    if (textEl) {
+                        textEl.textContent = resp.text;   // textContent: XSS-safe; pre-wrap preserves newlines
+                        textEl.style.display = '';
+                    }
+                    if (form) form.style.display = 'none';
+                    if (actions) actions.style.display = '';
+                    if (resp.edited_at) {
+                        var marker = item.querySelector('.note-edited-marker');
+                        if (marker) { marker.textContent = '(edited ' + resp.edited_at + ')'; marker.style.display = ''; }
+                    }
+                    if (msg) msg.textContent = '';
+                }).catch(function() { btn.disabled = false; if (msg) { msg.style.color = '#dc2626'; msg.textContent = 'Network error.'; } });
+                return;
+            }
+
+            // --- Delete ---
+            if (btn.classList.contains('note-delete-btn')) {
+                if (!window.confirm('Delete this procurement note? This cannot be undone.')) return;
+                btn.disabled = true;
+                post({ action: 'delete', note_id: noteId }).then(function(resp) {
+                    if (!resp.success) { btn.disabled = false; alert(resp.error || 'Failed to delete.'); return; }
+                    if (item.parentNode) item.parentNode.removeChild(item);
+                }).catch(function() { btn.disabled = false; alert('Network error.'); });
+                return;
+            }
+        });
     })();
     </script>
     <?php endif; ?>

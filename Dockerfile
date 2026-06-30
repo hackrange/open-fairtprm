@@ -232,6 +232,7 @@ RUN set -e; \
         /var/www/html/api/ai-models.php \
         /var/www/html/api/procurement-update-save.php \
         /var/www/html/api/procurement-notes-list.php \
+        /var/www/html/api/procurement-note-manage.php \
         /var/www/html/cron/ai-queue.php \
         /var/www/html/cron/breach-monitor.php \
         /var/www/html/cron/breach-scan-queue.php \

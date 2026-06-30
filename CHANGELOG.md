@@ -12,6 +12,11 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Cyber Status notes - edit & delete.** On the Procurement Cyber Status page, a
+  procurement update/note can now be edited or deleted by an administrator, any
+  cyber_tprm member, or the note's original author (a per-object check, re-validated
+  server-side). Edited notes show an "edited" timestamp, and every edit and delete is
+  audit-logged.
 - **Access control - custom ACL groups.** Alongside the shipped default groups
   (administrator, cyber_tprm, procurement, stakeholder, auditor, cyber_grc,
   grc_contributors), super administrators can create custom groups, **copy
@@ -102,6 +107,11 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Fresh-install schema: onboarding role-gating columns were missing.** On a brand-new
+  database, `assessment_questions.visible_roles` / `editable_roles` were added "AFTER
+  include_in_minimal" before that column was created, so the ALTERs failed and the
+  columns were absent on fresh v2.6.2 installs. `include_in_minimal` is now added before
+  the columns that reference it. (Idempotent; existing installs are unaffected.)
 - **FairSRS false positives reduced.** The Shodan-based security rating no longer
   reports "Server Version Disclosed" for managed-edge `Server` headers the vendor
   cannot change (e.g. AWS ELB's `awselb/2.0`, Cloudflare, CloudFront). It drops all
