@@ -110,6 +110,15 @@ project adheres to [Semantic Versioning](https://semver.org/).
   Akamai, Fastly, Imperva, Sucuri, StackPath), where Shodan fingerprints the shared
   edge fleet rather than the vendor's origin. Single-tenant load balancers (awselb,
   bigip) still keep their proxied-port findings for triage.
+- **FairSRS: infrastructure-mitigated CVEs on managed-cloud hosts.** On enterprise-
+  cloud (AWS / Azure / GCP / etc.) and managed-edge hosts, a curated set of
+  version-inference / edge-mitigated CVEs (HTTP/2 DoS family including Rapid Reset
+  CVE-2023-44487 and the HTTP/2 Bomb CVE-2026-49975, Slowloris, the nginx-resolver
+  off-by-one CVE-2021-23017, and ALPACA CVE-2021-3618) is no longer counted, since
+  the provider patches or mitigates them at the platform layer or they require
+  preconditions a managed host does not expose. Genuinely origin-exploitable CVEs on
+  the same host are kept. The list is extendable at runtime via the app_config key
+  `shodan_infra_mitigated_cves` (JSON array of CVE IDs).
 - **Grip rosters silently blanked on API timeouts.** In Local mode a per-app roster
   was deleted *before* its re-fetch, so a Grip API timeout mid-sync left the app
   with an empty roster (and a full hydration could blank hundreds of apps). Rosters

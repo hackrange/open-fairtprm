@@ -124,6 +124,30 @@ class ShodanClient
         'fastly', 'incapsula', 'imperva', 'sucuri', 'stackpath', 'amazons3',
     ];
 
+    // Infrastructure-mitigated / version-inference CVEs. On enterprise-cloud and
+    // managed-edge hosts (AWS/Azure/GCP, CDN, LB) Shodan attaches these from
+    // version banners, but the provider patches or mitigates them at the platform
+    // layer, or they require preconditions a managed edge does not expose. They are
+    // dropped ONLY on such hosts (see keepVuln); on an unmanaged origin they are
+    // kept. Genuinely origin-exploitable CVEs are NOT in this list and always
+    // survive. Extend at runtime via app_config key 'shodan_infra_mitigated_cves'
+    // (JSON array of CVE IDs) -- no code change needed for new HTTP/2 DoS CVEs etc.
+    private const INFRA_MITIGATED_CVES = [
+        // HTTP/2 protocol DoS family -- availability-only, mitigated at the edge
+        'CVE-2023-44487', // HTTP/2 Rapid Reset
+        'CVE-2026-49975', // HTTP/2 "Bomb" (HPACK compression bomb + flow-control hold)
+        'CVE-2019-9511', 'CVE-2019-9512', 'CVE-2019-9513', 'CVE-2019-9514',
+        'CVE-2019-9515', 'CVE-2019-9516', 'CVE-2019-9517', 'CVE-2019-9518',
+        // Slowloris-style slow-HTTP DoS
+        'CVE-2007-6750',
+        // nginx resolver off-by-one -- needs non-default 'resolver' + forged DNS;
+        // managed nginx patched since 2021
+        'CVE-2021-23017',
+        // ALPACA TLS cross-protocol confusion -- needs active MITM + confusable
+        // sibling service; ALPN/SNI on managed TLS terminators defeats it
+        'CVE-2021-3618',
+    ];
+
     // Reputable certificate authorities
     private const REPUTABLE_CAS = [
         'digicert', 'globalsign', 'sectigo', 'comodo', "let's encrypt",
@@ -1429,12 +1453,17 @@ class ShodanClient
         // don't inflate open port counts or trigger false-positive findings.
         $cdnIps = [];
         $multiTenantCdnIps = [];
+        $managedInfraIps = [];  // enterprise-cloud OR CDN/WAF/LB -- where curated CVEs are mitigated
         foreach ($hostResults as $ip => $hostInfo) {
-            if ($this->isCdnIp($hostInfo)) {
+            $isCdn = $this->isCdnIp($hostInfo);
+            if ($isCdn) {
                 $cdnIps[$ip] = true;
             }
             if ($this->isMultiTenantCdnIp($hostInfo)) {
                 $multiTenantCdnIps[$ip] = true;
+            }
+            if ($isCdn || $this->isEnterpriseCloudIp($hostInfo)) {
+                $managedInfraIps[$ip] = true;
             }
         }
 
@@ -1478,7 +1507,7 @@ class ShodanClient
         // and non-routable IPs. See keepVuln() for the exact rules.
         $allVulns = array_filter(
             $allVulns,
-            fn($vuln) => $this->keepVuln($vuln, $cdnIps, $multiTenantCdnIps)
+            fn($vuln) => $this->keepVuln($vuln, $cdnIps, $multiTenantCdnIps, $managedInfraIps)
         );
 
         // Filter CVEs older than the configured minimum year
@@ -2285,13 +2314,19 @@ class ShodanClient
      *  - other CDN/WAF/LB IP: keep only proxied-port vulns, drop host-level ones
      *  - anything else (real origin): keep
      */
-    private function keepVuln(array $vuln, array $cdnIps, array $multiTenantCdnIps): bool
+    private function keepVuln(array $vuln, array $cdnIps, array $multiTenantCdnIps, array $managedInfraIps): bool
     {
         $ip = $vuln['ip'] ?? '';
         if ($ip !== '' && !$this->isPublicIp($ip)) {
             return false;
         }
         if (isset($multiTenantCdnIps[$ip])) {
+            return false;
+        }
+        // 4th class: infrastructure-mitigated / version-inference CVEs on managed
+        // cloud or edge hosts (AWS/Azure/GCP, CDN, LB). Drop only the curated CVE
+        // IDs; any other (genuinely origin-exploitable) CVE on the same host stays.
+        if (isset($managedInfraIps[$ip]) && $this->isInfraMitigatedCve($vuln['cve_id'] ?? '')) {
             return false;
         }
         if (isset($cdnIps[$ip])) {
@@ -2301,6 +2336,75 @@ class ShodanClient
             return false;
         }
         return true;
+    }
+
+    /**
+     * True if the IP is on enterprise-cloud infrastructure (AWS/Azure/GCP/Oracle/
+     * DigitalOcean/etc.) by ASN org or ISP. Used -- together with CDN/WAF/LB
+     * detection -- to decide whether infrastructure-mitigated CVEs should be
+     * dropped for a host. A raw EC2 origin is enterprise-cloud but NOT a CDN.
+     */
+    private function isEnterpriseCloudIp(array $hostInfo): bool
+    {
+        $org = strtolower($hostInfo['org'] ?? '');
+        $isp = strtolower($hostInfo['isp'] ?? '');
+        foreach (self::ENTERPRISE_CLOUD as $pattern => $name) {
+            if (stripos($org, $pattern) !== false || stripos($isp, $pattern) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private ?array $infraMitigatedCveCache = null;
+
+    /**
+     * The set of infrastructure-mitigated CVE IDs (uppercased, keyed for O(1)
+     * lookup): the INFRA_MITIGATED_CVES constant unioned with any extras configured
+     * in app_config under 'shodan_infra_mitigated_cves' (JSON array). DB failures
+     * are non-fatal -- the constant alone is a safe default.
+     */
+    private function infraMitigatedCves(): array
+    {
+        if ($this->infraMitigatedCveCache !== null) {
+            return $this->infraMitigatedCveCache;
+        }
+        $set = [];
+        foreach (self::INFRA_MITIGATED_CVES as $c) {
+            $set[strtoupper($c)] = true;
+        }
+        try {
+            $db = Database::getInstance();
+            $row = $db->fetchOne(
+                'SELECT config_value FROM app_config WHERE config_key = :key',
+                [':key' => 'shodan_infra_mitigated_cves']
+            );
+            if ($row && !empty($row['config_value'])) {
+                $custom = json_decode($row['config_value'], true);
+                if (is_array($custom)) {
+                    foreach ($custom as $c) {
+                        if (is_string($c) && $c !== '') {
+                            $set[strtoupper(trim($c))] = true;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Defaults suffice; managed-infra CVE suppression still works offline.
+        }
+        return $this->infraMitigatedCveCache = $set;
+    }
+
+    /**
+     * True if a CVE ID is on the infrastructure-mitigated / version-inference list.
+     */
+    private function isInfraMitigatedCve(string $cveId): bool
+    {
+        $cveId = strtoupper(trim($cveId));
+        if ($cveId === '') {
+            return false;
+        }
+        return isset($this->infraMitigatedCves()[$cveId]);
     }
 
     /**
