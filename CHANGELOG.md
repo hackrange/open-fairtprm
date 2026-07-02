@@ -18,7 +18,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
   company using it, with no obligation to distribute changes. The software may
   not be sold or resold for profit without the prior written permission of Fair
   TPRM, and all authorship and attribution notices must be preserved. (Not an
-  OSI "open source" license, because it restricts selling.)
+  OSI "open source" license, because it restricts selling.) The license also
+  ships inside the product image at `/var/www/html/LICENSE.md`.
 - **Cyber Status notes - edit & delete.** On the Procurement Cyber Status page, a
   procurement update/note can now be edited or deleted by an administrator, any
   cyber_tprm member, or the note's original author (a per-object check, re-validated

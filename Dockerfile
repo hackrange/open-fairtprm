@@ -158,6 +158,8 @@ RUN set -e; \
     \
     rm -f /var/www/html/lockdown.php; \
     \
+    cp -p  $pp/LICENSE.md /var/www/html/LICENSE.md; \
+    \
     echo 'v2.6.2' > /var/www/html/VERSION; \
     chown -R www-data:www-data /var/www/html/; \
     rm -rf /tmp/build; \
@@ -341,6 +343,7 @@ RUN set -e; \
         /etc/modsecurity/grc-assessment-rules.conf \
         /etc/cron.d/open-tprm \
         /var/www/html/VERSION \
+        /var/www/html/LICENSE.md \
     ; do \
         if [ ! -f "$f" ]; then echo "MANIFEST FAIL: missing $f"; exit 1; fi; \
     done; \
