@@ -1,6 +1,6 @@
 # Fair TPRM Community License 1.0
 
-Copyright (c) 2026 Fair TPRM. All rights reserved.
+Copyright (c) 2026 Fair TPRM, Inc. All rights reserved.
 
 This is a source-available license. The software is free to use and to modify,
 including modifying it to fit the needs of the person or company using it. The
@@ -17,6 +17,8 @@ and conditions.
 
 ## Definitions
 
+- **Fair TPRM** means Fair TPRM, Inc., the copyright holder and licensor of the
+  software.
 - **The software** means the works of authorship covered by this license,
   whether in original (source code) or modified form, and any accompanying
   documentation.
