@@ -92,6 +92,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Vendor assessment certificate upload is now template-driven, not ISO-only.** The
+  "have a certificate?" modal on the vendor assessment page now shows the template's
+  **Certificate Upload Instructions** as its body text (falling back to the generic
+  description when none are set), so a template can invite any certificate - ISO
+  27001, SOC 2 Type 2, etc. - rather than only ISO 27001:2022. The modal heading,
+  the upload panel title, and the post-upload confirmation title were generalized
+  from "...ISO 27001:2022 Certificate..." to "...Certificate..." across all eight
+  locales (en, fr, es, it, pt, uk, hi, zh-Hans).
 - **Grip Local (Hydrated/cached) mode is now strictly database-only.** Pages serve
   exclusively from the hydrated snapshot with **no per-view Grip API calls**; an
   empty snapshot renders empty until the next sync, rather than lazily re-fetching.

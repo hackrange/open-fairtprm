@@ -1334,7 +1334,15 @@ $csrfToken = $security->generateCSRFToken();
     <div class="cert-modal-overlay" id="certModalOverlay">
         <div class="cert-modal">
             <h2><?php echo e(t('vendor-assessment.modal_cert_question')); ?></h2>
-            <p><?php echo e(t('vendor-assessment.modal_cert_desc')); ?></p>
+            <p><?php
+                // Prefer the per-template "Certificate Upload Instructions" so the modal can
+                // describe whatever cert this template accepts (ISO 27001, SOC 2 Type 2, etc.).
+                // Fall back to the generic description when no instructions were entered.
+                $modalCertPrompt = trim((string)($assessment['certificate_upload_prompt'] ?? ''));
+                echo $modalCertPrompt !== ''
+                    ? htmlspecialchars($modalCertPrompt)
+                    : e(t('vendor-assessment.modal_cert_desc'));
+            ?></p>
 
             <div class="cert-modal-buttons" id="certModalButtons">
                 <button type="button" class="btn btn-success" id="certYesBtn"><?php echo e(t('vendor-assessment.modal_yes_upload')); ?></button>
