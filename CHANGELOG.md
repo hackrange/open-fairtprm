@@ -12,6 +12,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **License - Fair TPRM Community License 1.0.** The project now carries an
+  explicit `LICENSE.md`. It is a source-available license: the software is free
+  to use and to modify, including tailoring it to the needs of the person or
+  company using it, with no obligation to distribute changes. The software may
+  not be sold or resold for profit without the prior written permission of Fair
+  TPRM, and all authorship and attribution notices must be preserved. (Not an
+  OSI "open source" license, because it restricts selling.)
 - **Cyber Status notes - edit & delete.** On the Procurement Cyber Status page, a
   procurement update/note can now be edited or deleted by an administrator, any
   cyber_tprm member, or the note's original author (a per-object check, re-validated
