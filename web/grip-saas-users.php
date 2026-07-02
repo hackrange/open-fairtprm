@@ -130,7 +130,13 @@ if ($authFilter === 'sso')             { $authWhere = ' AND sso = 1'; }
 elseif ($authFilter === 'nosso')       { $authWhere = ' AND (sso = 0 OR sso IS NULL)'; }
 elseif ($authFilter === 'saml')        { $authWhere = ' AND authentication_type LIKE :auth'; $authParams[':auth'] = 'SAML%'; }
 elseif ($authFilter === 'credentials') { $authWhere = ' AND authentication_type = :auth'; $authParams[':auth'] = 'Credentials'; }
-$needsSnapshot = $sortActive || $authFilter !== '';
+// Free-text search over the PII columns (first or last name, or email address).
+// Those columns are encrypted at rest with a random IV, so the match cannot run
+// in SQL; like sorting, a search forces the snapshot path so we can filter the
+// decrypted rows in PHP. Bounded to 128 chars.
+$search = trim((string)($_GET['q'] ?? ''));
+if (mb_strlen($search) > 128) $search = mb_substr($search, 0, 128);
+$needsSnapshot = $sortActive || $authFilter !== '' || $search !== '';
 
 require_once CLASSES_PATH . '/GripService.php';
 $grip = new GripService();
@@ -217,6 +223,17 @@ if (!$usedFast) {
     }
     unset($__row);
 
+    // Free-text search on the decrypted PII: a case-insensitive substring match
+    // against the full name (covers first or last name) and the email address.
+    if ($search !== '') {
+        $needle = $search;
+        $allRows = array_values(array_filter($allRows, function ($r) use ($needle) {
+            $name = (string)($r['full_name'] ?? ($r['display_name'] ?? ''));
+            $mail = (string)($r['mail'] ?? '');
+            return mb_stripos($name, $needle) !== false || mb_stripos($mail, $needle) !== false;
+        }));
+    }
+
     // Sort by the chosen column on the decrypted values. NULL/empty always sort
     // last (matches the previous "ORDER BY (col IS NULL), col" SQL behaviour).
     usort($allRows, function ($a, $b) use ($sortCol, $sortDir) {
@@ -261,12 +278,13 @@ function gsuColor(string $seed): string {
 }
 // A sortable column header - links to itself with the toggled direction and shows
 // the active sort arrow. Resets to page 1; preserves the app id and page size.
-function gsuSortHeader(string $label, string $col, string $gripId, string $curCol, string $curDir, int $perPage, string $filter = ''): string {
+function gsuSortHeader(string $label, string $col, string $gripId, string $curCol, string $curDir, int $perPage, string $filter = '', string $search = ''): string {
     $isActive = ($curCol === $col);
     $newDir   = ($isActive && $curDir === 'ASC') ? 'desc' : 'asc';
     $arrow    = $isActive ? ($curDir === 'ASC' ? ' &#9650;' : ' &#9660;') : '';
     $q = ['id' => $gripId, 'per_page' => $perPage, 'sort' => $col, 'order' => $newDir];
     if ($filter !== '') $q['filter'] = $filter;
+    if ($search !== '') $q['q'] = $search;
     $qs = http_build_query($q);
     return '<th><a href="?' . e($qs) . '" title="Sort by ' . e($label) . '"'
          . ' style="color:' . ($isActive ? 'var(--theme-button-color)' : 'inherit') . ';text-decoration:none;white-space:nowrap;">'
@@ -404,7 +422,7 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                                     <a href="https://<?php echo e($appDomain); ?>" target="_blank" rel="noopener"><?php echo e($appDomain); ?></a>
                                     &middot;
                                 <?php endif; ?>
-                                <?php echo number_format($total); ?> user<?php echo $total === 1 ? '' : 's'; ?> observed by Grip
+                                <?php if ($search !== '' || $authFilter !== ''): ?><?php echo number_format($total); ?> matching user<?php echo $total === 1 ? '' : 's'; ?><?php else: ?><?php echo number_format($total); ?> user<?php echo $total === 1 ? '' : 's'; ?> observed by Grip<?php endif; ?>
                             </p>
                         </div>
                     </div>
@@ -415,6 +433,17 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
 
                 <p style="color:#6b7280;font-size:13px;margin:-8px 0 18px;">Users potentially impacted by a Grip-detected security incident affecting this application, as observed by Grip Security.</p>
 
+                <!-- Search by first/last name or email address. Submits as ?q=; keeps
+                     the active auth filter and page size but resets to page 1. -->
+                <form method="get" style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+                    <input type="hidden" name="id" value="<?php echo e($gripId); ?>">
+                    <?php if ($authFilter !== ''): ?><input type="hidden" name="filter" value="<?php echo e($authFilter); ?>"><?php endif; ?>
+                    <input type="hidden" name="per_page" value="<?php echo (int)$params['per_page']; ?>">
+                    <input type="search" name="q" value="<?php echo e($search); ?>" placeholder="Search by name or email&hellip;" autocomplete="off" style="flex:1;min-width:220px;max-width:360px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
+                    <button type="submit" style="background:var(--theme-button-color);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;">Search</button>
+                    <?php if ($search !== ''): ?><a href="?<?php echo e(http_build_query(array_filter(['id' => $gripId, 'per_page' => (int)$params['per_page'], 'filter' => $authFilter]))); ?>" style="font-size:13px;color:#6b7280;text-decoration:none;padding:8px 4px;">Clear</a><?php endif; ?>
+                </form>
+
                 <?php $filterOpts = ['' => 'All', 'sso' => 'SSO', 'nosso' => 'No SSO', 'saml' => 'SAML 2.0', 'credentials' => 'Credentials']; ?>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
                     <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-right:4px;">Authentication</span>
@@ -422,15 +451,20 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                         $fActive = ($authFilter === $fk);
                         $fq = ['id' => $gripId, 'per_page' => (int)$params['per_page']];
                         if ($fk !== '') $fq['filter'] = $fk;
+                        if ($search !== '') $fq['q'] = $search;
                     ?>
                     <a href="?<?php echo e(http_build_query($fq)); ?>" style="font-size:13px;padding:5px 12px;border-radius:6px;text-decoration:none;border:1px solid #e5e7eb;<?php echo $fActive ? 'background:var(--theme-button-color);color:#fff;border-color:var(--theme-button-color);font-weight:600;' : 'background:#fff;color:#374151;'; ?>"><?php echo e($fl); ?></a>
                     <?php endforeach; ?>
                 </div>
 
-                <?php if (empty($users) && $authFilter !== ''): ?>
+                <?php if (empty($users) && ($search !== '' || $authFilter !== '')): ?>
                     <div class="empty-state">
                         <h3>No matching users</h3>
-                        <div>No users match the selected authentication filter for this application.</div>
+                        <div>No users match <?php
+                            if ($search !== '' && $authFilter !== '') echo 'your search and the selected authentication filter';
+                            elseif ($search !== '') echo 'your search "' . e($search) . '"';
+                            else echo 'the selected authentication filter';
+                        ?> for this application.</div>
                     </div>
                 <?php elseif (empty($users)): ?>
                     <div class="empty-state">
@@ -446,16 +480,16 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                             <tr>
                                 <?php
                                     $pp = (int)$params['per_page'];
-                                    echo gsuSortHeader('User', 'full_name', $gripId, $sortCol, $sortDir, $pp, $authFilter);
-                                    echo gsuSortHeader('Org Unit', 'organizational_unit', $gripId, $sortCol, $sortDir, $pp, $authFilter);
-                                    echo gsuSortHeader('Manager', 'manager_email', $gripId, $sortCol, $sortDir, $pp, $authFilter);
+                                    echo gsuSortHeader('User', 'full_name', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
+                                    echo gsuSortHeader('Org Unit', 'organizational_unit', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
+                                    echo gsuSortHeader('Manager', 'manager_email', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
                                 ?>
                                 <th>Auth</th>
                                 <th>SSO</th>
                                 <?php
-                                    echo gsuSortHeader('First Event', 'first_event_time', $gripId, $sortCol, $sortDir, $pp, $authFilter);
-                                    echo gsuSortHeader('Latest Event', 'latest_event_time', $gripId, $sortCol, $sortDir, $pp, $authFilter);
-                                    echo gsuSortHeader('Last Usage', 'last_usage', $gripId, $sortCol, $sortDir, $pp, $authFilter);
+                                    echo gsuSortHeader('First Event', 'first_event_time', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
+                                    echo gsuSortHeader('Latest Event', 'latest_event_time', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
+                                    echo gsuSortHeader('Last Usage', 'last_usage', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
                                 ?>
                                 <th>Platforms</th>
                                 <th># SaaS</th>

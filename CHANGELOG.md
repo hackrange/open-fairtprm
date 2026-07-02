@@ -39,6 +39,12 @@ project adheres to [Semantic Versioning](https://semver.org/).
   and affected domain; un-onboarded apps surface as "Shadow SaaS / N users", and a
   breach drills into the affected-users roster (fast paged drill-down with filters).
   A Shadow SaaS alert is promoted to a vendor breach if that app is later onboarded.
+- **Grip affected-users search.** The affected-users drill-down
+  (`grip-saas-users.php`) gains a search box to find a user by first name, last
+  name, or email address. Because the roster's name and email columns are
+  encrypted at rest, the match runs over the decrypted snapshot in the
+  application layer (like the column sorting); it composes with the existing
+  authentication filters and is preserved across sorting and pagination.
 - **Breach / Cyber Alerts bulk actions.** A multi-select toolbar on the Breach
   Alerts list to acknowledge, mark false-positive, or delete several alerts at once
   (delete is admin-only).
