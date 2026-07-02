@@ -433,28 +433,32 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
 
                 <p style="color:#6b7280;font-size:13px;margin:-8px 0 18px;">Users potentially impacted by a Grip-detected security incident affecting this application, as observed by Grip Security.</p>
 
-                <!-- Search by first/last name or email address. Submits as ?q=; keeps
-                     the active auth filter and page size but resets to page 1. -->
-                <form method="get" style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
-                    <input type="hidden" name="id" value="<?php echo e($gripId); ?>">
-                    <?php if ($authFilter !== ''): ?><input type="hidden" name="filter" value="<?php echo e($authFilter); ?>"><?php endif; ?>
-                    <input type="hidden" name="per_page" value="<?php echo (int)$params['per_page']; ?>">
-                    <input type="search" name="q" value="<?php echo e($search); ?>" placeholder="Search by name or email&hellip;" autocomplete="off" style="flex:1;min-width:220px;max-width:360px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
-                    <button type="submit" style="background:var(--theme-button-color);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;">Search</button>
-                    <?php if ($search !== ''): ?><a href="?<?php echo e(http_build_query(array_filter(['id' => $gripId, 'per_page' => (int)$params['per_page'], 'filter' => $authFilter]))); ?>" style="font-size:13px;color:#6b7280;text-decoration:none;padding:8px 4px;">Clear</a><?php endif; ?>
-                </form>
-
                 <?php $filterOpts = ['' => 'All', 'sso' => 'SSO', 'nosso' => 'No SSO', 'saml' => 'SAML 2.0', 'credentials' => 'Credentials']; ?>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
-                    <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-right:4px;">Authentication</span>
-                    <?php foreach ($filterOpts as $fk => $fl):
-                        $fActive = ($authFilter === $fk);
-                        $fq = ['id' => $gripId, 'per_page' => (int)$params['per_page']];
-                        if ($fk !== '') $fq['filter'] = $fk;
-                        if ($search !== '') $fq['q'] = $search;
-                    ?>
-                    <a href="?<?php echo e(http_build_query($fq)); ?>" style="font-size:13px;padding:5px 12px;border-radius:6px;text-decoration:none;border:1px solid #e5e7eb;<?php echo $fActive ? 'background:var(--theme-button-color);color:#fff;border-color:var(--theme-button-color);font-weight:600;' : 'background:#fff;color:#374151;'; ?>"><?php echo e($fl); ?></a>
-                    <?php endforeach; ?>
+                <!-- Authentication filters (left) and name/email search (right) share one
+                     row to save vertical space; they stack when the viewport is narrow. -->
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px 20px;flex-wrap:wrap;margin-bottom:16px;">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                        <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-right:4px;">Authentication</span>
+                        <?php foreach ($filterOpts as $fk => $fl):
+                            $fActive = ($authFilter === $fk);
+                            $fq = ['id' => $gripId, 'per_page' => (int)$params['per_page']];
+                            if ($fk !== '') $fq['filter'] = $fk;
+                            if ($search !== '') $fq['q'] = $search;
+                        ?>
+                        <a href="?<?php echo e(http_build_query($fq)); ?>" style="font-size:13px;padding:5px 12px;border-radius:6px;text-decoration:none;border:1px solid #e5e7eb;<?php echo $fActive ? 'background:var(--theme-button-color);color:#fff;border-color:var(--theme-button-color);font-weight:600;' : 'background:#fff;color:#374151;'; ?>"><?php echo e($fl); ?></a>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <!-- Search by first/last name or email address. Submits as ?q=; keeps
+                         the active auth filter and page size but resets to page 1. -->
+                    <form method="get" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <input type="hidden" name="id" value="<?php echo e($gripId); ?>">
+                        <?php if ($authFilter !== ''): ?><input type="hidden" name="filter" value="<?php echo e($authFilter); ?>"><?php endif; ?>
+                        <input type="hidden" name="per_page" value="<?php echo (int)$params['per_page']; ?>">
+                        <input type="search" name="q" value="<?php echo e($search); ?>" placeholder="Search by name or email&hellip;" autocomplete="off" style="width:240px;max-width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
+                        <button type="submit" style="background:var(--theme-button-color);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;">Search</button>
+                        <?php if ($search !== ''): ?><a href="?<?php echo e(http_build_query(array_filter(['id' => $gripId, 'per_page' => (int)$params['per_page'], 'filter' => $authFilter]))); ?>" style="font-size:13px;color:#6b7280;text-decoration:none;padding:8px 4px;">Clear</a><?php endif; ?>
+                    </form>
                 </div>
 
                 <?php if (empty($users) && ($search !== '' || $authFilter !== '')): ?>
