@@ -121,6 +121,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Subprocessors: editing name/domain/country/linked-vendor/service/data failed.**
+  Saving an edit on the vendor onboarding **Subprocessors** tab returned "Failed to
+  update subprocessor" and persisted nothing. The edit API passed a positional (`?`)
+  WHERE clause to `Database::update()`, which builds its SET clause with named
+  (`:col`) placeholders; PDO rejects the mix with "Invalid parameter number: mixed
+  named and positional parameters." The WHERE now uses a named placeholder, matching
+  the convention used by every other `update()` caller.
 - **Fresh-install schema: onboarding role-gating columns were missing.** On a brand-new
   database, `assessment_questions.visible_roles` / `editable_roles` were added "AFTER
   include_in_minimal" before that column was created, so the ALTERs failed and the

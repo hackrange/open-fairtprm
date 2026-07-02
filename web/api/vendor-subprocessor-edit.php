@@ -83,18 +83,21 @@ try {
 
     $linkedVendorId = intval($_POST['linked_vendor_id'] ?? 0);
 
+    // Database::update() builds the SET clause with NAMED placeholders (col = :col),
+    // so the WHERE must use a named placeholder too. Mixing a positional '?' here
+    // triggers PDO's "Invalid parameter number: mixed named and positional parameters".
     $db->update('vendor_subprocessors', [
         'subprocessor_name' => $subName,
         'subprocessor_domain' => trim($_POST['subprocessor_domain'] ?? '') ?: null,
         'country' => trim($_POST['country'] ?? '') ?: null,
         'linked_vendor_id' => $linkedVendorId ?: null,
-    ], 'id = ?', [$subprocessorId]);
+    ], 'id = :id', [':id' => $subprocessorId]);
 
     // Update per-mapping fields
     $db->update('vendor_subprocessor_mappings', [
         'service_description' => trim($_POST['service_description'] ?? '') ?: null,
         'data_shared' => trim($_POST['data_shared'] ?? '') ?: null,
-    ], 'id = ?', [$mappingId]);
+    ], 'id = :id', [':id' => $mappingId]);
 
     $auth->audit($user['id'], 'subprocessor_edit', 'vendor_subprocessor_mappings', $mappingId, [
         'new' => ['subprocessor_name' => $subName, 'vendor_id' => $mapping['vendor_onboarding_id']]
