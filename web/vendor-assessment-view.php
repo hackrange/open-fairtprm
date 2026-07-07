@@ -401,6 +401,20 @@ $csrfToken = $security->generateCSRFToken();
             && $assessment['status'] !== 'completed'
             && (int)($completionStatus['percentage'] ?? 0) < 100;
         ?>
+        <!-- Download the assessment as a fillable PDF or Excel workbook. Both
+             carry this assessment's Reference so the unified importer below can
+             match answers back. Available to anyone who can view the page. -->
+        <div style="margin-bottom: 12px; text-align: right; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+            <a href="api/assessment-download-pdf.php?assessment_id=<?php echo (int)$assessment['id']; ?>"
+               class="btn" style="background:#b91c1c; color:white; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; text-decoration:none; display: inline-flex; align-items: center; gap: 8px;">
+                <?php echo e(t('vendor-assessment-view.download_pdf')); ?>
+            </a>
+            <a href="api/assessment-download-xlsx.php?assessment_id=<?php echo (int)$assessment['id']; ?>"
+               class="btn" style="background:#15803d; color:white; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; text-decoration:none; display: inline-flex; align-items: center; gap: 8px;">
+                <?php echo e(t('vendor-assessment-view.download_excel')); ?>
+            </a>
+        </div>
+
         <?php if ($showAiAutofill || $showImportPdf): ?>
         <div style="margin-bottom: 20px; text-align: right; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
             <?php if ($showAiAutofill): ?>
@@ -412,9 +426,9 @@ $csrfToken = $security->generateCSRFToken();
 
             <?php if ($showImportPdf): ?>
             <button type="button" id="importPdfBtn"
-                    class="btn" style="background:#b91c1c; color:white; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px;"
-                    title="<?php echo e(t('vendor-assessment-view.import_pdf_title')); ?>">
-                <span style="display:inline-block;font-weight:700;">PDF</span> <?php echo e(t('vendor-assessment-view.import_fillable_pdf')); ?>
+                    class="btn" style="background:#0f766e; color:white; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px;"
+                    title="<?php echo e(t('vendor-assessment-view.import_assessment_title')); ?>">
+                <?php echo e(t('vendor-assessment-view.import_assessment')); ?>
             </button>
             <?php endif; ?>
         </div>
@@ -428,16 +442,16 @@ $csrfToken = $security->generateCSRFToken();
         <div id="importPdfModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
             <div style="background:white; padding:24px; border-radius:8px; max-width:520px; width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-                    <h3 style="margin:0; color:#333; font-size:18px;"><?php echo e(t('vendor-assessment-view.import_fillable_pdf')); ?></h3>
+                    <h3 style="margin:0; color:#333; font-size:18px;"><?php echo e(t('vendor-assessment-view.import_assessment')); ?></h3>
                     <button type="button" id="importPdfCloseX" style="background:none; border:none; font-size:22px; cursor:pointer; color:#999; line-height:1;">&times;</button>
                 </div>
                 <p style="margin:0 0 12px; color:#555; font-size:14px;">
-                    <?php echo e(t('vendor-assessment-view.import_pdf_desc')); ?>
+                    <?php echo e(t('vendor-assessment-view.import_assessment_desc')); ?>
                 </p>
                 <form id="importPdfForm" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="assessment_id" value="<?php echo (int)$assessment['id']; ?>">
-                    <input type="file" name="pdf" accept="application/pdf" required
+                    <input type="file" name="file" accept=".pdf,.xlsx,.csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required
                            style="display:block; width:100%; padding:10px; border:1px dashed #d1d5db; border-radius:6px; background:#f9fafb; font-size:13px;">
                     <div id="importPdfStatus" style="display:none; margin-top:12px; padding:10px; border-radius:4px; font-size:13px;"></div>
                     <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;">
@@ -650,10 +664,10 @@ $csrfToken = $security->generateCSRFToken();
             status.style.display = 'block';
             status.style.background = '#eff6ff';
             status.style.color = '#1e40af';
-            status.textContent = 'Reading PDF and matching answers...';
+            status.textContent = 'Reading the file and matching answers...';
 
             var data = new FormData(form);
-            fetch('api/assessment-import-pdf.php', { method: 'POST', body: data, credentials: 'same-origin' })
+            fetch('api/assessment-import.php', { method: 'POST', body: data, credentials: 'same-origin' })
                 .then(function(r) { return r.json(); })
                 .then(function(json) {
                     if (json && json.success) {

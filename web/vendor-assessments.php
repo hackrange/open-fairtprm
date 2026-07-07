@@ -876,6 +876,7 @@ try {
                                     <a href="vendor-assessment-view.php?id=<?php echo (int)$a['id']; ?>" class="btn btn-sm btn-secondary" target="_blank"><?php echo e(t('vendor-assessments.btn_view')); ?></a>
                                     <?php if (!$isExpired): ?>
                                     <a href="api/assessment-download-pdf.php?assessment_id=<?php echo (int)$a['id']; ?>" class="btn btn-sm" style="background:#b91c1c;color:white;" title="<?php echo e(t('vendor-assessments.btn_pdf_title')); ?>">PDF</a>
+                                    <a href="api/assessment-download-xlsx.php?assessment_id=<?php echo (int)$a['id']; ?>" class="btn btn-sm" style="background:#15803d;color:white;" title="<?php echo e(t('vendor-assessments.btn_excel_title')); ?>">Excel</a>
                                     <?php endif; ?>
                                     <?php if (!$isAuditor): ?>
                                     <?php if ($a['status'] !== 'completed'): ?>

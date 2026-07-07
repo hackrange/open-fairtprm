@@ -89,6 +89,19 @@ project adheres to [Semantic Versioning](https://semver.org/).
   act on it: bulk-assign assessments that send emails and track reminders, plus a
   **Send Assessment** flow that picks the vendors leveraging a given subprocessor
   and sends them an assessment survey (an RFI-style request for information).
+- **Vendor assessments: download as a fillable Excel workbook (.xlsx).** Alongside
+  the fillable PDF, an assessment can be downloaded as a real `.xlsx` workbook and
+  filled in Excel, Google Sheets, or LibreOffice. The Assessment sheet is
+  unprotected for easy editing, single-choice questions get in-cell dropdowns, and
+  conditional questions gray out when they do not apply (a formula-driven rule that
+  reacts live as the controlling answer changes). The assessment's Reference lives
+  on a hidden "Internal Use" sheet so the file can be matched back on import. Built
+  with no third-party library (hand-written OOXML).
+- **Unified assessment import (PDF, Excel, or CSV).** The import control on the
+  vendor assessment view accepts a completed PDF, Excel (.xlsx), or CSV in a single
+  upload; the format is detected automatically and answers are merged into the
+  existing responses. The file's Reference must match the assessment before
+  anything is written.
 
 ### Changed
 
@@ -126,6 +139,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
   fallback in Live mode.
 - **Version cutover to 2.6.2** - Dockerfile reconcile, REST API version aligned to
   2.6.2, and removal of a dead seed loop.
+- **Fillable assessment PDF now works in web browsers, not only Adobe Acrobat.**
+  Checkboxes carry baked appearance streams so they render and toggle in Chrome,
+  Edge, and other PDFium-based viewers (they previously relied on
+  `/NeedAppearances`, which only Adobe honors). A typed-name signature field lets a
+  signer sign in any viewer; the Adobe-only digital-signature and date-signed
+  fields are hidden in browsers and revealed only in Adobe, which can actually use
+  them.
 
 ### Fixed
 
@@ -176,6 +196,12 @@ project adheres to [Semantic Versioning](https://semver.org/).
   successfully" was still shown. Saves are now anchored to each field's own
   template_id (a holder is ensured per template), and success is reported only when
   at least one value is actually written.
+- **Assessment PDF: a conditional question no longer shows when its controlling
+  question is unanswered.** A question gated on a multi-select answer (e.g. "Other
+  AI Providers", shown only when the AI-providers question includes "Others") was
+  always visible, because multi-select parents were never registered as the
+  controller that drives dependent visibility. They now gate the dependent's
+  show/hide the same way single-choice parents do.
 
 ### Security
 

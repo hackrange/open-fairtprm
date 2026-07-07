@@ -225,6 +225,8 @@ RUN set -e; \
         /var/www/html/api/assessment-ai-apply.php \
         /var/www/html/api/assessment-download-pdf.php \
         /var/www/html/api/assessment-import-pdf.php \
+        /var/www/html/api/assessment-download-xlsx.php \
+        /var/www/html/api/assessment-import.php \
         /var/www/html/api/vendor-document-upload.php \
         /var/www/html/api/search-vendors.php \
         /var/www/html/api/grc-unified-assessment.php \

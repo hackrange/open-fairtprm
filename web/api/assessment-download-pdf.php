@@ -247,6 +247,11 @@ class AssessmentPdfBuilder {
     private $dependencies = [];
     // Map of controlling question IDs => controller combo-box field name
     private $controllerFields = [];
+    // Map of controlling multi-select (checkbox) question IDs => list of
+    // ['value' => optionText, 'name' => checkboxFieldName, 'fieldId' => id].
+    // Lets a question depend on a specific option of a multi-select parent
+    // (e.g. show "Other AI Providers" only when "Others" is checked).
+    private $checkboxControllers = [];
     // Map of question id => ['type' => 'text|combo|checkbox', 'fields' => [fieldName,...]]
     private $questionWidgets = [];
     // Questions with at least one dependent (so we know which controllers need JS)
@@ -263,6 +268,19 @@ class AssessmentPdfBuilder {
     // $sectionQuestionIds[$sectionIdx] = [qid1, qid2, ...]
     private $sectionQuestionIds = [];
     private $currentSectionIdx = -1;
+
+    // Cached checkbox appearance-stream XObject ids. Every checkbox is the same
+    // size, so a single /Yes + /Off pair is shared across all of them. Populated
+    // lazily by checkboxAppearanceIds().
+    private $cbAppYes = null;
+    private $cbAppOff = null;
+
+    // Field names that ship Hidden and are revealed by document-level JS (which
+    // only Adobe runs) -- the digital signature + date-signed widgets. Browser
+    // PDF viewers can't sign or show a date picker, so they never see these.
+    private $adobeOnlyFields = [];
+    // Set by field-drawing helpers so callers can grab the just-created object id.
+    private $lastFieldId = null;
 
     public function __construct($canvas, $cpdf, $primaryColor, $logoPath, $companyName, $templateName) {
         $this->canvas = $canvas;
@@ -773,6 +791,7 @@ public function drawSectionHeader($num, $name, $description = '') {
         $rowH = 22;
         $col = 0; $row = 0;
         $names = [];
+        $controllerOpts = [];
         // Normalise selected values for a case-insensitive comparison
         $selectedNorm = array_map(function($v) { return strtolower(trim((string)$v)); }, $selectedValues);
         foreach ($options as $idx => $opt) {
@@ -787,8 +806,11 @@ public function drawSectionHeader($num, $name, $description = '') {
             // the empty checkbox visual appears/disappears with the field.
             $fieldName = 'q_' . $qid . '_cb_' . $idx;
             $isChecked = in_array(strtolower(trim((string)$opt)), $selectedNorm, true);
-            $this->addCheckboxField($fieldName, $boxX, $boxY, $boxSize, $boxSize, $isChecked);
+            $cbId = $this->addCheckboxField($fieldName, $boxX, $boxY, $boxSize, $boxSize, $isChecked);
             $names[] = $fieldName;
+            // Record each option so a dependent question can key off a specific
+            // checked value (conditional show/hide for multi-select parents).
+            $controllerOpts[] = ['value' => (string)$opt, 'name' => $fieldName, 'fieldId' => $cbId];
 
             $label = (string)$opt;
             $labelMaxW = $colW - $boxSize - 10;
@@ -808,6 +830,7 @@ public function drawSectionHeader($num, $name, $description = '') {
             $col++;
             if ($col >= $cols) { $col = 0; $row++; }
         }
+        $this->checkboxControllers[$qid] = $controllerOpts;
         return $names;
     }
 
@@ -830,6 +853,7 @@ public function drawSectionHeader($num, $name, $description = '') {
         $name = $this->widgetName('lbl');
         try {
             $fieldId = $this->cpdf->addFormField($ft, $name, $x, $yBot, $x + $w, $yTop, $ff, $size, $color);
+            $this->lastFieldId = $fieldId;
             if ($fieldId && isset($this->cpdf->objects[$fieldId])) {
                 // Cpdf::o_field writes /V ($v) without escaping, so any
                 // unbalanced parens in $text would break the PDF literal. Belt
@@ -850,7 +874,7 @@ public function drawSectionHeader($num, $name, $description = '') {
     }
 
     public function drawSignatureBlock() {
-        $this->ensureSpace(140);
+        $this->ensureSpace(210);
         $this->currentY += 6;
         $this->canvas->filled_rectangle($this->marginLeft, $this->currentY, $this->contentW, 22, [0.20, 0.25, 0.32]);
         $this->canvas->text($this->marginLeft + 10, $this->currentY + 6, 'CERTIFICATION AND SIGNATURE', $this->fontBold, 11, $this->headerInk);
@@ -869,31 +893,55 @@ public function drawSectionHeader($num, $name, $description = '') {
         $this->drawLabeledInput($this->marginLeft + $halfW + 14, $this->currentY, $halfW, 'Title', '');
         $this->currentY += 38;
 
-        // Real PDF signature field -- reader treats this as a digital signing
-        // slot (click to sign with certificate) rather than a typed string.
+        // Primary signature: a typed-name TEXT field that every PDF viewer can
+        // complete. Browser viewers (Chrome/Edge/Firefox) cannot apply a digital
+        // or ink signature, so this typed field -- paired with the certification
+        // statement above -- is what makes the form signable anywhere. Always
+        // visible.
         $sigLabelY = $this->currentY;
-        $this->canvas->text($this->marginLeft, $sigLabelY, 'SIGNATURE', $this->fontBold, 8, [0.30, 0.36, 0.44]);
-        $sigFieldY = $sigLabelY + 12;
-        $sigH = 44;
-        $this->drawSignatureField($this->marginLeft, $sigFieldY, $halfW, $sigH, 'authorized_signature');
+        $this->canvas->text($this->marginLeft, $sigLabelY, 'SIGNATURE (TYPE FULL NAME)', $this->fontBold, 8, [0.30, 0.36, 0.44]);
+        $this->drawSingleLineInput($this->marginLeft, $sigLabelY + 12, $halfW, 26, $this->widgetName('typed_signature'), '');
 
-        // Date signed field with a date format action so Acrobat exposes the
-        // calendar picker when the user clicks.
-        $dateLabelY = $sigLabelY;
-        $this->canvas->text($this->marginLeft + $halfW + 14, $dateLabelY, 'DATE SIGNED', $this->fontBold, 8, [0.30, 0.36, 0.44]);
-        $this->drawDateInput($this->marginLeft + $halfW + 14, $dateLabelY + 12, $halfW, 22, $this->widgetName('date_signed'));
+        // DATE SIGNED -- Adobe-only. Rendered as hideable widgets (label + field)
+        // that ship Hidden. Acrobat/Reader run the reveal JS in finalize() and
+        // expose the field with its calendar date picker; browser viewers, which
+        // run no PDF JS and can't offer a picker, simply never show it.
+        $dateLabelName = $this->drawReadOnlyText(
+            $this->marginLeft + $halfW + 14, $sigLabelY, $halfW, 12,
+            'DATE SIGNED (ADOBE ACROBAT / READER)', $this->fontBold, 8, [0.30, 0.36, 0.44]
+        );
+        $this->markAdobeOnly($dateLabelName, $this->lastFieldId);
+        $dateName = $this->widgetName('date_signed');
+        $dateId = $this->drawDateInput($this->marginLeft + $halfW + 14, $sigLabelY + 12, $halfW, 26, $dateName, true);
+        $this->markAdobeOnly($dateName, $dateId);
+
+        $this->currentY = $sigLabelY + 12 + 26 + 16;
+
+        // DIGITAL SIGNATURE -- Adobe-only, same hide-in-browser treatment: a
+        // hideable label + a real /Sig field, both shipped Hidden and revealed
+        // only by Acrobat's JS.
+        $this->ensureSpace(70);
+        $digLabelY = $this->currentY;
+        $digLabelName = $this->drawReadOnlyText(
+            $this->marginLeft, $digLabelY, $halfW, 12,
+            'DIGITAL SIGNATURE (ADOBE ACROBAT / READER ONLY)', $this->fontBold, 8, [0.30, 0.36, 0.44]
+        );
+        $this->markAdobeOnly($digLabelName, $this->lastFieldId);
+        $sigFieldY = $digLabelY + 12;
+        $sigH = 44;
+        $sigId = $this->drawSignatureField($this->marginLeft, $sigFieldY, $halfW, $sigH, 'authorized_signature');
+        $this->markAdobeOnly('authorized_signature', $sigId);
 
         $this->currentY = $sigFieldY + $sigH + 10;
     }
 
     /**
      * Real PDF signature field. Readers expose this as a digital-signing target.
+     * Chrome is painted on the widget itself (border/fill via /MK) rather than
+     * on the page canvas, so the field can be hidden cleanly in browser viewers
+     * (see markAdobeOnly) without leaving an orphaned box behind.
      */
     private function drawSignatureField($x, $y, $w, $h, $name) {
-        $this->canvas->filled_rectangle($x, $y, $w, $h, [0.98, 0.98, 0.99]);
-        $this->canvas->rectangle($x, $y, $w, $h, $this->borderColor, 0.6);
-        $this->canvas->text($x + 6, $y + $h - 12, 'Click to sign', $this->fontItalic, 8, [0.55, 0.55, 0.55]);
-
         $this->cpdf->selectFont($this->font);
         if (!isset($this->cpdf->acroFormId)) {
             $this->cpdf->addForm(0, true);
@@ -901,12 +949,17 @@ public function drawSectionHeader($num, $name, $description = '') {
         $yTop = $this->pageH - $y;
         $yBot = $this->pageH - ($y + $h);
         try {
-            return $this->cpdf->addFormField(
+            $id = $this->cpdf->addFormField(
                 \Dompdf\Cpdf::ACROFORM_FIELD_SIG,
                 $name,
                 $x, $yBot, $x + $w, $yTop,
                 0, 10, [0, 0, 0]
             );
+            if ($id && isset($this->cpdf->objects[$id])) {
+                $this->cpdf->objects[$id]['info']['Border'] = '[0 0 0.6]';
+                $this->cpdf->objects[$id]['info']['MK'] = '<< /BC [0.7 0.7 0.7] /BG [0.98 0.98 0.99] >>';
+            }
+            return $id;
         } catch (\Exception $e) {
             return null;
         }
@@ -946,25 +999,56 @@ public function drawSectionHeader($num, $name, $description = '') {
      * initial state matches the data prefilled on the form.
      */
     public function finalize() {
-        if (empty($this->dependencies) || empty($this->controllerFields)) {
+        // Reveal the Adobe-only widgets (digital signature + date signed). They
+        // ship Hidden so browser PDF viewers -- which execute no PDF JavaScript
+        // -- never show them; Acrobat/Reader run this and make them visible.
+        if (!empty($this->adobeOnlyFields)) {
+            $reveal  = "var _AO = " . json_encode(array_values($this->adobeOnlyFields)) . ";\n";
+            $reveal .= "for (var i=0;i<_AO.length;i++){ try { this.getField(_AO[i]).display = display.visible; } catch(e) {} }\n";
+            $this->cpdf->addJavascript($reveal);
+        }
+
+        if (empty($this->dependencies) ||
+            (empty($this->controllerFields) && empty($this->checkboxControllers))) {
             return;
         }
 
-        // Per-question dependency rules. Each dependent question gets exactly
-        // one rule: controller field name + the value that must match for the
-        // question to show. An empty expected-value means "show whenever the
-        // controller has *any* answer" (web-form semantics).
+        // Per-question dependency rules. A dependent whose parent is a single-
+        // choice dropdown gets a 'combo' rule (match the controller's value). A
+        // dependent whose parent is a MULTI-select gets a 'cb' rule keyed to the
+        // specific option's checkbox (e.g. show "Other AI Providers" only when
+        // the "Others" box is checked), or 'cbany' when it depends on any answer.
+        // An empty expected-value means "show whenever the parent has an answer".
         $questionRules = [];
         foreach ($this->dependencies as $parentQid => $dependents) {
-            if (!isset($this->controllerFields[$parentQid])) continue;
-            $ctrlName = $this->controllerFields[$parentQid]['name'];
+            $isCombo = isset($this->controllerFields[$parentQid]);
+            $isCb    = isset($this->checkboxControllers[$parentQid]);
+            if (!$isCombo && !$isCb) continue;
             foreach ($dependents as $dep) {
                 $depQid = (int)$dep['qid'];
                 if (!isset($this->questionWidgets[$depQid])) continue;
-                $questionRules[$depQid] = [
-                    'controller' => $ctrlName,
-                    'value'      => (string)$dep['value'],
-                ];
+                $expected = (string)$dep['value'];
+                if ($isCombo) {
+                    $questionRules[$depQid] = [
+                        'kind'       => 'combo',
+                        'controller' => $this->controllerFields[$parentQid]['name'],
+                        'value'      => $expected,
+                    ];
+                    continue;
+                }
+                $optsMap  = $this->checkboxControllers[$parentQid];
+                $allNames = array_values(array_map(function ($o) { return $o['name']; }, $optsMap));
+                if ($expected === '') {
+                    $questionRules[$depQid] = ['kind' => 'cbany', 'fields' => $allNames];
+                } else {
+                    $field = null;
+                    foreach ($optsMap as $o) {
+                        if (strcasecmp(trim((string)$o['value']), $expected) === 0) { $field = $o['name']; break; }
+                    }
+                    $questionRules[$depQid] = ($field !== null)
+                        ? ['kind' => 'cb', 'field' => $field]
+                        : ['kind' => 'cbany', 'fields' => $allNames];
+                }
             }
         }
 
@@ -1000,8 +1084,12 @@ public function drawSectionHeader($num, $name, $description = '') {
         $js .= "  var vis = {};\n";
         $js .= "  for (var qid in _DEP.widgets) vis[qid] = true;\n";
         $js .= "  for (var qid in _DEP.rules) {\n";
-        $js .= "    var r = _DEP.rules[qid]; var v=''; try { v = this.getField(r.controller).value || ''; } catch(e) {}\n";
-        $js .= "    vis[qid] = (r.value === '') ? (v !== '' && v !== 'Off') : (String(v).toLowerCase() === String(r.value).toLowerCase());\n";
+        $js .= "    var r = _DEP.rules[qid]; var show = false; var v;\n";
+        $js .= "    if (r.kind === 'combo') { v=''; try { v = this.getField(r.controller).value || ''; } catch(e) {}\n";
+        $js .= "      show = (r.value === '') ? (v !== '' && v !== 'Off') : (String(v).toLowerCase() === String(r.value).toLowerCase()); }\n";
+        $js .= "    else if (r.kind === 'cb') { v='Off'; try { v = this.getField(r.field).value; } catch(e) {} show = (v !== 'Off' && v !== '' && v != null); }\n";
+        $js .= "    else if (r.kind === 'cbany') { for (var k=0;k<r.fields.length;k++){ var vv='Off'; try { vv = this.getField(r.fields[k]).value; } catch(e) {} if (vv !== 'Off' && vv !== '' && vv != null) { show = true; break; } } }\n";
+        $js .= "    vis[qid] = show;\n";
         $js .= "  }\n";
         // Apply widget visibility
         $js .= "  for (var qid in _DEP.widgets) _dset(_DEP.widgets[qid], vis[qid]);\n";
@@ -1034,6 +1122,22 @@ public function drawSectionHeader($num, $name, $description = '') {
                     . '/Bl << /Type /Action /S /JavaScript /JS (' . $js . ') >> >>';
             $this->cpdf->objects[$fieldId]['info']['AA'] = $action;
         }
+
+        // Same 'on change' refresh for MULTI-select controllers: toggling any of
+        // their checkboxes re-evaluates dependents. MouseUp (/U) fires after the
+        // toggle is committed.
+        foreach ($this->checkboxControllers as $parentQid => $optsMap) {
+            if (empty($this->hasDependents[$parentQid])) continue;
+            $cbJs = 'app.setTimeOut("refreshDependencies();", 10);';
+            $action = '<< /U << /Type /Action /S /JavaScript /JS (' . $cbJs . ') >> '
+                    . '/Fo << /Type /Action /S /JavaScript /JS (' . $cbJs . ') >> '
+                    . '/Bl << /Type /Action /S /JavaScript /JS (' . $cbJs . ') >> >>';
+            foreach ($optsMap as $o) {
+                $fid = $o['fieldId'] ?? null;
+                if (!$fid || !isset($this->cpdf->objects[$fid])) continue;
+                $this->cpdf->objects[$fid]['info']['AA'] = $action;
+            }
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -1042,6 +1146,63 @@ public function drawSectionHeader($num, $name, $description = '') {
 
     private function registerWidgets($qid, $type, array $fields) {
         $this->questionWidgets[$qid] = ['type' => $type, 'fields' => $fields];
+    }
+
+    /**
+     * Mark a widget as Adobe-only: set the annotation Hidden flag (/F bit 2) so
+     * it does not render in browser PDF viewers, and register its field name so
+     * finalize()'s reveal JavaScript (which only Adobe executes) can show it.
+     */
+    private function markAdobeOnly($name, $fieldId) {
+        if ($fieldId && isset($this->cpdf->objects[$fieldId])) {
+            $this->cpdf->objects[$fieldId]['info']['F'] = 2; // Hidden
+        }
+        if ($name) $this->adobeOnlyFields[] = $name;
+    }
+
+    /**
+     * Return [yesXObjId, offXObjId] for the shared checkbox appearance streams,
+     * building them on first use. Returns [null, null] if the Cpdf build can't
+     * create the XObjects (defensive -- the caller then falls back to the
+     * NeedAppearances behavior).
+     */
+    private function checkboxAppearanceIds($w, $h) {
+        if ($this->cbAppYes === null || $this->cbAppOff === null) {
+            $this->cbAppYes = $this->makeCheckAppearance($w, $h, true);
+            $this->cbAppOff = $this->makeCheckAppearance($w, $h, false);
+        }
+        return [$this->cbAppYes, $this->cbAppOff];
+    }
+
+    /**
+     * Create a Form XObject appearance stream for a checkbox state. Both states
+     * paint a white box with a dark border; the checked state adds a green tick.
+     * Coordinates are in the appearance's own bottom-left origin bbox.
+     */
+    private function makeCheckAppearance($w, $h, $checked) {
+        try {
+            $id = $this->cpdf->addXObject('Form', 0, 0, $w, $h);
+        } catch (\Exception $e) {
+            return null;
+        }
+        if (!$id || !isset($this->cpdf->objects[$id])) {
+            return null;
+        }
+        $c  = "q\n";
+        $c .= sprintf("1 1 1 rg 0 0 %.2F %.2F re f\n", $w, $h);
+        $c .= sprintf("0.30 0.36 0.44 RG 1 w 0.5 0.5 %.2F %.2F re S\n", $w - 1, $h - 1);
+        if ($checked) {
+            // A tick from lower-left to a peak on the right.
+            $c .= sprintf(
+                "0 0.45 0 RG 1.6 w %.2F %.2F m %.2F %.2F l %.2F %.2F l S\n",
+                $w * 0.22, $h * 0.52,
+                $w * 0.42, $h * 0.28,
+                $w * 0.80, $h * 0.78
+            );
+        }
+        $c .= "Q";
+        $this->cpdf->objects[$id]['c'] = $c;
+        return $id;
     }
 
     private $nameCounter = 0;
@@ -1119,6 +1280,16 @@ public function drawSectionHeader($num, $name, $description = '') {
                 // (display.hidden) the border hides with it.
                 $info['Border'] = '[0 0 1]';
                 $info['MK'] = '<< /BC [0.3 0.36 0.44] /BG [1 1 1] >>';
+                // Real /AP appearance streams for BOTH states. Adobe honors
+                // /NeedAppearances and synthesizes the checkmark, but PDFium
+                // (Chrome, Edge, Firefox built-in viewers) does not -- without a
+                // baked appearance the box can't be seen or toggled there. o_field
+                // emits unknown info keys verbatim, so this writes the nested
+                // state dictionary its 'appearance' handler cannot.
+                list($yesId, $offId) = $this->checkboxAppearanceIds($w, $h);
+                if ($yesId && $offId) {
+                    $info['AP'] = '<< /N << /Yes ' . $yesId . ' 0 R /Off ' . $offId . ' 0 R >> >>';
+                }
                 unset($info);
             }
             return $fieldId;
