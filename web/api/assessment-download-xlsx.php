@@ -128,7 +128,14 @@ $prefillFor = function ($qid) use ($existingResponses) {
 // ---------------------------------------------------------------------------
 // Assemble the workbook.
 // ---------------------------------------------------------------------------
-$xlsx = new AssessmentXlsxWriter();
+// Match the section-header bars to the admin "Header Color" setting. That value
+// is the application-wide app_config key (what admin.php saves and the app UI
+// reads); read it straight from the DB -- init.php does not populate a $theme
+// global in this endpoint context. Convert #RRGGBB -> FFRRGGBB (8-hex ARGB).
+$headerColorRow = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'header_color'");
+$headerHex = ltrim((string)($headerColorRow['config_value'] ?? '#35a0a3'), '#');
+$headerArgb = preg_match('/^[0-9A-Fa-f]{6}$/', $headerHex) ? 'FF' . strtoupper($headerHex) : 'FF35A0A3';
+$xlsx = new AssessmentXlsxWriter($headerArgb);
 
 // Sheet 1: the fillable form (visible, unprotected).
 $xlsx->addSheet('Assessment');
@@ -272,6 +279,17 @@ function xlsxSanitizeFilename($name) {
 class AssessmentXlsxWriter {
     private $sheets = [];   // list of sheet arrays
     private $cur = -1;
+
+    // Section-header bar color as 8-hex ARGB. Defaults to the app's default
+    // header color (#35a0a3); the endpoint passes the tenant's configured
+    // "Header Color" so the workbook matches the admin theme.
+    private $headerFill = 'FF35A0A3';
+
+    public function __construct($headerFillArgb = 'FF35A0A3') {
+        if (preg_match('/^[0-9A-Fa-f]{8}$/', (string)$headerFillArgb)) {
+            $this->headerFill = strtoupper($headerFillArgb);
+        }
+    }
 
     private static $styleMap = [
         'default'     => 0,
@@ -439,7 +457,7 @@ class AssessmentXlsxWriter {
             . '<fills count="4">'
             .   '<fill><patternFill patternType="none"/></fill>'
             .   '<fill><patternFill patternType="gray125"/></fill>'
-            .   '<fill><patternFill patternType="solid"><fgColor rgb="FF35A0A3"/><bgColor indexed="64"/></patternFill></fill>'
+            .   '<fill><patternFill patternType="solid"><fgColor rgb="' . $this->headerFill . '"/><bgColor indexed="64"/></patternFill></fill>'
             .   '<fill><patternFill patternType="solid"><fgColor rgb="FFF3F4F6"/><bgColor indexed="64"/></patternFill></fill>'
             . '</fills>'
             . '<borders count="2">'

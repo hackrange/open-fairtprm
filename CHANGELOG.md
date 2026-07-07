@@ -202,6 +202,10 @@ project adheres to [Semantic Versioning](https://semver.org/).
   always visible, because multi-select parents were never registered as the
   controller that drives dependent visibility. They now gate the dependent's
   show/hide the same way single-choice parents do.
+- **Assessment Excel: section-header bars now match the admin "Header Color".** The
+  workbook read an unpopulated `$theme` global and always fell back to the default
+  teal; it now reads the application-wide `header_color` setting directly, so the
+  section bars use the configured brand color (the fillable PDF already honored it).
 
 ### Security
 
