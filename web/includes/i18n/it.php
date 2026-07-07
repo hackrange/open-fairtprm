@@ -1058,6 +1058,8 @@ return [
     'admin_api-tokens.token_updated' => 'Token API aggiornato.',
     'admin_assessment-templates.action_activate' => 'Attiva',
     'admin_assessment-templates.action_deactivate' => 'Disattiva',
+    'admin_assessment-templates.btn_show_deactivated' => 'Mostra inattivi',
+    'admin_assessment-templates.btn_hide_deactivated' => 'Nascondi inattivi',
     'admin_assessment-templates.action_delete' => 'Elimina',
     'admin_assessment-templates.action_duplicate' => 'Duplica',
     'admin_assessment-templates.action_edit' => 'Modifica',

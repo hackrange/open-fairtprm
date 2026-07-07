@@ -146,6 +146,11 @@ project adheres to [Semantic Versioning](https://semver.org/).
   signer sign in any viewer; the Adobe-only digital-signature and date-signed
   fields are hidden in browsers and revealed only in Adobe, which can actually use
   them.
+- **Assessment Templates: deactivated templates are hidden by default.** The admin
+  Assessment Templates list now shows only active templates; a "Show Deactivated (N)"
+  button reveals the deactivated ones on demand (and toggles back to "Hide"), keeping
+  a long-lived tenant's list focused on templates in use without losing access to
+  retired ones. Localized in all eight locales.
 
 ### Fixed
 

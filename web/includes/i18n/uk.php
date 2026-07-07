@@ -1058,6 +1058,8 @@ return [
     'admin_api-tokens.token_updated' => 'Токен API оновлено.',
     'admin_assessment-templates.action_activate' => 'Активувати',
     'admin_assessment-templates.action_deactivate' => 'Деактивувати',
+    'admin_assessment-templates.btn_show_deactivated' => 'Показати неактивні',
+    'admin_assessment-templates.btn_hide_deactivated' => 'Сховати неактивні',
     'admin_assessment-templates.action_delete' => 'Видалити',
     'admin_assessment-templates.action_duplicate' => 'Дублювати',
     'admin_assessment-templates.action_edit' => 'Редагувати',

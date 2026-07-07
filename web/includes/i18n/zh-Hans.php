@@ -1058,6 +1058,8 @@ return [
     'admin_api-tokens.token_updated' => 'API 令牌已更新。',
     'admin_assessment-templates.action_activate' => '激活',
     'admin_assessment-templates.action_deactivate' => '停用',
+    'admin_assessment-templates.btn_show_deactivated' => '显示已停用',
+    'admin_assessment-templates.btn_hide_deactivated' => '隐藏已停用',
     'admin_assessment-templates.action_delete' => '删除',
     'admin_assessment-templates.action_duplicate' => '复制',
     'admin_assessment-templates.action_edit' => '编辑',

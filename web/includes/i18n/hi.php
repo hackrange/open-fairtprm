@@ -1058,6 +1058,8 @@ return [
     'admin_api-tokens.token_updated' => 'API टोकन अपडेट किया गया।',
     'admin_assessment-templates.action_activate' => 'सक्रिय करें',
     'admin_assessment-templates.action_deactivate' => 'निष्क्रिय करें',
+    'admin_assessment-templates.btn_show_deactivated' => 'निष्क्रिय दिखाएं',
+    'admin_assessment-templates.btn_hide_deactivated' => 'निष्क्रिय छिपाएं',
     'admin_assessment-templates.action_delete' => 'हटाएं',
     'admin_assessment-templates.action_duplicate' => 'डुप्लिकेट करें',
     'admin_assessment-templates.action_edit' => 'संपादित करें',

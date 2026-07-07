@@ -1058,6 +1058,8 @@ return [
     'admin_api-tokens.token_updated' => 'Jeton API mis à jour.',
     'admin_assessment-templates.action_activate' => 'Activer',
     'admin_assessment-templates.action_deactivate' => 'Désactiver',
+    'admin_assessment-templates.btn_show_deactivated' => 'Afficher les inactifs',
+    'admin_assessment-templates.btn_hide_deactivated' => 'Masquer les inactifs',
     'admin_assessment-templates.action_delete' => 'Supprimer',
     'admin_assessment-templates.action_duplicate' => 'Dupliquer',
     'admin_assessment-templates.action_edit' => 'Modifier',

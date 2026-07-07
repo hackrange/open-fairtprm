@@ -134,9 +134,17 @@ $categoryLabels = [
     <p><?php echo e(t('admin_assessment-templates.builder_desc')); ?></p>
 </div>
 
+<?php $inactiveTemplateCount = 0; foreach ($allTemplates as $__t) { if (empty($__t['is_active'])) { $inactiveTemplateCount++; } } ?>
 <div style="margin-bottom: 20px; display: flex; gap: 10px;">
     <button class="btn btn-primary" data-toggle="createTemplateModal"><?php echo e(t('admin_assessment-templates.btn_new_template')); ?></button>
     <a href="?section=field-reference" class="btn btn-secondary"><?php echo e(t('admin_assessment-templates.field_reference')); ?></a>
+    <?php if ($inactiveTemplateCount > 0): ?>
+    <button type="button" id="toggleDeactivatedBtn" class="btn btn-secondary"
+            data-show-label="<?php echo e(t('admin_assessment-templates.btn_show_deactivated') . ' (' . $inactiveTemplateCount . ')'); ?>"
+            data-hide-label="<?php echo e(t('admin_assessment-templates.btn_hide_deactivated') . ' (' . $inactiveTemplateCount . ')'); ?>">
+        <?php echo e(t('admin_assessment-templates.btn_show_deactivated') . ' (' . $inactiveTemplateCount . ')'); ?>
+    </button>
+    <?php endif; ?>
 </div>
 
 <div class="card">
@@ -160,7 +168,7 @@ $categoryLabels = [
         </thead>
         <tbody>
             <?php foreach ($allTemplates as $t): ?>
-            <tr>
+            <tr class="tpl-row<?php echo empty($t['is_active']) ? ' tpl-inactive' : ''; ?>"<?php echo empty($t['is_active']) ? ' style="display:none;"' : ''; ?>>
                 <td>
                     <strong><?php echo e($t['name']); ?></strong>
                     <?php if ($t['description']): ?>
@@ -273,6 +281,21 @@ $categoryLabels = [
     document.querySelector('#createTemplateModal [name="category"]')?.addEventListener('change', function() {
         document.getElementById('certUploadGroup').style.display = this.value === 'vendor_assessment' ? '' : 'none';
     });
+
+    // Deactivated templates are hidden by default; this button reveals/hides them.
+    var deactBtn = document.getElementById('toggleDeactivatedBtn');
+    if (deactBtn) {
+        var deactShown = false;
+        deactBtn.addEventListener('click', function() {
+            deactShown = !deactShown;
+            document.querySelectorAll('tr.tpl-inactive').forEach(function(row) {
+                row.style.display = deactShown ? '' : 'none';
+            });
+            deactBtn.textContent = deactShown
+                ? deactBtn.getAttribute('data-hide-label')
+                : deactBtn.getAttribute('data-show-label');
+        });
+    }
 })();
 </script>
 
