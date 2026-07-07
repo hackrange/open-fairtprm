@@ -6334,6 +6334,61 @@ SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schem
   'ALTER TABLE `shadow_saas_grip_app_users` DROP COLUMN `raw_payload`, FORCE', 'DO 0');
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
+-- tprm_results encrypted content columns: TEXT -> MEDIUMTEXT.
+-- The FAIR analysis save (fair-analysis.php) encrypts each free-text field
+-- before storing it, and base64 + IV/HMAC inflate the value ~1.35x. A large
+-- paste (~48 KB+ of plaintext, e.g. a full configuration_data dump) then
+-- encrypts past TEXT's 64 KB limit, and under STRICT_TRANS_TABLES the entire
+-- save aborts with "Data too long for column 'configuration_data'" -- surfaced
+-- to the user as "Failed to save analysis. Please try again." MEDIUMTEXT (16 MB)
+-- gives ample headroom. Guarded so the one-time table rebuild runs only while
+-- any column is still TEXT (idempotent no-op once widened; also a no-op if the
+-- table is absent). MySQL + MariaDB compatible.
+SET @needs_widen = (SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'tprm_results' AND data_type = 'text'
+    AND column_name IN ('msa','scope_of_work','medium_of_data','certifications','compliance',
+      'security_governance','incident_response_plan','continuous_monitoring','supply_chain_risk_mgmt',
+      'security_awareness_training','vulnerability_management','patch_management','access_controls',
+      'data_encryption','network_security','vulnerability_data','configuration_data','compliance_data',
+      'risk_assessment','threat_intelligence','vendor_risk_assessment','security_questionnaire',
+      'compliance_questionnaire','business_impact','vendor_performance','third_party_vendor_list',
+      'third_party_risk_assessment','third_party_security_questionnaire','third_party_compliance_questionnaire',
+      'vendor_cyber_insurance_coverage'));
+SET @sql = IF(@needs_widen > 0,
+  'ALTER TABLE `tprm_results`
+     MODIFY COLUMN `msa` MEDIUMTEXT NULL,
+     MODIFY COLUMN `scope_of_work` MEDIUMTEXT NULL,
+     MODIFY COLUMN `medium_of_data` MEDIUMTEXT NULL,
+     MODIFY COLUMN `certifications` MEDIUMTEXT NULL,
+     MODIFY COLUMN `compliance` MEDIUMTEXT NULL,
+     MODIFY COLUMN `security_governance` MEDIUMTEXT NULL,
+     MODIFY COLUMN `incident_response_plan` MEDIUMTEXT NULL,
+     MODIFY COLUMN `continuous_monitoring` MEDIUMTEXT NULL,
+     MODIFY COLUMN `supply_chain_risk_mgmt` MEDIUMTEXT NULL,
+     MODIFY COLUMN `security_awareness_training` MEDIUMTEXT NULL,
+     MODIFY COLUMN `vulnerability_management` MEDIUMTEXT NULL,
+     MODIFY COLUMN `patch_management` MEDIUMTEXT NULL,
+     MODIFY COLUMN `access_controls` MEDIUMTEXT NULL,
+     MODIFY COLUMN `data_encryption` MEDIUMTEXT NULL,
+     MODIFY COLUMN `network_security` MEDIUMTEXT NULL,
+     MODIFY COLUMN `vulnerability_data` MEDIUMTEXT NULL,
+     MODIFY COLUMN `configuration_data` MEDIUMTEXT NULL,
+     MODIFY COLUMN `compliance_data` MEDIUMTEXT NULL,
+     MODIFY COLUMN `risk_assessment` MEDIUMTEXT NULL,
+     MODIFY COLUMN `threat_intelligence` MEDIUMTEXT NULL,
+     MODIFY COLUMN `vendor_risk_assessment` MEDIUMTEXT NULL,
+     MODIFY COLUMN `security_questionnaire` MEDIUMTEXT NULL,
+     MODIFY COLUMN `compliance_questionnaire` MEDIUMTEXT NULL,
+     MODIFY COLUMN `business_impact` MEDIUMTEXT NULL,
+     MODIFY COLUMN `vendor_performance` MEDIUMTEXT NULL,
+     MODIFY COLUMN `third_party_vendor_list` MEDIUMTEXT NULL,
+     MODIFY COLUMN `third_party_risk_assessment` MEDIUMTEXT NULL,
+     MODIFY COLUMN `third_party_security_questionnaire` MEDIUMTEXT NULL,
+     MODIFY COLUMN `third_party_compliance_questionnaire` MEDIUMTEXT NULL,
+     MODIFY COLUMN `vendor_cyber_insurance_coverage` MEDIUMTEXT NULL',
+  'DO 0');
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

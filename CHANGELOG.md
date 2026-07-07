@@ -206,6 +206,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
   workbook read an unpopulated `$theme` global and always fell back to the default
   teal; it now reads the application-wide `header_color` setting directly, so the
   section bars use the configured brand color (the fillable PDF already honored it).
+- **FAIR analysis: "Failed to save analysis" once an encrypted field grew large.**
+  The analysis save encrypts each free-text field before storing it, and base64 +
+  IV/HMAC inflate the value ~1.35x. A large field (e.g. a ~48 KB+ `configuration_data`
+  paste) then exceeded its `TEXT` column's 64 KB limit and, under
+  `STRICT_TRANS_TABLES`, aborted the entire save. The 30 encrypted content columns
+  on `tprm_results` are widened from `TEXT` (64 KB) to `MEDIUMTEXT` (16 MB). The
+  migration is idempotent and non-lossy -- widening preserves every existing value
+  (verified by a byte-for-byte content hash across a down/up cycle).
 
 ### Security
 
