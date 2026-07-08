@@ -104,19 +104,18 @@ full control and is better for production servers you want to manage yourself.
 
 ## One-Command Setup (Fastest)
 
-If you have a fresh **Ubuntu 22.04** or **24.04** server and just want to get
-up and running as fast as possible, run this single command. It installs
+If you have a fresh **Ubuntu 22.04**, **24.04** or **26.04** server and just want
+to get up and running as fast as possible, run this single command. It installs
 everything (Git, Docker, Docker Compose), clones the repository to
-`/data/docker/fairtprm`, builds the Docker image, and starts the application:
+`/data/docker/fairtprm`, pulls the published `v2.6.2` image, and starts the
+application:
 
 ```bash
-curl -fsSL https://git.hackrange.com/trice/open-fairtprm/-/raw/master/setup_docker_install.sh -o /tmp/setup.sh && sudo bash /tmp/setup.sh
+curl -fsSL https://git.hackrange.com/trice/open-fairtprm/-/raw/2.6.2/setup_docker_install.sh -o /tmp/setup.sh && sudo bash /tmp/setup.sh
 ```
 
-> **Note:** this one-command bootstrap tracks the **stable** release (it pulls
-> the installer from `master`). To install **this v2.6.2 pre-release** instead,
-> use the step-by-step [Getting the Code](#getting-the-code) path below and
-> clone the `2.6.2` branch (`git clone -b 2.6.2 …`), then build with Docker.
+> **Note:** this installs the **v2.6.2 pre-release** line. For the stable
+> v2.6.1 release, use the same command with `master` in place of `2.6.2`.
 
 Or if you already have the repository cloned:
 
@@ -128,14 +127,21 @@ The script will:
 
 1. Verify you're on a supported Ubuntu version with enough RAM and disk
 2. Install Git (if not already installed)
-3. Install Docker Engine and Docker Compose v2 (or fall back to v1)
-4. Clone the repository to `/data/docker/fairtprm`
-5. Build the Docker image and start the container
+3. Install Docker Engine and Docker Compose v2
+4. Clone the `2.6.2` branch to `/data/docker/fairtprm`
+5. Pull the published application image and start the container
 6. Wait for the health check to pass and display your login credentials
 
+The application image is published pre-built, so nothing is compiled locally.
+Set `FAIRTPRM_BRANCH` or `FAIRTPRM_DIR` to override the branch or install
+directory.
+
 When it finishes, your application will be running at
-**http://your-server-ip:8080**. The setup script prints your auto-generated
-admin credentials on screen.
+**http://localhost:8080**. Port 8080 is published on `127.0.0.1` only, so on a
+remote server reach it over an SSH tunnel
+(`ssh -L 8080:localhost:8080 user@your-server`) or edit the `ports:` line in
+`docker-compose.yml` to expose it — put it behind TLS first. The setup script
+prints your auto-generated admin credentials on screen.
 
 > **Prefer to do it step by step?** Skip to [Getting the Code](#getting-the-code)
 > for the manual walkthrough.
@@ -1130,7 +1136,7 @@ sudo certbot --nginx -d tprm.example.com
 
 ```
 docker_refactor_2.6.2/
-├── setup_docker_install.sh           # One-command setup script (Ubuntu 22.04/24.04)
+├── setup_docker_install.sh           # One-command setup script (Ubuntu 22.04/24.04/26.04)
 ├── Dockerfile                        # Docker image build instructions
 ├── docker-compose.yml                # Docker Compose orchestration
 ├── .dockerignore                     # Build context exclusions

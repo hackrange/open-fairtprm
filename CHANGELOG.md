@@ -154,6 +154,35 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`setup_docker_install.sh` could never complete on a fresh machine.** The
+  installer ran `docker compose build`, but the `Dockerfile` overlays files from
+  `persistent/php_patches` and `persistent/icons`, neither of which is published
+  in this repository. Every fresh install died with
+  `"/persistent/icons": not found`. The installer now pulls the published
+  application image (`docker pull` + `docker compose up -d --no-build`) instead
+  of building it, which is also considerably faster. Nothing is compiled locally.
+- **`setup_docker_install.sh` installed the wrong branch.** The copy of the
+  script on the `2.6.2` branch cloned `master` and deployed the stable v2.6.1
+  image, so the documented `-/raw/2.6.2/...` bootstrap URL never produced a
+  v2.6.2 install. The branch is now a variable (`BRANCH`, default `2.6.2`,
+  overridable with `FAIRTPRM_BRANCH`), and repository updates reset to that
+  branch rather than to `origin/master`.
+- **`setup_docker_install.sh` refused to run on Ubuntu 26.04.** The release gate
+  hard-failed on anything other than 22.04/24.04, so the current Ubuntu LTS was
+  rejected outright. 26.04 is now a supported release, unrecognized releases warn
+  and continue instead of aborting, and the Docker apt repository falls back to
+  the newest published codename when Docker has not built packages for the
+  running release yet.
+- **`setup_docker_install.sh` reported build failures as success.** A failing
+  build was piped into `tee`, so `set -e` aborted the script before the
+  `PIPESTATUS` check could run: the `[FAIL]` diagnostic was unreachable and the
+  installer exited with no explanation. Failures of the image fetch and the
+  container start are now reported explicitly.
+- **`setup_docker_install.sh` printed an unreachable URL.** The finish banner
+  advertised `http://<server-ip>:8080`, but Compose publishes port 8080 on
+  `127.0.0.1` only. It now prints the correct URL together with the SSH-tunnel
+  command needed to reach it from another machine. The credentials box borders
+  also line up again.
 - **Subprocessors: editing name/domain/country/linked-vendor/service/data failed.**
   Saving an edit on the vendor onboarding **Subprocessors** tab returned "Failed to
   update subprocessor" and persisted nothing. The edit API passed a positional (`?`)

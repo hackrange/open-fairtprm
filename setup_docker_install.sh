@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Fair TPRM & GRC Platform - Automated Docker Setup for Ubuntu 22.04 / 24.04
+# Fair TPRM & GRC Platform - Automated Docker Setup for Ubuntu 22.04 / 24.04 / 26.04
 # =============================================================================
 #
 # This script:
-#   1. Detects your Ubuntu version (22.04 or 24.04)
+#   1. Detects your Ubuntu version
 #   2. Installs Git if not already installed
 #   3. Installs Docker Engine and Docker Compose v2
 #   4. Clones the repository into /data/docker/fairtprm
-#   5. Builds and starts the application container
+#   5. Pulls the published application image and starts the container
 #
 # Usage (pick one):
-#   curl -fsSL https://git.hackrange.com/trice/open-fairtprm/-/raw/master/setup_docker_install.sh -o /tmp/setup.sh && sudo bash /tmp/setup.sh
+#   curl -fsSL https://git.hackrange.com/trice/open-fairtprm/-/raw/2.6.2/setup_docker_install.sh -o /tmp/setup.sh && sudo bash /tmp/setup.sh
 #   -- or --
 #   chmod +x setup_docker_install.sh && sudo ./setup_docker_install.sh
+#
+# Environment overrides:
+#   FAIRTPRM_BRANCH   Git branch to deploy       (default: 2.6.2)
+#   FAIRTPRM_DIR      Install directory          (default: /data/docker/fairtprm)
 #
 # =============================================================================
 # The { } block forces bash to read the ENTIRE script into memory before
@@ -25,10 +29,16 @@
 set -euo pipefail
 
 # ---- Constants ----
-INSTALL_DIR="/data/docker/fairtprm"
+INSTALL_DIR="${FAIRTPRM_DIR:-/data/docker/fairtprm}"
 REPO_URL="https://git.hackrange.com/trice/open-fairtprm.git"
+BRANCH="${FAIRTPRM_BRANCH:-2.6.2}"
 LOG_FILE="/tmp/fairtprm-setup-$(date +%Y%m%d-%H%M%S).log"
 COMPOSE_CMD=""
+APP_IMAGE=""
+
+# Newest release codename Docker publishes packages for. Used as a fallback when
+# running on an Ubuntu release that Docker has not built packages for yet.
+FALLBACK_CODENAME="noble"
 
 # ---- Colors for output ----
 RED='\033[0;31m'
@@ -60,6 +70,45 @@ detect_compose() {
     fi
 }
 
+# ---- Resolve the image name declared in docker-compose.yml ----
+resolve_image() {
+    APP_IMAGE=$(cd "$INSTALL_DIR" && $COMPOSE_CMD config --images 2>/dev/null | head -1) || true
+
+    if [ -z "$APP_IMAGE" ]; then
+        # Fallback: read the image: line straight out of the compose file.
+        APP_IMAGE=$(awk '/^[[:space:]]*image:[[:space:]]*/ {print $2; exit}' "$INSTALL_DIR/docker-compose.yml") || true
+    fi
+
+    if [ -z "$APP_IMAGE" ]; then
+        fail "Could not determine the application image from $INSTALL_DIR/docker-compose.yml"
+    fi
+}
+
+# ---- Print how to reach the app ----
+show_access_urls() {
+    local SERVER_IP
+    SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}') || SERVER_IP=""
+
+    echo -e "  ${BLUE}Access the application at:${NC}"
+    echo ""
+    echo -e "    ${YELLOW}http://localhost:8080${NC}"
+    echo ""
+    echo -e "  ${BLUE}Note:${NC} port 8080 is published on ${YELLOW}127.0.0.1 only${NC}, so the app is not"
+    echo "  reachable from other machines. To reach it from your laptop, tunnel over SSH:"
+    echo ""
+    if [ -n "$SERVER_IP" ]; then
+        echo "    ssh -L 8080:localhost:8080 ${SUDO_USER:-$(whoami)}@${SERVER_IP}"
+    else
+        echo "    ssh -L 8080:localhost:8080 user@this-server"
+    fi
+    echo ""
+    echo "  then browse to http://localhost:8080 on your laptop."
+    echo ""
+    echo "  To expose it on the network instead, edit the ports: line in"
+    echo "  $INSTALL_DIR/docker-compose.yml and restart. Put it behind"
+    echo "  TLS (a reverse proxy) before doing so -- the app speaks plain HTTP."
+}
+
 # ---- Show credentials from running container ----
 show_credentials() {
     local CREDS=""
@@ -78,8 +127,8 @@ show_credentials() {
         echo -e "  ${GREEN}|              ADMIN LOGIN CREDENTIALS                       |${NC}"
         echo -e "  ${GREEN}+------------------------------------------------------------+${NC}"
         echo -e "  ${GREEN}|${NC}                                                            ${GREEN}|${NC}"
-        printf "  ${GREEN}|${NC}   Username:  ${YELLOW}%-43s${NC}${GREEN}|${NC}\n" "${ADMIN_USER:-admin}"
-        printf "  ${GREEN}|${NC}   Password:  ${YELLOW}%-43s${NC}${GREEN}|${NC}\n" "${ADMIN_PASS:-<not yet generated>}"
+        printf "  ${GREEN}|${NC}   Username:  ${YELLOW}%-46s${NC}${GREEN}|${NC}\n" "${ADMIN_USER:-admin}"
+        printf "  ${GREEN}|${NC}   Password:  ${YELLOW}%-46s${NC}${GREEN}|${NC}\n" "${ADMIN_PASS:-<not yet generated>}"
         echo -e "  ${GREEN}|${NC}                                                            ${GREEN}|${NC}"
         echo -e "  ${GREEN}+------------------------------------------------------------+${NC}"
         echo ""
@@ -125,9 +174,6 @@ check_existing() {
         IS_RUNNING=$(docker inspect --format='{{.State.Running}}' "$CONTAINER_STATE" 2>/dev/null) || true
 
         if [ "$IS_RUNNING" = "true" ]; then
-            local SERVER_IP
-            SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}') || SERVER_IP="localhost"
-
             echo ""
             echo -e "${GREEN}============================================================${NC}"
             echo -e "${GREEN}  Fair TPRM & GRC Platform - Already Installed & Running!${NC}"
@@ -135,11 +181,8 @@ check_existing() {
             echo ""
             echo -e "  The application is ${GREEN}already set up${NC} and ${GREEN}running${NC}."
             echo ""
-            echo -e "  ${BLUE}Access the application at:${NC}"
-            echo ""
-            echo -e "    ${YELLOW}http://${SERVER_IP}:8080${NC}"
-            echo -e "    ${YELLOW}http://localhost:8080${NC}"
 
+            show_access_urls
             show_credentials
 
             echo ""
@@ -160,8 +203,8 @@ check_existing() {
         fi
     fi
 
-    # Installed but not running - stop any dead containers and continue with rebuild
-    info "Previous installation found but not running. Rebuilding..."
+    # Installed but not running - stop any dead containers and continue with reinstall
+    info "Previous installation found but not running. Reinstalling..."
     (cd "$INSTALL_DIR" && $COMPOSE_CMD down 2>/dev/null) || true
     return 0
 }
@@ -188,11 +231,14 @@ preflight() {
     fi
 
     case "$VERSION_ID" in
-        22.04|24.04)
+        22.04|24.04|26.04)
             log "Detected Ubuntu $VERSION_ID ($VERSION_CODENAME)"
             ;;
         *)
-            fail "Unsupported Ubuntu version: $VERSION_ID. This script supports 22.04 and 24.04."
+            # Newer or non-LTS releases usually work fine. Warn instead of
+            # refusing to run -- a hard failure here blocks every future
+            # Ubuntu release until someone edits this script.
+            warn "Ubuntu $VERSION_ID is not a tested release (tested: 22.04, 24.04, 26.04). Continuing anyway."
             ;;
     esac
 
@@ -221,15 +267,34 @@ preflight() {
 install_git() {
     header "Step 1/5 - Installing Git"
 
-    if command -v git >/dev/null 2>&1; then
+    # curl, gnupg and ca-certificates are needed later to add Docker's apt
+    # repository, so make sure they are present even when Git already is.
+    local NEED=()
+    command -v git  >/dev/null 2>&1 || NEED+=(git)
+    command -v curl >/dev/null 2>&1 || NEED+=(curl)
+    command -v gpg  >/dev/null 2>&1 || NEED+=(gnupg)
+
+    if [ "${#NEED[@]}" -eq 0 ]; then
         log "Git is already installed: $(git --version)"
         return 0
     fi
 
-    info "Installing Git..."
+    info "Installing: ${NEED[*]}"
     apt-get update -qq </dev/null
-    apt-get install -y -qq git ca-certificates curl gnupg lsb-release </dev/null >/dev/null 2>&1
+    apt-get install -y -qq ca-certificates "${NEED[@]}" </dev/null >/dev/null 2>&1
     log "Git installed: $(git --version)"
+}
+
+# ---- Pick the Docker apt repo codename for this Ubuntu release ----
+docker_repo_codename() {
+    local CODENAME="$1"
+
+    if curl -fsSL -o /dev/null "https://download.docker.com/linux/ubuntu/dists/${CODENAME}/Release" 2>/dev/null; then
+        echo "$CODENAME"
+    else
+        warn "Docker has no packages for '${CODENAME}' yet; using '${FALLBACK_CODENAME}' packages instead." >&2
+        echo "$FALLBACK_CODENAME"
+    fi
 }
 
 # ---- Step 2: Install Docker ----
@@ -290,7 +355,9 @@ install_docker() {
         chmod a+r /etc/apt/keyrings/docker.gpg
 
         . /etc/os-release
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" \
+        local REPO_CODENAME
+        REPO_CODENAME=$(docker_repo_codename "$VERSION_CODENAME")
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $REPO_CODENAME stable" \
             > /etc/apt/sources.list.d/docker.list
 
         apt-get update -qq </dev/null
@@ -374,23 +441,23 @@ install_docker() {
 
 # ---- Step 3: Clone repository ----
 clone_repo() {
-    header "Step 3/5 - Cloning Repository"
+    header "Step 3/5 - Cloning Repository (branch: $BRANCH)"
 
     mkdir -p "$(dirname "$INSTALL_DIR")"
 
     if [ -d "$INSTALL_DIR/.git" ]; then
         info "Repository already cloned. Pulling latest changes..."
         cd "$INSTALL_DIR"
-        git fetch --all </dev/null
-        git reset --hard origin/master </dev/null
-        log "Repository updated to latest"
+        git fetch --depth 1 origin "$BRANCH" </dev/null
+        git reset --hard FETCH_HEAD </dev/null
+        log "Repository updated to latest $BRANCH"
     else
         if [ -d "$INSTALL_DIR" ]; then
             rm -rf "$INSTALL_DIR"
         fi
 
-        info "Cloning into $INSTALL_DIR..."
-        git clone "$REPO_URL" "$INSTALL_DIR" </dev/null
+        info "Cloning $BRANCH into $INSTALL_DIR..."
+        git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR" </dev/null
         log "Repository cloned to $INSTALL_DIR"
     fi
 
@@ -398,7 +465,7 @@ clone_repo() {
 
     # Verify critical files
     local MISSING=0
-    for f in Dockerfile docker-compose.yml docker/entrypoint.sh web/login.php; do
+    for f in docker-compose.yml docker/entrypoint.sh web/login.php; do
         if [ ! -f "$INSTALL_DIR/$f" ]; then
             warn "Missing expected file: $f"
             MISSING=1
@@ -412,25 +479,29 @@ clone_repo() {
     log "All required files verified"
 }
 
-# ---- Step 4: Build and start ----
-build_and_start() {
-    header "Step 4/5 - Building and Starting the Application"
+# ---- Step 4: Pull the published image and start ----
+pull_and_start() {
+    header "Step 4/5 - Fetching and Starting the Application"
 
     cd "$INSTALL_DIR"
+    resolve_image
 
-    export DOCKER_BUILDKIT=1
-    export COMPOSE_DOCKER_CLI_BUILD=1
+    # The application image is published pre-built. It is NOT buildable from
+    # this repository -- the Dockerfile overlays files from persistent/, which
+    # is not published here -- so always pull and never let Compose fall back
+    # to building (hence --no-build below).
+    info "Pulling the application image: $APP_IMAGE"
+    info "(about 400 MB; this takes a few minutes on a slow link)"
 
-    info "Building the Docker image (this may take 5-10 minutes on first run)..."
-    $COMPOSE_CMD build --progress=plain </dev/null 2>&1 | tee -a "$LOG_FILE"
-
-    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-        fail "Docker build failed. Check the log: $LOG_FILE"
+    if ! docker pull "$APP_IMAGE" </dev/null 2>&1 | tee -a "$LOG_FILE"; then
+        fail "Could not pull $APP_IMAGE. Check network/DNS access to dockerregistry.fairtprm.com. Log: $LOG_FILE"
     fi
-    log "Docker image built successfully"
+    log "Application image pulled"
 
     info "Starting the container..."
-    $COMPOSE_CMD up -d </dev/null
+    if ! $COMPOSE_CMD up -d --no-build </dev/null 2>&1 | tee -a "$LOG_FILE"; then
+        fail "Could not start the container. Check the log: $LOG_FILE"
+    fi
 
     log "Container started"
 }
@@ -446,7 +517,7 @@ wait_and_show() {
     echo ""
 
     local SECONDS_WAITED=0
-    local MAX_WAIT=180
+    local MAX_WAIT=300
     local HEALTHY=0
 
     while [ $SECONDS_WAITED -lt $MAX_WAIT ]; do
@@ -481,20 +552,17 @@ wait_and_show() {
         warn "Check status: cd $INSTALL_DIR && $COMPOSE_CMD logs -f"
     fi
 
-    local SERVER_IP
-    SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}') || SERVER_IP="localhost"
-
     echo ""
     echo -e "${GREEN}============================================================${NC}"
     echo -e "${GREEN}  Fair TPRM & GRC Platform - Setup Complete!${NC}"
     echo -e "${GREEN}============================================================${NC}"
     echo ""
-    echo -e "  ${BLUE}Access the application at:${NC}"
-    echo ""
-    echo -e "    ${YELLOW}http://${SERVER_IP}:8080${NC}"
-    echo -e "    ${YELLOW}http://localhost:8080${NC}"
+
+    show_access_urls
+
     echo ""
     echo -e "  ${BLUE}Install directory:${NC} $INSTALL_DIR"
+    echo -e "  ${BLUE}Version:${NC}           $APP_IMAGE"
     echo -e "  ${BLUE}Setup log:${NC}         $LOG_FILE"
 
     show_credentials
@@ -524,7 +592,7 @@ main() {
     install_git
     install_docker
     clone_repo
-    build_and_start
+    pull_and_start
     wait_and_show
 }
 
