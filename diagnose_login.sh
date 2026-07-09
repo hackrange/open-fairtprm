@@ -5,6 +5,10 @@
 #   sudo bash diagnose_login.sh                  # diagnose only, changes nothing
 #   sudo bash diagnose_login.sh --reset          # reset to a fresh random password
 #   sudo bash diagnose_login.sh --reset 'MyPw!'  # reset to a password you choose
+#   sudo bash diagnose_login.sh --url http://192.0.2.10:8080
+#                                                # also log in over the URL a browser
+#                                                # uses, to separate an app problem
+#                                                # from a browser/network one
 #
 # "Invalid username or password" has three distinct causes that the login page
 # deliberately does not distinguish (so nobody can enumerate usernames). This
@@ -28,12 +32,18 @@ info() { echo "${BLUE}[INFO]${NC}  $*"; }
 
 DO_RESET=false
 NEW_PW=""
-case "${1:-}" in
-    --reset)   DO_RESET=true; NEW_PW="${2:-}" ;;
-    "")        ;;
-    -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
-    *)         echo "Unknown argument: $1 (try --help)"; exit 2 ;;
-esac
+EXT_URL=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --reset)   DO_RESET=true
+                   case "${2:-}" in -*|"") ;; *) NEW_PW="$2"; shift ;; esac ;;
+        --url)     [ -n "${2:-}" ] || { echo "--url needs a value, e.g. --url http://192.0.2.10:8080"; exit 2; }
+                   EXT_URL="${2%/}"; shift ;;
+        -h|--help) sed -n '2,21p' "$0"; exit 0 ;;
+        *)         echo "Unknown argument: $1 (try --help)"; exit 2 ;;
+    esac
+    shift
+done
 
 CID=$(docker ps -q --filter name=fairtprm | head -1)
 if [ -z "$CID" ]; then
@@ -105,6 +115,43 @@ else
 fi
 rm -f "$CK" /tmp/_r.html
 '
+
+# --- 3b. Same login, but over the URL a browser actually uses ---------------
+# Isolates "the app rejects these credentials" from "something between the
+# browser and the app is at fault" (autofill, proxy, WAF, wrong host/port).
+if [ -n "$EXT_URL" ]; then
+    echo
+    echo "${BLUE}=== Real login over ${EXT_URL} ===${NC}"
+    PW=$(docker exec "$CID" grep '^PORTAL_ADMIN_PASSWORD=' /persistent/config/.sensitive 2>/dev/null | cut -d= -f2-)
+    if [ -z "$PW" ]; then
+        bad "No password in .sensitive to test with."
+    elif ! curl -sS -m 10 -o /dev/null "${EXT_URL}/login.php" 2>/dev/null; then
+        bad "Cannot even fetch ${EXT_URL}/login.php from this host."
+        echo "        The port is not published on that interface, or a firewall is in the way."
+    else
+        CK=$(mktemp)
+        UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36'
+        T=$(curl -s -A "$UA" -c "$CK" "${EXT_URL}/login.php" | grep -oE 'name="csrf_token" value="[^"]+"' | head -1 | sed -E 's/.*value="([^"]+)".*/\1/')
+        R=$(mktemp)
+        CODE=$(curl -s -A "$UA" -o "$R" -w '%{http_code}' -b "$CK" -c "$CK" -X POST \
+               -d username=admin --data-urlencode "password=${PW}" -d "csrf_token=${T}" "${EXT_URL}/login.php")
+        echo "        POST ${EXT_URL}/login.php -> HTTP $CODE"
+        if [ "$CODE" = "302" ]; then
+            ok "The app accepts these credentials over this exact URL."
+            echo "        So the app, the cookie and the password are all fine. If your browser"
+            echo "        still fails here, the browser is sending a different password --"
+            echo "        almost always a saved/autofilled one. Try a private window."
+        else
+            grep -aoE 'Invalid[^<]{0,40}|Account is locked[^<]{0,30}' "$R" | head -2 | sed 's/^/        /'
+            warn "The app rejects this login over ${EXT_URL} but accepts it on 127.0.0.1."
+            warn "Something on the network path is altering the request."
+        fi
+        rm -f "$CK" "$R"
+    fi
+    echo
+    echo "        Password bytes (spot stray whitespace or smart quotes):"
+    printf '        '; printf '%s' "$PW" | od -c | head -2 | sed 's/^/        /'
+fi
 
 # --- 4. Optional reset -----------------------------------------------------
 if [ "$DO_RESET" = true ]; then
