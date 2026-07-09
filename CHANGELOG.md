@@ -172,6 +172,20 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Login was impossible over plain HTTP from another machine.** The session
+  cookie was always sent as `__Host-tprm_session` with the `Secure` attribute,
+  regardless of the request's scheme. Browsers refuse to store a `Secure` cookie
+  (and reject a `__Host-` prefixed one outright) unless it arrives over an HTTPS
+  origin, so a browser pointed at `http://<server-ip>:8080` kept no session at
+  all; the CSRF check on the login form then failed and the correct admin
+  password was rejected with "Invalid request. Please try again." It worked from
+  the server itself only because browsers treat `localhost` as a trustworthy
+  origin. `Session` now detects whether the request actually is HTTPS - directly,
+  by port, or via `X-Forwarded-Proto` from a TLS-terminating reverse proxy - and
+  only then asks for `Secure` and the `__Host-` prefix, dropping the prefix
+  otherwise. Cookies remain hardened (`Secure`, `__Host-`, `HttpOnly`,
+  `SameSite=Strict`) on every HTTPS deployment, including behind the nginx
+  configuration the installer writes. No configuration change is required.
 - **`setup_docker_install.sh` could never complete on a fresh machine.** The
   installer ran `docker compose build`, but the `Dockerfile` overlays files from
   `persistent/php_patches` and `persistent/icons`, neither of which is published

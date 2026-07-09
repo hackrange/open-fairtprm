@@ -78,7 +78,7 @@ RUN set -e; \
     cp -p  $pp/ACL.php \
            $pp/EmailService.php $pp/LockdownService.php $pp/BreachAlertService.php \
            $pp/AIPlatformService.php $pp/GitHubOSINTScanner.php \
-           $pp/ShodanClient.php $pp/ShodanService.php $pp/Security.php \
+           $pp/ShodanClient.php $pp/ShodanService.php $pp/Security.php $pp/Session.php \
            $pp/VendorAssessmentService.php $pp/AssessmentTranslationService.php \
            $pp/CyberTodoService.php \
            $pp/GripService.php $pp/HeroService.php \
@@ -209,6 +209,7 @@ RUN set -e; \
         /var/www/html/includes/classes/ShodanClient.php \
         /var/www/html/includes/classes/ShodanService.php \
         /var/www/html/includes/classes/Security.php \
+        /var/www/html/includes/classes/Session.php \
         /var/www/html/includes/classes/VendorAssessmentService.php \
         /var/www/html/includes/classes/GripService.php \
         /var/www/html/includes/classes/HeroService.php \

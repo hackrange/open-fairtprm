@@ -46,13 +46,40 @@ class Session {
     }
 
     /**
+     * Is the request that reached PHP being served over HTTPS?
+     *
+     * Trusts X-Forwarded-Proto because we are normally behind a TLS-terminating
+     * reverse proxy (the setup script's nginx config sets it). A client that
+     * forges the header only talks itself into a Secure cookie its own browser
+     * will then refuse to send back -- it cannot use this to weaken anything.
+     *
+     * @return bool True when the browser sees an https:// origin
+     */
+    private function requestIsHttps() {
+        if (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') {
+            return true;
+        }
+        if (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) {
+            return true;
+        }
+        if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+            // May be a comma-separated chain; the left-most hop is the client's.
+            $proto = explode(',', $_SERVER['HTTP_X_FORWARDED_PROTO'])[0];
+            if (strtolower(trim($proto)) === 'https') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Configure PHP session settings and start the session.
      *
      * This is where we lock things down. We set:
      * - strict mode (reject uninitialized session IDs)
      * - cookies only (no session IDs in URLs, because it's not 1999)
      * - httponly flag (JavaScript can't touch our session cookie)
-     * - secure flag (HTTPS only, no sending cookies over plain HTTP)
+     * - secure flag (HTTPS only, and only when the request actually is HTTPS)
      * - samesite attribute (CSRF protection at the cookie level)
      * - gc_maxlifetime (how long before PHP garbage-collects the session)
      *
@@ -63,9 +90,19 @@ class Session {
         // Pull all our settings from config -- sensible defaults if missing
         $sessionName = $this->config->get('auth.session_name', '__Host-tprm_session');
         $lifetime = $this->config->get('auth.session_lifetime', 3600);
-        $secure = $this->config->get('security.secure_cookies', true);
         $httponly = $this->config->get('security.httponly_cookies', true);
         $samesite = $this->config->get('security.samesite_cookies', 'Strict');
+
+        // A Secure cookie is only ever stored and returned by a browser over an
+        // HTTPS origin, and a __Host- prefixed cookie is rejected outright unless
+        // it is Secure. Asking for either on a plain-HTTP request means the
+        // browser keeps no session at all, so every CSRF check fails and the
+        // login form rejects even a correct password. Ask only for what the
+        // current request can actually carry.
+        $secure = $this->config->get('security.secure_cookies', true) && $this->requestIsHttps();
+        if (!$secure) {
+            $sessionName = preg_replace('/^__(Host|Secure)-/', '', $sessionName);
+        }
 
         // Harden the PHP session settings via ini_set
         ini_set('session.use_strict_mode', '1');
