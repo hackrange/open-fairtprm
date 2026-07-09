@@ -37,6 +37,11 @@ Visit [FairTPRM.com](https://fairtprm.com) to get started.
 
 1. [What Is This?](#what-is-this)
 2. [One-Command Setup (Fastest)](#one-command-setup-fastest)
+   - [Step 1 — Pre-flight, then Git](#step-1--pre-flight-then-git)
+   - [Step 2 — Choose a version, exposure and reverse proxy](#step-2--choose-a-version-exposure-and-reverse-proxy)
+   - [Step 3 — Install Docker, clone, and pull the image](#step-3--install-docker-clone-and-pull-the-image)
+   - [Step 4 — Wait for health, then read your credentials](#step-4--wait-for-health-then-read-your-credentials)
+   - [Running it unattended](#running-it-unattended)
 3. [Features](#features)
 4. [Architecture](#architecture)
 5. [Getting the Code](#getting-the-code)
@@ -47,7 +52,7 @@ Visit [FairTPRM.com](https://fairtprm.com) to get started.
    - [Quick Start](#quick-start)
    - [What Happens on First Start](#what-happens-on-first-start)
    - [Getting Your Login Credentials](#getting-your-login-credentials)
-   - [Build and Run Options](#build-and-run-options)
+   - [Image and Run Options](#image-and-run-options)
    - [Volumes and Persistence](#volumes-and-persistence)
    - [Stopping, Restarting, and Upgrading](#stopping-restarting-and-upgrading)
 7. [Option B — Manual Installation on Ubuntu 22.04](#option-b--manual-installation-on-ubuntu-2204)
@@ -114,34 +119,99 @@ application:
 curl -fsSL https://git.hackrange.com/trice/open-fairtprm/-/raw/2.6.2/setup_docker_install.sh -o /tmp/setup.sh && sudo bash /tmp/setup.sh
 ```
 
-> **Note:** this installs the **v2.6.2 pre-release** line. For the stable
-> v2.6.1 release, use the same command with `master` in place of `2.6.2`.
-
-Or if you already have the repository cloned:
+Or, if you already have the repository cloned:
 
 ```bash
 sudo ./setup_docker_install.sh
 ```
 
-The script will:
+Nothing is compiled on your machine: the application image is published
+pre-built and the script simply pulls it.
 
-1. Verify you're on a supported Ubuntu version with enough RAM and disk
-2. Install Git (if not already installed)
-3. Install Docker Engine and Docker Compose v2
-4. Clone the `2.6.2` branch to `/data/docker/fairtprm`
-5. Pull the published application image and start the container
-6. Wait for the health check to pass and display your login credentials
+#### Step 1 — Pre-flight, then Git
 
-The application image is published pre-built, so nothing is compiled locally.
-Set `FAIRTPRM_BRANCH` or `FAIRTPRM_DIR` to override the branch or install
-directory.
+The script checks that you are root, on a supported Ubuntu release, and have at
+least 5 GB of disk and 2 GB of RAM. It then installs Git (plus `curl` and
+`gnupg`, which the later steps need):
 
-When it finishes, your application will be running at
-**http://localhost:8080**. Port 8080 is published on `127.0.0.1` only, so on a
-remote server reach it over an SSH tunnel
-(`ssh -L 8080:localhost:8080 user@your-server`) or edit the `ports:` line in
-`docker-compose.yml` to expose it — put it behind TLS first. The setup script
-prints your auto-generated admin credentials on screen.
+![Pre-flight checks pass, then Git is installed](docs/images/setup-1-prereqs.png)
+
+#### Step 2 — Choose a version, exposure and reverse proxy
+
+Next it asks three questions, each with a safe default you can accept by
+pressing Enter:
+
+1. **Which version?** It lists the tags published in the registry. Enter a
+   number, or type `2.6.2` — a leading `v` is optional, so `2.6.2` and `v2.6.2`
+   both install `v2.6.2`. Default: `v2.6.2`.
+2. **Who can reach it?** `127.0.0.1` only (default), or the whole network.
+3. **Install an nginx reverse proxy?** Default: no.
+
+![Choosing the version, who can reach it, and whether to install nginx](docs/images/setup-2-configure.png)
+
+#### Step 3 — Install Docker, clone, and pull the image
+
+It installs Docker Engine and Compose v2 from Docker's official repository,
+clones the `2.6.2` branch to `/data/docker/fairtprm`, and pulls the `v2.6.2`
+image (about 400 MB) from `dockerregistry.fairtprm.com`:
+
+![Docker is installed, the branch cloned, and the image pulled](docs/images/setup-3-pull.png)
+
+#### Step 4 — Wait for health, then read your credentials
+
+The container initializes MariaDB, loads the schema and starts ClamAV, Apache
+and cron. This takes about a minute. When the health check passes, the script
+prints your auto-generated admin credentials — and verifies them against the
+database before showing them to you:
+
+![The health check passes, credentials are printed and verified](docs/images/setup-4-complete.png)
+
+> The password shown is the one generated on **first start**. If it has since
+> been changed in the web UI, the file still holds the original — that is why
+> the script checks it against the database and tells you when the two
+> disagree. See [Forgot the admin password](#forgot-the-admin-password).
+
+#### Running it unattended
+
+Every answer is also a command-line option, so the script can run without a
+terminal:
+
+| Option | What it does |
+|--------|--------------|
+| `-v, --version TAG` | Version to install. `2.6.2` and `v2.6.2` both mean `v2.6.2`. Default `v2.6.2` |
+| `-e, --expose MODE` | `host` publishes on `127.0.0.1` (default); `network` publishes on `0.0.0.0` |
+| `-p, --port PORT` | Host port to publish. Default `8080` |
+| `--nginx` / `--no-nginx` | Install an nginx reverse proxy on port 80. Default: no |
+| `-d, --domain FQDN` | `server_name` for the nginx site |
+| `--tls` / `--email ADDR` | Request a Let's Encrypt certificate (needs `--domain`) |
+| `-y, --yes` | Never prompt; take the defaults for anything not given |
+| `-h, --help` | Show the full help |
+
+```bash
+# No prompts: v2.6.2, port 8080 on 127.0.0.1, no reverse proxy
+sudo ./setup_docker_install.sh --yes
+
+# Reachable from every host on the LAN (plain HTTP -- see the warning below)
+sudo ./setup_docker_install.sh --expose network
+
+# Install the stable v2.6.1 release instead
+sudo ./setup_docker_install.sh --version 2.6.1
+
+# Serve it over HTTPS through nginx, keeping the app itself on 127.0.0.1
+sudo ./setup_docker_install.sh --nginx --domain tprm.example.com --tls --email you@example.com
+```
+
+When the script has no terminal to prompt on — `curl ... | bash`, cloud-init,
+Ansible — it silently uses the defaults: **`v2.6.2`, port 8080 on `127.0.0.1`,
+no reverse proxy.**
+
+> **Why can't other machines reach port 8080?** By default the port is published
+> on `127.0.0.1`, so only the server itself can connect. This is deliberate: the
+> app speaks plain HTTP. Reach it over an SSH tunnel
+> (`ssh -L 8080:localhost:8080 user@your-server`), re-run with `--expose network`
+> to publish it on `0.0.0.0`, or put it behind TLS with `--nginx --domain ... --tls`.
+> Note that a published Docker port is inserted ahead of UFW's rules, so
+> `--expose network` reaches the LAN even when `ufw` claims to deny it.
 
 > **Prefer to do it step by step?** Skip to [Getting the Code](#getting-the-code)
 > for the manual walkthrough.
@@ -178,30 +248,10 @@ prints your auto-generated admin credentials on screen.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│                   Docker Container                  │
-│                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌───────────────────┐ │
-│  │  Apache   │  │ MariaDB  │  │     ClamAV        │ │
-│  │  + PHP    │  │          │  │  clamd + freshclam │ │
-│  │  + WAF    │  │          │  │                   │ │
-│  └────┬─────┘  └────┬─────┘  └───────────────────┘ │
-│       │              │                              │
-│       │    ┌─────────┘                              │
-│       ▼    ▼                                        │
-│  /var/www/html     /var/lib/mysql                   │
-│  (application)     (database)                       │
-│                                                     │
-│  ┌────────────────────────────────────────────────┐ │
-│  │              /persistent                       │ │
-│  │  config/ branding/ db_backup/ modsecurity/     │ │
-│  │  sql_updates/                                  │ │
-│  └────────────────────────────────────────────────┘ │
-│                                                     │
-│  Port 8080 ◄── reverse proxy ◄── clients            │
-└─────────────────────────────────────────────────────┘
-```
+Everything runs in a **single container** — web server, database, antivirus and
+scheduler — with two named volumes for state. There is nothing to wire together:
+
+![Architecture: browser to optional nginx to the container publishing 127.0.0.1:8080, holding Apache/PHP with the ModSecurity WAF, MariaDB, ClamAV and cron, backed by the persistent_data and mariadb_data volumes](docs/images/architecture.png)
 
 | Component | What It Does |
 |-----------|-------------|
@@ -211,6 +261,16 @@ prints your auto-generated admin credentials on screen.
 | **ClamAV** | Antivirus daemon — scans every file upload for malware |
 | **ModSecurity** | Web Application Firewall — blocks common attacks (SQL injection, XSS, scanners) |
 | **Cron** | Runs scheduled background jobs (rescoring, email reminders, breach monitoring) |
+| **nginx** *(optional)* | Reverse proxy for TLS on ports 80/443; installed by `setup_docker_install.sh --nginx` |
+
+| Volume | Mounted at | Holds |
+|--------|-----------|-------|
+| `persistent_data` | `/persistent` | Config, branding, WAF state, DB backups, migration tracking |
+| `mariadb_data` | `/var/lib/mysql` | The MariaDB database files |
+
+> The port is published on `127.0.0.1:8080` by default, so only the server
+> itself can reach it. See
+> [Choosing a version, network exposure and a reverse proxy](#step-2--choose-a-version-exposure-and-reverse-proxy).
 
 ---
 
@@ -289,8 +349,8 @@ You are now ready to deploy. Choose one of the two options below:
 
 ## Option A — Docker Deployment (Recommended)
 
-This is the **easiest way to get started**. One command builds everything and
-auto-configures the database, credentials, and WAF.
+This is the **easiest way to get started**. One command pulls the pre-built
+image and auto-configures the database, credentials, and WAF.
 
 ### What You Need (Docker)
 
@@ -301,8 +361,10 @@ auto-configures the database, credentials, and WAF.
 | **Docker Compose** | v2 (comes bundled with Docker Desktop; on Linux install `docker-compose-plugin`) |
 | **RAM** | 2 GB (ClamAV loads ~1 GB of virus definitions into memory) |
 | **Disk** | 5 GB (for the Docker image + database + virus definitions) |
+| **Network** | Outbound HTTPS to `dockerregistry.fairtprm.com` to pull the image |
 
-> **Don't have Docker installed?** On Ubuntu 22.04, run these commands:
+> **Don't have Docker installed?** On any supported Ubuntu release, run these
+> commands (`$(lsb_release -cs)` fills in your release codename automatically):
 >
 > ```bash
 > # Remove any old Docker packages
@@ -342,17 +404,32 @@ Then:
 # 1. Navigate to the project directory
 cd ~/open-fairtprm
 
-# 2. Build and start the container (runs in the background)
-docker compose up -d --build
+# 2. Pull the published image and start the container (runs in the background)
+docker compose pull
+docker compose up -d
 
 # 3. Watch the startup logs (first start takes ~60 seconds)
 docker compose logs -f
 ```
 
-When you see `==> Apache started. Container is ready.` in the logs, the
-application is running at **http://localhost:8080**.
+When you see `==> Starting Apache on port 8080...` in the logs, the application
+is up. Press `Ctrl+C` to stop watching logs (the container keeps running).
 
-Press `Ctrl+C` to stop watching logs (the container keeps running).
+Confirm it is healthy and reachable:
+
+```bash
+docker compose ps
+# NAME      IMAGE                                         STATUS                   PORTS
+# fairtprm  dockerregistry.fairtprm.com/fairtprm:v2.6.2   Up 2 minutes (healthy)   127.0.0.1:8080->8080/tcp
+
+curl -o /dev/null -w '%{http_code}\n' http://localhost:8080/login.php   # -> 200
+```
+
+The application is now at **http://localhost:8080**.
+
+> **Do not run `docker compose build`.** The `Dockerfile` overlays files from
+> `persistent/`, which is not part of this repository, so a build fails with
+> `"/persistent/icons": not found`. The image is published pre-built — pull it.
 
 ### What Happens on First Start
 
@@ -373,13 +450,14 @@ automatically:
 Credentials are **auto-generated** on first start. You can retrieve them two
 ways:
 
-**From the container logs:**
+**From the container logs** (only printed on the very first start, when the
+database is created):
 
 ```bash
 docker compose logs | grep -A 20 "DATABASE CREATED"
 ```
 
-**From the credentials file on the persistent volume:**
+**From the credentials file on the persistent volume** (always available):
 
 ```bash
 docker compose exec open-tprm cat /persistent/config/.sensitive
@@ -398,18 +476,32 @@ The credentials file contains:
 > **Important:** Save these credentials somewhere safe. You will need them to
 > log in and to connect to the database if needed.
 
-### Build and Run Options
+> **`.sensitive` records the password generated on first start — it is not kept
+> in sync afterwards.** The password the application actually accepts is the
+> bcrypt hash in the `users` table, which lives in the *other* volume
+> (`mariadb_data`). Change the admin password in the web UI, or recreate one
+> volume without the other, and the file goes stale while still looking
+> authoritative. `setup_docker_install.sh` compares the two after every install
+> and warns you when they disagree; see
+> [Forgot the admin password](#forgot-the-admin-password) to set a new one.
 
-**Build the image only (without starting):**
+### Image and Run Options
+
+The application image is published pre-built and is **not buildable from this
+repository** — the `Dockerfile` overlays files from `persistent/php_patches` and
+`persistent/icons`, which are not published here. Pull it instead:
+
+**Pull a specific version:**
 
 ```bash
-docker compose build
+docker pull dockerregistry.fairtprm.com/fairtprm:v2.6.2   # this pre-release line
+docker pull dockerregistry.fairtprm.com/fairtprm:v2.6.1   # the stable release
 ```
 
-**Build directly with `docker build`:**
+**List the versions the registry offers:**
 
 ```bash
-docker build -t fairtprm:v2.6.2 .
+curl -s https://dockerregistry.fairtprm.com/v2/fairtprm/tags/list
 ```
 
 **Run without Docker Compose (using `docker run`):**
@@ -417,12 +509,28 @@ docker build -t fairtprm:v2.6.2 .
 ```bash
 docker run -d \
   --name fairtprm \
+  --privileged \
   -p 127.0.0.1:8080:8080 \
   -v fairtprm_persistent:/persistent \
   -v fairtprm_mariadb:/var/lib/mysql \
   --restart unless-stopped \
-  fairtprm:v2.6.2
+  dockerregistry.fairtprm.com/fairtprm:v2.6.2
 ```
+
+**Change the port binding without editing `docker-compose.yml`:** the setup
+script writes a `docker-compose.override.yml` that Compose picks up
+automatically. To publish on every interface instead of `127.0.0.1`:
+
+```yaml
+# docker-compose.override.yml
+services:
+  open-tprm:
+    ports: !override
+      - "0.0.0.0:8080:8080"
+```
+
+`!override` replaces the base `ports:` list. Without it Compose *appends*, and
+the container would try to bind both `127.0.0.1:8080` and `0.0.0.0:8080`.
 
 ### Volumes and Persistence
 
@@ -487,18 +595,27 @@ docker compose restart
 
 **Upgrade to a new version:**
 
-1. Update the source code in `web/`
-2. Update the version in `Dockerfile` and `docker-compose.yml`
-3. Add any new SQL migrations to `web/sql_updates/`
-4. Rebuild and restart:
+The simplest route is to re-run the setup script with the version you want. It
+keeps both volumes, so your database and configuration survive:
 
 ```bash
-docker compose down
-docker compose up -d --build
+sudo /data/docker/fairtprm/setup_docker_install.sh --version 2.6.2
+```
+
+By hand, the equivalent is:
+
+```bash
+cd /data/docker/fairtprm
+docker compose down                                       # keeps your data
+docker pull dockerregistry.fairtprm.com/fairtprm:v2.6.2
+docker compose up -d --no-build
 ```
 
 The entrypoint automatically detects new or changed SQL migration files using
 content hashes and applies them on startup.
+
+> `docker compose down` keeps your volumes. Only `docker compose down -v`
+> destroys them. Never pass `-v` unless you intend to wipe the database.
 
 ---
 
@@ -1483,17 +1600,65 @@ docker compose exec open-tprm cat /var/log/php/error.log
 cat /var/log/php/error.log
 ```
 
-### Forgot the admin password
+### Other machines on the network can't reach port 8080
+
+This is the default, not a fault. Compose publishes the port on `127.0.0.1`, so
+only the server itself can connect:
 
 ```bash
-# Pick a new password
+docker ps --format '{{.Ports}}'
+# 127.0.0.1:8080->8080/tcp     <- host-only
+# 0.0.0.0:8080->8080/tcp       <- reachable from the network
+```
+
+Your firewall is not the cause — a Docker published port is inserted ahead of
+UFW's rules, so `iptables -L -n` will show the `DOCKER` chain accepting traffic
+regardless. Pick one of:
+
+```bash
+# Reach it from your laptop without exposing anything
+ssh -L 8080:localhost:8080 user@your-server
+
+# Publish it on every interface (plain HTTP -- LAN only, please)
+sudo /data/docker/fairtprm/setup_docker_install.sh --expose network
+
+# Serve it properly over HTTPS: nginx on 443, app stays on 127.0.0.1
+sudo /data/docker/fairtprm/setup_docker_install.sh --nginx --domain tprm.example.com --tls --email you@example.com
+```
+
+### Forgot the admin password
+
+First check whether the password recorded in `.sensitive` still works. It is
+only the password generated on **first start**: changing the password in the web
+UI, or recreating one volume without the other, leaves the file stale.
+
+```bash
+cd /data/docker/fairtprm
+
+PW=$(docker compose exec -T open-tprm cat /persistent/config/.sensitive | grep '^PORTAL_ADMIN_PASSWORD=' | cut -d= -f2-)
+HS=$(docker compose exec -T open-tprm mysql tprm -N -B -e "SELECT password_hash FROM users WHERE username='admin' LIMIT 1")
+
+docker compose exec -T -e PW="$PW" -e HS="$HS" open-tprm \
+    php -r 'exit(password_verify(getenv("PW"), getenv("HS")) ? 0 : 1);' \
+    && echo "the password in .sensitive is correct" \
+    || echo "the password in .sensitive is stale -- reset it below"
+```
+
+**Docker** — hash the new password *inside* the container (the host has no PHP):
+
+```bash
+cd /data/docker/fairtprm
+docker compose exec -T -e NEWPW='YourNewPassword' open-tprm sh -s <<'RESET'
+  H=$(php -r 'echo password_hash(getenv("NEWPW"), PASSWORD_BCRYPT, ["cost" => 12]);')
+  mysql tprm -e "UPDATE users SET password_hash = '$H' WHERE username = 'admin';"
+RESET
+```
+
+**Manual install:**
+
+```bash
 NEW_PASS="your-new-password"
 HASH=$(php -r "echo password_hash('${NEW_PASS}', PASSWORD_BCRYPT, ['cost' => 12]);")
-
-# Docker
-docker compose exec open-tprm mysql tprm -e "UPDATE users SET password_hash='${HASH}' WHERE username='admin';"
-
-# Manual install
 mysql tprm -e "UPDATE users SET password_hash='${HASH}' WHERE username='admin';"
 ```
 

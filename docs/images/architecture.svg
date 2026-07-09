@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="700" viewBox="0 0 1280 700" font-family="DejaVu Sans, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowDash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="700" fill="#ffffff"/>
+
+  <!-- ============ client ============ -->
+  <rect x="20" y="252" width="152" height="76" rx="10" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="96" y="284" text-anchor="middle" font-size="15" font-weight="bold" fill="#0f172a">Browser</text>
+  <text x="96" y="305" text-anchor="middle" font-size="12.5" fill="#475569">or API client</text>
+
+  <line x1="172" y1="290" x2="190" y2="290" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <!-- ============ nginx (optional) ============ -->
+  <rect x="196" y="238" width="176" height="104" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="284" y="266" text-anchor="middle" font-size="15" font-weight="bold" fill="#312e81">nginx</text>
+  <text x="284" y="287" text-anchor="middle" font-size="12.5" fill="#4338ca">:80 / :443  TLS</text>
+  <text x="284" y="309" text-anchor="middle" font-size="11.5" fill="#6366f1">optional</text>
+  <text x="284" y="329" text-anchor="middle" font-size="11" font-family="DejaVu Sans Mono, monospace" fill="#6366f1">--nginx --tls</text>
+
+  <line x1="372" y1="290" x2="380" y2="290" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+
+  <!-- ============ container ============ -->
+  <rect x="520" y="56" width="716" height="470" rx="14" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
+  <text x="544" y="86" font-size="14.5" font-weight="bold" fill="#0f172a">Docker container</text>
+  <text x="544" y="106" font-size="11.5" font-family="DejaVu Sans Mono, monospace" fill="#64748b">dockerregistry.fairtprm.com/fairtprm:v2.6.2</text>
+
+  <!-- Apache + PHP -->
+  <rect x="552" y="132" width="316" height="132" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="572" y="160" font-size="15" font-weight="bold" fill="#1e3a8a">Apache 2.4  +  PHP 8.5</text>
+  <text x="572" y="182" font-size="12" fill="#1d4ed8">mod_php (prefork MPM), port 8080</text>
+  <rect x="572" y="198" width="166" height="28" rx="14" fill="#dbeafe" stroke="#3b82f6" stroke-width="1"/>
+  <text x="655" y="217" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#1e40af">ModSecurity WAF</text>
+  <text x="572" y="250" font-size="11.5" font-family="DejaVu Sans Mono, monospace" fill="#64748b">/var/www/html</text>
+
+  <!-- MariaDB -->
+  <rect x="892" y="132" width="316" height="132" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="1.5"/>
+  <text x="912" y="160" font-size="15" font-weight="bold" fill="#065f46">MariaDB</text>
+  <text x="912" y="182" font-size="12" fill="#047857">tprm database, 37+ tables</text>
+  <text x="912" y="250" font-size="11.5" font-family="DejaVu Sans Mono, monospace" fill="#64748b">/var/lib/mysql</text>
+
+  <!-- ClamAV -->
+  <rect x="552" y="300" width="316" height="112" rx="10" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="572" y="328" font-size="15" font-weight="bold" fill="#92400e">ClamAV</text>
+  <text x="572" y="350" font-size="12" fill="#b45309">clamd + freshclam</text>
+  <text x="572" y="371" font-size="11.5" fill="#a16207">scans every file upload</text>
+
+  <!-- cron -->
+  <rect x="892" y="300" width="316" height="112" rx="10" fill="#faf5ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="912" y="328" font-size="15" font-weight="bold" fill="#6b21a8">cron</text>
+  <text x="912" y="350" font-size="12" fill="#7e22ce">rescoring, email reminders,</text>
+  <text x="912" y="371" font-size="12" fill="#7e22ce">breach + Shadow SaaS feeds</text>
+
+  <!-- internal arrows -->
+  <line x1="868" y1="198" x2="886" y2="198" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="710" y1="264" x2="710" y2="294" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="1050" y1="294" x2="1050" y2="264" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <text x="576" y="464" font-size="12" fill="#475569">The entrypoint generates credentials, loads the schema, applies SQL migrations</text>
+  <text x="576" y="486" font-size="12" fill="#475569">and enables the WAF on first start — nothing to configure by hand.</text>
+
+  <rect x="384" y="274" width="136" height="32" rx="16" fill="#0f172a"/>
+  <text x="452" y="295" text-anchor="middle" font-size="12" font-family="DejaVu Sans Mono, monospace" fill="#f8fafc">127.0.0.1:8080</text>
+
+  <!-- ============ volumes ============ -->
+  <text x="40" y="612" font-size="13.5" font-weight="bold" fill="#334155">Named Docker volumes</text>
+  <text x="40" y="636" font-size="12" fill="#475569">survive <tspan font-family="DejaVu Sans Mono, monospace" font-size="11.5">docker compose down</tspan>.</text>
+  <text x="40" y="656" font-size="12" fill="#475569">Only <tspan font-family="DejaVu Sans Mono, monospace" font-size="11.5">down -v</tspan> destroys them.</text>
+
+  <rect x="520" y="588" width="344" height="86" rx="10" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="540" y="614" font-size="13.5" font-weight="bold" fill="#0f172a">persistent_data</text>
+  <text x="540" y="634" font-size="11.5" font-family="DejaVu Sans Mono, monospace" fill="#475569">/persistent</text>
+  <text x="540" y="656" font-size="11.5" fill="#475569">config, branding, WAF state, backups</text>
+
+  <rect x="892" y="588" width="344" height="86" rx="10" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="912" y="614" font-size="13.5" font-weight="bold" fill="#0f172a">mariadb_data</text>
+  <text x="912" y="634" font-size="11.5" font-family="DejaVu Sans Mono, monospace" fill="#475569">/var/lib/mysql</text>
+  <text x="912" y="656" font-size="11.5" fill="#475569">the database files</text>
+
+  <line x1="692" y1="526" x2="692" y2="584" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#arrowDash)"/>
+  <line x1="1064" y1="526" x2="1064" y2="584" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#arrowDash)"/>
+</svg>

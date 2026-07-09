@@ -102,6 +102,24 @@ project adheres to [Semantic Versioning](https://semver.org/).
   upload; the format is detected automatically and answers are merged into the
   existing responses. The file's Reference must match the assessment before
   anything is written.
+- **`setup_docker_install.sh` - version, network exposure, and reverse proxy.**
+  Run with no arguments the installer prompts for the version to install
+  (`2.6.2` and `v2.6.2` are both accepted and normalize to the `v2.6.2` image
+  tag; the tag is validated against the registry before anything is downloaded),
+  whether to publish port 8080 to the network or to the host only, and whether to
+  configure an nginx reverse proxy. Every prompt has an equivalent flag
+  (`--version`, `--expose host|network`, `--port`, `--nginx` / `--no-nginx`,
+  `--domain`, `--email`, `--tls`, `--yes`), and passing any flag makes the run
+  fully unattended, so the script is usable from cloud-init and configuration
+  management. With no arguments it installs `v2.6.2` and publishes 8080 on
+  `127.0.0.1` only, as before. `--nginx` terminates on port 80 (optionally with a
+  Let's Encrypt certificate via `--tls`) and keeps 8080 bound to the loopback
+  interface. Prompts read from `/dev/tty`, so the documented
+  `curl ... | sudo bash` bootstrap still works.
+- **`setup_docker_install.sh` verifies the admin credentials it prints.** After
+  the container is healthy the installer checks the generated password against
+  the bcrypt hash in the database and says so. If they disagree it prints a
+  tested reset recipe instead of a password that will not work.
 
 ### Changed
 
@@ -182,7 +200,18 @@ project adheres to [Semantic Versioning](https://semver.org/).
   advertised `http://<server-ip>:8080`, but Compose publishes port 8080 on
   `127.0.0.1` only. It now prints the correct URL together with the SSH-tunnel
   command needed to reach it from another machine. The credentials box borders
-  also line up again.
+  also line up again. Port 8080 can now also be published to the network
+  outright (`--expose network`), which is what most people wanted.
+- **`setup_docker_install.sh` could print an admin password that did not work.**
+  The password is written to `.sensitive` in the `persistent_data` volume, while
+  the bcrypt hash it must match lives in the `users` table in `mariadb_data`.
+  Changing the password in the UI, or recreating one volume without the other,
+  leaves the file stale, and the installer reprinted it as though it were
+  current. The installer now verifies the password against the database and, on
+  a mismatch, prints a reset recipe rather than a stale credential.
+- **README: the "forgot the admin password" recipe could not run.** It called
+  `php -r` on the host, which has no PHP under a Docker install. The recipe now
+  runs inside the container.
 - **Subprocessors: editing name/domain/country/linked-vendor/service/data failed.**
   Saving an edit on the vendor onboarding **Subprocessors** tab returned "Failed to
   update subprocessor" and persisted nothing. The edit API passed a positional (`?`)
