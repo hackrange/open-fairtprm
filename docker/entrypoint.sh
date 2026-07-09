@@ -164,6 +164,55 @@ EOF
 chmod 600 "$MY_CNF"
 
 # =========================================================================
+# 6b. Does the application database already exist?
+#     Everything below keys off this rather than off FIRST_START. The two can
+#     disagree: $PASSWORDS_FILE lives in the MariaDB volume, so deleting it
+#     without dropping the database would otherwise make us re-issue an admin
+#     password the database has never seen.
+# =========================================================================
+if mysql -e "USE tprm" 2>/dev/null; then
+    DB_EXISTS=true
+else
+    DB_EXISTS=false
+fi
+
+# =========================================================================
+# 6c. Fresh database volume, but /persistent survived from an earlier install.
+#
+#     config.php and .sensitive live in the persistent volume; $PASSWORDS_FILE
+#     lives in the MariaDB volume. Recreating one without the other used to
+#     leave config.php pointing at a database user the new database never
+#     created ("Access denied for user 'tprm_user'"), and .sensitive
+#     advertising an admin password the new database never hashed.
+#
+#     Seed the new database with the credentials config.php already carries
+#     rather than rewriting a config we did not author. The admin password is
+#     the one exception: it is not recoverable from config.php, so it is
+#     regenerated and .sensitive is rewritten to match (see section 7b).
+# =========================================================================
+if [ "$DB_EXISTS" = false ] && [ -f /persistent/config/config.php ] && \
+   ! grep -q 'CHANGE_THIS_PASSWORD' /persistent/config/config.php 2>/dev/null; then
+    echo "==> Existing /persistent with a fresh database volume - adopting its credentials..."
+
+    adopted_db_pass=$(php -r '$c = @require "/persistent/config/config.php"; echo $c["database"]["password"] ?? "";' 2>/dev/null)
+    adopted_key=$(php -r '$c = @require "/persistent/config/config.php"; echo $c["encryption"]["key"] ?? "";' 2>/dev/null)
+
+    if [ -n "$adopted_db_pass" ]; then
+        MYSQL_USER_PASSWORD="$adopted_db_pass"
+        echo "    - Database password taken from config.php."
+    fi
+    # Keep the old key or every value already encrypted under it becomes garbage.
+    if [ -n "$adopted_key" ]; then
+        ENCRYPTION_KEY="$adopted_key"
+        echo "    - Encryption key taken from config.php."
+    fi
+
+    # The passwords file must agree, or the next start adopts nothing and drifts again.
+    sed -i -e "s|^MYSQL_USER_PASSWORD=.*|MYSQL_USER_PASSWORD=${MYSQL_USER_PASSWORD}|" \
+           -e "s|^ENCRYPTION_KEY=.*|ENCRYPTION_KEY=${ENCRYPTION_KEY}|" "$PASSWORDS_FILE"
+fi
+
+# =========================================================================
 # 7. Ensure config.php always has real credentials (not placeholders)
 #    This runs every start so config.php is correct even if persistent/
 #    was re-initialized while the DB volume was preserved.
@@ -202,8 +251,19 @@ if [ -f /persistent/config/config.php ]; then
     chmod 640 /persistent/config/config.php
 fi
 
-# Ensure .sensitive file always exists on the host and has the admin password
-if [ ! -f /persistent/config/.sensitive ] || ! grep -q 'PORTAL_ADMIN_PASSWORD=.' /persistent/config/.sensitive 2>/dev/null; then
+# 7b. Ensure .sensitive exists and tells the truth.
+#
+# Rewrite it whenever the database is about to be seeded: the admin password is
+# regenerated in that case, so a surviving .sensitive from an earlier install
+# would advertise a password the new database has never hashed, and the login
+# would fail with "Invalid username or password". Keep a copy of the stale file
+# rather than discarding it -- it may hold the only record of the old key.
+if [ "$DB_EXISTS" = false ] && [ -f /persistent/config/.sensitive ]; then
+    cp -p /persistent/config/.sensitive /persistent/config/.sensitive.previous
+    echo "==> Database is new; previous credentials saved to .sensitive.previous"
+fi
+
+if [ "$DB_EXISTS" = false ] || [ ! -f /persistent/config/.sensitive ] || ! grep -q 'PORTAL_ADMIN_PASSWORD=.' /persistent/config/.sensitive 2>/dev/null; then
     cat > /persistent/config/.sensitive <<EOF
 # Open TPRM & GRC - Sensitive Credentials
 # Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
@@ -232,7 +292,7 @@ fi
 #    This is the core safety check — we NEVER drop or overwrite an
 #    existing tprm database.  docker compose up/down/restart is safe.
 # =========================================================================
-if ! mysql -e "USE tprm" 2>/dev/null; then
+if [ "$DB_EXISTS" = false ]; then
     echo "==> Database 'tprm' not found — creating and seeding..."
 
     # Generate bcrypt hash for admin password

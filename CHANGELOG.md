@@ -172,6 +172,21 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Recreating the database volume alone left the install broken.** `.passwords`
+  lives in the `mariadb_data` volume, while `config.php` and `.sensitive` live in
+  `persistent_data`. Destroying the database volume without also destroying the
+  persistent one regenerated every credential, so `config.php` pointed at a
+  database user the new database had never created (`Access denied for user
+  'tprm_user'`) and `.sensitive` advertised an admin password the new database
+  had never hashed. The entrypoint now detects a fresh database beside a
+  surviving `/persistent` and seeds the new database with the credentials
+  `config.php` already carries - keeping the existing encryption key, so data
+  already encrypted under it stays readable - rather than rewriting a config it
+  did not author. The admin password cannot be recovered from `config.php`, so it
+  is regenerated and `.sensitive` is rewritten to match, with the previous file
+  preserved as `.sensitive.previous`. Seeding and the credential rewrite now key
+  off one `DB_EXISTS` check, so they cannot disagree. A plain restart still
+  rewrites nothing.
 - **Login was impossible over plain HTTP from another machine.** The session
   cookie was always sent as `__Host-tprm_session` with the `Secure` attribute,
   regardless of the request's scheme. Browsers refuse to store a `Secure` cookie
