@@ -7,12 +7,6 @@ PHP 8.5, Apache 2.4, MariaDB, ClamAV, and ModSecurity (WAF).
 **Author:** Tim Rice — Hack Range
 **Disclaimer:** Use this software at your own risk. No warranty provided.
 
-> ⚠️ **Pre-release branch.** This is the **v2.6.2** line — bleeding-edge and
-> **not yet production-ready**. It lives on the `2.6.2` git branch and is built
-> as the `dockerregistry.fairtprm.com/fairtprm:v2.6.2` image. For a stable
-> deployment, use the **v2.6.1** release on the `master`/`2.6.1` branches
-> instead. The setup steps below assume you want this pre-release line.
-
 ---
 
 ## Try It Free - No Installation Required
@@ -194,7 +188,7 @@ sudo ./setup_docker_install.sh --yes
 # Reachable from every host on the LAN (plain HTTP -- see the warning below)
 sudo ./setup_docker_install.sh --expose network
 
-# Install the stable v2.6.1 release instead
+# Install the previous v2.6.1 release instead
 sudo ./setup_docker_install.sh --version 2.6.1
 
 # Serve it over HTTPS through nginx, keeping the app itself on 127.0.0.1
@@ -320,7 +314,7 @@ Now download the project files to your machine:
 # Navigate to where you want to store the project (e.g., your home directory)
 cd ~
 
-# Clone the repository and check out the v2.6.2 pre-release branch
+# Clone the repository and check out the v2.6.2 stable branch
 git clone -b 2.6.2 https://git.hackrange.com/trice/open-fairtprm.git
 
 # Move into the project directory
@@ -330,8 +324,8 @@ cd open-fairtprm
 > **What does `git clone` do?** It downloads a complete copy of the project
 > files from the server to your computer. You only need to do this once.
 > To get updates later, run `git pull` from inside the project directory.
-> The `-b 2.6.2` flag checks out this pre-release branch; omit it (or use
-> `-b master`) if you want the stable v2.6.1 line instead.
+> The `-b 2.6.2` flag checks out the current stable v2.6.2 line; `master` now
+> points to the same release, so omitting the flag gives you the same code.
 
 You should now see files like `Dockerfile`, `docker-compose.yml`, `README.md`,
 and the `web/` and `docker/` directories:
@@ -494,8 +488,8 @@ repository** — the `Dockerfile` overlays files from `persistent/php_patches` a
 **Pull a specific version:**
 
 ```bash
-docker pull dockerregistry.fairtprm.com/fairtprm:v2.6.2   # this pre-release line
-docker pull dockerregistry.fairtprm.com/fairtprm:v2.6.1   # the stable release
+docker pull dockerregistry.fairtprm.com/fairtprm:v2.6.2   # current stable release
+docker pull dockerregistry.fairtprm.com/fairtprm:v2.6.1   # previous release
 ```
 
 **List the versions the registry offers:**

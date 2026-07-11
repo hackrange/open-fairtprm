@@ -7,8 +7,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [2.6.2] - 2026-06-28
 
-> **Pre-release.** `2.6.2` is a bleeding-edge line ahead of the stable `2.6.1`
-> release; it ships to the `v2.6.2` image tag and the `2.6.2` branch only.
+> **Stable.** `2.6.2` is the current stable release, superseding `2.6.1`. It
+> ships to the `v2.6.2` image tag and to both the `master` and `2.6.2` branches.
 
 ### Added
 
@@ -123,6 +123,10 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Promoted 2.6.2 to the stable release line.** `2.6.2` supersedes `2.6.1` (now
+  frozen as the final 2.6.1 codeset) and is published to both the `master` and
+  `2.6.2` branches. Removed the "pre-release / not-yet-production-ready" language
+  from the README and CHANGELOG accordingly.
 - **Vendor assessment certificate upload is now template-driven, not ISO-only.** The
   "have a certificate?" modal on the vendor assessment page now shows the template's
   **Certificate Upload Instructions** as its body text (falling back to the generic
