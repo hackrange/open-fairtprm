@@ -12,7 +12,7 @@ PHP 8.5, Apache 2.4, MariaDB, ClamAV, and ModSecurity (WAF).
 ## Try It Free - No Installation Required
 
 Want to see Fair TPRM & GRC in action before installing anything? A **free
-90-day hosted trial** is available at
+hosted trial** is available at
 [FairTPRM.com](https://fairtprm.com) with **AI-assisted analysis** and
 **Shodan integration** already configured and ready to use. No setup, no
 Docker, no servers - just sign up and start managing your vendor risk program
