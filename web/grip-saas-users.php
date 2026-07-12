@@ -43,7 +43,7 @@ if (!$isAdmin && !$isCyberTPRM && !$isAuditor) {
 $gripId = (string)($_GET['id'] ?? '');
 if (!preg_match('/^[A-Za-z0-9._-]{1,64}$/', $gripId)) {
     http_response_code(400);
-    die('Invalid application id.');
+    die(t('grip-saas-users.invalid_app_id'));
 }
 
 // App context - vendor name / domain / user count. The Shadow SaaS list row the
@@ -286,7 +286,7 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
     if ($filter !== '') $q['filter'] = $filter;
     if ($search !== '') $q['q'] = $search;
     $qs = http_build_query($q);
-    return '<th><a href="?' . e($qs) . '" title="Sort by ' . e($label) . '"'
+    return '<th><a href="?' . e($qs) . '" title="' . e(t('grip-saas-users.sort_by')) . ' ' . e($label) . '"'
          . ' style="color:' . ($isActive ? 'var(--theme-button-color)' : 'inherit') . ';text-decoration:none;white-space:nowrap;">'
          . e($label) . $arrow . '</a></th>';
 }
@@ -295,7 +295,7 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo e($appName); ?> — Affected Users - <?php echo e($theme['system_title'] ?? 'FairTPRM'); ?></title>
+    <title><?php echo e($appName); ?> - <?php echo e(t('grip-saas-users.affected_users')); ?> - <?php echo e($theme['system_title'] ?? 'FairTPRM'); ?></title>
     <link rel="icon" href="app/images/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900">
     <link rel="stylesheet" href="app/css/bootstrap.css">
@@ -422,23 +422,23 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                                     <a href="https://<?php echo e($appDomain); ?>" target="_blank" rel="noopener"><?php echo e($appDomain); ?></a>
                                     &middot;
                                 <?php endif; ?>
-                                <?php if ($search !== '' || $authFilter !== ''): ?><?php echo number_format($total); ?> matching user<?php echo $total === 1 ? '' : 's'; ?><?php else: ?><?php echo number_format($total); ?> user<?php echo $total === 1 ? '' : 's'; ?> observed by Grip<?php endif; ?>
+                                <?php if ($search !== '' || $authFilter !== ''): ?><?php echo number_format($total); ?> <?php echo e($total === 1 ? t('grip-saas-users.matching_user_one') : t('grip-saas-users.matching_user_many')); ?><?php else: ?><?php echo number_format($total); ?> <?php echo e($total === 1 ? t('grip-saas-users.user_observed_one') : t('grip-saas-users.user_observed_many')); ?><?php endif; ?>
                             </p>
                         </div>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <a href="shadow-saas.php" style="background: #6b7280; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px;">&larr; Back to Shadow SaaS</a>
+                        <a href="shadow-saas.php" style="background: #6b7280; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px;">&larr; <?php echo e(t('grip-saas-users.back_to_shadow_saas')); ?></a>
                     </div>
                 </div>
 
-                <p style="color:#6b7280;font-size:13px;margin:-8px 0 18px;">Users potentially impacted by a Grip-detected security incident affecting this application, as observed by Grip Security.</p>
+                <p style="color:#6b7280;font-size:13px;margin:-8px 0 18px;"><?php echo e(t('grip-saas-users.page_intro')); ?></p>
 
-                <?php $filterOpts = ['' => 'All', 'sso' => 'SSO', 'nosso' => 'No SSO', 'saml' => 'SAML 2.0', 'credentials' => 'Credentials']; ?>
+                <?php $filterOpts = ['' => t('grip-saas-users.filter_all'), 'sso' => 'SSO', 'nosso' => t('grip-saas-users.no_sso'), 'saml' => 'SAML 2.0', 'credentials' => t('grip-saas-users.filter_credentials')]; ?>
                 <!-- Authentication filters (left) and name/email search (right) share one
                      row to save vertical space; they stack when the viewport is narrow. -->
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px 20px;flex-wrap:wrap;margin-bottom:16px;">
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-                        <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-right:4px;">Authentication</span>
+                        <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-right:4px;"><?php echo e(t('grip-saas-users.authentication_label')); ?></span>
                         <?php foreach ($filterOpts as $fk => $fl):
                             $fActive = ($authFilter === $fk);
                             $fq = ['id' => $gripId, 'per_page' => (int)$params['per_page']];
@@ -455,26 +455,25 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                         <input type="hidden" name="id" value="<?php echo e($gripId); ?>">
                         <?php if ($authFilter !== ''): ?><input type="hidden" name="filter" value="<?php echo e($authFilter); ?>"><?php endif; ?>
                         <input type="hidden" name="per_page" value="<?php echo (int)$params['per_page']; ?>">
-                        <input type="search" name="q" value="<?php echo e($search); ?>" placeholder="Search by name or email&hellip;" autocomplete="off" style="width:240px;max-width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
-                        <button type="submit" style="background:var(--theme-button-color);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;">Search</button>
-                        <?php if ($search !== ''): ?><a href="?<?php echo e(http_build_query(array_filter(['id' => $gripId, 'per_page' => (int)$params['per_page'], 'filter' => $authFilter]))); ?>" style="font-size:13px;color:#6b7280;text-decoration:none;padding:8px 4px;">Clear</a><?php endif; ?>
+                        <input type="search" name="q" value="<?php echo e($search); ?>" placeholder="<?php echo e(t('grip-saas-users.search_placeholder')); ?>" autocomplete="off" style="width:240px;max-width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">
+                        <button type="submit" style="background:var(--theme-button-color);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;"><?php echo e(t('grip-saas-users.search_button')); ?></button>
+                        <?php if ($search !== ''): ?><a href="?<?php echo e(http_build_query(array_filter(['id' => $gripId, 'per_page' => (int)$params['per_page'], 'filter' => $authFilter]))); ?>" style="font-size:13px;color:#6b7280;text-decoration:none;padding:8px 4px;"><?php echo e(t('grip-saas-users.clear')); ?></a><?php endif; ?>
                     </form>
                 </div>
 
                 <?php if (empty($users) && ($search !== '' || $authFilter !== '')): ?>
                     <div class="empty-state">
-                        <h3>No matching users</h3>
-                        <div>No users match <?php
-                            if ($search !== '' && $authFilter !== '') echo 'your search and the selected authentication filter';
-                            elseif ($search !== '') echo 'your search "' . e($search) . '"';
-                            else echo 'the selected authentication filter';
-                        ?> for this application.</div>
+                        <h3><?php echo e(t('grip-saas-users.no_matching_users')); ?></h3>
+                        <div><?php echo e(t('grip-saas-users.no_users_match_prefix')); ?> <?php
+                            if ($search !== '' && $authFilter !== '') echo e(t('grip-saas-users.match_search_and_filter'));
+                            elseif ($search !== '') echo e(t('grip-saas-users.match_search')) . ' "' . e($search) . '"';
+                            else echo e(t('grip-saas-users.match_filter'));
+                        ?> <?php echo e(t('grip-saas-users.no_users_match_suffix')); ?></div>
                     </div>
                 <?php elseif (empty($users)): ?>
                     <div class="empty-state">
-                        <h3>No users available</h3>
-                        <div>No user roster is available for this application yet.<br>
-                        It is captured live on first view and on each Shadow SaaS sync (scheduled rehydration or "Run Now"). If Grip is not connected, no roster can be shown.</div>
+                        <h3><?php echo e(t('grip-saas-users.no_users_available')); ?></h3>
+                        <div><?php echo t('grip-saas-users.no_roster_body'); ?></div>
                     </div>
                 <?php else: ?>
                     <?php Pagination::renderControls($pg, 'users', [100, 500, 1000]); ?>
@@ -484,18 +483,18 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                             <tr>
                                 <?php
                                     $pp = (int)$params['per_page'];
-                                    echo gsuSortHeader('User', 'full_name', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
-                                    echo gsuSortHeader('Org Unit', 'organizational_unit', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
-                                    echo gsuSortHeader('Manager', 'manager_email', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
+                                    echo gsuSortHeader(t('grip-saas-users.col_user'), 'full_name', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
+                                    echo gsuSortHeader(t('grip-saas-users.col_org_unit'), 'organizational_unit', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
+                                    echo gsuSortHeader(t('grip-saas-users.col_manager'), 'manager_email', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
                                 ?>
-                                <th>Auth</th>
+                                <th><?php echo e(t('grip-saas-users.col_auth')); ?></th>
                                 <th>SSO</th>
                                 <?php
-                                    echo gsuSortHeader('First Event', 'first_event_time', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
-                                    echo gsuSortHeader('Latest Event', 'latest_event_time', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
-                                    echo gsuSortHeader('Last Usage', 'last_usage', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
+                                    echo gsuSortHeader(t('grip-saas-users.col_first_event'), 'first_event_time', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
+                                    echo gsuSortHeader(t('grip-saas-users.col_latest_event'), 'latest_event_time', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
+                                    echo gsuSortHeader(t('grip-saas-users.col_last_usage'), 'last_usage', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
                                 ?>
-                                <th>Platforms</th>
+                                <th><?php echo e(t('grip-saas-users.col_platforms')); ?></th>
                                 <th># SaaS</th>
                             </tr>
                         </thead>
@@ -534,7 +533,7 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                                 <td>
                                     <?php if ($sso === null || $sso === ''): ?><span style="color:#9ca3af;">—</span>
                                     <?php elseif ((int)$sso === 1): ?><span class="gsu-pill gsu-yes">SSO</span>
-                                    <?php else: ?><span class="gsu-pill gsu-no">No SSO</span><?php endif; ?>
+                                    <?php else: ?><span class="gsu-pill gsu-no"><?php echo e(t('grip-saas-users.no_sso')); ?></span><?php endif; ?>
                                 </td>
                                 <td><?php echo gsuDate($u['first_event_time'] ?? null); ?></td>
                                 <td><?php echo gsuDate($u['latest_event_time'] ?? null); ?></td>

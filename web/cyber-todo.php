@@ -409,7 +409,7 @@ try {
     $todoItems = $todoService->gatherAllTodoItems();
 } catch (Exception $e) {
     error_log('Cyber To-Do fetch error: ' . $e->getMessage());
-    $error = 'Error loading todo items: ' . $e->getMessage();
+    $error = t('cyber-todo.error_loading_items') . $e->getMessage();
 }
 
 // Import audit log data + activity enrichment + filtering + sorting.
@@ -525,7 +525,7 @@ foreach ($todoItems as $ti) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Cyber To-Do - TPRM</title>
+    <title><?php echo e(t('cyber-todo.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="app/images/favicon.ico" type="image/x-icon">
@@ -842,10 +842,10 @@ foreach ($todoItems as $ti) {
             <!-- Page Header with Search -->
             <div class="cyber-todo-header" style="display: flex; align-items: center; gap: 30px; margin-bottom: 25px; flex-wrap: wrap;">
                 <div class="cyber-todo-title-row" style="flex: 1; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-                    <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: #333;">Cyber To-Do Items</h2>
+                    <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: #333;"><?php echo e(t('cyber-todo.heading_cyber_todo_items')); ?></h2>
                     <?php if ($isAdmin || $isCyberTPRM): ?>
                     <button type="button" id="createTodoBtn" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--theme-button-color); color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;" class="hover-brightness">
-                        <img src="app/icons/plus-square.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Create Todo
+                        <img src="app/icons/plus-square.svg" alt="" width="16" height="16" style="vertical-align: middle;"> <?php echo e(t('cyber-todo.create_todo_btn')); ?>
                     </button>
                     <?php endif; ?>
                 </div>
@@ -853,7 +853,7 @@ foreach ($todoItems as $ti) {
                     <input
                         type="text"
                         id="vendorSearchInput"
-                        placeholder="Search vendors, domains, stakeholders..."
+                        placeholder="<?php echo e(t('cyber-todo.search_vendors_placeholder')); ?>"
                         class="focus-ring"
                         style="width: 100%; padding: 10px 40px 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;"
                     >
@@ -865,11 +865,11 @@ foreach ($todoItems as $ti) {
             <div class="stats-row">
                 <a href="?status=all" class="stat-card">
                     <div class="value"><?php echo count($todoItems); ?></div>
-                    <div class="label">Total Items</div>
+                    <div class="label"><?php echo e(t('cyber-todo.total_items')); ?></div>
                 </a>
                 <a href="?status=open&priority=high" class="stat-card" style="border-left: 3px solid #dc2626;">
                     <div class="value" style="color: #dc2626;"><?php echo count(array_filter($todoItems, function($i) { return $i['priority'] <= 2; })); ?></div>
-                    <div class="label">High Priority</div>
+                    <div class="label"><?php echo e(t('cyber-todo.high_priority')); ?></div>
                 </a>
                 <a href="?status=open&past_due=1" class="stat-card" style="border-left: 3px solid #be123c;">
                     <div class="value" style="color: #be123c;"><?php echo count(array_filter($todoItems, function($i) {
@@ -880,24 +880,24 @@ foreach ($todoItems as $ti) {
                         // For other types, check if date is in the past
                         return !empty($i['date']) && strtotime($i['date']) < strtotime('today');
                     })); ?></div>
-                    <div class="label">Past Due</div>
+                    <div class="label"><?php echo e(t('cyber-todo.past_due')); ?></div>
                 </a>
                 <a href="?status=open&type=cert_expiry" class="stat-card" style="border-left: 3px solid #f59e0b;">
                     <div class="value" style="color: #f59e0b;"><?php echo $typeCounts['cert_expiry']['count'] ?? 0; ?></div>
-                    <div class="label">Cert Expirations</div>
+                    <div class="label"><?php echo e(t('cyber-todo.cert_expirations')); ?></div>
                 </a>
                 <a href="?status=open&type=annual_review" class="stat-card" style="border-left: 3px solid #8b5cf6;">
                     <div class="value" style="color: #8b5cf6;"><?php echo $typeCounts['annual_review']['count'] ?? 0; ?></div>
-                    <div class="label">Annual Reviews</div>
+                    <div class="label"><?php echo e(t('cyber-todo.annual_reviews')); ?></div>
                 </a>
                 <a href="?status=open&type=custom" class="stat-card" style="border-left: 3px solid #10b981;">
                     <div class="value" style="color: #10b981;"><?php echo $typeCounts['custom']['count'] ?? 0; ?></div>
-                    <div class="label">Custom</div>
+                    <div class="label"><?php echo e(t('cyber-todo.custom')); ?></div>
                 </a>
                 <?php if ($snoozedItemCount > 0 || $showSnoozed): ?>
                 <a href="?snoozed=1" class="stat-card" style="border-left: 3px solid #6b7280;<?php echo $showSnoozed ? ' background: #f3f4f6; box-shadow: inset 0 0 0 2px #6b7280;' : ''; ?>">
                     <div class="value" style="color: #6b7280;"><?php echo $snoozedItemCount; ?></div>
-                    <div class="label">Snoozed</div>
+                    <div class="label"><?php echo e(t('cyber-todo.snoozed')); ?></div>
                 </a>
                 <?php endif; ?>
             </div>
@@ -906,11 +906,11 @@ foreach ($todoItems as $ti) {
             <div class="empty-state">
                 <div class="icon"><img src="app/icons/check-square-broken.svg" alt="" width="32" height="32"></div>
                 <?php if ($showSnoozed): ?>
-                <h3>No snoozed items</h3>
-                <p>There are no snoozed items right now.</p>
+                <h3><?php echo e(t('cyber-todo.no_snoozed_items_heading')); ?></h3>
+                <p><?php echo e(t('cyber-todo.no_snoozed_items_body')); ?></p>
                 <?php else: ?>
-                <h3>All caught up!</h3>
-                <p>No pending items in this view.</p>
+                <h3><?php echo e(t('cyber-todo.all_caught_up_heading')); ?></h3>
+                <p><?php echo e(t('cyber-todo.no_pending_items_body')); ?></p>
                 <?php endif; ?>
             </div>
             <?php else: ?>
@@ -927,20 +927,20 @@ foreach ($todoItems as $ti) {
                     <?php endif; ?>
                     <?php if ($item['activity_count'] > 0): ?>
                     <span class="activity-indicator">
-                        <?php echo e($item['open_activity_count']); ?>/<?php echo e($item['activity_count']); ?> open
+                        <?php echo e($item['open_activity_count']); ?>/<?php echo e($item['activity_count']); ?> <?php echo e(t('cyber-todo.open_count_suffix')); ?>
                     </span>
                     <?php endif; ?>
                     <?php
                     $headerSnoozeKey = ($item['type'] ?? '') . ':' . ($item['reference_type'] ?? '') . ':' . ($item['reference_id'] ?? '');
                     if ($showSnoozed && isset($snoozedLookup[$headerSnoozeKey])):
                     ?>
-                    <span style="font-size: 11px; color: #6b7280; margin-left: auto; margin-right: 8px; align-self: center;">Snoozed until <?php echo date('M j, Y', strtotime($snoozedLookup[$headerSnoozeKey])); ?></span>
+                    <span style="font-size: 11px; color: #6b7280; margin-left: auto; margin-right: 8px; align-self: center;"><?php echo e(t('cyber-todo.snoozed_until_prefix')); ?> <?php echo date('M j, Y', strtotime($snoozedLookup[$headerSnoozeKey])); ?></span>
                     <form method="POST" style="display: inline; margin-right: 8px;" onclick="event.stopPropagation();">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="todo_type" value="<?php echo e($item['type']); ?>">
                         <input type="hidden" name="reference_type" value="<?php echo e($item['reference_type']); ?>">
                         <input type="hidden" name="reference_id" value="<?php echo e($item['reference_id']); ?>">
-                        <button type="submit" name="unsnooze_todo" style="padding: 3px 10px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Unsnooze</button>
+                        <button type="submit" name="unsnooze_todo" style="padding: 3px 10px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;"><?php echo e(t('cyber-todo.unsnooze_btn')); ?></button>
                     </form>
                     <?php endif; ?>
                     <span class="expand-icon">&#9660;</span>
@@ -949,31 +949,31 @@ foreach ($todoItems as $ti) {
                     <div class="todo-description"><?php echo e($item['description']); ?></div>
 
                     <div class="todo-actions">
-                        <a href="<?php echo e($item['link']); ?>" class="btn btn-primary" target="_blank">View</a>
+                        <a href="<?php echo e($item['link']); ?>" class="btn btn-primary" target="_blank"><?php echo e(t('cyber-todo.view_btn')); ?></a>
                         <?php if (!$isAuditor): ?>
-                        <button type="button" class="btn btn-secondary" data-toggle="comment-form-<?php echo $index; ?>">Add Comment</button>
-                        <button type="button" class="btn" style="background: #6366f1; color: white;" data-toggle="assign-form-<?php echo $index; ?>">&#128100; Assign</button>
+                        <button type="button" class="btn btn-secondary" data-toggle="comment-form-<?php echo $index; ?>"><?php echo e(t('cyber-todo.add_comment_btn')); ?></button>
+                        <button type="button" class="btn" style="background: #6366f1; color: white;" data-toggle="assign-form-<?php echo $index; ?>">&#128100; <?php echo e(t('cyber-todo.assign_btn')); ?></button>
                         <?php if ($item['has_open_activities'] || empty($item['activities'])): ?>
-                        <button type="button" class="btn btn-success" data-toggle="close-form-<?php echo $index; ?>">Close</button>
+                        <button type="button" class="btn btn-success" data-toggle="close-form-<?php echo $index; ?>"><?php echo e(t('cyber-todo.close_btn')); ?></button>
                         <?php else: ?>
                         <form method="POST" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="todo_type" value="<?php echo e($item['type']); ?>">
                             <input type="hidden" name="reference_type" value="<?php echo e($item['reference_type']); ?>">
                             <input type="hidden" name="reference_id" value="<?php echo e($item['reference_id']); ?>">
-                            <button type="submit" name="reopen_todo" class="btn" style="background: #f59e0b; color: white;">Reopen</button>
+                            <button type="submit" name="reopen_todo" class="btn" style="background: #f59e0b; color: white;"><?php echo e(t('cyber-todo.reopen_btn')); ?></button>
                         </form>
                         <?php endif; ?>
-                        <button type="button" class="btn" style="background: #6b7280; color: white;" data-toggle="snooze-form-<?php echo $index; ?>">Snooze</button>
+                        <button type="button" class="btn" style="background: #6b7280; color: white;" data-toggle="snooze-form-<?php echo $index; ?>"><?php echo e(t('cyber-todo.snooze_btn')); ?></button>
                         <?php if ($item['type'] === 'not_tiered' && !empty($item['reference_id'])): ?>
-                        <button type="button" class="btn" style="background: #dc2626; color: white;" data-action="openTierModal" data-args="[<?php echo (int)$item['reference_id']; ?>, <?php echo e(json_encode($item['title'])); ?>]">Tier</button>
+                        <button type="button" class="btn" style="background: #dc2626; color: white;" data-action="openTierModal" data-args="[<?php echo (int)$item['reference_id']; ?>, <?php echo e(json_encode($item['title'])); ?>]"><?php echo e(t('cyber-todo.tier_btn')); ?></button>
                         <?php endif; ?>
                         <?php if (!empty($item['can_mark_reviewed'])): ?>
                         <form method="POST" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="vendor_id" value="<?php echo e($item['reference_id']); ?>">
-                            <button type="submit" name="mark_annual_review" class="btn" style="background: #8b5cf6; color: white;" data-confirm="Mark this vendor as reviewed? This will update the last annual review date.">
-                                Mark Reviewed
+                            <button type="submit" name="mark_annual_review" class="btn" style="background: #8b5cf6; color: white;" data-confirm="<?php echo e(t('cyber-todo.mark_reviewed_confirm')); ?>">
+                                <?php echo e(t('cyber-todo.mark_reviewed_btn')); ?>
                             </button>
                         </form>
                         <?php endif; ?>
@@ -986,9 +986,9 @@ foreach ($todoItems as $ti) {
                             <input type="hidden" name="todo_type" value="<?php echo e($item['type']); ?>">
                             <input type="hidden" name="reference_type" value="<?php echo e($item['reference_type']); ?>">
                             <input type="hidden" name="reference_id" value="<?php echo e($item['reference_id']); ?>">
-                            <button type="submit" name="unsnooze_todo" class="btn" style="background: #6b7280; color: white;">Unsnooze</button>
+                            <button type="submit" name="unsnooze_todo" class="btn" style="background: #6b7280; color: white;"><?php echo e(t('cyber-todo.unsnooze_btn')); ?></button>
                         </form>
-                        <span style="font-size: 12px; color: #6b7280; align-self: center;">Snoozed until <?php echo date('M j, Y', strtotime($snoozedLookup[$snoozeKey])); ?></span>
+                        <span style="font-size: 12px; color: #6b7280; align-self: center;"><?php echo e(t('cyber-todo.snoozed_until_prefix')); ?> <?php echo date('M j, Y', strtotime($snoozedLookup[$snoozeKey])); ?></span>
                         <?php endif; ?>
                         <?php endif; ?>
                     </div>
@@ -997,7 +997,7 @@ foreach ($todoItems as $ti) {
                     <div id="comment-form-<?php echo $index; ?>" style="display: none; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
                         <?php if (!empty($item['vendor_name'])): ?>
                         <div style="margin-bottom: 10px; padding: 8px 12px; background: #e0f2fe; border-radius: 4px; font-size: 13px; color: #0369a1;">
-                            <strong>Vendor:</strong> <?php echo e($item['vendor_name']); ?>
+                            <strong><?php echo e(t('cyber-todo.vendor_label')); ?></strong> <?php echo e($item['vendor_name']); ?>
                         </div>
                         <?php endif; ?>
                         <form method="POST">
@@ -1012,11 +1012,11 @@ foreach ($todoItems as $ti) {
                             <input type="hidden" name="activity_type" value="note">
                             <input type="hidden" name="activity_status" value="open">
                             <div style="margin-bottom: 10px;">
-                                <textarea name="description" placeholder="Add a comment..." required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; min-height: 60px;"></textarea>
+                                <textarea name="description" placeholder="<?php echo e(t('cyber-todo.comment_placeholder')); ?>" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; min-height: 60px;"></textarea>
                             </div>
                             <div style="display: flex; gap: 10px;">
-                                <button type="submit" name="add_activity" class="btn btn-primary btn-sm">Save Comment</button>
-                                <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-close="comment-form-<?php echo $index; ?>">Cancel</button>
+                                <button type="submit" name="add_activity" class="btn btn-primary btn-sm"><?php echo e(t('cyber-todo.save_comment_btn')); ?></button>
+                                <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-close="comment-form-<?php echo $index; ?>"><?php echo e(t('cyber-todo.cancel_btn')); ?></button>
                             </div>
                         </form>
                     </div>
@@ -1029,12 +1029,12 @@ foreach ($todoItems as $ti) {
                             <input type="hidden" name="reference_type" value="<?php echo e($item['reference_type']); ?>">
                             <input type="hidden" name="reference_id" value="<?php echo e($item['reference_id']); ?>">
                             <div style="margin-bottom: 10px;">
-                                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Closure Note (optional)</label>
-                                <textarea name="closure_note" placeholder="Add a note about how this was resolved..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; min-height: 60px;"></textarea>
+                                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;"><?php echo e(t('cyber-todo.closure_note_label')); ?></label>
+                                <textarea name="closure_note" placeholder="<?php echo e(t('cyber-todo.closure_note_placeholder')); ?>" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; min-height: 60px;"></textarea>
                             </div>
                             <div style="display: flex; gap: 10px;">
-                                <button type="submit" name="close_todo" class="btn btn-success btn-sm">Close Todo</button>
-                                <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-close="close-form-<?php echo $index; ?>">Cancel</button>
+                                <button type="submit" name="close_todo" class="btn btn-success btn-sm"><?php echo e(t('cyber-todo.close_todo_btn')); ?></button>
+                                <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-close="close-form-<?php echo $index; ?>"><?php echo e(t('cyber-todo.cancel_btn')); ?></button>
                             </div>
                         </form>
                     </div>
@@ -1049,14 +1049,14 @@ foreach ($todoItems as $ti) {
                             <input type="hidden" name="activity_type" value="note">
                             <input type="hidden" name="activity_status" value="open">
                             <div class="form-group" style="position: relative; margin-bottom: 10px;">
-                                <label style="font-size: 12px; color: #4338ca; display: block; margin-bottom: 4px; font-weight: 500;">Assign To</label>
+                                <label style="font-size: 12px; color: #4338ca; display: block; margin-bottom: 4px; font-weight: 500;"><?php echo e(t('cyber-todo.assign_to_label')); ?></label>
                                 <input type="hidden" name="assigned_to" class="assign-to-id" value="">
-                                <input type="text" class="assign-to-search" value="" autocomplete="off" placeholder="Type a name to search..." style="width: 100%; padding: 8px; border: 1px solid #c7d2fe; border-radius: 4px; font-size: 13px;">
+                                <input type="text" class="assign-to-search" value="" autocomplete="off" placeholder="<?php echo e(t('cyber-todo.type_name_placeholder')); ?>" style="width: 100%; padding: 8px; border: 1px solid #c7d2fe; border-radius: 4px; font-size: 13px;">
                                 <div class="assign-to-dropdown" style="display:none;"></div>
                             </div>
                             <div style="display: flex; gap: 10px;">
-                                <button type="submit" name="add_activity" class="btn btn-sm" style="background: #6366f1; color: white;">Save Assignment</button>
-                                <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-close="assign-form-<?php echo $index; ?>">Cancel</button>
+                                <button type="submit" name="add_activity" class="btn btn-sm" style="background: #6366f1; color: white;"><?php echo e(t('cyber-todo.save_assignment_btn')); ?></button>
+                                <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-close="assign-form-<?php echo $index; ?>"><?php echo e(t('cyber-todo.cancel_btn')); ?></button>
                             </div>
                         </form>
                     </div>
@@ -1069,25 +1069,25 @@ foreach ($todoItems as $ti) {
                             <input type="hidden" name="reference_type" value="<?php echo e($item['reference_type']); ?>">
                             <input type="hidden" name="reference_id" value="<?php echo e($item['reference_id']); ?>">
                             <div style="margin-bottom: 10px;">
-                                <label style="font-size: 12px; color: #374151; display: block; margin-bottom: 4px; font-weight: 500;">Snooze for</label>
+                                <label style="font-size: 12px; color: #374151; display: block; margin-bottom: 4px; font-weight: 500;"><?php echo e(t('cyber-todo.snooze_for_label')); ?></label>
                                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                    <label style="cursor: pointer;"><input type="radio" name="snooze_days" value="1"> 1 day</label>
-                                    <label style="cursor: pointer;"><input type="radio" name="snooze_days" value="7" checked> 7 days</label>
-                                    <label style="cursor: pointer;"><input type="radio" name="snooze_days" value="14"> 14 days</label>
-                                    <label style="cursor: pointer;"><input type="radio" name="snooze_days" value="30"> 30 days</label>
-                                    <label style="cursor: pointer;"><input type="radio" name="snooze_days" value="90"> 90 days</label>
+                                    <label style="cursor: pointer;"><input type="radio" name="snooze_days" value="1"> <?php echo e(t('cyber-todo.snooze_1_day')); ?></label>
+                                    <label style="cursor: pointer;"><input type="radio" name="snooze_days" value="7" checked> <?php echo e(t('cyber-todo.snooze_7_days')); ?></label>
+                                    <label style="cursor: pointer;"><input type="radio" name="snooze_days" value="14"> <?php echo e(t('cyber-todo.snooze_14_days')); ?></label>
+                                    <label style="cursor: pointer;"><input type="radio" name="snooze_days" value="30"> <?php echo e(t('cyber-todo.snooze_30_days')); ?></label>
+                                    <label style="cursor: pointer;"><input type="radio" name="snooze_days" value="90"> <?php echo e(t('cyber-todo.snooze_90_days')); ?></label>
                                 </div>
                             </div>
                             <div style="display: flex; gap: 10px;">
-                                <button type="submit" name="snooze_todo" class="btn btn-sm" style="background: #6b7280; color: white;">Snooze</button>
-                                <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-close="snooze-form-<?php echo $index; ?>">Cancel</button>
+                                <button type="submit" name="snooze_todo" class="btn btn-sm" style="background: #6b7280; color: white;"><?php echo e(t('cyber-todo.snooze_btn')); ?></button>
+                                <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-close="snooze-form-<?php echo $index; ?>"><?php echo e(t('cyber-todo.cancel_btn')); ?></button>
                             </div>
                         </form>
                     </div>
 
                     <?php if (!empty($item['activities'])): ?>
                     <div class="activities-section">
-                        <h4>Activity Log (<?php echo count($item['activities']); ?>)</h4>
+                        <h4><?php echo e(t('cyber-todo.activity_log_heading')); ?> (<?php echo count($item['activities']); ?>)</h4>
                         <div class="activity-list">
                             <?php foreach ($item['activities'] as $activity): ?>
                             <div class="activity-item">
@@ -1117,22 +1117,22 @@ foreach ($todoItems as $ti) {
                                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                         <input type="hidden" name="activity_id" value="<?php echo e($activity['id']); ?>">
                                         <select name="new_status" class="btn btn-sm" style="padding: 4px 8px; font-size: 11px;" data-submit-form>
-                                            <option value="">Change status...</option>
-                                            <option value="in_progress">In Progress</option>
-                                            <option value="closed">Closed</option>
-                                            <option value="deferred">Deferred</option>
+                                            <option value=""><?php echo e(t('cyber-todo.change_status_option')); ?></option>
+                                            <option value="in_progress"><?php echo e(t('cyber-todo.status_in_progress')); ?></option>
+                                            <option value="closed"><?php echo e(t('cyber-todo.status_closed')); ?></option>
+                                            <option value="deferred"><?php echo e(t('cyber-todo.status_deferred')); ?></option>
                                         </select>
                                         <input type="hidden" name="update_activity_status" value="1">
                                     </form>
                                     <?php endif; ?>
                                     <?php if (!$isAuditor && $isNoteAuthor && $isEditableNote): ?>
                                     <?php if ($activity['status'] !== 'closed'): ?>
-                                    <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-toggle="edit-activity-<?php echo (int)$activity['id']; ?>">Edit</button>
+                                    <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-toggle="edit-activity-<?php echo (int)$activity['id']; ?>"><?php echo e(t('cyber-todo.edit_btn')); ?></button>
                                     <?php endif; ?>
-                                    <form method="POST" style="display: inline;" data-confirm="Delete this note? This cannot be undone.">
+                                    <form method="POST" style="display: inline;" data-confirm="<?php echo e(t('cyber-todo.delete_note_confirm')); ?>">
                                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                         <input type="hidden" name="activity_id" value="<?php echo e($activity['id']); ?>">
-                                        <button type="submit" name="delete_activity" class="btn btn-sm" style="background: #fee2e2; color: #991b1b;">Delete</button>
+                                        <button type="submit" name="delete_activity" class="btn btn-sm" style="background: #fee2e2; color: #991b1b;"><?php echo e(t('cyber-todo.delete_btn')); ?></button>
                                     </form>
                                     <?php endif; ?>
                                 </div>
@@ -1143,8 +1143,8 @@ foreach ($todoItems as $ti) {
                                         <input type="hidden" name="activity_id" value="<?php echo e($activity['id']); ?>">
                                         <textarea name="activity_description" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; min-height: 60px;"><?php echo e($activity['description']); ?></textarea>
                                         <div style="display: flex; gap: 8px; margin-top: 6px;">
-                                            <button type="submit" name="edit_activity" class="btn btn-primary btn-sm">Save</button>
-                                            <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-close="edit-activity-<?php echo (int)$activity['id']; ?>">Cancel</button>
+                                            <button type="submit" name="edit_activity" class="btn btn-primary btn-sm"><?php echo e(t('cyber-todo.save_btn')); ?></button>
+                                            <button type="button" class="btn btn-sm" style="background: #e5e7eb; color: #333;" data-close="edit-activity-<?php echo (int)$activity['id']; ?>"><?php echo e(t('cyber-todo.cancel_btn')); ?></button>
                                         </div>
                                     </form>
                                 </div>
@@ -1156,7 +1156,7 @@ foreach ($todoItems as $ti) {
                     <?php endif; ?>
 
                     <div class="add-activity-form">
-                        <h4 style="margin: 0 0 12px 0; font-size: 13px; color: #666;">Add Activity</h4>
+                        <h4 style="margin: 0 0 12px 0; font-size: 13px; color: #666;"><?php echo e(t('cyber-todo.add_activity')); ?></h4>
                         <form method="POST">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="todo_type" value="<?php echo e($item['type']); ?>">
@@ -1165,37 +1165,37 @@ foreach ($todoItems as $ti) {
 
                             <div class="form-row">
                                 <div class="form-group" style="flex: 2;">
-                                    <label>Activity Type</label>
+                                    <label><?php echo e(t('cyber-todo.activity_type_label')); ?></label>
                                     <select name="activity_type">
-                                        <option value="note">Note</option>
-                                        <option value="action">Action Taken</option>
-                                        <option value="reminder">Reminder</option>
+                                        <option value="note"><?php echo e(t('cyber-todo.option_note')); ?></option>
+                                        <option value="action"><?php echo e(t('cyber-todo.option_action_taken')); ?></option>
+                                        <option value="reminder"><?php echo e(t('cyber-todo.option_reminder')); ?></option>
                                     </select>
                                 </div>
                                 <div class="form-group" style="flex: 2;">
-                                    <label>Status</label>
+                                    <label><?php echo e(t('cyber-todo.status_label')); ?></label>
                                     <select name="activity_status">
-                                        <option value="open">Open</option>
-                                        <option value="in_progress">In Progress</option>
-                                        <option value="closed">Closed</option>
+                                        <option value="open"><?php echo e(t('cyber-todo.status_open_option')); ?></option>
+                                        <option value="in_progress"><?php echo e(t('cyber-todo.status_in_progress')); ?></option>
+                                        <option value="closed"><?php echo e(t('cyber-todo.status_closed')); ?></option>
                                     </select>
                                 </div>
                                 <div class="form-group" style="flex: 2;">
-                                    <label>Due Date (optional)</label>
+                                    <label><?php echo e(t('cyber-todo.due_date_optional_label')); ?></label>
                                     <input type="date" name="due_date">
                                 </div>
                                 <div class="form-group" style="flex: 2; position: relative;">
-                                    <label>Assign To</label>
+                                    <label><?php echo e(t('cyber-todo.assign_to_label')); ?></label>
                                     <input type="hidden" name="assigned_to" class="assign-to-id" value="<?php echo $currentUserId; ?>">
-                                    <input type="text" class="assign-to-search" value="<?php echo e($user['full_name'] ?? $user['username']); ?>" autocomplete="off" placeholder="Type to search...">
+                                    <input type="text" class="assign-to-search" value="<?php echo e($user['full_name'] ?? $user['username']); ?>" autocomplete="off" placeholder="<?php echo e(t('cyber-todo.type_to_search_placeholder')); ?>">
                                     <div class="assign-to-dropdown" style="display:none;"></div>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label>Description *</label>
-                                <textarea name="description" placeholder="Describe the activity, action taken, or note..."></textarea>
+                                <label><?php echo e(t('cyber-todo.description_label')); ?> *</label>
+                                <textarea name="description" placeholder="<?php echo e(t('cyber-todo.describe_activity_placeholder')); ?>"></textarea>
                             </div>
-                            <button type="submit" name="add_activity" class="btn btn-primary">Add Activity</button>
+                            <button type="submit" name="add_activity" class="btn btn-primary"><?php echo e(t('cyber-todo.add_activity')); ?></button>
                         </form>
                     </div>
                 </div>
@@ -1206,7 +1206,7 @@ foreach ($todoItems as $ti) {
             <?php if ($todoTotalItems > 0): ?>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 15px 0; border-top: 1px solid #e5e7eb; flex-wrap: wrap; gap: 10px;">
                 <div style="font-size: 13px; color: #666;">
-                    Showing <?php echo $todoPg['start_row']; ?>-<?php echo $todoPg['end_row']; ?> of <?php echo $todoPg['total_rows']; ?> items
+                    <?php echo e(t('cyber-todo.showing_label')); ?> <?php echo $todoPg['start_row']; ?>-<?php echo $todoPg['end_row']; ?> <?php echo e(t('cyber-todo.of_label')); ?> <?php echo $todoPg['total_rows']; ?> <?php echo e(t('cyber-todo.items_label')); ?>
                 </div>
                 <?php if ($todoPg['total_pages'] > 1): ?>
                 <div style="display: flex; gap: 4px;">
@@ -1231,13 +1231,13 @@ foreach ($todoItems as $ti) {
                 </div>
                 <?php endif; ?>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <label style="font-size: 12px; color: #666;">Show:</label>
+                    <label style="font-size: 12px; color: #666;"><?php echo e(t('cyber-todo.show_label')); ?></label>
                     <select data-action="changePerPage" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
                         <option value="25" <?php echo $todoPerPage == 25 ? 'selected' : ''; ?>>25</option>
                         <option value="50" <?php echo $todoPerPage == 50 ? 'selected' : ''; ?>>50</option>
                         <option value="100" <?php echo $todoPerPage == 100 ? 'selected' : ''; ?>>100</option>
                     </select>
-                    <label style="font-size: 12px; color: #666;">per page</label>
+                    <label style="font-size: 12px; color: #666;"><?php echo e(t('cyber-todo.per_page_label')); ?></label>
                 </div>
             </div>
             <?php endif; ?>
@@ -1251,10 +1251,10 @@ foreach ($todoItems as $ti) {
                     <span style="color: #999; font-size: 12px; transition: transform 0.2s; display: inline-block;" class="completed-arrow">&#9654;</span>
                     <h2 style="font-size: 18px; color: #333; margin: 0;">
                         <?php if ($searchingAllHistory): ?>
-                            All Completed Activities
-                            <span style="font-size: 12px; font-weight: 400; color: #666; margin-left: 8px;">Full History</span>
+                            <?php echo e(t('cyber-todo.all_completed_activities_heading')); ?>
+                            <span style="font-size: 12px; font-weight: 400; color: #666; margin-left: 8px;"><?php echo e(t('cyber-todo.full_history_label')); ?></span>
                         <?php else: ?>
-                            Recently Completed Actions
+                            <?php echo e(t('cyber-todo.recently_completed_heading')); ?>
                             <span style="font-size: 12px; font-weight: 400; color: #666; margin-left: 8px;">(<?php echo count($completedActions); ?>)</span>
                         <?php endif; ?>
                     </h2>
@@ -1264,10 +1264,10 @@ foreach ($todoItems as $ti) {
                         <h2 style="font-size: 0; margin: 0;"></h2>
                         <?php if ($searchingAllHistory): ?>
                         <div style="margin-top: 5px; font-size: 12px; color: #666;">
-                            Searching for: <strong>"<?php echo e($searchQuery); ?>"</strong>
+                            <?php echo e(t('cyber-todo.searching_for_label')); ?> <strong>"<?php echo e($searchQuery); ?>"</strong>
                             <span style="color: #999; margin-left: 8px;">•</span>
                             <span style="margin-left: 8px;"><?php echo count($completedActions); ?> result<?php echo count($completedActions) != 1 ? 's' : ''; ?> found</span>
-                            <a href="<?php echo e($_SERVER['SCRIPT_NAME']); ?>#completed-section" style="margin-left: 10px; color: var(--theme-header-color); text-decoration: none; font-weight: 500;">× Clear search</a>
+                            <a href="<?php echo e($_SERVER['SCRIPT_NAME']); ?>#completed-section" style="margin-left: 10px; color: var(--theme-header-color); text-decoration: none; font-weight: 500;">× <?php echo e(t('cyber-todo.clear_search_link')); ?></a>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -1286,7 +1286,7 @@ foreach ($todoItems as $ti) {
                                 name="completed_search"
                                 id="completedActionsSearch"
                                 value="<?php echo e($searchQuery); ?>"
-                                placeholder="Type to filter or press Enter to search all history..."
+                                placeholder="<?php echo e(t('cyber-todo.filter_placeholder')); ?>"
                                 autocomplete="off"
                                 style="width: 450px; padding: 8px 145px 8px 12px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 13px; transition: all 0.2s;"
                                 class="focus-ring"
@@ -1294,16 +1294,16 @@ foreach ($todoItems as $ti) {
                             <div style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: flex; gap: 5px;">
                                 <?php if ($searchingAllHistory): ?>
                                 <a href="<?php echo e($_SERVER['SCRIPT_NAME']); ?>#completed-section" style="background: #6b7280; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-block; line-height: 1.5;">
-                                    Clear
+                                    <?php echo e(t('cyber-todo.clear_btn')); ?>
                                 </a>
                                 <?php endif; ?>
                                 <button type="submit" class="hover-opacity" style="background: var(--theme-header-color); color: white; border: none; padding: 6px 14px; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;">
-                                    Search All
+                                    <?php echo e(t('cyber-todo.search_all_btn')); ?>
                                 </button>
                             </div>
                         </form>
                         <div id="completedSearchHint" style="display: none; position: absolute; top: 100%; left: 0; margin-top: 5px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #0c4a6e; z-index: 10;">
-                            <span id="completedFilterCount">0</span> results in last 30 days. Press <strong>Enter</strong> or click <strong>Search All</strong> to search complete history.
+                            <span id="completedFilterCount">0</span> <?php echo t('cyber-todo.filter_hint_suffix'); ?>
                         </div>
                     </div>
                 </div>
@@ -1311,10 +1311,10 @@ foreach ($todoItems as $ti) {
                     <?php if (empty($completedActions)): ?>
                     <div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
                         <div style="font-size: 14px; color: #92400e; text-align: center;">
-                            No completed actions found matching "<strong><?php echo e($searchQuery); ?></strong>"
+                            <?php echo e(t('cyber-todo.no_completed_matching')); ?> "<strong><?php echo e($searchQuery); ?></strong>"
                         </div>
                         <div style="font-size: 13px; color: #b45309; margin-top: 8px; text-align: center;">
-                            Try a different search term or <a href="<?php echo e($_SERVER['SCRIPT_NAME']); ?>#completed-section" style="color: var(--theme-header-color); text-decoration: underline;">view last 30 days</a>
+                            <?php echo e(t('cyber-todo.try_different_term')); ?> <a href="<?php echo e($_SERVER['SCRIPT_NAME']); ?>#completed-section" style="color: var(--theme-header-color); text-decoration: underline;"><?php echo e(t('cyber-todo.view_last_30_days')); ?></a>
                         </div>
                     </div>
                     <?php endif; ?>
@@ -1323,11 +1323,11 @@ foreach ($todoItems as $ti) {
                     <table id="completedActionsTable" style="width: 100%; border-collapse: collapse; font-size: 13px;">
                         <thead>
                             <tr style="background: #f8f9fa;">
-                                <th style="padding: 12px 15px; text-align: left; font-weight: 500; border-bottom: 2px solid #e5e7eb; width: 25%;">Vendor</th>
-                                <th style="padding: 12px 15px; text-align: left; font-weight: 500; border-bottom: 2px solid #e5e7eb;">Description</th>
-                                <th style="padding: 12px 15px; text-align: left; font-weight: 500; border-bottom: 2px solid #e5e7eb; width: 120px;">Closed By</th>
-                                <th style="padding: 12px 15px; text-align: left; font-weight: 500; border-bottom: 2px solid #e5e7eb; width: 140px;">Closed Date</th>
-                                <th style="padding: 12px 15px; text-align: left; font-weight: 500; border-bottom: 2px solid #e5e7eb; width: 120px;">Type</th>
+                                <th style="padding: 12px 15px; text-align: left; font-weight: 500; border-bottom: 2px solid #e5e7eb; width: 25%;"><?php echo e(t('cyber-todo.th_vendor')); ?></th>
+                                <th style="padding: 12px 15px; text-align: left; font-weight: 500; border-bottom: 2px solid #e5e7eb;"><?php echo e(t('cyber-todo.description_label')); ?></th>
+                                <th style="padding: 12px 15px; text-align: left; font-weight: 500; border-bottom: 2px solid #e5e7eb; width: 120px;"><?php echo e(t('cyber-todo.th_closed_by')); ?></th>
+                                <th style="padding: 12px 15px; text-align: left; font-weight: 500; border-bottom: 2px solid #e5e7eb; width: 140px;"><?php echo e(t('cyber-todo.th_closed_date')); ?></th>
+                                <th style="padding: 12px 15px; text-align: left; font-weight: 500; border-bottom: 2px solid #e5e7eb; width: 120px;"><?php echo e(t('cyber-todo.th_type')); ?></th>
                                 <th style="padding: 12px 15px; text-align: center; font-weight: 500; border-bottom: 2px solid #e5e7eb; width: 50px;"></th>
                             </tr>
                         </thead>
@@ -1350,19 +1350,19 @@ foreach ($todoItems as $ti) {
                                         <?php endif; ?>
                                         <?php if (!empty($action['stakeholder_name'])): ?>
                                         <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">
-                                            Stakeholder: <?php echo e($action['stakeholder_name']); ?>
+                                            <?php echo e(t('cyber-todo.stakeholder_label')); ?> <?php echo e($action['stakeholder_name']); ?>
                                             <?php if (!empty($action['stakeholder_email'])): ?>
                                             <span style="color: #d1d5db;">(<?php echo e($action['stakeholder_email']); ?>)</span>
                                             <?php endif; ?>
                                         </div>
                                         <?php endif; ?>
                                     <?php else: ?>
-                                        <span style="color: #9ca3af; font-style: italic;">N/A</span>
+                                        <span style="color: #9ca3af; font-style: italic;"><?php echo e(t('cyber-todo.na_label')); ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td style="padding: 12px 15px;">
                                     <div style="color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px;">
-                                        <?php echo e($action['description'] ?: 'Marked as complete'); ?>
+                                        <?php echo e($action['description'] ?: t('cyber-todo.marked_as_complete')); ?>
                                     </div>
                                     <?php if (!empty($action['related_activities'])): ?>
                                     <div style="font-size: 11px; color: #9ca3af; margin-top: 3px;">
@@ -1370,11 +1370,11 @@ foreach ($todoItems as $ti) {
                                     </div>
                                     <?php endif; ?>
                                     <div class="mobile-closed-date" style="display: none; font-size: 11px; color: #6b7280; margin-top: 4px;">
-                                        Closed: <?php echo formatLocalTime($action['closed_at']); ?>
+                                        <?php echo e(t('cyber-todo.closed_prefix')); ?> <?php echo formatLocalTime($action['closed_at']); ?>
                                     </div>
                                 </td>
                                 <td style="padding: 12px 15px;">
-                                    <span style="font-weight: 500; color: #333;"><?php echo e($action['closed_by_name'] ?? $action['created_by_name'] ?? 'Unknown'); ?></span>
+                                    <span style="font-weight: 500; color: #333;"><?php echo e($action['closed_by_name'] ?? $action['created_by_name'] ?? t('cyber-todo.unknown')); ?></span>
                                 </td>
                                 <td style="padding: 12px 15px; color: #666;">
                                     <?php echo formatLocalTime($action['closed_at']); ?>
@@ -1382,15 +1382,15 @@ foreach ($todoItems as $ti) {
                                 <td style="padding: 12px 15px;">
                                     <?php
                                     $typeLabels = [
-                                        'cert_expiry' => ['Certificate Expiry', '#f59e0b'],
-                                        'srs_rescore' => ['SRS Rescore', '#f59e0b'],
-                                        'score_drop' => ['Score Drop', '#dc2626'],
-                                        'annual_review' => ['Annual Review', '#8b5cf6'],
-                                        'not_approved' => ['Vendor Approval', '#3b82f6'],
-                                        'not_tiered' => ['Needs Tier Assignment', '#dc2626'],
-                                        'custom' => ['Custom Todo', '#10b981']
+                                        'cert_expiry' => [t('cyber-todo.type_cert_expiry'), '#f59e0b'],
+                                        'srs_rescore' => [t('cyber-todo.type_srs_rescore'), '#f59e0b'],
+                                        'score_drop' => [t('cyber-todo.type_score_drop'), '#dc2626'],
+                                        'annual_review' => [t('cyber-todo.type_annual_review'), '#8b5cf6'],
+                                        'not_approved' => [t('cyber-todo.type_not_approved'), '#3b82f6'],
+                                        'not_tiered' => [t('cyber-todo.type_not_tiered'), '#dc2626'],
+                                        'custom' => [t('cyber-todo.type_custom'), '#10b981']
                                     ];
-                                    $typeInfo = $typeLabels[$action['todo_type']] ?? ['Other', '#6b7280'];
+                                    $typeInfo = $typeLabels[$action['todo_type']] ?? [t('cyber-todo.type_other'), '#6b7280'];
                                     ?>
                                     <span style="font-size: 10px; padding: 3px 8px; border-radius: 10px; background: <?php echo $typeInfo[1]; ?>20; color: <?php echo $typeInfo[1]; ?>; font-weight: 500;">
                                         <?php echo $typeInfo[0]; ?>
@@ -1412,24 +1412,24 @@ foreach ($todoItems as $ti) {
                                         <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                                             <?php if (!empty($action['vendor_id'])): ?>
                                             <a href="vendor-srs-details.php?id=<?php echo $action['vendor_id']; ?>" target="_blank" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
-                                                <span>View Vendor SRS Details</span>
+                                                <span><?php echo e(t('cyber-todo.view_srs_details_btn')); ?></span>
                                                 <span style="font-size: 11px;">↗</span>
                                             </a>
                                             <a href="vendor-onboarding.php?id=<?php echo $action['vendor_id']; ?>" target="_blank" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
-                                                <span>View Vendor Onboarding</span>
+                                                <span><?php echo e(t('cyber-todo.view_onboarding_btn')); ?></span>
                                                 <span style="font-size: 11px;">↗</span>
                                             </a>
                                             <?php endif; ?>
                                             <?php if (!$isAuditor): ?>
                                             <!-- Reopen Button -->
-                                            <form method="POST" style="display: inline-block;" data-confirm="Are you sure you want to reopen this item?">
+                                            <form method="POST" style="display: inline-block;" data-confirm="<?php echo e(t('cyber-todo.reopen_confirm')); ?>">
                                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                                 <input type="hidden" name="todo_type" value="<?php echo e($action['todo_type']); ?>">
                                                 <input type="hidden" name="reference_type" value="<?php echo e($action['reference_type']); ?>">
                                                 <input type="hidden" name="reference_id" value="<?php echo e($action['reference_id']); ?>">
                                                 <button type="submit" name="reopen_todo" class="btn" style="background: #f59e0b; color: white; display: inline-flex; align-items: center; gap: 6px;">
                                                     <span>↻</span>
-                                                    <span>Reopen Item</span>
+                                                    <span><?php echo e(t('cyber-todo.reopen_item_btn')); ?></span>
                                                 </button>
                                             </form>
                                             <?php endif; ?>
@@ -1438,14 +1438,14 @@ foreach ($todoItems as $ti) {
                                         <!-- Status Before Closure Banner -->
                                         <?php
                                         $statusLabels = [
-                                            'cert_expiry' => ['Certificate Expiry', '#f59e0b', 'was resolved'],
-                                            'srs_rescore' => ['SRS Rescore Needed', '#f59e0b', 'was completed'],
-                                            'score_drop' => ['Score Drop', '#dc2626', 'was addressed'],
-                                            'annual_review' => ['Annual Review Due', '#8b5cf6', 'was completed'],
-                                            'not_approved' => ['Pending Approval', '#3b82f6', 'was processed'],
-                                            'not_tiered' => ['Needs Tier Assignment', '#dc2626', 'was completed']
+                                            'cert_expiry' => [t('cyber-todo.type_cert_expiry'), '#f59e0b', t('cyber-todo.status_was_resolved')],
+                                            'srs_rescore' => [t('cyber-todo.status_srs_rescore_needed'), '#f59e0b', t('cyber-todo.status_was_completed')],
+                                            'score_drop' => [t('cyber-todo.type_score_drop'), '#dc2626', t('cyber-todo.status_was_addressed')],
+                                            'annual_review' => [t('cyber-todo.status_annual_review_due'), '#8b5cf6', t('cyber-todo.status_was_completed')],
+                                            'not_approved' => [t('cyber-todo.status_pending_approval'), '#3b82f6', t('cyber-todo.status_was_processed')],
+                                            'not_tiered' => [t('cyber-todo.type_not_tiered'), '#dc2626', t('cyber-todo.status_was_completed')]
                                         ];
-                                        $statusInfo = $statusLabels[$action['todo_type']] ?? ['Todo Item', '#6b7280', 'was closed'];
+                                        $statusInfo = $statusLabels[$action['todo_type']] ?? [t('cyber-todo.status_todo_item'), '#6b7280', t('cyber-todo.status_was_closed')];
                                         ?>
                                         <div style="background: <?php echo $statusInfo[1]; ?>15; border-left: 4px solid <?php echo $statusInfo[1]; ?>; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
                                             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
@@ -1455,26 +1455,26 @@ foreach ($todoItems as $ti) {
                                                         <?php echo e($statusInfo[0]); ?> <?php echo $statusInfo[2]; ?>
                                                     </div>
                                                     <div style="color: #666; font-size: 13px;">
-                                                        <strong><?php echo e($action['vendor_name'] ?? 'Unknown Vendor'); ?></strong>
+                                                        <strong><?php echo e($action['vendor_name'] ?? t('cyber-todo.unknown_vendor')); ?></strong>
                                                         <?php if (!empty($action['vendor_domain'])): ?>
                                                         <span style="color: #999;"> • <?php echo e($action['vendor_domain']); ?></span>
                                                         <?php endif; ?>
                                                     </div>
                                                 </div>
                                                 <span style="font-size: 10px; padding: 4px 10px; border-radius: 12px; background: <?php echo $statusInfo[1]; ?>; color: white; font-weight: 500;">
-                                                    CLOSED
+                                                    <?php echo e(t('cyber-todo.closed_badge')); ?>
                                                 </span>
                                             </div>
                                         </div>
 
                                         <!-- Full Description -->
                                         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                                            <h4 style="font-size: 13px; color: #666; margin: 0 0 10px 0; font-weight: 500;">Closure Note:</h4>
+                                            <h4 style="font-size: 13px; color: #666; margin: 0 0 10px 0; font-weight: 500;"><?php echo e(t('cyber-todo.closure_note_heading')); ?></h4>
                                             <div style="color: #333; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;">
-                                                <?php echo e($action['description'] ?: 'Marked as complete'); ?>
+                                                <?php echo e($action['description'] ?: t('cyber-todo.marked_as_complete')); ?>
                                             </div>
                                             <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3f4f6; font-size: 11px; color: #999;">
-                                                Closed by <?php echo e($action['closed_by_name'] ?? $action['created_by_name'] ?? 'Unknown'); ?> on <?php echo $action['closed_at'] ? formatLocalTime($action['closed_at']) : 'Unknown date'; ?>
+                                                <?php echo e(t('cyber-todo.closed_by_prefix')); ?> <?php echo e($action['closed_by_name'] ?? $action['created_by_name'] ?? t('cyber-todo.unknown')); ?> <?php echo e(t('cyber-todo.on_label')); ?> <?php echo $action['closed_at'] ? formatLocalTime($action['closed_at']) : t('cyber-todo.unknown_date'); ?>
                                             </div>
                                         </div>
 
@@ -1482,14 +1482,14 @@ foreach ($todoItems as $ti) {
                                         <?php if (!empty($action['related_activities'])): ?>
                                         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px;">
                                             <h4 style="font-size: 13px; color: #666; margin: 0 0 15px 0; font-weight: 500;">
-                                                Related Notes & Activities (<?php echo count($action['related_activities']); ?>):
+                                                <?php echo e(t('cyber-todo.related_notes_heading')); ?> (<?php echo count($action['related_activities']); ?>):
                                             </h4>
                                             <?php foreach ($action['related_activities'] as $relActivity): ?>
                                             <div style="background: #f9fafb; border-left: 3px solid #3b82f6; border-radius: 4px; padding: 12px; margin-bottom: 10px;">
                                                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
                                                     <div>
                                                         <span style="font-weight: 500; color: #333; font-size: 12px;">
-                                                            <?php echo e($relActivity['created_by_name'] ?? 'Unknown'); ?>
+                                                            <?php echo e($relActivity['created_by_name'] ?? t('cyber-todo.unknown')); ?>
                                                         </span>
                                                         <span style="color: #999; font-size: 11px; margin-left: 8px;">
                                                             <?php echo formatLocalTime($relActivity['created_at']); ?>
@@ -1507,7 +1507,7 @@ foreach ($todoItems as $ti) {
                                         </div>
                                         <?php else: ?>
                                         <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; text-align: center; color: #999; font-size: 13px;">
-                                            No additional notes or activities recorded for this item.
+                                            <?php echo e(t('cyber-todo.no_additional_notes')); ?>
                                         </div>
                                         <?php endif; ?>
                                     </div>
@@ -1517,7 +1517,7 @@ foreach ($todoItems as $ti) {
                         </tbody>
                     </table>
                     <div id="noResultsMessage" style="display: none; padding: 40px; text-align: center; color: #999; font-size: 14px;">
-                        No completed actions match your search.
+                        <?php echo e(t('cyber-todo.no_completed_match')); ?>
                     </div>
                 </div>
             </details>
@@ -1529,7 +1529,7 @@ foreach ($todoItems as $ti) {
                 <summary style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 20px; list-style: none;">
                     <span style="color: #999; font-size: 12px; transition: transform 0.2s; display: inline-block;" class="import-audit-arrow">&#9654;</span>
                     <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: #333;">
-                        <span style="margin-right: 8px;">📥</span>Import Audit Log
+                        <span style="margin-right: 8px;">📥</span><?php echo e(t('cyber-todo.import_audit_heading')); ?>
                     </h2>
                     <span style="font-size: 13px; color: #666;">(<?php echo count($importActivities); ?>)</span>
                 </summary>
@@ -1537,12 +1537,12 @@ foreach ($todoItems as $ti) {
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background: #f8f9fa;">
-                            <th style="padding: 12px; text-align: left; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;">Type</th>
-                            <th style="padding: 12px; text-align: left; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;">Details</th>
-                            <th style="padding: 12px; text-align: left; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;">Imported By</th>
-                            <th style="padding: 12px; text-align: left; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;">Date</th>
-                            <th style="padding: 12px; text-align: left; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;">Status</th>
-                            <th style="padding: 12px; text-align: center; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;">Actions</th>
+                            <th style="padding: 12px; text-align: left; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;"><?php echo e(t('cyber-todo.th_type')); ?></th>
+                            <th style="padding: 12px; text-align: left; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;"><?php echo e(t('cyber-todo.th_details')); ?></th>
+                            <th style="padding: 12px; text-align: left; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;"><?php echo e(t('cyber-todo.th_imported_by')); ?></th>
+                            <th style="padding: 12px; text-align: left; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;"><?php echo e(t('cyber-todo.th_date')); ?></th>
+                            <th style="padding: 12px; text-align: left; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;"><?php echo e(t('cyber-todo.status_label')); ?></th>
+                            <th style="padding: 12px; text-align: center; font-size: 12px; color: #666; font-weight: 600; border-bottom: 2px solid #e5e7eb;"><?php echo e(t('cyber-todo.th_actions')); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1555,20 +1555,20 @@ foreach ($todoItems as $ti) {
                         <tr style="border-bottom: 1px solid #f3f4f6;">
                             <td style="padding: 12px;">
                                 <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 15px; font-size: 11px; font-weight: 600; background: <?php echo $isUserImport ? '#dbeafe' : '#dcfce7'; ?>; color: <?php echo $isUserImport ? '#1e40af' : '#166534'; ?>;">
-                                    <?php echo $isUserImport ? '👤 User Import' : '🏢 Vendor Import'; ?>
+                                    <?php echo $isUserImport ? '👤 ' . e(t('cyber-todo.user_import_label')) : '🏢 ' . e(t('cyber-todo.vendor_import_label')); ?>
                                 </span>
                             </td>
                             <td style="padding: 12px;">
                                 <div style="font-weight: 500; color: #333; font-size: 13px;"><?php echo e($import['title']); ?></div>
                                 <div style="font-size: 11px; color: #666; margin-top: 4px;">
-                                    File: <?php echo e($metadata['file_name'] ?? 'Unknown'); ?>
+                                    <?php echo e(t('cyber-todo.file_prefix')); ?> <?php echo e($metadata['file_name'] ?? t('cyber-todo.unknown')); ?>
                                     <?php if (!empty($metadata['error_count'])): ?>
-                                    <span style="color: #dc2626;"> • <?php echo $metadata['error_count']; ?> errors</span>
+                                    <span style="color: #dc2626;"> • <?php echo $metadata['error_count']; ?> <?php echo e(t('cyber-todo.errors_suffix')); ?></span>
                                     <?php endif; ?>
                                 </div>
                             </td>
                             <td style="padding: 12px; font-size: 13px; color: #333;">
-                                <?php echo e($import['created_by_name'] ?? 'Unknown'); ?>
+                                <?php echo e($import['created_by_name'] ?? t('cyber-todo.unknown')); ?>
                             </td>
                             <td style="padding: 12px; font-size: 12px; color: #666;">
                                 <?php echo formatLocalTime($import['created_at']); ?>
@@ -1576,11 +1576,11 @@ foreach ($todoItems as $ti) {
                             <td style="padding: 12px;">
                                 <?php if ($isReverted): ?>
                                 <span style="display: inline-block; padding: 4px 10px; border-radius: 15px; font-size: 11px; font-weight: 600; background: #fef2f2; color: #991b1b;">
-                                    Reverted
+                                    <?php echo e(t('cyber-todo.status_reverted')); ?>
                                 </span>
                                 <?php else: ?>
                                 <span style="display: inline-block; padding: 4px 10px; border-radius: 15px; font-size: 11px; font-weight: 600; background: #dcfce7; color: #166534;">
-                                    Active
+                                    <?php echo e(t('cyber-todo.status_active')); ?>
                                 </span>
                                 <?php endif; ?>
                             </td>
@@ -1590,13 +1590,13 @@ foreach ($todoItems as $ti) {
                                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                     <input type="hidden" name="activity_id" value="<?php echo $import['id']; ?>">
                                     <button type="submit" name="revert_import" class="btn btn-sm" style="background: #dc2626; color: white; padding: 6px 12px; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">
-                                        ↩ Revert
+                                        ↩ <?php echo e(t('cyber-todo.revert_btn')); ?>
                                     </button>
                                 </form>
                                 <?php elseif ($isReverted): ?>
                                 <span style="font-size: 11px; color: #999;">—</span>
                                 <?php else: ?>
-                                <span style="font-size: 11px; color: #999;">No data</span>
+                                <span style="font-size: 11px; color: #999;"><?php echo e(t('cyber-todo.no_data_label')); ?></span>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -1605,7 +1605,7 @@ foreach ($todoItems as $ti) {
                             <td colspan="6" style="padding: 0;">
                                 <details style="background: #f9fafb; border-top: 1px dashed #e5e7eb;">
                                     <summary style="padding: 10px 12px; cursor: pointer; font-size: 12px; color: #666;">
-                                        View Details (<?php echo $itemCount; ?> <?php echo $isUserImport ? 'users' : 'vendors'; ?>)
+                                        <?php echo e(t('cyber-todo.view_details_prefix')); ?> (<?php echo $itemCount; ?> <?php echo $isUserImport ? e(t('cyber-todo.users_label')) : e(t('cyber-todo.vendors_label')); ?>)
                                     </summary>
                                     <div style="padding: 12px; font-size: 12px; color: #333; line-height: 1.6; white-space: pre-wrap; background: white; border-top: 1px solid #e5e7eb;">
 <?php echo e($import['description']); ?>
@@ -1627,7 +1627,7 @@ foreach ($todoItems as $ti) {
                     <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                         <?php if (!empty($theme['footer_logo_url'])): ?>
                             <a class="brand" href="index.php">
-                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                                <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('cyber-todo.footer_logo_alt')); ?>" style="max-height: 45px;">
                             </a>
                         <?php endif; ?>
                         <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -1636,7 +1636,7 @@ foreach ($todoItems as $ti) {
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('cyber-todo.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>
@@ -1776,7 +1776,7 @@ foreach ($todoItems as $ti) {
     <div id="createTodoModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
         <div style="background: white; border-radius: 12px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
             <div style="padding: 20px 25px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between;">
-                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #333;">Create Custom Todo</h3>
+                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #333;"><?php echo e(t('cyber-todo.create_custom_todo_heading')); ?></h3>
                 <button type="button" id="closeTodoModal" style="background: none; border: none; font-size: 24px; color: #666; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
             </div>
             <form id="createTodoForm" method="POST" action="cyber-todo.php" style="padding: 25px;">
@@ -1788,31 +1788,31 @@ foreach ($todoItems as $ti) {
                 <input type="hidden" id="hiddenReferenceId" name="reference_id" value="0">
 
                 <div style="margin-bottom: 20px; position: relative;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;">Related Vendor <span style="color: #dc2626;">*</span></label>
-                    <input type="text" id="vendorTypeahead" autocomplete="off" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;" placeholder="Type to search vendors...">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;"><?php echo e(t('cyber-todo.related_vendor_label')); ?> <span style="color: #dc2626;">*</span></label>
+                    <input type="text" id="vendorTypeahead" autocomplete="off" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;" placeholder="<?php echo e(t('cyber-todo.type_search_vendors_placeholder')); ?>">
                     <div id="vendorTypeaheadResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
                     <div id="selectedVendorDisplay" style="display: none; margin-top: 8px; padding: 8px 12px; background: #e7f5ff; border: 1px solid #339af0; border-radius: 6px; font-size: 13px; color: #1864ab;">
                         <span id="selectedVendorName"></span>
                         <button type="button" id="clearVendorBtn" style="float: right; background: none; border: none; color: #1864ab; cursor: pointer; font-size: 16px; line-height: 1;">&times;</button>
                     </div>
-                    <div id="vendorError" style="display: none; font-size: 12px; color: #dc2626; margin-top: 4px;">Please select a vendor</div>
+                    <div id="vendorError" style="display: none; font-size: 12px; color: #dc2626; margin-top: 4px;"><?php echo e(t('cyber-todo.please_select_vendor')); ?></div>
                 </div>
 
                 <div style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;">Title <span style="color: #dc2626;">*</span></label>
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;"><?php echo e(t('cyber-todo.title_label')); ?> <span style="color: #dc2626;">*</span></label>
                     <select name="activity_title" id="todoTitleSelect" required style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white;">
-                        <option value="">-- Select Title --</option>
-                        <option value="Contact Vendor">Contact Vendor</option>
-                        <option value="Contact Stakeholder">Contact Stakeholder</option>
-                        <option value="Send Assessment">Send Assessment</option>
-                        <option value="Force Annual Review">Force Annual Review</option>
+                        <option value="">-- <?php echo e(t('cyber-todo.select_title_option')); ?> --</option>
+                        <option value="Contact Vendor"><?php echo e(t('cyber-todo.opt_contact_vendor')); ?></option>
+                        <option value="Contact Stakeholder"><?php echo e(t('cyber-todo.opt_contact_stakeholder')); ?></option>
+                        <option value="Send Assessment"><?php echo e(t('cyber-todo.opt_send_assessment')); ?></option>
+                        <option value="Force Annual Review"><?php echo e(t('cyber-todo.opt_force_annual_review')); ?></option>
                     </select>
                 </div>
 
                 <div style="margin-bottom: 20px; display: none;" id="todoAssessmentGroup">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;">Vendor Assessment <span style="color: #dc2626;">*</span></label>
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;"><?php echo e(t('cyber-todo.vendor_assessment_label')); ?> <span style="color: #dc2626;">*</span></label>
                     <select name="assessment_template_id" id="todoAssessmentSelect" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white;">
-                        <option value="">-- Select Assessment --</option>
+                        <option value="">-- <?php echo e(t('cyber-todo.select_assessment_option')); ?> --</option>
                         <?php foreach ($vendorAssessmentTemplates as $tpl): ?>
                         <option value="<?php echo (int)$tpl['id']; ?>"><?php echo e($tpl['name']); ?></option>
                         <?php endforeach; ?>
@@ -1820,18 +1820,18 @@ foreach ($todoItems as $ti) {
                 </div>
 
                 <div style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;">Description <span style="color: #dc2626;">*</span></label>
-                    <textarea name="activity_description" required rows="4" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; resize: vertical;" placeholder="Describe the todo item..."></textarea>
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;"><?php echo e(t('cyber-todo.description_label')); ?> <span style="color: #dc2626;">*</span></label>
+                    <textarea name="activity_description" required rows="4" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; resize: vertical;" placeholder="<?php echo e(t('cyber-todo.describe_todo_placeholder')); ?>"></textarea>
                 </div>
 
                 <div style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;">Due Date (Optional)</label>
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px;"><?php echo e(t('cyber-todo.due_date_optional_caps_label')); ?></label>
                     <input type="date" name="activity_due_date" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
                 </div>
 
                 <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-                    <button type="button" id="cancelTodoBtn" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;">Cancel</button>
-                    <button type="submit" style="padding: 10px 20px; background: var(--theme-button-color); color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;">Create Todo</button>
+                    <button type="button" id="cancelTodoBtn" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;"><?php echo e(t('cyber-todo.cancel_btn')); ?></button>
+                    <button type="submit" style="padding: 10px 20px; background: var(--theme-button-color); color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;"><?php echo e(t('cyber-todo.create_todo_btn')); ?></button>
                 </div>
             </form>
         </div>
@@ -1910,7 +1910,7 @@ foreach ($todoItems as $ti) {
                             .then(data => {
                                 const matches = data.vendors || data.results || [];
                                 if (matches.length === 0) {
-                                    vendorResults.innerHTML = '<div style="padding: 10px 12px; color: #666; font-size: 13px;">No vendors found</div>';
+                                    vendorResults.innerHTML = '<div style="padding: 10px 12px; color: #666; font-size: 13px;">' + <?php echo json_encode(t('cyber-todo.no_vendors_found')); ?> + '</div>';
                                 } else {
                                     vendorResults.innerHTML = matches.map(v =>
                                         `<div class="vendor-option" data-id="${v.id}" data-name="${escapeHtml(v.vendor_name || v.name)}" style="padding: 10px 12px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #f0f0f0;">${escapeHtml(v.vendor_name || v.name)}</div>`
@@ -1927,7 +1927,7 @@ foreach ($todoItems as $ti) {
                                 vendorResults.style.display = 'block';
                             })
                             .catch(() => {
-                                vendorResults.innerHTML = '<div style="padding: 10px 12px; color: #dc2626; font-size: 13px;">Search error</div>';
+                                vendorResults.innerHTML = '<div style="padding: 10px 12px; color: #dc2626; font-size: 13px;">' + <?php echo json_encode(t('cyber-todo.search_error')); ?> + '</div>';
                                 vendorResults.style.display = 'block';
                             });
                     }, 300);
@@ -1998,7 +1998,7 @@ foreach ($todoItems as $ti) {
          justification, and get on with your day. -->
     <div id="tierChangeModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
         <div style="background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
-            <h3 style="margin: 0 0 8px 0; color: #333; font-size: 20px;">Assign Vendor Tier</h3>
+            <h3 style="margin: 0 0 8px 0; color: #333; font-size: 20px;"><?php echo e(t('cyber-todo.assign_vendor_tier_heading')); ?></h3>
             <div id="tierVendorName" style="margin: 0 0 20px 0; color: #666; font-size: 14px;"></div>
 
             <form method="POST" id="tierChangeForm">
@@ -2007,23 +2007,23 @@ foreach ($todoItems as $ti) {
                 <input type="hidden" name="tier_vendor_id" id="tierVendorId" value="">
 
                 <div style="margin-bottom: 20px;">
-                    <label for="new_tier" style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;">Tier:</label>
+                    <label for="new_tier" style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;"><?php echo e(t('cyber-todo.tier_field_label')); ?></label>
                     <select id="new_tier" name="new_tier" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        <option value="">Not Assigned</option>
-                        <option value="1">Tier 1 - Critical (Monthly rescoring)</option>
-                        <option value="2">Tier 2 - Standard (90-day rescoring)</option>
-                        <option value="3">Tier 3 - Low Priority (Annual rescoring)</option>
+                        <option value=""><?php echo e(t('cyber-todo.tier_not_assigned')); ?></option>
+                        <option value="1"><?php echo e(t('cyber-todo.tier_1_option')); ?></option>
+                        <option value="2"><?php echo e(t('cyber-todo.tier_2_option')); ?></option>
+                        <option value="3"><?php echo e(t('cyber-todo.tier_3_option')); ?></option>
                     </select>
                 </div>
 
                 <div style="margin-bottom: 20px;">
-                    <label for="tier_justification" style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;">Justification: <span style="color: #dc2626;">*</span></label>
-                    <textarea id="tier_justification" name="tier_justification" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: inherit;" placeholder="Enter reason for tier assignment..." required></textarea>
+                    <label for="tier_justification" style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;"><?php echo e(t('cyber-todo.justification_label')); ?> <span style="color: #dc2626;">*</span></label>
+                    <textarea id="tier_justification" name="tier_justification" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: inherit;" placeholder="<?php echo e(t('cyber-todo.justification_placeholder')); ?>" required></textarea>
                 </div>
 
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" data-action="closeTierModal" style="padding: 10px 20px; border: 1px solid #ddd; background: white; color: #666; border-radius: 4px; cursor: pointer; font-size: 14px;">Cancel</button>
-                    <button type="submit" style="padding: 10px 20px; border: none; background: #dc2626; color: white; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500;">Assign Tier</button>
+                    <button type="button" data-action="closeTierModal" style="padding: 10px 20px; border: 1px solid #ddd; background: white; color: #666; border-radius: 4px; cursor: pointer; font-size: 14px;"><?php echo e(t('cyber-todo.cancel_btn')); ?></button>
+                    <button type="submit" style="padding: 10px 20px; border: none; background: #dc2626; color: white; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500;"><?php echo e(t('cyber-todo.assign_tier_btn')); ?></button>
                 </div>
             </form>
         </div>
@@ -2050,7 +2050,7 @@ foreach ($todoItems as $ti) {
         document.getElementById('tierChangeForm').addEventListener('submit', function(e) {
             if (!document.getElementById('tier_justification').value.trim()) {
                 e.preventDefault();
-                alert('Please provide a justification for the tier assignment.');
+                alert(<?php echo json_encode(t('cyber-todo.justification_alert')); ?>);
                 document.getElementById('tier_justification').focus();
             }
         });
@@ -2086,7 +2086,7 @@ foreach ($todoItems as $ti) {
             });
 
             if (matches.length === 0) {
-                dropdown.innerHTML = '<div class="no-results">No users found</div>';
+                dropdown.innerHTML = '<div class="no-results">' + <?php echo json_encode(t('cyber-todo.no_users_found')); ?> + '</div>';
             } else {
                 dropdown.innerHTML = matches.map(function(u, i) {
                     return '<div class="assign-option" data-id="' + u.id + '" data-name="' + u.name.replace(/"/g, '&quot;') + '">'

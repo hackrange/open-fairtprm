@@ -29,7 +29,7 @@ $localLoginOverridden = ($localLoginConfigOverride !== null);
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_saml'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_saml.invalid_request');
     } else {
         try {
             $db->beginTransaction();
@@ -97,11 +97,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_saml'])) {
                     $localLoginSaved !== null ? ['local_login_enabled' => $localLoginSaved] : []
                 )
             ]);
-            $success = 'SAML configuration updated successfully';
+            $success = t('admin_saml.config_updated');
         } catch (Exception $e) {
             $db->rollback();
             error_log('Error updating SAML config: ' . $e->getMessage());
-            $error = 'Failed to update SAML configuration';
+            $error = t('admin_saml.config_update_failed');
         }
     }
 }
@@ -111,16 +111,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_saml'])) {
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_group_mapping'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_saml.invalid_request');
     } else {
         $samlGroupName = trim($_POST['saml_group_name'] ?? '');
         $aclGroupId = intval($_POST['acl_group_id'] ?? 0);
         $autoAssign = isset($_POST['auto_assign']) ? 1 : 0;
 
         if (empty($samlGroupName)) {
-            $error = 'SAML group name is required.';
+            $error = t('admin_saml.group_name_required');
         } elseif ($aclGroupId <= 0) {
-            $error = 'Please select an ACL group.';
+            $error = t('admin_saml.select_acl_group');
         } else {
             try {
                 // Check for duplicate
@@ -129,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_group_mapping']))
                     [':name' => $samlGroupName]
                 );
                 if ($existing) {
-                    $error = 'A mapping for "' . e($samlGroupName) . '" already exists.';
+                    $error = t('admin_saml.mapping_exists_prefix') . e($samlGroupName) . t('admin_saml.mapping_exists_suffix');
                 } else {
                     $db->insert('saml_group_mappings', [
                         'saml_group_name' => $samlGroupName,
@@ -139,11 +139,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_group_mapping']))
                     $auth->audit($user['id'], 'saml_group_mapping_add', 'saml_group_mappings', null, [
                         'new' => ['saml_group_name' => $samlGroupName, 'acl_group_id' => $aclGroupId]
                     ]);
-                    $success = 'Group mapping added successfully.';
+                    $success = t('admin_saml.mapping_added');
                 }
             } catch (Exception $e) {
                 error_log('Error adding SAML group mapping: ' . $e->getMessage());
-                $error = 'Failed to add group mapping.';
+                $error = t('admin_saml.mapping_add_failed');
             }
         }
     }
@@ -154,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_group_mapping']))
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_group_mapping'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_saml.invalid_request');
     } else {
         $mappingId = intval($_POST['mapping_id'] ?? 0);
         if ($mappingId > 0) {
@@ -164,10 +164,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_group_mapping'
                 $auth->audit($user['id'], 'saml_group_mapping_delete', 'saml_group_mappings', $mappingId, [
                     'old' => $mapping
                 ]);
-                $success = 'Group mapping deleted.';
+                $success = t('admin_saml.mapping_deleted');
             } catch (Exception $e) {
                 error_log('Error deleting SAML group mapping: ' . $e->getMessage());
-                $error = 'Failed to delete group mapping.';
+                $error = t('admin_saml.mapping_delete_failed');
             }
         }
     }
@@ -178,7 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_group_mapping'
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_scim_token'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_saml.invalid_request');
     } else {
         try {
             // Generate a cryptographically secure token
@@ -203,10 +203,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_scim_token']
 
             // Store the plain token in session so we can display it once
             $session->set('scim_new_token', $plainToken);
-            $success = 'SCIM bearer token generated. Copy it now -- it will not be shown again.';
+            $success = t('admin_saml.scim_token_generated');
         } catch (Exception $e) {
             error_log('Error generating SCIM token: ' . $e->getMessage());
-            $error = 'Failed to generate SCIM token.';
+            $error = t('admin_saml.scim_token_generate_failed');
         }
     }
 }
@@ -216,17 +216,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_scim_token']
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['revoke_scim_token'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_saml.invalid_request');
     } else {
         try {
             $db->delete('app_config', "config_key = 'scim_bearer_token_hash'");
             $auth->audit($user['id'], 'scim_token_revoked', 'app_config', null, [
                 'new' => ['action' => 'token_revoked']
             ]);
-            $success = 'SCIM bearer token revoked. SCIM provisioning is now disabled.';
+            $success = t('admin_saml.scim_token_revoked');
         } catch (Exception $e) {
             error_log('Error revoking SCIM token: ' . $e->getMessage());
-            $error = 'Failed to revoke SCIM token.';
+            $error = t('admin_saml.scim_token_revoke_failed');
         }
     }
 }
@@ -281,78 +281,78 @@ $groupMappings = $db->fetchAll(
 // ============================================================================
 ?>
 <div class="page-header-bar">
-    <h1 class="page-title">SAML 2.0 Configuration</h1>
-    <p>Configure Single Sign-On with your identity provider and map IdP groups to application roles.</p>
+    <h1 class="page-title"><?php echo e(t('admin_saml.page_title')); ?></h1>
+    <p><?php echo e(t('admin_saml.page_subtitle')); ?></p>
 </div>
 
 <!-- SAML IdP/SP Configuration -->
 <div class="card">
-    <h3 style="margin: 0 0 20px; font-size: 16px; font-weight: 600; color: #333;">Connection Settings</h3>
+    <h3 style="margin: 0 0 20px; font-size: 16px; font-weight: 600; color: #333;"><?php echo e(t('admin_saml.connection_settings_heading')); ?></h3>
     <form method="POST" action="admin.php?section=saml">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="saml_enabled" value="1" <?php echo $samlConfig['is_enabled'] ? 'checked' : ''; ?>>
-                <span>Enable SAML 2.0</span>
+                <span><?php echo e(t('admin_saml.enable_saml')); ?></span>
             </label>
         </div>
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="local_login_enabled" value="1" <?php echo $localLoginEffective ? 'checked' : ''; ?> <?php echo $localLoginOverridden ? 'disabled' : ''; ?>>
-                <span>Allow local username/password login (in addition to SSO)</span>
+                <span><?php echo e(t('admin_saml.allow_local_login')); ?></span>
             </label>
             <small style="color: #666; margin-top: 4px; display: block;">
-                When enabled, the login page offers both SSO and a local username/password form. When disabled, SSO is the only path for normal users &mdash; the designated break-glass admin can still sign in locally, so a broken IdP can never lock everyone out. This setting only takes effect once SAML is enabled and fully configured.
+                <?php echo e(t('admin_saml.local_login_help')); ?>
                 <?php if ($localLoginOverridden): ?>
-                    <br><strong>Currently controlled by <code>config.php</code></strong> (<code>auth.local_login_enabled</code> = <?php echo $localLoginConfigOverride ? 'true' : 'false'; ?>); remove that line to manage it here.
+                    <br><strong><?php echo t('admin_saml.local_login_config_controlled'); ?></strong> (<code>auth.local_login_enabled</code> = <?php echo $localLoginConfigOverride ? 'true' : 'false'; ?>); <?php echo e(t('admin_saml.local_login_remove_line')); ?>
                 <?php endif; ?>
             </small>
         </div>
-        <h4 style="margin: 20px 0 15px; color: #666; font-size: 14px; font-weight: 600;">Identity Provider (IdP)</h4>
+        <h4 style="margin: 20px 0 15px; color: #666; font-size: 14px; font-weight: 600;"><?php echo e(t('admin_saml.idp_heading')); ?></h4>
         <div class="form-group">
-            <label for="idp_entity_id">IdP Entity ID</label>
+            <label for="idp_entity_id"><?php echo e(t('admin_saml.idp_entity_id_label')); ?></label>
             <input type="text" id="idp_entity_id" name="idp_entity_id" class="form-control" value="<?php echo e($samlConfig['idp_entity_id']); ?>" placeholder="http://www.okta.com/YOUR_IDP_ENTITY_ID">
         </div>
         <div class="form-group">
-            <label for="idp_sso_url">IdP Single Sign-On URL</label>
+            <label for="idp_sso_url"><?php echo e(t('admin_saml.idp_sso_url_label')); ?></label>
             <input type="text" id="idp_sso_url" name="idp_sso_url" class="form-control" value="<?php echo e($samlConfig['idp_sso_url']); ?>" placeholder="https://YOUR_OKTA_DOMAIN.okta.com/app/YOUR_APP_ID/sso/saml">
         </div>
         <div class="form-group">
-            <label for="idp_slo_url">IdP Single Logout URL (Optional)</label>
+            <label for="idp_slo_url"><?php echo e(t('admin_saml.idp_slo_url_label')); ?></label>
             <input type="text" id="idp_slo_url" name="idp_slo_url" class="form-control" value="<?php echo e($samlConfig['idp_slo_url']); ?>">
         </div>
         <div class="form-group">
-            <label for="idp_certificate">IdP X.509 Certificate</label>
+            <label for="idp_certificate"><?php echo e(t('admin_saml.idp_certificate_label')); ?></label>
             <textarea id="idp_certificate" name="idp_certificate" class="form-control" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"><?php echo e($samlConfig['idp_certificate']); ?></textarea>
         </div>
-        <h4 style="margin: 20px 0 15px; color: #666; font-size: 14px; font-weight: 600;">Service Provider (SP)</h4>
+        <h4 style="margin: 20px 0 15px; color: #666; font-size: 14px; font-weight: 600;"><?php echo e(t('admin_saml.sp_heading')); ?></h4>
         <div class="form-group">
-            <label for="sp_entity_id">SP Entity ID</label>
+            <label for="sp_entity_id"><?php echo e(t('admin_saml.sp_entity_id_label')); ?></label>
             <input type="text" id="sp_entity_id" name="sp_entity_id" class="form-control" value="<?php echo e($samlConfig['sp_entity_id'] ?: $appBaseUrl . '/saml/metadata'); ?>">
         </div>
         <div class="form-group">
-            <label for="sp_acs_url">SP Assertion Consumer Service URL</label>
+            <label for="sp_acs_url"><?php echo e(t('admin_saml.sp_acs_url_label')); ?></label>
             <input type="text" id="sp_acs_url" name="sp_acs_url" class="form-control" value="<?php echo e($samlConfig['sp_acs_url'] ?: $appBaseUrl . '/saml/acs'); ?>">
         </div>
         <div class="form-group">
-            <label for="sp_slo_url">SP Single Logout URL (Optional)</label>
+            <label for="sp_slo_url"><?php echo e(t('admin_saml.sp_slo_url_label')); ?></label>
             <input type="text" id="sp_slo_url" name="sp_slo_url" class="form-control" value="<?php echo e($samlConfig['sp_slo_url'] ?: $appBaseUrl . '/saml/sls'); ?>">
         </div>
-        <h4 style="margin: 20px 0 15px; color: #666; font-size: 14px; font-weight: 600;">User Provisioning</h4>
+        <h4 style="margin: 20px 0 15px; color: #666; font-size: 14px; font-weight: 600;"><?php echo e(t('admin_saml.user_provisioning_heading')); ?></h4>
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="auto_activate" value="1" <?php echo ($samlConfig['auto_activate'] ?? 1) ? 'checked' : ''; ?>>
-                <span>Auto-activate new accounts</span>
+                <span><?php echo e(t('admin_saml.auto_activate_label')); ?></span>
             </label>
-            <small style="color: #666; margin-top: 4px; display: block;">When enabled, users provisioned via SSO or SCIM are immediately active. When disabled, new accounts are created in an inactive state and must be manually activated by an administrator.</small>
+            <small style="color: #666; margin-top: 4px; display: block;"><?php echo e(t('admin_saml.auto_activate_help')); ?></small>
         </div>
-        <h4 style="margin: 20px 0 15px; color: #666; font-size: 14px; font-weight: 600;">Group Attribute</h4>
+        <h4 style="margin: 20px 0 15px; color: #666; font-size: 14px; font-weight: 600;"><?php echo e(t('admin_saml.group_attribute_heading')); ?></h4>
         <div class="form-group">
-            <label for="group_attribute">SAML Assertion Attribute for Groups</label>
+            <label for="group_attribute"><?php echo e(t('admin_saml.group_attribute_label')); ?></label>
             <input type="text" id="group_attribute" name="group_attribute" class="form-control" value="<?php echo e($samlConfig['group_attribute'] ?? 'groups'); ?>" placeholder="groups">
-            <small style="color: #666; margin-top: 4px; display: block;">The attribute name in the SAML assertion that contains group/role claims. Common values: <code>groups</code>, <code>memberOf</code>, <code>http://schemas.microsoft.com/ws/2008/06/identity/claims/groups</code></small>
+            <small style="color: #666; margin-top: 4px; display: block;"><?php echo t('admin_saml.group_attribute_help'); ?></small>
         </div>
-        <button type="submit" name="update_saml" class="btn btn-primary">Save SAML Configuration</button>
+        <button type="submit" name="update_saml" class="btn btn-primary"><?php echo e(t('admin_saml.save_config_button')); ?></button>
     </form>
 </div>
 
@@ -365,138 +365,138 @@ $refMetadataUrl = $appBaseUrl . '/saml/metadata';
 $refScimBaseUrl = $appBaseUrl . '/scim/v2';
 ?>
 <div class="card" style="margin-top: 20px; background: #f0fdf4; border: 1px solid #bbf7d0;">
-    <h3 style="margin: 0 0 5px; font-size: 16px; font-weight: 600; color: #14532d;">IdP Configuration Reference</h3>
-    <p style="color: #166534; font-size: 13px; margin: 0 0 20px;">Copy these values into your identity provider's SAML application configuration.</p>
+    <h3 style="margin: 0 0 5px; font-size: 16px; font-weight: 600; color: #14532d;"><?php echo e(t('admin_saml.idp_config_reference_heading')); ?></h3>
+    <p style="color: #166534; font-size: 13px; margin: 0 0 20px;"><?php echo e(t('admin_saml.idp_config_reference_subtitle')); ?></p>
 
     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
         <tr style="border-bottom: 1px solid #bbf7d0;">
-            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; width: 220px; vertical-align: top;">SP Entity ID<br><span style="font-weight: 400; font-size: 11px; color: #166534;">(Audience URI)</span></td>
+            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; width: 220px; vertical-align: top;"><?php echo e(t('admin_saml.sp_entity_id_label')); ?><br><span style="font-weight: 400; font-size: 11px; color: #166534;"><?php echo e(t('admin_saml.audience_uri_sublabel')); ?></span></td>
             <td style="padding: 10px 12px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <code id="ref-entity-id" style="background: #dcfce7; padding: 4px 8px; border-radius: 4px; word-break: break-all; flex: 1;"><?php echo e($refSpEntityId); ?></code>
-                    <button type="button" data-copy-target="ref-entity-id" class="btn-copy" title="Copy">Copy</button>
+                    <button type="button" data-copy-target="ref-entity-id" class="btn-copy" title="<?php echo e(t('admin_saml.copy')); ?>"><?php echo e(t('admin_saml.copy')); ?></button>
                 </div>
             </td>
         </tr>
         <tr style="border-bottom: 1px solid #bbf7d0;">
-            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;">ACS URL<br><span style="font-weight: 400; font-size: 11px; color: #166534;">(Single Sign-On URL)</span></td>
+            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;"><?php echo e(t('admin_saml.acs_url_label')); ?><br><span style="font-weight: 400; font-size: 11px; color: #166534;"><?php echo e(t('admin_saml.acs_url_sublabel')); ?></span></td>
             <td style="padding: 10px 12px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <code id="ref-acs-url" style="background: #dcfce7; padding: 4px 8px; border-radius: 4px; word-break: break-all; flex: 1;"><?php echo e($refSpAcsUrl); ?></code>
-                    <button type="button" data-copy-target="ref-acs-url" class="btn-copy" title="Copy">Copy</button>
+                    <button type="button" data-copy-target="ref-acs-url" class="btn-copy" title="<?php echo e(t('admin_saml.copy')); ?>"><?php echo e(t('admin_saml.copy')); ?></button>
                 </div>
             </td>
         </tr>
         <tr style="border-bottom: 1px solid #bbf7d0;">
-            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;">SLS URL<br><span style="font-weight: 400; font-size: 11px; color: #166534;">(Single Logout URL)</span></td>
+            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;"><?php echo e(t('admin_saml.sls_url_label')); ?><br><span style="font-weight: 400; font-size: 11px; color: #166534;"><?php echo e(t('admin_saml.sls_url_sublabel')); ?></span></td>
             <td style="padding: 10px 12px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <code id="ref-slo-url" style="background: #dcfce7; padding: 4px 8px; border-radius: 4px; word-break: break-all; flex: 1;"><?php echo e($refSpSloUrl); ?></code>
-                    <button type="button" data-copy-target="ref-slo-url" class="btn-copy" title="Copy">Copy</button>
+                    <button type="button" data-copy-target="ref-slo-url" class="btn-copy" title="<?php echo e(t('admin_saml.copy')); ?>"><?php echo e(t('admin_saml.copy')); ?></button>
                 </div>
             </td>
         </tr>
         <tr style="border-bottom: 1px solid #bbf7d0;">
-            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;">SP Metadata URL</td>
+            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;"><?php echo e(t('admin_saml.sp_metadata_url_label')); ?></td>
             <td style="padding: 10px 12px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <code id="ref-metadata-url" style="background: #dcfce7; padding: 4px 8px; border-radius: 4px; word-break: break-all; flex: 1;"><?php echo e($refMetadataUrl); ?></code>
-                    <button type="button" data-copy-target="ref-metadata-url" class="btn-copy" title="Copy">Copy</button>
+                    <button type="button" data-copy-target="ref-metadata-url" class="btn-copy" title="<?php echo e(t('admin_saml.copy')); ?>"><?php echo e(t('admin_saml.copy')); ?></button>
                 </div>
             </td>
         </tr>
         <tr style="border-bottom: 1px solid #bbf7d0;">
-            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;">NameID Format</td>
+            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;"><?php echo e(t('admin_saml.nameid_format_label')); ?></td>
             <td style="padding: 10px 12px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <code id="ref-nameid" style="background: #dcfce7; padding: 4px 8px; border-radius: 4px; word-break: break-all; flex: 1;">urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</code>
-                    <button type="button" data-copy-target="ref-nameid" class="btn-copy" title="Copy">Copy</button>
+                    <button type="button" data-copy-target="ref-nameid" class="btn-copy" title="<?php echo e(t('admin_saml.copy')); ?>"><?php echo e(t('admin_saml.copy')); ?></button>
                 </div>
             </td>
         </tr>
         <tr style="border-bottom: 1px solid #bbf7d0;">
-            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;">AuthnContext Class</td>
+            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;"><?php echo e(t('admin_saml.authncontext_class_label')); ?></td>
             <td style="padding: 10px 12px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <code id="ref-authnctx" style="background: #dcfce7; padding: 4px 8px; border-radius: 4px; word-break: break-all; flex: 1;">urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport</code>
-                    <button type="button" data-copy-target="ref-authnctx" class="btn-copy" title="Copy">Copy</button>
+                    <button type="button" data-copy-target="ref-authnctx" class="btn-copy" title="<?php echo e(t('admin_saml.copy')); ?>"><?php echo e(t('admin_saml.copy')); ?></button>
                 </div>
             </td>
         </tr>
         <tr style="border-bottom: 1px solid #bbf7d0;">
-            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;">Signature Algorithm</td>
+            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;"><?php echo e(t('admin_saml.signature_algorithm_label')); ?></td>
             <td style="padding: 10px 12px;">
                 <code style="background: #dcfce7; padding: 4px 8px; border-radius: 4px;">RSA-SHA256</code>
             </td>
         </tr>
         <tr style="border-bottom: 1px solid #bbf7d0;">
-            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;">Binding</td>
+            <td style="padding: 10px 12px; font-weight: 600; color: #14532d; vertical-align: top;"><?php echo e(t('admin_saml.binding_label')); ?></td>
             <td style="padding: 10px 12px;">
                 <code style="background: #dcfce7; padding: 4px 8px; border-radius: 4px;">HTTP-POST</code>
-                <span style="color: #166534; font-size: 12px; margin-left: 6px;">(for ACS)</span>
+                <span style="color: #166534; font-size: 12px; margin-left: 6px;"><?php echo e(t('admin_saml.binding_for_acs_note')); ?></span>
             </td>
         </tr>
     </table>
 
     <!-- SCIM Provisioning -->
     <div style="border-top: 2px solid #bbf7d0; margin-top: 20px; padding-top: 20px;">
-        <h4 style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #14532d;">SCIM 2.0 Provisioning</h4>
-        <p style="color: #166534; font-size: 12px; margin: 0 0 15px;">Enable automatic user provisioning and deprovisioning from your IdP. Configure these values in your IdP's SCIM integration settings.</p>
+        <h4 style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #14532d;"><?php echo e(t('admin_saml.scim_provisioning_heading')); ?></h4>
+        <p style="color: #166534; font-size: 12px; margin: 0 0 15px;"><?php echo e(t('admin_saml.scim_provisioning_subtitle')); ?></p>
 
         <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
             <tr style="border-bottom: 1px solid #bbf7d0;">
-                <td style="padding: 10px 12px; font-weight: 600; color: #14532d; width: 220px; vertical-align: top;">SCIM Base URL<br><span style="font-weight: 400; font-size: 11px; color: #166534;">(Tenant URL)</span></td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #14532d; width: 220px; vertical-align: top;"><?php echo e(t('admin_saml.scim_base_url_label')); ?><br><span style="font-weight: 400; font-size: 11px; color: #166534;"><?php echo e(t('admin_saml.tenant_url_sublabel')); ?></span></td>
                 <td style="padding: 10px 12px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <code id="ref-scim-url" style="background: #dcfce7; padding: 4px 8px; border-radius: 4px; word-break: break-all; flex: 1;"><?php echo e($refScimBaseUrl); ?></code>
-                        <button type="button" data-copy-target="ref-scim-url" class="btn-copy" title="Copy">Copy</button>
+                        <button type="button" data-copy-target="ref-scim-url" class="btn-copy" title="<?php echo e(t('admin_saml.copy')); ?>"><?php echo e(t('admin_saml.copy')); ?></button>
                     </div>
                 </td>
             </tr>
             <tr style="border-bottom: 1px solid #bbf7d0;">
-                <td style="padding: 10px 12px; font-weight: 600; color: #14532d; width: 220px; vertical-align: top;">Unique Identifier</td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #14532d; width: 220px; vertical-align: top;"><?php echo e(t('admin_saml.unique_identifier_label')); ?></td>
                 <td style="padding: 10px 12px;">
                     <code style="background: #dcfce7; padding: 4px 8px; border-radius: 4px;">userName</code>
                 </td>
             </tr>
             <tr style="border-bottom: 1px solid #bbf7d0;">
-                <td style="padding: 10px 12px; font-weight: 600; color: #14532d; width: 220px; vertical-align: top;">Authentication Mode</td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #14532d; width: 220px; vertical-align: top;"><?php echo e(t('admin_saml.authentication_mode_label')); ?></td>
                 <td style="padding: 10px 12px;">
                     <code style="background: #dcfce7; padding: 4px 8px; border-radius: 4px;">OAuth Bearer Token</code>
                 </td>
             </tr>
             <tr>
-                <td style="padding: 10px 12px; font-weight: 600; color: #14532d; width: 220px; vertical-align: top;">SCIM Bearer Token</td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #14532d; width: 220px; vertical-align: top;"><?php echo e(t('admin_saml.scim_bearer_token_label')); ?></td>
                 <td style="padding: 10px 12px;">
                     <?php if ($scimNewToken): ?>
                         <!-- Show newly generated token (one time only) -->
                         <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 12px; margin-bottom: 10px;">
-                            <div style="font-size: 12px; font-weight: 600; color: #92400e; margin-bottom: 6px;">New token generated -- copy it now, it will not be shown again:</div>
+                            <div style="font-size: 12px; font-weight: 600; color: #92400e; margin-bottom: 6px;"><?php echo e(t('admin_saml.new_token_generated_note')); ?></div>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <code id="ref-scim-token" style="background: #fff; padding: 6px 10px; border-radius: 4px; word-break: break-all; flex: 1; font-size: 13px; border: 1px solid #fbbf24;"><?php echo e($scimNewToken); ?></code>
-                                <button type="button" data-copy-target="ref-scim-token" class="btn-copy" title="Copy">Copy</button>
+                                <button type="button" data-copy-target="ref-scim-token" class="btn-copy" title="<?php echo e(t('admin_saml.copy')); ?>"><?php echo e(t('admin_saml.copy')); ?></button>
                             </div>
                         </div>
                     <?php endif; ?>
 
                     <?php if ($scimTokenExists): ?>
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                            <span style="color: #059669; font-size: 13px; font-weight: 500;">Token is configured</span>
+                            <span style="color: #059669; font-size: 13px; font-weight: 500;"><?php echo e(t('admin_saml.token_configured')); ?></span>
                             <form method="POST" action="admin.php?section=saml" style="display: inline;">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                                <button type="submit" name="generate_scim_token" class="btn btn-sm" style="background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; padding: 4px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;">Regenerate</button>
+                                <button type="submit" name="generate_scim_token" class="btn btn-sm" style="background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; padding: 4px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;"><?php echo e(t('admin_saml.regenerate_button')); ?></button>
                             </form>
-                            <form method="POST" action="admin.php?section=saml" style="display: inline;" data-confirm="Revoke the SCIM token? Your IdP will no longer be able to provision users.">
+                            <form method="POST" action="admin.php?section=saml" style="display: inline;" data-confirm="<?php echo e(t('admin_saml.revoke_confirm')); ?>">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                                <button type="submit" name="revoke_scim_token" class="btn btn-sm" style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 4px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;">Revoke</button>
+                                <button type="submit" name="revoke_scim_token" class="btn btn-sm" style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 4px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;"><?php echo e(t('admin_saml.revoke_button')); ?></button>
                             </form>
                         </div>
                     <?php else: ?>
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                            <span style="color: #9ca3af; font-size: 13px;">No token configured</span>
+                            <span style="color: #9ca3af; font-size: 13px;"><?php echo e(t('admin_saml.no_token_configured')); ?></span>
                             <form method="POST" action="admin.php?section=saml" style="display: inline;">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                                <button type="submit" name="generate_scim_token" class="btn btn-sm" style="background: #dcfce7; color: #14532d; border: 1px solid #86efac; padding: 4px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;">Generate Token</button>
+                                <button type="submit" name="generate_scim_token" class="btn btn-sm" style="background: #dcfce7; color: #14532d; border: 1px solid #86efac; padding: 4px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;"><?php echo e(t('admin_saml.generate_token_button')); ?></button>
                             </form>
                         </div>
                     <?php endif; ?>
@@ -531,7 +531,7 @@ document.querySelectorAll('[data-copy-target]').forEach(function(btn) {
         document.execCommand('copy');
         document.body.removeChild(ta);
         var orig = this.textContent;
-        this.textContent = 'Copied!';
+        this.textContent = <?php echo json_encode(t('admin_saml.copied')); ?>;
         this.style.background = '#86efac';
         var self = this;
         setTimeout(function() { self.textContent = orig; self.style.background = ''; }, 1500);
@@ -550,23 +550,23 @@ document.querySelectorAll('[data-confirm]').forEach(function(form) {
 
 <!-- SAML Group Mappings -->
 <div class="card" style="margin-top: 20px;">
-    <h3 style="margin: 0 0 5px; font-size: 16px; font-weight: 600; color: #333;">Group Mappings</h3>
-    <p style="color: #666; font-size: 13px; margin: 0 0 20px;">Map identity provider groups (e.g., Active Directory groups, Okta groups) to application roles. When a user logs in via SAML, their IdP group memberships are matched against these mappings and the corresponding application roles are automatically assigned.</p>
+    <h3 style="margin: 0 0 5px; font-size: 16px; font-weight: 600; color: #333;"><?php echo e(t('admin_saml.group_mappings_heading')); ?></h3>
+    <p style="color: #666; font-size: 13px; margin: 0 0 20px;"><?php echo e(t('admin_saml.group_mappings_subtitle')); ?></p>
 
     <?php if (empty($groupMappings)): ?>
         <div style="text-align: center; padding: 30px 20px; background: #f9fafb; border-radius: 6px; border: 1px dashed #d1d5db;">
-            <div style="font-size: 13px; color: #6b7280;">No group mappings configured yet.</div>
-            <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">Add a mapping below to automatically assign roles to SAML users based on their IdP groups.</div>
+            <div style="font-size: 13px; color: #6b7280;"><?php echo e(t('admin_saml.no_mappings_empty')); ?></div>
+            <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;"><?php echo e(t('admin_saml.no_mappings_hint')); ?></div>
         </div>
     <?php else: ?>
         <table class="data-table" style="width: 100%; margin-bottom: 20px;">
             <thead>
                 <tr>
-                    <th style="text-align: left;">IdP Group Name</th>
-                    <th style="text-align: left;">Application Role</th>
-                    <th style="text-align: center;">Auto-Assign</th>
-                    <th style="text-align: center;">Added</th>
-                    <th style="text-align: center; width: 80px;">Actions</th>
+                    <th style="text-align: left;"><?php echo e(t('admin_saml.th_idp_group_name')); ?></th>
+                    <th style="text-align: left;"><?php echo e(t('admin_saml.th_application_role')); ?></th>
+                    <th style="text-align: center;"><?php echo e(t('admin_saml.th_auto_assign')); ?></th>
+                    <th style="text-align: center;"><?php echo e(t('admin_saml.th_added')); ?></th>
+                    <th style="text-align: center; width: 80px;"><?php echo e(t('admin_saml.th_actions')); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -583,19 +583,19 @@ document.querySelectorAll('[data-confirm]').forEach(function(form) {
                     </td>
                     <td style="text-align: center;">
                         <?php if ($mapping['auto_assign']): ?>
-                            <span style="color: #059669; font-weight: 500;">Yes</span>
+                            <span style="color: #059669; font-weight: 500;"><?php echo e(t('admin_saml.yes')); ?></span>
                         <?php else: ?>
-                            <span style="color: #9ca3af;">No</span>
+                            <span style="color: #9ca3af;"><?php echo e(t('admin_saml.no')); ?></span>
                         <?php endif; ?>
                     </td>
                     <td style="text-align: center; font-size: 12px; color: #6b7280;">
                         <?php echo date('M j, Y', strtotime($mapping['created_at'])); ?>
                     </td>
                     <td style="text-align: center;">
-                        <form method="POST" action="admin.php?section=saml" style="display: inline;" data-confirm="Remove this group mapping?">
+                        <form method="POST" action="admin.php?section=saml" style="display: inline;" data-confirm="<?php echo e(t('admin_saml.remove_confirm')); ?>">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="mapping_id" value="<?php echo (int)$mapping['id']; ?>">
-                            <button type="submit" name="delete_group_mapping" class="btn btn-sm" style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer;">Remove</button>
+                            <button type="submit" name="delete_group_mapping" class="btn btn-sm" style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer;"><?php echo e(t('admin_saml.remove_button')); ?></button>
                         </form>
                     </td>
                 </tr>
@@ -606,17 +606,17 @@ document.querySelectorAll('[data-confirm]').forEach(function(form) {
 
     <!-- Add New Mapping Form -->
     <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 10px;">
-        <h4 style="margin: 0 0 15px; font-size: 14px; font-weight: 600; color: #333;">Add New Mapping</h4>
+        <h4 style="margin: 0 0 15px; font-size: 14px; font-weight: 600; color: #333;"><?php echo e(t('admin_saml.add_new_mapping_heading')); ?></h4>
         <form method="POST" action="admin.php?section=saml" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <div style="flex: 1; min-width: 200px;">
-                <label for="saml_group_name" style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">IdP Group Name</label>
-                <input type="text" id="saml_group_name" name="saml_group_name" class="form-control" placeholder="e.g., TPRM-Admins or CN=SecurityTeam" required style="width: 100%;">
+                <label for="saml_group_name" style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('admin_saml.th_idp_group_name')); ?></label>
+                <input type="text" id="saml_group_name" name="saml_group_name" class="form-control" placeholder="<?php echo e(t('admin_saml.idp_group_name_placeholder')); ?>" required style="width: 100%;">
             </div>
             <div style="min-width: 180px;">
-                <label for="acl_group_id" style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Application Role</label>
+                <label for="acl_group_id" style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('admin_saml.th_application_role')); ?></label>
                 <select id="acl_group_id" name="acl_group_id" class="form-control" required style="width: 100%;">
-                    <option value="">-- Select Role --</option>
+                    <option value=""><?php echo e(t('admin_saml.select_role_option')); ?></option>
                     <?php foreach ($allGroups as $group): ?>
                         <option value="<?php echo (int)$group['id']; ?>"><?php echo e($group['display_name']); ?></option>
                     <?php endforeach; ?>
@@ -625,11 +625,11 @@ document.querySelectorAll('[data-confirm]').forEach(function(form) {
             <div style="display: flex; align-items: center; gap: 6px; padding-bottom: 6px;">
                 <label class="checkbox-label" style="margin: 0; white-space: nowrap;">
                     <input type="checkbox" name="auto_assign" value="1" checked>
-                    <span style="font-size: 13px;">Auto-assign on login</span>
+                    <span style="font-size: 13px;"><?php echo e(t('admin_saml.auto_assign_on_login')); ?></span>
                 </label>
             </div>
             <div style="padding-bottom: 2px;">
-                <button type="submit" name="add_group_mapping" class="btn btn-primary" style="white-space: nowrap;">Add Mapping</button>
+                <button type="submit" name="add_group_mapping" class="btn btn-primary" style="white-space: nowrap;"><?php echo e(t('admin_saml.add_mapping_button')); ?></button>
             </div>
         </form>
     </div>
@@ -637,7 +637,7 @@ document.querySelectorAll('[data-confirm]').forEach(function(form) {
 
 <!-- Help / Reference -->
 <div class="card" style="margin-top: 20px; background: #f0f9ff; border: 1px solid #bae6fd;">
-    <h4 style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #0c4a6e;">Common IdP Group Attribute Names</h4>
+    <h4 style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #0c4a6e;"><?php echo e(t('admin_saml.common_idp_attributes_heading')); ?></h4>
     <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
         <tr style="border-bottom: 1px solid #bae6fd;">
             <td style="padding: 6px 10px; font-weight: 500; color: #0369a1;">Microsoft Entra ID (Azure AD)</td>
@@ -656,5 +656,5 @@ document.querySelectorAll('[data-confirm]').forEach(function(form) {
             <td style="padding: 6px 10px;"><code style="background: #e0f2fe; padding: 1px 5px; border-radius: 3px;">http://schemas.auth0.com/roles</code></td>
         </tr>
     </table>
-    <p style="margin: 12px 0 0; font-size: 12px; color: #0c4a6e;">The IdP Group Name in your mappings must exactly match the group/role value sent in the SAML assertion. Check your identity provider's documentation for the exact values.</p>
+    <p style="margin: 12px 0 0; font-size: 12px; color: #0c4a6e;"><?php echo e(t('admin_saml.common_idp_attributes_note')); ?></p>
 </div>

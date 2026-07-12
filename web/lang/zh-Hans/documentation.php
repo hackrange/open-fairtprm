@@ -155,6 +155,12 @@
         <tr><td><strong><a href="#question-types">电话和 VAT 问题类型</a></strong></td><td>新的评估/入驻字段类型：带国家代码和国旗选择器的电话号码（自动格式化），以及带二次输入确认并可对欧盟官方 VIES 服务进行实时验证的欧盟 VAT 号码。</td><td>全体用户</td></tr>
         <tr><td><strong><a href="#question-types">供应商数据与搜索改进</a></strong></td><td>在每个供应商记录上存储 VAT 号码（在供应商页面显示，并附有"添加 VAT"快捷方式），支持在快速搜索中按 VAT 号码查找供应商，以及更清晰的采购入驻评分横幅。</td><td>Procurement、Cyber TPRM</td></tr>
         <tr><td><strong><a href="#admin-backup">大型数据库备份</a></strong></td><td>备份和恢复功能现在支持数 GB 大小的数据库和超大记录，不会超时。</td><td>管理员</td></tr>
+        <tr><td><strong><a href="#assessment-forms">评估表单与 AI 自动填充</a></strong></td><td>将评估下载为可填写的 PDF 或 Excel 工作簿，将填写完成的文件导入回系统，并且——在配置了 AI 提供商的情况下——根据供应商当前的证书自动填充答案。</td><td>Cyber TPRM、管理员</td></tr>
+        <tr><td><strong><a href="#tprm-action-plan">供应商行动计划</a></strong></td><td>针对供应商安排后续行动（联系、发送评估、强制年度审查），并附带截止日期、负责人、电子邮件提醒和状态备注。</td><td>Cyber TPRM、管理员</td></tr>
+        <tr><td><strong><a href="#custom-onboarding">自定义入驻字段与自定义数据</a></strong></td><td>在供应商上采集额外的、组织特定的字段，可按角色控制可见性，在自定义数据标签页中编辑，并在 CSV 导出和 API 中读取。</td><td>管理员、Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#breach-alerts">违规/网络安全警报</a></strong></td><td>供应链违规信息源（包括 Grip 事件），带受影响用户的下钻查看，以及批量确认/误报/删除。</td><td>Cyber TPRM、管理员</td></tr>
+        <tr><td><strong><a href="#admin-acl-groups">自定义访问控制群组</a></strong></td><td>创建您自己的 ACL 群组，从现有群组克隆权限，并按模块设置只读或读/写权限。随附的群组受到保护。</td><td>管理员</td></tr>
+        <tr><td><strong><a href="#admin-templates">评估模板构建器</a></strong></td><td>新的问题类型（多选、电话、VAT）、模板驱动的证书说明、按角色控制的字段访问，以及默认隐藏的已停用模板。</td><td>管理员、Cyber TPRM</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>如何确认我当前的版本？</strong>管理员可前往 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> 查看已安装的版本。本指南描述的是 <strong>v2.6.2</strong>。请参阅 <a href="#admin-updates">平台更新</a>。
@@ -205,7 +211,7 @@
     </figure>
 
     <div class="callout callout-warning">
-        <strong>注意事项：</strong>大部分界面（菜单、按钮、标签和表单字段）均已翻译。供应商评估<em>问题</em>在配置了 AI 提供商的情况下也可自动翻译（请参阅 <a href="#admin-ai">AI 集成</a>），但存储的答案值保持英文，以确保评分和报告在所有语言中保持一致。
+        <strong>注意事项：</strong>只要您的语言存在对应翻译，界面就会以该语言显示；尚未翻译的字符串会回退为英文，因此您偶尔仍可能看到英文标签。您或您的供应商输入的内容（供应商名称、备注、上传的文件名、自由文本答案）始终按输入的原样显示。在配置了 AI 提供商的情况下，供应商评估<em>问题</em>可在显示时自动翻译（请参阅 <a href="#admin-ai">AI 集成</a>）；如果没有配置，问题将保持其撰写时的语言。存储的答案值始终保持英文，以确保评分和报告在所有语言中保持一致。
     </div>
 </div>
 
@@ -868,6 +874,76 @@
     </ol>
 </div>
 
+<div class="doc-section" id="assessment-forms">
+    <h2>评估表单：下载、填写、导入与 AI 自动填充 <span class="new-badge">2.6.2 新功能</span></h2>
+    <p>并非每个供应商都愿意在浏览器中回答问卷。在单个评估的页面上（<span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Assessments</span> &rarr; 打开一个评估），您可以将离线副本交给供应商、取回填写完成的文件，或让 AI 提供商根据供应商自己的证书预填答案。这些按钮位于评估顶部附近的一行中。</p>
+
+    <h3>将评估下载为可填写的文件</h3>
+    <ul>
+        <li><span class="btn-label">Download PDF</span> &mdash; 可填写的 PDF 表单。每个问题都成为真正的表单字段，因此供应商可以直接在文件中输入内容和勾选复选框。</li>
+        <li><span class="btn-label">Download Excel</span> &mdash; 真正的 <code>.xlsx</code> 工作簿，可在 Excel、Google Sheets 或 LibreOffice 中填写。单选问题带有单元格内下拉列表，条件问题在不适用时会自动变灰。</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>可填写的 PDF 现在可在任何浏览器中使用，而不仅限于 Adobe。</strong>复选框带有内置外观，因此可在 Chrome、Edge 及其他内置 PDF 查看器中显示和切换（此前它们只能在 Adobe Acrobat/Reader 中使用）。名为 <strong>&ldquo;SIGNATURE (TYPE FULL NAME)&rdquo;</strong> 的输入姓名字段让任何人都能在任何查看器中签名；仅 Adobe 支持的数字签名和签署日期字段保持隐藏，除非在能够实际使用它们的 Acrobat/Reader 中打开。
+    </div>
+
+    <h3>导入填写完成的评估（PDF、Excel 或 CSV）</h3>
+    <p>当供应商将填写完成的文件发回时，点击 <span class="btn-label">Import Completed Assessment</span> 并上传。平台会自动检测格式——填写完成的 <strong>PDF</strong>、<strong>Excel (.xlsx)</strong> 或 <strong>CSV</strong>——并将答案合并到评估现有的回复中。</p>
+    <div class="callout callout-warning">
+        <strong>文件的参考编号必须匹配。</strong>每个下载的文件都带有一个隐藏的<strong>参考编号</strong>（评估的 ID）。如果参考编号缺失或属于其他评估，导入将被拒绝且不会写入任何内容——因此答案永远不会落到错误的评估上。
+    </div>
+
+    <h3>只有证书怎么办？ <span class="new-badge">2.6.2 新功能</span></h3>
+    <p>填写评估的供应商可能会获得一个捷径：如果他们持有相关认证，可以上传该认证以代替逐一回答问题。<strong>&ldquo;Do you have a Certificate?&rdquo;</strong> 提示现在会显示模板作者撰写的任何<strong>证书上传说明</strong>，因此不再局限于 ISO 27001——模板可以邀请 SOC 2 Type 2、ISO 27001 或任何其他证书。（模板作者在模板构建器中设置此文本；请参阅 <a href="#admin-templates">评估模板构建器</a>。）</p>
+
+    <h3>根据认证进行 AI 自动填充 <span class="new-badge">2.6.2 新功能</span></h3>
+    <p>如果您的管理员已配置 <a href="#admin-ai">AI 提供商</a>，授权审查员可以让 AI 读取供应商上传的认证文档并预填问卷。在评估页面上点击 <span class="btn-label">&#9889; Auto-Fill from Certifications</span>。</p>
+    <figure class="doc-figure">
+        <img src="app/docs/assessment-ai-autofill.png" alt="The Auto-Fill from Certifications button on a vendor assessment" loading="lazy">
+        <figcaption><strong>根据认证自动填充。</strong>在配置了 AI 提供商的情况下，该按钮会与 <strong>Download PDF</strong>、<strong>Download Excel</strong> 和 <strong>Import Completed Assessment</strong> 并排显示。它会读取供应商当前的认证文档，并填写这些文档所能回答的问题。</figcaption>
+    </figure>
+    <p>点击该按钮时，系统会提醒您：<em>&ldquo;This will analyze the vendor's certification documents and pre-fill unanswered questions. Existing answers will not be changed.&rdquo;</em> 随后 AI 会处理供应商的证书，并报告例如 <em>&ldquo;Filled 12 of 30 unanswered questions.&rdquo;</em> 需要了解以下几点：</p>
+    <ul>
+        <li><strong>仅使用当前有效的证书。</strong>它会读取供应商上传的、类型为<em>认证（Certification）</em>且<strong>处于活跃状态且未过期</strong>的文档（PDF、CSV 和 Excel 文档；最近的几份）。已过期或被替代的证书将被忽略。</li>
+        <li><strong>它只填写空白项。</strong>您已回答的问题不会被触碰，它绝不会覆盖已有答案。</li>
+        <li><strong>它只根据文档实际内容作答。</strong>AI 被要求不得猜测；任何无法从文档中有把握地得出支持的内容都会留空，由人员来完成。</li>
+        <li><strong>您始终掌握主动权。</strong>填写的答案会被保存，页面重新加载后显示这些答案，因此您可以在评估提交前审查并更改任何答案。</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>谁可以使用，以及何时显示。</strong>该按钮仅向<strong>管理员</strong>和 <strong>Cyber TPRM</strong> 用户显示，仅在启用了 AI 提供商时显示，且仅当供应商存档中至少有一份当前有效的认证文档时显示。在已完成的评估中该按钮会被隐藏。
+    </div>
+</div>
+
+<div class="doc-section" id="tprm-action-plan">
+    <h2>供应商行动计划 <span class="new-badge">2.6.2 新功能</span></h2>
+    <p>供应商页面上的<strong>行动计划（Action Plan）</strong>标签页让网络安全团队针对该供应商安排后续工作——联系供应商、发送另一份评估、强制年度审查——并附带截止日期、负责人和一组持续的状态备注。每天运行的任务会在每项行动到期时将其触发，并转化为可跟踪的待办事项。</p>
+    <p>从 <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Onboarding</span> &rarr; <span class="menu-label">My Vendors</span> 打开供应商，然后点击<strong>行动计划</strong>标签页。此标签页对<strong>管理员</strong>和 <strong>Cyber TPRM</strong> 用户可用。</p>
+
+    <h3>安排行动</h3>
+    <ol class="steps">
+        <li>在<strong>行动计划</strong>标签页上，点击 <span class="btn-label">+ Create Action</span>。</li>
+        <li>选择 <span class="field-label">Action</span>：<strong>Contact Vendor</strong>、<strong>Contact Stakeholder</strong>、<strong>Send Assessment</strong> 或 <strong>Force Annual Review</strong>。（如果您选择 <strong>Send Assessment</strong>，会出现 <span class="field-label">Vendor Assessment</span> 选择器，供您选择要发送的模板。）</li>
+        <li>设置 <span class="field-label">Due Date</span> &mdash; 行动应触发的日期。</li>
+        <li>在 <span class="field-label">Assign to (Cyber TPRM)</span> 下，勾选一个或多个 Cyber TPRM 负责人。（如果没有，行动将回退给供应商的利益相关者。）</li>
+        <li>可选地勾选 <span class="field-label">Email assigned individuals when this action fires</span>，并使用 <span class="field-label">Notification email addresses</span> 改为发送到特定地址——用逗号分隔。留空则使用受托人自己的账户邮箱。</li>
+        <li>撰写 <span class="field-label">Description</span>（它会被带入所创建的待办事项中），然后点击 <span class="btn-label">Create Action</span>。</li>
+    </ol>
+
+    <h3>行动触发时会发生什么</h3>
+    <p>每项行动只在其截止日期当天或之后触发一次。触发会创建一个关联的<strong>网络安全待办事项（Cyber To-Do）</strong>，该待办事项会深度链接回此行动计划标签页，执行相应行动（对于 <strong>Send Assessment</strong>，它会将问卷通过电子邮件发送给供应商；对于 <strong>Force Annual Review</strong>，它会将年度审查标记为到期），并且——如果您启用了此选项——会向负责人或您列出的地址发送电子邮件。</p>
+
+    <h3>行动状态</h3>
+    <p>行动会经历以下状态：</p>
+    <p><span class="status-label">Pending</span> &rarr; <span class="status-label">In Progress</span>（触发时自动设置）&rarr; <span class="status-label">Completed</span>，或者在触发时出现问题时变为 <span class="status-label">Problem</span>，或者在触发前被您取消时变为 <span class="status-label">Cancelled</span>。您可以随时自行更改状态；每日任务绝不会覆盖您已设置的状态。</p>
+
+    <h3>状态备注</h3>
+    <p>打开一项行动，可随工作进展添加带日期的<strong>状态备注</strong>。输入备注并点击 <span class="btn-label">Add Note</span>。您可以编辑或删除自己的备注；管理员可以编辑或删除任何人的备注。每次创建、编辑和删除都会被审计记录。</p>
+
+    <div class="callout callout-info">
+        <strong>&ldquo;Vendor Remediation Schedule&rdquo; 任务。</strong>触发到期行动的每日任务名为 <strong>Vendor Remediation Schedule</strong>，默认每天<strong>上午 7:00</strong> 运行。管理员可在 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Scheduler</span> 页面启用、禁用或调整其时间。如果它此前处于关闭状态，会在下次运行时补齐，触发在此期间到期的所有行动。
+    </div>
+</div>
+
 <div class="doc-section" id="tprm-srs">
     <h2>安全风险评分卡（SRS）</h2>
     <p>SRS 根据 DNS 配置、SSL/TLS、电子邮件安全（SPF、DKIM、DMARC）、开放端口及其他技术指标，为每个供应商提供自动化的外部安全评分。</p>
@@ -882,8 +958,19 @@
 
 <div class="doc-section" id="tprm-fourth-party">
     <h2>第四方风险</h2>
-    <p>跟踪<em>您的供应商</em>所依赖的供应商。如果您的云服务提供商使用分包商进行数据存储，这就是第四方风险。</p>
-    <p>导航至 <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">4th Party Risk</span>。</p>
+    <p>跟踪<em>您的供应商</em>所依赖的供应商。如果您的云服务提供商使用分包商进行数据存储，这就是第四方风险。您可以从侧边栏打开 <span class="menu-label">4th Party Risk</span>（技术集中度）、<span class="menu-label">CVE Search</span> 和 <span class="menu-label">Subprocessors</span>。此功能对管理员和 Cyber TPRM 用户可用；审计员可以查看但无法操作。</p>
+
+    <h3>子处理方集中度 <span class="new-badge">2.6.2 新功能</span></h3>
+    <p>打开 <span class="menu-label">Subprocessors</span> 可查看<strong>子处理方集中度（Subprocessor Concentration）</strong>视图：您的供应商声明的每个子处理方，以及有多少家供应商在使用每个子处理方。被多家供应商共用的子处理方会被突出显示——这种共享依赖就是供应链集中度风险。（子处理方是在供应商的详情页面上添加到该供应商的。）</p>
+
+    <h3>向使用某个子处理方的所有供应商发送评估 <span class="new-badge">2.6.2 新功能</span></h3>
+    <p>当某个子处理方集中了风险时，您可以通过一个操作对依赖它的供应商进行问卷调查：</p>
+    <ol class="steps">
+        <li>在子处理方列表中，点击该子处理方所在行的 <span class="btn-label">Send Assessment</span>。</li>
+        <li>在供应商选择器中，选择使用该子处理方的供应商中应接收评估的那些（或点击 <span class="field-label">Select All Visible</span>），然后继续。</li>
+        <li>选择一个 <span class="field-label">Assessment Template</span> 和一个 <span class="field-label">Expires In</span> 时限（14、30、60 或 90 天），然后点击 <span class="btn-label">Assign Assessment</span>。</li>
+    </ol>
+    <p>每个选定的供应商都会收到问卷的电子邮件（信息请求），并会跟踪提醒，以便后续跟进自动发出。存档中没有电子邮件的供应商会被跳过，任何发送失败都会由提醒任务重试。相同的 <strong>Assign Assessment</strong> 流程也可从技术集中度和 CVE 视图中使用。</p>
 </div>
 
 <div class="doc-section" id="tprm-shadow-saas">
@@ -945,6 +1032,50 @@
         </ul>
         请参阅 <a href="#troubleshooting">故障排除</a>了解此规则存在的原因。
     </div>
+</div>
+
+<div class="doc-section" id="custom-onboarding">
+    <h2>自定义入驻字段与自定义数据标签页 <span class="new-badge">2.6.2 新功能</span></h2>
+    <p>标准供应商字段（名称、域名、等级、VAT 等）满足大部分需求，但每个组织都会跟踪一些额外内容。在 v2.6.2 中，入驻模板可以定义没有标准供应商列的<strong>自定义字段</strong>。这些字段的值按供应商采集，并显示在供应商的<strong>自定义数据（Custom Data）</strong>标签页上。</p>
+
+    <h3>自定义值的存放位置：自定义数据标签页</h3>
+    <p>打开一个供应商（<span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Onboarding</span> &rarr; <span class="menu-label">My Vendors</span> &rarr; 打开供应商）。如果该供应商的入驻模板定义了任何自定义字段，<strong>自定义数据</strong>标签页会与其他供应商标签页并列显示，并注明存档中有多少个自定义值。该标签页在您点击 <span class="btn-label">Edit</span> 之前为只读；进行更改后点击 <span class="btn-label">Save Custom Data</span>。字段按其模板章节分组。允许查看但不允许编辑某字段的用户会看到该字段标记为<em>（仅查看）</em>。</p>
+
+    <h3>定义自定义字段（管理员）</h3>
+    <p>自定义字段其实就是<strong>入驻（Onboarding）</strong>类别模板上的一个问题，其 <span class="field-label">Field Name</span> <em>不是</em>内置供应商列。共有两个步骤，均在管理门户中完成：</p>
+    <ol class="steps">
+        <li><strong>注册字段名称。</strong>前往 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Field Reference</span>，点击 <span class="btn-label">+ Add Field</span>，添加您的自定义字段（小写字母、数字和下划线；例如 <code>data_residency_region</code>）。选择列类型（文本、数字、日期等）和 <span class="field-label">Onboarding</span> 类别。</li>
+        <li><strong>添加映射到它的问题。</strong>在 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Template Builder</span> 中，打开您的入驻模板，添加一个问题，并将其 <span class="field-label">Field Name</span> 设置为您刚刚注册的字段。请参阅 <a href="#admin-templates">评估模板构建器</a>。</li>
+    </ol>
+
+    <h3>用于更丰富答案的新字段类型 <span class="new-badge">2.6.2 新功能</span></h3>
+    <p>除了现有的文本、数字、日期、下拉和单选类型外，问题（自定义或标准）现在还可以使用：</p>
+    <table class="doc-table">
+        <tr><th>类型</th><th>供应商看到的内容</th></tr>
+        <tr><td><strong>Checkboxes</strong></td><td>多选列表 &mdash; 勾选所有适用的选项。</td></tr>
+        <tr><td><strong>Button Group (Multi)</strong></td><td>同样的多选，以一排切换按钮的形式显示。</td></tr>
+        <tr><td><strong>Phone</strong></td><td>带国家代码和国旗选择器的电话号码（请参阅 <a href="#question-types">电话和 VAT 问题类型</a>）。</td></tr>
+        <tr><td><strong>VAT Number</strong></td><td>带二次输入和实时 VIES 验证的欧盟 VAT 编号（请参阅 <a href="#question-types">电话和 VAT 问题类型</a>）。</td></tr>
+    </table>
+    <p>对应的单选类型（<strong>Dropdown</strong>、<strong>Radio Buttons</strong>、<strong>Button Group</strong>）仍然可用。多选类型需要一个 <span class="field-label">Options</span> 列表（每行一个）。</p>
+
+    <h3>控制谁可以查看和编辑字段（基于角色的访问控制） <span class="new-badge">2.6.2 新功能</span></h3>
+    <p>在入驻模板上，每个<strong>自定义</strong>章节和问题都带有两个角色控制，因此您可以让不该看到敏感字段的人无法看到：</p>
+    <ul>
+        <li><span class="field-label">Visible to Roles</span> &mdash; 哪些角色可以<em>查看</em>该字段。</li>
+        <li><span class="field-label">Visible and Editable Roles</span> &mdash; 哪些角色可以<em>编辑</em>该字段。</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>自定义字段默认私有。</strong>与标准问题不同，自定义字段在您授予某个角色之前一直处于隐藏状态。在授予某角色之前，只有超级管理员可以查看或编辑它。对于不允许查看的用户，其无法看到的字段会从自定义数据标签页、供应商页面、CSV 导出和 API 中排除。（这种"仅授予可见"的默认设置适用于自定义字段；标准入驻问题从不以这种方式受到限制。）
+    </div>
+    <p>只有当章节的授予和问题的授予都允许某人时，此人才能看到该问题，因此您可以隐藏整个章节，也可以只隐藏其中的个别字段。</p>
+
+    <h3>导出和 API 中的自定义值</h3>
+    <ul>
+        <li><strong>CSV 导出。</strong>在 <span class="menu-label">Vendor Onboarding</span> 列表上，<span class="btn-label">Export CSV</span>（管理员和 Cyber TPRM）现在会在标准列旁边为每个自定义字段添加一列，命名为 <code>custom:&lt;field_name&gt;</code>。</li>
+        <li><strong>REST API。</strong>单个供应商的响应（<code>GET /vendors/{id}</code>）包含一个 <code>custom_onboarding_data</code> 数组；每个条目具有 <code>field_name</code>、<code>label</code>、<code>value</code>、<code>type</code>、<code>section</code> 和 <code>template_name</code>。</li>
+    </ul>
+    <p>两者都从与自定义数据标签页相同的位置读取，并遵循相同的基于角色的可见性——调用方（或 API 密钥所有者）无法看到的字段会被置空或省略。</p>
 </div>
 
 <div class="doc-section" id="ai-review">
@@ -1036,6 +1167,28 @@
         <img src="app/docs/shadow-saas.png" alt="Shadow SaaS list page" loading="lazy">
         <figcaption><strong>影子 SaaS 页面。</strong>已发现和导入的应用，包含风险信息和操作按钮。已作为供应商入驻的应用在后续同步中会被跳过，您忽略的内容会保持忽略状态。</figcaption>
     </figure>
+
+    <h3>实时（Live）与本地（Local，缓存）数据源 <span class="new-badge">2.6.2 新功能</span></h3>
+    <p>在 Grip Security Connection 卡片上，<span class="field-label">Data source</span> 控制 Grip 页面从何处读取数据：</p>
+    <ul>
+        <li><strong>Live</strong> &mdash; 每个页面都调用 Grip API。始终为最新数据，但对 API 的负载更重。</li>
+        <li><strong>Local (Hydrated/cached)</strong> &mdash; 从平台数据库中保存的 Grip 数据副本提供数据。对 API 的负载更轻。在 Local 模式下，每次同步都会<strong>完全刷新</strong>该副本；两次同步之间，页面从快照提供数据，而不调用 Grip。</li>
+    </ul>
+
+    <h3>观察和控制同步 <span class="new-badge">2.6.2 新功能</span></h3>
+    <p>同步运行时，<strong>Last Sync</strong> 卡片会显示实时进度读数——<em>&ldquo;Hydrating per-app rosters &mdash; NN% (D / T apps)&rdquo;</em>——在其上方有一个 <span class="btn-label">Stop Sync</span> 按钮，可协作式取消本次运行。要彻底清除本地提供的 Grip 数据，请使用同一卡片上的 <span class="btn-label">Truncate Data</span>：它会清空 Grip 镜像表、影子 SaaS 列表上的 Grip 行，以及标记在供应商记录上的 Grip 遥测数据（SaaS 数据标签页）。您的同步历史会被保留，下次同步会从 Grip 重新加载所有内容。</p>
+
+    <h3>SecurityScorecard (SSC) 评级 <span class="new-badge">2.6.2 新功能</span></h3>
+    <p>连接 Grip 后，<strong>SSC</strong> 列会在影子 SaaS 列表、供应商 SRS 列表以及供应商的 SaaS 数据标签页上显示每个应用或供应商的 <strong>SecurityScorecard</strong> 字母评级（A&ndash;F）。它仅在启用 Grip 时显示。</p>
+
+    <h3>供应商 &ldquo;SaaS 数据&rdquo; 标签页 <span class="new-badge">2.6.2 新功能</span></h3>
+    <p>当某个供应商与 Grip 发现的应用相匹配时，该供应商页面上会出现一个只读的 <strong>SaaS Data</strong> 标签页，无需离开供应商即可呈现同步期间收集的 Grip 遥测数据：<strong>First Discovered</strong>（首次发现）、<strong>Active Accounts</strong>（活跃账户，链接到受影响用户列表）、<strong>Last Known Usage</strong>（最近已知使用）、应用分类、<strong>Security Scorecard</strong> 评级、类别、AI 深度、合规信号，以及 SAML/MFA 支持情况。</p>
+
+    <h3>Grip 违规警报 <span class="new-badge">2.6.2 新功能</span></h3>
+    <p>Grip 还可以将安全事件输入到平台中。在连接卡片上勾选 <span class="field-label">Flow Grip breach information into Breach / Cyber Alerts</span>，Grip 的 &ldquo;Security Incident Detected&rdquo; 警报就会在每次同步时写入您的 <a href="#breach-alerts">违规/网络安全警报</a>列表。（这还需要在 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email Settings</span> 下启用违规/网络安全警报功能。）</p>
+    <div class="callout callout-info">
+        <strong>个人数据在静态存储时加密。</strong>缓存的 Grip 数据中的姓名、电子邮件地址和其他个人详细信息在数据库中被加密，仅在应用中显示或由 API 返回时才解密。这是自动进行的，无需任何配置。
+    </div>
 </div>
 
 <div class="doc-section" id="shadow-saas-hero">
@@ -1090,6 +1243,26 @@
 </div>
 
 
+<div class="doc-section" id="breach-alerts">
+    <h2>违规/网络安全警报 <span class="new-badge">2.6.2 新功能</span></h2>
+    <p><strong>违规/网络安全警报（Breach / Cyber Alerts）</strong>页面将您供应商供应链的违规和威胁情报信号集中于一处。从侧边栏的 <span class="menu-label">Breach / Cyber Alerts</span> &rarr; <span class="menu-label">Breach Alerts</span> 打开它；红色徽标显示新警报的数量。</p>
+
+    <h3>警报的来源</h3>
+    <p>警报包括由 AI 违规和 OSINT 扫描器发现的违规（请参阅 <a href="#admin-ai">AI 集成</a>），以及在启用时来自 <a href="#shadow-saas-grip">Grip</a> 的安全事件。每条警报显示受影响的实体、可能受影响的用户、涉及的技术，以及检测到的时间。对于您<strong>尚未</strong>作为供应商入驻的 SaaS 应用上发生的事件，会标记为 <strong>&ldquo;Shadow SaaS&rdquo;</strong> 并注明可能受影响的用户数量；如果该应用之后完成入驻，未来的事件将改为附加到该供应商上。</p>
+
+    <h3>谁受到了影响</h3>
+    <p>对于来自 Grip 的事件，受影响用户数会链接到该应用的<strong>受影响用户</strong>列表。该列表支持分页和筛选（例如按身份验证方法），并有一个<strong>按姓名或电子邮件搜索</strong>框来查找特定人员。由于该名册以加密方式存储，搜索是在应用中对解密后的数据进行的，因此其工作方式与排序和分页相同。</p>
+
+    <h3>批量处理警报</h3>
+    <p>管理员和 Cyber TPRM 用户会在列表上获得一个多选工具栏。勾选您想要的警报（或使用 <strong>Check all</strong>），并一次性对所有警报应用某个操作：</p>
+    <ul>
+        <li><span class="btn-label">Acknowledge</span> &mdash; 将警报标记为已查看。</li>
+        <li><span class="btn-label">False Positive</span> &mdash; 将其标记为并非真正的问题。</li>
+        <li><span class="btn-label">Delete</span> &mdash; 删除它们。<strong>仅限管理员</strong>，并在执行前需确认。</li>
+    </ul>
+</div>
+
+
 <!-- ================================================================
      ADMIN PORTAL
      ================================================================ -->
@@ -1116,6 +1289,49 @@
         <li>将出现一个模态框，显示所有可用群组及复选框。勾选您要分配的群组（例如 <strong>Cyber GRC</strong>、<strong>Administrator</strong>）。</li>
         <li>点击 <span class="btn-label">Save Changes</span>。</li>
     </ol>
+    <p>除了分配随附的群组外，超级管理员还可以构建自己的群组并设置自定义权限集——请参阅 <a href="#admin-acl-groups">ACL 群组与自定义访问控制</a>。</p>
+</div>
+
+<div class="doc-section" id="admin-acl-groups">
+    <h2>ACL 群组与自定义访问控制 <span class="new-badge">2.6.2 新功能</span></h2>
+    <p>平台随附七个内置群组（administrator、cyber_tprm、procurement、stakeholder、auditor、cyber_grc、grc_contributors）。在 v2.6.2 中，<strong>超级管理员</strong>还可以创建自己的群组，并精确调整每个群组可以执行的操作。打开 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Access Control</span> &rarr; <span class="menu-label">ACL Groups</span>。任何管理员都可以查看此页面；只有超级管理员才能看到创建、编辑和权限控制项。</p>
+
+    <h3>随附的群组受到保护</h3>
+    <p>这七个内置群组被标记为 <strong>System</strong>。它们无法被删除或重命名，其权限为只读——您可以打开 <span class="btn-label">View Permissions</span> 查看它们究竟授予了什么，但无法更改。这使所有人依赖的默认设置保持稳定。</p>
+
+    <h3>创建自定义群组</h3>
+    <ol class="steps">
+        <li>点击 <span class="btn-label">+ Create Group</span>。</li>
+        <li>输入 <span class="field-label">Group Name (machine)</span>（小写字母、数字、下划线——创建后即固定）、一个友好的 <span class="field-label">Display Name</span> 和一个 <span class="field-label">Description</span>。</li>
+        <li>可选地使用 <span class="field-label">Copy permissions from</span> 来<strong>克隆</strong>一个现有群组（包括 System 群组）作为起点——然后进行细化。保留 <em>&mdash; Start with no permissions &mdash;</em> 则从零开始构建。</li>
+        <li>点击 <span class="btn-label">Create Group</span>。</li>
+    </ol>
+
+    <h3>调整权限矩阵</h3>
+    <p>打开某个自定义群组的 <span class="btn-label">Permissions</span>。权限按模块分组（Vendor Onboarding、FAIR Analysis、Assessments、Security Rating (SRS)、Annual Reviews、GRC 和 Other）。每项权限都被标记为 <strong>Read</strong> 或 <strong>Read/Write</strong>，且每个模块都有三个一键预设：</p>
+    <ul>
+        <li><span class="btn-label">Read</span> &mdash; 仅授予该模块的查看/列表/导出权限。</li>
+        <li><span class="btn-label">Read &amp; Write</span> &mdash; 授予所有权限（查看<em>和</em>更改）。</li>
+        <li><span class="btn-label">None</span> &mdash; 清除该模块的权限。</li>
+    </ul>
+    <p>完成后点击 <span class="btn-label">Save Permissions</span>。授予 <strong>Read</strong> 绝不意味着写入权限——更改内容的能力始终是一项独立的、明确的授予。所有群组更改都会被审计记录。</p>
+</div>
+
+<div class="doc-section" id="admin-templates">
+    <h2>评估模板构建器 <span class="new-badge">2.6.2 新功能</span></h2>
+    <p><strong>模板构建器（Template Builder）</strong>（<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Template Builder</span>）是管理员和 Cyber TPRM 用户设计评估和入驻问卷的地方。使用 <span class="btn-label">+ Add Section</span> 和 <span class="btn-label">+ Add Question</span> 来构建模板。有几项 v2.6.2 新增内容值得一提。</p>
+
+    <h3>问题类型与字段映射</h3>
+    <p>问题的 <span class="field-label">Question Type</span> 现在除了熟悉的文本、下拉和单选类型外，还包括 <strong>Phone</strong>、<strong>VAT Number</strong>、<strong>Checkboxes</strong> 和 <strong>Button Group (Multi)</strong>（每种类型采集的内容请参阅 <a href="#custom-onboarding">自定义入驻字段</a>）。问题的 <span class="field-label">Field Name</span> 会将其答案映射到某个供应商字段；选择内置字段，或您在 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Field Reference</span> 下注册的自定义字段。</p>
+
+    <h3>证书上传说明</h3>
+    <p>在模板上，您可以填写 <span class="field-label">Certificate Upload Instructions</span>——即在 <em>&ldquo;Do you have a Certificate?&rdquo;</em> 提示中显示给供应商的文本。这让模板可以邀请任何证书（SOC 2 Type 2、ISO 27001 等），而不仅仅是 ISO 27001。如果留空，则显示通用消息。</p>
+
+    <h3>入驻模板上的基于角色的可见性</h3>
+    <p>对于<strong>入驻</strong>模板，自定义章节和问题带有 <span class="field-label">Visible to Roles</span> 和 <span class="field-label">Visible and Editable Roles</span> 控制项，因此您可以决定谁能查看和编辑每个自定义字段。请参阅 <a href="#custom-onboarding">自定义入驻字段与自定义数据标签页</a>。</p>
+
+    <h3>已停用的模板默认隐藏</h3>
+    <p>模板列表仅显示<strong>活跃</strong>模板。如果有任何模板被停用，<span class="btn-label">Show Deactivated (N)</span> 按钮会显示它们（并切换回 <span class="btn-label">Hide Deactivated (N)</span>），使长期运行的租户列表专注于实际使用中的模板，同时又不失去对已停用模板的访问权限。</p>
 </div>
 
 <div class="doc-section" id="admin-email">
@@ -1182,7 +1398,7 @@
         <li>如果列出了新版本，请按照屏幕上的<strong>升级</strong>操作进行应用。</li>
     </ol>
     <figure class="doc-figure">
-        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.2" loading="lazy">
+        <img src="app/docs/admin-version.png?v=20260711" alt="Version Management page showing installed version 2.6.2" loading="lazy">
         <figcaption><strong>Admin &rarr; Version。</strong>此处安装的版本为 <strong>v2.6.2</strong>，平台报告已是最新版本。这也是确认本指南适用版本的地方。</figcaption>
     </figure>
 </div>
@@ -1213,7 +1429,14 @@
             <div class="faq-body"><p>英语、西班牙语、意大利语、乌克兰语、中文（简体）、印地语、法语和葡萄牙语。您的管理员决定这些语言中哪些出现在您的列表中；英语始终可用。</p></div></details>
 
         <details class="faq-item"><summary>我更改了语言，但部分文字仍显示英语。这是为什么？<span class="faq-tag">语言</span></summary>
-            <div class="faq-body"><p>菜单、按钮和标签均已翻译。供应商评估<em>问题</em>仅在管理员配置了 AI 提供商的情况下才会自动翻译，而存储的答案值始终保持英文以确保评分一致性。部分第三方消息也可能保持英文显示。</p></div></details>
+            <div class="faq-body"><p>即使切换语言后，仍有几种不同的内容可能保持英文：</p>
+            <ul>
+                <li><strong>尚未翻译的界面文本。</strong>只要您的语言存在对应翻译，菜单、按钮和标签就会被翻译。如果某个特定字符串尚未翻译成您的语言，它会回退为英文而不是显示空白——因此您偶尔可能看到英文标签。</li>
+                <li><strong>任何输入的内容。</strong>您或您的供应商输入的内容——供应商名称、备注、上传的文档名、自由文本答案——都会按其撰写时的原样显示，无论当时使用的是哪种语言。</li>
+                <li><strong>没有 AI 提供商时的评估问题。</strong>供应商评估<em>问题</em>文本只有在您的管理员配置了 AI 提供商时才会自动翻译；如果没有，问题将保持其撰写时的语言。存储的答案值始终保持英文，以确保评分一致。</li>
+                <li><strong>电子邮件和部分第三方组件</strong>不受您的语言设置控制。</li>
+            </ul>
+            <p>如果您看到某个本应翻译但未翻译的界面标签，请告知您的管理员，以便补充缺失的文本。</p></div></details>
 
         <details class="faq-item"><summary>为什么我无法提交供应商进行审查？<span class="faq-tag">入驻</span></summary>
             <div class="faq-body"><p>供应商只有在完成<strong>采购入驻</strong>（设置为<strong>是</strong>）并拥有有效的 4&ndash;8 位<strong>供应商 ID（VID）</strong>后才能提交。打开供应商，在<strong>供应商信息</strong>卡片上填写这两项，保存后再次点击<strong>提交审查</strong>。请参阅 <a href="#onboarding-workflow">供应商入驻</a> 和 <a href="#troubleshooting">故障排除</a>。</p></div></details>
@@ -1314,6 +1537,7 @@
     <table class="doc-table">
         <tr><th>术语</th><th>定义</th></tr>
         <tr><td><strong>ACL</strong></td><td>访问控制列表（Access Control List）&mdash; 定义群组中用户可执行的操作</td></tr>
+        <tr><td><strong>Action Plan</strong></td><td>供应商专属标签页，用于安排后续行动（联系、发送评估、强制年度审查），并附带截止日期、负责人和状态备注；由 Vendor Remediation Schedule 任务每日触发</td></tr>
         <tr><td><strong>AI Review</strong></td><td>供应商入驻状态，用于服务使用 AI 的供应商，在审查过程中单独跟踪</td></tr>
         <tr><td><strong>Assessment</strong></td><td>使用统一问卷进行的某一时间点合规评估</td></tr>
         <tr><td><strong>CIS Controls</strong></td><td>互联网安全中心控制措施（Center for Internet Security Controls）&mdash; 一套优先级安全最佳实践</td></tr>
@@ -1322,6 +1546,7 @@
         <tr><td><strong>Control</strong></td><td>为满足合规要求而实施的具体安全措施</td></tr>
         <tr><td><strong>Crosswalk</strong></td><td>两个框架之间的映射，显示哪些要求相互重叠</td></tr>
         <tr><td><strong>CSF</strong></td><td>NIST Cybersecurity Framework &mdash; 广泛使用的网络安全风险管理框架</td></tr>
+        <tr><td><strong>Custom Field / Custom Data</strong></td><td>没有标准供应商列的、组织特定的入驻字段；按供应商采集并显示在供应商的自定义数据标签页上，可按角色控制可见性（请参阅 <a href="#custom-onboarding">自定义入驻字段</a>）</td></tr>
         <tr><td><strong>Domain</strong></td><td>安全问题的类别（例如治理、身份与访问管理）</td></tr>
         <tr><td><strong>Evidence</strong></td><td>证明合规声明的文档、截图或文件</td></tr>
         <tr><td><strong>FAIR</strong></td><td>信息风险因素分析（Factor Analysis of Information Risk）&mdash; 一种定量风险分析方法</td></tr>
@@ -1344,6 +1569,8 @@
         <tr><td><strong>SOC 2</strong></td><td>服务组织控制 2 型（Service Organization Control Type 2）&mdash; 服务机构的信任服务标准</td></tr>
         <tr><td><strong>SPII</strong></td><td>敏感个人可识别信息（社会安全号码、财务数据、健康记录）</td></tr>
         <tr><td><strong>SRS</strong></td><td>安全风险评分卡（Security Risk Scorecard）&mdash; 平台对供应商的外部安全评级/评分</td></tr>
+        <tr><td><strong>SSC (SecurityScorecard)</strong></td><td>第三方安全字母评级（A&ndash;F），在连接 Grip 时为 Grip 发现的应用和供应商显示</td></tr>
+        <tr><td><strong>Subprocessor</strong></td><td>供应商自己的下游供应商；被您的多家供应商共用的同一子处理方表明供应链集中度（请参阅 <a href="#tprm-fourth-party">第四方风险</a>）</td></tr>
         <tr><td><strong>TPRM</strong></td><td>第三方风险管理（Third Party Risk Management）</td></tr>
         <tr><td><strong>Unified Question</strong></td><td>映射到多个框架要求的单个安全问题</td></tr>
         <tr><td><strong>VID</strong></td><td>供应商 ID（Vendor ID）&mdash; 采购系统分配给供应商的 4&ndash;8 位标识符</td></tr>
@@ -1394,6 +1621,8 @@
                     <a href="#tprm-add-vendor">添加供应商</a>
                     <a href="#tprm-lifecycle">供应商生命周期</a>
                     <a href="#tprm-assessments">供应商评估</a>
+                    <a href="#assessment-forms">评估表单与 AI 填充</a>
+                    <a href="#tprm-action-plan">供应商行动计划</a>
                     <a href="#tprm-srs">安全风险评分卡</a>
                     <a href="#tprm-fair">FAIR 分析</a>
                     <a href="#tprm-fourth-party">第四方风险</a>
@@ -1401,16 +1630,20 @@
 
                     <h4>入驻与采购</h4>
                     <a href="#onboarding-workflow">供应商入驻</a>
+                    <a href="#custom-onboarding">自定义入驻字段</a>
                     <a href="#ai-review">AI 审查</a>
                     <a href="#procurement-cyber-status">采购网络安全状态</a>
                     <a href="#shadow-saas-grip">Grip 影子 SaaS 集成</a>
                     <a href="#shadow-saas-hero">Hero 影子 SaaS 集成</a>
                     <a href="#zscaler">Zscaler 封锁</a>
+                    <a href="#breach-alerts">违规/网络安全警报</a>
 
                     <h4>管理门户</h4>
                     <a href="#admin-general">常规设置</a>
                     <a href="#admin-branding">品牌与主题</a>
                     <a href="#admin-users">用户管理</a>
+                    <a href="#admin-acl-groups">ACL 群组</a>
+                    <a href="#admin-templates">评估模板</a>
                     <a href="#admin-email">邮件配置</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">AI 集成</a>

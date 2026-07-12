@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                     if (!empty($invalidIps)) {
-                        $error = 'Invalid IP addresses (single IPs only, no CIDR): ' . htmlspecialchars(implode(', ', $invalidIps));
+                        $error = t('admin_api-tokens.invalid_ips_prefix') . htmlspecialchars(implode(', ', $invalidIps));
                     } else {
                         $result = $apiService->createToken([
                             'name' => $name,
@@ -242,7 +242,7 @@ if ($editTokenId > 0) {
                 <td style="padding:12px;font-size:12px;"><?php echo e($t['user_name']); ?></td>
                 <td style="padding:12px;"><?php echo (int)$t['ip_count']; ?></td>
                 <td style="padding:12px;"><?php echo number_format((int)$t['requests_24h']); ?></td>
-                <td style="padding:12px;font-size:12px;"><?php echo $t['last_used_at'] ? e(date('M j, g:i A', strtotime($t['last_used_at']))) : '<span style="color:#9ca3af;">Never</span>'; ?></td>
+                <td style="padding:12px;font-size:12px;"><?php echo $t['last_used_at'] ? e(date('M j, g:i A', strtotime($t['last_used_at']))) : '<span style="color:#9ca3af;">' . t('admin_api-tokens.never_used') . '</span>'; ?></td>
                 <td style="padding:12px;">
                     <?php if ($t['is_active']): ?>
                     <span style="color:#28a745;font-size:12px;"><?php echo e(t('admin_api-tokens.status_active')); ?></span>
@@ -286,7 +286,7 @@ if ($editTokenId > 0) {
 <?php elseif ($apiTab === 'edit' && $editToken): ?>
 <!-- Edit Token -->
 <div class="card">
-    <h3 style="margin:0 0 16px;">Edit Token: <?php echo e($editToken['name']); ?> <span style="font-weight:400;font-size:12px;color:#6b7280;">(<?php echo e($editToken['token_prefix']); ?>...)</span></h3>
+    <h3 style="margin:0 0 16px;"><?php echo e(t('admin_api-tokens.edit_token_prefix')); ?> <?php echo e($editToken['name']); ?> <span style="font-weight:400;font-size:12px;color:#6b7280;">(<?php echo e($editToken['token_prefix']); ?>...)</span></h3>
     <form method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="api_action" value="edit_token">
@@ -399,9 +399,9 @@ if ($editTokenId > 0) {
 <div class="card" style="margin-top:20px;">
     <h3 style="margin:0 0 16px;"><?php echo e(t('admin_api-tokens.token_info_heading')); ?></h3>
     <table style="font-size:13px;">
-        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_status')); ?></td><td><?php echo $editToken['is_active'] ? '<span style="color:#059669;">Active</span>' : '<span style="color:#dc2626;">Revoked</span>'; ?></td></tr>
+        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_status')); ?></td><td><?php echo $editToken['is_active'] ? '<span style="color:#059669;">' . t('admin_api-tokens.status_active') . '</span>' : '<span style="color:#dc2626;">' . t('admin_api-tokens.status_revoked') . '</span>'; ?></td></tr>
         <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_created')); ?></td><td><?php echo e(date('M j, Y g:i A', strtotime($editToken['created_at']))); ?></td></tr>
-        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_last_used')); ?></td><td><?php echo $editToken['last_used_at'] ? e(date('M j, Y g:i A', strtotime($editToken['last_used_at']))) : 'Never'; ?></td></tr>
+        <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_last_used')); ?></td><td><?php echo $editToken['last_used_at'] ? e(date('M j, Y g:i A', strtotime($editToken['last_used_at']))) : t('admin_api-tokens.never_used'); ?></td></tr>
         <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_last_ip')); ?></td><td style="font-family:monospace;"><?php echo e($editToken['last_used_ip'] ?? 'N/A'); ?></td></tr>
         <tr><td style="padding:6px 20px 6px 0;color:#6b7280;font-weight:500;"><?php echo e(t('admin_api-tokens.info_total_requests')); ?></td><td><?php echo number_format((int)$editToken['request_count']); ?></td></tr>
     </table>
@@ -568,8 +568,7 @@ if ($editTokenId > 0) {
     <label><?php echo e(t('admin_api-tokens.bearer_token_label')); ?></label>
     <input type="password" id="playToken" placeholder="tprm_your_api_token_here">
     <div style="margin-top:8px;font-size:12px;color:#6b7280;">
-        Your detected IP address: <strong style="font-family:'Roboto Mono',monospace;color:#374151;"><?php echo e($security->getClientIP()); ?></strong>
-        &mdash; make sure this IP is whitelisted on the token you are testing with.
+        <?php echo e(t('admin_api-tokens.detected_ip_prefix')); ?> <strong style="font-family:'Roboto Mono',monospace;color:#374151;"><?php echo e($security->getClientIP()); ?></strong><?php echo e(t('admin_api-tokens.detected_ip_suffix')); ?>
     </div>
 </div>
 
@@ -603,7 +602,7 @@ if ($editTokenId > 0) {
                     <tr>
                         <td><strong><?php echo e($p['name']); ?></strong><?php if (!empty($p['description'])): ?><br><span style="color:#9ca3af;font-size:11px;"><?php echo e($p['description']); ?></span><?php endif; ?></td>
                         <td><?php echo e($p['in']); ?></td>
-                        <td><?php echo !empty($p['required']) ? '<span class="req">Yes</span>' : 'No'; ?></td>
+                        <td><?php echo !empty($p['required']) ? '<span class="req">' . t('admin_api-tokens.param_yes') . '</span>' : t('admin_api-tokens.param_no'); ?></td>
                         <td><input type="text" data-ep="<?php echo $uid; ?>" data-param="<?php echo e($p['name']); ?>" data-in="<?php echo e($p['in']); ?>" placeholder="<?php echo e($p['schema']['default'] ?? ''); ?>"></td>
                     </tr>
                     <?php endforeach; ?>
@@ -639,7 +638,7 @@ if ($editTokenId > 0) {
             <?php endif; ?>
 
             <div class="play-actions">
-                <button class="play-try-btn" data-uid="<?php echo $uid; ?>" data-method="<?php echo $ep['method']; ?>" data-path="<?php echo e($ep['path']); ?>">Try it out</button>
+                <button class="play-try-btn" data-uid="<?php echo $uid; ?>" data-method="<?php echo $ep['method']; ?>" data-path="<?php echo e($ep['path']); ?>"><?php echo e(t('admin_api-tokens.try_it_out')); ?></button>
             </div>
 
             <!-- Code Examples -->
@@ -651,7 +650,7 @@ if ($editTokenId > 0) {
             </div>
             <div style="position:relative;">
                 <pre class="play-code-block" id="<?php echo $uid; ?>_code"></pre>
-                <button class="play-copy-btn" data-copy-target="<?php echo $uid; ?>_code">Copy</button>
+                <button class="play-copy-btn" data-copy-target="<?php echo $uid; ?>_code"><?php echo e(t('admin_api-tokens.btn_copy')); ?></button>
             </div>
 
             <!-- Response -->
@@ -684,7 +683,7 @@ if ($editTokenId > 0) {
             if (target && navigator.clipboard) {
                 navigator.clipboard.writeText(target.textContent);
                 var orig = this.textContent;
-                this.textContent = 'Copied!';
+                this.textContent = <?php echo json_encode(t('admin_api-tokens.js_copied')); ?>;
                 var b = this;
                 setTimeout(function() { b.textContent = orig; }, 1500);
             }
@@ -784,10 +783,10 @@ if ($editTokenId > 0) {
             var bodyEl = document.getElementById(uid + '_body');
             var body = bodyEl ? bodyEl.value.trim() : '';
 
-            if (!token) { alert('Enter a Bearer Token at the top of the page.'); return; }
+            if (!token) { alert(<?php echo json_encode(t('admin_api-tokens.js_enter_bearer')); ?>); return; }
 
             btn.disabled = true;
-            btn.textContent = 'Sending...';
+            btn.textContent = <?php echo json_encode(t('admin_api-tokens.js_sending')); ?>;
             var start = Date.now();
             var opts = { method: method, headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } };
             if (method !== 'GET' && body) opts.body = body;
@@ -804,12 +803,12 @@ if ($editTokenId > 0) {
                 document.getElementById(uid + '_body_resp').textContent = text;
                 document.getElementById(uid + '_resp').style.display = 'block';
                 btn.disabled = false;
-                btn.textContent = 'Try it out';
+                btn.textContent = <?php echo json_encode(t('admin_api-tokens.try_it_out')); ?>;
             }).catch(function(e) {
-                document.getElementById(uid + '_body_resp').textContent = 'Network error: ' + e.message;
+                document.getElementById(uid + '_body_resp').textContent = <?php echo json_encode(t('admin_api-tokens.js_network_error')); ?> + e.message;
                 document.getElementById(uid + '_resp').style.display = 'block';
                 btn.disabled = false;
-                btn.textContent = 'Try it out';
+                btn.textContent = <?php echo json_encode(t('admin_api-tokens.try_it_out')); ?>;
             });
         });
     });

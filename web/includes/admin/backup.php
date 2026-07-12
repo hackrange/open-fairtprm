@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $auth->audit($user['id'], 'backup_create', 'database', null, [
                 'new' => ['filename' => $filename, 'size' => $formattedSize]
             ]);
-            $success = 'Database backup created successfully: ' . $filename . ' (' . $formattedSize . ')';
+            $success = t('admin_backup.create_success_prefix') . $filename . ' (' . $formattedSize . ')';
         } catch (Exception $e) {
             error_log('Error creating database backup: ' . $e->getMessage());
             $error = t('admin_backup.create_failed');
@@ -114,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $auth->audit($user['id'], 'backup_delete', 'database', null, [
                 'old' => ['filename' => $requestedFile]
             ]);
-            $success = 'Backup deleted: ' . $requestedFile;
+            $success = t('admin_backup.delete_success_prefix') . $requestedFile;
         } catch (Exception $e) {
             error_log('Error deleting backup: ' . $e->getMessage());
             $error = t('admin_backup.delete_failed');
@@ -193,13 +193,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         error_log('Audit after restore failed: ' . $e->getMessage());
                     }
                     while (ob_get_level()) ob_end_clean();
-                    $_SESSION['flash_success'] = 'Database restored from: ' . $requestedFile . '. Re-encrypted ' . $reEncCount . ' value(s) with the current instance key. Safety backup: ' . basename($preRestoreFile) . '.';
+                    $_SESSION['flash_success'] = t('admin_backup.restore_reenc_1') . $requestedFile . t('admin_backup.restore_reenc_2') . $reEncCount . t('admin_backup.restore_reenc_3') . basename($preRestoreFile) . '.';
                     header('Location: admin.php?section=backup');
                     exit;
                 } else {
                     // No source key provided — ask the user for it
                     while (ob_get_level()) ob_end_clean();
-                    $_SESSION['flash_error'] = 'Database restored, but encrypted data was created with a different encryption key. All encrypted fields (FAIR analysis, API keys, TOTP secrets) will fail to decrypt until you re-encrypt them. Please restore again and provide the source instance\'s encryption key.';
+                    $_SESSION['flash_error'] = t('admin_backup.restore_key_mismatch');
                     $_SESSION['flash_needs_key'] = true;
                     header('Location: admin.php?section=backup');
                     exit;
@@ -217,14 +217,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Redirect for a clean page load — the DB was just replaced, so
             // rendering inline with stale singletons/session state can crash.
             while (ob_get_level()) ob_end_clean();
-            $_SESSION['flash_success'] = 'Database restored successfully from: ' . $requestedFile . '. A pre-restore safety backup was saved as ' . basename($preRestoreFile) . '.';
+            $_SESSION['flash_success'] = t('admin_backup.restore_success_1') . $requestedFile . t('admin_backup.restore_success_2') . basename($preRestoreFile) . '.';
             header('Location: admin.php?section=backup');
             exit;
         } catch (Exception $e) {
             error_log('Error restoring database: ' . $e->getMessage());
             // Redirect even on error — DB may be in an inconsistent state
             while (ob_get_level()) ob_end_clean();
-            $_SESSION['flash_error'] = 'Failed to restore database: ' . $e->getMessage();
+            $_SESSION['flash_error'] = t('admin_backup.restore_failed_prefix') . $e->getMessage();
             header('Location: admin.php?section=backup');
             exit;
         }
@@ -353,12 +353,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         error_log('Audit after upload restore failed: ' . $e->getMessage());
                     }
                     while (ob_get_level()) ob_end_clean();
-                    $_SESSION['flash_success'] = 'Database restored from uploaded file: ' . $originalName . '. Re-encrypted ' . $reEncCount . ' value(s) with the current instance key. File saved as ' . $savedName . '.';
+                    $_SESSION['flash_success'] = t('admin_backup.upload_restore_reenc_1') . $originalName . t('admin_backup.upload_restore_reenc_2') . $reEncCount . t('admin_backup.upload_restore_reenc_3') . $savedName . '.';
                     header('Location: admin.php?section=backup');
                     exit;
                 } else {
                     while (ob_get_level()) ob_end_clean();
-                    $_SESSION['flash_error'] = 'Database restored, but encrypted data was created with a different encryption key. All encrypted fields (FAIR analysis, API keys, TOTP secrets) will fail to decrypt until you re-encrypt them. Please restore again and provide the source instance\'s encryption key.';
+                    $_SESSION['flash_error'] = t('admin_backup.restore_key_mismatch');
                     $_SESSION['flash_needs_key'] = true;
                     header('Location: admin.php?section=backup');
                     exit;
@@ -376,14 +376,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Redirect for a clean page load — the DB was just replaced, so
             // rendering inline with stale singletons/session state can crash.
             while (ob_get_level()) ob_end_clean();
-            $_SESSION['flash_success'] = 'Database restored successfully from uploaded file: ' . $originalName . '. File saved as ' . $savedName . '. A pre-restore safety backup was also created.';
+            $_SESSION['flash_success'] = t('admin_backup.upload_restore_success_1') . $originalName . t('admin_backup.upload_restore_success_2') . $savedName . t('admin_backup.upload_restore_success_3');
             header('Location: admin.php?section=backup');
             exit;
         } catch (Exception $e) {
             error_log('Error restoring database from upload: ' . $e->getMessage());
             // Redirect even on error — DB may be in an inconsistent state
             while (ob_get_level()) ob_end_clean();
-            $_SESSION['flash_error'] = 'Failed to restore from upload: ' . $e->getMessage();
+            $_SESSION['flash_error'] = t('admin_backup.upload_restore_failed_prefix') . $e->getMessage();
             header('Location: admin.php?section=backup');
             exit;
         }
@@ -407,13 +407,12 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
 <div class="card">
     <h3><?php echo e(t('admin_backup.create_heading')); ?></h3>
     <p style="color: #666; margin-bottom: 15px;">
-        Generate a complete database dump of the <strong>tprm</strong> database including all table structures, data, routines, and triggers.
-        Backups are saved to a secure directory on the server and can be downloaded below.
+        <?php echo t('admin_backup.create_desc'); ?>
     </p>
     <form method="POST" action="admin.php?section=backup">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="create_backup" value="1">
-        <button type="submit" class="btn btn-primary" data-disable-on-click="Creating backup..."><?php echo e(t('admin_backup.btn_create')); ?></button>
+        <button type="submit" class="btn btn-primary" data-disable-on-click="<?php echo e(t('admin_backup.btn_create_disable')); ?>"><?php echo e(t('admin_backup.btn_create')); ?></button>
     </form>
 </div>
 
@@ -440,7 +439,7 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
         <p style="color: #999;"><?php echo e(t('admin_backup.no_backups')); ?></p>
     <?php else: ?>
         <p style="color: #666; margin-bottom: 15px;">
-            Backups are stored in <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">db_backup/</code> on the server with restricted permissions.
+            <?php echo t('admin_backup.existing_stored_note'); ?>
         </p>
         <table>
             <thead>
@@ -484,7 +483,7 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
 <div class="card">
     <h3><?php echo e(t('admin_backup.upload_heading')); ?></h3>
     <p style="color: #666; margin-bottom: 15px;">
-        Upload a <code>.sql</code> backup file from your computer to restore the database. The uploaded file will be saved to the server and then applied.
+        <?php echo t('admin_backup.upload_desc'); ?>
     </p>
     <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
         <strong style="color: #92400e;"><?php echo e(t('admin_backup.warning_label')); ?></strong>
@@ -501,7 +500,7 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
                    style="padding: 8px; border: 2px dashed #ddd; border-radius: 6px; cursor: pointer;"
                    data-file-display="uploadFileName">
             <div id="uploadFileName" style="margin-top: 8px; font-size: 13px; color: #666;"></div>
-            <div class="form-help">Only <code>.sql</code> backup files are supported</div>
+            <div class="form-help"><?php echo t('admin_backup.upload_form_help'); ?></div>
         </div>
         <button type="button" class="btn" style="background: #f59e0b; color: white;" data-action="confirmUploadRestore"><?php echo e(t('admin_backup.btn_upload_restore')); ?></button>
     </form>
@@ -513,8 +512,7 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
         <div>
             <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;"><?php echo e(t('admin_backup.info_storage_heading')); ?></h4>
             <p style="font-size: 13px; color: #666; margin: 0;">
-                Backups are saved to <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;"><?php echo e($backupDir); ?></code>
-                on the server. This directory is protected from web access via <code>.htaccess</code> rules.
+                <?php echo e(t('admin_backup.info_storage_desc_prefix')); ?><code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;"><?php echo e($backupDir); ?></code><?php echo t('admin_backup.info_storage_desc_suffix'); ?>
             </p>
         </div>
         <div>
@@ -550,25 +548,25 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
                 <div>
                     <strong style="color: #991b1b;"><?php echo e(t('admin_backup.destructive_op')); ?></strong>
                     <p style="margin: 5px 0 0; font-size: 13px; color: #991b1b;">
-                        Restoring a backup will <strong>overwrite all current data</strong> in the database. A safety backup of the current state will be created automatically before restoring.
+                        <?php echo t('admin_backup.restore_modal_warning'); ?>
                     </p>
                 </div>
             </div>
         </div>
 
         <p style="color: #666; margin-bottom: 15px;">
-            You are about to restore from: <br>
+            <?php echo e(t('admin_backup.restore_modal_from_label')); ?> <br>
             <strong id="restore_filename_display" style="color: #333;"></strong>
         </p>
 
         <div class="form-group" style="margin-bottom: 20px;">
-            <label for="restore_source_key" style="font-weight: 500;">Source Encryption Key <span style="font-weight: normal; color: #666;">(optional)</span></label>
+            <label for="restore_source_key" style="font-weight: 500;"><?php echo t('admin_backup.label_source_key'); ?></label>
             <input type="text" id="restore_source_key" class="form-control" placeholder="<?php echo e(t('admin_backup.placeholder_source_key')); ?>" autocomplete="off" style="font-family: monospace; font-size: 13px;">
-            <div class="form-help">Only needed when restoring a backup from a different instance. Found in the source instance's <code>config.php</code> under <code>encryption.key</code>.</div>
+            <div class="form-help"><?php echo t('admin_backup.source_key_help'); ?></div>
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
-            <label for="restore_confirm_input" style="font-weight: 500;">Type <strong>RESTORE</strong> to confirm:</label>
+            <label for="restore_confirm_input" style="font-weight: 500;"><?php echo t('admin_backup.type_restore_label'); ?></label>
             <input type="text" id="restore_confirm_input" class="form-control" placeholder="<?php echo e(t('admin_backup.placeholder_type_restore')); ?>" autocomplete="off">
         </div>
 
@@ -598,24 +596,24 @@ $backupDir = dirname(dirname(__DIR__)) . '/db_backup';
                 <div>
                     <strong style="color: #991b1b;"><?php echo e(t('admin_backup.destructive_op')); ?></strong>
                     <p style="margin: 5px 0 0; font-size: 13px; color: #991b1b;">
-                        The uploaded SQL file will <strong>overwrite all current data</strong> in the database. A safety backup of the current state will be created automatically before restoring.
+                        <?php echo t('admin_backup.upload_modal_warning'); ?>
                     </p>
                 </div>
             </div>
         </div>
 
         <p style="color: #666; margin-bottom: 15px;">
-            File to upload: <strong id="upload_restore_filename_display" style="color: #333;"></strong>
+            <?php echo e(t('admin_backup.upload_modal_file_label')); ?> <strong id="upload_restore_filename_display" style="color: #333;"></strong>
         </p>
 
         <div class="form-group" style="margin-bottom: 20px;">
-            <label for="upload_restore_source_key" style="font-weight: 500;">Source Encryption Key <span style="font-weight: normal; color: #666;">(optional)</span></label>
+            <label for="upload_restore_source_key" style="font-weight: 500;"><?php echo t('admin_backup.label_source_key'); ?></label>
             <input type="text" id="upload_restore_source_key" class="form-control" placeholder="<?php echo e(t('admin_backup.placeholder_source_key')); ?>" autocomplete="off" style="font-family: monospace; font-size: 13px;">
-            <div class="form-help">Only needed when restoring a backup from a different instance. Found in the source instance's <code>config.php</code> under <code>encryption.key</code>.</div>
+            <div class="form-help"><?php echo t('admin_backup.source_key_help'); ?></div>
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
-            <label for="upload_restore_confirm_input" style="font-weight: 500;">Type <strong>RESTORE</strong> to confirm:</label>
+            <label for="upload_restore_confirm_input" style="font-weight: 500;"><?php echo t('admin_backup.type_restore_label'); ?></label>
             <input type="text" id="upload_restore_confirm_input" class="form-control" placeholder="<?php echo e(t('admin_backup.placeholder_type_restore')); ?>" autocomplete="off">
         </div>
 
@@ -645,12 +643,12 @@ function closeRestoreModal() {
 function confirmUploadRestore() {
     var fileInput = document.getElementById('backup_upload');
     if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-        alert('Please select a .sql file first.');
+        alert(<?php echo json_encode(t('admin_backup.js_select_file')); ?>);
         return;
     }
     var file = fileInput.files[0];
     if (!file.name.toLowerCase().endsWith('.sql')) {
-        alert('Only .sql files are allowed.');
+        alert(<?php echo json_encode(t('admin_backup.js_only_sql')); ?>);
         return;
     }
     document.getElementById('upload_restore_filename_display').textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
@@ -684,7 +682,7 @@ document.getElementById('confirmRestoreBtn')?.addEventListener('click', function
     var keyVal = document.getElementById('restore_source_key')?.value || '';
     document.getElementById('restore_source_key_hidden').value = keyVal;
     this.disabled = true;
-    this.textContent = 'Restoring...';
+    this.textContent = <?php echo json_encode(t('admin_backup.js_restoring')); ?>;
     document.getElementById('restoreBackupForm').submit();
 });
 document.getElementById('confirmUploadRestoreBtn')?.addEventListener('click', function() {
@@ -692,7 +690,7 @@ document.getElementById('confirmUploadRestoreBtn')?.addEventListener('click', fu
     var keyVal = document.getElementById('upload_restore_source_key')?.value || '';
     document.getElementById('upload_source_key_hidden').value = keyVal;
     this.disabled = true;
-    this.textContent = 'Uploading & Restoring...';
+    this.textContent = <?php echo json_encode(t('admin_backup.js_uploading_restoring')); ?>;
     document.getElementById('uploadRestoreForm').submit();
 });
 

@@ -217,7 +217,7 @@ Format the response in clean HTML with <h4> for headers, <p> for paragraphs, and
 
     // Fallback if API fails
     $safeVendorName = htmlspecialchars($data['vendor_name'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    return "<h4>Executive Overview</h4><p>This report presents a comprehensive FAIR (Factor Analysis of Information Risk) assessment for {$safeVendorName}. The analysis evaluates potential cybersecurity and operational risks associated with this third-party vendor relationship.</p>";
+    return t('download-pdf.fallback_overview_prefix') . $safeVendorName . t('download-pdf.fallback_overview_suffix');
 }
 
 /**
@@ -307,7 +307,7 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TPRM Executive Summary - <?php echo e($decryptedResult['vendor_name']); ?></title>
+    <title><?php echo e(t('download-pdf.page_title')); ?> - <?php echo e($decryptedResult['vendor_name']); ?></title>
     <style>
         /* Print-specific styles */
         @media print {
@@ -728,7 +728,7 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
             <div class="report-info">
                 <h1><?php echo e(t('download-pdf.report_title')); ?></h1>
                 <div class="subtitle"><?php echo e(t('download-pdf.executive_summary')); ?></div>
-                <p><?php echo e($reportDate); ?> at <?php echo e($reportTime); ?></p>
+                <p><?php echo e($reportDate); ?> <?php echo e(t('download-pdf.at_time')); ?> <?php echo e($reportTime); ?></p>
             </div>
         </div>
 
@@ -789,7 +789,7 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
                 <!-- Risk Level Assessment - right side -->
                 <div class="risk-level-box">
                     <div class="label"><?php echo e(t('download-pdf.overall_risk')); ?></div>
-                    <div class="value"><?php echo e($decryptedResult['risk_output'] ?: 'N/A'); ?></div>
+                    <div class="value"><?php echo e($decryptedResult['risk_output'] ?: t('download-pdf.not_available')); ?></div>
                 </div>
             </div>
         </div>
@@ -815,7 +815,7 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
                     <div class="field-label"><?php echo e(t('download-pdf.iso_certification')); ?></div>
                     <div class="field-value">
                         <?php if ($decryptedResult['iso_27001_certified']): ?>
-                            <strong style="color: #28a745; font-size: 10pt;">✓ Certified</strong>
+                            <strong style="color: #28a745; font-size: 10pt;">✓ <?php echo e(t('download-pdf.certified')); ?></strong>
                             <span style="color: #666; font-size: 7pt;"><?php echo e(t('download-pdf.lower_breach_risk')); ?></span>
                         <?php else: ?>
                             <span style="color: #999;"><?php echo e(t('download-pdf.not_certified')); ?></span>
@@ -853,7 +853,7 @@ $riskColor = $riskColors[$decryptedResult['risk_output']] ?? '#666';
 
         <!-- Report Footer -->
         <div class="report-footer">
-            <p>Generated on <?php echo e($reportDate); ?> at <?php echo e($reportTime); ?> | Confidential - For Internal Use Only</p>
+            <p><?php echo e(t('download-pdf.generated_on')); ?> <?php echo e($reportDate); ?> <?php echo e(t('download-pdf.at_time')); ?> <?php echo e($reportTime); ?> | <?php echo e(t('download-pdf.confidential_notice')); ?></p>
             <p style="margin-top: 10px; font-size: 8pt;">
                 <em><?php echo e(t('download-pdf.methodology_note')); ?></em>
             </p>

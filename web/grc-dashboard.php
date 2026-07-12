@@ -28,7 +28,7 @@ $isAuditor = hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberGRC && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. GRC module requires cyber_grc, administrator, or auditor role.');
+    die(t('grc-dashboard.access_denied'));
 }
 
 $readOnly = $isAuditor && !$isAdmin && !$isCyberGRC;
@@ -222,7 +222,7 @@ $csrfToken = $security->generateCSRFToken();
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>GRC Dashboard - Unified Compliance Engine</title>
+    <title><?php echo e(t('grc-dashboard.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -401,7 +401,7 @@ $csrfToken = $security->generateCSRFToken();
                     </select>
                 </div>
                 <?php endif; ?>
-                <span style="font-size:12px;color:#9ca3af;margin-left:auto;"><?php echo count($frameworks); ?> framework<?php echo count($frameworks) !== 1 ? 's' : ''; ?></span>
+                <span style="font-size:12px;color:#9ca3af;margin-left:auto;"><?php echo count($frameworks); ?> <?php echo e(t('grc-dashboard.framework_word')); ?><?php echo count($frameworks) !== 1 ? 's' : ''; ?></span>
             </div>
 
             <!-- Overview Stats -->
@@ -436,7 +436,7 @@ $csrfToken = $security->generateCSRFToken();
             <h2 class="section-header"><?php echo e(t('grc-dashboard.framework_readiness')); ?></h2>
             <?php if (empty($frameworkStatus)): ?>
             <div style="text-align:center;padding:40px 20px;color:#6b7280;">
-                <p style="font-size:15px;margin:0;">No audited frameworks found for <?php echo (int)$filterYear; ?><?php echo $filterScopeId > 0 ? ' in this scope' : ''; ?>. Create an audit to see framework tiles here.</p>
+                <p style="font-size:15px;margin:0;"><?php echo e(t('grc-dashboard.no_audited_prefix')); ?> <?php echo (int)$filterYear; ?><?php echo $filterScopeId > 0 ? e(t('grc-dashboard.in_this_scope')) : ''; ?><?php echo e(t('grc-dashboard.no_audited_suffix')); ?></p>
             </div>
             <?php else: ?>
             <div class="framework-grid">
@@ -645,7 +645,7 @@ var fwChart = new Chart(document.getElementById('frameworkChart'), {
     type: 'bar',
     data: {
         labels: fwLabels,
-        datasets: [{ label: 'Compliance %', data: fwValues, backgroundColor: fwColors, borderWidth: 0, borderRadius: 6 }]
+        datasets: [{ label: <?php echo json_encode(t('grc-dashboard.chart_compliance_pct')); ?>, data: fwValues, backgroundColor: fwColors, borderWidth: 0, borderRadius: 6 }]
     },
     options: {
         indexAxis: 'y',

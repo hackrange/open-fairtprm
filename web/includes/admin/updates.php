@@ -28,7 +28,7 @@ if (!defined('ADMIN_DISPATCH')) { http_response_code(403); exit('Forbidden'); }
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_updates.invalid_request');
     } elseif (isset($_POST['upload_sql_update'])) {
         try {
             $updatesDir = dirname(dirname(__DIR__)) . '/sql_updates';
@@ -101,10 +101,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             chmod($destPath, 0600);
 
-            $success = 'SQL update file uploaded successfully: ' . $safeName;
+            $success = t('admin_updates.upload_success_prefix') . $safeName;
         } catch (Exception $e) {
             error_log('Error uploading SQL update: ' . $e->getMessage());
-            $error = 'Upload failed. Check the error log for details.';
+            $error = t('admin_updates.upload_failed');
         }
 
     } elseif (isset($_POST['apply_sql_update'])) {
@@ -264,13 +264,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
             file_put_contents($logFile, json_encode($log, JSON_PRETTY_PRINT));
 
-            $success = 'SQL update applied successfully: ' . $requestedFile;
+            $success = t('admin_updates.apply_success_prefix') . $requestedFile;
         } catch (PDOException $e) {
             error_log('SQL update execution error: ' . $e->getMessage());
-            $error = 'SQL update failed. Check the error log for details.';
+            $error = t('admin_updates.apply_failed_sql');
         } catch (Exception $e) {
             error_log('Error applying SQL update: ' . $e->getMessage());
-            $error = 'Failed to apply update. Check the error log for details.';
+            $error = t('admin_updates.apply_failed');
         }
 
     } elseif (isset($_POST['delete_sql_update'])) {
@@ -295,10 +295,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('Failed to delete update file');
             }
 
-            $success = 'SQL update file deleted: ' . $requestedFile;
+            $success = t('admin_updates.delete_success_prefix') . $requestedFile;
         } catch (Exception $e) {
             error_log('Error deleting SQL update: ' . $e->getMessage());
-            $error = 'Failed to delete update. Check the error log for details.';
+            $error = t('admin_updates.delete_failed');
         }
     }
 }
@@ -313,31 +313,31 @@ $updatesDir = dirname(dirname(__DIR__)) . '/sql_updates';
 // ============================================================================
 ?>
 <div class="page-header-bar">
-    <h1 class="page-title">SQL Updates</h1>
-    <p>Upload and apply SQL update scripts to the database. Only <code>.sql</code> files are accepted.</p>
+    <h1 class="page-title"><?php echo e(t('admin_updates.page_title')); ?></h1>
+    <p><?php echo t('admin_updates.page_intro'); ?></p>
 </div>
 
 <div class="card">
-    <h3>Upload SQL Update</h3>
+    <h3><?php echo e(t('admin_updates.upload_heading')); ?></h3>
     <p style="color: #666; margin-bottom: 15px;">
-        Upload a <code>.sql</code> file to the server. Once uploaded, you can review it below and choose when to apply it.
+        <?php echo t('admin_updates.upload_desc'); ?>
     </p>
     <form method="POST" action="admin.php?section=updates" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <div class="form-group">
-            <label for="sql_update_file">Select SQL File</label>
+            <label for="sql_update_file"><?php echo e(t('admin_updates.select_file_label')); ?></label>
             <input type="file" id="sql_update_file" name="sql_update_file" class="form-control" accept=".sql" required
                    style="padding: 8px; border: 2px dashed #ddd; border-radius: 6px; cursor: pointer;"
                    data-file-display="updateFileName">
             <div id="updateFileName" style="margin-top: 8px; font-size: 13px; color: #666;"></div>
-            <div class="form-help">Only <code>.sql</code> files are accepted. Max upload size: 10 MB.</div>
+            <div class="form-help"><?php echo t('admin_updates.upload_help'); ?></div>
         </div>
-        <button type="submit" name="upload_sql_update" class="btn btn-primary">Upload SQL File</button>
+        <button type="submit" name="upload_sql_update" class="btn btn-primary"><?php echo e(t('admin_updates.upload_button')); ?></button>
     </form>
 </div>
 
 <div class="card">
-    <h3>Available Updates</h3>
+    <h3><?php echo e(t('admin_updates.available_heading')); ?></h3>
     <?php
     $updateFiles = [];
     if (is_dir($updatesDir)) {
@@ -383,19 +383,19 @@ $updatesDir = dirname(dirname(__DIR__)) . '/sql_updates';
     }
     ?>
     <?php if (empty($updateFiles)): ?>
-        <p style="color: #999;">No SQL update files found. Upload a file above to get started.</p>
+        <p style="color: #999;"><?php echo e(t('admin_updates.empty_state')); ?></p>
     <?php else: ?>
         <p style="color: #666; margin-bottom: 15px;">
-            SQL files are stored in <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">sql_updates/</code> on the server with restricted permissions. This directory is not accessible from the web.
+            <?php echo t('admin_updates.storage_note'); ?>
         </p>
         <table>
             <thead>
                 <tr>
-                    <th>Filename</th>
-                    <th>Size</th>
-                    <th>Uploaded</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th><?php echo e(t('admin_updates.th_filename')); ?></th>
+                    <th><?php echo e(t('admin_updates.th_size')); ?></th>
+                    <th><?php echo e(t('admin_updates.th_uploaded')); ?></th>
+                    <th><?php echo e(t('admin_updates.th_status')); ?></th>
+                    <th><?php echo e(t('admin_updates.th_actions')); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -416,20 +416,20 @@ $updatesDir = dirname(dirname(__DIR__)) . '/sql_updates';
                     <td>
                         <?php if ($wasApplied): ?>
                             <span style="display: inline-block; padding: 2px 8px; background: #dcfce7; color: #166534; border-radius: 4px; font-size: 12px; font-weight: 500;">
-                                Applied <?php echo date('M j, Y g:i A', strtotime($appliedLog[$updateFile['filename']]['applied_at'])); ?>
-                                by <?php echo e($appliedLog[$updateFile['filename']]['applied_by']); ?>
+                                <?php echo e(t('admin_updates.status_applied')); ?> <?php echo date('M j, Y g:i A', strtotime($appliedLog[$updateFile['filename']]['applied_at'])); ?>
+                                <?php echo e(t('admin_updates.status_applied_by')); ?> <?php echo e($appliedLog[$updateFile['filename']]['applied_by']); ?>
                             </span>
                         <?php else: ?>
-                            <span style="display: inline-block; padding: 2px 8px; background: #fef3c7; color: #92400e; border-radius: 4px; font-size: 12px; font-weight: 500;">Pending</span>
+                            <span style="display: inline-block; padding: 2px 8px; background: #fef3c7; color: #92400e; border-radius: 4px; font-size: 12px; font-weight: 500;"><?php echo e(t('admin_updates.status_pending')); ?></span>
                         <?php endif; ?>
                     </td>
                     <td style="white-space: nowrap;">
-                        <button type="button" class="btn btn-sm" style="background: #6366f1; color: white;" data-action="previewSqlUpdate" data-arg="<?php echo e($updateFile['filename']); ?>">Preview</button>
-                        <button type="button" class="btn btn-primary btn-sm" data-action="confirmApplyUpdate" data-arg="<?php echo e($updateFile['filename']); ?>">Apply</button>
+                        <button type="button" class="btn btn-sm" style="background: #6366f1; color: white;" data-action="previewSqlUpdate" data-arg="<?php echo e($updateFile['filename']); ?>"><?php echo e(t('admin_updates.btn_preview')); ?></button>
+                        <button type="button" class="btn btn-primary btn-sm" data-action="confirmApplyUpdate" data-arg="<?php echo e($updateFile['filename']); ?>"><?php echo e(t('admin_updates.btn_apply')); ?></button>
                         <form method="POST" action="admin.php?section=updates" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="update_filename" value="<?php echo e($updateFile['filename']); ?>">
-                            <button type="submit" name="delete_sql_update" class="btn btn-sm" style="background: #dc2626; color: white;" data-confirm="Are you sure you want to delete this SQL update file?">Delete</button>
+                            <button type="submit" name="delete_sql_update" class="btn btn-sm" style="background: #dc2626; color: white;" data-confirm="<?php echo e(t('admin_updates.delete_confirm')); ?>"><?php echo e(t('admin_updates.btn_delete')); ?></button>
                         </form>
                     </td>
                 </tr>
@@ -441,14 +441,14 @@ $updatesDir = dirname(dirname(__DIR__)) . '/sql_updates';
 
 <?php if (!empty($appliedLog)): ?>
 <div class="card">
-    <h3>Application History</h3>
-    <p style="color: #666; margin-bottom: 15px;">Log of all SQL updates that have been applied to this database.</p>
+    <h3><?php echo e(t('admin_updates.history_heading')); ?></h3>
+    <p style="color: #666; margin-bottom: 15px;"><?php echo e(t('admin_updates.history_desc')); ?></p>
     <table>
         <thead>
             <tr>
-                <th>Filename</th>
-                <th>Applied At</th>
-                <th>Applied By</th>
+                <th><?php echo e(t('admin_updates.th_filename')); ?></th>
+                <th><?php echo e(t('admin_updates.th_applied_at')); ?></th>
+                <th><?php echo e(t('admin_updates.th_applied_by')); ?></th>
             </tr>
         </thead>
         <tbody>
@@ -468,31 +468,29 @@ $updatesDir = dirname(dirname(__DIR__)) . '/sql_updates';
 <?php endif; ?>
 
 <div class="card">
-    <h3>SQL Updates Information</h3>
+    <h3><?php echo e(t('admin_updates.info_heading')); ?></h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
         <div>
-            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;">Storage Location</h4>
+            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;"><?php echo e(t('admin_updates.info_storage_heading')); ?></h4>
             <p style="font-size: 13px; color: #666; margin: 0;">
-                Update files are stored in <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;"><?php echo e($updatesDir); ?></code>
-                on the server. This directory is protected from direct web access via <code>.htaccess</code> rules.
+                <?php echo e(t('admin_updates.info_storage_prefix')); ?> <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;"><?php echo e($updatesDir); ?></code>
+                <?php echo t('admin_updates.info_storage_suffix'); ?>
             </p>
         </div>
         <div>
-            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;">Security</h4>
+            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;"><?php echo e(t('admin_updates.info_security_heading')); ?></h4>
             <p style="font-size: 13px; color: #666; margin: 0;">
-                Only administrators can upload, apply, or delete SQL update files. Files are validated for SQL content before being accepted.
-                The updates directory cannot be accessed directly through the web.
+                <?php echo e(t('admin_updates.info_security_body')); ?>
             </p>
         </div>
         <div>
-            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;">Best Practice</h4>
+            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;"><?php echo e(t('admin_updates.info_bestpractice_heading')); ?></h4>
             <p style="font-size: 13px; color: #666; margin: 0;">
-                Always create a database backup before applying SQL updates. Use the Preview button to review SQL content before applying.
-                Updates can be re-applied if needed.
+                <?php echo e(t('admin_updates.info_bestpractice_body')); ?>
             </p>
         </div>
         <div>
-            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;">CLI Alternative</h4>
+            <h4 style="font-size: 14px; color: #333; margin: 0 0 8px;"><?php echo e(t('admin_updates.info_cli_heading')); ?></h4>
             <div style="background: #1e1e1e; color: #d4d4d4; padding: 10px 15px; border-radius: 6px; font-family: monospace; font-size: 12px; margin-top: 5px;">
                 <code style="color: #ce9178;">mysql</code> <code style="color: #9cdcfe;">-u tprm_user -p tprm</code> <code style="color: #6a9955;">< update_file.sql</code>
             </div>
@@ -504,21 +502,21 @@ $updatesDir = dirname(dirname(__DIR__)) . '/sql_updates';
 <div id="applyUpdateModal" class="modal">
     <div class="modal-content">
         <span class="close" data-close="applyUpdateModal">&times;</span>
-        <h3 style="margin-top: 0; color: var(--theme-header-color);">Confirm SQL Update</h3>
+        <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo e(t('admin_updates.modal_confirm_heading')); ?></h3>
         <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
-            <strong style="color: #92400e;">Warning:</strong>
+            <strong style="color: #92400e;"><?php echo e(t('admin_updates.modal_warning_label')); ?></strong>
             <span style="font-size: 13px; color: #78350f;">
-                This will execute the SQL file against the database. Make sure you have a recent backup before proceeding.
+                <?php echo e(t('admin_updates.modal_warning_body')); ?>
             </span>
         </div>
-        <p>Are you sure you want to apply <strong id="applyUpdateFilename"></strong>?</p>
+        <p><?php echo e(t('admin_updates.modal_apply_prompt_prefix')); ?> <strong id="applyUpdateFilename"></strong>?</p>
         <form method="POST" action="admin.php?section=updates">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <input type="hidden" id="apply_update_filename" name="update_filename" value="">
             <input type="hidden" name="apply_sql_update" value="1">
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                <button type="button" class="btn" style="background: #6b7280; color: white;" data-close="applyUpdateModal">Cancel</button>
-                <button type="submit" class="btn btn-primary" data-disable-on-click="Applying...">Apply Update</button>
+                <button type="button" class="btn" style="background: #6b7280; color: white;" data-close="applyUpdateModal"><?php echo e(t('admin_updates.btn_cancel')); ?></button>
+                <button type="submit" class="btn btn-primary" data-disable-on-click="<?php echo e(t('admin_updates.btn_applying')); ?>"><?php echo e(t('admin_updates.btn_apply_update')); ?></button>
             </div>
         </form>
     </div>
@@ -528,10 +526,10 @@ $updatesDir = dirname(dirname(__DIR__)) . '/sql_updates';
 <div id="previewSqlModal" class="modal">
     <div class="modal-content" style="max-width: 800px;">
         <span class="close" data-close="previewSqlModal">&times;</span>
-        <h3 style="margin-top: 0; color: var(--theme-header-color);">Preview: <span id="previewFilename"></span></h3>
+        <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo e(t('admin_updates.modal_preview_prefix')); ?> <span id="previewFilename"></span></h3>
         <pre id="previewSqlContent" style="background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 6px; max-height: 500px; overflow: auto; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;"></pre>
         <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
-            <button type="button" class="btn" style="background: #6b7280; color: white;" data-close="previewSqlModal">Close</button>
+            <button type="button" class="btn" style="background: #6b7280; color: white;" data-close="previewSqlModal"><?php echo e(t('admin_updates.btn_close')); ?></button>
         </div>
     </div>
 </div>
@@ -545,7 +543,7 @@ function confirmApplyUpdate(filename) {
 
 function previewSqlUpdate(filename) {
     document.getElementById('previewFilename').textContent = filename;
-    document.getElementById('previewSqlContent').textContent = 'Loading...';
+    document.getElementById('previewSqlContent').textContent = <?php echo json_encode(t('admin_updates.js_loading')); ?>;
     document.getElementById('previewSqlModal').style.display = 'flex';
 
     fetch('api/preview-sql-update.php?file=' + encodeURIComponent(filename))
@@ -554,11 +552,11 @@ function previewSqlUpdate(filename) {
             if (data.success) {
                 document.getElementById('previewSqlContent').textContent = data.content;
             } else {
-                document.getElementById('previewSqlContent').textContent = 'Error: ' + (data.error || 'Could not load file');
+                document.getElementById('previewSqlContent').textContent = <?php echo json_encode(t('admin_updates.js_error_prefix')); ?> + (data.error || <?php echo json_encode(t('admin_updates.js_could_not_load')); ?>);
             }
         })
         .catch(function(err) {
-            document.getElementById('previewSqlContent').textContent = 'Error loading preview: ' + err.message;
+            document.getElementById('previewSqlContent').textContent = <?php echo json_encode(t('admin_updates.js_error_loading_preview')); ?> + err.message;
         });
 }
 </script>

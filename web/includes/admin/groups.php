@@ -35,10 +35,10 @@ $canManage = (bool)$session->get('is_super_admin');
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid security token. Please try again.';
+        $error = t('admin_groups.err_invalid_token');
     } elseif (!$canManage) {
         // Server-side enforcement of the super-admin gate -- never trust the UI.
-        $error = 'Only super administrators can manage ACL groups.';
+        $error = t('admin_groups.err_not_super_admin');
     } elseif (isset($_POST['create_group'])) {
         try {
             $groupName   = $_POST['group_name'] ?? '';
@@ -52,8 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $newId = $acl->createGroup($groupName, $displayName, $description, $copyFrom ?: null);
-            $copiedNote = $copyFrom ? ' Permissions copied from the selected group.' : '';
-            $success = 'Group "' . $displayName . '" created.' . $copiedNote;
+            $copiedNote = $copyFrom ? t('admin_groups.msg_perms_copied') : '';
+            $success = t('admin_groups.msg_group_prefix') . $displayName . t('admin_groups.msg_created_suffix') . $copiedNote;
 
             $auth->audit($user['id'], 'acl_group_create', 'acl_groups', $newId, [
                 'new' => [
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = $e->getMessage();
         } catch (Exception $e) {
             error_log('ACL group create failed: ' . $e->getMessage());
-            $error = 'Could not create the group. Please try again.';
+            $error = t('admin_groups.err_create_failed');
         }
     } elseif (isset($_POST['update_group'])) {
         try {
@@ -77,12 +77,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $target = $acl->getGroupById($groupId);
             if (!$target) {
-                $error = 'Group not found.';
+                $error = t('admin_groups.err_group_not_found');
             } elseif ((int)$target['is_system'] === 1) {
-                $error = 'System groups cannot be modified.';
+                $error = t('admin_groups.err_system_no_modify');
             } else {
                 $acl->updateGroup($groupId, $displayName, $description, $isActive);
-                $success = 'Group "' . $displayName . '" updated.';
+                $success = t('admin_groups.msg_group_prefix') . $displayName . t('admin_groups.msg_updated_suffix');
                 $auth->audit($user['id'], 'acl_group_update', 'acl_groups', $groupId, [
                     'old' => ['display_name' => $target['display_name'], 'description' => $target['description'], 'is_active' => (int)$target['is_active']],
                     'new' => ['display_name' => trim($displayName), 'description' => $description, 'is_active' => $isActive],
@@ -98,12 +98,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $target = $acl->getGroupById($groupId);
             if (!$target) {
-                $error = 'Group not found.';
+                $error = t('admin_groups.err_group_not_found');
             } elseif ((int)$target['is_system'] === 1) {
-                $error = 'System group permissions are read-only.';
+                $error = t('admin_groups.err_system_perms_readonly');
             } else {
                 $acl->setGroupPermissions($groupId, $permIds);
-                $success = 'Permissions updated for "' . $target['display_name'] . '".';
+                $success = t('admin_groups.msg_perms_updated_prefix') . $target['display_name'] . t('admin_groups.msg_perms_updated_suffix');
                 $auth->audit($user['id'], 'acl_group_permissions_set', 'acl_groups', $groupId, [
                     'new' => ['permission_ids' => array_values($permIds)],
                 ]);
@@ -116,12 +116,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $groupId = (int)($_POST['group_id'] ?? 0);
             $target = $acl->getGroupById($groupId);
             if (!$target) {
-                $error = 'Group not found.';
+                $error = t('admin_groups.err_group_not_found');
             } elseif ((int)$target['is_system'] === 1) {
-                $error = 'System groups cannot be deleted.';
+                $error = t('admin_groups.err_system_no_delete');
             } else {
                 $acl->deleteGroup($groupId);
-                $success = 'Group "' . $target['display_name'] . '" deleted.';
+                $success = t('admin_groups.msg_group_prefix') . $target['display_name'] . t('admin_groups.msg_deleted_suffix');
                 $auth->audit($user['id'], 'acl_group_delete', 'acl_groups', $groupId, [
                     'old' => ['group_name' => $target['group_name'], 'display_name' => $target['display_name']],
                 ]);
@@ -173,23 +173,23 @@ foreach ($allGroups as $g) {
 }
 
 $moduleLabels = [
-    'onboarding'    => 'Vendor Onboarding',
-    'analysis'      => 'FAIR Analysis',
-    'assessment'    => 'Assessments',
-    'srs'           => 'Security Rating (SRS)',
-    'annual_review' => 'Annual Reviews',
-    'grc'           => 'GRC',
-    'other'         => 'Other',
+    'onboarding'    => t('admin_groups.module_onboarding'),
+    'analysis'      => t('admin_groups.module_analysis'),
+    'assessment'    => t('admin_groups.module_assessment'),
+    'srs'           => t('admin_groups.module_srs'),
+    'annual_review' => t('admin_groups.module_annual_review'),
+    'grc'           => t('admin_groups.module_grc'),
+    'other'         => t('admin_groups.module_other'),
 ];
 ?>
 <div class="page-header-bar" style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
     <div>
-        <h1 class="page-title">ACL Group Management</h1>
-        <p>The seven shipped groups are system defaults and cannot be deleted or renamed.
-           <?php if ($canManage): ?>Create custom groups, copy permissions from an existing group, and tune Read / Read&nbsp;&amp;&nbsp;Write access per module.<?php else: ?>Only super administrators can create or edit groups.<?php endif; ?></p>
+        <h1 class="page-title"><?php echo e(t('admin_groups.page_title')); ?></h1>
+        <p><?php echo e(t('admin_groups.intro_lead')); ?>
+           <?php if ($canManage): ?><?php echo t('admin_groups.intro_manage'); ?><?php else: ?><?php echo e(t('admin_groups.intro_readonly')); ?><?php endif; ?></p>
     </div>
     <?php if ($canManage): ?>
-    <button class="btn btn-primary" id="btnCreateGroup" type="button">+ Create Group</button>
+    <button class="btn btn-primary" id="btnCreateGroup" type="button"><?php echo e(t('admin_groups.btn_create_group_plus')); ?></button>
     <?php endif; ?>
 </div>
 
@@ -197,13 +197,13 @@ $moduleLabels = [
     <table>
         <thead>
             <tr>
-                <th>Group Name</th>
-                <th>Display Name</th>
-                <th>Description</th>
-                <th>Members</th>
-                <th>Type</th>
-                <th>Status</th>
-                <?php if ($canManage): ?><th style="text-align:right;">Actions</th><?php endif; ?>
+                <th><?php echo e(t('admin_groups.col_group_name')); ?></th>
+                <th><?php echo e(t('admin_groups.display_name')); ?></th>
+                <th><?php echo e(t('admin_groups.description')); ?></th>
+                <th><?php echo e(t('admin_groups.col_members')); ?></th>
+                <th><?php echo e(t('admin_groups.col_type')); ?></th>
+                <th><?php echo e(t('admin_groups.col_status')); ?></th>
+                <?php if ($canManage): ?><th style="text-align:right;"><?php echo e(t('admin_groups.col_actions')); ?></th><?php endif; ?>
             </tr>
         </thead>
         <tbody>
@@ -220,20 +220,20 @@ $moduleLabels = [
                 <td><?php echo $count . ' user' . ($count !== 1 ? 's' : ''); ?></td>
                 <td>
                     <?php if ($isSystem): ?>
-                        <span class="badge badge-purple">System</span>
+                        <span class="badge badge-purple"><?php echo e(t('admin_groups.type_system')); ?></span>
                     <?php else: ?>
-                        <span class="badge badge-blue">Custom</span>
+                        <span class="badge badge-blue"><?php echo e(t('admin_groups.type_custom')); ?></span>
                     <?php endif; ?>
                 </td>
-                <td><?php echo $group['is_active'] ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'; ?></td>
+                <td><?php echo $group['is_active'] ? '<span class="badge badge-success">' . e(t('admin_groups.status_active')) . '</span>' : '<span class="badge badge-danger">' . e(t('admin_groups.status_inactive')) . '</span>'; ?></td>
                 <?php if ($canManage): ?>
                 <td style="text-align:right; white-space:nowrap;">
                     <button type="button" class="btn btn-sm btn-secondary js-perms" data-group-id="<?php echo $gid; ?>">
-                        <?php echo $isSystem ? 'View Permissions' : 'Permissions'; ?>
+                        <?php echo $isSystem ? e(t('admin_groups.btn_view_permissions')) : e(t('admin_groups.btn_permissions')); ?>
                     </button>
                     <?php if (!$isSystem): ?>
-                    <button type="button" class="btn btn-sm btn-primary js-edit" data-group-id="<?php echo $gid; ?>">Edit</button>
-                    <button type="button" class="btn btn-sm js-delete" data-group-id="<?php echo $gid; ?>" style="background:#dc2626; color:white;">Delete</button>
+                    <button type="button" class="btn btn-sm btn-primary js-edit" data-group-id="<?php echo $gid; ?>"><?php echo e(t('admin_groups.btn_edit')); ?></button>
+                    <button type="button" class="btn btn-sm js-delete" data-group-id="<?php echo $gid; ?>" style="background:#dc2626; color:white;"><?php echo e(t('admin_groups.btn_delete')); ?></button>
                     <?php endif; ?>
                 </td>
                 <?php endif; ?>
@@ -248,43 +248,43 @@ $moduleLabels = [
 <div id="createGroupModal" class="modal">
     <div class="modal-content">
         <span class="close" id="closeCreateGroup">&times;</span>
-        <h2 style="margin-top:0;">Create Custom Group</h2>
+        <h2 style="margin-top:0;"><?php echo e(t('admin_groups.create_modal_title')); ?></h2>
         <form method="POST" action="admin.php?section=groups">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <input type="hidden" name="create_group" value="1">
             <div class="form-group">
-                <label for="cg_group_name">Group Name (machine)</label>
+                <label for="cg_group_name"><?php echo e(t('admin_groups.group_name_machine')); ?></label>
                 <input type="text" id="cg_group_name" name="group_name" required
                        pattern="[a-z][a-z0-9_]{1,63}"
-                       title="Lowercase letters, numbers and underscores; 2-64 chars; must start with a letter."
-                       placeholder="e.g. vendor_reviewer" style="width:100%;">
-                <small style="color:#6b7280;">Lowercase, letters/numbers/underscores. Cannot be changed later.</small>
+                       title="<?php echo e(t('admin_groups.group_name_title')); ?>"
+                       placeholder="<?php echo e(t('admin_groups.group_name_placeholder')); ?>" style="width:100%;">
+                <small style="color:#6b7280;"><?php echo e(t('admin_groups.group_name_help')); ?></small>
             </div>
             <div class="form-group">
-                <label for="cg_display_name">Display Name</label>
+                <label for="cg_display_name"><?php echo e(t('admin_groups.display_name')); ?></label>
                 <input type="text" id="cg_display_name" name="display_name" required
-                       placeholder="e.g. Vendor Reviewer" style="width:100%;">
+                       placeholder="<?php echo e(t('admin_groups.display_name_placeholder')); ?>" style="width:100%;">
             </div>
             <div class="form-group">
-                <label for="cg_description">Description</label>
+                <label for="cg_description"><?php echo e(t('admin_groups.description')); ?></label>
                 <input type="text" id="cg_description" name="description"
-                       placeholder="What is this group for?" style="width:100%;">
+                       placeholder="<?php echo e(t('admin_groups.description_placeholder')); ?>" style="width:100%;">
             </div>
             <div class="form-group">
-                <label for="cg_copy_from">Copy permissions from</label>
+                <label for="cg_copy_from"><?php echo e(t('admin_groups.copy_from_label')); ?></label>
                 <select id="cg_copy_from" name="copy_from_group_id" style="width:100%;">
-                    <option value="0">— Start with no permissions —</option>
+                    <option value="0"><?php echo e(t('admin_groups.copy_from_none')); ?></option>
                     <?php foreach ($allGroups as $group): ?>
                     <option value="<?php echo (int)$group['id']; ?>">
-                        <?php echo e($group['display_name']); ?><?php echo (int)$group['is_system'] === 1 ? ' (System)' : ''; ?>
+                        <?php echo e($group['display_name']); ?><?php echo (int)$group['is_system'] === 1 ? e(t('admin_groups.system_suffix')) : ''; ?>
                     </option>
                     <?php endforeach; ?>
                 </select>
-                <small style="color:#6b7280;">Clone an existing group as a starting point, then refine the permission matrix.</small>
+                <small style="color:#6b7280;"><?php echo e(t('admin_groups.copy_from_help')); ?></small>
             </div>
             <div style="text-align:right; margin-top:18px;">
-                <button type="button" class="btn btn-secondary" id="cancelCreateGroup">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Group</button>
+                <button type="button" class="btn btn-secondary" id="cancelCreateGroup"><?php echo e(t('admin_groups.btn_cancel')); ?></button>
+                <button type="submit" class="btn btn-primary"><?php echo e(t('admin_groups.btn_create_group')); ?></button>
             </div>
         </form>
     </div>
@@ -294,30 +294,30 @@ $moduleLabels = [
 <div id="editGroupModal" class="modal">
     <div class="modal-content">
         <span class="close" id="closeEditGroup">&times;</span>
-        <h2 style="margin-top:0;">Edit Group</h2>
+        <h2 style="margin-top:0;"><?php echo e(t('admin_groups.edit_modal_title')); ?></h2>
         <form method="POST" action="admin.php?section=groups">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <input type="hidden" name="update_group" value="1">
             <input type="hidden" name="group_id" id="eg_group_id" value="">
             <div class="form-group">
-                <label>Group Name (machine)</label>
+                <label><?php echo e(t('admin_groups.group_name_machine')); ?></label>
                 <input type="text" id="eg_group_name" disabled style="width:100%; background:#f3f4f6;">
-                <small style="color:#6b7280;">The machine name is fixed once created.</small>
+                <small style="color:#6b7280;"><?php echo e(t('admin_groups.machine_name_fixed_help')); ?></small>
             </div>
             <div class="form-group">
-                <label for="eg_display_name">Display Name</label>
+                <label for="eg_display_name"><?php echo e(t('admin_groups.display_name')); ?></label>
                 <input type="text" id="eg_display_name" name="display_name" required style="width:100%;">
             </div>
             <div class="form-group">
-                <label for="eg_description">Description</label>
+                <label for="eg_description"><?php echo e(t('admin_groups.description')); ?></label>
                 <input type="text" id="eg_description" name="description" style="width:100%;">
             </div>
             <div class="form-group">
-                <label class="checkbox-label"><input type="checkbox" id="eg_is_active" name="is_active" value="1"><span>Active</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="eg_is_active" name="is_active" value="1"><span><?php echo e(t('admin_groups.status_active')); ?></span></label>
             </div>
             <div style="text-align:right; margin-top:18px;">
-                <button type="button" class="btn btn-secondary" id="cancelEditGroup">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <button type="button" class="btn btn-secondary" id="cancelEditGroup"><?php echo e(t('admin_groups.btn_cancel')); ?></button>
+                <button type="submit" class="btn btn-primary"><?php echo e(t('admin_groups.btn_save_changes')); ?></button>
             </div>
         </form>
     </div>
@@ -327,9 +327,9 @@ $moduleLabels = [
 <div id="permsModal" class="modal">
     <div class="modal-content" style="max-width:820px; max-height:86vh; overflow:auto;">
         <span class="close" id="closePerms">&times;</span>
-        <h2 style="margin-top:0;">Permissions — <span id="pm_group_label"></span></h2>
+        <h2 style="margin-top:0;"><?php echo e(t('admin_groups.perms_modal_title_prefix')); ?> <span id="pm_group_label"></span></h2>
         <p id="pm_system_note" style="display:none; color:#7c3aed; background:#f3e8ff; padding:8px 12px; border-radius:6px;">
-            This is a system group. Its permissions are shown for reference and cannot be changed. Use “Copy permissions from” when creating a custom group to start from this set.
+            <?php echo e(t('admin_groups.perms_system_note')); ?>
         </p>
         <form method="POST" action="admin.php?section=groups" id="permsForm">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -342,10 +342,10 @@ $moduleLabels = [
                     <?php echo e($moduleLabels[$mod] ?? ucfirst($mod)); ?>
                 </legend>
                 <div class="pm-quickset" style="margin-bottom:8px;" data-module="<?php echo e($mod); ?>">
-                    <span style="color:#6b7280; font-size:12px; margin-right:6px;">Capability:</span>
-                    <button type="button" class="btn btn-sm btn-secondary pm-preset" data-module="<?php echo e($mod); ?>" data-level="read">Read</button>
-                    <button type="button" class="btn btn-sm btn-secondary pm-preset" data-module="<?php echo e($mod); ?>" data-level="write">Read &amp; Write</button>
-                    <button type="button" class="btn btn-sm btn-secondary pm-preset" data-module="<?php echo e($mod); ?>" data-level="none">None</button>
+                    <span style="color:#6b7280; font-size:12px; margin-right:6px;"><?php echo e(t('admin_groups.capability_label')); ?></span>
+                    <button type="button" class="btn btn-sm btn-secondary pm-preset" data-module="<?php echo e($mod); ?>" data-level="read"><?php echo e(t('admin_groups.cap_read')); ?></button>
+                    <button type="button" class="btn btn-sm btn-secondary pm-preset" data-module="<?php echo e($mod); ?>" data-level="write"><?php echo t('admin_groups.preset_read_write'); ?></button>
+                    <button type="button" class="btn btn-sm btn-secondary pm-preset" data-module="<?php echo e($mod); ?>" data-level="none"><?php echo e(t('admin_groups.preset_none')); ?></button>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 18px;">
                     <?php foreach ($perms as $p): ?>
@@ -359,9 +359,9 @@ $moduleLabels = [
                         <span>
                             <strong><?php echo e($p['name']); ?></strong>
                             <?php if ($cap === 'read'): ?>
-                                <span class="badge badge-blue" style="font-size:10px;">Read</span>
+                                <span class="badge badge-blue" style="font-size:10px;"><?php echo e(t('admin_groups.cap_read')); ?></span>
                             <?php else: ?>
-                                <span class="badge badge-success" style="font-size:10px;">Read/Write</span>
+                                <span class="badge badge-success" style="font-size:10px;"><?php echo e(t('admin_groups.cap_read_write')); ?></span>
                             <?php endif; ?>
                             <br><small style="color:#9ca3af;"><?php echo e($p['permission_code']); ?></small>
                         </span>
@@ -372,8 +372,8 @@ $moduleLabels = [
             <?php endforeach; ?>
 
             <div style="text-align:right; margin-top:8px;" id="pm_actions">
-                <button type="button" class="btn btn-secondary" id="cancelPerms">Close</button>
-                <button type="submit" class="btn btn-primary" id="pm_save">Save Permissions</button>
+                <button type="button" class="btn btn-secondary" id="cancelPerms"><?php echo e(t('admin_groups.btn_close')); ?></button>
+                <button type="submit" class="btn btn-primary" id="pm_save"><?php echo e(t('admin_groups.btn_save_permissions')); ?></button>
             </div>
         </form>
     </div>
@@ -415,7 +415,7 @@ $moduleLabels = [
         btn.addEventListener('click', function () {
             var g = META[this.getAttribute('data-group-id')];
             if (!g) return;
-            if (!confirm('Delete the group "' + g.display + '"?\n\nThis removes the group and unassigns it from all of its members. This cannot be undone.')) return;
+            if (!confirm(<?php echo json_encode(t('admin_groups.js_delete_confirm_prefix')); ?> + g.display + <?php echo json_encode(t('admin_groups.js_delete_confirm_suffix')); ?>)) return;
             postAction({ delete_group: '1', group_id: this.getAttribute('data-group-id') });
         });
     });

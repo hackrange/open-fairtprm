@@ -565,7 +565,7 @@ function gradeClass(string $grade): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detailed Summary - <?php echo e($vendor['vendor_name']); ?></title>
+    <title><?php echo e(t('vendor-detailed-summary.page_title')); ?> - <?php echo e($vendor['vendor_name']); ?></title>
     <script src="app/js/chart.min.js" nonce="<?php echo cspNonce(); ?>"></script>
     <style>
         /* === Print Styles === */
@@ -840,7 +840,7 @@ function gradeClass(string $grade): string {
             <div class="source"><?php echo e($upguardName); ?></div>
             <div class="score-value"><?php echo displayUgScore(intval($latestScore['score']), $upguardDisplayMode, $upguardMaxScore); ?></div>
             <div class="grade" style="background: <?php echo gradeClass($ugGrade); ?>"><?php echo $ugGrade; ?></div>
-            <div class="scored-date">Scored <?php echo date('M j, Y', strtotime($latestScore['scored_at'])); ?></div>
+            <div class="scored-date"><?php echo e(t('vendor-detailed-summary.scored_prefix')); ?> <?php echo date('M j, Y', strtotime($latestScore['scored_at'])); ?></div>
         </div>
         <?php else: ?>
         <div class="score-card"><div class="source"><?php echo e($upguardName); ?></div><div class="ai-placeholder"><?php echo e(t('vendor-detailed-summary.no_score_available')); ?></div></div>
@@ -851,7 +851,7 @@ function gradeClass(string $grade): string {
             <div class="source"><?php echo e($shodanName); ?></div>
             <div class="score-value"><?php echo intval($shodanLatestScore['score']); ?>%</div>
             <div class="grade" style="background: <?php echo gradeClass($shGrade); ?>"><?php echo $shGrade; ?></div>
-            <div class="scored-date">Scored <?php echo date('M j, Y', strtotime($shodanLatestScore['scored_at'])); ?></div>
+            <div class="scored-date"><?php echo e(t('vendor-detailed-summary.scored_prefix')); ?> <?php echo date('M j, Y', strtotime($shodanLatestScore['scored_at'])); ?></div>
         </div>
         <?php else: ?>
         <div class="score-card"><div class="source"><?php echo e($shodanName); ?></div><div class="ai-placeholder"><?php echo e(t('vendor-detailed-summary.no_score_available')); ?></div></div>
@@ -862,7 +862,7 @@ function gradeClass(string $grade): string {
             <?php if ($combinedScore['score'] !== null): ?>
             <div class="score-value"><?php echo $combinedScore['score']; ?>%</div>
             <div class="grade" style="background: <?php echo gradeClass($combinedScore['grade']); ?>"><?php echo $combinedScore['grade']; ?></div>
-            <div class="scored-date"><?php echo $combinedScore['source_count']; ?> source(s)</div>
+            <div class="scored-date"><?php echo $combinedScore['source_count']; ?> <?php echo e(t('vendor-detailed-summary.source_suffix')); ?></div>
             <?php else: ?>
             <div class="ai-placeholder"><?php echo e(t('vendor-detailed-summary.no_scores_available')); ?></div>
             <?php endif; ?>
@@ -1176,11 +1176,11 @@ function gradeClass(string $grade): string {
         <?php
         // --- Vendor Claims vs. External Evidence (Reality Check Matrix) ---
         $domainLabels = [
-            'tls_crypto'       => 'Encryption & TLS',
-            'network_security' => 'Network Security',
-            'app_hardening'    => 'Application Hardening',
-            'email_security'   => 'Email Security',
-            'vuln_exposure'    => 'Vulnerability Management',
+            'tls_crypto'       => t('vendor-detailed-summary.domain_encryption_tls'),
+            'network_security' => t('vendor-detailed-summary.domain_network_security'),
+            'app_hardening'    => t('vendor-detailed-summary.domain_app_hardening'),
+            'email_security'   => t('vendor-detailed-summary.domain_email_security'),
+            'vuln_exposure'    => t('vendor-detailed-summary.domain_vuln_exposure'),
         ];
 
         // Build external evidence summaries per domain from Shodan findings (exclude waived)
@@ -1278,7 +1278,7 @@ function gradeClass(string $grade): string {
                     }
 
                     // Vendor claim — combine Assessment + VSM sources
-                    $claimText = '(No response)';
+                    $claimText = t('vendor-detailed-summary.claim_no_response');
                     $hasPositiveClaim = false;
                     $isNegative = false;
                     if (isset($vendorClaims[$domainKey])) {
@@ -1295,7 +1295,7 @@ function gradeClass(string $grade): string {
                             $claimParts[] = '[VSM] "' . $claim['vsm_answer'] . '" (' . $vsmLabel . ')';
                         }
 
-                        $claimText = !empty($claimParts) ? implode("\n", $claimParts) : '(No response)';
+                        $claimText = !empty($claimParts) ? implode("\n", $claimParts) : t('vendor-detailed-summary.claim_no_response');
 
                         // Determine if positive claim exists (from either source)
                         $assessAnswer = strtolower($claim['answer'] ?? '');
@@ -1307,30 +1307,30 @@ function gradeClass(string $grade): string {
 
                     // Alignment assessment — considers score + negative evidence count
                     $negCount = isset($domainEvidence[$domainKey]) ? $domainEvidence[$domainKey]['negative'] : 0;
-                    $alignIcon = '— No Data';
+                    $alignIcon = t('vendor-detailed-summary.align_no_data');
                     $alignColor = '#6b7280';
                     if ($score !== null && isset($vendorClaims[$domainKey])) {
                         if ($score < 30 && $hasPositiveClaim) {
-                            $alignIcon = '&#10007; Contradiction';
+                            $alignIcon = t('vendor-detailed-summary.align_contradiction');
                             $alignColor = '#dc2626';
                         } elseif (($score < 50 || $negCount >= 3) && $hasPositiveClaim) {
-                            $alignIcon = '&#9888; Discrepancy';
+                            $alignIcon = t('vendor-detailed-summary.align_discrepancy');
                             $alignColor = '#d97706';
                         } elseif ($score >= 70 && $hasPositiveClaim) {
-                            $alignIcon = '&#10003; Aligned';
+                            $alignIcon = t('vendor-detailed-summary.align_aligned');
                             $alignColor = '#16a34a';
                         } elseif ($hasPositiveClaim) {
-                            $alignIcon = '&#9888; Partial';
+                            $alignIcon = t('vendor-detailed-summary.align_partial');
                             $alignColor = '#d97706';
                         } elseif ($isNegative ?? false) {
-                            $alignIcon = '&#10003; Acknowledged';
+                            $alignIcon = t('vendor-detailed-summary.align_acknowledged');
                             $alignColor = '#6b7280';
                         } else {
-                            $alignIcon = '— Review';
+                            $alignIcon = t('vendor-detailed-summary.align_review');
                             $alignColor = '#6b7280';
                         }
                     } elseif ($score !== null && !isset($vendorClaims[$domainKey])) {
-                        $alignIcon = '— Unverified';
+                        $alignIcon = t('vendor-detailed-summary.align_unverified');
                         $alignColor = '#6b7280';
                     }
                 ?>
@@ -1400,10 +1400,7 @@ function gradeClass(string $grade): string {
 
         <div style="margin-top: 6px; font-size: 0.8em; color: #6b7280;">
             <strong><?php echo e(t('vendor-detailed-summary.legend')); ?></strong>
-            <span style="color: #16a34a;">&#10003; Aligned</span> = Score &ge; 70 &amp; positive claim |
-            <span style="color: #d97706;">&#9888; Discrepancy</span> = Score &lt; 50 &amp; positive claim |
-            <span style="color: #dc2626;">&#10007; Contradiction</span> = Score &lt; 30 &amp; positive claim |
-            <span style="color: #6b7280;">— Unverified</span> = No vendor response
+            <?php echo t('vendor-detailed-summary.legend_body'); ?>
         </div>
         <?php endif; ?>
     </div>
@@ -1445,7 +1442,7 @@ function gradeClass(string $grade): string {
 
     <!-- Footer -->
     <div class="report-footer">
-        Confidential — <?php echo e($reportDate); ?> — Generated by Open TPRM<br>
+        <?php echo e(t('vendor-detailed-summary.footer_prefix')); ?><?php echo e($reportDate); ?><?php echo e(t('vendor-detailed-summary.footer_suffix')); ?><br>
         <?php echo e(t('vendor-detailed-summary.nist_trademark_notice')); ?>
     </div>
 
@@ -1463,9 +1460,9 @@ function gradeClass(string $grade): string {
         new Chart(nistCtx, {
             type: 'radar',
             data: {
-                labels: ['Identify', 'Protect', 'Detect', 'Respond', 'Recover'],
+                labels: [<?php echo json_encode(t('vendor-detailed-summary.nist_identify')); ?>, <?php echo json_encode(t('vendor-detailed-summary.nist_protect')); ?>, <?php echo json_encode(t('vendor-detailed-summary.nist_detect')); ?>, <?php echo json_encode(t('vendor-detailed-summary.nist_respond')); ?>, <?php echo json_encode(t('vendor-detailed-summary.nist_recover')); ?>],
                 datasets: [{
-                    label: 'NIST CSF Score',
+                    label: <?php echo json_encode(t('vendor-detailed-summary.nist_csf_score_label')); ?>,
                     data: <?php echo json_encode(array_values($nistScores)); ?>,
                     borderColor: themeColor,
                     backgroundColor: themeColorAlpha,
@@ -1488,7 +1485,7 @@ function gradeClass(string $grade): string {
                 },
                 plugins: {
                     legend: { display: false },
-                    title: { display: true, text: 'NIST CSF 2.0 Maturity', font: { size: 13 } }
+                    title: { display: true, text: <?php echo json_encode(t('vendor-detailed-summary.nist_maturity_title')); ?>, font: { size: 13 } }
                 }
             }
         });
@@ -1533,7 +1530,7 @@ function gradeClass(string $grade): string {
                 responsive: true,
                 maintainAspectRatio: true,
                 scales: {
-                    y: { beginAtZero: true, max: 100, title: { display: true, text: 'Score (%)' } },
+                    y: { beginAtZero: true, max: 100, title: { display: true, text: <?php echo json_encode(t('vendor-detailed-summary.axis_score_pct')); ?> } },
                     x: { ticks: { maxTicksToShow: 12, font: { size: 8 } } }
                 },
                 plugins: {
@@ -1614,7 +1611,7 @@ function gradeClass(string $grade): string {
                 responsive: true,
                 maintainAspectRatio: true,
                 scales: {
-                    x: { beginAtZero: true, max: 100, title: { display: true, text: 'Score' } }
+                    x: { beginAtZero: true, max: 100, title: { display: true, text: <?php echo json_encode(t('vendor-detailed-summary.axis_score')); ?> } }
                 },
                 plugins: {
                     legend: { position: 'top', labels: { font: { size: 9 } } }
@@ -1637,7 +1634,7 @@ function generateAiAnalysis() {
 
     if (btn) {
         btn.disabled = true;
-        btn.textContent = 'Generating...';
+        btn.textContent = <?php echo json_encode(t('vendor-detailed-summary.generating')); ?>;
     }
     // Show section with spinner
     if (section) section.style.display = 'block';
@@ -1666,7 +1663,7 @@ function generateAiAnalysis() {
         if (data.error) {
             if (spinner) spinner.classList.remove('active');
             if (section) section.style.display = 'none';
-            alert('Analysis failed:' + data.error);
+            alert(<?php echo json_encode(t('vendor-detailed-summary.js_analysis_failed')); ?> + data.error);
             if (btn) { btn.disabled = false; btn.innerHTML = origText; }
             return;
         }
@@ -1699,7 +1696,7 @@ function generateAiAnalysis() {
                         clearInterval(pollInterval);
                         if (spinner) spinner.classList.remove('active');
                         if (section) section.style.display = 'none';
-                        alert('Analysis failed:' + (poll.error || 'Processing failed. Please try again.'));
+                        alert(<?php echo json_encode(t('vendor-detailed-summary.js_analysis_failed')); ?> + (poll.error || <?php echo json_encode(t('vendor-detailed-summary.js_processing_failed')); ?>));
                         if (btn) { btn.disabled = false; btn.innerHTML = origText; }
                     }
                 })
@@ -1708,7 +1705,7 @@ function generateAiAnalysis() {
                     console.error('AI poll error:', err);
                     if (spinner) spinner.classList.remove('active');
                     if (section) section.style.display = 'none';
-                    alert('Failed to check analysis status.');
+                    alert(<?php echo json_encode(t('vendor-detailed-summary.js_status_check_failed')); ?>);
                     if (btn) { btn.disabled = false; btn.innerHTML = origText; }
                 });
             }, 3000);
@@ -1718,7 +1715,7 @@ function generateAiAnalysis() {
         console.error('AI generation error:', err);
         if (spinner) spinner.classList.remove('active');
         if (section) section.style.display = 'none';
-        alert('Analysis request failed:' + err.message);
+        alert(<?php echo json_encode(t('vendor-detailed-summary.js_analysis_request_failed')); ?> + err.message);
         if (btn) { btn.disabled = false; btn.innerHTML = origText; }
     });
 }

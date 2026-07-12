@@ -177,7 +177,7 @@ if (isset($_GET['success'])) {
             break;
         case 'mass_deleted':
             $delCount = intval($_GET['count'] ?? 0);
-            $success = $delCount . ' draft request(s) have been permanently deleted.';
+            $success = $delCount . t('vendor-onboarding-list.success_mass_deleted_suffix');
             break;
         case 'evaluation':
             $success = t('vendor-onboarding-list.success_evaluation');
@@ -268,9 +268,9 @@ $showProcurementSelect = $canApprove && ($statusFilter === 'review');
 // Human-friendly onboarding status labels (ai_review must render as "AI Review",
 // not the ucfirst default "Ai review").
 $statusLabels = [
-    'draft' => 'Draft', 'submitted' => 'Submitted', 'in_review' => 'In Review',
-    'ai_review' => 'AI Review', 'evaluation' => 'Evaluation', 'approved' => 'Approved',
-    'rejected' => 'Rejected', 'inactive' => 'Inactive',
+    'draft' => t('vendor-onboarding-list.status_draft'), 'submitted' => t('vendor-onboarding-list.status_submitted'), 'in_review' => t('vendor-onboarding-list.status_in_review'),
+    'ai_review' => t('vendor-onboarding-list.status_ai_review'), 'evaluation' => t('vendor-onboarding-list.status_evaluation'), 'approved' => t('vendor-onboarding-list.status_approved'),
+    'rejected' => t('vendor-onboarding-list.status_rejected'), 'inactive' => t('vendor-onboarding-list.status_inactive'),
 ];
 
 if (!empty($searchQuery)) {
@@ -363,7 +363,7 @@ $totalCount = array_sum($statusCounts);
 // ============================================================================
 function calculateAnnualReviewStatus($vendor) {
     if ($vendor['status'] !== 'approved') {
-        return ['label' => 'N/A', 'class' => 'na', 'days' => null];
+        return ['label' => t('vendor-onboarding-list.na'), 'class' => 'na', 'days' => null];
     }
 
     // Figure out the due date -- stored > last review + 365 > approval + 365
@@ -380,7 +380,7 @@ function calculateAnnualReviewStatus($vendor) {
     }
 
     if (!$dueDate) {
-        return ['label' => 'N/A', 'class' => 'na', 'days' => null];
+        return ['label' => t('vendor-onboarding-list.na'), 'class' => 'na', 'days' => null];
     }
 
     $now = strtotime(date('Y-m-d'));
@@ -391,7 +391,7 @@ function calculateAnnualReviewStatus($vendor) {
         // Overdue -- red badge, clickable link to the review form
         $daysOverdue = abs($daysDiff);
         return [
-            'label' => $daysOverdue . 'd overdue',
+            'label' => $daysOverdue . t('vendor-onboarding-list.review_days_overdue_suffix'),
             'class' => 'overdue',
             'days' => $daysDiff,
             'link' => true
@@ -399,7 +399,7 @@ function calculateAnnualReviewStatus($vendor) {
     } elseif ($daysDiff <= 30) {
         // Due soon -- orange badge, also clickable
         return [
-            'label' => 'Due in ' . $daysDiff . 'd',
+            'label' => t('vendor-onboarding-list.review_due_in_prefix') . $daysDiff . t('vendor-onboarding-list.review_days_suffix'),
             'class' => 'due-soon',
             'days' => $daysDiff,
             'link' => true
@@ -407,7 +407,7 @@ function calculateAnnualReviewStatus($vendor) {
     } else {
         // All good -- green badge, no link needed
         return [
-            'label' => 'OK',
+            'label' => t('vendor-onboarding-list.review_ok'),
             'class' => 'ok',
             'days' => $daysDiff,
             'link' => false
@@ -1279,13 +1279,13 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                     $statusCounts['review'] = ($statusCounts['in_review'] ?? 0) + ($statusCounts['ai_review'] ?? 0);
                     // Only show status tabs that have records (or are currently selected)
                     $statuses = [
-                        'draft' => 'Draft',
-                        'submitted' => 'Submitted',
-                        'review' => 'Review',
-                        'evaluation' => 'Evaluation',
-                        'approved' => 'Approved',
-                        'rejected' => 'Rejected',
-                        'inactive' => 'Inactive'
+                        'draft' => t('vendor-onboarding-list.status_draft'),
+                        'submitted' => t('vendor-onboarding-list.status_submitted'),
+                        'review' => t('vendor-onboarding-list.status_review'),
+                        'evaluation' => t('vendor-onboarding-list.status_evaluation'),
+                        'approved' => t('vendor-onboarding-list.status_approved'),
+                        'rejected' => t('vendor-onboarding-list.status_rejected'),
+                        'inactive' => t('vendor-onboarding-list.status_inactive')
                     ];
                     foreach ($statuses as $key => $label):
                         $count = $statusCounts[$key] ?? 0;
@@ -1293,7 +1293,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                     ?>
                         <a href="vendor-onboarding-list.php?status=<?php echo $key; ?><?php echo !empty($searchQuery) ? '&search=' . urlencode($searchQuery) : ''; ?>"
                            class="status-tab <?php echo $statusFilter === $key ? 'active' : ''; ?>">
-                            <?php echo $label; ?> <span class="count"><?php echo $count; ?></span>
+                            <?php echo e($label); ?> <span class="count"><?php echo $count; ?></span>
                         </a>
                     <?php
                         endif;
@@ -1435,7 +1435,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
 
                     <?php
                     $msgKey = $_GET['msg'] ?? '';
-                    $msgs = ['reassigned' => 'Case reassigned successfully.', 'closed' => 'Case closed.', 'reopened' => 'Case reopened.'];
+                    $msgs = ['reassigned' => t('vendor-onboarding-list.case_reassigned_success'), 'closed' => t('vendor-onboarding-list.case_closed'), 'reopened' => t('vendor-onboarding-list.case_reopened')];
                     if (isset($msgs[$msgKey])):
                     ?>
                     <div style="padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; font-size: 13px;
@@ -1479,8 +1479,8 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                         <!-- Contract cards -->
                         <div style="display: flex; flex-direction: column; gap: 12px;">
                         <?php foreach ($expiringContractCases as $ec):
-                            $ecContractName = $ec['contract_name'] ?: 'Unnamed Contract';
-                            $ecContractType = $ec['contract_type'] ?? 'N/A';
+                            $ecContractName = $ec['contract_name'] ?: t('vendor-onboarding-list.unnamed_contract');
+                            $ecContractType = $ec['contract_type'] ?? t('vendor-onboarding-list.na');
                             $ecExpDate = $ec['contract_expiration_date'] ?? '';
                             $ecDaysUntil = (int)($ec['days_until_expiry'] ?? 0);
                             $ecIsExpired = $ecDaysUntil < 0;
@@ -1599,7 +1599,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                     <?php if ($hasDraftsOnPage): ?>
                                     <input type="checkbox" id="selectAllDrafts" title="<?php echo e(t('vendor-onboarding-list.select_all_drafts_title')); ?>" style="cursor: pointer;">
                                     <?php elseif ($hasReviewOnPage): ?>
-                                    <input type="checkbox" id="selectAllReview" title="Select all vendors" style="cursor: pointer;">
+                                    <input type="checkbox" id="selectAllReview" title="<?php echo e(t('vendor-onboarding-list.select_all_vendors_title')); ?>" style="cursor: pointer;">
                                     <?php endif; ?>
                                 </th>
                                 <?php endif; ?>
@@ -1632,8 +1632,8 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                             <?php echo e($req['vendor_name'] ?: t('vendor-onboarding-list.untitled_request')); ?>
                                         </a>
                                         <?php if (!empty($req['note_count'])): ?>
-                                        <button type="button" class="notes-pill" data-action="viewNotes" data-request-id="<?php echo (int)$req['id']; ?>" data-vendor="<?php echo e($req['vendor_name'] ?: t('vendor-onboarding-list.untitled_request')); ?>" title="View procurement status notes" style="margin-left:6px; display:inline-flex; align-items:center; gap:4px; padding:1px 8px; border-radius:20px; border:1px solid #c7d2fe; background:#eef2ff; color:#3730a3; font-size:11px; font-weight:600; cursor:pointer; vertical-align:middle;">
-                                            Status Notes <span style="background:#3730a3; color:#fff; border-radius:10px; padding:0 5px; font-size:10px;"><?php echo (int)$req['note_count']; ?></span>
+                                        <button type="button" class="notes-pill" data-action="viewNotes" data-request-id="<?php echo (int)$req['id']; ?>" data-vendor="<?php echo e($req['vendor_name'] ?: t('vendor-onboarding-list.untitled_request')); ?>" title="<?php echo e(t('vendor-onboarding-list.view_status_notes_title')); ?>" style="margin-left:6px; display:inline-flex; align-items:center; gap:4px; padding:1px 8px; border-radius:20px; border:1px solid #c7d2fe; background:#eef2ff; color:#3730a3; font-size:11px; font-weight:600; cursor:pointer; vertical-align:middle;">
+                                            <?php echo e(t('vendor-onboarding-list.status_notes')); ?> <span style="background:#3730a3; color:#fff; border-radius:10px; padding:0 5px; font-size:10px;"><?php echo (int)$req['note_count']; ?></span>
                                         </button>
                                         <?php endif; ?>
                                         <?php if (!empty($req['expected_procurement_date'])): ?>
@@ -1714,7 +1714,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                         <a href="vendor-onboarding.php?id=<?php echo $req['id']; ?>&edit=1"><?php echo e(t('vendor-onboarding-list.action_edit')); ?></a>
                                         <?php endif; ?>
                                         <?php if ($req['status'] === 'draft' && ($canDelete || $isOwner)): ?>
-                                        <form method="POST" style="display: inline;" data-confirm="Permanently delete this draft? This cannot be undone.">
+                                        <form method="POST" style="display: inline;" data-confirm="<?php echo e(t('vendor-onboarding-list.confirm_delete_draft')); ?>">
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                             <input type="hidden" name="request_id" value="<?php echo $req['id']; ?>">
                                             <input type="hidden" name="action" value="delete_draft">
@@ -1765,7 +1765,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                                         <?php endif; ?>
                                         <?php // Force Review -- sets last_annual_review_due to today ?>
                                         <?php if ($canApprove && $req['status'] === 'approved'): ?>
-                                        <form method="POST" style="display: inline;" data-confirm="Force this vendor to be due for annual review today?">
+                                        <form method="POST" style="display: inline;" data-confirm="<?php echo e(t('vendor-onboarding-list.confirm_force_review')); ?>">
                                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                             <input type="hidden" name="request_id" value="<?php echo $req['id']; ?>">
                                             <input type="hidden" name="action" value="force_review">
@@ -1806,11 +1806,11 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                 <!-- Procurement Update Action Bar (hidden until vendors are selected) -->
                 <div id="procUpdateBar" style="display: none; position: sticky; bottom: 0; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 12px 20px; margin-top: 15px; box-shadow: 0 -2px 8px rgba(0,0,0,0.1); z-index: 10; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                     <span style="font-size: 14px; color: #3730a3; font-weight: 500;">
-                        <span id="procSelectedCount">0</span> vendor(s) selected
+                        <span id="procSelectedCount">0</span><?php echo e(t('vendor-onboarding-list.vendors_selected_suffix')); ?>
                     </span>
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" id="procClearSelection" style="padding: 8px 16px; border: 1px solid #d1d5db; border-radius: 6px; background: white; color: #374151; font-size: 13px; cursor: pointer;">Clear selection</button>
-                        <button type="button" id="procProvideUpdateBtn" style="padding: 8px 16px; border: none; border-radius: 6px; background: #4f46e5; color: white; font-size: 13px; font-weight: 600; cursor: pointer;">Provide Procurement with Update</button>
+                        <button type="button" id="procClearSelection" style="padding: 8px 16px; border: 1px solid #d1d5db; border-radius: 6px; background: white; color: #374151; font-size: 13px; cursor: pointer;"><?php echo e(t('vendor-onboarding-list.clear_selection')); ?></button>
+                        <button type="button" id="procProvideUpdateBtn" style="padding: 8px 16px; border: none; border-radius: 6px; background: #4f46e5; color: white; font-size: 13px; font-weight: 600; cursor: pointer;"><?php echo e(t('vendor-onboarding-list.provide_procurement_update')); ?></button>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -1865,14 +1865,14 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
         <div id="notesViewModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
             <div style="background:#fff; border-radius:8px; width:90%; max-width:560px; max-height:90vh; overflow:auto; box-shadow:0 10px 40px rgba(0,0,0,0.2);">
                 <div style="padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
-                    <h3 style="margin:0; font-size:16px; color:#111827;">Status Notes &mdash; <span id="notesVendorName"></span></h3>
+                    <h3 style="margin:0; font-size:16px; color:#111827;"><?php echo e(t('vendor-onboarding-list.status_notes')); ?> &mdash; <span id="notesVendorName"></span></h3>
                     <button type="button" id="notesModalClose" style="background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:#6b7280;">&times;</button>
                 </div>
                 <div style="padding:20px;" id="notesModalBody">
-                    <p style="color:#6b7280; font-size:13px;">Loading...</p>
+                    <p style="color:#6b7280; font-size:13px;"><?php echo e(t('vendor-onboarding-list.loading')); ?></p>
                 </div>
                 <div style="padding:16px 20px; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end;">
-                    <button type="button" id="notesModalCancel" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; cursor:pointer;">Close</button>
+                    <button type="button" id="notesModalCancel" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; cursor:pointer;"><?php echo e(t('vendor-onboarding-list.close')); ?></button>
                 </div>
             </div>
         </div>
@@ -1882,28 +1882,28 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
         <div id="procUpdateModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
             <div style="background:#fff; border-radius:8px; width:90%; max-width:560px; max-height:90vh; overflow:auto; box-shadow:0 10px 40px rgba(0,0,0,0.2);">
                 <div style="padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
-                    <h3 style="margin:0; font-size:16px; color:#111827;">Provide Procurement with Update</h3>
+                    <h3 style="margin:0; font-size:16px; color:#111827;"><?php echo e(t('vendor-onboarding-list.provide_procurement_update')); ?></h3>
                     <button type="button" id="procModalClose" style="background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:#6b7280;">&times;</button>
                 </div>
                 <div style="padding:20px;">
-                    <p style="margin:0 0 12px; font-size:13px; color:#6b7280;"><span id="procModalCount">0</span> vendor(s) selected: <span id="procModalVendors" style="color:#374151;"></span></p>
-                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:6px;">Update</label>
-                    <textarea id="procUpdateText" rows="5" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:inherit; box-sizing:border-box;" placeholder="Type the update for procurement..."></textarea>
-                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin:14px 0 6px;">Change status (optional)</label>
+                    <p style="margin:0 0 12px; font-size:13px; color:#6b7280;"><span id="procModalCount">0</span><?php echo e(t('vendor-onboarding-list.vendors_selected_colon')); ?><span id="procModalVendors" style="color:#374151;"></span></p>
+                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:6px;"><?php echo e(t('vendor-onboarding-list.update_label')); ?></label>
+                    <textarea id="procUpdateText" rows="5" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:inherit; box-sizing:border-box;" placeholder="<?php echo e(t('vendor-onboarding-list.update_placeholder')); ?>"></textarea>
+                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin:14px 0 6px;"><?php echo e(t('vendor-onboarding-list.change_status_optional')); ?></label>
                     <select id="procNewStatus" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:14px;">
-                        <option value="">Keep current status</option>
-                        <option value="in_review">In Review</option>
-                        <option value="ai_review">AI Review</option>
-                        <option value="evaluation">Evaluation</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="inactive">Inactive</option>
+                        <option value=""><?php echo e(t('vendor-onboarding-list.keep_current_status')); ?></option>
+                        <option value="in_review"><?php echo e(t('vendor-onboarding-list.status_in_review')); ?></option>
+                        <option value="ai_review"><?php echo e(t('vendor-onboarding-list.status_ai_review')); ?></option>
+                        <option value="evaluation"><?php echo e(t('vendor-onboarding-list.status_evaluation')); ?></option>
+                        <option value="approved"><?php echo e(t('vendor-onboarding-list.status_approved')); ?></option>
+                        <option value="rejected"><?php echo e(t('vendor-onboarding-list.status_rejected')); ?></option>
+                        <option value="inactive"><?php echo e(t('vendor-onboarding-list.status_inactive')); ?></option>
                     </select>
                     <div id="procModalMsg" style="margin-top:14px; font-size:13px;"></div>
                 </div>
                 <div style="padding:16px 20px; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:8px;">
-                    <button type="button" id="procModalCancel" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; cursor:pointer;">Close</button>
-                    <button type="button" id="procModalSubmit" style="padding:8px 16px; border:none; border-radius:6px; background:#4f46e5; color:white; font-size:13px; font-weight:600; cursor:pointer;">Save Update</button>
+                    <button type="button" id="procModalCancel" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; cursor:pointer;"><?php echo e(t('vendor-onboarding-list.close')); ?></button>
+                    <button type="button" id="procModalSubmit" style="padding:8px 16px; border:none; border-radius:6px; background:#4f46e5; color:white; font-size:13px; font-weight:600; cursor:pointer;"><?php echo e(t('vendor-onboarding-list.save_update')); ?></button>
                 </div>
             </div>
         </div>
@@ -2007,7 +2007,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                 if (checked.length === 0) { e.preventDefault(); return; }
                 var ids = Array.prototype.map.call(checked, function(cb) { return cb.value; });
                 idsInput.value = ids.join(',');
-                if (!confirm('Permanently delete ' + checked.length + ' draft request(s)? This cannot be undone.')) {
+                if (!confirm(<?php echo json_encode(t('vendor-onboarding-list.js_mass_delete_confirm_prefix')); ?> + checked.length + <?php echo json_encode(t('vendor-onboarding-list.js_mass_delete_confirm_suffix')); ?>)) {
                     e.preventDefault();
                 }
             });
@@ -2040,15 +2040,15 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
             var rid = btn.getAttribute('data-request-id');
             document.getElementById('notesVendorName').textContent = btn.getAttribute('data-vendor') || '';
             var body = document.getElementById('notesModalBody');
-            body.innerHTML = '<p style="color:#6b7280;font-size:13px;">Loading...</p>';
+            body.innerHTML = '<p style="color:#6b7280;font-size:13px;">' + <?php echo json_encode(t('vendor-onboarding-list.loading')); ?> + '</p>';
             notesModal.style.display = 'flex';
             fetch('api/procurement-notes-list.php', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ csrf_token: csrf, request_id: rid })
             }).then(function(r) { return r.json(); }).then(function(resp) {
                 if (resp.csrf_token) csrf = resp.csrf_token;
-                if (!resp.success) { body.innerHTML = '<p style="color:#dc2626;font-size:13px;">' + escapeHtml(resp.error || 'Unable to load notes.') + '</p>'; return; }
-                if (!resp.notes || !resp.notes.length) { body.innerHTML = '<p style="color:#6b7280;font-size:13px;">No notes yet.</p>'; return; }
+                if (!resp.success) { body.innerHTML = '<p style="color:#dc2626;font-size:13px;">' + escapeHtml(resp.error || <?php echo json_encode(t('vendor-onboarding-list.unable_to_load_notes')); ?>) + '</p>'; return; }
+                if (!resp.notes || !resp.notes.length) { body.innerHTML = '<p style="color:#6b7280;font-size:13px;">' + <?php echo json_encode(t('vendor-onboarding-list.no_notes_yet')); ?> + '</p>'; return; }
                 var html = '';
                 resp.notes.forEach(function(n) {
                     html += '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;margin-bottom:10px;">'
@@ -2057,7 +2057,7 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
                         + '<div style="font-size:13px;color:#374151;white-space:pre-wrap;">' + escapeHtml(n.text) + '</div></div>';
                 });
                 body.innerHTML = html;
-            }).catch(function() { body.innerHTML = '<p style="color:#dc2626;font-size:13px;">Network error.</p>'; });
+            }).catch(function() { body.innerHTML = '<p style="color:#dc2626;font-size:13px;">' + <?php echo json_encode(t('vendor-onboarding-list.network_error')); ?> + '</p>'; });
         });
 
         // Provide Procurement with Update (cyber_tprm / admin; Review pill only)
@@ -2107,23 +2107,23 @@ function _ensureContractCase($db, int $documentId, $auth = null, $userId = 0): i
             if (pmSubmit) pmSubmit.addEventListener('click', function() {
                 var text = document.getElementById('procUpdateText').value.trim();
                 var msg = document.getElementById('procModalMsg');
-                if (!text) { msg.style.color = '#dc2626'; msg.textContent = 'Please enter an update.'; return; }
+                if (!text) { msg.style.color = '#dc2626'; msg.textContent = <?php echo json_encode(t('vendor-onboarding-list.please_enter_update')); ?>; return; }
                 var checked = document.querySelectorAll('.review-checkbox:checked');
                 var ids = Array.prototype.map.call(checked, function(cb) { return parseInt(cb.value, 10); });
-                if (!ids.length) { msg.style.color = '#dc2626'; msg.textContent = 'No vendors selected.'; return; }
+                if (!ids.length) { msg.style.color = '#dc2626'; msg.textContent = <?php echo json_encode(t('vendor-onboarding-list.no_vendors_selected')); ?>; return; }
                 pmSubmit.disabled = true;
-                msg.style.color = '#6b7280'; msg.textContent = 'Saving...';
+                msg.style.color = '#6b7280'; msg.textContent = <?php echo json_encode(t('vendor-onboarding-list.saving')); ?>;
                 fetch('api/procurement-update-save.php', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ csrf_token: csrf, vendor_ids: ids, update_text: text, new_status: document.getElementById('procNewStatus').value })
                 }).then(function(r) { return r.json(); }).then(function(resp) {
                     pmSubmit.disabled = false;
                     if (resp.csrf_token) csrf = resp.csrf_token;
-                    if (!resp.success) { msg.style.color = '#dc2626'; msg.textContent = resp.error || 'Failed to save.'; return; }
+                    if (!resp.success) { msg.style.color = '#dc2626'; msg.textContent = resp.error || <?php echo json_encode(t('vendor-onboarding-list.failed_to_save')); ?>; return; }
                     reloadOnClose = true;
                     msg.style.color = '#166534';
-                    msg.textContent = 'Saved update for ' + (resp.updated || ids.length) + ' vendor(s). Close to refresh.';
-                }).catch(function() { pmSubmit.disabled = false; msg.style.color = '#dc2626'; msg.textContent = 'Network error.'; });
+                    msg.textContent = <?php echo json_encode(t('vendor-onboarding-list.js_saved_update_prefix')); ?> + (resp.updated || ids.length) + <?php echo json_encode(t('vendor-onboarding-list.js_saved_update_suffix')); ?>;
+                }).catch(function() { pmSubmit.disabled = false; msg.style.color = '#dc2626'; msg.textContent = <?php echo json_encode(t('vendor-onboarding-list.network_error')); ?>; });
             });
         }
     })();

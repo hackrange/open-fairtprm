@@ -12,6 +12,23 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Full application internationalization (i18n).** Every user-facing string
+  across ~40 admin and vendor pages - including Shadow SaaS, Grip, the GRC suite
+  (dashboard, assessments, audits, frameworks, controls, crosswalk, risks,
+  FAIRScore, reports), SRS/Shodan-SRS, SAML, Lockdown, Scheduler, Users, Groups,
+  Workflows, Backup, Email, API Tokens, Field Reference, Assessment Templates,
+  vendor onboarding, fourth-party risk, vendor assessments, and the procurement
+  cyber-status pages - is now routed through the `t()` translation layer instead
+  of being hardcoded in English (~2,900 new catalog keys). Every key is
+  translated into all seven supported languages (Spanish, French, Italian,
+  Portuguese, Ukrainian, Hindi, and Simplified Chinese); any key without a
+  translation falls back to English, so no page can regress to a raw key.
+  Inline HTML, printf placeholders, and product/brand names are preserved
+  verbatim across all locales.
+- **AI "Auto-Fill from Certifications" documentation.** The in-app
+  documentation now covers filling assessment questionnaire answers from a
+  vendor's current certification documents when an AI provider is configured,
+  and the documentation's anchor navigation and language FAQ were corrected.
 - **License - Fair TPRM Community License 1.0.** The project now carries an
   explicit `LICENSE.md`. It is a source-available license: the software is free
   to use and to modify, including tailoring it to the needs of the person or

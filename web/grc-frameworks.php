@@ -28,7 +28,7 @@ $isAuditor = hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberGRC && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. GRC module requires cyber_grc, administrator, or auditor role.');
+    die(t('grc_frameworks.access_denied'));
 }
 
 $readOnly = $isAuditor && !$isAdmin && !$isCyberGRC;
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                 } else {
                     $result = $grc->deleteFramework($fwId);
                     if ($result['success']) {
-                        $msg = 'Framework "' . e($result['name']) . '" and all its requirements have been deleted.';
+                        $msg = t('grc_frameworks.msg_framework_deleted_prefix') . e($result['name']) . t('grc_frameworks.msg_framework_deleted_suffix');
                         $msgType = 'success';
                     } else {
                         $msg = e($result['error']);
@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
             if ($fwId > 0) {
                 $result = $grc->regenerateFramework($fwId);
                 if ($result['success']) {
-                    $msg = 'Framework regenerated with ' . (int)$result['count'] . ' requirements.';
+                    $msg = t('grc_frameworks.msg_regenerated_prefix') . (int)$result['count'] . t('grc_frameworks.msg_regenerated_suffix');
                     $msgType = 'success';
                 } else {
                     $msg = e($result['error']);
@@ -118,14 +118,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                             }
                         }
                         if ($updated > 0) {
-                            $msg = 'Seeded ' . $updated . ' description(s) from catalog data.';
+                            $msg = t('grc_frameworks.msg_seeded_prefix') . $updated . t('grc_frameworks.msg_seeded_suffix');
                             $msgType = 'success';
                         } else {
                             $msg = t('grc_frameworks.catalog_no_descriptions');
                             $msgType = 'warning';
                         }
                     } else {
-                        $msg = 'No catalog data found for framework code "' . e($catalogCode) . '".';
+                        $msg = t('grc_frameworks.msg_no_catalog_prefix') . e($catalogCode) . t('grc_frameworks.msg_no_catalog_suffix');
                         $msgType = 'danger';
                     }
                 }
@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
             if ($catalogCode !== '') {
                 $result = $grc->generateFromCatalog($catalogCode, $scopeId, $user['id']);
                 if ($result['success']) {
-                    $msg = 'Generated ' . (int)$result['count'] . ' requirements for framework. <a href="?framework_id=' . (int)$result['framework_id'] . '">View requirements</a>';
+                    $msg = t('grc_frameworks.msg_generated_prefix') . (int)$result['count'] . t('grc_frameworks.msg_generated_middle') . '<a href="?framework_id=' . (int)$result['framework_id'] . '">' . t('grc_frameworks.view_requirements') . '</a>';
                     $msgType = 'success';
                 } else {
                     $msg = e($result['error']);
@@ -571,14 +571,14 @@ $currentPage = 'grc_frameworks';
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="action" value="seed_descriptions">
                     <input type="hidden" name="framework_id" value="<?php echo (int)$selectedFrameworkId; ?>">
-                    <button type="submit" class="btn btn-sm btn-primary">Seed from Catalog (<?php echo $missingDescCount; ?> missing)</button>
+                    <button type="submit" class="btn btn-sm btn-primary"><?php echo e(t('grc_frameworks.seed_from_catalog')); ?> (<?php echo $missingDescCount; ?> <?php echo e(t('grc_frameworks.missing_suffix')); ?>)</button>
                 </form>
                 <?php endif; ?>
                 <?php if ($aiEnabled): ?>
                 <button type="button" class="btn btn-sm" id="btnGetDescriptions"
                     style="background:#f5f3ff;color:#6d28d9;border:1px solid #8b5cf6;"
                     data-framework-id="<?php echo (int)$selectedFrameworkId; ?>">
-                    Seed from Assistant (<?php echo $missingDescCount; ?> missing)
+                    <?php echo e(t('grc_frameworks.seed_from_assistant')); ?> (<?php echo $missingDescCount; ?> <?php echo e(t('grc_frameworks.missing_suffix')); ?>)
                 </button>
                 <span id="descProgress" style="font-size:12px;color:#6b7280;display:none;"></span>
                 <?php endif; ?>
@@ -621,7 +621,7 @@ $currentPage = 'grc_frameworks';
                     <tr class="req-indent-<?php echo $depth; ?>">
                         <td><?php echo e($r['requirement_ref']); ?></td>
                         <td id="title-<?php echo (int)$r['id']; ?>"><?php echo e($r['title']); ?></td>
-                        <td id="desc-<?php echo (int)$r['id']; ?>" style="font-size:12px;color:<?php echo $desc !== '' ? '#374151' : '#9ca3af'; ?>;"><?php echo $desc !== '' ? e($desc) : '<em>No description</em>'; ?></td>
+                        <td id="desc-<?php echo (int)$r['id']; ?>" style="font-size:12px;color:<?php echo $desc !== '' ? '#374151' : '#9ca3af'; ?>;"><?php echo $desc !== '' ? e($desc) : t('grc_frameworks.no_description'); ?></td>
                         <td>
                             <span class="badge-count <?php echo $controlCount > 0 ? 'has-controls' : ''; ?>">
                                 <?php echo $controlCount; ?>
@@ -779,7 +779,7 @@ $currentPage = 'grc_frameworks';
             <?php if (empty($yearFrameworks)): ?>
             <div style="text-align:center;padding:60px 20px;color:#6b7280;">
                 <div style="font-size:48px;opacity:0.3;margin-bottom:12px;">&#9744;</div>
-                <p style="font-size:15px;margin:0;">No frameworks for <?php echo (int)$filterYear; ?>.</p>
+                <p style="font-size:15px;margin:0;"><?php echo e(t('grc_frameworks.no_frameworks_for')); ?> <?php echo (int)$filterYear; ?>.</p>
                 <p style="font-size:13px;margin:6px 0 0;opacity:0.7;"><?php echo e(t('grc_frameworks.template_autopopulated')); ?></p>
             </div>
             <?php else: ?>
@@ -989,9 +989,9 @@ $currentPage = 'grc_frameworks';
             var fwId = btn.getAttribute('data-framework-id');
 
             btn.disabled = true;
-            btn.textContent = 'Generating descriptions...';
+            btn.textContent = <?php echo json_encode(t('grc_frameworks.js_generating_descriptions')); ?>;
             progressEl.style.display = 'inline';
-            progressEl.textContent = 'This may take a minute. Please wait...';
+            progressEl.textContent = <?php echo json_encode(t('grc_frameworks.js_may_take_a_minute')); ?>;
 
             fetch('api/grc-unified-assessment.php', {
                 method: 'POST',
@@ -1004,8 +1004,8 @@ $currentPage = 'grc_frameworks';
             })
             .then(function(r) {
                 if (!r.ok) {
-                    if (r.status === 429) throw new Error('Rate limit exceeded. Please wait a minute and try again.');
-                    throw new Error('Server returned HTTP ' + r.status + '. Please try again.');
+                    if (r.status === 429) throw new Error(<?php echo json_encode(t('grc_frameworks.js_rate_limit')); ?>);
+                    throw new Error(<?php echo json_encode(t('grc_frameworks.js_server_error_prefix')); ?> + r.status + <?php echo json_encode(t('grc_frameworks.js_server_error_suffix')); ?>);
                 }
                 return r.json();
             })
@@ -1013,7 +1013,7 @@ $currentPage = 'grc_frameworks';
                 if (resp.csrf_token) _csrfToken = resp.csrf_token;
                 if (resp.success) {
                     var count = resp.generated || 0;
-                    btn.textContent = 'Done (' + count + ' generated)';
+                    btn.textContent = <?php echo json_encode(t('grc_frameworks.js_done_prefix')); ?> + count + <?php echo json_encode(t('grc_frameworks.js_generated_suffix')); ?>;
                     progressEl.style.display = 'none';
                     if (resp.results && resp.results.length > 0) {
                         resp.results.forEach(function(item) {
@@ -1030,19 +1030,19 @@ $currentPage = 'grc_frameworks';
                     }
                     if (resp.total_missing > count) {
                         progressEl.style.display = 'inline';
-                        progressEl.textContent = (resp.total_missing - count) + ' remaining. Click again to continue.';
+                        progressEl.textContent = (resp.total_missing - count) + <?php echo json_encode(t('grc_frameworks.js_remaining_suffix')); ?>;
                         btn.disabled = false;
-                        btn.textContent = 'Seed from Assistant (' + (resp.total_missing - count) + ' remaining)';
+                        btn.textContent = <?php echo json_encode(t('grc_frameworks.seed_from_assistant')); ?> + ' (' + (resp.total_missing - count) + ' ' + <?php echo json_encode(t('grc_frameworks.js_remaining_word')); ?> + ')';
                     }
                 } else {
                     btn.disabled = false;
-                    btn.textContent = 'Seed from Assistant';
-                    progressEl.textContent = resp.error || 'Unknown error';
+                    btn.textContent = <?php echo json_encode(t('grc_frameworks.seed_from_assistant')); ?>;
+                    progressEl.textContent = resp.error || <?php echo json_encode(t('grc_frameworks.js_unknown_error')); ?>;
                 }
             })
             .catch(function(err) {
                 btn.disabled = false;
-                btn.textContent = 'Seed from Assistant';
+                btn.textContent = <?php echo json_encode(t('grc_frameworks.seed_from_assistant')); ?>;
                 progressEl.textContent = err.message;
             });
         });

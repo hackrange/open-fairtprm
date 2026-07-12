@@ -34,24 +34,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['waf_action'])) {
     } else {
         $wafToggle = new LockdownService($db);
         if (!$wafToggle->isModSecurityAvailable()) {
-            $error = 'ModSecurity is not available. Cannot change WAF state.';
+            $error = t('admin_email.modsecurity_unavailable');
         } elseif ($_POST['waf_action'] === 'disable_waf') {
             if ($wafToggle->setMode('disabled')) {
-                $success = 'WAF disabled. You can edit and save templates now — remember to re-enable it when you are finished.';
+                $success = t('admin_email.waf_disabled_success');
                 $auth->audit($user['id'], 'waf_mode_change', 'app_config', null, [
                     'new' => ['mode' => 'disabled', 'via' => 'email_templates'],
                 ]);
             } else {
-                $error = 'Failed to disable the WAF. Check Apache/ModSecurity configuration.';
+                $error = t('admin_email.waf_disable_failed');
             }
         } elseif ($_POST['waf_action'] === 'enable_waf') {
             if ($wafToggle->setMode('enforcing')) {
-                $success = 'WAF re-enabled (enforcing). Your site is protected again.';
+                $success = t('admin_email.waf_enabled_success');
                 $auth->audit($user['id'], 'waf_mode_change', 'app_config', null, [
                     'new' => ['mode' => 'enforcing', 'via' => 'email_templates'],
                 ]);
             } else {
-                $error = 'Failed to re-enable the WAF. Check Apache/ModSecurity configuration.';
+                $error = t('admin_email.waf_enable_failed');
             }
         }
     }
@@ -223,7 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_breach_alert_set
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_procurement_digest_settings'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_email.invalid_request');
     } else {
         $digestEnabled = ($_POST['procurement_digest_enabled'] ?? '0') === '1' ? '1' : '0';
         $digestRecipients = trim($_POST['procurement_digest_recipients'] ?? '');
@@ -231,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_procurement_dige
         $db->query("INSERT INTO app_config (config_key, config_value, description) VALUES ('procurement_digest_enabled', :v, 'Enable/disable the procurement update digest email') ON DUPLICATE KEY UPDATE config_value = :v2", [':v' => $digestEnabled, ':v2' => $digestEnabled]);
         $db->query("INSERT INTO app_config (config_key, config_value, description) VALUES ('procurement_digest_recipients', :v, 'Comma-separated email addresses for the procurement update digest') ON DUPLICATE KEY UPDATE config_value = :v2", [':v' => $digestRecipients, ':v2' => $digestRecipients]);
 
-        $success = 'Procurement digest settings saved.';
+        $success = t('admin_email.digest_settings_saved');
     }
 }
 
@@ -240,7 +240,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_procurement_dige
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_procurement_digest_now'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_email.invalid_request');
     } else {
         // Canonical "vendors in review with their latest update" query.
         $digestVendors = $db->fetchAll(
@@ -253,17 +253,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_procurement_dige
         );
 
         if (empty($digestVendors)) {
-            $error = 'No vendors in review with updates to send.';
+            $error = t('admin_email.no_vendors_in_review');
         } else {
             $digestRecipientStr = getAppConfig('procurement_digest_recipients', '');
             $digestRecipients = array_filter(array_map('trim', explode(',', $digestRecipientStr)));
 
             if (empty($digestRecipients)) {
-                $error = 'No procurement digest recipients are configured.';
+                $error = t('admin_email.no_digest_recipients');
             } else {
                 $emailService = new EmailService($db, new Encryption());
                 if (!$emailService->isEnabled()) {
-                    $error = 'Email is disabled. Enable it under Email Settings first.';
+                    $error = t('admin_email.email_disabled_settings');
                 } else {
                     $sentCount = 0;
                     foreach ($digestRecipients as $digestEmail) {
@@ -277,9 +277,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_procurement_dige
                     $db->query("INSERT INTO app_config (config_key, config_value, description) VALUES ('procurement_digest_last_run', :v, 'Last time the procurement update digest ran') ON DUPLICATE KEY UPDATE config_value = :v2", [':v' => date('Y-m-d H:i:s'), ':v2' => date('Y-m-d H:i:s')]);
 
                     if ($sentCount > 0) {
-                        $success = 'Procurement digest sent to ' . $sentCount . ' recipient(s).';
+                        $success = t('admin_email.digest_sent_prefix') . $sentCount . t('admin_email.digest_sent_suffix');
                     } else {
-                        $error = 'Procurement digest could not be sent to any recipient.';
+                        $error = t('admin_email.digest_send_failed');
                     }
                 }
             }
@@ -576,17 +576,14 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
     <div class="card" style="border-left: 4px solid #f59e0b; background: #fffbeb; margin-bottom: 16px;">
         <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between;">
             <div style="flex: 1; min-width: 260px;">
-                <strong style="color: #92400e;">Having trouble saving this template?</strong>
+                <strong style="color: #92400e;"><?php echo e(t('admin_email.waf_notice_title')); ?></strong>
                 <p style="margin: 6px 0 0; color: #78350f; font-size: 13px; line-height: 1.5;">
-                    If saving is blocked with a <em>403 / access denied</em> error, the Web Application
-                    Firewall (WAF) may be flagging template content such as
-                    <code style="background: #fde68a; padding: 1px 4px; border-radius: 3px;">{{placeholders}}</code>
-                    or HTML markup. Disable the WAF here, make your changes, then re-enable it once you are done.
+                    <?php echo t('admin_email.waf_notice_body'); ?>
                 </p>
                 <div style="margin-top: 8px; font-size: 12px; color: #78350f;">
-                    Current WAF status:
+                    <?php echo e(t('admin_email.waf_current_status')); ?>
                     <span style="font-weight: 600; padding: 1px 8px; border-radius: 10px; color: #fff; background: <?php echo $wafActive ? '#16a34a' : '#dc2626'; ?>;">
-                        <?php echo $wafActive ? 'Enabled (' . e($wafModeNow) . ')' : 'Disabled'; ?>
+                        <?php echo $wafActive ? e(t('admin_email.status_enabled')) . ' (' . e($wafModeNow) . ')' : e(t('admin_email.status_disabled')); ?>
                     </span>
                 </div>
             </div>
@@ -595,9 +592,9 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="email_tab" value="<?php echo e($tabKey); ?>">
                     <input type="hidden" name="waf_action" value="disable_waf">
-                    <button type="submit" class="btn btn-sm" data-confirm="Disable the WAF now? Remember to re-enable it after saving your template."
+                    <button type="submit" class="btn btn-sm" data-confirm="<?php echo e(t('admin_email.confirm_disable_waf')); ?>"
                         style="background: #dc2626; color: #fff; padding: 8px 14px; white-space: nowrap; <?php echo $wafActive ? '' : 'opacity: 0.5; cursor: not-allowed;'; ?>"
-                        <?php echo $wafActive ? '' : 'disabled'; ?>>Disable WAF</button>
+                        <?php echo $wafActive ? '' : 'disabled'; ?>><?php echo e(t('admin_email.btn_disable_waf')); ?></button>
                 </form>
                 <form method="POST" action="admin.php?section=email" style="display: inline; margin: 0;">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -605,7 +602,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
                     <input type="hidden" name="waf_action" value="enable_waf">
                     <button type="submit" class="btn btn-sm"
                         style="background: #16a34a; color: #fff; padding: 8px 14px; white-space: nowrap; <?php echo $wafActive ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>"
-                        <?php echo $wafActive ? 'disabled' : ''; ?>>Enable WAF</button>
+                        <?php echo $wafActive ? 'disabled' : ''; ?>><?php echo e(t('admin_email.btn_enable_waf')); ?></button>
                 </form>
             </div>
         </div>
@@ -721,8 +718,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
                 <label for="smtp_password"><?php echo e(t('admin_email.label_smtp_password')); ?></label>
                 <input type="password" id="smtp_password" name="smtp_password" class="form-control" placeholder="<?php echo e(t('admin_email.placeholder_keep_password')); ?>">
                 <div class="form-help">
-                    Password or app-specific password (stored encrypted)<br>
-                    <small><strong>Mailgun:</strong> Use the Default Password from Mailgun Dashboard &rarr; Sending &rarr; Domain Settings &rarr; SMTP Credentials</small>
+                    <?php echo t('admin_email.smtp_password_help'); ?>
                 </div>
             </div>
 
@@ -761,7 +757,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
 
             <div class="form-group">
                 <label for="email_ms_client_secret"><?php echo e(t('admin_email.label_client_secret')); ?></label>
-                <input type="password" id="email_ms_client_secret" name="email_ms_client_secret" class="form-control" placeholder="<?php echo !empty($emailConfig['email_ms_client_secret']) ? 'Leave blank to keep existing secret' : 'Enter client secret'; ?>">
+                <input type="password" id="email_ms_client_secret" name="email_ms_client_secret" class="form-control" placeholder="<?php echo !empty($emailConfig['email_ms_client_secret']) ? e(t('admin_email.placeholder_keep_secret')) : e(t('admin_email.placeholder_enter_secret')); ?>">
                 <div class="form-help"><?php echo e(t('admin_email.help_client_secret')); ?></div>
             </div>
 
@@ -774,12 +770,12 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
             <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 15px; margin: 15px 0;">
                 <strong style="color: #1e40af;"><?php echo e(t('admin_email.azure_setup_heading')); ?></strong>
                 <ol style="margin: 8px 0 0; color: #1e3a5f; font-size: 13px; padding-left: 20px; line-height: 1.8;">
-                    <li>Go to <strong>Azure Portal</strong> &rarr; <strong>App Registrations</strong> &rarr; <strong>New Registration</strong></li>
-                    <li>Name it (e.g., "FairTPRM Email") and register</li>
-                    <li>Copy the <strong>Application (client) ID</strong> and <strong>Directory (tenant) ID</strong></li>
-                    <li>Go to <strong>Certificates &amp; Secrets</strong> &rarr; <strong>New Client Secret</strong> &rarr; copy the <strong>Value</strong></li>
-                    <li>Go to <strong>API Permissions</strong> &rarr; <strong>Add a permission</strong> &rarr; <strong>Microsoft Graph</strong> &rarr; <strong>Application permissions</strong></li>
-                    <li>Add <code>Mail.Send</code> permission and click <strong>Grant admin consent</strong></li>
+                    <li><?php echo t('admin_email.azure_step_1'); ?></li>
+                    <li><?php echo t('admin_email.azure_step_2'); ?></li>
+                    <li><?php echo t('admin_email.azure_step_3'); ?></li>
+                    <li><?php echo t('admin_email.azure_step_4'); ?></li>
+                    <li><?php echo t('admin_email.azure_step_5'); ?></li>
+                    <li><?php echo t('admin_email.azure_step_6'); ?></li>
                 </ol>
             </div>
         </div><!-- end graph_settings_section -->
@@ -808,17 +804,13 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
     <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-bottom: 10px;">
         <strong style="color: #92400e;"><?php echo e(t('admin_email.mailgun_notes_heading')); ?></strong>
         <p style="margin: 8px 0 0; color: #78350f; font-size: 13px;">
-            1. <strong>Domain Verification:</strong> Verify your sending domain in Mailgun first<br>
-            2. <strong>From Address:</strong> Must use a verified domain (e.g., noreply@mg.yourdomain.com or noreply@yourdomain.com)<br>
-            3. <strong>Sandbox Mode:</strong> If using a sandbox domain, you can only send to authorized recipients<br>
-            4. <strong>API Alternative:</strong> Mailgun also supports HTTP API if you prefer (requires custom integration)
+            <?php echo t('admin_email.mailgun_notes_body'); ?>
         </p>
     </div>
     <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 15px;">
         <strong style="color: #1e40af;"><?php echo e(t('admin_email.ms365_notes_heading')); ?></strong>
         <p style="margin: 8px 0 0; color: #1e3a5f; font-size: 13px;">
-            <strong>Graph API (Recommended):</strong> Select "Microsoft 365 (Graph API)" delivery method above. Uses OAuth2 client credentials -- no SMTP passwords, no basic auth. Microsoft is deprecating SMTP basic auth.<br>
-            <strong>SMTP (Legacy):</strong> Still available via the SMTP method with smtp.office365.com, but requires an account with SMTP AUTH enabled.
+            <?php echo t('admin_email.ms365_notes_body'); ?>
         </p>
     </div>
 </div>
@@ -832,7 +824,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
 <div class="card">
     <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.vendor_templates_heading')); ?></h3>
     <p style="color: #666; font-size: 13px; margin: 0 0 20px;">
-        Templates for emails sent to vendors when requesting security assessments. Use <code>{{placeholder}}</code> syntax for dynamic values.
+        <?php echo t('admin_email.vendor_templates_desc'); ?>
     </p>
 
     <?php if (empty($emailTemplates['vendor'])): ?>
@@ -879,7 +871,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
                     <div class="form-group">
                         <label><?php echo e(t('admin_email.label_html_body')); ?></label>
                         <div style="margin-bottom: 6px;">
-                            <button type="button" class="btn btn-sm btn-secondary email-editor-toggle" data-target="htmlEditor_v_<?php echo $tplId; ?>" data-source="htmlSource_v_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px;">Switch to Source Code</button>
+                            <button type="button" class="btn btn-sm btn-secondary email-editor-toggle" data-target="htmlEditor_v_<?php echo $tplId; ?>" data-source="htmlSource_v_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px;"><?php echo e(t('admin_email.btn_switch_source')); ?></button>
                             <button type="button" class="btn btn-sm btn-secondary email-preview-btn" data-source="htmlSource_v_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px; margin-left: 4px;"><?php echo e(t('admin_email.btn_preview')); ?></button>
                         </div>
                         <div id="htmlEditor_v_<?php echo $tplId; ?>">
@@ -925,7 +917,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
 <div class="card">
     <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.stakeholder_templates_heading')); ?></h3>
     <p style="color: #666; font-size: 13px; margin: 0 0 20px;">
-        Templates for annual review reminder emails sent to stakeholders. These are triggered automatically based on vendor review due dates.
+        <?php echo e(t('admin_email.stakeholder_templates_desc')); ?>
     </p>
 
     <?php if (empty($emailTemplates['stakeholder'])): ?>
@@ -967,7 +959,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
                     <div class="form-group">
                         <label><?php echo e(t('admin_email.label_html_body')); ?></label>
                         <div style="margin-bottom: 6px;">
-                            <button type="button" class="btn btn-sm btn-secondary email-editor-toggle" data-target="htmlEditor_s_<?php echo $tplId; ?>" data-source="htmlSource_s_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px;">Switch to Source Code</button>
+                            <button type="button" class="btn btn-sm btn-secondary email-editor-toggle" data-target="htmlEditor_s_<?php echo $tplId; ?>" data-source="htmlSource_s_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px;"><?php echo e(t('admin_email.btn_switch_source')); ?></button>
                             <button type="button" class="btn btn-sm btn-secondary email-preview-btn" data-source="htmlSource_s_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px; margin-left: 4px;"><?php echo e(t('admin_email.btn_preview')); ?></button>
                         </div>
                         <div id="htmlEditor_s_<?php echo $tplId; ?>">
@@ -1073,9 +1065,9 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
 
 <!-- Procurement Update Digest Card -->
 <div class="card" style="margin-bottom: 20px;">
-    <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;">Procurement Update Digest</h3>
+    <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.digest_heading')); ?></h3>
     <p style="color: #666; font-size: 13px; margin: 0 0 20px;">
-        Emails a digest of vendors currently in review (In Review + AI Review) with their latest procurement update. Runs on the schedule configured in Admin &gt; Scheduler.
+        <?php echo t('admin_email.digest_desc'); ?>
     </p>
 
     <?php
@@ -1088,29 +1080,29 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
 
         <div class="form-group">
-            <label>Enable Procurement Digest</label>
+            <label><?php echo e(t('admin_email.label_enable_digest')); ?></label>
             <select name="procurement_digest_enabled" class="form-control" style="max-width:200px;">
-                <option value="1" <?php echo $digestEnabled === '1' ? 'selected' : ''; ?>>Enabled</option>
-                <option value="0" <?php echo $digestEnabled !== '1' ? 'selected' : ''; ?>>Disabled</option>
+                <option value="1" <?php echo $digestEnabled === '1' ? 'selected' : ''; ?>><?php echo e(t('admin_email.opt_enabled')); ?></option>
+                <option value="0" <?php echo $digestEnabled !== '1' ? 'selected' : ''; ?>><?php echo e(t('admin_email.opt_disabled')); ?></option>
             </select>
-            <div class="form-help">When enabled, the scheduled digest email is sent to the recipients below.</div>
+            <div class="form-help"><?php echo e(t('admin_email.help_enable_digest')); ?></div>
         </div>
 
         <div class="form-group">
-            <label>Digest Recipients</label>
+            <label><?php echo e(t('admin_email.label_digest_recipients')); ?></label>
             <textarea name="procurement_digest_recipients" class="form-control" rows="4" placeholder="procurement@example.com, ciso@example.com" style="font-family: monospace; font-size: 13px;"><?php echo e($digestRecipients); ?></textarea>
-            <div class="form-help">Comma-separated list of email addresses to receive the digest.</div>
+            <div class="form-help"><?php echo e(t('admin_email.help_digest_recipients')); ?></div>
         </div>
 
         <?php if ($digestLastRun): ?>
         <div style="background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px; font-size: 13px;">
-            <strong style="color: #3730a3;">Last Run:</strong> <span style="color: #4338ca;"><?php echo e($digestLastRun); ?></span>
+            <strong style="color: #3730a3;"><?php echo e(t('admin_email.last_run_label')); ?></strong> <span style="color: #4338ca;"><?php echo e($digestLastRun); ?></span>
         </div>
         <?php endif; ?>
 
         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <button type="submit" name="save_procurement_digest_settings" class="btn btn-primary">Save Settings</button>
-            <button type="submit" name="send_procurement_digest_now" class="btn btn-secondary">Send digest now</button>
+            <button type="submit" name="save_procurement_digest_settings" class="btn btn-primary"><?php echo e(t('admin_email.btn_save_settings_generic')); ?></button>
+            <button type="submit" name="send_procurement_digest_now" class="btn btn-secondary"><?php echo e(t('admin_email.btn_send_digest_now')); ?></button>
         </div>
     </form>
 </div>
@@ -1119,7 +1111,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
 <div class="card">
     <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.procurement_templates_heading')); ?></h3>
     <p style="color: #666; font-size: 13px; margin: 0 0 20px;">
-        Templates for contract expiry notifications and case assignments. Use <code>{{placeholder}}</code> syntax for dynamic values.
+        <?php echo t('admin_email.procurement_templates_desc'); ?>
     </p>
 
     <?php if (empty($emailTemplates['procurement'])): ?>
@@ -1161,7 +1153,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
                     <div class="form-group">
                         <label><?php echo e(t('admin_email.label_html_body')); ?></label>
                         <div style="margin-bottom: 6px;">
-                            <button type="button" class="btn btn-sm btn-secondary email-editor-toggle" data-target="htmlEditor_p_<?php echo $tplId; ?>" data-source="htmlSource_p_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px;">Switch to Source Code</button>
+                            <button type="button" class="btn btn-sm btn-secondary email-editor-toggle" data-target="htmlEditor_p_<?php echo $tplId; ?>" data-source="htmlSource_p_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px;"><?php echo e(t('admin_email.btn_switch_source')); ?></button>
                             <button type="button" class="btn btn-sm btn-secondary email-preview-btn" data-source="htmlSource_p_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px; margin-left: 4px;"><?php echo e(t('admin_email.btn_preview')); ?></button>
                         </div>
                         <div id="htmlEditor_p_<?php echo $tplId; ?>">
@@ -1209,7 +1201,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
 <div class="card">
     <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.grc_templates_heading')); ?></h3>
     <p style="color: #666; font-size: 13px; margin: 0 0 20px;">
-        Templates for GRC task digests and compliance notifications. Use <code>{{placeholder}}</code> syntax for dynamic values.
+        <?php echo t('admin_email.grc_templates_desc'); ?>
     </p>
 
     <?php if (empty($emailTemplates['grc'])): ?>
@@ -1251,7 +1243,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
                     <div class="form-group">
                         <label><?php echo e(t('admin_email.label_html_body')); ?></label>
                         <div style="margin-bottom: 6px;">
-                            <button type="button" class="btn btn-sm btn-secondary email-editor-toggle" data-target="htmlEditor_g_<?php echo $tplId; ?>" data-source="htmlSource_g_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px;">Switch to Source Code</button>
+                            <button type="button" class="btn btn-sm btn-secondary email-editor-toggle" data-target="htmlEditor_g_<?php echo $tplId; ?>" data-source="htmlSource_g_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px;"><?php echo e(t('admin_email.btn_switch_source')); ?></button>
                             <button type="button" class="btn btn-sm btn-secondary email-preview-btn" data-source="htmlSource_g_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px; margin-left: 4px;"><?php echo e(t('admin_email.btn_preview')); ?></button>
                         </div>
                         <div id="htmlEditor_g_<?php echo $tplId; ?>">
@@ -1328,7 +1320,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
 
         <?php if ($breachLastRun): ?>
         <div style="background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px; font-size: 13px;">
-            <strong style="color: #3730a3;">Last Scan:</strong> <span style="color: #4338ca;"><?php echo e($breachLastRun); ?></span>
+            <strong style="color: #3730a3;"><?php echo e(t('admin_email.last_scan_label')); ?></strong> <span style="color: #4338ca;"><?php echo e($breachLastRun); ?></span>
         </div>
         <?php endif; ?>
 
@@ -1340,7 +1332,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
 <div class="card">
     <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.breach_template_heading')); ?></h3>
     <p style="color: #666; font-size: 13px; margin: 0 0 20px;">
-        Customize the email template used for breach/cyber alert notifications. Use <code>{{placeholder}}</code> syntax for dynamic values.
+        <?php echo t('admin_email.breach_template_desc'); ?>
     </p>
 
     <?php if (empty($emailTemplates['breach_alert'])): ?>
@@ -1382,7 +1374,7 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
                     <div class="form-group">
                         <label><?php echo e(t('admin_email.label_html_body')); ?></label>
                         <div style="margin-bottom: 6px;">
-                            <button type="button" class="btn btn-sm btn-secondary email-editor-toggle" data-target="htmlEditor_ba_<?php echo $tplId; ?>" data-source="htmlSource_ba_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px;">Switch to Source Code</button>
+                            <button type="button" class="btn btn-sm btn-secondary email-editor-toggle" data-target="htmlEditor_ba_<?php echo $tplId; ?>" data-source="htmlSource_ba_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px;"><?php echo e(t('admin_email.btn_switch_source')); ?></button>
                             <button type="button" class="btn btn-sm btn-secondary email-preview-btn" data-source="htmlSource_ba_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px; margin-left: 4px;"><?php echo e(t('admin_email.btn_preview')); ?></button>
                         </div>
                         <div id="htmlEditor_ba_<?php echo $tplId; ?>">
@@ -1560,7 +1552,7 @@ document.addEventListener('click', function(e) {
                 ta.style.lineHeight = '1.4';
                 ta.rows = 14;
             }
-            toggleBtn.textContent = 'Switch to Visual Editor';
+            toggleBtn.textContent = <?php echo json_encode(t('admin_email.btn_switch_visual')); ?>;
         } else {
             // Switch to WYSIWYG
             var ta = document.getElementById(sourceId);
@@ -1570,7 +1562,7 @@ document.addEventListener('click', function(e) {
                 ta.style.lineHeight = '';
             }
             initTinyMCE(sourceId);
-            toggleBtn.textContent = 'Switch to Source Code';
+            toggleBtn.textContent = <?php echo json_encode(t('admin_email.btn_switch_source')); ?>;
         }
     }
 
@@ -1667,38 +1659,38 @@ function fillProviderSettings(provider) {
             host: 'smtp.mailgun.org',
             port: '587',
             encryption: 'tls',
-            info: 'Get your SMTP credentials from Mailgun Dashboard &rarr; Sending &rarr; Domain Settings &rarr; SMTP Credentials'
+            info: <?php echo json_encode(t('admin_email.provider_info_mailgun')); ?>
         },
         'office365': {
             host: 'smtp.office365.com',
             port: '587',
             encryption: 'tls',
-            info: 'SMTP mode selected. For OAuth2 (recommended), switch to "Microsoft 365 (Graph API)" delivery method above.',
+            info: <?php echo json_encode(t('admin_email.provider_info_office365')); ?>,
             suggestGraph: true
         },
         'gmail': {
             host: 'smtp.gmail.com',
             port: '587',
             encryption: 'tls',
-            info: 'Use your Gmail address and an App Password (not your regular password). Generate at: https://myaccount.google.com/apppasswords'
+            info: <?php echo json_encode(t('admin_email.provider_info_gmail')); ?>
         },
         'sendgrid': {
             host: 'smtp.sendgrid.net',
             port: '587',
             encryption: 'tls',
-            info: 'Username is "apikey" and password is your SendGrid API key'
+            info: <?php echo json_encode(t('admin_email.provider_info_sendgrid')); ?>
         },
         'amazon_ses': {
             host: 'email-smtp.us-east-1.amazonaws.com',
             port: '587',
             encryption: 'tls',
-            info: 'Use your SMTP username and password from AWS SES console. Adjust region in hostname if needed.'
+            info: <?php echo json_encode(t('admin_email.provider_info_amazon_ses')); ?>
         },
         'custom': {
             host: '',
             port: '25',
             encryption: 'none',
-            info: 'Configure your custom SMTP server settings manually'
+            info: <?php echo json_encode(t('admin_email.provider_info_custom')); ?>
         }
     };
 
@@ -1717,7 +1709,7 @@ function fillProviderSettings(provider) {
         if (preset.suggestGraph) {
             var graphRadio = document.querySelector('input[name="email_method"][value="microsoft_graph"]');
             if (graphRadio && !graphRadio.checked) {
-                if (confirm('Microsoft recommends using the Graph API instead of SMTP basic auth. Switch to Microsoft 365 (Graph API) delivery method?')) {
+                if (confirm(<?php echo json_encode(t('admin_email.confirm_switch_graph')); ?>)) {
                     graphRadio.checked = true;
                     toggleEmailMethod();
                 }

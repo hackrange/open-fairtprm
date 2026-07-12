@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // so these checks must be made explicitly here.
     $callerIsSuperAdmin = (bool)$session->get('is_super_admin');
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_users.err_invalid_request');
     } elseif (isset($_POST['create_user'])) {
         try {
             $username = trim($_POST['username'] ?? '');
@@ -46,15 +46,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $isSuperAdmin = (isset($_POST['is_super_admin']) && $callerIsSuperAdmin) ? 1 : 0;
 
             if (empty($username) || empty($fullName) || empty($email) || empty($password)) {
-                $error = 'All fields are required';
+                $error = t('admin_users.err_all_fields_required');
             } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $error = 'Invalid email address';
+                $error = t('admin_users.err_invalid_email');
             } elseif (strlen($password) < 8) {
-                $error = 'Password must be at least 8 characters';
+                $error = t('admin_users.err_password_min_length');
             } else {
                 $existing = $db->fetchOne('SELECT id FROM users WHERE username = :username', [':username' => $username]);
                 if ($existing) {
-                    $error = 'Username already exists';
+                    $error = t('admin_users.err_username_exists');
                 } else {
                     $newUserId = $db->insert('users', [
                         'username' => $username,
@@ -83,12 +83,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $auth->audit($user['id'], 'user_create', 'users', $newUserId, [
                         'new' => ['username' => $username, 'email' => $email, 'full_name' => $fullName, 'is_admin' => $isAdmin, 'is_super_admin' => $isSuperAdmin]
                     ]);
-                    $success = 'User created successfully';
+                    $success = t('admin_users.user_created');
                 }
             }
         } catch (Exception $e) {
             error_log('Error creating user: ' . $e->getMessage());
-            $error = 'Failed to create user. Check the error log for details.';
+            $error = t('admin_users.err_create_failed');
         }
     } elseif (isset($_POST['update_user'])) {
         try {
@@ -100,14 +100,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newPassword = $_POST['new_password'] ?? '';
 
             if (empty($fullName) || empty($email)) {
-                $error = 'Full name and email are required';
+                $error = t('admin_users.err_name_email_required');
             } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $error = 'Invalid email address';
+                $error = t('admin_users.err_invalid_email');
             } elseif (!empty($newPassword) && strlen($newPassword) < 8) {
-                $error = 'Password must be at least 8 characters';
+                $error = t('admin_users.err_password_min_length');
             } elseif (!$callerIsSuperAdmin && ($__t = $db->fetchOne('SELECT is_super_admin FROM users WHERE id = ?', [$userId])) && !empty($__t['is_super_admin'])) {
                 // SECURITY: only super administrators may modify a super-admin account.
-                $error = 'Only super administrators can modify a super administrator account.';
+                $error = t('admin_users.err_only_super_modify');
             } else {
                 $oldUser = $db->fetchOne('SELECT full_name, email, is_admin, is_super_admin FROM users WHERE id = ?', [$userId]);
                 // SECURITY: non-super-admins cannot grant or revoke admin / super-admin
@@ -151,11 +151,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $acl->removeUserFromGroup($userId, $cyberGroup['id']);
                 }
 
-                $success = 'User updated successfully' . (!empty($newPassword) ? ' (password reset)' : '');
+                $success = t('admin_users.user_updated') . (!empty($newPassword) ? t('admin_users.password_reset_suffix') : '');
             }
         } catch (Exception $e) {
             error_log('Error updating user: ' . $e->getMessage());
-            $error = 'Failed to update user';
+            $error = t('admin_users.err_update_failed');
         }
     } elseif (isset($_POST['sync_user_groups'])) {
         // Batch group sync: receives desired group IDs and computes the diff server-side.
@@ -184,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Cannot touch a super-admin's groups at all.
                     $toAdd = [];
                     $toRemove = [];
-                    $error = 'Only super administrators can modify a super administrator\'s groups.';
+                    $error = t('admin_users.err_only_super_modify_groups');
                 } else {
                     // Cannot grant the administrator group (privilege escalation).
                     $adminGroup = $acl->getGroupByName('administrator');
@@ -211,11 +211,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (empty($error)) {
                 $changes = count($toAdd) + count($toRemove);
-                $success = $changes > 0 ? 'User groups updated successfully' : 'No group changes needed';
+                $success = $changes > 0 ? t('admin_users.user_groups_updated') : t('admin_users.no_group_changes');
             }
         } catch (Exception $e) {
             error_log('Error syncing user groups: ' . $e->getMessage());
-            $error = 'Failed to update user groups';
+            $error = t('admin_users.err_update_groups_failed');
         }
     } elseif (isset($_POST['impersonate_user'])) {
         try {
@@ -229,7 +229,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } catch (Exception $e) {
             error_log('Error impersonating user: ' . $e->getMessage());
-            $error = 'Failed to impersonate user';
+            $error = t('admin_users.err_impersonate_failed');
         }
     } elseif (isset($_POST['stop_impersonation'])) {
         try {
@@ -241,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } catch (Exception $e) {
             error_log('Error stopping impersonation: ' . $e->getMessage());
-            $error = 'Failed to stop impersonation';
+            $error = t('admin_users.err_stop_impersonation_failed');
         }
     } elseif (isset($_POST['toggle_user_active'])) {
         try {
@@ -249,16 +249,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $currentUserId = $auth->getUserId();
 
             if ($toggleUserId <= 0) {
-                $error = 'Invalid user ID';
+                $error = t('admin_users.err_invalid_user_id');
             } elseif ($toggleUserId == $currentUserId) {
-                $error = 'You cannot deactivate your own account';
+                $error = t('admin_users.err_cannot_deactivate_self');
             } else {
                 $targetUser = $db->fetchOne('SELECT id, username, full_name, is_active, is_super_admin FROM users WHERE id = :id', [':id' => $toggleUserId]);
                 if (!$targetUser) {
-                    $error = 'User not found';
+                    $error = t('admin_users.err_user_not_found');
                 } elseif (!$callerIsSuperAdmin && !empty($targetUser['is_super_admin'])) {
                     // SECURITY: only super administrators may activate/deactivate a super-admin.
-                    $error = 'Only super administrators can change a super administrator account.';
+                    $error = t('admin_users.err_only_super_change');
                 } else {
                     $newActive = $targetUser['is_active'] ? 0 : 1;
                     $db->update('users', ['is_active' => $newActive], 'id = :id', [':id' => $toggleUserId]);
@@ -271,7 +271,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } catch (Exception $e) {
             error_log('Error toggling user active status: ' . $e->getMessage());
-            $error = 'Failed to update user status';
+            $error = t('admin_users.err_update_status_failed');
         }
     } elseif (isset($_POST['delete_user'])) {
         try {
@@ -280,18 +280,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $currentUserId = $auth->getUserId();
 
             if ($deleteUserId <= 0) {
-                $error = 'Invalid user ID';
+                $error = t('admin_users.err_invalid_user_id');
             } elseif ($deleteUserId == $currentUserId) {
-                $error = 'You cannot delete your own account';
+                $error = t('admin_users.err_cannot_delete_self');
             } else {
                 // Get user info for confirmation message
                 $userToDelete = $db->fetchOne('SELECT username, full_name, is_super_admin FROM users WHERE id = :id', [':id' => $deleteUserId]);
 
                 if (!$userToDelete) {
-                    $error = 'User not found';
+                    $error = t('admin_users.err_user_not_found');
                 } elseif (!$callerIsSuperAdmin && !empty($userToDelete['is_super_admin'])) {
                     // SECURITY: only super administrators may delete a super-admin.
-                    $error = 'Only super administrators can delete a super administrator account.';
+                    $error = t('admin_users.err_only_super_delete');
                 } else {
                     $db->beginTransaction();
 
@@ -345,7 +345,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $db->rollback();
             error_log('Error deleting user: ' . $e->getMessage());
-            $error = 'Failed to delete user. Check the error log for details.';
+            $error = t('admin_users.err_delete_failed');
         }
     }
 }
@@ -364,13 +364,13 @@ $userGroupAssignments = $acl->getAllUserGroups();
 // ============================================================================
 ?>
 <div class="page-header-bar">
-    <h1 class="page-title">User Management</h1>
-    <p>Create and manage user accounts.</p>
+    <h1 class="page-title"><?php echo e(t('admin_users.page_title')); ?></h1>
+    <p><?php echo e(t('admin_users.page_subtitle')); ?></p>
 </div>
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
         <div style="position: relative; flex: 1; min-width: 250px; max-width: 400px;">
-            <input type="text" id="userSearchInput" placeholder="Search users by name, email, or username..."
+            <input type="text" id="userSearchInput" placeholder="<?php echo e(t('admin_users.search_placeholder')); ?>"
                    class="focus-ring"
                    style="width: 100%; padding: 10px 70px 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: all 0.2s;"
                    autocomplete="off">
@@ -378,19 +378,19 @@ $userGroupAssignments = $acl->getAllUserGroups();
             <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #000; font-size: 18px; opacity: 0.1; pointer-events: none; filter: grayscale(100%);">🔍</span>
         </div>
         <div style="display: flex; gap: 10px;">
-            <a href="admin-users-import.php" class="btn" style="background: #6c757d; color: white;">Import Users</a>
-            <button class="btn btn-primary" data-action="openCreateUserModal">+ Create User</button>
+            <a href="admin-users-import.php" class="btn" style="background: #6c757d; color: white;"><?php echo e(t('admin_users.import_users')); ?></a>
+            <button class="btn btn-primary" data-action="openCreateUserModal">+ <?php echo e(t('admin_users.create_user_btn')); ?></button>
         </div>
     </div>
     <div style="margin-bottom: 15px;">
-        <span style="font-size: 13px; color: #666; margin-right: 10px;">Filter:</span>
-        <span class="group-filter-tag" data-group="__superadmin__" data-action="filterByGroup" data-arg="__superadmin__" style="display: inline-block; padding: 4px 12px; margin: 2px 4px 2px 0; background: #9333ea; color: white; border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.2s;">Super Admin</span>
+        <span style="font-size: 13px; color: #666; margin-right: 10px;"><?php echo e(t('admin_users.filter_label')); ?></span>
+        <span class="group-filter-tag" data-group="__superadmin__" data-action="filterByGroup" data-arg="__superadmin__" style="display: inline-block; padding: 4px 12px; margin: 2px 4px 2px 0; background: #9333ea; color: white; border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.2s;"><?php echo e(t('admin_users.super_admin')); ?></span>
         <?php foreach ($allGroups as $group): ?>
         <span class="group-filter-tag" data-group="<?php echo e($group['group_name']); ?>" data-action="filterByGroup" data-arg="<?php echo e($group['group_name']); ?>" style="display: inline-block; padding: 4px 12px; margin: 2px 4px 2px 0; background: #e5e7eb; color: #374151; border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.2s;"><?php echo e($group['display_name'] ?: $group['group_name']); ?></span>
         <?php endforeach; ?>
         <span style="margin-left: 10px; border-left: 1px solid #ddd; padding-left: 10px;"></span>
-        <span class="group-filter-tag" data-group="__active__" data-action="filterByGroup" data-arg="__active__" style="display: inline-block; padding: 4px 12px; margin: 2px 4px 2px 0; background: #10b981; color: white; border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.2s;">Active</span>
-        <span class="group-filter-tag" data-group="__inactive__" data-action="filterByGroup" data-arg="__inactive__" style="display: inline-block; padding: 4px 12px; margin: 2px 4px 2px 0; background: #ef4444; color: white; border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.2s;">Inactive</span>
+        <span class="group-filter-tag" data-group="__active__" data-action="filterByGroup" data-arg="__active__" style="display: inline-block; padding: 4px 12px; margin: 2px 4px 2px 0; background: #10b981; color: white; border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.2s;"><?php echo e(t('admin_users.active')); ?></span>
+        <span class="group-filter-tag" data-group="__inactive__" data-action="filterByGroup" data-arg="__inactive__" style="display: inline-block; padding: 4px 12px; margin: 2px 4px 2px 0; background: #ef4444; color: white; border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.2s;"><?php echo e(t('admin_users.inactive')); ?></span>
         <style>
             .group-filter-tag:hover { opacity: 0.8; }
             .group-filter-tag.active { box-shadow: 0 0 0 3px rgba(0,0,0,0.2); }
@@ -398,11 +398,11 @@ $userGroupAssignments = $acl->getAllUserGroups();
     </div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
         <div id="userSearchResults" style="color: #666; font-size: 13px;">
-            Showing <span id="userShowingRange">1-<?php echo min(25, count($allUsers)); ?></span> of <span id="userTotalCount"><?php echo count($allUsers); ?></span> users
+            <?php echo e(t('admin_users.showing_word')); ?> <span id="userShowingRange">1-<?php echo min(25, count($allUsers)); ?></span> <?php echo e(t('admin_users.of_word')); ?> <span id="userTotalCount"><?php echo count($allUsers); ?></span> <?php echo e(t('admin_users.users_word')); ?>
         </div>
         <div style="display: flex; align-items: center; gap: 15px;">
             <div style="display: flex; align-items: center; gap: 8px;">
-                <label for="perPageSelect" style="font-size: 13px; color: #666;">Show:</label>
+                <label for="perPageSelect" style="font-size: 13px; color: #666;"><?php echo e(t('admin_users.show_label')); ?></label>
                 <select id="perPageSelect" data-action="changePerPage" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
                     <option value="25" selected>25</option>
                     <option value="50">50</option>
@@ -410,24 +410,24 @@ $userGroupAssignments = $acl->getAllUserGroups();
                 </select>
             </div>
             <div id="paginationControls" style="display: flex; align-items: center; gap: 5px;">
-                <button data-action="goToPage" data-arg="first" id="pageFirst" class="btn btn-sm" style="padding: 4px 8px; background: #f3f4f6; border: 1px solid #ddd;" title="First page">«</button>
-                <button data-action="goToPage" data-arg="prev" id="pagePrev" class="btn btn-sm" style="padding: 4px 8px; background: #f3f4f6; border: 1px solid #ddd;" title="Previous page">‹</button>
-                <span id="pageInfo" style="font-size: 13px; color: #666; padding: 0 10px;">Page 1 of 1</span>
-                <button data-action="goToPage" data-arg="next" id="pageNext" class="btn btn-sm" style="padding: 4px 8px; background: #f3f4f6; border: 1px solid #ddd;" title="Next page">›</button>
-                <button data-action="goToPage" data-arg="last" id="pageLast" class="btn btn-sm" style="padding: 4px 8px; background: #f3f4f6; border: 1px solid #ddd;" title="Last page">»</button>
+                <button data-action="goToPage" data-arg="first" id="pageFirst" class="btn btn-sm" style="padding: 4px 8px; background: #f3f4f6; border: 1px solid #ddd;" title="<?php echo e(t('admin_users.first_page')); ?>">«</button>
+                <button data-action="goToPage" data-arg="prev" id="pagePrev" class="btn btn-sm" style="padding: 4px 8px; background: #f3f4f6; border: 1px solid #ddd;" title="<?php echo e(t('admin_users.previous_page')); ?>">‹</button>
+                <span id="pageInfo" style="font-size: 13px; color: #666; padding: 0 10px;"><?php echo e(t('admin_users.page_word')); ?> 1 <?php echo e(t('admin_users.of_word')); ?> 1</span>
+                <button data-action="goToPage" data-arg="next" id="pageNext" class="btn btn-sm" style="padding: 4px 8px; background: #f3f4f6; border: 1px solid #ddd;" title="<?php echo e(t('admin_users.next_page')); ?>">›</button>
+                <button data-action="goToPage" data-arg="last" id="pageLast" class="btn btn-sm" style="padding: 4px 8px; background: #f3f4f6; border: 1px solid #ddd;" title="<?php echo e(t('admin_users.last_page')); ?>">»</button>
             </div>
         </div>
     </div>
     <table id="usersTable">
         <thead>
             <tr>
-                <th>Username</th>
-                <th>Full Name</th>
-                <th>Email</th>
-                <th>Groups</th>
-                <th>Status</th>
-                <th>Last Login</th>
-                <th>Actions</th>
+                <th><?php echo e(t('admin_users.th_username')); ?></th>
+                <th><?php echo e(t('admin_users.th_full_name')); ?></th>
+                <th><?php echo e(t('admin_users.th_email')); ?></th>
+                <th><?php echo e(t('admin_users.groups')); ?></th>
+                <th><?php echo e(t('admin_users.th_status')); ?></th>
+                <th><?php echo e(t('admin_users.th_last_login')); ?></th>
+                <th><?php echo e(t('admin_users.th_actions')); ?></th>
             </tr>
         </thead>
         <tbody id="usersTableBody">
@@ -438,7 +438,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
                 <td><?php echo e($u['email']); ?></td>
                 <td>
                     <?php if ($u['is_super_admin']): ?>
-                        <span class="badge badge-purple">Super Admin</span>
+                        <span class="badge badge-purple"><?php echo e(t('admin_users.super_admin')); ?></span>
                     <?php endif; ?>
                     <?php
                     $groups = $userGroupAssignments[$u['id']] ?? [];
@@ -446,26 +446,26 @@ $userGroupAssignments = $acl->getAllUserGroups();
                         echo '<span class="badge badge-blue">' . e($groupName) . '</span> ';
                     }
                     if (empty($groups) && !$u['is_super_admin']) {
-                        echo '<span style="color: #999;">None</span>';
+                        echo '<span style="color: #999;">' . e(t('admin_users.none')) . '</span>';
                     }
                     ?>
                 </td>
                 <td>
-                    <?php echo $u['is_active'] ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'; ?>
+                    <?php echo $u['is_active'] ? '<span class="badge badge-success">' . e(t('admin_users.active')) . '</span>' : '<span class="badge badge-danger">' . e(t('admin_users.inactive')) . '</span>'; ?>
                     <?php if ($u['totp_enabled']): ?>
-                        <span class="badge badge-success">2FA</span>
+                        <span class="badge badge-success"><?php echo e(t('admin_users.two_factor')); ?></span>
                     <?php endif; ?>
                 </td>
                 <td>
                     <?php if ($u['last_login']): ?>
                         <?php echo date('M j, Y g:i A', strtotime($u['last_login'])); ?>
                     <?php else: ?>
-                        <span style="color: #999;">Never</span>
+                        <span style="color: #999;"><?php echo e(t('admin_users.never')); ?></span>
                     <?php endif; ?>
                 </td>
                 <td style="white-space: nowrap;">
-                    <button class="btn btn-primary btn-sm" data-action="openEditModal" data-args="[<?php echo (int)$u['id']; ?>, <?php echo e(json_encode($u['full_name'])); ?>, <?php echo e(json_encode($u['email'])); ?>, <?php echo $u['is_admin'] ? 'true' : 'false'; ?>, <?php echo $u['is_super_admin'] ? 'true' : 'false'; ?>]">Edit</button>
-                    <button class="btn btn-sm" style="background: #3b82f6; color: white;" data-action="openAssignGroupsModal" data-args="[<?php echo $u['id']; ?>, <?php echo e(json_encode($u['full_name'])); ?>, <?php echo e(json_encode($userGroupAssignments[$u['id']] ?? [])); ?>]">Groups</button>
+                    <button class="btn btn-primary btn-sm" data-action="openEditModal" data-args="[<?php echo (int)$u['id']; ?>, <?php echo e(json_encode($u['full_name'])); ?>, <?php echo e(json_encode($u['email'])); ?>, <?php echo $u['is_admin'] ? 'true' : 'false'; ?>, <?php echo $u['is_super_admin'] ? 'true' : 'false'; ?>]"><?php echo e(t('admin_users.edit_btn')); ?></button>
+                    <button class="btn btn-sm" style="background: #3b82f6; color: white;" data-action="openAssignGroupsModal" data-args="[<?php echo $u['id']; ?>, <?php echo e(json_encode($u['full_name'])); ?>, <?php echo e(json_encode($userGroupAssignments[$u['id']] ?? [])); ?>]"><?php echo e(t('admin_users.groups')); ?></button>
                     <?php
                     // Show impersonate button if:
                     // - Not impersonating currently
@@ -478,19 +478,19 @@ $userGroupAssignments = $acl->getAllUserGroups();
                         && ($session->get('is_super_admin') || !$u['is_super_admin']);
                     if ($canImpersonate):
                     ?>
-                    <button class="btn btn-sm" style="background: #f59e0b; color: white;" data-action="confirmImpersonate" data-args="[<?php echo (int)$u['id']; ?>, <?php echo htmlspecialchars(json_encode($u['full_name']), ENT_QUOTES, 'UTF-8'); ?>]">Impersonate</button>
+                    <button class="btn btn-sm" style="background: #f59e0b; color: white;" data-action="confirmImpersonate" data-args="[<?php echo (int)$u['id']; ?>, <?php echo htmlspecialchars(json_encode($u['full_name']), ENT_QUOTES, 'UTF-8'); ?>]"><?php echo e(t('admin_users.impersonate_btn')); ?></button>
                     <?php endif; ?>
                     <?php if ($u['id'] != $user['id']): ?>
                     <form method="POST" action="admin.php?section=users" style="display: inline;" onsubmit="return confirm('<?php echo $u['is_active'] ? 'Deactivate' : 'Activate'; ?> user <?php echo e($u['full_name']); ?>?');">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="toggle_user_id" value="<?php echo (int)$u['id']; ?>">
                         <?php if ($u['is_active']): ?>
-                            <button type="submit" name="toggle_user_active" class="btn btn-sm" style="background: #ef4444; color: white;">Deactivate</button>
+                            <button type="submit" name="toggle_user_active" class="btn btn-sm" style="background: #ef4444; color: white;"><?php echo e(t('admin_users.deactivate_btn')); ?></button>
                         <?php else: ?>
-                            <button type="submit" name="toggle_user_active" class="btn btn-sm" style="background: #10b981; color: white;">Activate</button>
+                            <button type="submit" name="toggle_user_active" class="btn btn-sm" style="background: #10b981; color: white;"><?php echo e(t('admin_users.activate_btn')); ?></button>
                         <?php endif; ?>
                     </form>
-                    <button class="btn btn-sm" style="background: #dc2626; color: white;" data-action="confirmDeleteUser" data-args="[<?php echo (int)$u['id']; ?>, <?php echo htmlspecialchars(json_encode($u['full_name']), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($u['username']), ENT_QUOTES, 'UTF-8'); ?>]">Delete</button>
+                    <button class="btn btn-sm" style="background: #dc2626; color: white;" data-action="confirmDeleteUser" data-args="[<?php echo (int)$u['id']; ?>, <?php echo htmlspecialchars(json_encode($u['full_name']), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($u['username']), ENT_QUOTES, 'UTF-8'); ?>]"><?php echo e(t('admin_users.delete_btn')); ?></button>
                     <?php endif; ?>
                 </td>
             </tr>
@@ -503,35 +503,35 @@ $userGroupAssignments = $acl->getAllUserGroups();
 <div id="createUserModal" class="modal">
     <div class="modal-content">
         <span class="close" data-action="closeCreateUserModal">&times;</span>
-        <h3 style="margin-top: 0; color: var(--theme-header-color);">Create New User</h3>
+        <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo e(t('admin_users.create_user_heading')); ?></h3>
         <form method="POST" action="admin.php?section=users" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <div class="form-group">
-                <label for="create_username">Username *</label>
+                <label for="create_username"><?php echo e(t('admin_users.label_username_req')); ?></label>
                 <input type="text" id="create_username" name="username" class="form-control" required>
             </div>
             <div class="form-group">
-                <label for="create_full_name">Full Name *</label>
+                <label for="create_full_name"><?php echo e(t('admin_users.label_full_name_req')); ?></label>
                 <input type="text" id="create_full_name" name="full_name" class="form-control" required>
             </div>
             <div class="form-group">
-                <label for="create_email">Email Address *</label>
+                <label for="create_email"><?php echo e(t('admin_users.label_email_req')); ?></label>
                 <input type="email" id="create_email" name="email" class="form-control" required>
             </div>
             <div class="form-group">
-                <label for="create_password">Password *</label>
+                <label for="create_password"><?php echo e(t('admin_users.label_password_req')); ?></label>
                 <input type="password" id="create_password" name="password" class="form-control" required minlength="8">
-                <div class="form-help">Minimum 8 characters</div>
+                <div class="form-help"><?php echo e(t('admin_users.help_password_min')); ?></div>
             </div>
             <div class="form-group">
-                <label class="checkbox-label"><input type="checkbox" name="is_admin" value="1"><span>Administrator</span></label>
+                <label class="checkbox-label"><input type="checkbox" name="is_admin" value="1"><span><?php echo e(t('admin_users.administrator')); ?></span></label>
             </div>
             <div class="form-group">
-                <label class="checkbox-label"><input type="checkbox" name="is_super_admin" value="1"><span>Super Administrator</span></label>
+                <label class="checkbox-label"><input type="checkbox" name="is_super_admin" value="1"><span><?php echo e(t('admin_users.super_administrator')); ?></span></label>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button type="submit" name="create_user" class="btn btn-primary">Create User</button>
-                <button type="button" class="btn btn-secondary" data-action="closeCreateUserModal">Cancel</button>
+                <button type="submit" name="create_user" class="btn btn-primary"><?php echo e(t('admin_users.create_user_btn')); ?></button>
+                <button type="button" class="btn btn-secondary" data-action="closeCreateUserModal"><?php echo e(t('admin_users.cancel_btn')); ?></button>
             </div>
         </form>
     </div>
@@ -541,32 +541,32 @@ $userGroupAssignments = $acl->getAllUserGroups();
 <div id="editUserModal" class="modal">
     <div class="modal-content">
         <span class="close" data-action="closeEditModal">&times;</span>
-        <h3 style="margin-top: 0; color: var(--theme-header-color);">Edit User</h3>
+        <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo e(t('admin_users.edit_user_heading')); ?></h3>
         <form method="POST" action="admin.php?section=users" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <input type="hidden" id="edit_user_id" name="user_id" value="">
             <div class="form-group">
-                <label for="edit_full_name">Full Name</label>
+                <label for="edit_full_name"><?php echo e(t('admin_users.label_full_name')); ?></label>
                 <input type="text" id="edit_full_name" name="full_name" class="form-control" required>
             </div>
             <div class="form-group">
-                <label for="edit_email">Email Address</label>
+                <label for="edit_email"><?php echo e(t('admin_users.label_email')); ?></label>
                 <input type="email" id="edit_email" name="email" class="form-control" required>
             </div>
             <div class="form-group">
-                <label for="edit_new_password">New Password (Optional)</label>
+                <label for="edit_new_password"><?php echo e(t('admin_users.label_new_password')); ?></label>
                 <input type="password" id="edit_new_password" name="new_password" class="form-control" minlength="8">
-                <div class="form-help">Leave blank to keep current password</div>
+                <div class="form-help"><?php echo e(t('admin_users.help_leave_blank')); ?></div>
             </div>
             <div class="form-group">
-                <label class="checkbox-label"><input type="checkbox" id="edit_is_admin" name="is_admin" value="1"><span>Administrator</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="edit_is_admin" name="is_admin" value="1"><span><?php echo e(t('admin_users.administrator')); ?></span></label>
             </div>
             <div class="form-group">
-                <label class="checkbox-label"><input type="checkbox" id="edit_is_super_admin" name="is_super_admin" value="1"><span>Super Administrator</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="edit_is_super_admin" name="is_super_admin" value="1"><span><?php echo e(t('admin_users.super_administrator')); ?></span></label>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button type="submit" name="update_user" class="btn btn-primary">Save Changes</button>
-                <button type="button" class="btn btn-secondary" data-action="closeEditModal">Cancel</button>
+                <button type="submit" name="update_user" class="btn btn-primary"><?php echo e(t('admin_users.save_changes_btn')); ?></button>
+                <button type="button" class="btn btn-secondary" data-action="closeEditModal"><?php echo e(t('admin_users.cancel_btn')); ?></button>
             </div>
         </form>
     </div>
@@ -576,7 +576,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
 <div id="assignGroupsModal" class="modal">
     <div class="modal-content">
         <span class="close" data-action="closeAssignGroupsModal">&times;</span>
-        <h3 style="margin-top: 0; color: var(--theme-header-color);">Assign ACL Groups</h3>
+        <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo e(t('admin_users.assign_groups_heading')); ?></h3>
         <p id="assign_groups_username" style="color: #666; margin-bottom: 15px;"></p>
         <form id="assignGroupsForm">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -595,8 +595,8 @@ $userGroupAssignments = $acl->getAllUserGroups();
                 <?php endforeach; ?>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button type="button" class="btn btn-primary" data-action="saveGroupAssignments">Save Assignments</button>
-                <button type="button" class="btn btn-secondary" data-action="closeAssignGroupsModal">Cancel</button>
+                <button type="button" class="btn btn-primary" data-action="saveGroupAssignments"><?php echo e(t('admin_users.save_assignments_btn')); ?></button>
+                <button type="button" class="btn btn-secondary" data-action="closeAssignGroupsModal"><?php echo e(t('admin_users.cancel_btn')); ?></button>
             </div>
         </form>
     </div>
@@ -606,7 +606,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
 <div id="deleteUserModal" class="modal">
     <div class="modal-content" style="max-width: 550px;">
         <span class="close" data-action="closeDeleteUserModal">&times;</span>
-        <h3 style="margin-top: 0; color: #dc2626;">Delete User</h3>
+        <h3 style="margin-top: 0; color: #dc2626;"><?php echo e(t('admin_users.delete_user')); ?></h3>
         <p id="delete_user_info" style="color: #666; margin-bottom: 15px;"></p>
 
         <div id="delete_user_vendors_section" style="display: none; margin-bottom: 20px;">
@@ -614,29 +614,29 @@ $userGroupAssignments = $acl->getAllUserGroups();
                 <div style="display: flex; align-items: start; gap: 10px;">
                     <span style="font-size: 20px;">⚠️</span>
                     <div>
-                        <strong style="color: #92400e;">This user has associated vendors</strong>
+                        <strong style="color: #92400e;"><?php echo e(t('admin_users.has_vendors_title')); ?></strong>
                         <p style="margin: 5px 0 0; font-size: 13px; color: #78350f;">
-                            Please select a user to reassign the vendors to, or they will be orphaned.
+                            <?php echo e(t('admin_users.reassign_prompt')); ?>
                         </p>
                     </div>
                 </div>
             </div>
 
             <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 15px; margin-bottom: 15px;">
-                <h4 style="margin: 0 0 10px; font-size: 14px; color: #333;">Vendors Created By This User:</h4>
+                <h4 style="margin: 0 0 10px; font-size: 14px; color: #333;"><?php echo e(t('admin_users.vendors_created_heading')); ?></h4>
                 <div id="delete_user_vendor_list" style="max-height: 150px; overflow-y: auto; font-size: 13px; color: #666;"></div>
             </div>
 
             <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 15px; margin-bottom: 15px;" id="delete_user_stakeholder_section">
-                <h4 style="margin: 0 0 10px; font-size: 14px; color: #333;">Stakeholder Assignments:</h4>
+                <h4 style="margin: 0 0 10px; font-size: 14px; color: #333;"><?php echo e(t('admin_users.stakeholder_assignments_heading')); ?></h4>
                 <div id="delete_user_stakeholder_list" style="max-height: 100px; overflow-y: auto; font-size: 13px; color: #666;"></div>
             </div>
 
             <div class="form-group">
-                <label for="reassign_user_input" style="font-weight: 500;">Reassign vendors to:</label>
+                <label for="reassign_user_input" style="font-weight: 500;"><?php echo e(t('admin_users.reassign_label')); ?></label>
                 <div style="position: relative; margin-top: 5px;">
                     <input type="text" id="reassign_user_input" class="form-control"
-                           placeholder="Search for a user to reassign to..."
+                           placeholder="<?php echo e(t('admin_users.reassign_placeholder')); ?>"
                            autocomplete="off"
                            style="padding-right: 30px;">
                     <span id="reassign_clear_btn" data-action="clearReassignUser"
@@ -645,12 +645,12 @@ $userGroupAssignments = $acl->getAllUserGroups();
                     </div>
                 </div>
                 <div id="reassign_user_selected" style="margin-top: 8px; padding: 8px 12px; background: #dbeafe; border-radius: 4px; display: none; font-size: 13px;">
-                    <span style="color: #1e40af;">Reassigning to: </span>
+                    <span style="color: #1e40af;"><?php echo e(t('admin_users.reassigning_to')); ?></span>
                     <strong id="reassign_user_selected_name"></strong>
-                    <span data-action="clearReassignUser" style="margin-left: 10px; cursor: pointer; color: #1e40af;">&times; Remove</span>
+                    <span data-action="clearReassignUser" style="margin-left: 10px; cursor: pointer; color: #1e40af;">&times; <?php echo e(t('admin_users.remove')); ?></span>
                 </div>
                 <div style="margin-top: 5px; font-size: 12px; color: #666;">
-                    Leave empty to not reassign (vendors will be orphaned)
+                    <?php echo e(t('admin_users.reassign_empty_hint')); ?>
                 </div>
             </div>
             <!-- User data for typeahead -->
@@ -674,7 +674,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 20px;">✓</span>
                 <div style="color: #166534; font-size: 13px;">
-                    This user has no vendors or stakeholder assignments to reassign.
+                    <?php echo e(t('admin_users.no_vendors_message')); ?>
                 </div>
             </div>
         </div>
@@ -686,8 +686,8 @@ $userGroupAssignments = $acl->getAllUserGroups();
             <input type="hidden" name="delete_user" value="1">
 
             <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-                <button type="button" class="btn btn-secondary" data-action="closeDeleteUserModal">Cancel</button>
-                <button type="submit" class="btn" style="background: #dc2626; color: white;" id="confirmDeleteBtn">Delete User</button>
+                <button type="button" class="btn btn-secondary" data-action="closeDeleteUserModal"><?php echo e(t('admin_users.cancel_btn')); ?></button>
+                <button type="submit" class="btn" style="background: #dc2626; color: white;" id="confirmDeleteBtn"><?php echo e(t('admin_users.delete_user')); ?></button>
             </div>
         </form>
     </div>
@@ -721,7 +721,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
         currentUserId = userId;
         currentUserGroups = userGroups || [];
         document.getElementById('assign_user_id').value = userId;
-        document.getElementById('assign_groups_username').textContent = 'Assigning groups for: ' + fullName;
+        document.getElementById('assign_groups_username').textContent = <?php echo json_encode(t('admin_users.assigning_groups_for')); ?> + fullName;
         document.querySelectorAll('.group-checkbox').forEach(cb => {
             cb.checked = currentUserGroups.includes(cb.getAttribute('data-group-name'));
         });
@@ -758,7 +758,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
     }
 
     function confirmImpersonate(userId, fullName) {
-        if (confirm('Are you sure you want to impersonate "' + fullName + '"?\n\nYou will be logged in as this user and see the application from their perspective. You can stop impersonation at any time from the admin panel.')) {
+        if (confirm(<?php echo json_encode(t('admin_users.impersonate_confirm_prefix')); ?> + fullName + <?php echo json_encode(t('admin_users.impersonate_confirm_suffix')); ?>)) {
             document.getElementById('impersonate_target_user_id').value = userId;
             document.getElementById('impersonateForm').submit();
         }
@@ -788,7 +788,7 @@ try {
 function confirmDeleteUser(userId, fullName, username) {
     // Set basic info
     document.getElementById('delete_user_id').value = userId;
-    document.getElementById('delete_user_info').innerHTML = 'You are about to delete <strong>' + escapeHtml(fullName) + '</strong> (' + escapeHtml(username) + '). This action cannot be undone.';
+    document.getElementById('delete_user_info').innerHTML = <?php echo json_encode(t('admin_users.delete_confirm_prefix')); ?> + escapeHtml(fullName) + '</strong> (' + escapeHtml(username) + <?php echo json_encode(t('admin_users.delete_confirm_suffix')); ?>;
 
     // Store the user being deleted to exclude from typeahead
     deleteUserIdExclude = userId;
@@ -817,7 +817,7 @@ function confirmDeleteUser(userId, fullName, username) {
                 vendorsSection.style.display = 'block';
                 noVendorsSection.style.display = 'none';
             } else {
-                vendorList.innerHTML = '<em>None</em>';
+                vendorList.innerHTML = <?php echo json_encode(t('admin_users.none_em')); ?>;
             }
 
             if (data.stakeholder_assignments && data.stakeholder_assignments.length > 0) {
@@ -900,7 +900,7 @@ reassignInput.addEventListener('input', function() {
                 });
             });
         } else {
-            reassignDropdown.innerHTML = '<div style="padding: 10px 12px; color: #999; font-size: 13px;">No users found</div>';
+            reassignDropdown.innerHTML = '<div style="padding: 10px 12px; color: #999; font-size: 13px;">' + <?php echo json_encode(t('admin_users.no_users_found')); ?> + '</div>';
             reassignDropdown.style.display = 'block';
         }
     }, 150);
@@ -1045,7 +1045,7 @@ document.addEventListener('click', function(e) {
         // Update page info
         const pageInfo = document.getElementById('pageInfo');
         if (pageInfo) {
-            pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+            pageInfo.textContent = <?php echo json_encode(t('admin_users.page_word')); ?> + ' ' + currentPage + ' ' + <?php echo json_encode(t('admin_users.of_word')); ?> + ' ' + totalPages;
         }
 
         // Update button states

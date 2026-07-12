@@ -155,6 +155,12 @@
         <tr><td><strong><a href="#question-types">Phone &amp; VAT प्रश्न प्रकार</a></strong></td><td>नए मूल्यांकन/ऑनबोर्डिंग फ़ील्ड प्रकार: एक फ़ोन नंबर जिसमें देश-कोड &amp; फ्लैग पिकर (स्वतः-स्वरूपित) है, और एक EU VAT नंबर जिसमें डबल एंट्री और आधिकारिक EU VIES सेवा के विरुद्ध मुफ्त लाइव सत्यापन है।</td><td>सभी</td></tr>
         <tr><td><strong><a href="#question-types">विक्रेता डेटा &amp; खोज सुधार</a></strong></td><td>प्रत्येक विक्रेता पर एक VAT नंबर स्टोर करें (विक्रेता पृष्ठ पर "Add VAT" शॉर्टकट के साथ दिखाया गया), क्विक सर्च में VAT नंबर से विक्रेता खोजें, और एक स्पष्ट Procurement-Onboarding स्कोरिंग बैनर।</td><td>Procurement, Cyber TPRM</td></tr>
         <tr><td><strong><a href="#admin-backup">बड़े डेटाबेस बैकअप</a></strong></td><td>बैकअप और रिस्टोर अब बिना टाइमआउट के मल्टी-गिगाबाइट डेटाबेस और बहुत बड़े रिकॉर्ड का समर्थन करते हैं।</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#assessment-forms">मूल्यांकन फ़ॉर्म &amp; AI ऑटो-फ़िल</a></strong></td><td>एक मूल्यांकन को भरने योग्य PDF या Excel वर्कबुक के रूप में डाउनलोड करें, एक पूर्ण की गई फ़ाइल वापस आयात करें, और &mdash; एक AI प्रदाता के साथ &mdash; विक्रेता के वर्तमान प्रमाणपत्रों से उत्तर स्वतः-भरें।</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#tprm-action-plan">Vendor Action Plan</a></strong></td><td>नियत तिथियों, स्वामियों, ईमेल अलर्ट और स्थिति नोट के साथ किसी विक्रेता के विरुद्ध अनुवर्ती क्रियाएं शेड्यूल करें (संपर्क करें, मूल्यांकन भेजें, वार्षिक समीक्षा बाध्य करें)।</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#custom-onboarding">कस्टम ऑनबोर्डिंग फ़ील्ड &amp; Custom Data</a></strong></td><td>प्रति-भूमिका दृश्यता के साथ किसी विक्रेता पर अतिरिक्त, संगठन-विशिष्ट फ़ील्ड कैप्चर करें, उन्हें Custom Data टैब पर संपादित करें, और उन्हें CSV निर्यात और API में पढ़ें।</td><td>Admins, Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#breach-alerts">Breach / Cyber Alerts</a></strong></td><td>एक आपूर्ति-श्रृंखला उल्लंघन फ़ीड (Grip घटनाओं सहित) जिसमें प्रभावित-उपयोगकर्ता ड्रिल-डाउन और बल्क acknowledge / false-positive / delete है।</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#admin-acl-groups">कस्टम एक्सेस-कंट्रोल समूह</a></strong></td><td>अपने स्वयं के ACL समूह बनाएं, किसी मौजूदा समूह से अनुमतियाँ क्लोन करें, और प्रति मॉड्यूल Read बनाम Read/Write सेट करें। शिप किए गए समूह सुरक्षित हैं।</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-templates">Assessment Template Builder</a></strong></td><td>नए प्रश्न प्रकार (multi-select, phone, VAT), टेम्पलेट-संचालित प्रमाणपत्र निर्देश, प्रति-भूमिका फ़ील्ड गेटिंग, और निष्क्रिय टेम्पलेट डिफ़ॉल्ट रूप से छुपाए गए।</td><td>Admins, Cyber TPRM</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>मैं कैसे जानूं कि मैं किस संस्करण पर हूं?</strong> प्रशासक इंस्टॉल किए गए संस्करण को देखने के लिए <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> पर जा सकते हैं। यह गाइड <strong>v2.6.2</strong> का वर्णन करती है। देखें <a href="#admin-updates">प्लेटफ़ॉर्म अपडेट करना</a>।
@@ -205,7 +211,7 @@
     </figure>
 
     <div class="callout callout-warning">
-        <strong>जानने योग्य बात:</strong> इंटरफ़ेस का अधिकांश भाग (मेनू, बटन, लेबल और फ़ॉर्म फ़ील्ड) अनुवादित है। विक्रेता मूल्यांकन <em>प्रश्न</em> भी स्वचालित रूप से अनुवादित हो सकते हैं जब एक AI प्रदाता कॉन्फ़िगर किया गया हो (देखें <a href="#admin-ai">AI Integration</a>), लेकिन संग्रहीत उत्तर मान English में रहते हैं ताकि सभी भाषाओं में स्कोरिंग और रिपोर्ट सुसंगत बनी रहें।
+        <strong>जानने योग्य बात:</strong> इंटरफ़ेस वहाँ अनुवादित होता है जहाँ आपकी भाषा के लिए अनुवाद मौजूद है; एक स्ट्रिंग जिसका अभी तक अनुवाद नहीं हुआ है वह English पर वापस चली जाती है, इसलिए आपको कभी-कभी कोई English लेबल दिख सकता है। जो सामग्री आप या आपके विक्रेता टाइप करते हैं (विक्रेता नाम, नोट, अपलोड की गई फ़ाइल के नाम, मुक्त-पाठ उत्तर) वह हमेशा ठीक वैसे ही दिखाई जाती है जैसे दर्ज की गई थी। विक्रेता मूल्यांकन <em>प्रश्न</em> प्रदर्शन के लिए स्वचालित रूप से अनुवादित हो सकते हैं जब एक AI प्रदाता कॉन्फ़िगर किया गया हो (देखें <a href="#admin-ai">AI Integration</a>); उसके बिना वे उसी भाषा में रहते हैं जिसमें वे लिखे गए थे। संग्रहीत उत्तर मान हमेशा English में रहते हैं ताकि सभी भाषाओं में स्कोरिंग और रिपोर्ट सुसंगत बनी रहें।
     </div>
 </div>
 
@@ -868,6 +874,76 @@
     </ol>
 </div>
 
+<div class="doc-section" id="assessment-forms">
+    <h2>मूल्यांकन फ़ॉर्म: डाउनलोड, भरें, आयात करें &amp; AI ऑटो-फ़िल <span class="new-badge">2.6.2 में नया</span></h2>
+    <p>हर विक्रेता ब्राउज़र में प्रश्नावली का उत्तर देना नहीं चाहता। किसी व्यक्तिगत मूल्यांकन के पृष्ठ से (<span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Assessments</span> &rarr; एक मूल्यांकन खोलें) आप विक्रेता को एक ऑफ़लाइन प्रति दे सकते हैं, एक पूर्ण की गई फ़ाइल वापस ले सकते हैं, या किसी AI प्रदाता को विक्रेता के अपने प्रमाणपत्रों से उत्तर पूर्व-भरने दे सकते हैं। बटन मूल्यांकन के शीर्ष के पास एक पंक्ति में होते हैं।</p>
+
+    <h3>मूल्यांकन को एक भरने योग्य फ़ाइल के रूप में डाउनलोड करें</h3>
+    <ul>
+        <li><span class="btn-label">Download PDF</span> &mdash; एक भरने योग्य PDF फ़ॉर्म। प्रत्येक प्रश्न एक वास्तविक फ़ॉर्म फ़ील्ड बन जाता है, इसलिए विक्रेता सीधे फ़ाइल में टाइप कर सकता है और बॉक्स टिक कर सकता है।</li>
+        <li><span class="btn-label">Download Excel</span> &mdash; एक वास्तविक <code>.xlsx</code> वर्कबुक जिसे Excel, Google Sheets, या LibreOffice में पूरा किया जा सकता है। एकल-विकल्प प्रश्नों को इन-सेल ड्रॉपडाउन मिलते हैं, और सशर्त प्रश्न स्वचालित रूप से धूसर हो जाते हैं जब वे लागू नहीं होते।</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>भरने योग्य PDF अब केवल Adobe में नहीं, बल्कि किसी भी ब्राउज़र में काम करता है।</strong> चेक बॉक्स में बेक किए गए appearances होते हैं ताकि वे Chrome, Edge और अन्य अंतर्निहित PDF व्यूअर में दिखें और टॉगल हों (पहले वे केवल Adobe Acrobat/Reader में काम करते थे)। एक टाइप-किया-नाम फ़ील्ड जिसका लेबल <strong>&ldquo;SIGNATURE (TYPE FULL NAME)&rdquo;</strong> है, किसी को भी किसी भी व्यूअर में हस्ताक्षर करने देता है; केवल-Adobe डिजिटल-हस्ताक्षर और दिनांक-हस्ताक्षरित फ़ील्ड Acrobat/Reader को छोड़कर छुपे रहते हैं, जो वास्तव में उनका उपयोग कर सकता है।
+    </div>
+
+    <h3>एक पूर्ण किया गया मूल्यांकन आयात करें (PDF, Excel, या CSV)</h3>
+    <p>जब विक्रेता पूर्ण की गई फ़ाइल वापस भेजता है, तो <span class="btn-label">Import Completed Assessment</span> पर क्लिक करें और इसे अपलोड करें। प्लेटफ़ॉर्म प्रारूप का स्वचालित रूप से पता लगाता है &mdash; एक पूर्ण किया गया <strong>PDF</strong>, <strong>Excel (.xlsx)</strong>, या <strong>CSV</strong> &mdash; और उत्तरों को मूल्यांकन की मौजूदा प्रतिक्रियाओं में मर्ज करता है।</p>
+    <div class="callout callout-warning">
+        <strong>फ़ाइल का Reference मेल खाना चाहिए।</strong> प्रत्येक डाउनलोड की गई फ़ाइल में एक छुपा हुआ <strong>Reference</strong> (मूल्यांकन की ID) होता है। यदि Reference गायब है या किसी भिन्न मूल्यांकन से संबंधित है, तो आयात अस्वीकृत कर दिया जाता है और कुछ भी नहीं लिखा जाता &mdash; इसलिए उत्तर कभी भी गलत मूल्यांकन पर नहीं आ सकते।
+    </div>
+
+    <h3>इसके बजाय एक प्रमाणपत्र है? <span class="new-badge">2.6.2 में नया</span></h3>
+    <p>मूल्यांकन पूरा करने वाले विक्रेता को एक शॉर्टकट की पेशकश की जा सकती है: यदि उनके पास एक प्रासंगिक प्रमाणन है, तो वे हर प्रश्न का उत्तर देने के बजाय इसे अपलोड कर सकते हैं। <strong>&ldquo;Do you have a Certificate?&rdquo;</strong> संकेत अब वह <strong>Certificate Upload Instructions</strong> दिखाता है जो टेम्पलेट लेखक ने लिखे थे, इसलिए यह अब केवल ISO 27001 तक सीमित नहीं है &mdash; एक टेम्पलेट एक SOC 2 Type 2, ISO 27001, या किसी अन्य प्रमाणपत्र को आमंत्रित कर सकता है। (टेम्पलेट लेखक यह पाठ Template Builder में सेट करते हैं; देखें <a href="#admin-templates">Assessment Template Builder</a>।)</p>
+
+    <h3>प्रमाणनों से AI ऑटो-फ़िल <span class="new-badge">2.6.2 में नया</span></h3>
+    <p>यदि आपके प्रशासक ने एक <a href="#admin-ai">AI प्रदाता</a> कॉन्फ़िगर किया है, तो एक अधिकृत समीक्षक AI को विक्रेता के अपलोड किए गए प्रमाणन दस्तावेज़ पढ़ने और प्रश्नावली पूर्व-भरने दे सकता है। मूल्यांकन पृष्ठ पर <span class="btn-label">&#9889; Auto-Fill from Certifications</span> पर क्लिक करें।</p>
+    <figure class="doc-figure">
+        <img src="app/docs/assessment-ai-autofill.png" alt="The Auto-Fill from Certifications button on a vendor assessment" loading="lazy">
+        <figcaption><strong>Auto-Fill from Certifications.</strong> एक AI प्रदाता कॉन्फ़िगर होने पर, बटन <strong>Download PDF</strong>, <strong>Download Excel</strong>, और <strong>Import Completed Assessment</strong> के साथ दिखाई देता है। यह विक्रेता के वर्तमान प्रमाणन दस्तावेज़ पढ़ता है और उन प्रश्नों को भरता है जिनका वे दस्तावेज़ उत्तर देते हैं।</figcaption>
+    </figure>
+    <p>जब आप इसे क्लिक करते हैं तो आपको याद दिलाया जाता है: <em>&ldquo;This will analyze the vendor's certification documents and pre-fill unanswered questions. Existing answers will not be changed.&rdquo;</em> फिर AI विक्रेता के प्रमाणपत्रों के माध्यम से काम करता है और रिपोर्ट करता है, उदाहरण के लिए, <em>&ldquo;Filled 12 of 30 unanswered questions.&rdquo;</em> जानने योग्य कुछ बातें:</p>
+    <ul>
+        <li><strong>केवल वर्तमान प्रमाणपत्रों का उपयोग किया जाता है।</strong> यह विक्रेता के अपलोड किए गए दस्तावेज़ पढ़ता है जिनका प्रकार <em>Certification</em> है और जो <strong>सक्रिय और समाप्त नहीं हुए</strong> हैं (PDF, CSV, और Excel दस्तावेज़; सबसे हाल के कुछ)। एक समाप्त या प्रतिस्थापित प्रमाणपत्र को अनदेखा किया जाता है।</li>
+        <li><strong>यह केवल रिक्त स्थान भरता है।</strong> जिन प्रश्नों का आप पहले ही उत्तर दे चुके हैं वे अछूते छोड़ दिए जाते हैं, और यह कभी भी किसी मौजूदा उत्तर को अधिलेखित नहीं करता।</li>
+        <li><strong>यह केवल उसी से उत्तर देता है जो दस्तावेज़ वास्तव में कहते हैं।</strong> AI को अनुमान न लगाने का निर्देश दिया जाता है; जो कुछ भी वह दस्तावेज़ों से आत्मविश्वास से समर्थित नहीं कर सकता उसे किसी व्यक्ति द्वारा पूरा करने के लिए अनुत्तरित छोड़ दिया जाता है।</li>
+        <li><strong>आप नियंत्रण में रहते हैं।</strong> भरे गए उत्तर सहेजे जाते हैं और पृष्ठ उन्हें दिखाते हुए रीलोड होता है, ताकि मूल्यांकन सबमिट होने से पहले आप किसी भी उत्तर की समीक्षा और परिवर्तन कर सकें।</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>इसका उपयोग कौन कर सकता है, और यह कब दिखाई देता है।</strong> बटन केवल <strong>Administrators</strong> और <strong>Cyber TPRM</strong> उपयोगकर्ताओं को दिखाया जाता है, केवल तभी जब एक AI प्रदाता सक्षम हो, और केवल तभी जब विक्रेता के पास फ़ाइल पर कम से कम एक वर्तमान प्रमाणन दस्तावेज़ हो। यह पूर्ण किए गए मूल्यांकन पर छुपा होता है।
+    </div>
+</div>
+
+<div class="doc-section" id="tprm-action-plan">
+    <h2>Vendor Action Plan <span class="new-badge">2.6.2 में नया</span></h2>
+    <p>किसी विक्रेता के पृष्ठ पर <strong>Action Plan</strong> टैब साइबर टीम को उस विक्रेता के विरुद्ध अनुवर्ती काम शेड्यूल करने देता है &mdash; विक्रेता से संपर्क करें, एक और मूल्यांकन भेजें, वार्षिक समीक्षा बाध्य करें &mdash; एक नियत तिथि, स्वामियों और स्थिति नोट के एक चालू सेट के साथ। एक दैनिक जॉब प्रत्येक क्रिया को उसकी तिथि आने पर फायर करती है और उसे एक ट्रैक किए गए to-do में बदल देती है।</p>
+    <p><span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Onboarding</span> &rarr; <span class="menu-label">My Vendors</span> से एक विक्रेता खोलें, फिर <strong>Action Plan</strong> टैब पर क्लिक करें। यह टैब <strong>Administrators</strong> और <strong>Cyber TPRM</strong> उपयोगकर्ताओं के लिए उपलब्ध है।</p>
+
+    <h3>एक क्रिया शेड्यूल करना</h3>
+    <ol class="steps">
+        <li><strong>Action Plan</strong> टैब पर, <span class="btn-label">+ Create Action</span> पर क्लिक करें।</li>
+        <li><span class="field-label">Action</span> चुनें: <strong>Contact Vendor</strong>, <strong>Contact Stakeholder</strong>, <strong>Send Assessment</strong>, या <strong>Force Annual Review</strong>। (यदि आप <strong>Send Assessment</strong> चुनते हैं, तो एक <span class="field-label">Vendor Assessment</span> पिकर दिखाई देता है ताकि आप चुन सकें कि कौन सा टेम्पलेट भेजना है।)</li>
+        <li><span class="field-label">Due Date</span> सेट करें &mdash; वह दिन जब क्रिया को फायर होना चाहिए।</li>
+        <li><span class="field-label">Assign to (Cyber TPRM)</span> के अंतर्गत, एक या अधिक Cyber TPRM स्वामियों को टिक करें। (यदि कोई नहीं है, तो क्रिया विक्रेता के stakeholder पर वापस चली जाती है।)</li>
+        <li>वैकल्पिक रूप से <span class="field-label">Email assigned individuals when this action fires</span> टिक करें, और इसके बजाय विशिष्ट पतों पर भेजने के लिए <span class="field-label">Notification email addresses</span> का उपयोग करें &mdash; अल्पविराम से अलग। असाइनियों के अपने खाता ईमेल का उपयोग करने के लिए इसे खाली छोड़ दें।</li>
+        <li>एक <span class="field-label">Description</span> लिखें (यह बनने वाले to-do में ले जाया जाता है), फिर <span class="btn-label">Create Action</span> पर क्लिक करें।</li>
+    </ol>
+
+    <h3>जब एक क्रिया फायर होती है तो क्या होता है</h3>
+    <p>प्रत्येक क्रिया एक बार फायर होती है, अपनी नियत तिथि पर या उसके बाद। फायर होने से एक लिंक किया गया <strong>Cyber To-Do</strong> बनता है जो इस Action Plan टैब पर वापस deep-link करता है, क्रिया को अंजाम देता है (<strong>Send Assessment</strong> के लिए यह विक्रेता को प्रश्नावली ईमेल करता है; <strong>Force Annual Review</strong> के लिए यह वार्षिक समीक्षा को देय चिह्नित करता है), और &mdash; यदि आपने इसे सक्षम किया है &mdash; स्वामियों या आपके द्वारा सूचीबद्ध पतों को ईमेल करता है।</p>
+
+    <h3>क्रिया स्थितियाँ</h3>
+    <p>एक क्रिया इन स्थितियों से गुजरती है:</p>
+    <p><span class="status-label">Pending</span> &rarr; <span class="status-label">In Progress</span> (फायर होने पर स्वचालित रूप से सेट) &rarr; <span class="status-label">Completed</span>, या <span class="status-label">Problem</span> यदि फायर होने पर कुछ गलत हुआ, या <span class="status-label">Cancelled</span> यदि आप इसे फायर होने से पहले रद्द करते हैं। आप स्वयं किसी भी समय स्थिति बदल सकते हैं; दैनिक जॉब कभी भी आपके द्वारा सेट की गई स्थिति को अधिलेखित नहीं करती।</p>
+
+    <h3>स्थिति नोट</h3>
+    <p>काम आगे बढ़ने पर दिनांकित <strong>Status Notes</strong> जोड़ने के लिए एक क्रिया खोलें। एक नोट टाइप करें और <span class="btn-label">Add Note</span> पर क्लिक करें। आप अपने स्वयं के नोट संपादित या हटा सकते हैं; प्रशासक किसी के भी संपादित या हटा सकते हैं। प्रत्येक create, edit, और delete ऑडिट-लॉग किया जाता है।</p>
+
+    <div class="callout callout-info">
+        <strong>&ldquo;Vendor Remediation Schedule&rdquo; जॉब।</strong> देय क्रियाओं को फायर करने वाली दैनिक जॉब को <strong>Vendor Remediation Schedule</strong> कहा जाता है और यह डिफ़ॉल्ट रूप से हर दिन <strong>सुबह 7:00 बजे</strong> चलती है। प्रशासक इसे <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Scheduler</span> पृष्ठ पर सक्षम, अक्षम या पुनः-समय निर्धारित कर सकते हैं। यदि यह बंद रही है, तो अगली बार चलने पर यह पकड़ बना लेती है, इस बीच देय हुई हर चीज़ को फायर करती है।
+    </div>
+</div>
+
 <div class="doc-section" id="tprm-srs">
     <h2>Security Risk Scorecard (SRS)</h2>
     <p>SRS DNS कॉन्फ़िगरेशन, SSL/TLS, ईमेल सुरक्षा (SPF, DKIM, DMARC), खुले पोर्ट और अन्य तकनीकी संकेतकों के आधार पर प्रत्येक विक्रेता के लिए एक स्वचालित, बाहरी सुरक्षा स्कोर प्रदान करता है।</p>
@@ -882,8 +958,19 @@
 
 <div class="doc-section" id="tprm-fourth-party">
     <h2>4th Party Risk</h2>
-    <p>उन विक्रेताओं को ट्रैक करें जिन पर <em>आपके विक्रेता</em> निर्भर करते हैं। यदि आपका क्लाउड प्रदाता डेटा स्टोरेज के लिए एक उपठेकेदार का उपयोग करता है, तो वह एक 4th-party जोखिम है।</p>
-    <p><span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">4th Party Risk</span> पर जाएं।</p>
+    <p>उन विक्रेताओं को ट्रैक करें जिन पर <em>आपके विक्रेता</em> निर्भर करते हैं। यदि आपका क्लाउड प्रदाता डेटा स्टोरेज के लिए एक उपठेकेदार का उपयोग करता है, तो वह एक 4th-party जोखिम है। साइडबार से आप <span class="menu-label">4th Party Risk</span> (technology concentration), <span class="menu-label">CVE Search</span>, और <span class="menu-label">Subprocessors</span> खोल सकते हैं। यह प्रशासकों और Cyber TPRM उपयोगकर्ताओं के लिए उपलब्ध है; लेखापरीक्षक देख सकते हैं लेकिन कार्य नहीं कर सकते।</p>
+
+    <h3>Subprocessor concentration <span class="new-badge">2.6.2 में नया</span></h3>
+    <p><strong>Subprocessor Concentration</strong> दृश्य देखने के लिए <span class="menu-label">Subprocessors</span> खोलें: हर subprocessor जिसे आपके विक्रेताओं ने घोषित किया है, और आपके कितने विक्रेता प्रत्येक का उपयोग करते हैं। कई विक्रेताओं में साझा किया गया एक subprocessor हाइलाइट किया जाता है &mdash; वह साझा निर्भरता आपूर्ति-श्रृंखला concentration जोखिम है। (Subprocessors को किसी विक्रेता में उस विक्रेता के विवरण पृष्ठ से जोड़ा जाता है।)</p>
+
+    <h3>किसी subprocessor का उपयोग करने वाले सभी को मूल्यांकन भेजें <span class="new-badge">2.6.2 में नया</span></h3>
+    <p>जब एक subprocessor जोखिम केंद्रित करता है, तो आप एक क्रिया में उस पर निर्भर विक्रेताओं का सर्वेक्षण कर सकते हैं:</p>
+    <ol class="steps">
+        <li>Subprocessors सूची पर, उस subprocessor की पंक्ति पर <span class="btn-label">Send Assessment</span> पर क्लिक करें।</li>
+        <li>विक्रेता पिकर में, चुनें कि उस subprocessor का उपयोग करने वाले किन विक्रेताओं को मूल्यांकन मिलना चाहिए (या <span class="field-label">Select All Visible</span>), फिर जारी रखें।</li>
+        <li>एक <span class="field-label">Assessment Template</span> और एक <span class="field-label">Expires In</span> विंडो (14, 30, 60, या 90 दिन) चुनें, फिर <span class="btn-label">Assign Assessment</span> पर क्लिक करें।</li>
+    </ol>
+    <p>प्रत्येक चयनित विक्रेता को प्रश्नावली (एक request-for-information) ईमेल की जाती है, और एक अनुस्मारक ट्रैक किया जाता है ताकि अनुवर्ती स्वचालित रूप से जाएं। फ़ाइल पर कोई ईमेल न रखने वाले विक्रेता छोड़ दिए जाते हैं, और कोई भी विफल होने वाला send अनुस्मारक जॉब द्वारा पुनः प्रयास किया जाता है। वही <strong>Assign Assessment</strong> प्रवाह technology-concentration और CVE दृश्यों से भी उपलब्ध है।</p>
 </div>
 
 <div class="doc-section" id="tprm-shadow-saas">
@@ -945,6 +1032,50 @@
         </ul>
         यह नियम क्यों मौजूद है इसके लिए <a href="#troubleshooting">Troubleshooting</a> देखें।
     </div>
+</div>
+
+<div class="doc-section" id="custom-onboarding">
+    <h2>कस्टम ऑनबोर्डिंग फ़ील्ड &amp; Custom Data टैब <span class="new-badge">2.6.2 में नया</span></h2>
+    <p>मानक विक्रेता फ़ील्ड (नाम, डोमेन, टियर, VAT, इत्यादि) अधिकांश जरूरतों को कवर करते हैं, लेकिन हर संगठन कुछ अतिरिक्त ट्रैक करता है। v2.6.2 में एक ऑनबोर्डिंग टेम्पलेट <strong>कस्टम फ़ील्ड</strong> परिभाषित कर सकता है जिनका कोई मानक विक्रेता कॉलम नहीं है। उनके मान प्रति विक्रेता कैप्चर किए जाते हैं और विक्रेता के <strong>Custom Data</strong> टैब पर दिखाए जाते हैं।</p>
+
+    <h3>कस्टम मान कहाँ रहते हैं: Custom Data टैब</h3>
+    <p>एक विक्रेता खोलें (<span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Onboarding</span> &rarr; <span class="menu-label">My Vendors</span> &rarr; एक विक्रेता खोलें)। यदि विक्रेता का ऑनबोर्डिंग टेम्पलेट कोई कस्टम फ़ील्ड परिभाषित करता है, तो अन्य विक्रेता टैब के साथ एक <strong>Custom Data</strong> टैब दिखाई देता है, जिसमें फ़ाइल पर कितने कस्टम मान हैं इसकी गणना होती है। टैब तब तक केवल-पढ़ने योग्य है जब तक आप <span class="btn-label">Edit</span> पर क्लिक नहीं करते; अपने परिवर्तन करें और <span class="btn-label">Save Custom Data</span> पर क्लिक करें। फ़ील्ड उनके टेम्पलेट सेक्शन के अनुसार समूहीकृत होते हैं। जिन उपयोगकर्ताओं को किसी फ़ील्ड को देखने की अनुमति है लेकिन संपादित करने की नहीं, वे इसे <em>(view only)</em> चिह्नित देखते हैं।</p>
+
+    <h3>एक कस्टम फ़ील्ड परिभाषित करना (प्रशासक)</h3>
+    <p>एक कस्टम फ़ील्ड बस एक <strong>Onboarding</strong>-श्रेणी टेम्पलेट पर एक प्रश्न है जिसका <span class="field-label">Field Name</span> ऐसा है जो एक अंतर्निहित विक्रेता कॉलम <em>नहीं</em> है। दो चरण हैं, दोनों Admin Portal में:</p>
+    <ol class="steps">
+        <li><strong>फ़ील्ड नाम पंजीकृत करें।</strong> <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Field Reference</span> पर जाएं, <span class="btn-label">+ Add Field</span> पर क्लिक करें, और अपना कस्टम फ़ील्ड जोड़ें (छोटे अक्षर, संख्याएं और अंडरस्कोर; जैसे <code>data_residency_region</code>)। एक कॉलम प्रकार (text, number, date, आदि) और <span class="field-label">Onboarding</span> श्रेणी चुनें।</li>
+        <li><strong>एक प्रश्न जोड़ें जो इससे मैप हो।</strong> <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Template Builder</span> में, अपना ऑनबोर्डिंग टेम्पलेट खोलें, एक प्रश्न जोड़ें, और उसका <span class="field-label">Field Name</span> उस फ़ील्ड पर सेट करें जिसे आपने अभी पंजीकृत किया है। देखें <a href="#admin-templates">Assessment Template Builder</a>।</li>
+    </ol>
+
+    <h3>समृद्ध उत्तरों के लिए नए फ़ील्ड प्रकार <span class="new-badge">2.6.2 में नया</span></h3>
+    <p>मौजूदा text, number, date, dropdown, और radio प्रकारों से परे, प्रश्न (कस्टम या मानक) अब इनका उपयोग कर सकते हैं:</p>
+    <table class="doc-table">
+        <tr><th>प्रकार</th><th>विक्रेता क्या देखता है</th></tr>
+        <tr><td><strong>Checkboxes</strong></td><td>एक multi-select सूची &mdash; लागू होने वाला हर विकल्प टिक करें।</td></tr>
+        <tr><td><strong>Button Group (Multi)</strong></td><td>वही multi-select, टॉगल बटन की एक पंक्ति के रूप में दिखाया गया।</td></tr>
+        <tr><td><strong>Phone</strong></td><td>देश-कोड &amp; फ्लैग पिकर वाला एक फ़ोन नंबर (देखें <a href="#question-types">Phone &amp; VAT प्रश्न प्रकार</a>)।</td></tr>
+        <tr><td><strong>VAT Number</strong></td><td>डबल एंट्री और लाइव VIES सत्यापन वाला एक EU VAT नंबर (देखें <a href="#question-types">Phone &amp; VAT प्रश्न प्रकार</a>)।</td></tr>
+    </table>
+    <p>एकल-चयन समकक्ष (<strong>Dropdown</strong>, <strong>Radio Buttons</strong>, <strong>Button Group</strong>) अभी भी उपलब्ध हैं। Multi-select प्रकारों को एक <span class="field-label">Options</span> सूची (प्रति पंक्ति एक) की आवश्यकता होती है।</p>
+
+    <h3>कौन एक फ़ील्ड देख और संपादित कर सकता है यह नियंत्रित करना (भूमिका-आधारित गेटिंग) <span class="new-badge">2.6.2 में नया</span></h3>
+    <p>ऑनबोर्डिंग टेम्पलेट पर, प्रत्येक <strong>कस्टम</strong> सेक्शन और प्रश्न दो भूमिका नियंत्रण रखता है, ताकि आप संवेदनशील फ़ील्ड को उन लोगों से दूर रख सकें जिन्हें उन्हें नहीं देखना चाहिए:</p>
+    <ul>
+        <li><span class="field-label">Visible to Roles</span> &mdash; कौन सी भूमिकाएं फ़ील्ड <em>देख</em> सकती हैं।</li>
+        <li><span class="field-label">Visible and Editable Roles</span> &mdash; कौन सी भूमिकाएं इसे <em>संपादित</em> कर सकती हैं।</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>कस्टम फ़ील्ड डिफ़ॉल्ट रूप से निजी होते हैं।</strong> एक मानक प्रश्न के विपरीत, एक कस्टम फ़ील्ड तब तक छुपा रहता है जब तक आप एक भूमिका प्रदान नहीं करते। जब तक कोई भूमिका प्रदान नहीं की जाती, केवल super administrators इसे देख या संपादित कर सकते हैं। जिस फ़ील्ड को एक दर्शक को देखने की अनुमति नहीं है, उसे उस व्यक्ति के लिए Custom Data टैब, विक्रेता पृष्ठ, CSV निर्यात और API से बाहर छोड़ दिया जाता है। (यह grant-only डिफ़ॉल्ट कस्टम फ़ील्ड पर लागू होता है; मानक ऑनबोर्डिंग प्रश्न इस तरह कभी गेट नहीं किए जाते।)
+    </div>
+    <p>किसी व्यक्ति द्वारा एक प्रश्न देखने से पहले सेक्शन के grant और प्रश्न के grant दोनों को उस व्यक्ति को अनुमति देनी चाहिए, इसलिए आप एक पूरा सेक्शन या उसके भीतर सिर्फ व्यक्तिगत फ़ील्ड छुपा सकते हैं।</p>
+
+    <h3>निर्यात और API में कस्टम मान</h3>
+    <ul>
+        <li><strong>CSV निर्यात।</strong> <span class="menu-label">Vendor Onboarding</span> सूची पर, <span class="btn-label">Export CSV</span> (प्रशासक और Cyber TPRM) अब मानक कॉलम के साथ-साथ प्रति कस्टम फ़ील्ड एक कॉलम जोड़ता है, जिसका नाम <code>custom:&lt;field_name&gt;</code> है।</li>
+        <li><strong>REST API.</strong> एकल-विक्रेता प्रतिक्रिया (<code>GET /vendors/{id}</code>) में एक <code>custom_onboarding_data</code> array शामिल है; प्रत्येक प्रविष्टि में <code>field_name</code>, <code>label</code>, <code>value</code>, <code>type</code>, <code>section</code>, और <code>template_name</code> हैं।</li>
+    </ul>
+    <p>दोनों Custom Data टैब के समान स्थान से पढ़ते हैं और समान भूमिका-आधारित दृश्यता का सम्मान करते हैं &mdash; जिस फ़ील्ड को कॉलर (या API कुंजी का स्वामी) नहीं देख सकता उसे रिक्त या छोड़ दिया जाता है।</p>
 </div>
 
 <div class="doc-section" id="ai-review">
@@ -1036,6 +1167,28 @@
         <img src="app/docs/shadow-saas.png" alt="Shadow SaaS list page" loading="lazy">
         <figcaption><strong>Shadow SaaS पृष्ठ।</strong> अपने जोखिम और क्रियाओं के साथ खोजे गए और आयातित ऐप्स। विक्रेताओं के रूप में ऑनबोर्ड किए गए ऐप्स भविष्य के sync पर छोड़ दिए जाते हैं, और जो कुछ भी आप dismiss करते हैं वह dismissed रहता है।</figcaption>
     </figure>
+
+    <h3>Live बनाम Local (कैश्ड) डेटा स्रोत <span class="new-badge">2.6.2 में नया</span></h3>
+    <p>Grip Security Connection कार्ड पर, <span class="field-label">Data source</span> नियंत्रित करता है कि Grip पृष्ठ कहाँ से पढ़ते हैं:</p>
+    <ul>
+        <li><strong>Live</strong> &mdash; प्रत्येक पृष्ठ के लिए Grip API को कॉल करता है। हमेशा वर्तमान, लेकिन API पर भारी।</li>
+        <li><strong>Local (Hydrated/cached)</strong> &mdash; प्लेटफ़ॉर्म के डेटाबेस में रखी गई Grip डेटा की प्रति से सेवा देता है। API पर हल्का। Local मोड में प्रत्येक sync उस प्रति को <strong>पूरी तरह ताज़ा</strong> करता है; sync के बीच पृष्ठ Grip को कॉल करने के बजाय स्नैपशॉट से सेवा देते हैं।</li>
+    </ul>
+
+    <h3>एक sync को देखना और नियंत्रित करना <span class="new-badge">2.6.2 में नया</span></h3>
+    <p>जब एक sync चल रहा होता है, तो <strong>Last Sync</strong> कार्ड एक लाइव प्रगति रीडआउट दिखाता है &mdash; <em>&ldquo;Hydrating per-app rosters &mdash; NN% (D / T apps)&rdquo;</em> &mdash; एक <span class="btn-label">Stop Sync</span> बटन के ऊपर जो चल रहे रन को सहयोगात्मक रूप से रद्द करता है। स्थानीय रूप से परोसे गए Grip डेटा को पूरी तरह मिटाने के लिए, उसी कार्ड पर <span class="btn-label">Truncate Data</span> का उपयोग करें: यह Grip मिरर तालिकाओं, Shadow SaaS सूची पर Grip पंक्तियों, और विक्रेता रिकॉर्ड पर स्टैंप किए गए Grip टेलीमेट्री (SaaS Data टैब) को साफ़ करता है। आपका sync इतिहास रखा जाता है, और अगला sync Grip से सब कुछ फिर से हाइड्रेट करता है।</p>
+
+    <h3>SecurityScorecard (SSC) रेटिंग <span class="new-badge">2.6.2 में नया</span></h3>
+    <p>जब Grip कनेक्ट होता है, तो एक <strong>SSC</strong> कॉलम Shadow SaaS सूची पर और विक्रेता SRS सूची पर, और विक्रेता के SaaS Data टैब पर प्रत्येक ऐप या विक्रेता का <strong>SecurityScorecard</strong> अक्षर ग्रेड (A&ndash;F) दिखाता है। यह केवल तभी दिखाई देता है जब Grip सक्षम हो।</p>
+
+    <h3>विक्रेता &ldquo;SaaS Data&rdquo; टैब <span class="new-badge">2.6.2 में नया</span></h3>
+    <p>जब एक विक्रेता किसी Grip-खोजे गए ऐप से मेल खाता है, तो उस विक्रेता के पृष्ठ पर एक केवल-पढ़ने योग्य <strong>SaaS Data</strong> टैब दिखाई देता है, जो विक्रेता को छोड़े बिना sync के दौरान एकत्र किए गए Grip टेलीमेट्री को सामने लाता है: <strong>First Discovered</strong>, <strong>Active Accounts</strong> (प्रभावित-उपयोगकर्ता सूची में एक लिंक), <strong>Last Known Usage</strong>, ऐप वर्गीकरण, <strong>Security Scorecard</strong> ग्रेड, श्रेणी, AI गहराई, अनुपालन संकेत, और SAML/MFA समर्थन।</p>
+
+    <h3>Grip breach alerts <span class="new-badge">2.6.2 में नया</span></h3>
+    <p>Grip प्लेटफ़ॉर्म में सुरक्षा घटनाएं भी फीड कर सकता है। कनेक्शन कार्ड पर <span class="field-label">Flow Grip breach information into Breach / Cyber Alerts</span> टिक करें और Grip &ldquo;Security Incident Detected&rdquo; अलर्ट प्रत्येक sync पर आपकी <a href="#breach-alerts">Breach / Cyber Alerts</a> सूची में लिखे जाते हैं। (इसके लिए <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email Settings</span> के अंतर्गत Breach/Cyber Alerts सुविधा को सक्षम करने की भी आवश्यकता है।)</p>
+    <div class="callout callout-info">
+        <strong>व्यक्तिगत डेटा विश्राम में एन्क्रिप्ट किया जाता है।</strong> कैश्ड Grip डेटा में नाम, ईमेल पते और अन्य व्यक्तिगत विवरण डेटाबेस में एन्क्रिप्ट किए जाते हैं और केवल तभी डिक्रिप्ट किए जाते हैं जब ऐप में दिखाए जाते हैं या API द्वारा लौटाए जाते हैं। यह स्वचालित है और इसके लिए कोई कॉन्फ़िगरेशन आवश्यक नहीं है।
+    </div>
 </div>
 
 <div class="doc-section" id="shadow-saas-hero">
@@ -1090,6 +1243,26 @@
 </div>
 
 
+<div class="doc-section" id="breach-alerts">
+    <h2>Breach / Cyber Alerts <span class="new-badge">2.6.2 में नया</span></h2>
+    <p><strong>Breach / Cyber Alerts</strong> पृष्ठ आपके विक्रेता आपूर्ति श्रृंखला के लिए उल्लंघन और threat-intelligence संकेतों को एक स्थान पर एकत्र करता है। इसे साइडबार में <span class="menu-label">Breach / Cyber Alerts</span> &rarr; <span class="menu-label">Breach Alerts</span> के अंतर्गत खोलें; एक लाल बैज नए अलर्ट की संख्या दिखाता है।</p>
+
+    <h3>अलर्ट कहाँ से आते हैं</h3>
+    <p>अलर्ट में AI Breach &amp; OSINT स्कैनर द्वारा सामने लाए गए उल्लंघन (देखें <a href="#admin-ai">AI Integration</a>) और, सक्षम होने पर, <a href="#shadow-saas-grip">Grip</a> से सुरक्षा घटनाएं शामिल हैं। प्रत्येक अलर्ट प्रभावित इकाई, संभावित रूप से प्रभावित उपयोगकर्ता, तकनीक, और इसका पता कब चला, दिखाता है। जिस SaaS ऐप को आपने एक विक्रेता के रूप में ऑनबोर्ड <strong>नहीं</strong> किया है, उस पर एक घटना को संभावित रूप से प्रभावित उपयोगकर्ताओं की संख्या के साथ <strong>&ldquo;Shadow SaaS&rdquo;</strong> टैग किया जाता है; यदि वह ऐप बाद में ऑनबोर्ड किया जाता है, तो भविष्य की घटनाएं इसके बजाय विक्रेता से संलग्न होती हैं।</p>
+
+    <h3>कौन प्रभावित हुआ</h3>
+    <p>Grip-स्रोत वाली घटना के लिए, प्रभावित-उपयोगकर्ता गणना उस ऐप के लिए एक <strong>affected-users</strong> सूची से लिंक करती है। सूची पेज की गई और फ़िल्टर करने योग्य है (उदाहरण के लिए प्रमाणीकरण विधि द्वारा), और किसी विशिष्ट व्यक्ति को खोजने के लिए एक <strong>Search by name or email</strong> बॉक्स है। चूंकि roster एन्क्रिप्ट किया हुआ संग्रहीत है, खोज एप्लिकेशन में डिक्रिप्ट किए गए डेटा पर चलती है, इसलिए यह sorting और paging की तरह ही काम करती है।</p>
+
+    <h3>अलर्ट को बल्क में निपटाना</h3>
+    <p>प्रशासकों और Cyber TPRM उपयोगकर्ताओं को सूची पर एक multi-select टूलबार मिलता है। आप जो अलर्ट चाहते हैं उन्हें टिक करें (या <strong>Check all</strong> का उपयोग करें) और उन सभी पर एक बार में एक क्रिया लागू करें:</p>
+    <ul>
+        <li><span class="btn-label">Acknowledge</span> &mdash; अलर्ट को देखे गए के रूप में चिह्नित करें।</li>
+        <li><span class="btn-label">False Positive</span> &mdash; उन्हें एक वास्तविक समस्या नहीं के रूप में चिह्नित करें।</li>
+        <li><span class="btn-label">Delete</span> &mdash; उन्हें हटाएं। <strong>केवल प्रशासक</strong>, और चलने से पहले पुष्टि की जाती है।</li>
+    </ul>
+</div>
+
+
 <!-- ================================================================
      ADMIN PORTAL
      ================================================================ -->
@@ -1116,6 +1289,49 @@
         <li>चेकबॉक्स के साथ सभी उपलब्ध समूह दिखाने वाला एक मोडल दिखाई देगा। वे समूह चेक करें जो आप असाइन करना चाहते हैं (जैसे, <strong>Cyber GRC</strong>, <strong>Administrator</strong>)।</li>
         <li><span class="btn-label">Save Changes</span> पर क्लिक करें।</li>
     </ol>
+    <p>शिप किए गए समूहों को असाइन करने से परे, super administrators अपने स्वयं के समूह एक कस्टम अनुमति सेट के साथ बना सकते हैं &mdash; देखें <a href="#admin-acl-groups">ACL Groups &amp; Custom Access Control</a>।</p>
+</div>
+
+<div class="doc-section" id="admin-acl-groups">
+    <h2>ACL Groups &amp; Custom Access Control <span class="new-badge">2.6.2 में नया</span></h2>
+    <p>प्लेटफ़ॉर्म सात अंतर्निहित समूहों के साथ शिप होता है (administrator, cyber_tprm, procurement, stakeholder, auditor, cyber_grc, grc_contributors)। v2.6.2 में, <strong>super administrators</strong> अपने स्वयं के समूह भी बना सकते हैं और ठीक-ठीक ट्यून कर सकते हैं कि प्रत्येक क्या कर सकता है। <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Access Control</span> &rarr; <span class="menu-label">ACL Groups</span> खोलें। कोई भी प्रशासक इस पृष्ठ को देख सकता है; केवल super administrators create, edit, और permission नियंत्रण देखते हैं।</p>
+
+    <h3>शिप किए गए समूह सुरक्षित हैं</h3>
+    <p>सात अंतर्निहित समूह <strong>System</strong> चिह्नित हैं। उन्हें हटाया या नाम बदला नहीं जा सकता, और उनकी अनुमतियाँ केवल-पढ़ने योग्य हैं &mdash; आप <span class="btn-label">View Permissions</span> खोलकर देख सकते हैं कि वे वास्तव में क्या प्रदान करते हैं, लेकिन उन्हें बदल नहीं सकते। यह उन डिफ़ॉल्ट को स्थिर रखता है जिन पर सभी निर्भर करते हैं।</p>
+
+    <h3>एक कस्टम समूह बनाना</h3>
+    <ol class="steps">
+        <li><span class="btn-label">+ Create Group</span> पर क्लिक करें।</li>
+        <li>एक <span class="field-label">Group Name (machine)</span> (छोटे अक्षर, संख्याएं, अंडरस्कोर &mdash; एक बार बनने के बाद यह तय हो जाता है), एक मित्रवत <span class="field-label">Display Name</span>, और एक <span class="field-label">Description</span> दर्ज करें।</li>
+        <li>वैकल्पिक रूप से अपने शुरुआती बिंदु के रूप में एक मौजूदा समूह (एक System समूह सहित) को <strong>क्लोन</strong> करने के लिए <span class="field-label">Copy permissions from</span> का उपयोग करें &mdash; फिर इसे परिष्कृत करें। शून्य से बनाने के लिए इसे <em>&mdash; Start with no permissions &mdash;</em> पर छोड़ दें।</li>
+        <li><span class="btn-label">Create Group</span> पर क्लिक करें।</li>
+    </ol>
+
+    <h3>अनुमति मैट्रिक्स ट्यून करना</h3>
+    <p>एक कस्टम समूह का <span class="btn-label">Permissions</span> खोलें। अनुमतियाँ मॉड्यूल द्वारा समूहीकृत होती हैं (Vendor Onboarding, FAIR Analysis, Assessments, Security Rating (SRS), Annual Reviews, GRC, और Other)। प्रत्येक अनुमति को या तो <strong>Read</strong> या <strong>Read/Write</strong> के रूप में टैग किया जाता है, और प्रत्येक मॉड्यूल में तीन एक-क्लिक प्रीसेट होते हैं:</p>
+    <ul>
+        <li><span class="btn-label">Read</span> &mdash; उस मॉड्यूल के लिए केवल view/list/export अनुमतियाँ प्रदान करता है।</li>
+        <li><span class="btn-label">Read &amp; Write</span> &mdash; सब कुछ प्रदान करता है (view <em>और</em> change)।</li>
+        <li><span class="btn-label">None</span> &mdash; मॉड्यूल को साफ़ करता है।</li>
+    </ul>
+    <p>समाप्त होने पर <span class="btn-label">Save Permissions</span> पर क्लिक करें। <strong>Read</strong> प्रदान करना कभी write पहुंच का संकेत नहीं देता &mdash; कुछ बदलने की क्षमता हमेशा एक अलग, स्पष्ट grant होती है। सभी समूह परिवर्तन ऑडिट-लॉग किए जाते हैं।</p>
+</div>
+
+<div class="doc-section" id="admin-templates">
+    <h2>Assessment Template Builder <span class="new-badge">2.6.2 में नया</span></h2>
+    <p><strong>Template Builder</strong> (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Template Builder</span>) वह जगह है जहाँ प्रशासक और Cyber TPRM उपयोगकर्ता मूल्यांकन और ऑनबोर्डिंग प्रश्नावलियाँ डिज़ाइन करते हैं। एक टेम्पलेट बनाने के लिए <span class="btn-label">+ Add Section</span> और <span class="btn-label">+ Add Question</span> का उपयोग करें। कुछ v2.6.2 अतिरिक्त उल्लेखनीय हैं।</p>
+
+    <h3>प्रश्न प्रकार और फ़ील्ड मैपिंग</h3>
+    <p>एक प्रश्न के <span class="field-label">Question Type</span> में अब परिचित text, dropdown, और radio प्रकारों के अलावा <strong>Phone</strong>, <strong>VAT Number</strong>, <strong>Checkboxes</strong>, और <strong>Button Group (Multi)</strong> शामिल हैं (प्रत्येक क्या कैप्चर करता है इसके लिए देखें <a href="#custom-onboarding">कस्टम ऑनबोर्डिंग फ़ील्ड</a>)। एक प्रश्न का <span class="field-label">Field Name</span> उसके उत्तर को एक विक्रेता फ़ील्ड पर मैप करता है; एक अंतर्निहित फ़ील्ड या एक कस्टम फ़ील्ड चुनें जिसे आपने <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Field Reference</span> के अंतर्गत पंजीकृत किया है।</p>
+
+    <h3>Certificate Upload Instructions</h3>
+    <p>एक टेम्पलेट पर आप <span class="field-label">Certificate Upload Instructions</span> भर सकते हैं &mdash; वह पाठ जो एक विक्रेता को <em>&ldquo;Do you have a Certificate?&rdquo;</em> संकेत में दिखाया जाता है। यह एक टेम्पलेट को केवल ISO 27001 ही नहीं, बल्कि किसी भी प्रमाणपत्र (SOC 2 Type 2, ISO 27001, इत्यादि) को आमंत्रित करने देता है। यदि आप इसे खाली छोड़ देते हैं, तो एक सामान्य संदेश दिखाया जाता है।</p>
+
+    <h3>ऑनबोर्डिंग टेम्पलेट पर भूमिका-आधारित दृश्यता</h3>
+    <p><strong>ऑनबोर्डिंग</strong> टेम्पलेट के लिए, कस्टम सेक्शन और प्रश्न <span class="field-label">Visible to Roles</span> और <span class="field-label">Visible and Editable Roles</span> नियंत्रण रखते हैं, इसलिए आप तय करते हैं कि प्रत्येक कस्टम फ़ील्ड को कौन देख और संपादित कर सकता है। देखें <a href="#custom-onboarding">कस्टम ऑनबोर्डिंग फ़ील्ड &amp; Custom Data टैब</a>।</p>
+
+    <h3>निष्क्रिय टेम्पलेट डिफ़ॉल्ट रूप से छुपे होते हैं</h3>
+    <p>टेम्पलेट सूची केवल <strong>सक्रिय</strong> टेम्पलेट दिखाती है। यदि किसी को निष्क्रिय किया गया है, तो एक <span class="btn-label">Show Deactivated (N)</span> बटन उन्हें प्रकट करता है (और <span class="btn-label">Hide Deactivated (N)</span> पर वापस टॉगल करता है), जो एक लंबे समय तक चलने वाले tenant की सूची को वास्तव में उपयोग में आने वाले टेम्पलेट पर केंद्रित रखता है बिना सेवानिवृत्त टेम्पलेट तक पहुंच खोए।</p>
 </div>
 
 <div class="doc-section" id="admin-email">
@@ -1182,7 +1398,7 @@
         <li>यदि एक नया संस्करण सूचीबद्ध है, तो इसे लागू करने के लिए ऑन-स्क्रीन <strong>Upgrade</strong> क्रिया का पालन करें।</li>
     </ol>
     <figure class="doc-figure">
-        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.2" loading="lazy">
+        <img src="app/docs/admin-version.png?v=20260711" alt="Version Management page showing installed version 2.6.2" loading="lazy">
         <figcaption><strong>Admin &rarr; Version.</strong> यहाँ इंस्टॉल किया गया संस्करण <strong>v2.6.2</strong> है और प्लेटफ़ॉर्म रिपोर्ट करता है कि यह अद्यतित है। यह वह जगह भी है जहाँ आप पुष्टि करते हैं कि यह मार्गदर्शिका किस संस्करण पर लागू होती है।</figcaption>
     </figure>
 </div>
@@ -1213,7 +1429,14 @@
             <div class="faq-body"><p>English, Spanish, Italian, Ukrainian, Chinese (Simplified), Hindi, French और Portuguese। आपका प्रशासक तय करता है कि इनमें से कौन सी आपकी सूची में दिखाई देती हैं; English हमेशा उपलब्ध है।</p></div></details>
 
         <details class="faq-item"><summary>मैंने अपनी भाषा बदली लेकिन कुछ टेक्स्ट अभी भी English में है। क्यों?<span class="faq-tag">Language</span></summary>
-            <div class="faq-body"><p>मेनू, बटन और लेबल अनुवादित हैं। विक्रेता मूल्यांकन <em>प्रश्न</em> स्वचालित रूप से केवल तभी अनुवादित होते हैं जब आपके प्रशासक द्वारा एक AI प्रदाता कॉन्फ़िगर किया गया हो, और संग्रहीत उत्तर मान हमेशा English में रहते हैं ताकि स्कोरिंग सुसंगत रहे। कुछ तृतीय-पक्ष संदेश भी English में रह सकते हैं।</p></div></details>
+            <div class="faq-body"><p>भाषा बदलने के बाद भी कुछ अलग-अलग चीज़ें English में रह सकती हैं:</p>
+            <ul>
+                <li><strong>इंटरफ़ेस टेक्स्ट जिसका अभी तक अनुवाद नहीं हुआ है।</strong> मेनू, बटन और लेबल वहाँ अनुवादित होते हैं जहाँ आपकी भाषा के लिए अनुवाद मौजूद है। यदि किसी विशेष स्ट्रिंग का अभी तक आपकी भाषा में अनुवाद नहीं हुआ है, तो वह रिक्त दिखाने के बजाय English पर वापस चली जाती है &mdash; इसलिए आपको कभी-कभी कोई English लेबल दिख सकता है।</li>
+                <li><strong>जो कुछ भी टाइप किया गया था।</strong> जो सामग्री आप या आपके विक्रेता दर्ज करते हैं &mdash; विक्रेता नाम, नोट, अपलोड किए गए दस्तावेज़ नाम, मुक्त-पाठ उत्तर &mdash; वह ठीक वैसे ही दिखाई जाती है जैसे यह लिखी गई थी, जिस भी भाषा में थी।</li>
+                <li><strong>AI प्रदाता के बिना मूल्यांकन प्रश्न।</strong> विक्रेता मूल्यांकन <em>प्रश्न</em> पाठ स्वचालित रूप से केवल तभी अनुवादित होता है जब आपके प्रशासक ने एक AI प्रदाता कॉन्फ़िगर किया हो; उसके बिना, प्रश्न उसी भाषा में रहते हैं जिसमें वे लिखे गए थे। संग्रहीत उत्तर मान हमेशा English में रहते हैं ताकि स्कोरिंग सुसंगत रहे।</li>
+                <li><strong>ईमेल और कुछ तृतीय-पक्ष घटक</strong> आपकी भाषा सेटिंग द्वारा नियंत्रित नहीं होते।</li>
+            </ul>
+            <p>यदि आप कोई इंटरफ़ेस लेबल देखते हैं जिसका अनुवाद होना चाहिए लेकिन नहीं है, तो अपने प्रशासक को बताएं ताकि गायब टेक्स्ट जोड़ा जा सके।</p></div></details>
 
         <details class="faq-item"><summary>मैं अपने विक्रेता को समीक्षा के लिए सबमिट क्यों नहीं कर सकता?<span class="faq-tag">Onboarding</span></summary>
             <div class="faq-body"><p>एक विक्रेता केवल तभी सबमिट किया जा सकता है जब उसने <strong>Procurement Onboarding</strong> (<strong>Yes</strong> पर सेट) पूरी कर ली हो और 4&ndash;8 अंकों का एक वैध <strong>Vendor ID (VID)</strong> हो। विक्रेता खोलें, <strong>Vendor Information</strong> कार्ड पर दोनों भरें, सहेजें, फिर <strong>Submit for Review</strong> पर क्लिक करें। देखें <a href="#onboarding-workflow">Vendor Onboarding</a> और <a href="#troubleshooting">Troubleshooting</a>।</p></div></details>
@@ -1314,6 +1537,7 @@
     <table class="doc-table">
         <tr><th>शब्द</th><th>परिभाषा</th></tr>
         <tr><td><strong>ACL</strong></td><td>Access Control List &mdash; परिभाषित करता है कि किसी समूह के उपयोगकर्ता कौन सी क्रियाएं कर सकते हैं</td></tr>
+        <tr><td><strong>Action Plan</strong></td><td>अनुवर्ती क्रियाएं (संपर्क, मूल्यांकन भेजना, वार्षिक समीक्षा बाध्य करना) शेड्यूल करने के लिए एक प्रति-विक्रेता टैब, नियत तिथियों, स्वामियों और स्थिति नोट के साथ; Vendor Remediation Schedule जॉब द्वारा दैनिक फायर किया जाता है</td></tr>
         <tr><td><strong>AI Review</strong></td><td>उन विक्रेताओं के लिए एक vendor onboarding स्थिति जिनकी सेवाएं AI का उपयोग करती हैं, समीक्षा के दौरान अलग से ट्रैक की जाती हैं</td></tr>
         <tr><td><strong>Assessment</strong></td><td>एकीकृत प्रश्नावली का उपयोग करके एक समय-बिंदु अनुपालन मूल्यांकन</td></tr>
         <tr><td><strong>CIS Controls</strong></td><td>Center for Internet Security Controls &mdash; सुरक्षा सर्वोत्तम प्रथाओं का एक प्राथमिकता सेट</td></tr>
@@ -1322,6 +1546,7 @@
         <tr><td><strong>Control</strong></td><td>अनुपालन आवश्यकताओं को पूरा करने के लिए लागू एक विशिष्ट सुरक्षा उपाय</td></tr>
         <tr><td><strong>Crosswalk</strong></td><td>दो फ्रेमवर्क के बीच एक मैपिंग जो दिखाती है कि कौन सी आवश्यकताएं ओवरलैप होती हैं</td></tr>
         <tr><td><strong>CSF</strong></td><td>NIST Cybersecurity Framework &mdash; एक व्यापक रूप से उपयोग किया जाने वाला साइबरसुरक्षा जोखिम प्रबंधन फ्रेमवर्क</td></tr>
+        <tr><td><strong>Custom Field / Custom Data</strong></td><td>बिना किसी मानक विक्रेता कॉलम वाला एक संगठन-विशिष्ट ऑनबोर्डिंग फ़ील्ड; प्रति विक्रेता कैप्चर किया गया और विक्रेता के Custom Data टैब पर दिखाया गया, प्रति-भूमिका दृश्यता के साथ (देखें <a href="#custom-onboarding">कस्टम ऑनबोर्डिंग फ़ील्ड</a>)</td></tr>
         <tr><td><strong>Domain</strong></td><td>सुरक्षा प्रश्नों की एक श्रेणी (जैसे, Governance, Identity &amp; Access Management)</td></tr>
         <tr><td><strong>Evidence</strong></td><td>दस्तावेज़, स्क्रीनशॉट या फ़ाइलें जो अनुपालन दावे को साबित करती हैं</td></tr>
         <tr><td><strong>FAIR</strong></td><td>Factor Analysis of Information Risk &mdash; एक मात्रात्मक जोखिम विश्लेषण पद्धति</td></tr>
@@ -1344,6 +1569,8 @@
         <tr><td><strong>SOC 2</strong></td><td>Service Organization Control Type 2 &mdash; सेवा संगठनों के लिए trust services मानदंड</td></tr>
         <tr><td><strong>SPII</strong></td><td>Sensitive PII (SSN, वित्तीय डेटा, स्वास्थ्य रिकॉर्ड)</td></tr>
         <tr><td><strong>SRS</strong></td><td>Security Risk Scorecard &mdash; एक विक्रेता के लिए प्लेटफ़ॉर्म की बाहरी सुरक्षा रेटिंग/ग्रेड</td></tr>
+        <tr><td><strong>SSC (SecurityScorecard)</strong></td><td>एक तृतीय-पक्ष सुरक्षा अक्षर-ग्रेड (A&ndash;F) जो Grip कनेक्ट होने पर Grip-खोजे गए ऐप्स और विक्रेताओं के लिए दिखाया जाता है</td></tr>
+        <tr><td><strong>Subprocessor</strong></td><td>एक विक्रेता का अपना downstream विक्रेता; आपके कई विक्रेताओं में साझा किया गया वही subprocessor आपूर्ति-श्रृंखला concentration को इंगित करता है (देखें <a href="#tprm-fourth-party">4th Party Risk</a>)</td></tr>
         <tr><td><strong>TPRM</strong></td><td>Third Party Risk Management</td></tr>
         <tr><td><strong>Unified Question</strong></td><td>एक एकल सुरक्षा प्रश्न जो एकाधिक फ्रेमवर्क में आवश्यकताओं से मैप होता है</td></tr>
         <tr><td><strong>VID</strong></td><td>Vendor ID &mdash; आपकी खरीद प्रणाली द्वारा एक विक्रेता को असाइन किया गया 4&ndash;8 अंकीय पहचानकर्ता</td></tr>
@@ -1394,6 +1621,8 @@
                     <a href="#tprm-add-vendor">विक्रेता जोड़ना</a>
                     <a href="#tprm-lifecycle">विक्रेता जीवनचक्र</a>
                     <a href="#tprm-assessments">विक्रेता मूल्यांकन</a>
+                    <a href="#assessment-forms">मूल्यांकन फ़ॉर्म &amp; AI फ़िल</a>
+                    <a href="#tprm-action-plan">Vendor Action Plan</a>
                     <a href="#tprm-srs">Security Risk Scorecard</a>
                     <a href="#tprm-fair">FAIR Analysis</a>
                     <a href="#tprm-fourth-party">4th Party Risk</a>
@@ -1401,16 +1630,20 @@
 
                     <h4>ऑनबोर्डिंग &amp; Procurement</h4>
                     <a href="#onboarding-workflow">विक्रेता ऑनबोर्डिंग</a>
+                    <a href="#custom-onboarding">कस्टम ऑनबोर्डिंग फ़ील्ड</a>
                     <a href="#ai-review">AI Review</a>
                     <a href="#procurement-cyber-status">Procurement Cyber Status</a>
                     <a href="#shadow-saas-grip">Grip Shadow SaaS Integration</a>
                     <a href="#shadow-saas-hero">Hero Shadow SaaS Integration</a>
                     <a href="#zscaler">Zscaler Blocking</a>
+                    <a href="#breach-alerts">Breach / Cyber Alerts</a>
 
                     <h4>Admin Portal</h4>
                     <a href="#admin-general">सामान्य सेटिंग</a>
                     <a href="#admin-branding">Branding &amp; Theme</a>
                     <a href="#admin-users">User Management</a>
+                    <a href="#admin-acl-groups">ACL Groups</a>
+                    <a href="#admin-templates">Assessment Templates</a>
                     <a href="#admin-email">Email Configuration</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">AI Integration</a>

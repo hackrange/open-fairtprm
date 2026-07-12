@@ -29,7 +29,7 @@ $isContributor = hasGroup('grc_contributors');
 
 if (!$isAdmin && !$isCyberGRC && !$isAuditor && !$isContributor) {
     http_response_code(403);
-    die('Access denied. FairScore Assessment requires cyber_grc, administrator, auditor, or grc_contributors role.');
+    die(e(t('grc-assessment.access_denied')));
 }
 
 $readOnly = !$isAdmin && !$isCyberGRC && $isAuditor && !$isContributor;
@@ -499,7 +499,7 @@ $_page = 'grc_assessment';
 
 <?php if ($assessmentDetail): ?>
     <!-- ═══════════ ASSESSMENT DETAIL VIEW ═══════════ -->
-    <a href="grc-assessment.php" class="back-link">&larr; Back to assessments</a>
+    <a href="grc-assessment.php" class="back-link"><?php echo t('grc-assessment.back_to_assessments'); ?></a>
 
     <div class="detail-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -516,9 +516,9 @@ $_page = 'grc_assessment';
         <?php endif; ?>
         <div class="detail-grid">
             <div class="detail-item"><div class="label"><?php echo e(t('grc-assessment.type')); ?></div><div class="value"><?php echo ucfirst(str_replace('_', ' ', e($assessmentDetail['assessment_type']))); ?></div></div>
-            <div class="detail-item"><div class="label"><?php echo e(t('grc-assessment.lead_auditor')); ?></div><div class="value"><?php echo e($assessmentDetail['lead_auditor_name'] ?? 'Unassigned'); ?></div></div>
-            <div class="detail-item"><div class="label"><?php echo e(t('grc-assessment.planned_period')); ?></div><div class="value"><?php echo e($assessmentDetail['planned_start'] ?? '—'); ?> to <?php echo e($assessmentDetail['planned_end'] ?? '—'); ?></div></div>
-            <div class="detail-item"><div class="label"><?php echo e(t('grc-assessment.scope')); ?></div><div class="value"><?php echo e($assessmentDetail['scope'] ?? 'Full Organization'); ?></div></div>
+            <div class="detail-item"><div class="label"><?php echo e(t('grc-assessment.lead_auditor')); ?></div><div class="value"><?php echo e($assessmentDetail['lead_auditor_name'] ?? t('grc-assessment.unassigned')); ?></div></div>
+            <div class="detail-item"><div class="label"><?php echo e(t('grc-assessment.planned_period')); ?></div><div class="value"><?php echo e($assessmentDetail['planned_start'] ?? '—'); ?> <?php echo e(t('grc-assessment.to')); ?> <?php echo e($assessmentDetail['planned_end'] ?? '—'); ?></div></div>
+            <div class="detail-item"><div class="label"><?php echo e(t('grc-assessment.scope')); ?></div><div class="value"><?php echo e($assessmentDetail['scope'] ?? t('grc-assessment.full_organization')); ?></div></div>
         </div>
     </div>
 
@@ -568,7 +568,7 @@ $_page = 'grc_assessment';
     <!-- Filter Toggle Bar -->
     <div id="hideAnsweredBar" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <div id="hideAnsweredInfo" style="font-size:13px;color:#6b7280;display:none;">
-            Showing <span id="hiddenCount">0</span> of <?php echo count($responses); ?> questions
+            <?php echo e(t('grc-assessment.showing')); ?> <span id="hiddenCount">0</span> <?php echo e(t('grc-assessment.of')); ?> <?php echo count($responses); ?> <?php echo e(t('grc-assessment.questions_lc')); ?>
         </div>
         <div style="margin-left:auto;display:flex;gap:6px;">
             <?php
@@ -747,7 +747,7 @@ $_page = 'grc_assessment';
                     <?php endif; ?>
                 </div>
                 <?php if ($r['assessor_name']): ?>
-                <div style="font-size:11px;color:#6b7280;margin-top:4px;">Last assessed by <?php echo e($r['assessor_name']); ?> on <?php echo e($r['assessed_at']); ?></div>
+                <div style="font-size:11px;color:#6b7280;margin-top:4px;"><?php echo e(t('grc-assessment.last_assessed_by')); ?> <?php echo e($r['assessor_name']); ?> <?php echo e(t('grc-assessment.on')); ?> <?php echo e($r['assessed_at']); ?></div>
                 <?php endif; ?>
 
                 <?php if ($canManage || $isAuditor): ?>
@@ -806,7 +806,7 @@ $_page = 'grc_assessment';
             ?>
             <?php
                 $isMyTask = (int)($tk['assigned_to'] ?? 0) === (int)$user['id'];
-                $typeLabels = ['evidence_request' => 'Evidence Request', 'remediation' => 'Remediation', 'review' => 'Review', 'documentation' => 'Documentation', 'implementation' => 'Implementation'];
+                $typeLabels = ['evidence_request' => t('grc-assessment.evidence_request'), 'remediation' => t('grc-assessment.remediation'), 'review' => t('grc-assessment.review'), 'documentation' => t('grc-assessment.documentation'), 'implementation' => t('grc-assessment.implementation')];
             ?>
             <div id="task-row-<?php echo (int)$tk['id']; ?>" style="background:#fff;border:1px solid <?php echo $tkLate ? '#fecaca' : '#e5e7eb'; ?>;border-radius:8px;padding:14px 18px;<?php if ($tkLate) echo 'border-left:3px solid #dc3545;'; ?><?php if ($isDone) echo 'opacity:0.6;'; ?>">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
@@ -826,17 +826,17 @@ $_page = 'grc_assessment';
                 <?php endif; ?>
 
                 <?php if (!empty($tk['notes'])): ?>
-                <div style="font-size:12px;color:#6b7280;margin-bottom:6px;font-style:italic;">Notes: <?php echo nl2br(e($tk['notes'])); ?></div>
+                <div style="font-size:12px;color:#6b7280;margin-bottom:6px;font-style:italic;"><?php echo e(t('grc-assessment.notes')); ?>: <?php echo nl2br(e($tk['notes'])); ?></div>
                 <?php endif; ?>
 
                 <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">
-                    Assigned to <strong id="task-assignee-<?php echo (int)$tk['id']; ?>"><?php echo e($tk['assigned_to_name'] ?? 'Unassigned'); ?></strong>
-                    &middot; From <?php echo e($tk['assigned_by_name'] ?? '—'); ?>
+                    <?php echo e(t('grc-assessment.assigned_to')); ?> <strong id="task-assignee-<?php echo (int)$tk['id']; ?>"><?php echo e($tk['assigned_to_name'] ?? t('grc-assessment.unassigned')); ?></strong>
+                    &middot; <?php echo e(t('grc-assessment.from')); ?> <?php echo e($tk['assigned_by_name'] ?? '—'); ?>
                     <?php if (!empty($tk['due_date'])): ?>
-                    &middot; Due <strong><?php echo date('M j, Y', strtotime($tk['due_date'])); ?></strong>
+                    &middot; <?php echo e(t('grc-assessment.due')); ?> <strong><?php echo date('M j, Y', strtotime($tk['due_date'])); ?></strong>
                     <?php endif; ?>
                     <?php if (!empty($tk['question_ref'])): ?>
-                    &middot; Question: <?php echo e($tk['question_ref']); ?>
+                    &middot; <?php echo e(t('grc-assessment.question_label')); ?> <?php echo e($tk['question_ref']); ?>
                     <?php endif; ?>
                 </div>
 
@@ -936,7 +936,7 @@ $_page = 'grc_assessment';
                 </div>
                 <div class="grc-modal-footer">
                     <?php if ($isAdmin): ?>
-                    <button type="submit" name="action" value="delete_assessment" class="btn btn-danger" style="margin-right:auto;" data-confirm="Delete this assessment and all responses?"><?php echo e(t('grc-assessment.delete')); ?></button>
+                    <button type="submit" name="action" value="delete_assessment" class="btn btn-danger" style="margin-right:auto;" data-confirm="<?php echo e(t('grc-assessment.confirm_delete_assessment')); ?>"><?php echo e(t('grc-assessment.delete')); ?></button>
                     <?php endif; ?>
                     <button type="button" class="btn btn-warning" data-action="close-edit-assessment"><?php echo e(t('grc-assessment.cancel')); ?></button>
                     <button type="submit" class="btn btn-primary"><?php echo e(t('grc-assessment.save_changes')); ?></button>
@@ -1148,12 +1148,12 @@ $_page = 'grc_assessment';
                         <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="assessment_id" value="<?php echo $a['id']; ?>"><button type="submit" name="action" value="unarchive_assessment" class="btn btn-xs btn-info" title="<?php echo e(t('grc-assessment.restore_from_archive')); ?>"><?php echo e(t('grc-assessment.unarchive')); ?></button></form>
                         <?php endif; ?>
                         <?php if ($isAdmin): ?>
-                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="assessment_id" value="<?php echo $a['id']; ?>"><button type="submit" name="action" value="delete_assessment" class="btn btn-xs btn-danger" data-confirm="Permanently delete this assessment and all its responses? This cannot be undone." title="<?php echo e(t('grc-assessment.permanently_delete')); ?>"><?php echo e(t('grc-assessment.delete')); ?></button></form>
+                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="assessment_id" value="<?php echo $a['id']; ?>"><button type="submit" name="action" value="delete_assessment" class="btn btn-xs btn-danger" data-confirm="<?php echo e(t('grc-assessment.confirm_permanently_delete')); ?>" title="<?php echo e(t('grc-assessment.permanently_delete')); ?>"><?php echo e(t('grc-assessment.delete')); ?></button></form>
                         <?php endif; ?>
                     <?php else: ?>
                         <a href="grc-assessment.php?view=<?php echo $a['id']; ?>" class="btn btn-xs btn-info"><?php echo e(t('grc-assessment.open')); ?></a>
                         <?php if ($canManage): ?>
-                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="assessment_id" value="<?php echo $a['id']; ?>"><button type="submit" name="action" value="archive_assessment" class="btn btn-xs" style="background:#6b7280;color:#fff;" data-confirm="Archive this assessment? It will be hidden from reporting dropdowns." title="<?php echo e(t('grc-assessment.archive_assessment')); ?>"><?php echo e(t('grc-assessment.archive')); ?></button></form>
+                        <form method="POST" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="assessment_id" value="<?php echo $a['id']; ?>"><button type="submit" name="action" value="archive_assessment" class="btn btn-xs" style="background:#6b7280;color:#fff;" data-confirm="<?php echo e(t('grc-assessment.confirm_archive_assessment')); ?>" title="<?php echo e(t('grc-assessment.archive_assessment')); ?>"><?php echo e(t('grc-assessment.archive')); ?></button></form>
                         <button class="btn btn-xs btn-warning" data-action="duplicate-assessment" data-id="<?php echo $a['id']; ?>" data-title="<?php echo e($a['title']); ?>" title="<?php echo e(t('grc-assessment.duplicate_assessment')); ?>"><?php echo e(t('grc-assessment.duplicate')); ?></button>
                         <?php endif; ?>
                     <?php endif; ?>
@@ -1246,7 +1246,7 @@ $_page = 'grc_assessment';
                 <button type="button" class="grc-modal-close" data-action="close-duplicate">&times;</button>
             </div>
             <div class="grc-modal-body">
-                <p style="margin:0 0 16px;color:#374151;font-size:14px;">Create a copy of <strong id="duplicateAssessmentTitle"></strong>?</p>
+                <p style="margin:0 0 16px;color:#374151;font-size:14px;"><?php echo e(t('grc-assessment.create_copy_of')); ?> <strong id="duplicateAssessmentTitle"></strong>?</p>
                 <div style="display:flex;flex-direction:column;gap:10px;">
                     <label style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;transition:border-color 0.2s;" id="dupModeTemplate">
                         <input type="radio" name="duplicate_mode" value="template" checked style="margin-top:2px;">
@@ -1299,12 +1299,12 @@ $_page = 'grc_assessment';
                     onComplete(data.result);
                 } else if (data.status === 'failed') {
                     clearInterval(interval);
-                    onError(data.error || 'Processing failed. Please try again.');
+                    onError(data.error || <?php echo json_encode(t('grc-assessment.js_processing_failed')); ?>);
                 }
             })
             .catch(function() {
                 clearInterval(interval);
-                onError('Network error. Please try again.');
+                onError(<?php echo json_encode(t('grc-assessment.js_network_error')); ?>);
             });
         }, 3000);
     }
@@ -1377,7 +1377,7 @@ $_page = 'grc_assessment';
                 break;
             case 'open-task':
                 document.getElementById('taskQuestionId').value = btn.getAttribute('data-question-id');
-                document.getElementById('taskTitle').value = 'Evidence/Action needed for ' + btn.getAttribute('data-question-ref');
+                document.getElementById('taskTitle').value = <?php echo json_encode(t('grc-assessment.js_evidence_action_prefix')); ?> + btn.getAttribute('data-question-ref');
                 openModal('taskOverlay');
                 break;
             case 'close-task':
@@ -1408,7 +1408,7 @@ $_page = 'grc_assessment';
             case 'delete-task':
                 var dtId = parseInt(btn.getAttribute('data-task-id'));
                 var dtRef = btn.getAttribute('data-task-ref');
-                if (confirm('Delete task ' + dtRef + '? This cannot be undone.')) {
+                if (confirm(<?php echo json_encode(t('grc-assessment.js_delete_task_prefix')); ?> + dtRef + <?php echo json_encode(t('grc-assessment.js_delete_task_suffix')); ?>)) {
                     fetch('api/grc-unified-assessment.php', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action: 'delete_task', task_id: dtId, csrf_token: _csrfToken })
@@ -1417,7 +1417,7 @@ $_page = 'grc_assessment';
                         if (resp.success) {
                             var row = document.getElementById('task-row-' + dtId);
                             if (row) row.remove();
-                        } else { alert(resp.error || 'Failed to delete task'); }
+                        } else { alert(resp.error || <?php echo json_encode(t('grc-assessment.js_failed_delete_task')); ?>); }
                     });
                 }
                 break;
@@ -1497,7 +1497,7 @@ $_page = 'grc_assessment';
                     var label = document.getElementById('task-assignee-' + taskId);
                     if (label) label.textContent = selectedText;
                     sel.value = '';
-                } else { alert(resp.error || 'Failed to reassign task'); }
+                } else { alert(resp.error || <?php echo json_encode(t('grc-assessment.js_failed_reassign_task')); ?>); }
             });
         });
     });
@@ -1508,7 +1508,7 @@ $_page = 'grc_assessment';
             var taskId = parseInt(this.getAttribute('data-task-id'));
             var newStatus = this.getAttribute('data-status');
             var label = newStatus === 'completed' ? 'complete' : 'start';
-            if (!confirm('Mark this task as ' + newStatus.replace('_', ' ') + '?')) return;
+            if (!confirm(<?php echo json_encode(t('grc-assessment.js_mark_task_as')); ?> + newStatus.replace('_', ' ') + '?')) return;
             btn.disabled = true;
             fetch('api/grc-unified-assessment.php', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1521,13 +1521,13 @@ $_page = 'grc_assessment';
                         if (row) { row.style.opacity = '0.6'; }
                         // Remove action buttons
                         var actions = row ? row.querySelector('[style*="border-top"]') : null;
-                        if (actions) actions.innerHTML = '<span style="font-size:12px;color:#065f46;font-weight:500;">Completed</span>';
+                        if (actions) actions.innerHTML = '<span style="font-size:12px;color:#065f46;font-weight:500;">' + <?php echo json_encode(t('grc-assessment.js_completed')); ?> + '</span>';
                     } else {
                         // Refresh to show updated status
                         location.reload();
                     }
                 } else {
-                    alert(resp.error || 'Failed to update task');
+                    alert(resp.error || <?php echo json_encode(t('grc-assessment.js_failed_update_task')); ?>);
                     btn.disabled = false;
                 }
             }).catch(function() { btn.disabled = false; });
@@ -1664,7 +1664,7 @@ $_page = 'grc_assessment';
                 }
                 var progText = bar ? bar.parentElement.nextElementSibling : null;
                 if (progText && resp.progress.answered !== undefined) {
-                    progText.textContent = resp.progress.answered + ' of ' + resp.progress.total_questions + ' answered';
+                    progText.textContent = resp.progress.answered + ' ' + <?php echo json_encode(t('grc-assessment.of')); ?> + ' ' + resp.progress.total_questions + ' ' + <?php echo json_encode(t('grc-assessment.answered_lc')); ?>;
                 }
             }
             // Update CSF Maturity and Compliance scores
@@ -1672,7 +1672,7 @@ $_page = 'grc_assessment';
                 updateScoreDisplays(resp);
             }
             if (!resp.success) {
-                alert('Error: ' + (resp.error || 'Unknown error'));
+                alert(<?php echo json_encode(t('grc-assessment.js_error_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment.js_unknown_error')); ?>));
             }
             // Update answered state on the card
             if (resp.success && data.question_id) {
@@ -1699,7 +1699,7 @@ $_page = 'grc_assessment';
         .then(function(resp) {
             syncCsrf(resp.csrf_token);
             if (resp.success) { location.reload(); }
-            else { alert('Error: ' + (resp.error || 'Unknown error')); }
+            else { alert(<?php echo json_encode(t('grc-assessment.js_error_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment.js_unknown_error')); ?>)); }
         });
     }
 
@@ -1709,7 +1709,7 @@ $_page = 'grc_assessment';
     }
 
     function showQuestionDetail(questionId) {
-        document.getElementById('frameworkDetailBody').innerHTML = '<p style="color:#6b7280;">Loading...</p>';
+        document.getElementById('frameworkDetailBody').innerHTML = '<p style="color:#6b7280;">' + <?php echo json_encode(t('grc-assessment.loading')); ?> + '</p>';
         openModal('frameworkOverlay');
 
         fetch('api/grc-unified-assessment.php', {
@@ -1721,7 +1721,7 @@ $_page = 'grc_assessment';
             syncCsrf(resp.csrf_token);
             if (resp.success) {
                 var html = '<h4 style="font-size:14px;margin:0 0 16px;">' + escHtml(resp.question.question_ref) + ' &mdash; ' + escHtml(resp.question.question_text) + '</h4>';
-                html += '<table class="grc-table"><thead><tr><th>Framework</th><th>Requirement</th><th>Title</th><th>Strength</th></tr></thead><tbody>';
+                html += '<table class="grc-table"><thead><tr><th>' + <?php echo json_encode(t('grc-assessment.col_framework')); ?> + '</th><th>' + <?php echo json_encode(t('grc-assessment.col_requirement')); ?> + '</th><th>' + <?php echo json_encode(t('grc-assessment.col_title')); ?> + '</th><th>' + <?php echo json_encode(t('grc-assessment.col_strength')); ?> + '</th></tr></thead><tbody>';
                 resp.mappings.forEach(function(m) {
                     var sColors = {exact:'#28a745',strong:'#3b82f6',partial:'#f59e0b',related:'#6b7280'};
                     var sColor = sColors[m.mapping_strength] || '#6b7280';
@@ -1730,7 +1730,7 @@ $_page = 'grc_assessment';
                     html += '<td><span style="background:' + sColor + ';color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">' + escHtml(m.mapping_strength || '') + '</span></td></tr>';
                 });
                 html += '</tbody></table>';
-                if (resp.mappings.length === 0) html += '<p style="color:#6b7280;">No framework mappings found. Seed mappings from catalog.</p>';
+                if (resp.mappings.length === 0) html += '<p style="color:#6b7280;">' + <?php echo json_encode(t('grc-assessment.js_no_mappings')); ?> + '</p>';
                 document.getElementById('frameworkDetailBody').innerHTML = html;
             }
         });
@@ -1757,9 +1757,9 @@ $_page = 'grc_assessment';
             syncCsrf(resp.csrf_token);
             if (resp.success) {
                 closeModal('taskOverlay');
-                alert('Task ' + resp.ref + ' created successfully.');
+                alert(<?php echo json_encode(t('grc-assessment.js_task_prefix')); ?> + resp.ref + <?php echo json_encode(t('grc-assessment.js_task_created_suffix')); ?>);
             } else {
-                alert('Error: ' + (resp.error || 'Unknown error'));
+                alert(<?php echo json_encode(t('grc-assessment.js_error_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment.js_unknown_error')); ?>));
             }
         });
     }
@@ -1786,15 +1786,15 @@ $_page = 'grc_assessment';
             syncCsrf(resp.csrf_token);
             if (resp.success) {
                 closeModal('riskOverlay');
-                alert('Risk ' + resp.risk_ref + ' logged successfully and added to the Risk Register.');
+                alert(<?php echo json_encode(t('grc-assessment.js_risk_prefix')); ?> + resp.risk_ref + <?php echo json_encode(t('grc-assessment.js_risk_logged_suffix')); ?>);
             } else {
-                alert('Error: ' + (resp.error || 'Unknown error'));
+                alert(<?php echo json_encode(t('grc-assessment.js_error_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment.js_unknown_error')); ?>));
             }
         });
     }
 
     function validateResponse(responseId, status) {
-        var notes = prompt('Validation notes (optional):');
+        var notes = prompt(<?php echo json_encode(t('grc-assessment.js_validation_notes_prompt')); ?>);
         if (notes === null) return;
         fetch('api/grc-unified-assessment.php', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1804,7 +1804,7 @@ $_page = 'grc_assessment';
         .then(function(resp) {
             syncCsrf(resp.csrf_token);
             if (resp.success) { location.reload(); }
-            else { alert('Error: ' + (resp.error || 'Unknown error')); }
+            else { alert(<?php echo json_encode(t('grc-assessment.js_error_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment.js_unknown_error')); ?>)); }
         });
     }
 
@@ -1813,17 +1813,17 @@ $_page = 'grc_assessment';
     function modalAssist(targetId, field, btn) {
         var ta = document.getElementById(targetId);
         if (!ta || !ta.value.trim()) {
-            alert('Write content first, then click Rewrite for an improved version.');
+            alert(<?php echo json_encode(t('grc-assessment.js_write_content_first')); ?>);
             return;
         }
 
         if (!_aiEnabled) {
-            alert('The Rewrite feature is not configured. An administrator must enable it under Admin \u2192 Settings.');
+            alert(<?php echo json_encode(t('grc-assessment.js_rewrite_not_configured')); ?>);
             return;
         }
 
         btn.disabled = true;
-        btn.textContent = 'Rewriting...';
+        btn.textContent = <?php echo json_encode(t('grc-assessment.js_rewriting')); ?>;
 
         var existing = document.getElementById('modal-assist-preview-' + targetId);
         if (existing) existing.remove();
@@ -1838,8 +1838,8 @@ $_page = 'grc_assessment';
         })
         .then(function(r) {
             if (!r.ok) {
-                if (r.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
-                throw new Error('Server error (HTTP ' + r.status + ')');
+                if (r.status === 429) throw new Error(<?php echo json_encode(t('grc-assessment.js_rate_limit')); ?>);
+                throw new Error(<?php echo json_encode(t('grc-assessment.js_server_error_prefix')); ?> + r.status + ')');
             }
             return r.json();
         })
@@ -1848,25 +1848,25 @@ $_page = 'grc_assessment';
             if (resp.queued && resp.job_id) {
                 pollAiJob(resp.job_id, function(result) {
                     btn.disabled = false;
-                    btn.textContent = 'Rewrite';
+                    btn.textContent = <?php echo json_encode(t('grc-assessment.rewrite')); ?>;
                     resp = result;
                     resp.success = true;
                     handleModalRewriteResult(resp, btn, ta, targetId);
                 }, function(err) {
                     btn.disabled = false;
-                    btn.textContent = 'Rewrite';
+                    btn.textContent = <?php echo json_encode(t('grc-assessment.rewrite')); ?>;
                     alert(err);
                 });
                 return;
             }
             btn.disabled = false;
-            btn.textContent = 'Rewrite';
+            btn.textContent = <?php echo json_encode(t('grc-assessment.rewrite')); ?>;
             handleModalRewriteResult(resp, btn, ta, targetId);
         })
         .catch(function(err) {
             btn.disabled = false;
-            btn.textContent = 'Rewrite';
-            alert(err.message || 'Connection error.');
+            btn.textContent = <?php echo json_encode(t('grc-assessment.rewrite')); ?>;
+            alert(err.message || <?php echo json_encode(t('grc-assessment.js_connection_error')); ?>);
         });
     }
 
@@ -1876,15 +1876,15 @@ $_page = 'grc_assessment';
                 preview.className = 'rewrite-preview';
                 preview.id = 'modal-assist-preview-' + targetId;
                 preview.style.marginTop = '8px';
-                preview.innerHTML = '<div class="evidence-section-label" style="margin-bottom:4px;color:#6d28d9;">Proposed Rewrite</div>' +
+                preview.innerHTML = '<div class="evidence-section-label" style="margin-bottom:4px;color:#6d28d9;">' + <?php echo json_encode(t('grc-assessment.js_proposed_rewrite')); ?> + '</div>' +
                     '<div class="rewrite-text">' + escHtml(resp.content) + '</div>' +
                     '<div class="rewrite-actions" style="margin-top:6px;">' +
-                    '<button type="button" class="btn btn-xs btn-success" data-action="accept-modal-assist" data-target="' + targetId + '">Accept</button>' +
-                    '<button type="button" class="btn btn-xs btn-outline" data-action="discard-modal-assist" data-target="' + targetId + '">Discard</button>' +
+                    '<button type="button" class="btn btn-xs btn-success" data-action="accept-modal-assist" data-target="' + targetId + '">' + <?php echo json_encode(t('grc-assessment.js_accept')); ?> + '</button>' +
+                    '<button type="button" class="btn btn-xs btn-outline" data-action="discard-modal-assist" data-target="' + targetId + '">' + <?php echo json_encode(t('grc-assessment.js_discard')); ?> + '</button>' +
                     '</div>';
                 ta.parentNode.parentNode.insertBefore(preview, ta.parentNode.nextSibling);
             } else {
-                alert('Rewrite failed: ' + (resp.error || 'Unknown error'));
+                alert(<?php echo json_encode(t('grc-assessment.js_rewrite_failed_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment.js_unknown_error')); ?>));
             }
     }
 
@@ -1933,7 +1933,7 @@ $_page = 'grc_assessment';
                     _autoSaving = false;
                     var indicator = document.getElementById('autosaveIndicator');
                     if (indicator) {
-                        indicator.textContent = 'Saved ' + new Date().toLocaleTimeString();
+                        indicator.textContent = <?php echo json_encode(t('grc-assessment.js_saved_prefix')); ?> + new Date().toLocaleTimeString();
                         indicator.style.opacity = '1';
                         setTimeout(function() { indicator.style.opacity = '0.5'; }, 3000);
                     }
@@ -1970,14 +1970,14 @@ $_page = 'grc_assessment';
 
         if (!_aiEnabled) {
             // Static guidance from question catalog data
-            btn.textContent = 'Assistant';
+            btn.textContent = <?php echo json_encode(t('grc-assessment.assistant')); ?>;
             btn.disabled = false;
             content.innerHTML = buildStaticGuidance(questionId);
             return;
         }
 
-        content.innerHTML = '<p style="color:#9ca3af;font-size:12px;font-style:italic;">Loading guidance...</p>';
-        btn.textContent = 'Loading...';
+        content.innerHTML = '<p style="color:#9ca3af;font-size:12px;font-style:italic;">' + <?php echo json_encode(t('grc-assessment.js_loading_guidance')); ?> + '</p>';
+        btn.textContent = <?php echo json_encode(t('grc-assessment.loading')); ?>;
 
         fetch('api/grc-unified-assessment.php', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1985,8 +1985,8 @@ $_page = 'grc_assessment';
         })
         .then(function(r) {
             if (!r.ok) {
-                if (r.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
-                throw new Error('Server error (HTTP ' + r.status + ')');
+                if (r.status === 429) throw new Error(<?php echo json_encode(t('grc-assessment.js_rate_limit')); ?>);
+                throw new Error(<?php echo json_encode(t('grc-assessment.js_server_error_prefix')); ?> + r.status + ')');
             }
             return r.json();
         })
@@ -1995,31 +1995,31 @@ $_page = 'grc_assessment';
             if (resp.queued && resp.job_id) {
                 pollAiJob(resp.job_id, function(result) {
                     btn.disabled = false;
-                    btn.textContent = 'Assistant';
+                    btn.textContent = <?php echo json_encode(t('grc-assessment.assistant')); ?>;
                     if (result.content) {
                         content.innerHTML = markdownToHtml(result.content);
                     } else {
-                        content.innerHTML = '<p style="color:#dc3545;font-size:12px;">No guidance returned.</p>';
+                        content.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + <?php echo json_encode(t('grc-assessment.js_no_guidance_returned')); ?> + '</p>';
                     }
                 }, function(err) {
                     btn.disabled = false;
-                    btn.textContent = 'Assistant';
+                    btn.textContent = <?php echo json_encode(t('grc-assessment.assistant')); ?>;
                     content.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(err) + '</p>';
                 });
                 return;
             }
             btn.disabled = false;
-            btn.textContent = 'Assistant';
+            btn.textContent = <?php echo json_encode(t('grc-assessment.assistant')); ?>;
             if (resp.success && resp.content) {
                 content.innerHTML = markdownToHtml(resp.content);
             } else {
-                content.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(resp.error || 'Failed to get guidance.') + '</p>';
+                content.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(resp.error || <?php echo json_encode(t('grc-assessment.js_failed_get_guidance')); ?>) + '</p>';
             }
         })
         .catch(function(err) {
             btn.disabled = false;
-            btn.textContent = 'Assistant';
-            content.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(err.message || 'Connection error.') + '</p>';
+            btn.textContent = <?php echo json_encode(t('grc-assessment.assistant')); ?>;
+            content.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(err.message || <?php echo json_encode(t('grc-assessment.js_connection_error')); ?>) + '</p>';
         });
     }
 
@@ -2112,8 +2112,8 @@ $_page = 'grc_assessment';
 
         // AI-enabled: call AI for a detailed elaboration
         btn.disabled = true;
-        btn.textContent = 'Loading...';
-        container.innerHTML = '<p style="color:#9ca3af;font-size:12px;font-style:italic;">Generating detailed explanation...</p>';
+        btn.textContent = <?php echo json_encode(t('grc-assessment.loading')); ?>;
+        container.innerHTML = '<p style="color:#9ca3af;font-size:12px;font-style:italic;">' + <?php echo json_encode(t('grc-assessment.js_generating_explanation')); ?> + '</p>';
         container.style.display = 'block';
 
         fetch('api/grc-unified-assessment.php', {
@@ -2122,8 +2122,8 @@ $_page = 'grc_assessment';
         })
         .then(function(r) {
             if (!r.ok) {
-                if (r.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
-                throw new Error('Server error (HTTP ' + r.status + ')');
+                if (r.status === 429) throw new Error(<?php echo json_encode(t('grc-assessment.js_rate_limit')); ?>);
+                throw new Error(<?php echo json_encode(t('grc-assessment.js_server_error_prefix')); ?> + r.status + ')');
             }
             return r.json();
         })
@@ -2132,43 +2132,43 @@ $_page = 'grc_assessment';
             if (resp.queued && resp.job_id) {
                 pollAiJob(resp.job_id, function(result) {
                     btn.disabled = false;
-                    btn.textContent = 'Explain Further';
+                    btn.textContent = <?php echo json_encode(t('grc-assessment.explain_further')); ?>;
                     if (result.content) {
                         container.innerHTML = '<div class="guidance-content">' + markdownToHtml(result.content) + '</div>';
                     } else {
-                        container.innerHTML = '<p style="color:#dc3545;font-size:12px;">No explanation returned.</p>';
+                        container.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + <?php echo json_encode(t('grc-assessment.js_no_explanation_returned')); ?> + '</p>';
                     }
                 }, function(err) {
                     btn.disabled = false;
-                    btn.textContent = 'Explain Further';
+                    btn.textContent = <?php echo json_encode(t('grc-assessment.explain_further')); ?>;
                     container.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(err) + '</p>';
                 });
                 return;
             }
             btn.disabled = false;
-            btn.textContent = 'Explain Further';
+            btn.textContent = <?php echo json_encode(t('grc-assessment.explain_further')); ?>;
             if (resp.success && resp.content) {
                 container.innerHTML = '<div class="guidance-content">' + markdownToHtml(resp.content) + '</div>';
             } else {
-                container.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(resp.error || 'Failed to generate explanation.') + '</p>';
+                container.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(resp.error || <?php echo json_encode(t('grc-assessment.js_failed_gen_explanation')); ?>) + '</p>';
             }
         })
         .catch(function(err) {
             btn.disabled = false;
-            btn.textContent = 'Explain Further';
-            container.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(err.message || 'Connection error.') + '</p>';
+            btn.textContent = <?php echo json_encode(t('grc-assessment.explain_further')); ?>;
+            container.innerHTML = '<p style="color:#dc3545;font-size:12px;">' + escHtml(err.message || <?php echo json_encode(t('grc-assessment.js_connection_error')); ?>) + '</p>';
         });
     }
 
     function assistantRewrite(questionId, btn) {
         var ta = document.querySelector('.notes-textarea[data-question="' + questionId + '"]');
         if (!ta || !ta.value.trim()) {
-            alert('Write some notes first, then click Rewrite to get an improved version.');
+            alert(<?php echo json_encode(t('grc-assessment.js_write_notes_first')); ?>);
             return;
         }
 
         if (!_aiEnabled) {
-            alert('The Rewrite feature is not configured. An administrator must enable it under Admin \u2192 Settings.');
+            alert(<?php echo json_encode(t('grc-assessment.js_rewrite_not_configured')); ?>);
             return;
         }
 
@@ -2177,7 +2177,7 @@ $_page = 'grc_assessment';
         var questionText = card ? (card.querySelector('.question-text') || card.querySelector('div > div')).textContent.trim() : '';
 
         btn.disabled = true;
-        btn.textContent = 'Rewriting...';
+        btn.textContent = <?php echo json_encode(t('grc-assessment.js_rewriting')); ?>;
 
         // Remove any existing preview
         var existing = document.getElementById('rewrite-preview-' + questionId);
@@ -2192,8 +2192,8 @@ $_page = 'grc_assessment';
         })
         .then(function(r) {
             if (!r.ok) {
-                if (r.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
-                throw new Error('Server error (HTTP ' + r.status + ')');
+                if (r.status === 429) throw new Error(<?php echo json_encode(t('grc-assessment.js_rate_limit')); ?>);
+                throw new Error(<?php echo json_encode(t('grc-assessment.js_server_error_prefix')); ?> + r.status + ')');
             }
             return r.json();
         })
@@ -2202,47 +2202,47 @@ $_page = 'grc_assessment';
             if (resp.queued && resp.job_id) {
                 pollAiJob(resp.job_id, function(result) {
                     btn.disabled = false;
-                    btn.textContent = 'Rewrite';
+                    btn.textContent = <?php echo json_encode(t('grc-assessment.rewrite')); ?>;
                     if (result.content) {
                         var preview = document.createElement('div');
                         preview.className = 'rewrite-preview';
                         preview.id = 'rewrite-preview-' + questionId;
-                        preview.innerHTML = '<div class="evidence-section-label" style="margin-bottom:6px;">Proposed Rewrite</div>' +
+                        preview.innerHTML = '<div class="evidence-section-label" style="margin-bottom:6px;">' + <?php echo json_encode(t('grc-assessment.js_proposed_rewrite')); ?> + '</div>' +
                             '<div class="rewrite-text">' + escHtml(result.content) + '</div>' +
                             '<div class="rewrite-actions">' +
-                            '<button class="btn btn-xs btn-success" data-action="accept-rewrite" data-question-id="' + questionId + '">Accept</button>' +
-                            '<button class="btn btn-xs btn-outline" data-action="discard-rewrite" data-question-id="' + questionId + '">Discard</button>' +
+                            '<button class="btn btn-xs btn-success" data-action="accept-rewrite" data-question-id="' + questionId + '">' + <?php echo json_encode(t('grc-assessment.js_accept')); ?> + '</button>' +
+                            '<button class="btn btn-xs btn-outline" data-action="discard-rewrite" data-question-id="' + questionId + '">' + <?php echo json_encode(t('grc-assessment.js_discard')); ?> + '</button>' +
                             '</div>';
                         ta.closest('.notes-panel').insertBefore(preview, ta.closest('div').nextSibling);
-                    } else { alert('Rewrite failed.'); }
+                    } else { alert(<?php echo json_encode(t('grc-assessment.js_rewrite_failed')); ?>); }
                 }, function(err) {
                     btn.disabled = false;
-                    btn.textContent = 'Rewrite';
+                    btn.textContent = <?php echo json_encode(t('grc-assessment.rewrite')); ?>;
                     alert(err);
                 });
                 return;
             }
             btn.disabled = false;
-            btn.textContent = 'Rewrite';
+            btn.textContent = <?php echo json_encode(t('grc-assessment.rewrite')); ?>;
             if (resp.success && resp.content) {
                 var preview = document.createElement('div');
                 preview.className = 'rewrite-preview';
                 preview.id = 'rewrite-preview-' + questionId;
-                preview.innerHTML = '<div class="evidence-section-label" style="margin-bottom:6px;">Proposed Rewrite</div>' +
+                preview.innerHTML = '<div class="evidence-section-label" style="margin-bottom:6px;">' + <?php echo json_encode(t('grc-assessment.js_proposed_rewrite')); ?> + '</div>' +
                     '<div class="rewrite-text">' + escHtml(resp.content) + '</div>' +
                     '<div class="rewrite-actions">' +
-                    '<button class="btn btn-xs btn-success" data-action="accept-rewrite" data-question-id="' + questionId + '">Accept</button>' +
-                    '<button class="btn btn-xs btn-outline" data-action="discard-rewrite" data-question-id="' + questionId + '">Discard</button>' +
+                    '<button class="btn btn-xs btn-success" data-action="accept-rewrite" data-question-id="' + questionId + '">' + <?php echo json_encode(t('grc-assessment.js_accept')); ?> + '</button>' +
+                    '<button class="btn btn-xs btn-outline" data-action="discard-rewrite" data-question-id="' + questionId + '">' + <?php echo json_encode(t('grc-assessment.js_discard')); ?> + '</button>' +
                     '</div>';
                 ta.closest('.notes-panel').insertBefore(preview, ta.closest('div').nextSibling);
             } else {
-                alert('Rewrite failed: ' + (resp.error || 'Unknown error'));
+                alert(<?php echo json_encode(t('grc-assessment.js_rewrite_failed_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment.js_unknown_error')); ?>));
             }
         })
         .catch(function(err) {
             btn.disabled = false;
-            btn.textContent = 'Rewrite';
-            alert(err.message || 'Connection error.');
+            btn.textContent = <?php echo json_encode(t('grc-assessment.rewrite')); ?>;
+            alert(err.message || <?php echo json_encode(t('grc-assessment.js_connection_error')); ?>);
         });
     }
 
@@ -2286,7 +2286,7 @@ $_page = 'grc_assessment';
     function loadEvidenceList(responseId) {
         var list = document.getElementById('ev-list-' + responseId);
         if (!list) return;
-        list.innerHTML = '<li style="color:#9ca3af;font-style:italic;border:none;background:none;padding:2px 0;">Loading...</li>';
+        list.innerHTML = '<li style="color:#9ca3af;font-style:italic;border:none;background:none;padding:2px 0;">' + <?php echo json_encode(t('grc-assessment.loading')); ?> + '</li>';
 
         fetch('api/grc-assessment-evidence-upload.php', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2295,9 +2295,9 @@ $_page = 'grc_assessment';
         .then(function(r) { return r.json(); })
         .then(function(resp) {
             syncCsrf(resp.csrf_token);
-            if (!resp.success) { list.innerHTML = '<li style="color:#dc3545;border:none;background:none;padding:2px 0;">' + escHtml(resp.error || 'Error') + '</li>'; return; }
+            if (!resp.success) { list.innerHTML = '<li style="color:#dc3545;border:none;background:none;padding:2px 0;">' + escHtml(resp.error || <?php echo json_encode(t('grc-assessment.js_error')); ?>) + '</li>'; return; }
             if (!resp.evidence || resp.evidence.length === 0) {
-                list.innerHTML = '<li style="color:#9ca3af;font-style:italic;border:none;background:none;padding:2px 0;">No evidence attached.</li>';
+                list.innerHTML = '<li style="color:#9ca3af;font-style:italic;border:none;background:none;padding:2px 0;">' + <?php echo json_encode(t('grc-assessment.js_no_evidence')); ?> + '</li>';
                 return;
             }
             var html = '';
@@ -2306,28 +2306,28 @@ $_page = 'grc_assessment';
                 html += '<li>';
                 html += '<span class="ev-title" title="' + escHtml(ev.file_name || ev.title || '') + '">' + escHtml(ev.evidence_ref || '') + ' &mdash; ' + escHtml(ev.title || ev.file_name || '') + '</span>';
                 html += '<span class="ev-meta">' + escHtml(ev.evidence_type || '') + (sizeKB ? ' · ' + sizeKB : '') + '</span>';
-                html += '<button class="ev-remove" data-action="unlink-evidence" data-response-id="' + responseId + '" data-evidence-id="' + ev.id + '" title="Remove link">&times;</button>';
+                html += '<button class="ev-remove" data-action="unlink-evidence" data-response-id="' + responseId + '" data-evidence-id="' + ev.id + '" title="' + <?php echo json_encode(t('grc-assessment.js_remove_link')); ?> + '">&times;</button>';
                 html += '</li>';
             });
             list.innerHTML = html;
         })
-        .catch(function() { list.innerHTML = '<li style="color:#dc3545;border:none;background:none;padding:2px 0;">Failed to load evidence.</li>'; });
+        .catch(function() { list.innerHTML = '<li style="color:#dc3545;border:none;background:none;padding:2px 0;">' + <?php echo json_encode(t('grc-assessment.js_failed_load_evidence')); ?> + '</li>'; });
     }
 
     function uploadEvidence(responseId, btn) {
         var fileInput = document.getElementById('ev-file-' + responseId);
         if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-            alert('Please select a file to upload.');
+            alert(<?php echo json_encode(t('grc-assessment.js_select_file')); ?>);
             return;
         }
         var file = fileInput.files[0];
         if (file.size > 52428800) {
-            alert('File exceeds 50 MB limit.');
+            alert(<?php echo json_encode(t('grc-assessment.js_file_too_large')); ?>);
             return;
         }
 
         btn.disabled = true;
-        btn.textContent = 'Uploading...';
+        btn.textContent = <?php echo json_encode(t('grc-assessment.js_uploading')); ?>;
 
         var fd = new FormData();
         fd.append('action', 'upload');
@@ -2344,23 +2344,23 @@ $_page = 'grc_assessment';
         .then(function(resp) {
             syncCsrf(resp.csrf_token);
             btn.disabled = false;
-            btn.textContent = 'Upload';
+            btn.textContent = <?php echo json_encode(t('grc-assessment.upload')); ?>;
             if (resp.success) {
                 fileInput.value = '';
                 loadEvidenceList(responseId);
             } else {
-                alert('Upload error: ' + (resp.error || 'Unknown error'));
+                alert(<?php echo json_encode(t('grc-assessment.js_upload_error_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment.js_unknown_error')); ?>));
             }
         })
         .catch(function(err) {
             btn.disabled = false;
-            btn.textContent = 'Upload';
-            alert('Upload failed: ' + err.message);
+            btn.textContent = <?php echo json_encode(t('grc-assessment.upload')); ?>;
+            alert(<?php echo json_encode(t('grc-assessment.js_upload_failed_prefix')); ?> + err.message);
         });
     }
 
     function unlinkEvidence(responseId, evidenceId) {
-        if (!confirm('Remove this evidence link?')) return;
+        if (!confirm(<?php echo json_encode(t('grc-assessment.js_remove_evidence_link')); ?>)) return;
 
         fetch('api/grc-assessment-evidence-upload.php', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2372,7 +2372,7 @@ $_page = 'grc_assessment';
             if (resp.success) {
                 loadEvidenceList(responseId);
             } else {
-                alert('Unlink error: ' + (resp.error || 'Unknown error'));
+                alert(<?php echo json_encode(t('grc-assessment.js_unlink_error_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment.js_unknown_error')); ?>));
             }
         });
     }
@@ -2487,20 +2487,20 @@ $_page = 'grc_assessment';
         var uBtn = document.getElementById('showUnansweredBtn');
         if (aBtn) {
             if (_activeFilter === 'audited') {
-                aBtn.textContent = 'Show All Questions';
+                aBtn.textContent = <?php echo json_encode(t('grc-assessment.show_all_questions')); ?>;
                 aBtn.className = 'btn btn-sm btn-success';
             } else {
-                aBtn.textContent = 'Show Audited Questions';
+                aBtn.textContent = <?php echo json_encode(t('grc-assessment.show_audited')); ?>;
                 aBtn.className = 'btn btn-sm btn-outline';
             }
             aBtn.style.display = (_activeFilter === 'unanswered') ? 'none' : '';
         }
         if (uBtn) {
             if (_activeFilter === 'unanswered') {
-                uBtn.textContent = 'Show All Questions';
+                uBtn.textContent = <?php echo json_encode(t('grc-assessment.show_all_questions')); ?>;
                 uBtn.className = 'btn btn-sm btn-info';
             } else {
-                uBtn.textContent = 'Show Unanswered Questions';
+                uBtn.textContent = <?php echo json_encode(t('grc-assessment.js_show_unanswered_questions')); ?>;
                 uBtn.className = 'btn btn-sm btn-warning';
             }
             uBtn.style.display = (_activeFilter === 'audited') ? 'none' : '';

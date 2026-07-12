@@ -124,7 +124,7 @@ $csrfToken = $security->getCSRFToken();
         .doc-toc-section { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #9ca3af; margin-top: 10px; margin-bottom: 4px; }
         .doc-toc-section:first-child { margin-top: 0; }
 
-        .doc-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 28px 32px; margin-bottom: 24px; }
+        .doc-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 28px 32px; margin-bottom: 24px; scroll-margin-top: 80px; }
         .doc-section h2 { font-size: 22px; font-weight: 700; color: #111827; margin: 0 0 16px; padding-bottom: 10px; border-bottom: 2px solid var(--theme-button-color, #ff6543); }
         .doc-section h3 { font-size: 17px; font-weight: 600; color: #1f2937; margin: 28px 0 10px; }
         .doc-section h4 { font-size: 15px; font-weight: 600; color: #374151; margin: 20px 0 8px; }
@@ -350,7 +350,8 @@ include $docBody;
                 { label: '1.3 User Roles & Permissions', id: 'roles' },
                 { label: '1.4 Your First Login', id: 'first-login' },
                 { label: '1.5 What’s New in Version 2.6.2', id: 'whats-new' },
-                { label: '1.6 Changing Your Language', id: 'language' }
+                { label: '1.6 Changing Your Language', id: 'language' },
+                { label: '1.7 Phone & VAT Question Types', id: 'question-types' }
             ]},
             { heading: '2. GRC Module — Quick Start', entries: [
                 { label: '2.1 What is GRC?', id: 'grc-overview' },
@@ -380,27 +381,34 @@ include $docBody;
                 { label: '4.2 Adding a New Vendor', id: 'tprm-add-vendor' },
                 { label: '4.3 Vendor Lifecycle', id: 'tprm-lifecycle' },
                 { label: '4.4 Vendor Assessments', id: 'tprm-assessments' },
-                { label: '4.5 Security Risk Scorecard', id: 'tprm-srs' },
-                { label: '4.6 FAIR Analysis', id: 'tprm-fair' },
-                { label: '4.7 4th Party Risk', id: 'tprm-fourth-party' },
-                { label: '4.8 Shadow SaaS Discovery', id: 'tprm-shadow-saas' }
+                { label: '4.5 Assessment Forms & AI Auto-Fill', id: 'assessment-forms' },
+                { label: '4.6 Vendor Action Plan', id: 'tprm-action-plan' },
+                { label: '4.7 Security Risk Scorecard', id: 'tprm-srs' },
+                { label: '4.8 FAIR Analysis', id: 'tprm-fair' },
+                { label: '4.9 4th Party Risk', id: 'tprm-fourth-party' },
+                { label: '4.10 Shadow SaaS Discovery', id: 'tprm-shadow-saas' }
             ]},
             { heading: '5. Onboarding & Procurement (New in 2.6.2)', entries: [
                 { label: '5.1 Vendor Onboarding & Procurement Onboarding', id: 'onboarding-workflow' },
-                { label: '5.2 AI Review for Vendors', id: 'ai-review' },
-                { label: '5.3 Procurement Cyber Status', id: 'procurement-cyber-status' },
-                { label: '5.4 Grip Shadow SaaS Integration', id: 'shadow-saas-grip' },
-                { label: '5.5 Hero Shadow SaaS Integration', id: 'shadow-saas-hero' },
-                { label: '5.6 Zscaler Blocking Integration', id: 'zscaler' }
+                { label: '5.2 Custom Onboarding Fields & Data', id: 'custom-onboarding' },
+                { label: '5.3 AI Review for Vendors', id: 'ai-review' },
+                { label: '5.4 Procurement Cyber Status', id: 'procurement-cyber-status' },
+                { label: '5.5 Grip Shadow SaaS Integration', id: 'shadow-saas-grip' },
+                { label: '5.6 Hero Shadow SaaS Integration', id: 'shadow-saas-hero' },
+                { label: '5.7 Zscaler Blocking Integration', id: 'zscaler' },
+                { label: '5.8 Breach / Cyber Alerts', id: 'breach-alerts' }
             ]},
             { heading: '6. Admin Portal', entries: [
                 { label: '6.1 General Settings', id: 'admin-general' },
                 { label: '6.2 Branding & Theme', id: 'admin-branding' },
                 { label: '6.3 User Management', id: 'admin-users' },
-                { label: '6.4 Email Configuration', id: 'admin-email' },
-                { label: '6.5 SAML / SSO', id: 'admin-saml' },
-                { label: '6.6 AI Integration', id: 'admin-ai' },
-                { label: '6.7 Updating the Platform', id: 'admin-updates' }
+                { label: '6.4 ACL Groups & Access Control', id: 'admin-acl-groups' },
+                { label: '6.5 Assessment Template Builder', id: 'admin-templates' },
+                { label: '6.6 Email Configuration', id: 'admin-email' },
+                { label: '6.7 SAML / SSO', id: 'admin-saml' },
+                { label: '6.8 AI Integration', id: 'admin-ai' },
+                { label: '6.9 Large Database Backups', id: 'admin-backup' },
+                { label: '6.10 Updating the Platform', id: 'admin-updates' }
             ]},
             { heading: '7. Help & Reference', entries: [
                 { label: '7.1 Frequently Asked Questions', id: 'faq' },
@@ -452,35 +460,64 @@ include $docBody;
 
         var mainContent = document.querySelector('.main-content');
 
-        // Scroll to section on TOC link click
-        tocLinks.forEach(function(link) {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                var targetId = this.getAttribute('href').substring(1);
-                var target = document.getElementById(targetId);
-                if (target) {
-                    // scrollIntoView works regardless of which ancestor is the scroll container
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    setTimeout(function() {
-                        history.replaceState(null, '', '#' + targetId);
-                    }, 100);
+        // Reliable in-page scroll. The doc has lazy-loaded figure images; when we
+        // jump toward a section, images ABOVE the target load and grow the page,
+        // which would otherwise leave the viewport parked at a now-stale offset
+        // (e.g. clicking "FAQ" landed on Zscaler). We re-align to the element's live
+        // position until the layout stops moving. scrollIntoView honours the
+        // .doc-section scroll-margin-top and works whatever ancestor is the scroller.
+        function scrollToTarget(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var ticks = 0, stable = 0, last = null;
+            function align() { el.scrollIntoView({ block: 'start' }); }
+            align();
+            var timer = setInterval(function () {
+                var top = Math.round(el.getBoundingClientRect().top);
+                if (last !== null && Math.abs(top - last) < 2) {
+                    stable++;
+                } else {
+                    stable = 0;
+                    align();
                 }
-            });
+                last = top;
+                if (stable >= 3 || ++ticks > 30) clearInterval(timer);
+            }, 80);
+        }
+
+        // Delegate clicks for in-page anchors in the TOC and the doc body (What's New
+        // table, cross-links, glossary). Scoped so the global app nav is untouched.
+        document.addEventListener('click', function (e) {
+            var a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
+            if (!a) return;
+            if (!a.closest('#sidebarToc') && !a.closest('.doc-body')) return;
+            var href = a.getAttribute('href');
+            if (!href || href === '#') return;
+            var el = document.getElementById(href.substring(1));
+            if (!el) return;
+            e.preventDefault();
+            scrollToTarget(href.substring(1));
+            setTimeout(function () { history.replaceState(null, '', href); }, 120);
         });
 
-        // Scroll-spy: highlight active section
+        // Honour a #hash in the URL on load (same reflow-safe alignment).
+        if (location.hash && location.hash.length > 1) {
+            var hid = location.hash.substring(1);
+            if (document.getElementById(hid)) {
+                window.addEventListener('load', function () { scrollToTarget(hid); });
+            }
+        }
+
+        // Scroll-spy: highlight active section. The window is the scroll container
+        // (the .main-content column is as tall as its content), so listen on window.
         function updateActiveToc() {
-            var offset = 100;
+            var offset = 120;
             var activeId = null;
 
             for (var i = sectionIds.length - 1; i >= 0; i--) {
                 var el = document.getElementById(sectionIds[i]);
                 if (el) {
-                    var elTop = el.getBoundingClientRect().top;
-                    if (mainContent) {
-                        elTop = elTop - mainContent.getBoundingClientRect().top;
-                    }
-                    if (elTop <= offset) {
+                    if (el.getBoundingClientRect().top <= offset) {
                         activeId = sectionIds[i];
                         break;
                     }
@@ -509,8 +546,9 @@ include $docBody;
             }
         }
 
+        window.addEventListener('scroll', updateActiveToc, { passive: true });
         if (mainContent) {
-            mainContent.addEventListener('scroll', updateActiveToc);
+            mainContent.addEventListener('scroll', updateActiveToc, { passive: true });
         }
         updateActiveToc();
     }

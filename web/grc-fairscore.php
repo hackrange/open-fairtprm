@@ -28,7 +28,7 @@ $isAuditor = hasGroup('auditor');
 $isContributor = hasGroup('grc_contributors');
 if (!$isAdmin && !$isCyberGRC && !$isAuditor && !$isContributor) {
     http_response_code(403);
-    die('Access denied.');
+    die(t('grc-fairscore.access_denied'));
 }
 
 $uas = UnifiedAssessmentService::getInstance();
@@ -124,12 +124,12 @@ function fairScoreColor($score): string {
 
 // Helper: FairScore label
 function fairScoreLabel($score): string {
-    if ($score === null || $score === 0) return 'No Data';
-    if ($score >= 3.5) return 'Optimized';
-    if ($score >= 3.0) return 'Managed';
-    if ($score >= 2.0) return 'Developing';
-    if ($score >= 1.0) return 'Initial';
-    return 'No Data';
+    if ($score === null || $score === 0) return t('grc-fairscore.no_data');
+    if ($score >= 3.5) return t('grc-fairscore.level_optimized');
+    if ($score >= 3.0) return t('grc-fairscore.level_managed');
+    if ($score >= 2.0) return t('grc-fairscore.level_developing');
+    if ($score >= 1.0) return t('grc-fairscore.level_initial');
+    return t('grc-fairscore.no_data');
 }
 
 $_page = 'grc_fairscore';
@@ -139,7 +139,7 @@ $csrfToken = $security->generateCSRFToken();
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>CSF Maturity Score - GRC Compliance Engine</title>
+    <title><?php echo e(t('grc-fairscore.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -387,7 +387,7 @@ $csrfToken = $security->generateCSRFToken();
                 <div class="stat-card <?php echo $overallFairScore >= 3 ? 'success' : ($overallFairScore >= 2 ? 'warning' : ($overallFairScore > 0 ? 'danger' : 'neutral')); ?>">
                     <div class="stat-value" style="color:<?php echo fairScoreColor($overallFairScore); ?>;"><?php echo number_format($overallFairScore, 2); ?></div>
                     <div class="stat-label"><?php echo e(t('grc-fairscore.csf_maturity_score')); ?></div>
-                    <div class="stat-sub"><?php echo fairScoreLabel($overallFairScore); ?> (1-4 scale)</div>
+                    <div class="stat-sub"><?php echo fairScoreLabel($overallFairScore); ?> <?php echo e(t('grc-fairscore.scale_1_4')); ?></div>
                     <div class="fairscore-ring">
                         <?php
                         $ringPct = $overallFairScore > 0 ? ($overallFairScore / 4) * 100 : 0;
@@ -403,12 +403,12 @@ $csrfToken = $security->generateCSRFToken();
                 <div class="stat-card <?php echo $compliancePct >= 80 ? 'success' : ($compliancePct >= 50 ? 'warning' : 'danger'); ?>">
                     <div class="stat-value"><?php echo number_format($compliancePct, 1); ?>%</div>
                     <div class="stat-label"><?php echo e(t('grc-fairscore.compliance_rate')); ?></div>
-                    <div class="stat-sub"><?php echo $totalConforming; ?> of <?php echo $totalApplicable; ?> applicable controls</div>
+                    <div class="stat-sub"><?php echo $totalConforming; ?> <?php echo e(t('grc-fairscore.of')); ?> <?php echo $totalApplicable; ?> <?php echo e(t('grc-fairscore.applicable_controls')); ?></div>
                 </div>
                 <div class="stat-card info">
                     <div class="stat-value"><?php echo number_format($answeredPct, 1); ?>%</div>
                     <div class="stat-label"><?php echo e(t('grc-fairscore.questions_answered')); ?></div>
-                    <div class="stat-sub"><?php echo $totalAnswered; ?> of <?php echo $totalQuestions; ?> total</div>
+                    <div class="stat-sub"><?php echo $totalAnswered; ?> <?php echo e(t('grc-fairscore.of')); ?> <?php echo $totalQuestions; ?> <?php echo e(t('grc-fairscore.total')); ?></div>
                 </div>
                 <div class="stat-card <?php echo $gapCount > 0 ? 'danger' : 'success'; ?>">
                     <div class="stat-value"><?php echo $gapCount; ?></div>
@@ -419,7 +419,7 @@ $csrfToken = $security->generateCSRFToken();
                             if (($g['conformity_status'] ?? '') === 'non_conforming') $ncCount++;
                             else $pCount++;
                         }
-                        echo $ncCount . ' non-conforming, ' . $pCount . ' partial';
+                        echo $ncCount . t('grc-fairscore.non_conforming_sep') . $pCount . t('grc-fairscore.partial_sep');
                     ?></div>
                 </div>
             </div>
@@ -490,7 +490,7 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Domain Score Cards -->
             <h2 class="section-header"><?php echo e(t('grc-fairscore.domain_scores')); ?></h2>
             <?php if (empty($domainScores)): ?>
-            <p style="color:#6b7280;font-size:13px;">No domain scores calculated. <a href="grc-assessment.php?id=<?php echo $selectedId; ?>" style="color:#3b82f6;">Complete the assessment</a> to generate scores.</p>
+            <p style="color:#6b7280;font-size:13px;"><?php echo e(t('grc-fairscore.no_domain_scores_calc')); ?> <a href="grc-assessment.php?id=<?php echo $selectedId; ?>" style="color:#3b82f6;"><?php echo e(t('grc-fairscore.complete_the_assessment')); ?></a> <?php echo e(t('grc-fairscore.to_generate_scores')); ?></p>
             <?php else: ?>
             <div class="domain-grid">
                 <?php foreach ($domainScores as $ds):
@@ -527,7 +527,7 @@ $csrfToken = $security->generateCSRFToken();
             <?php if ($totalRisks > 0): ?>
             <h2 class="section-header"><?php echo e(t('grc-fairscore.risk_heatmap')); ?></h2>
             <div class="heatmap-wrapper">
-                <h3>Likelihood x Impact (<?php echo $totalRisks; ?> active risk<?php echo $totalRisks !== 1 ? 's' : ''; ?>)</h3>
+                <h3><?php echo e(t('grc-fairscore.heatmap_heading_prefix')); ?> (<?php echo $totalRisks; ?> <?php echo e($totalRisks !== 1 ? t('grc-fairscore.active_risks') : t('grc-fairscore.active_risk')); ?>)</h3>
                 <div style="text-align:left;font-size:11px;color:#6b7280;margin-bottom:4px;"><?php echo e(t('grc-fairscore.impact')); ?> &rarr;</div>
                 <div class="heatmap">
                     <?php
@@ -593,7 +593,7 @@ $csrfToken = $security->generateCSRFToken();
                     </tbody>
                 </table>
                 <?php if (count($gaps) > 20): ?>
-                <p style="font-size:12px;color:#6b7280;margin:12px 0 0;text-align:center;">Showing 20 of <?php echo count($gaps); ?> gaps. <a href="grc-assessment.php?id=<?php echo $selectedId; ?>" style="color:#3b82f6;text-decoration:none;">View all in assessment</a></p>
+                <p style="font-size:12px;color:#6b7280;margin:12px 0 0;text-align:center;"><?php echo e(t('grc-fairscore.showing_20_of')); ?> <?php echo count($gaps); ?> <?php echo e(t('grc-fairscore.gaps_dot')); ?> <a href="grc-assessment.php?id=<?php echo $selectedId; ?>" style="color:#3b82f6;text-decoration:none;"><?php echo e(t('grc-fairscore.view_all_in_assessment')); ?></a></p>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
@@ -641,7 +641,7 @@ $csrfToken = $security->generateCSRFToken();
                     </div>
                     <div class="target-bar-wrap">
                         <div class="target-bar-actual" style="width:<?php echo $actualPctOf4; ?>%;background:<?php echo $barColor; ?>;opacity:0.7;"></div>
-                        <div class="target-bar-marker" style="left:<?php echo $targetPctOf4; ?>%;" title="Target: <?php echo number_format($targetScore, 1); ?>"></div>
+                        <div class="target-bar-marker" style="left:<?php echo $targetPctOf4; ?>%;" title="<?php echo e(t('grc-fairscore.target', number_format($targetScore, 1))); ?>"></div>
                     </div>
                     <div class="target-values">
                         <span class="target-actual-val" style="color:<?php echo $barColor; ?>;"><?php echo e(t('grc-fairscore.actual', number_format($actualScore, 1))); ?></span>
@@ -728,7 +728,7 @@ if (radarCtx) {
     var hasTargetData = targetValues.some(function(v) { return v !== null; });
 
     var radarDatasets = [{
-        label: 'CSF Maturity',
+        label: <?php echo json_encode(t('grc-fairscore.chart_csf_maturity')); ?>,
         data: domainValues,
         borderColor: themeColor,
         backgroundColor: themeColor + '22',
@@ -743,7 +743,7 @@ if (radarCtx) {
     if (hasTargetData) {
         var targetFilled = targetValues.map(function(v) { return v !== null ? v : 0; });
         radarDatasets.push({
-            label: 'Target',
+            label: <?php echo json_encode(t('grc-fairscore.chart_target')); ?>,
             data: targetFilled,
             borderColor: '#6b728088',
             backgroundColor: '#6b728011',
@@ -777,7 +777,7 @@ if (radarCtx) {
                         color: '#9ca3af',
                         backdropColor: 'transparent',
                         callback: function(val) {
-                            var labels = ['', 'Initial', 'Developing', 'Managed', 'Optimized'];
+                            var labels = ['', <?php echo json_encode(t('grc-fairscore.level_initial')); ?>, <?php echo json_encode(t('grc-fairscore.level_developing')); ?>, <?php echo json_encode(t('grc-fairscore.level_managed')); ?>, <?php echo json_encode(t('grc-fairscore.level_optimized')); ?>];
                             return labels[val] || val;
                         }
                     },
@@ -823,7 +823,7 @@ if (domainBarCtx) {
         data: {
             labels: domainLabels,
             datasets: [{
-                label: 'Domain Score',
+                label: <?php echo json_encode(t('grc-fairscore.chart_domain_score')); ?>,
                 data: domainValues,
                 backgroundColor: domainColors.map(function(c) { return c + 'cc'; }),
                 borderColor: domainColors,
@@ -843,7 +843,7 @@ if (domainBarCtx) {
                         stepSize: 1,
                         font: { size: 11 },
                         callback: function(val) {
-                            var labels = ['0', '1 - Initial', '2 - Developing', '3 - Managed', '4 - Optimized'];
+                            var labels = ['0', <?php echo json_encode(t('grc-fairscore.axis_1_initial')); ?>, <?php echo json_encode(t('grc-fairscore.axis_2_developing')); ?>, <?php echo json_encode(t('grc-fairscore.axis_3_managed')); ?>, <?php echo json_encode(t('grc-fairscore.axis_4_optimized')); ?>];
                             return labels[val] || val;
                         }
                     },
@@ -863,7 +863,7 @@ if (domainBarCtx) {
                             return domainLabels[idx] + ' - ' + domainNames[idx];
                         },
                         label: function(item) {
-                            return 'Score: ' + item.raw.toFixed(2) + ' / 4.00';
+                            return <?php echo json_encode(t('grc-fairscore.chart_score_prefix')); ?> + item.raw.toFixed(2) + ' / 4.00';
                         }
                     }
                 }
@@ -905,7 +905,7 @@ if (targetRadarCtx) {
                 labels: tLabels,
                 datasets: [
                     {
-                        label: 'Actual',
+                        label: <?php echo json_encode(t('grc-fairscore.chart_actual')); ?>,
                         data: tActuals,
                         borderColor: tTheme,
                         backgroundColor: tTheme + '22',
@@ -916,7 +916,7 @@ if (targetRadarCtx) {
                         fill: true
                     },
                     {
-                        label: 'Target',
+                        label: <?php echo json_encode(t('grc-fairscore.chart_target')); ?>,
                         data: tTargets,
                         borderColor: '#ef4444',
                         backgroundColor: '#ef444411',

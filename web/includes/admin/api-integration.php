@@ -340,12 +340,12 @@ CURL;
             <label class="api-choice <?php echo $activePlatform === 'anthropic' ? 'api-choice-active' : ''; ?>">
                 <input type="radio" name="ai_platform_active" value="anthropic" <?php echo $activePlatform === 'anthropic' ? 'checked' : ''; ?>>
                 <span class="api-choice-label">Anthropic (Claude)</span>
-                <span class="api-choice-desc">Native API + web search</span>
+                <span class="api-choice-desc"><?php echo e(t('admin_api-integration.native_api_web_search')); ?></span>
             </label>
             <label class="api-choice <?php echo $activePlatform === 'openai' ? 'api-choice-active' : ''; ?>">
                 <input type="radio" name="ai_platform_active" value="openai" <?php echo $activePlatform === 'openai' ? 'checked' : ''; ?>>
                 <span class="api-choice-label">OpenAI (ChatGPT)</span>
-                <span class="api-choice-desc">Native API + web search</span>
+                <span class="api-choice-desc"><?php echo e(t('admin_api-integration.native_api_web_search')); ?></span>
             </label>
         </div>
     </div>
@@ -359,7 +359,7 @@ CURL;
         </div>
         <div class="form-group">
             <label for="openwebui_jwt_token"><?php echo e(t('admin_api-integration.jwt_auth_token')); ?></label>
-            <input type="password" id="openwebui_jwt_token" name="openwebui_jwt_token" class="form-control" placeholder="<?php echo !empty($owJwtToken) ? '••••••••  (leave blank to keep)' : 'Enter JWT token'; ?>">
+            <input type="password" id="openwebui_jwt_token" name="openwebui_jwt_token" class="form-control" placeholder="<?php echo e(!empty($owJwtToken) ? t('admin_api-integration.masked_leave_blank_to_keep') : t('admin_api-integration.enter_jwt_token_placeholder')); ?>">
             <div class="form-help"><?php echo e(t('admin_api-integration.stored_encrypted_token')); ?></div>
         </div>
         <div class="form-group">
@@ -394,7 +394,7 @@ CURL;
         </div>
         <div class="form-group">
             <label for="librechat_api_key"><?php echo e(t('admin_api-integration.api_key')); ?></label>
-            <input type="password" id="librechat_api_key" name="librechat_api_key" class="form-control" placeholder="<?php echo !empty($lcApiKey) ? '••••••••  (leave blank to keep)' : 'Enter API key'; ?>">
+            <input type="password" id="librechat_api_key" name="librechat_api_key" class="form-control" placeholder="<?php echo e(!empty($lcApiKey) ? t('admin_api-integration.masked_leave_blank_to_keep') : t('admin_api-integration.enter_api_key_placeholder')); ?>">
             <div class="form-help"><?php echo e(t('admin_api-integration.stored_encrypted_key')); ?></div>
         </div>
         <div class="form-group">
@@ -422,32 +422,25 @@ CURL;
         </div>
         <div class="form-group">
             <label for="custom_search_url"><?php echo e(t('admin_api-integration.web_search_url')); ?> <span style="font-weight: 400; color: #6b7280;"><?php echo e(t('admin_api-integration.optional')); ?></span></label>
-            <input type="text" id="custom_search_url" name="custom_search_url" class="form-control" value="<?php echo e($customSearchUrl); ?>" placeholder="Auto-detected from API URL — only set this to override">
-            <div class="form-help">
-                Used by breach research to ground the model on fresh news. Sends <code>{"query": "...", "max_results": N}</code> with the same headers/secret as the API URL above.
-                Leave blank to auto-derive — if API URL ends in <code>/v1/infer</code>, the system uses <code>/v1/safe-search</code> on the same host (FairTPRM orchestrator convention). If your backend has no search endpoint, leave blank: breach scans will run inference-only and likely return zero alerts.
-            </div>
+            <input type="text" id="custom_search_url" name="custom_search_url" class="form-control" value="<?php echo e($customSearchUrl); ?>" placeholder="<?php echo e(t('admin_api-integration.custom_search_url_placeholder')); ?>">
+            <div class="form-help"><?php echo t('admin_api-integration.custom_search_url_help'); ?></div>
         </div>
         <div style="display: flex; gap: 16px;">
             <div class="form-group" style="flex: 0 0 240px;">
                 <label for="custom_secret_header_name"><?php echo e(t('admin_api-integration.secret_header_name')); ?></label>
                 <input type="text" id="custom_secret_header_name" name="custom_secret_header_name" class="form-control" value="<?php echo e($customSecretHeaderName); ?>" placeholder="x-app-secret">
-                <div class="form-help">HTTP header that carries the secret (e.g., <code>x-app-secret</code>, <code>Authorization</code>).</div>
+                <div class="form-help"><?php echo t('admin_api-integration.secret_header_name_help'); ?></div>
             </div>
             <div class="form-group" style="flex: 1;">
                 <label for="custom_secret_header_value"><?php echo e(t('admin_api-integration.secret_header_value')); ?></label>
-                <input type="password" id="custom_secret_header_value" name="custom_secret_header_value" class="form-control" autocomplete="off" placeholder="<?php echo $customSecretIsSet ? '••••••••  (saved — leave blank to keep, or enter a new value to replace)' : 'sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; ?>">
-                <div class="form-help">Stored AES-256 encrypted. Once saved the value can never be viewed again — only replaced by entering a new value here. Injected into the request as <code>{Header Name}: {value}</code>; do not include this header in the textarea below.</div>
+                <input type="password" id="custom_secret_header_value" name="custom_secret_header_value" class="form-control" autocomplete="off" placeholder="<?php echo $customSecretIsSet ? e(t('admin_api-integration.masked_saved_replace')) : 'sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; ?>">
+                <div class="form-help"><?php echo t('admin_api-integration.secret_header_value_help'); ?></div>
             </div>
         </div>
         <div class="form-group">
             <label for="custom_headers"><?php echo e(t('admin_api-integration.headers_body_template')); ?></label>
             <textarea id="custom_headers" name="custom_headers" class="form-control" rows="12" style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; white-space: pre;" placeholder="<?php echo e($customHeadersExample); ?>"><?php echo e($customHeaders); ?></textarea>
-            <div class="form-help">
-                One <code>-H 'Header: value'</code> per line, plus a <code>--data-raw '{...}'</code> JSON body template.
-                The literal token <code>SAMPLE</code> inside the JSON body is JSON-string-escaped and substituted with the dynamic prompt at request time
-                (same dispatch model as OpenWebUI / LibreChat).
-            </div>
+            <div class="form-help"><?php echo t('admin_api-integration.headers_body_template_help'); ?></div>
             <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
                 <button type="button" id="custom_copy_example" class="btn" style="background:#6b7280;border-color:#6b7280;color:#fff;font-size:12px;padding:6px 12px;"><?php echo e(t('admin_api-integration.copy_example')); ?></button>
                 <button type="button" id="custom_download_postman" class="btn" style="background:#6b7280;border-color:#6b7280;color:#fff;font-size:12px;padding:6px 12px;"><?php echo e(t('admin_api-integration.download_postman')); ?></button>
@@ -458,21 +451,21 @@ CURL;
 
     <!-- Anthropic (Claude) Settings -->
     <div class="card" id="panel-anthropic" style="margin-bottom: 20px;<?php echo $activePlatform !== 'anthropic' ? ' display:none;' : ''; ?>">
-        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;">Anthropic (Claude) Configuration</h3>
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;"><?php echo e(t('admin_api-integration.anthropic_config_title')); ?></h3>
         <div class="form-group">
             <label for="anthropic_api_url"><?php echo e(t('admin_api-integration.api_url')); ?></label>
             <input type="text" id="anthropic_api_url" name="anthropic_api_url" class="form-control" value="<?php echo e($anthropicApiUrl); ?>" placeholder="https://api.anthropic.com/v1/messages">
-            <div class="form-help">Native Anthropic Messages endpoint. Leave as-is unless you proxy Anthropic.</div>
+            <div class="form-help"><?php echo e(t('admin_api-integration.anthropic_api_url_help')); ?></div>
         </div>
         <div class="form-group">
             <label for="anthropic_api_key"><?php echo e(t('admin_api-integration.api_key')); ?></label>
-            <input type="password" id="anthropic_api_key" name="anthropic_api_key" class="form-control" autocomplete="off" placeholder="<?php echo !empty($anthropicApiKey) ? '••••••••  (leave blank to keep)' : 'sk-ant-api03-...'; ?>">
-            <div class="form-help">Sent as the <code>x-api-key</code> header. Stored AES-256 encrypted; leave blank to keep the existing key.</div>
+            <input type="password" id="anthropic_api_key" name="anthropic_api_key" class="form-control" autocomplete="off" placeholder="<?php echo !empty($anthropicApiKey) ? e(t('admin_api-integration.masked_leave_blank_to_keep')) : 'sk-ant-api03-...'; ?>">
+            <div class="form-help"><?php echo t('admin_api-integration.anthropic_api_key_help'); ?></div>
         </div>
         <div class="form-group">
             <label for="anthropic_model"><?php echo e(t('admin_api-integration.default_model')); ?></label>
             <input type="text" id="anthropic_model" name="anthropic_model" class="form-control" value="<?php echo e($anthropicModel); ?>" placeholder="e.g. claude-opus-4-8">
-            <div class="form-help">e.g. <code>claude-opus-4-8</code>, <code>claude-sonnet-4-6</code>, <code>claude-haiku-4-5</code>. Web search runs automatically during Breach &amp; OSINT scans.</div>
+            <div class="form-help"><?php echo t('admin_api-integration.anthropic_model_help'); ?></div>
         </div>
         <div style="display: flex; gap: 16px;">
             <div class="form-group" style="flex: 1;">
@@ -484,15 +477,15 @@ CURL;
 
     <!-- OpenAI (ChatGPT) Settings -->
     <div class="card" id="panel-openai" style="margin-bottom: 20px;<?php echo $activePlatform !== 'openai' ? ' display:none;' : ''; ?>">
-        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;">OpenAI (ChatGPT) Configuration</h3>
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600;"><?php echo e(t('admin_api-integration.openai_config_title')); ?></h3>
         <div class="form-group">
             <label for="openai_api_url"><?php echo e(t('admin_api-integration.api_url')); ?></label>
             <input type="text" id="openai_api_url" name="openai_api_url" class="form-control" value="<?php echo e($openaiApiUrl); ?>" placeholder="https://api.openai.com/v1/chat/completions">
         </div>
         <div class="form-group">
             <label for="openai_api_key"><?php echo e(t('admin_api-integration.api_key')); ?></label>
-            <input type="password" id="openai_api_key" name="openai_api_key" class="form-control" autocomplete="off" placeholder="<?php echo !empty($openaiApiKey) ? '••••••••  (leave blank to keep)' : 'sk-...'; ?>">
-            <div class="form-help">Sent as <code>Authorization: Bearer</code>. Stored AES-256 encrypted; leave blank to keep the existing key.</div>
+            <input type="password" id="openai_api_key" name="openai_api_key" class="form-control" autocomplete="off" placeholder="<?php echo !empty($openaiApiKey) ? e(t('admin_api-integration.masked_leave_blank_to_keep')) : 'sk-...'; ?>">
+            <div class="form-help"><?php echo t('admin_api-integration.openai_api_key_help'); ?></div>
         </div>
         <div class="form-group">
             <label for="openai_model"><?php echo e(t('admin_api-integration.default_model')); ?></label>
@@ -506,9 +499,9 @@ CURL;
             <div class="form-help ai-models-msg" style="margin-top:4px;"></div>
         </div>
         <div class="form-group">
-            <label for="openai_search_model">Web Search Model</label>
+            <label for="openai_search_model"><?php echo e(t('admin_api-integration.web_search_model_label')); ?></label>
             <input type="text" id="openai_search_model" name="openai_search_model" class="form-control" value="<?php echo e($openaiSearchModel); ?>" placeholder="gpt-4o-search-preview">
-            <div class="form-help">Used only for Breach &amp; OSINT scans (needs a web-search-capable model). e.g. <code>gpt-4o-search-preview</code>, <code>gpt-4o-mini-search-preview</code>.</div>
+            <div class="form-help"><?php echo t('admin_api-integration.openai_search_model_help'); ?></div>
         </div>
         <div style="display: flex; gap: 16px;">
             <div class="form-group" style="flex: 1;">
@@ -534,7 +527,7 @@ CURL;
                 </select>
                 <button type="button" class="btn ai-load-models" style="background:#6b7280;border-color:#6b7280;color:#fff;white-space:nowrap;"><?php echo e(t('admin_ai-platform.load_models')); ?></button>
             </div>
-            <div class="form-help">Used for FAIR risk analysis, assessment auto-fill, and contract extraction. Needs fast response (&lt;30s) and good JSON output. Works with both platforms. Leave blank to use the default model.</div>
+            <div class="form-help"><?php echo t('admin_api-integration.fair_model_help'); ?></div>
         </div>
     </div>
 
@@ -680,8 +673,8 @@ CURL;
             var example = customHeadersField.placeholder || '';
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(example).then(
-                    function() { flashStatus('Example copied to clipboard'); },
-                    function() { flashStatus('Copy failed — select and copy manually'); }
+                    function() { flashStatus(<?php echo json_encode(t('admin_api-integration.js_example_copied')); ?>); },
+                    function() { flashStatus(<?php echo json_encode(t('admin_api-integration.js_copy_failed')); ?>); }
                 );
             } else {
                 // Fallback for older browsers / non-https contexts
@@ -691,8 +684,8 @@ CURL;
                 ta.style.left = '-9999px';
                 document.body.appendChild(ta);
                 ta.select();
-                try { document.execCommand('copy'); flashStatus('Example copied to clipboard'); }
-                catch (e) { flashStatus('Copy failed — select and copy manually'); }
+                try { document.execCommand('copy'); flashStatus(<?php echo json_encode(t('admin_api-integration.js_example_copied')); ?>); }
+                catch (e) { flashStatus(<?php echo json_encode(t('admin_api-integration.js_copy_failed')); ?>); }
                 document.body.removeChild(ta);
             }
         });
@@ -752,7 +745,7 @@ CURL;
             document.body.removeChild(a);
             setTimeout(function() { URL.revokeObjectURL(a.href); }, 1000);
 
-            flashStatus('Postman collection downloaded');
+            flashStatus(<?php echo json_encode(t('admin_api-integration.js_postman_downloaded')); ?>);
         });
     }
 
@@ -785,7 +778,7 @@ CURL;
             var current = input ? input.value : '';
             sel.innerHTML = '';
             var ph = document.createElement('option');
-            ph.value = ''; ph.textContent = '— select a model —';
+            ph.value = ''; ph.textContent = <?php echo json_encode(t('admin_api-integration.js_select_a_model')); ?>;
             sel.appendChild(ph);
             var found = false;
             models.forEach(function (m) {
@@ -818,12 +811,12 @@ CURL;
         }).then(function (r) { return r.json(); }).then(function (data) {
             if (data && data.success && data.models && data.models.length) {
                 populateModels(data.models);
-                setModelMsg(data.models.length + ' model(s) loaded.', false);
+                setModelMsg(data.models.length + <?php echo json_encode(t('admin_api-integration.js_models_loaded_suffix')); ?>, false);
             } else {
-                setModelMsg((data && data.error) ? data.error : 'Could not load models.', true);
+                setModelMsg((data && data.error) ? data.error : <?php echo json_encode(t('admin_api-integration.js_could_not_load_models')); ?>, true);
             }
         }).catch(function (e) {
-            setModelMsg('Could not load models: ' + e.message, true);
+            setModelMsg(<?php echo json_encode(t('admin_api-integration.js_could_not_load_models_prefix')); ?> + e.message, true);
         }).finally(function () {
             loadButtons.forEach(function (b) { b.disabled = false; });
         });

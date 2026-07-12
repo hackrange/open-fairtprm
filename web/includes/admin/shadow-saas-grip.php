@@ -38,7 +38,7 @@ if (!in_array($shadowTab, ['grip', 'hero'], true)) {
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_shadow-saas-grip.invalid_request');
     } else {
         try {
             $db->beginTransaction();
@@ -54,12 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
                 // Strip trailing slash; reject anything that isn't an http(s) URL.
                 $rawBase = rtrim($rawBase, '/');
                 if (!preg_match('#^https?://[^\s]+$#i', $rawBase)) {
-                    throw new Exception('Server URL must be a valid http(s) URL.');
+                    throw new Exception(t('admin_shadow-saas-grip.server_url_invalid'));
                 }
                 // SECURITY (SSRF): reject cloud-metadata / loopback hosts (the API token is
                 // sent to this endpoint). Private LAN hosts remain allowed for on-prem Grip.
                 if (!isConfigUrlHostSafe($rawBase)) {
-                    throw new Exception('Server URL host is not allowed.');
+                    throw new Exception(t('admin_shadow-saas-grip.server_url_host_not_allowed'));
                 }
 
                 $settings['grip_enabled']  = isset($_POST['grip_enabled']) ? '1' : '0';
@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
                 // of on the Scheduler page (the job is 'hidden' there).
                 $schedule = trim($_POST['rehydrate_schedule'] ?? '0 2 * * *');
                 if (!isValidCronExpression($schedule)) {
-                    throw new Exception('Invalid cron expression: must be 5 space-separated fields (e.g. 0 2 * * *).');
+                    throw new Exception(t('admin_shadow-saas-grip.invalid_cron'));
                 }
                 $settings['cron_shadow_saas_rehydrate_enabled']  = isset($_POST['rehydrate_enabled']) ? '1' : '0';
                 $settings['cron_shadow_saas_rehydrate_schedule'] = $schedule;
@@ -113,17 +113,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
                 // Install/refresh the crontab so the schedule change takes effect
                 // immediately (same mechanism the Scheduler page uses).
                 if (regenerateCrontab($db, cronJobDefinitions())) {
-                    $success = 'Rehydration schedule updated and crontab refreshed.';
+                    $success = t('admin_shadow-saas-grip.schedule_updated');
                 } else {
-                    $error = 'Schedule saved, but failed to write /etc/cron.d/open-tprm. Check permissions.';
+                    $error = t('admin_shadow-saas-grip.schedule_save_crontab_failed');
                 }
             } else {
-                $success = 'Grip configuration updated successfully.';
+                $success = t('admin_shadow-saas-grip.grip_config_updated');
             }
         } catch (Throwable $e) {
             try { $db->rollback(); } catch (Throwable $e2) {}
             error_log('Error updating Grip config: ' . $e->getMessage());
-            $error = 'Failed to update Grip configuration: ' . $e->getMessage();
+            $error = t('admin_shadow-saas-grip.grip_config_update_failed_prefix') . $e->getMessage();
         }
     }
 }
@@ -137,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_zscaler'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_shadow-saas-grip.invalid_request');
     } else {
         try {
             $db->beginTransaction();
@@ -146,12 +146,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_zscaler'])) {
 
             $rawUrl = rtrim(trim($_POST['zscaler_api_url'] ?? ''), '/');
             if ($rawUrl !== '' && !preg_match('#^https?://[^\s]+$#i', $rawUrl)) {
-                throw new Exception('API URL must be a valid http(s) URL.');
+                throw new Exception(t('admin_shadow-saas-grip.api_url_invalid'));
             }
             // SECURITY (SSRF): reject cloud-metadata / loopback hosts (credentials are POSTed
             // to this endpoint). Private LAN hosts remain allowed for on-prem Zscaler proxies.
             if ($rawUrl !== '' && !isConfigUrlHostSafe($rawUrl)) {
-                throw new Exception('API URL host is not allowed.');
+                throw new Exception(t('admin_shadow-saas-grip.api_url_host_not_allowed'));
             }
 
             $settings['zscaler_enabled']       = isset($_POST['zscaler_enabled']) ? '1' : '0';
@@ -187,11 +187,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_zscaler'])) {
                 if (isset($auditPayload[$k])) $auditPayload[$k] = '[encrypted]';
             }
             $auth->audit($user['id'], 'config_update_zscaler', 'app_config', null, ['new' => $auditPayload]);
-            $success = 'Zscaler configuration updated successfully.';
+            $success = t('admin_shadow-saas-grip.zscaler_config_updated');
         } catch (Throwable $e) {
             try { $db->rollback(); } catch (Throwable $e2) {}
             error_log('Error updating Zscaler config: ' . $e->getMessage());
-            $error = 'Failed to update Zscaler configuration: ' . $e->getMessage();
+            $error = t('admin_shadow-saas-grip.zscaler_config_update_failed_prefix') . $e->getMessage();
         }
     }
 }
@@ -201,19 +201,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_zscaler'])) {
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_zscaler_connection'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_shadow-saas-grip.invalid_request');
     } else {
         try {
             $svc = new ZscalerService();
             $result = $svc->testConnection();
             if ($result['success']) {
-                $success = 'Zscaler connection test: ' . $result['message'];
+                $success = t('admin_shadow-saas-grip.zscaler_test_prefix') . $result['message'];
             } else {
-                $error = 'Zscaler connection test failed: ' . $result['message'];
+                $error = t('admin_shadow-saas-grip.zscaler_test_failed_prefix') . $result['message'];
             }
         } catch (Throwable $e) {
             error_log('Zscaler connection test error: ' . $e->getMessage());
-            $error = 'Zscaler connection test error. Check the error log for details.';
+            $error = t('admin_shadow-saas-grip.zscaler_test_error');
         }
     }
 }
@@ -223,19 +223,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_zscaler_connecti
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_grip_connection'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_shadow-saas-grip.invalid_request');
     } else {
         try {
             $svc = new GripService();
             $result = $svc->testConnection();
             if ($result['success']) {
-                $success = 'Grip connection test: ' . $result['message'];
+                $success = t('admin_shadow-saas-grip.grip_test_prefix') . $result['message'];
             } else {
-                $error = 'Grip connection test failed: ' . $result['message'];
+                $error = t('admin_shadow-saas-grip.grip_test_failed_prefix') . $result['message'];
             }
         } catch (Throwable $e) {
             error_log('Grip connection test error: ' . $e->getMessage());
-            $error = 'Grip connection test error. Check the error log for details.';
+            $error = t('admin_shadow-saas-grip.grip_test_error');
         }
     }
 }
@@ -245,11 +245,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_grip_connection'
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_grip_now'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_shadow-saas-grip.invalid_request');
     } else {
         $cronScript = realpath(__DIR__ . '/../../cron/shadow-saas-sync.php');
         if (!$cronScript || !is_file($cronScript)) {
-            $error = 'Shadow SaaS sync script not found at cron/shadow-saas-sync.php.';
+            $error = t('admin_shadow-saas-grip.sync_script_not_found');
         } else {
             $logFile = '/var/log/php/cron-shadow-saas-rehydrate.log';
             $cmd = sprintf(
@@ -268,7 +268,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_grip_now'])) {
                 proc_close($_gsProc);
             }
             $auth->audit($user['id'], 'shadow_saas_run_now', 'shadow_saas_grip_sync_log', null, ['log_file' => $logFile]);
-            $success = 'Shadow SaaS rehydration started in the background. Refresh in a few seconds to see the latest run.';
+            $success = t('admin_shadow-saas-grip.rehydration_started');
         }
     }
 }
@@ -279,7 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_grip_now'])) {
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['abort_shadow_sync'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_shadow-saas-grip.invalid_request');
     } else {
         $provider = (($_POST['sync_provider'] ?? '') === 'hero') ? 'hero' : 'grip';
         $table = $provider === 'hero' ? 'shadow_saas_hero_sync_log' : 'shadow_saas_grip_sync_log';
@@ -287,10 +287,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['abort_shadow_sync']))
             $n = $db->update($table, ['status' => 'aborting'], "status = 'running'");
             $auth->audit($user['id'], 'shadow_saas_abort_sync', $table, null, ['provider' => $provider]);
             $success = $n > 0
-                ? ucfirst($provider) . ' sync abort requested — it will stop within a few seconds.'
-                : 'No running ' . $provider . ' sync to abort.';
+                ? ucfirst($provider) . t('admin_shadow-saas-grip.sync_abort_requested_suffix')
+                : t('admin_shadow-saas-grip.no_running_prefix') . $provider . t('admin_shadow-saas-grip.no_running_suffix');
         } catch (Throwable $e) {
-            $error = 'Failed to abort sync: ' . $e->getMessage();
+            $error = t('admin_shadow-saas-grip.abort_failed_prefix') . $e->getMessage();
         }
     }
 }
@@ -301,7 +301,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['abort_shadow_sync']))
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['truncate_mirror_table'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_shadow-saas-grip.invalid_request');
     } else {
         $allowedTables = [
             'shadow_saas_grip_apps', 'shadow_saas_grip_users', 'shadow_saas_grip_alerts',
@@ -309,16 +309,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['truncate_mirror_table
         ];
         $tbl = (string)($_POST['mirror_table'] ?? '');
         if (!in_array($tbl, $allowedTables, true)) {
-            $error = 'Unknown mirror table.';
+            $error = t('admin_shadow-saas-grip.unknown_mirror_table');
         } else {
             try {
                 // $tbl is constrained to the whitelist above - safe to interpolate.
                 $db->query("TRUNCATE TABLE `{$tbl}`");
                 $auth->audit($user['id'], 'shadow_saas_truncate_mirror', $tbl, null, ['table' => $tbl]);
-                $success = 'Mirror table ' . e($tbl) . ' truncated.';
+                $success = t('admin_shadow-saas-grip.mirror_truncated_prefix') . e($tbl) . t('admin_shadow-saas-grip.mirror_truncated_suffix');
             } catch (Throwable $e) {
                 error_log('Truncate mirror failed: ' . $e->getMessage());
-                $error = 'Failed to truncate ' . e($tbl) . '.';
+                $error = t('admin_shadow-saas-grip.failed_truncate_prefix') . e($tbl) . '.';
             }
         }
     }
@@ -340,7 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['truncate_mirror_table
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['truncate_grip_data'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_shadow-saas-grip.invalid_request');
     } else {
         $gripMirrors = [
             'shadow_saas_grip_apps', 'shadow_saas_grip_users',
@@ -389,11 +389,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['truncate_grip_data'])
         ]);
 
         if (empty($failed)) {
-            $success = 'All Grip data cleared: ' . count($truncated) . ' mirror table(s) truncated, '
-                . number_format($saasRowsRemoved) . ' Shadow SaaS row(s) removed, and '
-                . number_format($vendorsCleared) . ' vendor record(s) cleared of stamped Grip telemetry.';
+            $success = t('admin_shadow-saas-grip.grip_all_cleared_p1') . count($truncated) . t('admin_shadow-saas-grip.grip_all_cleared_p2')
+                . number_format($saasRowsRemoved) . t('admin_shadow-saas-grip.grip_all_cleared_p3')
+                . number_format($vendorsCleared) . t('admin_shadow-saas-grip.grip_all_cleared_p4');
         } else {
-            $error = 'Grip data partially cleared. Failed on: ' . e(implode(', ', $failed)) . '. See the server log for details.';
+            $error = t('admin_shadow-saas-grip.grip_partial_cleared_prefix') . e(implode(', ', $failed)) . t('admin_shadow-saas-grip.grip_partial_cleared_suffix');
         }
     }
 }
@@ -403,7 +403,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['truncate_grip_data'])
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_hero'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_shadow-saas-grip.invalid_request');
     } else {
         try {
             $db->beginTransaction();
@@ -412,10 +412,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_hero'])) {
             if ($rawBase === '') $rawBase = 'https://api.herosecurity.ai/stable';
             $rawBase = rtrim($rawBase, '/');
             if (!preg_match('#^https?://[^\s]+$#i', $rawBase)) {
-                throw new Exception('Server URL must be a valid http(s) URL.');
+                throw new Exception(t('admin_shadow-saas-grip.server_url_invalid'));
             }
             if (!isConfigUrlHostSafe($rawBase)) {
-                throw new Exception('Server URL host is not allowed.');
+                throw new Exception(t('admin_shadow-saas-grip.server_url_host_not_allowed'));
             }
             $heroEnabled = isset($_POST['hero_enabled']) ? '1' : '0';
             $settings = [
@@ -451,11 +451,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_hero'])) {
                 'hero_client_id'     => $settings['hero_client_id'],
                 'hero_client_secret' => isset($settings['hero_client_secret']) ? '[encrypted]' : '(unchanged)',
             ]]);
-            $success = 'HERO configuration updated successfully.' . ($heroEnabled === '1' ? ' Grip was disabled — only one provider can be active at a time.' : '');
+            $success = t('admin_shadow-saas-grip.hero_config_updated') . ($heroEnabled === '1' ? t('admin_shadow-saas-grip.hero_disabled_grip') : '');
         } catch (Throwable $e) {
             try { $db->rollback(); } catch (Throwable $e2) {}
             error_log('Error updating HERO config: ' . $e->getMessage());
-            $error = 'Failed to update HERO configuration: ' . $e->getMessage();
+            $error = t('admin_shadow-saas-grip.hero_config_update_failed_prefix') . $e->getMessage();
         }
     }
 }
@@ -465,15 +465,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_hero'])) {
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_hero_connection'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_shadow-saas-grip.invalid_request');
     } else {
         try {
             $svc = new HeroService();
             $res = $svc->testConnection();
             if (!empty($res['success'])) { $success = $res['message']; }
-            else { $error = 'HERO test failed: ' . ($res['message'] ?? 'unknown error'); }
+            else { $error = t('admin_shadow-saas-grip.hero_test_failed_prefix') . ($res['message'] ?? t('admin_shadow-saas-grip.unknown_error')); }
         } catch (Throwable $e) {
-            $error = 'HERO test failed: ' . $e->getMessage();
+            $error = t('admin_shadow-saas-grip.hero_test_failed_prefix') . $e->getMessage();
         }
     }
 }
@@ -544,7 +544,7 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
 ?>
 <div class="page-header-bar">
     <h1 class="page-title">Shadow SaaS</h1>
-    <p>Configure third-party Shadow SaaS data providers. Discovered SaaS apps populate the existing Shadow SaaS list with normalized vendor domains.</p>
+    <p><?php echo e(t('admin_shadow-saas-grip.page_intro')); ?></p>
 </div>
 
 <!-- Horizontal tab navigation: one tab per Shadow SaaS provider (Grip / Hero). -->
@@ -554,74 +554,74 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
     <button type="button" data-action="showShadowSection" data-arg="hero" id="shadowTab_hero" class="shadow-section-tab"
         style="padding: 8px 16px; border: none; border-bottom: 2px solid <?php echo $shadowTab === 'hero' ? 'var(--theme-header-color, #2563eb)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $shadowTab === 'hero' ? '600' : '500'; ?>; color: <?php echo $shadowTab === 'hero' ? 'var(--theme-header-color, #2563eb)' : '#6b7280'; ?>; margin-bottom: -2px;">Hero<?php echo ($heroCfg['enabled'] ?? '0') === '1' ? ' &#9679;' : ''; ?></button>
 </div>
-<div class="form-help" style="margin: -12px 0 18px;">Grip and Hero are mutually exclusive — enabling one disables the other. The active provider (&#9679;) feeds the shared Zscaler blocking and Scheduled Rehydration below.</div>
+<div class="form-help" style="margin: -12px 0 18px;"><?php echo t('admin_shadow-saas-grip.providers_mutually_exclusive_help'); ?></div>
 
 <div id="shadowSection_grip" <?php echo $shadowTab !== 'grip' ? 'style="display: none;"' : ''; ?>>
 
 <div class="card">
-    <h3>Grip Security Connection</h3>
+    <h3><?php echo e(t('admin_shadow-saas-grip.grip_connection_heading')); ?></h3>
     <form method="POST" action="admin.php?section=shadow-saas">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="grip_form" value="connection">
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="grip_enabled" value="1" <?php echo ($gripCfg['enabled'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                <span>Enable Grip Security integration</span>
+                <span><?php echo e(t('admin_shadow-saas-grip.enable_grip')); ?></span>
             </label>
-            <div class="form-help">When enabled, scheduled and on-demand syncs will pull SaaS apps, users, and alerts from your Grip tenant into the Shadow SaaS list.</div>
+            <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.grip_enable_help')); ?></div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="grip_base_url">Server (Tenant Base URL)</label>
+                <label for="grip_base_url"><?php echo e(t('admin_shadow-saas-grip.grip_base_url_label')); ?></label>
                 <input type="text" id="grip_base_url" name="grip_base_url" class="form-control" value="<?php echo e($gripCfg['base_url'] ?? ''); ?>" placeholder="https://tenant.dep.grip.security/public/saas">
-                <div class="form-help">Tenant-prefixed Grip URL rooted at <code>/public/saas</code> (e.g. <code>https://tenant.dep.grip.security/public/saas</code>). Sibling endpoints (<code>/public/users</code>, <code>/public/alerts</code>) are derived from this host.</div>
+                <div class="form-help"><?php echo t('admin_shadow-saas-grip.grip_base_url_help'); ?></div>
             </div>
             <div class="form-group">
-                <label for="grip_api_token">API Token</label>
-                <input type="password" id="grip_api_token" name="grip_api_token" class="form-control" placeholder="<?php echo !empty($gripCfg['api_token']) ? '••••••••••••••••' : 'Enter administrator API key'; ?>">
-                <div class="form-help">Sent as the <code>access-token</code> HTTP header on every request. Leave blank to keep the existing token.</div>
+                <label for="grip_api_token"><?php echo e(t('admin_shadow-saas-grip.api_token_label')); ?></label>
+                <input type="password" id="grip_api_token" name="grip_api_token" class="form-control" placeholder="<?php echo !empty($gripCfg['api_token']) ? '••••••••••••••••' : e(t('admin_shadow-saas-grip.enter_admin_api_key')); ?>">
+                <div class="form-help"><?php echo t('admin_shadow-saas-grip.api_token_help'); ?></div>
             </div>
         </div>
         <div class="form-group" style="margin-top: 4px;">
             <label class="checkbox-label">
                 <input type="checkbox" name="grip_breach_sync_enabled" value="1" <?php echo ($gripCfg['breach_sync_enabled'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                <span>Flow Grip breach information into Breach&nbsp;/&nbsp;Cyber Alerts</span>
+                <span><?php echo t('admin_shadow-saas-grip.flow_grip_breach_label'); ?></span>
             </label>
-            <div class="form-help">On each scheduled rehydration (and the manual <strong>Run&nbsp;Now</strong> below), Grip "Security Incident Detected" alerts are written into the <a href="breach-alerts.php">Breach&nbsp;/&nbsp;Cyber Alerts</a> system (deduplicated). Breaches for an onboarded vendor are linked to that vendor; breaches for an app with no onboarded vendor are still recorded and tagged <strong>Shadow&nbsp;SaaS</strong> with the number of users potentially impacted. Requires Grip enabled (above) <em>and</em> the Breach&nbsp;/&nbsp;Cyber Alert setting under <a href="admin.php?section=email">Email &amp; Alerts</a>.</div>
+            <div class="form-help"><?php echo t('admin_shadow-saas-grip.grip_breach_help'); ?></div>
         </div>
         <div class="form-group" style="margin-top: 4px;">
-            <label for="grip_data_source">Data source</label>
+            <label for="grip_data_source"><?php echo e(t('admin_shadow-saas-grip.data_source_label')); ?></label>
             <?php $gripSrc = (($gripCfg['data_source'] ?? 'live') === 'local') ? 'local' : 'live'; ?>
             <select id="grip_data_source" name="grip_data_source" class="form-control">
-                <option value="live"  <?php echo $gripSrc === 'live'  ? 'selected' : ''; ?>>Live — query the Grip API on every view</option>
-                <option value="local" <?php echo $gripSrc === 'local' ? 'selected' : ''; ?>>Local (Hydrated/cached) — serve from the database</option>
+                <option value="live"  <?php echo $gripSrc === 'live'  ? 'selected' : ''; ?>><?php echo e(t('admin_shadow-saas-grip.data_source_live')); ?></option>
+                <option value="local" <?php echo $gripSrc === 'local' ? 'selected' : ''; ?>><?php echo e(t('admin_shadow-saas-grip.data_source_local')); ?></option>
             </select>
-            <div class="form-help"><strong>Live</strong> calls the Grip API for each page (always current, heavier on the API). <strong>Local (Hydrated/cached)</strong> serves the hydrated <code>shadow_saas_grip_*</code> tables in the database — lighter on the API — and a missing per-app snapshot is fetched from the API once, then cached. In Local mode, each sync <strong>fully refreshes</strong> the data: the Grip mirror tables are truncated and re-hydrated from the API.</div>
+            <div class="form-help"><?php echo t('admin_shadow-saas-grip.data_source_help'); ?></div>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 8px;">
-            <button type="submit" name="update_grip" class="btn btn-primary">Save Configuration</button>
-            <button type="submit" name="test_grip_connection" class="btn btn-secondary">Test Connection</button>
+            <button type="submit" name="update_grip" class="btn btn-primary"><?php echo e(t('admin_shadow-saas-grip.save_configuration')); ?></button>
+            <button type="submit" name="test_grip_connection" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.test_connection')); ?></button>
         </div>
     </form>
 </div>
 
 <?php if ($lastSync): ?>
 <div class="card">
-    <h3>Last Sync</h3>
+    <h3><?php echo e(t('admin_shadow-saas-grip.last_sync_heading')); ?></h3>
     <table>
-        <tr><th style="width: 220px;">Started</th><td><?php echo e($lastSync['started_at']); ?></td></tr>
-        <tr><th>Finished</th><td><?php echo $lastSync['finished_at'] ? e($lastSync['finished_at']) : '<em>still running</em>'; ?></td></tr>
-        <tr><th>Trigger</th><td><?php echo e($lastSync['trigger_source']); ?></td></tr>
-        <tr><th>Status</th><td><span class="badge <?php echo $lastSync['status'] === 'success' ? 'badge-success' : ($lastSync['status'] === 'error' ? 'badge-danger' : 'badge-blue'); ?>"><?php echo e($lastSync['status']); ?></span></td></tr>
-        <tr><th>SaaS apps</th><td><?php echo (int)$lastSync['apps_fetched']; ?></td></tr>
-        <tr><th>Users</th><td><?php echo (int)$lastSync['users_fetched']; ?></td></tr>
-        <tr><th>Alerts</th><td><?php echo (int)$lastSync['alerts_fetched']; ?></td></tr>
-        <tr><th>Shadow SaaS upserts</th><td><?php echo (int)$lastSync['shadow_saas_upserted']; ?></td></tr>
+        <tr><th style="width: 220px;"><?php echo e(t('admin_shadow-saas-grip.th_started')); ?></th><td><?php echo e($lastSync['started_at']); ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_finished')); ?></th><td><?php echo $lastSync['finished_at'] ? e($lastSync['finished_at']) : t('admin_shadow-saas-grip.still_running'); ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_trigger')); ?></th><td><?php echo e($lastSync['trigger_source']); ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_status')); ?></th><td><span class="badge <?php echo $lastSync['status'] === 'success' ? 'badge-success' : ($lastSync['status'] === 'error' ? 'badge-danger' : 'badge-blue'); ?>"><?php echo e($lastSync['status']); ?></span></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_saas_apps')); ?></th><td><?php echo (int)$lastSync['apps_fetched']; ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_users')); ?></th><td><?php echo (int)$lastSync['users_fetched']; ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_alerts')); ?></th><td><?php echo (int)$lastSync['alerts_fetched']; ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_shadow_saas_upserts')); ?></th><td><?php echo (int)$lastSync['shadow_saas_upserted']; ?></td></tr>
         <?php if ((int)($lastSync['roster_total'] ?? 0) > 0): ?>
-        <tr><th>Rosters hydrated</th><td><?php echo number_format((int)$lastSync['roster_done']) . ' / ' . number_format((int)$lastSync['roster_total']) . ' apps with users'; ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_rosters_hydrated')); ?></th><td><?php echo number_format((int)$lastSync['roster_done']) . ' / ' . number_format((int)$lastSync['roster_total']) . t('admin_shadow-saas-grip.apps_with_users_suffix'); ?></td></tr>
         <?php endif; ?>
         <?php if (!empty($lastSync['error_message'])): ?>
-        <tr><th>Error</th><td style="color: #991b1b;"><?php echo e($lastSync['error_message']); ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_error')); ?></th><td style="color: #991b1b;"><?php echo e($lastSync['error_message']); ?></td></tr>
         <?php endif; ?>
     </table>
 
@@ -633,13 +633,13 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
         <form method="POST" action="admin.php?section=shadow-saas" style="margin: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <button type="submit" name="truncate_grip_data"
-                    data-confirm="Truncate ALL local Grip data? This permanently deletes every Grip mirror row (apps, users, alerts, per-app users), removes all Grip-projected Shadow SaaS rows, and clears the curated Grip telemetry stamped on vendor records (the vendor 'SaaS Data' tab). The next sync re-hydrates it from the Grip API. This cannot be undone."
+                    data-confirm="<?php echo e(t('admin_shadow-saas-grip.truncate_all_confirm')); ?>"
                     style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:8px 16px;font-size:13px;border-radius:4px;cursor:pointer;font-weight:600;white-space:nowrap;">
-                Truncate Data
+                <?php echo e(t('admin_shadow-saas-grip.truncate_data_button')); ?>
             </button>
             <span style="color:#6b7280;font-size:12px;">
-                Clears all locally-served Grip data (mirror tables, Shadow SaaS Grip rows, and vendor SaaS&nbsp;Data tabs).
-                Currently holding <?php echo number_format($gripLocalRows); ?> mirror row<?php echo $gripLocalRows === 1 ? '' : 's'; ?>.
+                <?php echo t('admin_shadow-saas-grip.truncate_hint_line1'); ?>
+                <?php echo e(t('admin_shadow-saas-grip.currently_holding_prefix')); ?><?php echo number_format($gripLocalRows); ?><?php echo e(t('admin_shadow-saas-grip.mirror_row_suffix')); ?><?php echo $gripLocalRows === 1 ? '' : 's'; ?>.
             </span>
         </form>
     </div>
@@ -653,9 +653,9 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
          sync runs and reloads the card when it finishes. -->
     <div id="grip-sync-progress" style="margin-top: 16px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-            <span style="font-size:13px;color:#374151;font-weight:600;">Hydrating per-app rosters</span>
+            <span style="font-size:13px;color:#374151;font-weight:600;"><?php echo e(t('admin_shadow-saas-grip.hydrating_rosters')); ?></span>
             <span id="grip-sync-progress-label" style="font-size:13px;color:#374151;font-variant-numeric:tabular-nums;">
-                <?php echo $rTotal > 0 ? ($rPct . '% (' . number_format($rDone) . ' / ' . number_format($rTotal) . ' apps)') : 'starting…'; ?>
+                <?php echo $rTotal > 0 ? ($rPct . '% (' . number_format($rDone) . ' / ' . number_format($rTotal) . ' apps)') : e(t('admin_shadow-saas-grip.starting')); ?>
             </span>
         </div>
         <div style="height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;">
@@ -665,7 +665,7 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
     <form method="POST" action="admin.php?section=shadow-saas" style="margin-top: 12px;">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="sync_provider" value="grip">
-        <button type="submit" name="abort_shadow_sync" class="btn btn-secondary" data-confirm="Abort the running Grip sync?">Stop Sync</button>
+        <button type="submit" name="abort_shadow_sync" class="btn btn-secondary" data-confirm="<?php echo e(t('admin_shadow-saas-grip.abort_grip_confirm')); ?>"><?php echo e(t('admin_shadow-saas-grip.stop_sync_button')); ?></button>
     </form>
     <script nonce="<?php echo cspNonce(); ?>">
     (function () {
@@ -683,7 +683,7 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
                     bar.style.width = pct + '%';
                     label.textContent = (d.total > 0)
                         ? (pct + '% (' + d.done.toLocaleString() + ' / ' + d.total.toLocaleString() + ' apps)')
-                        : 'starting…';
+                        : <?php echo json_encode(t('admin_shadow-saas-grip.starting')); ?>;
                 })
                 .catch(function () { /* transient — keep polling */ });
         }, 2500);
@@ -694,55 +694,50 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
 <?php endif; ?>
 
 <div class="card">
-    <h3>Mirror Tables</h3>
+    <h3><?php echo e(t('admin_shadow-saas-grip.mirror_tables_heading')); ?></h3>
     <table>
-        <thead><tr><th>Table</th><th>Rows</th><th>Description</th><th style="width: 100px;">Actions</th></tr></thead>
+        <thead><tr><th><?php echo e(t('admin_shadow-saas-grip.th_table')); ?></th><th><?php echo e(t('admin_shadow-saas-grip.th_rows')); ?></th><th><?php echo e(t('admin_shadow-saas-grip.th_description')); ?></th><th style="width: 100px;"><?php echo e(t('admin_shadow-saas-grip.th_actions')); ?></th></tr></thead>
         <tbody>
-            <tr><td><code>shadow_saas_grip_apps</code></td><td><?php echo number_format($counts['apps']); ?></td><td>One row per Grip SaaS application (full payload + flattened fields).</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_grip_apps"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_grip_apps? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
-            <tr><td><code>shadow_saas_grip_users</code></td><td><?php echo number_format($counts['users']); ?></td><td>One row per Grip-discovered user.</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_grip_users"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_grip_users? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
-            <tr><td><code>shadow_saas_grip_alerts</code></td><td><?php echo number_format($counts['alerts']); ?></td><td>One row per Grip alert with severity, status, and related entity.</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_grip_alerts"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_grip_alerts? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
+            <tr><td><code>shadow_saas_grip_apps</code></td><td><?php echo number_format($counts['apps']); ?></td><td><?php echo e(t('admin_shadow-saas-grip.mirror_apps_desc')); ?></td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_grip_apps"><button type="submit" name="truncate_mirror_table" data-confirm="<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_prefix')); ?>shadow_saas_grip_apps<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_suffix')); ?>" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;"><?php echo e(t('admin_shadow-saas-grip.truncate_button')); ?></button></form></td></tr>
+            <tr><td><code>shadow_saas_grip_users</code></td><td><?php echo number_format($counts['users']); ?></td><td><?php echo e(t('admin_shadow-saas-grip.mirror_users_desc')); ?></td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_grip_users"><button type="submit" name="truncate_mirror_table" data-confirm="<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_prefix')); ?>shadow_saas_grip_users<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_suffix')); ?>" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;"><?php echo e(t('admin_shadow-saas-grip.truncate_button')); ?></button></form></td></tr>
+            <tr><td><code>shadow_saas_grip_alerts</code></td><td><?php echo number_format($counts['alerts']); ?></td><td><?php echo e(t('admin_shadow-saas-grip.mirror_alerts_desc')); ?></td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_grip_alerts"><button type="submit" name="truncate_mirror_table" data-confirm="<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_prefix')); ?>shadow_saas_grip_alerts<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_suffix')); ?>" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;"><?php echo e(t('admin_shadow-saas-grip.truncate_button')); ?></button></form></td></tr>
         </tbody>
     </table>
 </div>
 
 <div class="card">
-    <h3>API Reference</h3>
-    <p style="color: #666; line-height: 1.6;">Endpoint inventory for the Grip Security public API (server base <code>https://&lt;tenant&gt;.dep.grip.security/public</code>, auto-generated OpenAPI 3.1). The FairTPRM sync consumes the read (GET) endpoints marked <em>used by sync</em>; the complete inventory &mdash; including the Users, Workflows, Posture&nbsp;Management, AuditLogs, Alerts / Alerts&nbsp;V2, Actions, and AI&nbsp;Agents groups &mdash; is in the OpenAPI and Postman downloads below. Domain extraction normalizes URLs to their registrable domain (e.g. <code>https://www.united.com</code> → <code>united.com</code>, <code>http://color.redhat.com</code> → <code>redhat.com</code>).</p>
+    <h3><?php echo e(t('admin_shadow-saas-grip.api_reference_heading')); ?></h3>
+    <p style="color: #666; line-height: 1.6;"><?php echo t('admin_shadow-saas-grip.grip_api_reference_intro'); ?></p>
     <table>
-        <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+        <thead><tr><th><?php echo e(t('admin_shadow-saas-grip.th_method')); ?></th><th><?php echo e(t('admin_shadow-saas-grip.th_path')); ?></th><th><?php echo e(t('admin_shadow-saas-grip.th_purpose')); ?></th></tr></thead>
         <tbody>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas</code></td><td>List SaaS apps (paginated; <code>offset</code> + <code>limit</code>). <em>Used by sync.</em></td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/{id}</code></td><td>Get a single SaaS app by Grip UUID.</td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/{name}/id</code></td><td>Get a SaaS app's Grip ID by display name.</td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/name/{name}</code></td><td>Get full SaaS details by display name.</td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/{id}/users</code></td><td>List users of a SaaS application.</td></tr>
-            <tr><td><span class="badge badge-success">POST</span></td><td><code>/public/saas/{id}/label</code></td><td>Add a label to a SaaS app.</td></tr>
-            <tr><td><span class="badge badge-danger">DELETE</span></td><td><code>/public/saas/{id}/label</code></td><td>Remove a label from a SaaS app.</td></tr>
-            <tr><td><span class="badge badge-success">POST</span></td><td><code>/public/saas/{id}/update-primary-contact</code></td><td>Set the primary contact (<code>user_id</code>).</td></tr>
-            <tr><td><span class="badge badge-success">POST</span></td><td><code>/public/saas/{id}/sanction_status</code></td><td>Update sanction state (<code>new_sanction_state</code>).</td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/users</code></td><td>List discovered users. <em>Used by sync.</em></td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/alerts</code></td><td>List security alerts (severity, mitigation, related entity). <em>Used by sync.</em></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas</code></td><td><?php echo t('admin_shadow-saas-grip.grip_ep_saas_list'); ?></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/{id}</code></td><td><?php echo e(t('admin_shadow-saas-grip.grip_ep_saas_get')); ?></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/{name}/id</code></td><td><?php echo e(t('admin_shadow-saas-grip.grip_ep_saas_id')); ?></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/name/{name}</code></td><td><?php echo e(t('admin_shadow-saas-grip.grip_ep_saas_by_name')); ?></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/saas/{id}/users</code></td><td><?php echo e(t('admin_shadow-saas-grip.grip_ep_saas_users')); ?></td></tr>
+            <tr><td><span class="badge badge-success">POST</span></td><td><code>/public/saas/{id}/label</code></td><td><?php echo e(t('admin_shadow-saas-grip.grip_ep_label_add')); ?></td></tr>
+            <tr><td><span class="badge badge-danger">DELETE</span></td><td><code>/public/saas/{id}/label</code></td><td><?php echo e(t('admin_shadow-saas-grip.grip_ep_label_remove')); ?></td></tr>
+            <tr><td><span class="badge badge-success">POST</span></td><td><code>/public/saas/{id}/update-primary-contact</code></td><td><?php echo t('admin_shadow-saas-grip.grip_ep_primary_contact'); ?></td></tr>
+            <tr><td><span class="badge badge-success">POST</span></td><td><code>/public/saas/{id}/sanction_status</code></td><td><?php echo t('admin_shadow-saas-grip.grip_ep_sanction'); ?></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/users</code></td><td><?php echo t('admin_shadow-saas-grip.grip_ep_users_list'); ?></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/alerts</code></td><td><?php echo t('admin_shadow-saas-grip.grip_ep_alerts_list'); ?></td></tr>
         </tbody>
     </table>
     <div style="display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap;">
-        <a href="reference-doc.php?file=grip-openapi.yaml" target="_blank" class="btn btn-secondary">View OpenAPI / Swagger</a>
-        <a href="reference-doc.php?file=grip-openapi.yaml&amp;download=1" class="btn btn-secondary">Download Swagger (YAML)</a>
-        <a href="reference-doc.php?file=grip-postman-collection.json" target="_blank" class="btn btn-secondary">View Postman Collection</a>
-        <a href="reference-doc.php?file=grip-postman-collection.json&amp;download=1" class="btn btn-secondary">Download Postman (JSON)</a>
-        <a href="https://apidocs.grip.security/docs/api-docs/16b5e21308a0e-grip" target="_blank" rel="noopener" class="btn btn-secondary">Official Grip Docs &rarr;</a>
+        <a href="reference-doc.php?file=grip-openapi.yaml" target="_blank" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.view_openapi')); ?></a>
+        <a href="reference-doc.php?file=grip-openapi.yaml&amp;download=1" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.download_swagger_yaml')); ?></a>
+        <a href="reference-doc.php?file=grip-postman-collection.json" target="_blank" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.view_postman')); ?></a>
+        <a href="reference-doc.php?file=grip-postman-collection.json&amp;download=1" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.download_postman_json')); ?></a>
+        <a href="https://apidocs.grip.security/docs/api-docs/16b5e21308a0e-grip" target="_blank" rel="noopener" class="btn btn-secondary"><?php echo t('admin_shadow-saas-grip.official_grip_docs'); ?></a>
     </div>
-    <div class="form-help" style="margin-top: 10px;">Authentication header: <code>access-token: &lt;your-token&gt;</code>. The Postman collection's <code>accessToken</code> variable is set to <code>REPLACE_ME</code>; substitute your tenant token before sending requests.</div>
+    <div class="form-help" style="margin-top: 10px;"><?php echo t('admin_shadow-saas-grip.grip_auth_help'); ?></div>
 </div>
 
 <div class="card">
-    <h3>About the Grip Integration</h3>
+    <h3><?php echo e(t('admin_shadow-saas-grip.about_grip_heading')); ?></h3>
     <p style="color: #666; line-height: 1.6;">
-        Grip Security discovers and continuously monitors SaaS-of-Record applications across your environment.
-        This integration:<br><br>
-        <strong>&bull; Mirrors Grip data:</strong> Pulls the full SaaS / users / alerts inventory into <code>shadow_saas_grip_*</code> tables.<br>
-        <strong>&bull; Hydrates Shadow SaaS:</strong> Projects each SaaS app into the existing Shadow SaaS list, normalizing the URL to its registrable domain so vendor matching works the same as a CSV import.<br>
-        <strong>&bull; Tracks risk:</strong> Persists Grip's risk score, sanction tag, OAuth-scope counts, AI-depth classification, MFA / SAML support, and primary-contact metadata.<br>
-        <strong>&bull; Stays fresh:</strong> Re-runs on the configured cron schedule; admins can also trigger an immediate background run with the "Run Now" button above.
+        <?php echo t('admin_shadow-saas-grip.about_grip_body'); ?>
     </p>
 </div>
 
@@ -751,126 +746,121 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
 <div id="shadowSection_hero" <?php echo $shadowTab !== 'hero' ? 'style="display: none;"' : ''; ?>>
 
 <div class="card">
-    <h3>HERO Security Connection</h3>
+    <h3><?php echo e(t('admin_shadow-saas-grip.hero_connection_heading')); ?></h3>
     <form method="POST" action="admin.php?section=shadow-saas">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="hero_enabled" value="1" <?php echo ($heroCfg['enabled'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                <span>Enable HERO Security integration</span>
+                <span><?php echo e(t('admin_shadow-saas-grip.enable_hero')); ?></span>
             </label>
-            <div class="form-help">When enabled, scheduled and on-demand syncs pull vendors, issues, and per-vendor users from HERO into the Shadow SaaS list. Enabling HERO disables Grip — only one provider can be active at a time.</div>
+            <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.hero_enable_help')); ?></div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="hero_base_url">Server (Base URL)</label>
+                <label for="hero_base_url"><?php echo e(t('admin_shadow-saas-grip.hero_base_url_label')); ?></label>
                 <input type="text" id="hero_base_url" name="hero_base_url" class="form-control" value="<?php echo e($heroCfg['base_url'] ?? ''); ?>" placeholder="https://api.herosecurity.ai/stable">
-                <div class="form-help">HERO public API base, e.g. <code>https://api.herosecurity.ai/stable</code>. Endpoints (<code>/v1/vendors</code>, <code>/v1/issues</code>) are derived from this host.</div>
+                <div class="form-help"><?php echo t('admin_shadow-saas-grip.hero_base_url_help'); ?></div>
             </div>
             <div class="form-group">
-                <label for="hero_client_id">Client ID</label>
+                <label for="hero_client_id"><?php echo e(t('admin_shadow-saas-grip.client_id_label')); ?></label>
                 <input type="text" id="hero_client_id" name="hero_client_id" class="form-control" value="<?php echo e($heroCfg['client_id'] ?? ''); ?>" placeholder="hero_xxxxxxxxxxxxxxxx" autocomplete="off">
-                <div class="form-help">OAuth 2.0 <code>client_id</code> from the HERO admin panel.</div>
+                <div class="form-help"><?php echo t('admin_shadow-saas-grip.hero_client_id_help'); ?></div>
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="hero_client_secret">Client Secret</label>
-                <input type="password" id="hero_client_secret" name="hero_client_secret" class="form-control" placeholder="<?php echo !empty($heroCfg['client_secret']) ? '••••••••••••••••' : 'client_secret (shown once at creation)'; ?>" autocomplete="new-password">
-                <div class="form-help">OAuth 2.0 <code>client_secret</code>, exchanged for a short-lived Bearer token (client-credentials grant). Stored encrypted. Leave blank to keep the existing value.</div>
+                <label for="hero_client_secret"><?php echo e(t('admin_shadow-saas-grip.client_secret_label')); ?></label>
+                <input type="password" id="hero_client_secret" name="hero_client_secret" class="form-control" placeholder="<?php echo !empty($heroCfg['client_secret']) ? '••••••••••••••••' : e(t('admin_shadow-saas-grip.hero_client_secret_placeholder')); ?>" autocomplete="new-password">
+                <div class="form-help"><?php echo t('admin_shadow-saas-grip.hero_client_secret_help'); ?></div>
             </div>
         </div>
         <details style="margin-top: 4px;">
-            <summary style="cursor: pointer; color: #6b7280; font-size: 13px;">Sync pacing (advanced)</summary>
-            <p class="form-help" style="margin: 8px 0;">HERO rate-limits API calls (~60 requests per minute, account-wide). These control how the per-vendor user sync paces itself.</p>
+            <summary style="cursor: pointer; color: #6b7280; font-size: 13px;"><?php echo e(t('admin_shadow-saas-grip.sync_pacing_summary')); ?></summary>
+            <p class="form-help" style="margin: 8px 0;"><?php echo e(t('admin_shadow-saas-grip.hero_pacing_help')); ?></p>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="hero_throttle_ms">Throttle between vendor calls (ms)</label>
+                    <label for="hero_throttle_ms"><?php echo e(t('admin_shadow-saas-grip.hero_throttle_label')); ?></label>
                     <input type="number" id="hero_throttle_ms" name="hero_throttle_ms" class="form-control" min="0" max="10000" step="50" value="<?php echo e($heroCfg['throttle_ms'] ?? '1100'); ?>">
-                    <div class="form-help">Pause between each vendor's user request. ~1100&nbsp;ms keeps a full sync just under HERO's ~60/min limit. Lower is faster but triggers rate-limit (429) backoffs.</div>
+                    <div class="form-help"><?php echo t('admin_shadow-saas-grip.hero_throttle_help'); ?></div>
                 </div>
                 <div class="form-group">
-                    <label for="hero_users_timeout">Users fetch timeout (seconds)</label>
+                    <label for="hero_users_timeout"><?php echo e(t('admin_shadow-saas-grip.hero_timeout_label')); ?></label>
                     <input type="number" id="hero_users_timeout" name="hero_users_timeout" class="form-control" min="5" max="120" value="<?php echo e($heroCfg['users_timeout'] ?? '15'); ?>">
-                    <div class="form-help">How long to wait for one vendor's users before skipping it. Lower means very large tenants that hang fail fast instead of stalling the run for the full timeout.</div>
+                    <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.hero_timeout_help')); ?></div>
                 </div>
             </div>
         </details>
         <div style="display: flex; gap: 10px; margin-top: 8px;">
-            <button type="submit" name="update_hero" class="btn btn-primary">Save Configuration</button>
-            <button type="submit" name="test_hero_connection" class="btn btn-secondary">Test Connection</button>
+            <button type="submit" name="update_hero" class="btn btn-primary"><?php echo e(t('admin_shadow-saas-grip.save_configuration')); ?></button>
+            <button type="submit" name="test_hero_connection" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.test_connection')); ?></button>
         </div>
     </form>
 </div>
 
 <?php if ($heroLastSync): ?>
 <div class="card">
-    <h3>Last Sync</h3>
+    <h3><?php echo e(t('admin_shadow-saas-grip.last_sync_heading')); ?></h3>
     <table>
-        <tr><th style="width: 220px;">Started</th><td><?php echo e($heroLastSync['started_at']); ?></td></tr>
-        <tr><th>Finished</th><td><?php echo $heroLastSync['finished_at'] ? e($heroLastSync['finished_at']) : '<em>still running</em>'; ?></td></tr>
-        <tr><th>Trigger</th><td><?php echo e($heroLastSync['trigger_source']); ?></td></tr>
-        <tr><th>Status</th><td><span class="badge <?php echo $heroLastSync['status'] === 'success' ? 'badge-success' : ($heroLastSync['status'] === 'error' ? 'badge-danger' : 'badge-blue'); ?>"><?php echo e($heroLastSync['status']); ?></span></td></tr>
-        <tr><th>Vendors</th><td><?php echo (int)$heroLastSync['vendors_fetched']; ?></td></tr>
-        <tr><th>Users</th><td><?php echo (int)$heroLastSync['users_fetched']; ?></td></tr>
-        <tr><th>Issues</th><td><?php echo (int)$heroLastSync['issues_fetched']; ?></td></tr>
-        <tr><th>Shadow SaaS upserts</th><td><?php echo (int)$heroLastSync['shadow_saas_upserted']; ?></td></tr>
+        <tr><th style="width: 220px;"><?php echo e(t('admin_shadow-saas-grip.th_started')); ?></th><td><?php echo e($heroLastSync['started_at']); ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_finished')); ?></th><td><?php echo $heroLastSync['finished_at'] ? e($heroLastSync['finished_at']) : t('admin_shadow-saas-grip.still_running'); ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_trigger')); ?></th><td><?php echo e($heroLastSync['trigger_source']); ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_status')); ?></th><td><span class="badge <?php echo $heroLastSync['status'] === 'success' ? 'badge-success' : ($heroLastSync['status'] === 'error' ? 'badge-danger' : 'badge-blue'); ?>"><?php echo e($heroLastSync['status']); ?></span></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_vendors')); ?></th><td><?php echo (int)$heroLastSync['vendors_fetched']; ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_users')); ?></th><td><?php echo (int)$heroLastSync['users_fetched']; ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_issues')); ?></th><td><?php echo (int)$heroLastSync['issues_fetched']; ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_shadow_saas_upserts')); ?></th><td><?php echo (int)$heroLastSync['shadow_saas_upserted']; ?></td></tr>
         <?php if (!empty($heroLastSync['error_message'])): ?>
-        <tr><th>Error</th><td style="color: #991b1b;"><?php echo e($heroLastSync['error_message']); ?></td></tr>
+        <tr><th><?php echo e(t('admin_shadow-saas-grip.th_error')); ?></th><td style="color: #991b1b;"><?php echo e($heroLastSync['error_message']); ?></td></tr>
         <?php endif; ?>
     </table>
     <?php if (($heroLastSync['status'] ?? '') === 'running'): ?>
     <form method="POST" action="admin.php?section=shadow-saas" style="margin-top: 12px;">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="sync_provider" value="hero">
-        <button type="submit" name="abort_shadow_sync" class="btn btn-secondary" data-confirm="Abort the running HERO sync?">Stop Sync</button>
+        <button type="submit" name="abort_shadow_sync" class="btn btn-secondary" data-confirm="<?php echo e(t('admin_shadow-saas-grip.abort_hero_confirm')); ?>"><?php echo e(t('admin_shadow-saas-grip.stop_sync_button')); ?></button>
     </form>
     <?php endif; ?>
 </div>
 <?php endif; ?>
 
 <div class="card">
-    <h3>Mirror Tables</h3>
+    <h3><?php echo e(t('admin_shadow-saas-grip.mirror_tables_heading')); ?></h3>
     <table>
-        <thead><tr><th>Table</th><th>Rows</th><th>Description</th><th style="width: 100px;">Actions</th></tr></thead>
+        <thead><tr><th><?php echo e(t('admin_shadow-saas-grip.th_table')); ?></th><th><?php echo e(t('admin_shadow-saas-grip.th_rows')); ?></th><th><?php echo e(t('admin_shadow-saas-grip.th_description')); ?></th><th style="width: 100px;"><?php echo e(t('admin_shadow-saas-grip.th_actions')); ?></th></tr></thead>
         <tbody>
-            <tr><td><code>shadow_saas_hero_vendors</code></td><td><?php echo number_format($heroCounts['vendors']); ?></td><td>One row per HERO vendor (status, aspects, derived 1-5 risk score, full payload).</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_hero_vendors"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_hero_vendors? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
-            <tr><td><code>shadow_saas_hero_issues</code></td><td><?php echo number_format($heroCounts['issues']); ?></td><td>One row per HERO security issue (type, severity, status, vendor).</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_hero_issues"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_hero_issues? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
-            <tr><td><code>shadow_saas_hero_users</code></td><td><?php echo number_format($heroCounts['users']); ?></td><td>Primary contact per vendor — the highest email-activity user, used as the relationship manager.</td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_hero_users"><button type="submit" name="truncate_mirror_table" data-confirm="Truncate shadow_saas_hero_users? This permanently deletes all mirrored rows in this table." style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;">Truncate</button></form></td></tr>
+            <tr><td><code>shadow_saas_hero_vendors</code></td><td><?php echo number_format($heroCounts['vendors']); ?></td><td><?php echo e(t('admin_shadow-saas-grip.hero_mirror_vendors_desc')); ?></td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_hero_vendors"><button type="submit" name="truncate_mirror_table" data-confirm="<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_prefix')); ?>shadow_saas_hero_vendors<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_suffix')); ?>" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;"><?php echo e(t('admin_shadow-saas-grip.truncate_button')); ?></button></form></td></tr>
+            <tr><td><code>shadow_saas_hero_issues</code></td><td><?php echo number_format($heroCounts['issues']); ?></td><td><?php echo e(t('admin_shadow-saas-grip.hero_mirror_issues_desc')); ?></td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_hero_issues"><button type="submit" name="truncate_mirror_table" data-confirm="<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_prefix')); ?>shadow_saas_hero_issues<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_suffix')); ?>" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;"><?php echo e(t('admin_shadow-saas-grip.truncate_button')); ?></button></form></td></tr>
+            <tr><td><code>shadow_saas_hero_users</code></td><td><?php echo number_format($heroCounts['users']); ?></td><td><?php echo e(t('admin_shadow-saas-grip.hero_mirror_users_desc')); ?></td><td><form method="POST" action="admin.php?section=shadow-saas" style="margin:0;"><input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>"><input type="hidden" name="mirror_table" value="shadow_saas_hero_users"><button type="submit" name="truncate_mirror_table" data-confirm="<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_prefix')); ?>shadow_saas_hero_users<?php echo e(t('admin_shadow-saas-grip.truncate_confirm_suffix')); ?>" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer;white-space:nowrap;"><?php echo e(t('admin_shadow-saas-grip.truncate_button')); ?></button></form></td></tr>
         </tbody>
     </table>
 </div>
 
 <div class="card">
-    <h3>API Reference</h3>
-    <p style="color: #666; line-height: 1.6;">Endpoint inventory for the HERO public API used by this integration. Auth is OAuth 2.0 client-credentials &rarr; Bearer token; list endpoints use cursor pagination (<code>next_cursor</code> &rarr; <code>cursor</code>).</p>
+    <h3><?php echo e(t('admin_shadow-saas-grip.api_reference_heading')); ?></h3>
+    <p style="color: #666; line-height: 1.6;"><?php echo t('admin_shadow-saas-grip.hero_api_reference_intro'); ?></p>
     <table>
-        <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+        <thead><tr><th><?php echo e(t('admin_shadow-saas-grip.th_method')); ?></th><th><?php echo e(t('admin_shadow-saas-grip.th_path')); ?></th><th><?php echo e(t('admin_shadow-saas-grip.th_purpose')); ?></th></tr></thead>
         <tbody>
-            <tr><td><span class="badge badge-blue">POST</span></td><td><code>/v1/auth/token</code></td><td>Exchange client_id + client_secret for a Bearer token.</td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/v1/vendors</code></td><td>List vendors (cursor paginated; <code>page_size</code> &le; 250).</td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/v1/vendors/{domain}</code></td><td>Get a single vendor by canonical domain.</td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/v1/vendors/{domain}/users</code></td><td>List users observed interacting with a vendor.</td></tr>
-            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/v1/issues</code></td><td>List security issues with severity, status, and vendor.</td></tr>
+            <tr><td><span class="badge badge-blue">POST</span></td><td><code>/v1/auth/token</code></td><td><?php echo e(t('admin_shadow-saas-grip.hero_ep_auth')); ?></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/v1/vendors</code></td><td><?php echo t('admin_shadow-saas-grip.hero_ep_vendors_list'); ?></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/v1/vendors/{domain}</code></td><td><?php echo e(t('admin_shadow-saas-grip.hero_ep_vendor_get')); ?></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/v1/vendors/{domain}/users</code></td><td><?php echo e(t('admin_shadow-saas-grip.hero_ep_vendor_users')); ?></td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/v1/issues</code></td><td><?php echo e(t('admin_shadow-saas-grip.hero_ep_issues_list')); ?></td></tr>
         </tbody>
     </table>
     <div style="display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap;">
-        <a href="reference-doc.php?file=hero-openapi.yaml" target="_blank" class="btn btn-secondary">View OpenAPI / Swagger</a>
-        <a href="reference-doc.php?file=hero-openapi.yaml&amp;download=1" class="btn btn-secondary">Download Swagger (YAML)</a>
-        <a href="https://herosecurity.ai/" target="_blank" rel="noopener" class="btn btn-secondary">HERO Security &rarr;</a>
+        <a href="reference-doc.php?file=hero-openapi.yaml" target="_blank" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.view_openapi')); ?></a>
+        <a href="reference-doc.php?file=hero-openapi.yaml&amp;download=1" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.download_swagger_yaml')); ?></a>
+        <a href="https://herosecurity.ai/" target="_blank" rel="noopener" class="btn btn-secondary"><?php echo t('admin_shadow-saas-grip.hero_security_link'); ?></a>
     </div>
-    <div class="form-help" style="margin-top: 10px;">Authentication: <code>Authorization: Bearer &lt;token&gt;</code> on all data endpoints. Tokens expire after ~1 hour.</div>
+    <div class="form-help" style="margin-top: 10px;"><?php echo t('admin_shadow-saas-grip.hero_auth_help'); ?></div>
 </div>
 
 <div class="card">
-    <h3>About the HERO Integration</h3>
+    <h3><?php echo e(t('admin_shadow-saas-grip.about_hero_heading')); ?></h3>
     <p style="color: #666; line-height: 1.6;">
-        HERO Security discovers third-party SaaS vendors and the issues affecting them across your environment.
-        This integration:<br><br>
-        <strong>&bull; Mirrors HERO data:</strong> Pulls vendors / issues / per-vendor users into <code>shadow_saas_hero_*</code> tables.<br>
-        <strong>&bull; Hydrates Shadow SaaS:</strong> Projects each vendor into the existing Shadow SaaS list by registrable domain, so matching works the same as a CSV import.<br>
-        <strong>&bull; Tracks risk:</strong> Derives a 1-5 risk score from the worst open issue per vendor (the same 1-5 scale Grip uses) and records the vendor's status and engagement aspects.<br>
-        <strong>&bull; Stays fresh:</strong> Re-runs on the shared Scheduled Rehydration job; admins can also trigger an immediate run with the "Run Now" button below.
+        <?php echo t('admin_shadow-saas-grip.about_hero_body'); ?>
     </p>
 </div>
 
@@ -881,85 +871,85 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
 <!-- Always visible regardless of the selected provider tab.       -->
 <!-- ============================================================ -->
 <div class="card">
-    <h3>Scheduled Rehydration</h3>
-    <p style="color: #666; line-height: 1.6; margin-top: -4px;">Runs the enabled Shadow SaaS provider (Grip or Hero) on a schedule, refreshing the mirror tables and the Shadow SaaS list. The schedule below is installed into the system crontab automatically &mdash; no manual crontab editing, and it survives container restarts.</p>
+    <h3><?php echo e(t('admin_shadow-saas-grip.sched_rehydration_heading')); ?></h3>
+    <p style="color: #666; line-height: 1.6; margin-top: -4px;"><?php echo t('admin_shadow-saas-grip.sched_rehydration_intro'); ?></p>
     <form method="POST" action="admin.php?section=shadow-saas">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="grip_form" value="schedule">
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="rehydrate_enabled" value="1" <?php echo $rehydrateEnabled === '1' ? 'checked' : ''; ?>>
-                <span>Enable scheduled rehydration</span>
+                <span><?php echo e(t('admin_shadow-saas-grip.enable_scheduled_rehydration')); ?></span>
             </label>
-            <div class="form-help">When enabled, the job is installed into the system crontab and runs on the schedule below. A lock file prevents overlapping runs. The run uses whichever provider is enabled.</div>
+            <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.sched_enable_help')); ?></div>
         </div>
         <div class="form-group" style="max-width: 400px;">
-            <label for="rehydrate_schedule">Schedule (cron expression)</label>
+            <label for="rehydrate_schedule"><?php echo e(t('admin_shadow-saas-grip.schedule_cron_label')); ?></label>
             <input type="text" id="rehydrate_schedule" name="rehydrate_schedule" class="form-control" style="font-family: monospace;" value="<?php echo e($rehydrateSchedule); ?>" placeholder="0 2 * * *">
-            <div class="form-help">Five-field cron expression, evaluated in the Scheduler's timezone. Currently: <strong><?php echo e(describeCron($rehydrateSchedule)); ?></strong>. Examples: <code>0 2 * * *</code> (daily 2am), <code>0 */6 * * *</code> (every 6 hours), <code>0 2 * * 0</code> (weekly Sun 2am).</div>
+            <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.schedule_help_prefix')); ?><strong><?php echo e(describeCron($rehydrateSchedule)); ?></strong><?php echo t('admin_shadow-saas-grip.schedule_help_suffix'); ?></div>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 14px; align-items: center; flex-wrap: wrap;">
-            <button type="submit" name="update_grip" class="btn btn-primary">Save Schedule</button>
-            <button type="submit" name="run_grip_now" class="btn btn-secondary" data-confirm="Kick off a Shadow SaaS rehydration now? It runs in the background; refresh this page in a few seconds to see the result.">Run Now</button>
+            <button type="submit" name="update_grip" class="btn btn-primary"><?php echo e(t('admin_shadow-saas-grip.save_schedule_button')); ?></button>
+            <button type="submit" name="run_grip_now" class="btn btn-secondary" data-confirm="<?php echo e(t('admin_shadow-saas-grip.run_now_confirm')); ?>"><?php echo e(t('admin_shadow-saas-grip.run_now_button')); ?></button>
         </div>
     </form>
 </div>
 
 <div class="card">
-    <h3>Zscaler Connection</h3>
-    <p style="color: #666; line-height: 1.6; margin-top: -4px;">When a vendor is denied from the Shadow SaaS list, the vendor's domain is appended to the URL Category below in Zscaler ZIA (using <code>action=ADD_TO_LIST</code>), then activated. Shared by both providers.</p>
+    <h3><?php echo e(t('admin_shadow-saas-grip.zscaler_connection_heading')); ?></h3>
+    <p style="color: #666; line-height: 1.6; margin-top: -4px;"><?php echo t('admin_shadow-saas-grip.zscaler_intro'); ?></p>
     <form method="POST" action="admin.php?section=shadow-saas">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <input type="hidden" name="zscaler_form" value="connection">
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="zscaler_enabled" value="1" <?php echo ($zscalerCfg['enabled'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                <span>Enable Zscaler URL-Category blocking on Deny</span>
+                <span><?php echo e(t('admin_shadow-saas-grip.enable_zscaler')); ?></span>
             </label>
-            <div class="form-help">When enabled, the Deny button in Shadow SaaS will push the vendor's domain into the configured URL Category. When disabled, Deny only updates local state.</div>
+            <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.zscaler_enable_help')); ?></div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="zscaler_api_url">API URL</label>
+                <label for="zscaler_api_url"><?php echo e(t('admin_shadow-saas-grip.api_url_label')); ?></label>
                 <input type="text" id="zscaler_api_url" name="zscaler_api_url" class="form-control" value="<?php echo e($zscalerCfg['api_url'] ?? ''); ?>" placeholder="https://api.zsapi.net">
-                <div class="form-help">OneAPI base: <code>https://api.zsapi.net</code> (universal). Legacy per-cloud: <code>https://zsapi.&lt;cloud&gt;.net</code> (e.g. <code>zscaler</code>, <code>zscalerone</code>, <code>zscalertwo</code>, <code>zscalerthree</code>, <code>zscloud</code>).</div>
+                <div class="form-help"><?php echo t('admin_shadow-saas-grip.zscaler_api_url_help'); ?></div>
             </div>
             <div class="form-group">
-                <label for="zscaler_vanity_domain">ZIdentity Vanity Domain</label>
+                <label for="zscaler_vanity_domain"><?php echo e(t('admin_shadow-saas-grip.zscaler_vanity_label')); ?></label>
                 <input type="text" id="zscaler_vanity_domain" name="zscaler_vanity_domain" class="form-control" value="<?php echo e($zscalerCfg['vanity_domain'] ?? ''); ?>" placeholder="fairtprm.zslogin.net">
-                <div class="form-help">Host of the ZIdentity tenant's OAuth token endpoint — token URL is <code>https://&lt;vanity&gt;/oauth2/v1/token</code>. Find this in the ZIdentity admin URL (the part before <code>.zslogin.net</code>).</div>
+                <div class="form-help"><?php echo t('admin_shadow-saas-grip.zscaler_vanity_help'); ?></div>
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="zscaler_username">Client ID</label>
-                <input type="text" id="zscaler_username" name="zscaler_username" class="form-control" value="<?php echo e($zscalerCfg['username'] ?? ''); ?>" placeholder="UUID from ZIdentity → Integration → API Clients" autocomplete="off">
-                <div class="form-help">The <code>client_id</code> from an API Client created under <strong>ZIdentity → Integration → API Clients</strong>. Must be granted a role with ZIA URL Categories read/write.</div>
+                <label for="zscaler_username"><?php echo e(t('admin_shadow-saas-grip.client_id_label')); ?></label>
+                <input type="text" id="zscaler_username" name="zscaler_username" class="form-control" value="<?php echo e($zscalerCfg['username'] ?? ''); ?>" placeholder="<?php echo e(t('admin_shadow-saas-grip.zscaler_username_placeholder')); ?>" autocomplete="off">
+                <div class="form-help"><?php echo t('admin_shadow-saas-grip.zscaler_username_help'); ?></div>
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="zscaler_password">Client Secret</label>
-                <input type="password" id="zscaler_password" name="zscaler_password" class="form-control" placeholder="<?php echo !empty($zscalerCfg['password']) ? '••••••••••••••••' : 'client_secret from the API Client'; ?>" autocomplete="new-password">
-                <div class="form-help">The <code>client_secret</code> shown <strong>once</strong> when the API Client was created. Stored encrypted. Leave blank to keep the existing value.</div>
+                <label for="zscaler_password"><?php echo e(t('admin_shadow-saas-grip.client_secret_label')); ?></label>
+                <input type="password" id="zscaler_password" name="zscaler_password" class="form-control" placeholder="<?php echo !empty($zscalerCfg['password']) ? '••••••••••••••••' : e(t('admin_shadow-saas-grip.zscaler_password_placeholder')); ?>" autocomplete="new-password">
+                <div class="form-help"><?php echo t('admin_shadow-saas-grip.zscaler_password_help'); ?></div>
             </div>
             <div class="form-group">
-                <label for="zscaler_url_category">URL Category</label>
+                <label for="zscaler_url_category"><?php echo e(t('admin_shadow-saas-grip.url_category_label')); ?></label>
                 <input type="text" id="zscaler_url_category" name="zscaler_url_category" class="form-control" value="<?php echo e($zscalerCfg['url_category'] ?? ''); ?>" placeholder="URL_CATEGORY_BLOCK_SHADOW_SAAS_BLOCK">
-                <div class="form-help">The <em>configured name</em> of a custom URL Category in ZIA. Must already exist (we append URLs, not create the category).</div>
+                <div class="form-help"><?php echo t('admin_shadow-saas-grip.url_category_help'); ?></div>
             </div>
         </div>
         <details style="margin-top: 4px;">
-            <summary style="cursor: pointer; color: #6b7280; font-size: 13px;">Legacy auth: API Key (optional)</summary>
+            <summary style="cursor: pointer; color: #6b7280; font-size: 13px;"><?php echo e(t('admin_shadow-saas-grip.legacy_auth_summary')); ?></summary>
             <div class="form-group" style="margin-top: 10px;">
-                <label for="zscaler_api_key">API Key</label>
-                <input type="password" id="zscaler_api_key" name="zscaler_api_key" class="form-control" placeholder="<?php echo !empty($zscalerCfg['api_key']) ? '••••••••••••••••' : 'Only for legacy /authenticatedSession auth'; ?>" autocomplete="new-password">
-                <div class="form-help">Only used for legacy ZIA tenants that haven't moved to ZIdentity. Leave blank if you're using OAuth.</div>
+                <label for="zscaler_api_key"><?php echo e(t('admin_shadow-saas-grip.api_key_label')); ?></label>
+                <input type="password" id="zscaler_api_key" name="zscaler_api_key" class="form-control" placeholder="<?php echo !empty($zscalerCfg['api_key']) ? '••••••••••••••••' : e(t('admin_shadow-saas-grip.zscaler_api_key_placeholder')); ?>" autocomplete="new-password">
+                <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.zscaler_api_key_help')); ?></div>
             </div>
         </details>
         <div style="display: flex; gap: 10px; margin-top: 8px;">
-            <button type="submit" name="update_zscaler" class="btn btn-primary">Save Configuration</button>
-            <button type="submit" name="test_zscaler_connection" class="btn btn-secondary">Test Connection</button>
+            <button type="submit" name="update_zscaler" class="btn btn-primary"><?php echo e(t('admin_shadow-saas-grip.save_configuration')); ?></button>
+            <button type="submit" name="test_zscaler_connection" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.test_connection')); ?></button>
         </div>
     </form>
 </div>

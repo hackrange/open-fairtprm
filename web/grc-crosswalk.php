@@ -84,7 +84,7 @@ $currentPage = 'grc_crosswalk';
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Framework Crosswalk - GRC Compliance Engine</title>
+    <title><?php echo e(t('grc-crosswalk.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -258,12 +258,12 @@ $currentPage = 'grc_crosswalk';
 
             <!-- Coverage Chart -->
             <div class="chart-card">
-                <h3><?php echo e($targetFramework['code']); ?> Coverage from <?php echo e($sourceFramework['code']); ?></h3>
+                <h3><?php echo e($targetFramework['code']); ?> <?php echo e(t('grc-crosswalk.coverage_from')); ?> <?php echo e($sourceFramework['code']); ?></h3>
                 <canvas id="coverageChart"></canvas>
             </div>
 
             <!-- Crosswalk Table -->
-            <h2 class="section-header">Crosswalk: <?php echo e($sourceFramework['code']); ?> &rarr; <?php echo e($targetFramework['code']); ?></h2>
+            <h2 class="section-header"><?php echo e(t('grc-crosswalk.crosswalk_label')); ?> <?php echo e($sourceFramework['code']); ?> &rarr; <?php echo e($targetFramework['code']); ?></h2>
             <?php if (!empty($crosswalk)): ?>
             <table class="grc-table">
                 <thead>
@@ -299,17 +299,17 @@ $currentPage = 'grc_crosswalk';
 
             <!-- Coverage Gaps -->
             <?php if (!empty($uncoveredTargetRefs)): ?>
-            <h2 class="section-header">Coverage Gaps in <?php echo e($targetFramework['code']); ?></h2>
-            <p style="color:#6b7280;font-size:13px;margin-bottom:16px;">These <?php echo e($targetFramework['code']); ?> requirements have no shared controls with <?php echo e($sourceFramework['code']); ?>.</p>
+            <h2 class="section-header"><?php echo e(t('grc-crosswalk.coverage_gaps_in')); ?> <?php echo e($targetFramework['code']); ?></h2>
+            <p style="color:#6b7280;font-size:13px;margin-bottom:16px;"><?php echo e(t('grc-crosswalk.gaps_desc_prefix')); ?> <?php echo e($targetFramework['code']); ?> <?php echo e(t('grc-crosswalk.gaps_desc_middle')); ?> <?php echo e($sourceFramework['code']); ?>.</p>
             <div style="max-height:400px;overflow-y:auto;">
                 <?php foreach ($uncoveredTargetRefs as $gap): ?>
                 <div class="gap-item">
                     <span class="gap-ref"><?php echo e($gap['requirement_ref']); ?></span>
                     <span class="gap-title"><?php echo e($gap['title']); ?></span>
                     <?php if ((int)$gap['mapped_controls'] > 0): ?>
-                    <span style="font-size:11px;color:#3b82f6;margin-left:8px;">(<?php echo (int)$gap['mapped_controls']; ?> controls mapped, but not shared)</span>
+                    <span style="font-size:11px;color:#3b82f6;margin-left:8px;">(<?php echo (int)$gap['mapped_controls']; ?> <?php echo e(t('grc-crosswalk.controls_mapped_not_shared')); ?>)</span>
                     <?php else: ?>
-                    <span style="font-size:11px;color:#dc3545;margin-left:8px;">(no controls mapped)</span>
+                    <span style="font-size:11px;color:#dc3545;margin-left:8px;">(<?php echo e(t('grc-crosswalk.no_controls_mapped')); ?>)</span>
                     <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
@@ -361,7 +361,7 @@ $currentPage = 'grc_crosswalk';
 new Chart(document.getElementById('coverageChart'), {
     type: 'doughnut',
     data: {
-        labels: ['Covered', 'Gaps'],
+        labels: [<?php echo json_encode(t('grc-crosswalk.chart_covered')); ?>, <?php echo json_encode(t('grc-crosswalk.chart_gaps')); ?>],
         datasets: [{
             data: [<?php echo $coveredCount; ?>, <?php echo $gapCount; ?>],
             backgroundColor: ['#28a745', '#dc3545'],

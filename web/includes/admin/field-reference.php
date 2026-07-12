@@ -104,7 +104,7 @@ if (($seedCheck['cnt'] ?? 0) == 0) {
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_field-reference.err_invalid_request');
     } elseif (isset($_POST['add_field'])) {
         $fieldName    = trim($_POST['field_name'] ?? '');
         $columnType   = trim($_POST['column_type'] ?? 'VARCHAR(500)');
@@ -113,13 +113,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fieldDesc    = trim($_POST['description'] ?? '');
 
         if (empty($fieldName)) {
-            $error = 'Field name is required.';
+            $error = t('admin_field-reference.err_field_name_required');
         } elseif (!preg_match('/^[a-z][a-z0-9_]*$/', $fieldName)) {
-            $error = 'Field name must start with a lowercase letter and contain only lowercase letters, numbers, and underscores.';
+            $error = t('admin_field-reference.err_field_name_pattern');
         } elseif (empty($fieldSection)) {
-            $error = 'Section is required.';
+            $error = t('admin_field-reference.err_section_required');
         } elseif (!in_array($fieldCategory, ['vendor_assessment', 'procurement', 'onboarding', 'all'])) {
-            $error = 'Invalid category.';
+            $error = t('admin_field-reference.err_invalid_category');
         } else {
             try {
                 $db->insert('field_references', [
@@ -130,13 +130,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'description' => $fieldDesc,
                     'is_builtin'  => 0,
                 ]);
-                $success = 'Field <code>' . htmlspecialchars($fieldName) . '</code> added successfully.';
+                $success = t('admin_field-reference.add_success_prefix') . '<code>' . htmlspecialchars($fieldName) . '</code>' . t('admin_field-reference.add_success_suffix');
             } catch (Exception $e) {
                 if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'uk_field_name') !== false) {
-                    $error = 'Field name <code>' . htmlspecialchars($fieldName) . '</code> already exists.';
+                    $error = t('admin_field-reference.err_duplicate_prefix') . '<code>' . htmlspecialchars($fieldName) . '</code>' . t('admin_field-reference.err_duplicate_suffix');
                 } else {
                     error_log('Add field error: ' . $e->getMessage());
-                    $error = 'Failed to add field.';
+                    $error = t('admin_field-reference.err_add_failed');
                 }
             }
         }
@@ -145,12 +145,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($fieldId) {
             $field = $db->fetchOne("SELECT * FROM field_references WHERE id = ?", [$fieldId]);
             if (!$field) {
-                $error = 'Field not found.';
+                $error = t('admin_field-reference.err_field_not_found');
             } elseif ($field['is_builtin']) {
-                $error = 'Cannot delete built-in fields.';
+                $error = t('admin_field-reference.err_cannot_delete_builtin');
             } else {
                 $db->query("DELETE FROM field_references WHERE id = ? AND is_builtin = 0", [$fieldId]);
-                $success = 'Field deleted.';
+                $success = t('admin_field-reference.success_field_deleted');
             }
         }
     }
@@ -168,10 +168,10 @@ $fields = $db->fetchAll("SELECT * FROM field_references ORDER BY
     END, section, field_name");
 
 $categoryLabels = [
-    'vendor_assessment' => 'Vendor Assessment',
-    'procurement'       => 'Procurement',
-    'onboarding'        => 'Onboarding',
-    'all'               => 'ALL',
+    'vendor_assessment' => t('admin_field-reference.cat_vendor_assessment'),
+    'procurement'       => t('admin_field-reference.cat_procurement'),
+    'onboarding'        => t('admin_field-reference.cat_onboarding'),
+    'all'               => t('admin_field-reference.cat_all'),
 ];
 
 $categoryBadgeStyles = [
@@ -186,31 +186,31 @@ $existingSections = $db->fetchAll("SELECT DISTINCT section FROM field_references
 ?>
 
 <div class="page-header-bar">
-    <h1>Field Name Reference</h1>
-    <p>Valid <code>field_name</code> values for assessment template questions. Built-in fields map to vendor onboarding columns. Custom fields can be added for any category.</p>
+    <h1><?php echo e(t('admin_field-reference.page_title')); ?></h1>
+    <p><?php echo t('admin_field-reference.page_intro'); ?></p>
 </div>
 
 <div style="margin-bottom: 20px; display: flex; gap: 10px;">
-    <button class="btn btn-primary" data-toggle="addFieldModal">+ Add Field</button>
-    <a href="?section=assessment-templates" class="btn btn-secondary">&larr; Back to Templates</a>
+    <button class="btn btn-primary" data-toggle="addFieldModal"><?php echo e(t('admin_field-reference.add_field_button')); ?></button>
+    <a href="?section=assessment-templates" class="btn btn-secondary"><?php echo t('admin_field-reference.back_to_templates'); ?></a>
 </div>
 
 <div class="card">
     <?php if (empty($fields)): ?>
     <div style="text-align:center; padding:40px; color:#666;">
-        <h3>No fields defined</h3>
-        <p>Add your first field reference to get started.</p>
+        <h3><?php echo e(t('admin_field-reference.no_fields_heading')); ?></h3>
+        <p><?php echo e(t('admin_field-reference.no_fields_text')); ?></p>
     </div>
     <?php else: ?>
     <table class="table table-striped table-bordered" style="font-size:13px;">
         <thead>
             <tr style="background:#f8f9fa;">
-                <th style="width:20%;">Field Name</th>
-                <th style="width:15%;">Column Type</th>
-                <th style="width:15%;">Section</th>
-                <th style="width:14%;">Category</th>
-                <th style="width:26%;">Description</th>
-                <th style="width:10%;">Actions</th>
+                <th style="width:20%;"><?php echo e(t('admin_field-reference.field_name_label')); ?></th>
+                <th style="width:15%;"><?php echo e(t('admin_field-reference.column_type_label')); ?></th>
+                <th style="width:15%;"><?php echo e(t('admin_field-reference.section_label')); ?></th>
+                <th style="width:14%;"><?php echo e(t('admin_field-reference.category_label')); ?></th>
+                <th style="width:26%;"><?php echo e(t('admin_field-reference.description_label')); ?></th>
+                <th style="width:10%;"><?php echo e(t('admin_field-reference.actions_label')); ?></th>
             </tr>
         </thead>
         <tbody>
@@ -227,12 +227,12 @@ $existingSections = $db->fetchAll("SELECT DISTINCT section FROM field_references
                 <td><?php echo e($f['description']); ?></td>
                 <td>
                     <?php if ($f['is_builtin']): ?>
-                        <span style="color:#999; font-size:11px;">Built-in</span>
+                        <span style="color:#999; font-size:11px;"><?php echo e(t('admin_field-reference.builtin_label')); ?></span>
                     <?php else: ?>
-                        <form method="POST" style="display:inline;" data-confirm="Delete this field? This cannot be undone.">
+                        <form method="POST" style="display:inline;" data-confirm="<?php echo e(t('admin_field-reference.delete_confirm')); ?>">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="field_id" value="<?php echo $f['id']; ?>">
-                            <button type="submit" name="delete_field" class="btn btn-sm" style="background:#ef4444;color:white;">Delete</button>
+                            <button type="submit" name="delete_field" class="btn btn-sm" style="background:#ef4444;color:white;"><?php echo e(t('admin_field-reference.delete_button')); ?></button>
                         </form>
                     <?php endif; ?>
                 </td>
@@ -244,13 +244,13 @@ $existingSections = $db->fetchAll("SELECT DISTINCT section FROM field_references
 </div>
 
 <div style="margin-top:20px; padding:12px 16px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; font-size:13px;">
-    <strong>Notes:</strong>
+    <strong><?php echo e(t('admin_field-reference.notes_label')); ?></strong>
     <ul style="margin:8px 0 0 0; padding-left:20px;">
-        <li>ENUM fields are stored as lowercase values (e.g., "Yes" response becomes "yes").</li>
-        <li>Integer and decimal fields accept numeric input only.</li>
-        <li>Each field_name can only be used once per template.</li>
-        <li>Fields marked with "used in FAIR analysis" feed into automated risk calculations.</li>
-        <li><strong>Category</strong> determines which template types a field applies to. Use "ALL" for fields usable across all template categories.</li>
+        <li><?php echo e(t('admin_field-reference.note_enum')); ?></li>
+        <li><?php echo e(t('admin_field-reference.note_numeric')); ?></li>
+        <li><?php echo e(t('admin_field-reference.note_unique')); ?></li>
+        <li><?php echo e(t('admin_field-reference.note_fair')); ?></li>
+        <li><?php echo t('admin_field-reference.note_category'); ?></li>
     </ul>
 </div>
 
@@ -258,17 +258,17 @@ $existingSections = $db->fetchAll("SELECT DISTINCT section FROM field_references
 <div id="addFieldModal" class="modal">
     <div class="modal-content" style="max-width:550px;">
         <span class="close" data-close="addFieldModal">&times;</span>
-        <h3 style="margin-top:0; color:var(--theme-header-color);">Add Custom Field</h3>
+        <h3 style="margin-top:0; color:var(--theme-header-color);"><?php echo e(t('admin_field-reference.modal_title')); ?></h3>
         <form method="POST">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <div class="form-group">
-                <label>Field Name <span style="color:#ef4444;">*</span></label>
-                <input type="text" name="field_name" class="form-control" required placeholder="e.g., vendor_risk_tier" pattern="[a-z][a-z0-9_]*">
-                <span class="form-help">Lowercase letters, numbers, and underscores only. Must start with a letter.</span>
+                <label><?php echo e(t('admin_field-reference.field_name_label')); ?> <span style="color:#ef4444;">*</span></label>
+                <input type="text" name="field_name" class="form-control" required placeholder="<?php echo e(t('admin_field-reference.field_name_placeholder')); ?>" pattern="[a-z][a-z0-9_]*">
+                <span class="form-help"><?php echo e(t('admin_field-reference.field_name_help')); ?></span>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Column Type</label>
+                    <label><?php echo e(t('admin_field-reference.column_type_label')); ?></label>
                     <select name="column_type" class="form-control">
                         <option value="VARCHAR(500)">VARCHAR(500)</option>
                         <option value="VARCHAR(255)">VARCHAR(255)</option>
@@ -283,32 +283,32 @@ $existingSections = $db->fetchAll("SELECT DISTINCT section FROM field_references
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Category <span style="color:#ef4444;">*</span></label>
+                    <label><?php echo e(t('admin_field-reference.category_label')); ?> <span style="color:#ef4444;">*</span></label>
                     <select name="category" class="form-control" required>
-                        <option value="all">ALL</option>
-                        <option value="vendor_assessment">Vendor Assessment</option>
-                        <option value="procurement">Procurement</option>
-                        <option value="onboarding">Onboarding</option>
+                        <option value="all"><?php echo e(t('admin_field-reference.cat_all')); ?></option>
+                        <option value="vendor_assessment"><?php echo e(t('admin_field-reference.cat_vendor_assessment')); ?></option>
+                        <option value="procurement"><?php echo e(t('admin_field-reference.cat_procurement')); ?></option>
+                        <option value="onboarding"><?php echo e(t('admin_field-reference.cat_onboarding')); ?></option>
                     </select>
                 </div>
             </div>
             <div class="form-group">
-                <label>Section <span style="color:#ef4444;">*</span></label>
-                <input type="text" name="section" class="form-control" required placeholder="e.g., Vendor Information, Data & Risk Assessment" list="sectionSuggestions">
+                <label><?php echo e(t('admin_field-reference.section_label')); ?> <span style="color:#ef4444;">*</span></label>
+                <input type="text" name="section" class="form-control" required placeholder="<?php echo e(t('admin_field-reference.section_placeholder')); ?>" list="sectionSuggestions">
                 <datalist id="sectionSuggestions">
                     <?php foreach ($existingSections as $s): ?>
                     <option value="<?php echo e($s['section']); ?>">
                     <?php endforeach; ?>
                 </datalist>
-                <span class="form-help">Groups related fields together. Type a new name or select an existing section.</span>
+                <span class="form-help"><?php echo e(t('admin_field-reference.section_help')); ?></span>
             </div>
             <div class="form-group">
-                <label>Description</label>
-                <input type="text" name="description" class="form-control" placeholder="Brief description of what this field captures">
+                <label><?php echo e(t('admin_field-reference.description_label')); ?></label>
+                <input type="text" name="description" class="form-control" placeholder="<?php echo e(t('admin_field-reference.description_placeholder')); ?>">
             </div>
             <div style="display:flex; gap:10px; margin-top:20px;">
-                <button type="submit" name="add_field" class="btn btn-primary">Add Field</button>
-                <button type="button" class="btn btn-secondary" data-close="addFieldModal">Cancel</button>
+                <button type="submit" name="add_field" class="btn btn-primary"><?php echo e(t('admin_field-reference.add_field_submit')); ?></button>
+                <button type="button" class="btn btn-secondary" data-close="addFieldModal"><?php echo e(t('admin_field-reference.cancel_button')); ?></button>
             </div>
         </form>
     </div>

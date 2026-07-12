@@ -21,7 +21,7 @@ if (!defined('ADMIN_DISPATCH')) { http_response_code(403); exit('Forbidden'); }
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_config'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin.general.error_invalid_request');
     } else {
         try {
             $authType = $_POST['auth_type'] ?? 'local';
@@ -104,11 +104,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_config'])) {
             $auth->audit($user['id'], 'config_update', 'app_config', null, [
                 'new' => $configs
             ]);
-            $success = 'Configuration updated successfully';
+            $success = t('admin.general.config_updated');
         } catch (Exception $e) {
             $db->rollback();
             error_log('Error updating config: ' . $e->getMessage());
-            $error = 'Failed to update configuration';
+            $error = t('admin.general.config_update_failed');
         }
     }
 }
@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_config'])) {
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_default_theme'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin.general.error_invalid_request');
     } else {
         try {
             $db->beginTransaction();
@@ -158,11 +158,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_default_theme'
             $auth->audit($user['id'], 'config_update_theme', 'app_config', null, [
                 'new' => $themeConfigs
             ]);
-            $success = 'Default theme updated successfully';
+            $success = t('admin.general.theme_updated');
         } catch (Exception $e) {
             $db->rollback();
             error_log('Error updating default theme: ' . $e->getMessage());
-            $error = 'Failed to update default theme';
+            $error = t('admin.general.theme_update_failed');
         }
     }
 }
@@ -172,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_default_theme'
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_branding'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin.general.error_invalid_request');
     } else {
         try {
             $allowedMimes = [
@@ -272,9 +272,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_branding'])) {
                 $auth->audit($user['id'], 'branding_update', 'app_config', null, [
                     'changes' => $changes
                 ]);
-                $success = 'Branding updated successfully.';
+                $success = t('admin.general.branding_updated');
             } else {
-                $success = 'No changes were made.';
+                $success = t('admin.general.no_changes');
             }
         } catch (Exception $e) {
             $db->rollback();
@@ -298,86 +298,86 @@ foreach ($configRows as $row) {
 // ============================================================================
 ?>
 <div class="page-header-bar">
-    <h1 class="page-title">General Configuration</h1>
-    <p>Configure authentication, session, and security settings.</p>
+    <h1 class="page-title"><?php echo e(t('admin.general.page_title')); ?></h1>
+    <p><?php echo e(t('admin.general.page_subtitle')); ?></p>
 </div>
 <div class="card">
     <form method="POST" action="admin.php?section=general">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <div class="form-row">
             <div class="form-group">
-                <label for="company_name">Company Name</label>
-                <input type="text" id="company_name" name="company_name" class="form-control" value="<?php echo e($appConfig['company_name'] ?? ''); ?>" placeholder="Your Company Name">
-                <div class="form-help">Name of your company. Displayed in the footer and available as a variable in email templates.</div>
+                <label for="company_name"><?php echo e(t('admin.general.company_name_label')); ?></label>
+                <input type="text" id="company_name" name="company_name" class="form-control" value="<?php echo e($appConfig['company_name'] ?? ''); ?>" placeholder="<?php echo e(t('admin.general.company_name_placeholder')); ?>">
+                <div class="form-help"><?php echo e(t('admin.general.company_name_help')); ?></div>
             </div>
             <div class="form-group">
-                <label for="app_url">Application URL</label>
+                <label for="app_url"><?php echo e(t('admin.general.app_url_label')); ?></label>
                 <input type="url" id="app_url" name="app_url" class="form-control" value="<?php echo e($appConfig['app_url'] ?? ''); ?>" placeholder="https://demo.fairtprm.com">
-                <div class="form-help">Public URL of this application. Used for links in email notifications and cron jobs. Example: https://demo.fairtprm.com</div>
+                <div class="form-help"><?php echo e(t('admin.general.app_url_help')); ?></div>
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="auth_type">Authentication Type</label>
+                <label for="auth_type"><?php echo e(t('admin.general.auth_type_label')); ?></label>
                 <select id="auth_type" name="auth_type" class="form-select">
-                    <option value="local" <?php echo ($appConfig['auth_type'] ?? 'local') === 'local' ? 'selected' : ''; ?>>Local Authentication (with TOTP)</option>
-                    <option value="saml" <?php echo ($appConfig['auth_type'] ?? 'local') === 'saml' ? 'selected' : ''; ?>>SAML 2.0 (Single Sign-On)</option>
+                    <option value="local" <?php echo ($appConfig['auth_type'] ?? 'local') === 'local' ? 'selected' : ''; ?>><?php echo e(t('admin.general.auth_type_local')); ?></option>
+                    <option value="saml" <?php echo ($appConfig['auth_type'] ?? 'local') === 'saml' ? 'selected' : ''; ?>><?php echo e(t('admin.general.auth_type_saml')); ?></option>
                 </select>
-                <div class="form-help">Choose between local authentication or SAML 2.0 for SSO</div>
+                <div class="form-help"><?php echo e(t('admin.general.auth_type_help')); ?></div>
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="session_timeout">Session Timeout (seconds)</label>
+                <label for="session_timeout"><?php echo e(t('admin.general.session_timeout_label')); ?></label>
                 <input type="number" id="session_timeout" name="session_timeout" class="form-control" value="<?php echo e($appConfig['session_timeout'] ?? '3600'); ?>" required>
-                <div class="form-help">Default: 3600 (1 hour)</div>
+                <div class="form-help"><?php echo e(t('admin.general.session_timeout_help')); ?></div>
             </div>
             <div class="form-group">
-                <label for="max_login_attempts">Maximum Login Attempts</label>
+                <label for="max_login_attempts"><?php echo e(t('admin.general.max_login_attempts_label')); ?></label>
                 <input type="number" id="max_login_attempts" name="max_login_attempts" class="form-control" value="<?php echo e($appConfig['max_login_attempts'] ?? '5'); ?>" required>
-                <div class="form-help">Number of failed login attempts before account lockout</div>
+                <div class="form-help"><?php echo e(t('admin.general.max_login_attempts_help')); ?></div>
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="lockout_duration">Lockout Duration (seconds)</label>
+                <label for="lockout_duration"><?php echo e(t('admin.general.lockout_duration_label')); ?></label>
                 <input type="number" id="lockout_duration" name="lockout_duration" class="form-control" value="<?php echo e($appConfig['lockout_duration'] ?? '1800'); ?>" required>
-                <div class="form-help">Default: 1800 (30 minutes)</div>
+                <div class="form-help"><?php echo e(t('admin.general.lockout_duration_help')); ?></div>
             </div>
             <div class="form-group">
-                <label for="log_retention_days">Activity Log Retention (days)</label>
+                <label for="log_retention_days"><?php echo e(t('admin.general.log_retention_label')); ?></label>
                 <input type="number" id="log_retention_days" name="log_retention_days" class="form-control" value="<?php echo e($appConfig['log_retention_days'] ?? '90'); ?>" min="0" max="3650">
-                <div class="form-help">Days to keep activity log entries. 0 = keep indefinitely. Default: 90</div>
+                <div class="form-help"><?php echo e(t('admin.general.log_retention_help')); ?></div>
             </div>
         </div>
         <div class="form-group">
-            <label for="app_timezone">Application Timezone</label>
+            <label for="app_timezone"><?php echo e(t('admin.general.timezone_label')); ?></label>
             <select id="app_timezone" name="app_timezone" class="form-control">
                 <?php
                 $currentTimezone = $appConfig['app_timezone'] ?? 'America/New_York';
                 $timezones = [
-                    'America/New_York' => 'Eastern Time (ET)',
-                    'America/Chicago' => 'Central Time (CT)',
-                    'America/Denver' => 'Mountain Time (MT)',
-                    'America/Los_Angeles' => 'Pacific Time (PT)',
-                    'America/Anchorage' => 'Alaska Time (AKT)',
-                    'Pacific/Honolulu' => 'Hawaii Time (HT)',
-                    'America/Phoenix' => 'Arizona (MST, no DST)',
-                    'UTC' => 'UTC (Coordinated Universal Time)',
-                    'Europe/London' => 'London (GMT/BST)',
-                    'Europe/Paris' => 'Paris (CET/CEST)',
-                    'Europe/Berlin' => 'Berlin (CET/CEST)',
-                    'Asia/Tokyo' => 'Tokyo (JST)',
-                    'Asia/Shanghai' => 'Shanghai (CST)',
-                    'Asia/Singapore' => 'Singapore (SGT)',
-                    'Australia/Sydney' => 'Sydney (AEST/AEDT)',
+                    'America/New_York' => t('admin.general.tz_eastern'),
+                    'America/Chicago' => t('admin.general.tz_central'),
+                    'America/Denver' => t('admin.general.tz_mountain'),
+                    'America/Los_Angeles' => t('admin.general.tz_pacific'),
+                    'America/Anchorage' => t('admin.general.tz_alaska'),
+                    'Pacific/Honolulu' => t('admin.general.tz_hawaii'),
+                    'America/Phoenix' => t('admin.general.tz_arizona'),
+                    'UTC' => t('admin.general.tz_utc'),
+                    'Europe/London' => t('admin.general.tz_london'),
+                    'Europe/Paris' => t('admin.general.tz_paris'),
+                    'Europe/Berlin' => t('admin.general.tz_berlin'),
+                    'Asia/Tokyo' => t('admin.general.tz_tokyo'),
+                    'Asia/Shanghai' => t('admin.general.tz_shanghai'),
+                    'Asia/Singapore' => t('admin.general.tz_singapore'),
+                    'Australia/Sydney' => t('admin.general.tz_sydney'),
                 ];
                 foreach ($timezones as $tz => $label):
                 ?>
                 <option value="<?php echo e($tz); ?>" <?php echo $currentTimezone === $tz ? 'selected' : ''; ?>><?php echo e($label); ?></option>
                 <?php endforeach; ?>
             </select>
-            <div class="form-help">Timezone used for displaying dates and times in Cyber To-Do and other areas. Default: Eastern Time</div>
+            <div class="form-help"><?php echo e(t('admin.general.timezone_help')); ?></div>
         </div>
         <?php
         $knownLanguages = i18nLanguages();
@@ -415,7 +415,7 @@ foreach ($configRows as $row) {
             </div>
             <div class="form-help"><?php echo e(t('admin.general.language.enabled_help')); ?></div>
         </div>
-        <button type="submit" name="update_config" class="btn btn-primary">Save Configuration</button>
+        <button type="submit" name="update_config" class="btn btn-primary"><?php echo e(t('admin.general.save_config_button')); ?></button>
     </form>
 </div>
 
@@ -436,8 +436,8 @@ $faviconHasCustom = file_exists($brandingDir . '/favicon.ico.default');
 ?>
 
 <div class="page-header-bar" style="margin-top: 15px;">
-    <h1 class="page-title">Branding</h1>
-    <p>Upload custom logos and favicon. Uploads persist across container restarts.</p>
+    <h1 class="page-title"><?php echo e(t('admin.general.branding_title')); ?></h1>
+    <p><?php echo e(t('admin.general.branding_subtitle')); ?></p>
 </div>
 <div class="card">
     <form method="POST" action="admin.php?section=general" enctype="multipart/form-data">
@@ -445,30 +445,30 @@ $faviconHasCustom = file_exists($brandingDir . '/favicon.ico.default');
 
         <div class="form-row">
             <div class="form-group">
-                <label for="header_logo">Header Logo</label>
+                <label for="header_logo"><?php echo e(t('admin.general.header_logo_label')); ?></label>
                 <div style="margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; display: inline-block;">
                     <img src="<?php echo e($headerLogoUrl . $headerLogoCacheBust); ?>"
-                         alt="Current header logo" style="max-height: 60px; max-width: 300px;">
+                         alt="<?php echo e(t('admin.general.header_logo_alt')); ?>" style="max-height: 60px; max-width: 300px;">
                 </div>
                 <input type="file" id="header_logo" name="header_logo" class="form-control" accept="image/png,image/jpeg,image/gif,image/svg+xml">
-                <div class="form-help">Recommended: 418 &times; 78 px. Accepted: PNG, JPEG, GIF, SVG. Max 2 MB.</div>
+                <div class="form-help"><?php echo t('admin.general.logo_recommended_418_help'); ?></div>
                 <?php if ($headerHasCustom): ?>
                 <label style="margin-top: 6px; display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
-                    <input type="checkbox" name="reset_header_logo" value="1"> Reset to default logo
+                    <input type="checkbox" name="reset_header_logo" value="1"> <?php echo e(t('admin.general.reset_default_logo')); ?>
                 </label>
                 <?php endif; ?>
             </div>
             <div class="form-group">
-                <label for="footer_logo">Footer Logo</label>
+                <label for="footer_logo"><?php echo e(t('admin.general.footer_logo_label')); ?></label>
                 <div style="margin-bottom: 10px; padding: 10px; background: #1a365d; border-radius: 6px; display: inline-block;">
                     <img src="<?php echo e($footerLogoUrl . $footerLogoCacheBust); ?>"
-                         alt="Current footer logo" style="max-height: 60px; max-width: 300px;">
+                         alt="<?php echo e(t('admin.general.footer_logo_alt')); ?>" style="max-height: 60px; max-width: 300px;">
                 </div>
                 <input type="file" id="footer_logo" name="footer_logo" class="form-control" accept="image/png,image/jpeg,image/gif,image/svg+xml">
-                <div class="form-help">Recommended: 416 &times; 78 px. Accepted: PNG, JPEG, GIF, SVG. Max 2 MB.</div>
+                <div class="form-help"><?php echo t('admin.general.logo_recommended_416_help'); ?></div>
                 <?php if ($footerHasCustom): ?>
                 <label style="margin-top: 6px; display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
-                    <input type="checkbox" name="reset_footer_logo" value="1"> Reset to default logo
+                    <input type="checkbox" name="reset_footer_logo" value="1"> <?php echo e(t('admin.general.reset_default_logo')); ?>
                 </label>
                 <?php endif; ?>
             </div>
@@ -476,23 +476,23 @@ $faviconHasCustom = file_exists($brandingDir . '/favicon.ico.default');
 
         <div class="form-row">
             <div class="form-group">
-                <label for="favicon">Favicon</label>
+                <label for="favicon"><?php echo e(t('admin.general.favicon_label')); ?></label>
                 <div style="margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; display: inline-block;">
                     <img src="app/images/favicon.ico<?php echo $faviconCacheBust; ?>"
-                         alt="Current favicon" style="max-height: 32px; max-width: 32px;">
+                         alt="<?php echo e(t('admin.general.favicon_alt')); ?>" style="max-height: 32px; max-width: 32px;">
                 </div>
                 <input type="file" id="favicon" name="favicon" class="form-control" accept="image/x-icon,image/vnd.microsoft.icon,image/png">
-                <div class="form-help">Accepted: ICO, PNG. Max 2 MB.</div>
+                <div class="form-help"><?php echo e(t('admin.general.favicon_help')); ?></div>
                 <?php if ($faviconHasCustom): ?>
                 <label style="margin-top: 6px; display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
-                    <input type="checkbox" name="reset_favicon" value="1"> Reset to default favicon
+                    <input type="checkbox" name="reset_favicon" value="1"> <?php echo e(t('admin.general.reset_default_favicon')); ?>
                 </label>
                 <?php endif; ?>
             </div>
             <div class="form-group"></div>
         </div>
 
-        <button type="submit" name="upload_branding" class="btn btn-primary">Upload Branding</button>
+        <button type="submit" name="upload_branding" class="btn btn-primary"><?php echo e(t('admin.general.upload_branding_button')); ?></button>
     </form>
 </div>
 
@@ -507,8 +507,8 @@ $defaultNavWidth = $appConfig['nav_width'] ?? '220';
 ?>
 
 <div class="page-header-bar" style="margin-top: 15px;">
-    <h1 class="page-title">Default Profiles Theme</h1>
-    <p>Set the default theme colors and navigation settings for user profiles. Users can override these in their profile settings.</p>
+    <h1 class="page-title"><?php echo e(t('admin.general.theme_title')); ?></h1>
+    <p><?php echo e(t('admin.general.theme_subtitle')); ?></p>
 </div>
 <div class="card">
     <form method="POST" action="admin.php?section=general">
@@ -516,7 +516,7 @@ $defaultNavWidth = $appConfig['nav_width'] ?? '220';
 
         <div class="form-row">
             <div class="form-group">
-                <label for="def_header_color">Header Color</label>
+                <label for="def_header_color"><?php echo e(t('admin.general.header_color_label')); ?></label>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <input type="color" id="def_header_color" name="header_color"
                            value="<?php echo e($defaultHeader); ?>"
@@ -525,10 +525,10 @@ $defaultNavWidth = $appConfig['nav_width'] ?? '220';
                            value="<?php echo e($defaultHeader); ?>"
                            readonly style="flex: 1;">
                 </div>
-                <div class="form-help">Default: #35a0a3</div>
+                <div class="form-help"><?php echo e(t('admin.general.default_35a0a3')); ?></div>
             </div>
             <div class="form-group">
-                <label for="def_footer_color">Footer Color</label>
+                <label for="def_footer_color"><?php echo e(t('admin.general.footer_color_label')); ?></label>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <input type="color" id="def_footer_color" name="footer_color"
                            value="<?php echo e($defaultFooter); ?>"
@@ -537,13 +537,13 @@ $defaultNavWidth = $appConfig['nav_width'] ?? '220';
                            value="<?php echo e($defaultFooter); ?>"
                            readonly style="flex: 1;">
                 </div>
-                <div class="form-help">Default: #1a365d</div>
+                <div class="form-help"><?php echo e(t('admin.general.default_1a365d')); ?></div>
             </div>
         </div>
 
         <div class="form-row">
             <div class="form-group">
-                <label for="def_button_color">Primary Button Color</label>
+                <label for="def_button_color"><?php echo e(t('admin.general.button_color_label')); ?></label>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <input type="color" id="def_button_color" name="button_color"
                            value="<?php echo e($defaultButton); ?>"
@@ -552,17 +552,17 @@ $defaultNavWidth = $appConfig['nav_width'] ?? '220';
                            value="<?php echo e($defaultButton); ?>"
                            readonly style="flex: 1;">
                 </div>
-                <div class="form-help">Default: #35a0a3</div>
+                <div class="form-help"><?php echo e(t('admin.general.default_35a0a3')); ?></div>
             </div>
             <div class="form-group"></div>
         </div>
 
         <hr style="margin: 25px 0; border: none; border-top: 1px solid #e5e7eb;">
-        <h4 style="margin-bottom: 15px; color: #333; font-size: 14px; font-weight: 600;">Navigation Settings</h4>
+        <h4 style="margin-bottom: 15px; color: #333; font-size: 14px; font-weight: 600;"><?php echo e(t('admin.general.nav_settings_heading')); ?></h4>
 
         <div class="form-row">
             <div class="form-group">
-                <label for="def_nav_fill_color">Navigation Fill Color</label>
+                <label for="def_nav_fill_color"><?php echo e(t('admin.general.nav_fill_color_label')); ?></label>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <input type="color" id="def_nav_fill_color" name="nav_fill_color"
                            value="<?php echo e($defaultNavFill); ?>"
@@ -571,10 +571,10 @@ $defaultNavWidth = $appConfig['nav_width'] ?? '220';
                            value="<?php echo e($defaultNavFill); ?>"
                            readonly style="flex: 1;">
                 </div>
-                <div class="form-help">Default: #e9ecef</div>
+                <div class="form-help"><?php echo e(t('admin.general.default_e9ecef')); ?></div>
             </div>
             <div class="form-group">
-                <label for="def_nav_font_color">Navigation Font Color</label>
+                <label for="def_nav_font_color"><?php echo e(t('admin.general.nav_font_color_label')); ?></label>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <input type="color" id="def_nav_font_color" name="nav_font_color"
                            value="<?php echo e($defaultNavFont); ?>"
@@ -583,12 +583,12 @@ $defaultNavWidth = $appConfig['nav_width'] ?? '220';
                            value="<?php echo e($defaultNavFont); ?>"
                            readonly style="flex: 1;">
                 </div>
-                <div class="form-help">Default: #1f1e1e</div>
+                <div class="form-help"><?php echo e(t('admin.general.default_1f1e1e')); ?></div>
             </div>
         </div>
 
         <div class="form-group">
-            <label for="def_nav_width">Navigation Width (pixels)</label>
+            <label for="def_nav_width"><?php echo e(t('admin.general.nav_width_label')); ?></label>
             <div style="display: flex; gap: 10px; align-items: center;">
                 <input type="range" id="def_nav_width_range" min="150" max="400" step="10"
                        value="<?php echo e($defaultNavWidth); ?>"
@@ -598,10 +598,10 @@ $defaultNavWidth = $appConfig['nav_width'] ?? '220';
                        min="150" max="400" style="width: 80px;">
                 <span>px</span>
             </div>
-            <div class="form-help">Default: 220px (Range: 150-400px)</div>
+            <div class="form-help"><?php echo e(t('admin.general.nav_width_help')); ?></div>
         </div>
 
-        <button type="submit" name="update_default_theme" class="btn btn-primary">Save Default Theme</button>
+        <button type="submit" name="update_default_theme" class="btn btn-primary"><?php echo e(t('admin.general.save_theme_button')); ?></button>
     </form>
 </div>
 

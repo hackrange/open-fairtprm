@@ -22,7 +22,7 @@ if (!defined('ADMIN_DISPATCH')) { http_response_code(403); exit('Forbidden'); }
 $_shodanPostAction = isset($_POST['update_shodan']) || isset($_POST['update_shodan_signals']) || isset($_POST['reset_shodan_signals']) || isset($_POST['update_shodan_weights']) || isset($_POST['reset_shodan_weights']) || isset($_POST['test_shodan_connection']) || isset($_POST['remove_waiver']) || isset($_POST['remove_all_waivers']);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_shodan-srs.error_invalid_request');
     } elseif (isset($_POST['update_shodan'])) {
         try {
             $db->beginTransaction();
@@ -93,11 +93,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
             $auth->audit($user['id'], 'config_update_shodan', 'app_config', null, [
                 'new' => $auditShodan
             ]);
-            $success = 'Shodan configuration updated successfully';
+            $success = t('admin_shodan-srs.success_config_updated');
         } catch (Exception $e) {
             $db->rollback();
             error_log('Error updating Shodan config: ' . $e->getMessage());
-            $error = 'Failed to update Shodan configuration';
+            $error = t('admin_shodan-srs.error_config_update_failed');
         }
     } elseif (isset($_POST['update_shodan_signals'])) {
         try {
@@ -139,10 +139,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
                 ]);
             }
 
-            $success = 'Signal point configuration updated successfully';
+            $success = t('admin_shodan-srs.success_signals_updated');
         } catch (Exception $e) {
             error_log('Error updating Shodan signal points: ' . $e->getMessage());
-            $error = 'Failed to update signal point configuration';
+            $error = t('admin_shodan-srs.error_signals_update_failed');
         }
     } elseif (isset($_POST['reset_shodan_signals'])) {
         try {
@@ -160,10 +160,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
                 );
             }
 
-            $success = 'Signal points reset to defaults';
+            $success = t('admin_shodan-srs.success_signals_reset');
         } catch (Exception $e) {
             error_log('Error resetting Shodan signal points: ' . $e->getMessage());
-            $error = 'Failed to reset signal points';
+            $error = t('admin_shodan-srs.error_signals_reset_failed');
         }
     } elseif (isset($_POST['update_shodan_weights'])) {
         try {
@@ -183,7 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
             }
 
             if ($totalWeight === 0) {
-                $error = 'Category weights cannot all be zero.';
+                $error = t('admin_shodan-srs.error_weights_all_zero');
             } else {
                 $jsonValue = !empty($customWeights) ? json_encode($customWeights) : '';
 
@@ -207,11 +207,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
                     ]);
                 }
 
-                $success = 'Category weights updated successfully. Total weight: ' . $totalWeight . '%.';
+                $success = t('admin_shodan-srs.success_weights_updated_prefix') . $totalWeight . t('admin_shodan-srs.success_weights_updated_suffix');
             }
         } catch (Exception $e) {
             error_log('Error updating Shodan category weights: ' . $e->getMessage());
-            $error = 'Failed to update category weights';
+            $error = t('admin_shodan-srs.error_weights_update_failed');
         }
     } elseif (isset($_POST['reset_shodan_weights'])) {
         try {
@@ -229,10 +229,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
                 );
             }
 
-            $success = 'Category weights reset to defaults';
+            $success = t('admin_shodan-srs.success_weights_reset');
         } catch (Exception $e) {
             error_log('Error resetting Shodan category weights: ' . $e->getMessage());
-            $error = 'Failed to reset category weights';
+            $error = t('admin_shodan-srs.error_weights_reset_failed');
         }
     } elseif (isset($_POST['test_shodan_connection'])) {
         try {
@@ -240,13 +240,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
             $shodanService = new ShodanService();
             $result = $shodanService->testConnection();
             if ($result['success']) {
-                $success = 'Shodan Connection Test: ' . $result['message'];
+                $success = t('admin_shodan-srs.connection_test_prefix') . $result['message'];
             } else {
-                $error = 'Shodan Connection Test Failed: ' . $result['message'];
+                $error = t('admin_shodan-srs.connection_test_failed_prefix') . $result['message'];
             }
         } catch (Exception $e) {
             error_log('Shodan Connection Test Error: ' . $e->getMessage());
-            $error = 'Shodan Connection Test Error. Check the error log for details.';
+            $error = t('admin_shodan-srs.connection_test_error');
         }
     } elseif (isset($_POST['remove_waiver'])) {
         $waiverId = intval($_POST['waiver_id'] ?? 0);
@@ -255,13 +255,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
                 require_once __DIR__ . '/../classes/ShodanService.php';
                 $shodanService = new ShodanService();
                 if ($shodanService->removeWaiver($waiverId)) {
-                    $success = 'Waiver removed successfully. The finding will be included in future scoring.';
+                    $success = t('admin_shodan-srs.success_waiver_removed');
                 } else {
-                    $error = 'Failed to remove waiver.';
+                    $error = t('admin_shodan-srs.error_waiver_remove_failed');
                 }
             } catch (Exception $e) {
                 error_log('Error removing waiver: ' . $e->getMessage());
-                $error = 'Error removing waiver.';
+                $error = t('admin_shodan-srs.error_waiver_remove');
             }
         }
     } elseif (isset($_POST['remove_all_waivers'])) {
@@ -272,13 +272,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
                 $shodanService = new ShodanService();
                 $removed = $shodanService->removeAllWaiversForVendor($vendorId);
                 if ($removed !== false) {
-                    $success = "Removed {$removed} waiver" . ($removed !== 1 ? 's' : '') . " for this vendor. Findings will be included in future scoring.";
+                    $success = t('admin_shodan-srs.success_waivers_removed_prefix') . ' ' . $removed . ' ' . ($removed !== 1 ? t('admin_shodan-srs.word_waivers') : t('admin_shodan-srs.word_waiver')) . ' ' . t('admin_shodan-srs.success_waivers_removed_suffix');
                 } else {
-                    $error = 'Failed to remove waivers.';
+                    $error = t('admin_shodan-srs.error_waivers_remove_failed');
                 }
             } catch (Exception $e) {
                 error_log('Error removing all waivers: ' . $e->getMessage());
-                $error = 'Error removing waivers.';
+                $error = t('admin_shodan-srs.error_waivers_remove');
             }
         }
     }
@@ -390,34 +390,34 @@ if (!in_array($shodanSubTab, ['settings', 'weights', 'signals', 'waivers', 'abou
 }
 ?>
 <div style="display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 0; flex-wrap: wrap;">
-    <?php foreach (['settings' => 'Settings', 'weights' => 'Category Weights', 'signals' => 'Signal Points', 'waivers' => 'Risk Waivers', 'about' => 'About'] as $_stKey => $_stLabel): ?>
-    <button type="button" data-action="showShodanSection" data-arg="<?php echo $_stKey; ?>" id="shodanTab_<?php echo $_stKey; ?>" class="shodan-section-tab" style="padding: 8px 16px; border: none; border-bottom: 2px solid <?php echo $shodanSubTab === $_stKey ? 'var(--theme-header-color, #2563eb)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $shodanSubTab === $_stKey ? '600' : '500'; ?>; color: <?php echo $shodanSubTab === $_stKey ? 'var(--theme-header-color, #2563eb)' : '#6b7280'; ?>; margin-bottom: -2px;"><?php echo $_stLabel; ?><?php if ($_stKey === 'waivers' && !empty($allWaivers)): ?> <span style="background: #e0e7ff; color: #3730a3; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 600; margin-left: 4px;"><?php echo count($allWaivers); ?></span><?php endif; ?></button>
+    <?php foreach (['settings' => t('admin_shodan-srs.tab_settings'), 'weights' => t('admin_shodan-srs.tab_weights'), 'signals' => t('admin_shodan-srs.tab_signals'), 'waivers' => t('admin_shodan-srs.tab_waivers'), 'about' => t('admin_shodan-srs.tab_about')] as $_stKey => $_stLabel): ?>
+    <button type="button" data-action="showShodanSection" data-arg="<?php echo $_stKey; ?>" id="shodanTab_<?php echo $_stKey; ?>" class="shodan-section-tab" style="padding: 8px 16px; border: none; border-bottom: 2px solid <?php echo $shodanSubTab === $_stKey ? 'var(--theme-header-color, #2563eb)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $shodanSubTab === $_stKey ? '600' : '500'; ?>; color: <?php echo $shodanSubTab === $_stKey ? 'var(--theme-header-color, #2563eb)' : '#6b7280'; ?>; margin-bottom: -2px;"><?php echo e($_stLabel); ?><?php if ($_stKey === 'waivers' && !empty($allWaivers)): ?> <span style="background: #e0e7ff; color: #3730a3; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 600; margin-left: 4px;"><?php echo count($allWaivers); ?></span><?php endif; ?></button>
     <?php endforeach; ?>
 </div>
 
 <div id="shodanSection_settings"<?php echo $shodanSubTab !== 'settings' ? ' style="display: none;"' : ''; ?>>
 <div class="card">
-    <h3>Shodan Integration Settings</h3>
+    <h3><?php echo e(t('admin_shodan-srs.settings_heading')); ?></h3>
     <form method="POST" action="admin.php?section=srs&amp;srs_tab=shodan">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="shodan_enabled" value="1" <?php echo ($shodanConfig['enabled'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                <span>Enable Shodan SRS Integration</span>
+                <span><?php echo e(t('admin_shodan-srs.enable_label')); ?></span>
             </label>
-            <div class="form-help">Enable automated vendor security scanning using the Shodan API (open ports, CVEs, services)</div>
+            <div class="form-help"><?php echo e(t('admin_shodan-srs.enable_help')); ?></div>
         </div>
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="shodan_use_cron" value="1" <?php echo ($shodanConfig['use_cron'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                <span>Use Cron for Rescoring</span>
+                <span><?php echo e(t('admin_shodan-srs.use_cron_label')); ?></span>
             </label>
-            <div class="form-help">When enabled, manual rescores are queued and processed by a background cron job instead of running in real-time. This prevents the browser from waiting during scoring.</div>
+            <div class="form-help"><?php echo e(t('admin_shodan-srs.use_cron_help')); ?></div>
             <div id="shodan_cron_setup" style="<?php echo ($shodanConfig['use_cron'] ?? '0') === '1' ? '' : 'display: none;'; ?> margin-top: 10px; padding: 12px 16px; background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 6px;">
-                <div style="font-weight: 600; font-size: 13px; color: #374151; margin-bottom: 6px;">Cron Job Required</div>
-                <p style="font-size: 12px; color: #6b7280; margin: 0 0 8px 0;">Add this cron entry to process queued rescores (runs every minute):</p>
+                <div style="font-weight: 600; font-size: 13px; color: #374151; margin-bottom: 6px;"><?php echo e(t('admin_shodan-srs.cron_required_heading')); ?></div>
+                <p style="font-size: 12px; color: #6b7280; margin: 0 0 8px 0;"><?php echo e(t('admin_shodan-srs.cron_required_intro')); ?></p>
                 <div style="background: #1e1e1e; color: #d4d4d4; padding: 8px 12px; border-radius: 4px; font-family: monospace; font-size: 11px; overflow-x: auto;">* * * * * /usr/bin/php <?php echo e(dirname(dirname(__DIR__))); ?>/cron/rescore-queue.php >> /var/log/tprm/rescore-queue.log 2>&1</div>
-                <p style="font-size: 11px; color: #9ca3af; margin: 6px 0 0 0;">Uses lock files to prevent overlapping executions. Only one cron entry is needed even if both integrations use cron.</p>
+                <p style="font-size: 11px; color: #9ca3af; margin: 6px 0 0 0;"><?php echo e(t('admin_shodan-srs.cron_required_note')); ?></p>
             </div>
         </div>
         <script nonce="<?php echo cspNonce(); ?>">
@@ -428,107 +428,107 @@ if (!in_array($shodanSubTab, ['settings', 'weights', 'signals', 'waivers', 'abou
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="shodan_on_demand_scan" value="1" <?php echo ($shodanConfig['on_demand_scan'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                <span>Enable On-Demand Scanning</span>
+                <span><?php echo e(t('admin_shodan-srs.on_demand_label')); ?></span>
             </label>
-            <div class="form-help">When enabled, Shodan will request an on-demand scan for any IPs it has no existing data for during scoring. This ensures coverage for domains Shodan hasn't previously scanned, but uses scan credits (1 credit per IP) and adds up to 3 minutes of wait time per scoring request while Shodan processes the scan. Recommended for vendors where Shodan returns no security signals.</div>
+            <div class="form-help"><?php echo e(t('admin_shodan-srs.on_demand_help')); ?></div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="shodan_api_key">Shodan API Key</label>
-                <input type="password" id="shodan_api_key" name="shodan_api_key" class="form-control" placeholder="<?php echo !empty($shodanConfig['api_key']) ? '••••••••••••••••' : 'Enter API key'; ?>">
-                <div class="form-help">API key from your <a href="https://account.shodan.io" target="_blank">Shodan account</a>. Leave blank to keep existing key.</div>
+                <label for="shodan_api_key"><?php echo e(t('admin_shodan-srs.api_key_label')); ?></label>
+                <input type="password" id="shodan_api_key" name="shodan_api_key" class="form-control" placeholder="<?php echo !empty($shodanConfig['api_key']) ? '••••••••••••••••' : e(t('admin_shodan-srs.api_key_placeholder')); ?>">
+                <div class="form-help"><?php echo t('admin_shodan-srs.api_key_help'); ?></div>
             </div>
             <div class="form-group">
-                <label for="shodan_display_name">Display Name</label>
+                <label for="shodan_display_name"><?php echo e(t('admin_shodan-srs.display_name_label')); ?></label>
                 <input type="text" id="shodan_display_name" name="shodan_display_name" class="form-control" value="<?php echo e($shodanConfig['display_name'] ?? 'Shodan'); ?>" placeholder="Shodan" maxlength="50">
-                <div class="form-help">Custom display name shown across all pages. Default: Shodan</div>
+                <div class="form-help"><?php echo e(t('admin_shodan-srs.display_name_help')); ?></div>
             </div>
         </div>
 
-        <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;">Subdomain Scanning</h4>
+        <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;"><?php echo e(t('admin_shodan-srs.subdomain_scanning_heading')); ?></h4>
         <div class="form-row">
             <div class="form-group">
-                <label for="shodan_max_subdomains">Max Subdomains to Scan</label>
+                <label for="shodan_max_subdomains"><?php echo e(t('admin_shodan-srs.max_subdomains_label')); ?></label>
                 <input type="number" id="shodan_max_subdomains" name="shodan_max_subdomains" class="form-control" value="<?php echo e($shodanConfig['max_subdomains'] ?? '20'); ?>" min="1" max="1000">
-                <div class="form-help">Number of subdomains to include per scan (1-1000). Each subdomain consumes API credits. Default: 20</div>
+                <div class="form-help"><?php echo e(t('admin_shodan-srs.max_subdomains_help')); ?></div>
             </div>
             <div class="form-group">
-                <label>Subdomain Selection</label>
+                <label><?php echo e(t('admin_shodan-srs.subdomain_selection_label')); ?></label>
                 <label class="checkbox-label" style="margin-top: 8px;">
                     <input type="checkbox" name="shodan_randomize_subdomains" value="1" <?php echo ($shodanConfig['randomize_subdomains'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                    <span>Randomize subdomain selection</span>
+                    <span><?php echo e(t('admin_shodan-srs.randomize_subdomains_label')); ?></span>
                 </label>
-                <div class="form-help">When enabled, subdomains are chosen randomly instead of alphabetically. Gives broader coverage across repeated scans.</div>
+                <div class="form-help"><?php echo e(t('admin_shodan-srs.randomize_subdomains_help')); ?></div>
             </div>
         </div>
         <div class="form-group" style="margin-top: 15px;">
-            <label for="shodan_excluded_domains">Excluded Domains</label>
+            <label for="shodan_excluded_domains"><?php echo e(t('admin_shodan-srs.excluded_domains_label')); ?></label>
             <textarea id="shodan_excluded_domains" name="shodan_excluded_domains" class="form-control" rows="4" placeholder="dev.example.com&#10;staging.example.com&#10;internal.example.com" style="font-family: monospace; font-size: 13px;"><?php echo e($shodanConfig['excluded_domains'] ?? ''); ?></textarea>
-            <div class="form-help">Subdomains to skip during scanning. One per line or comma-separated. Supports suffix matching (e.g. "staging.example.com" also excludes "app.staging.example.com").</div>
+            <div class="form-help"><?php echo e(t('admin_shodan-srs.excluded_domains_help')); ?></div>
         </div>
 
-        <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;">CVE Filtering</h4>
+        <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;"><?php echo e(t('admin_shodan-srs.cve_filtering_heading')); ?></h4>
         <div class="form-group">
-            <label for="shodan_min_cve_year">Minimum CVE Year</label>
-            <input type="number" id="shodan_min_cve_year" name="shodan_min_cve_year" class="form-control" value="<?php echo e($shodanConfig['min_cve_year'] ?? '0'); ?>" min="0" max="2099" placeholder="0 (default: <?php echo date('Y') - 5; ?>)" style="max-width: 200px;">
-            <div class="form-help">Exclude CVEs published before this year from scan results. Default: 0 = auto (current year minus 5, currently <?php echo date('Y') - 5; ?>). Shodan's banner-based detection often matches very old CVEs against software version strings, producing false positives. Set a specific year to override, or leave at 0 to use the rolling 5-year window.</div>
+            <label for="shodan_min_cve_year"><?php echo e(t('admin_shodan-srs.min_cve_year_label')); ?></label>
+            <input type="number" id="shodan_min_cve_year" name="shodan_min_cve_year" class="form-control" value="<?php echo e($shodanConfig['min_cve_year'] ?? '0'); ?>" min="0" max="2099" placeholder="<?php echo e(t('admin_shodan-srs.min_cve_year_placeholder_prefix')); ?><?php echo date('Y') - 5; ?><?php echo e(t('admin_shodan-srs.min_cve_year_placeholder_suffix')); ?>" style="max-width: 200px;">
+            <div class="form-help"><?php echo e(t('admin_shodan-srs.min_cve_year_help_prefix')); ?><?php echo date('Y') - 5; ?><?php echo e(t('admin_shodan-srs.min_cve_year_help_suffix')); ?></div>
         </div>
 
-        <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;">Data Freshness</h4>
+        <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;"><?php echo e(t('admin_shodan-srs.data_freshness_heading')); ?></h4>
         <div class="form-group">
-            <label for="shodan_banner_max_age">Banner Max Age (Days)</label>
+            <label for="shodan_banner_max_age"><?php echo e(t('admin_shodan-srs.banner_max_age_label')); ?></label>
             <input type="number" id="shodan_banner_max_age" name="shodan_banner_max_age" class="form-control" value="<?php echo e($shodanConfig['banner_max_age'] ?? '7'); ?>" min="0" max="365" style="max-width: 200px;">
-            <div class="form-help">Ignore Shodan banner data older than this many days. Shodan retains historical data for ports that may now be filtered/closed. Set to 0 to disable freshness filtering. Default: 7 days.</div>
+            <div class="form-help"><?php echo e(t('admin_shodan-srs.banner_max_age_help')); ?></div>
         </div>
         <div class="form-group">
-            <label for="shodan_rescan_cooldown_hours">Rescan Cooldown (Hours)</label>
+            <label for="shodan_rescan_cooldown_hours"><?php echo e(t('admin_shodan-srs.rescan_cooldown_label')); ?></label>
             <input type="number" id="shodan_rescan_cooldown_hours" name="shodan_rescan_cooldown_hours" class="form-control" value="<?php echo e($shodanConfig['rescan_cooldown_hours'] ?? '24'); ?>" min="0" max="720" style="max-width: 200px;">
-            <div class="form-help">Suppress duplicate rescan requests for IPs already rescanned within this window. Each rescan debits Shodan scan credits, so this prevents accidental repeat charges from double-clicks or back-to-back manual rescans. Set to 0 to disable cooldown (every click rescans every IP). Default: 24 hours.</div>
+            <div class="form-help"><?php echo e(t('admin_shodan-srs.rescan_cooldown_help')); ?></div>
         </div>
 
-        <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;">Grade Scoring Configuration</h4>
+        <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;"><?php echo e(t('admin_shodan-srs.grade_scoring_heading')); ?></h4>
         <div class="form-row">
             <div class="form-group">
-                <label for="shodan_scoring_method">Scoring Method</label>
+                <label for="shodan_scoring_method"><?php echo e(t('admin_shodan-srs.scoring_method_label')); ?></label>
                 <select id="shodan_scoring_method" name="shodan_scoring_method" class="form-control" data-action="toggleShodanScoringMethod">
-                    <option value="range" <?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'range' ? 'selected' : ''; ?>>Range (Fixed Score Thresholds)</option>
-                    <option value="percentage" <?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? 'selected' : ''; ?>>Percentage (Score / Max Score)</option>
+                    <option value="range" <?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'range' ? 'selected' : ''; ?>><?php echo e(t('admin_shodan-srs.scoring_method_range_option')); ?></option>
+                    <option value="percentage" <?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? 'selected' : ''; ?>><?php echo e(t('admin_shodan-srs.scoring_method_percentage_option')); ?></option>
                 </select>
-                <div class="form-help" id="shodan_scoring_method_help"><?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade is calculated as (Score / Max Score) x 100. Enter percentage thresholds below.' : 'Grade is based on the raw score value (0-100). Enter score thresholds below.'; ?></div>
+                <div class="form-help" id="shodan_scoring_method_help"><?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_shodan-srs.scoring_help_percentage')) : e(t('admin_shodan-srs.scoring_help_range')); ?></div>
             </div>
             <div class="form-group" id="shodan_max_score_group" style="<?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? '' : 'display: none;'; ?>">
-                <label for="shodan_max_score">Maximum Score</label>
+                <label for="shodan_max_score"><?php echo e(t('admin_shodan-srs.max_score_label')); ?></label>
                 <input type="number" id="shodan_max_score" name="shodan_max_score" class="form-control" value="<?php echo e($shodanConfig['max_score'] ?? '100'); ?>" min="1" max="10000">
-                <div class="form-help">The maximum possible Shodan score (default: 100).</div>
+                <div class="form-help"><?php echo e(t('admin_shodan-srs.max_score_help')); ?></div>
             </div>
         </div>
 
         <div id="shodan_grade_thresholds_label" style="font-weight: 500; margin-bottom: 10px; color: #374151;">
-            <?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade Thresholds (Percentage)' : 'Grade Thresholds (Score Values)'; ?>
+            <?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_shodan-srs.thresholds_label_percentage')) : e(t('admin_shodan-srs.thresholds_label_score')); ?>
         </div>
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
             <div class="form-group">
-                <label for="shodan_grade_a_min" id="shodan_grade_a_label"><?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade A Minimum (%)' : 'Grade A Minimum Score'; ?></label>
+                <label for="shodan_grade_a_min" id="shodan_grade_a_label"><?php echo e(t('admin_shodan-srs.grade_prefix')); ?>A<?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_shodan-srs.grade_minimum_pct_suffix')) : e(t('admin_shodan-srs.grade_minimum_score_suffix')); ?></label>
                 <input type="number" id="shodan_grade_a_min" name="shodan_grade_a_min" class="form-control" value="<?php echo e($shodanConfig['grade_a_min'] ?? '90'); ?>" min="0" placeholder="90">
             </div>
             <div class="form-group">
-                <label for="shodan_grade_b_min" id="shodan_grade_b_label"><?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade B Minimum (%)' : 'Grade B Minimum Score'; ?></label>
+                <label for="shodan_grade_b_min" id="shodan_grade_b_label"><?php echo e(t('admin_shodan-srs.grade_prefix')); ?>B<?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_shodan-srs.grade_minimum_pct_suffix')) : e(t('admin_shodan-srs.grade_minimum_score_suffix')); ?></label>
                 <input type="number" id="shodan_grade_b_min" name="shodan_grade_b_min" class="form-control" value="<?php echo e($shodanConfig['grade_b_min'] ?? '75'); ?>" min="0" placeholder="75">
             </div>
             <div class="form-group">
-                <label for="shodan_grade_c_min" id="shodan_grade_c_label"><?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade C Minimum (%)' : 'Grade C Minimum Score'; ?></label>
+                <label for="shodan_grade_c_min" id="shodan_grade_c_label"><?php echo e(t('admin_shodan-srs.grade_prefix')); ?>C<?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_shodan-srs.grade_minimum_pct_suffix')) : e(t('admin_shodan-srs.grade_minimum_score_suffix')); ?></label>
                 <input type="number" id="shodan_grade_c_min" name="shodan_grade_c_min" class="form-control" value="<?php echo e($shodanConfig['grade_c_min'] ?? '60'); ?>" min="0" placeholder="60">
             </div>
             <div class="form-group">
-                <label for="shodan_grade_d_min" id="shodan_grade_d_label"><?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade D Minimum (%)' : 'Grade D Minimum Score'; ?></label>
+                <label for="shodan_grade_d_min" id="shodan_grade_d_label"><?php echo e(t('admin_shodan-srs.grade_prefix')); ?>D<?php echo ($shodanConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_shodan-srs.grade_minimum_pct_suffix')) : e(t('admin_shodan-srs.grade_minimum_score_suffix')); ?></label>
                 <input type="number" id="shodan_grade_d_min" name="shodan_grade_d_min" class="form-control" value="<?php echo e($shodanConfig['grade_d_min'] ?? '40'); ?>" min="0" placeholder="40">
             </div>
         </div>
-        <div class="form-help" id="shodan_grade_f_help" style="margin-top: 5px; color: #666;">Scores below <?php echo e($shodanConfig['grade_d_min'] ?? '40'); ?> will receive an F grade.</div>
+        <div class="form-help" id="shodan_grade_f_help" style="margin-top: 5px; color: #666;"><?php echo e(t('admin_shodan-srs.grade_f_prefix')); ?><?php echo e($shodanConfig['grade_d_min'] ?? '40'); ?><?php echo e(t('admin_shodan-srs.grade_f_suffix')); ?></div>
 
         <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button type="submit" name="update_shodan" class="btn btn-primary">Save Shodan Configuration</button>
-            <button type="submit" name="test_shodan_connection" class="btn btn-secondary">Test Connection</button>
+            <button type="submit" name="update_shodan" class="btn btn-primary"><?php echo e(t('admin_shodan-srs.save_config_button')); ?></button>
+            <button type="submit" name="test_shodan_connection" class="btn btn-secondary"><?php echo e(t('admin_shodan-srs.test_connection_button')); ?></button>
         </div>
     </form>
 </div>
@@ -544,13 +544,13 @@ function toggleShodanScoringMethod() {
     const methodHelp = document.getElementById('shodan_scoring_method_help');
     if (methodHelp) {
         methodHelp.textContent = isPercentage
-            ? 'Grade is calculated as (Score / Max Score) x 100. Enter percentage thresholds below.'
-            : 'Grade is based on the raw score value (0-100). Enter score thresholds below.';
+            ? <?php echo json_encode(t('admin_shodan-srs.scoring_help_percentage')); ?>
+            : <?php echo json_encode(t('admin_shodan-srs.scoring_help_range')); ?>;
     }
 
     const thresholdsLabel = document.getElementById('shodan_grade_thresholds_label');
     if (thresholdsLabel) {
-        thresholdsLabel.textContent = isPercentage ? 'Grade Thresholds (Percentage)' : 'Grade Thresholds (Score Values)';
+        thresholdsLabel.textContent = isPercentage ? <?php echo json_encode(t('admin_shodan-srs.thresholds_label_percentage')); ?> : <?php echo json_encode(t('admin_shodan-srs.thresholds_label_score')); ?>;
     }
 
     const gradeDefaults = { a: 90, b: 75, c: 60, d: 40 };
@@ -561,8 +561,8 @@ function toggleShodanScoringMethod() {
 
         if (label) {
             label.textContent = isPercentage
-                ? 'Grade ' + grade.toUpperCase() + ' Minimum (%)'
-                : 'Grade ' + grade.toUpperCase() + ' Minimum Score';
+                ? <?php echo json_encode(t('admin_shodan-srs.grade_prefix')); ?> + grade.toUpperCase() + <?php echo json_encode(t('admin_shodan-srs.grade_minimum_pct_suffix')); ?>
+                : <?php echo json_encode(t('admin_shodan-srs.grade_prefix')); ?> + grade.toUpperCase() + <?php echo json_encode(t('admin_shodan-srs.grade_minimum_score_suffix')); ?>;
         }
         if (input) {
             input.placeholder = gradeDefaults[grade];
@@ -573,7 +573,7 @@ function toggleShodanScoringMethod() {
     const dMinInput = document.getElementById('shodan_grade_d_min');
     if (fHelp && dMinInput) {
         const dMin = dMinInput.value || '40';
-        fHelp.textContent = 'Scores below ' + dMin + (isPercentage ? '% ' : ' ') + 'will receive an F grade.';
+        fHelp.textContent = <?php echo json_encode(t('admin_shodan-srs.grade_f_prefix')); ?> + dMin + (isPercentage ? '% ' : ' ') + <?php echo json_encode(t('admin_shodan-srs.grade_f_suffix_js')); ?>;
     }
 }
 
@@ -583,7 +583,7 @@ document.getElementById('shodan_grade_d_min')?.addEventListener('input', functio
     const fHelp = document.getElementById('shodan_grade_f_help');
     if (fHelp) {
         const dMin = this.value || '40';
-        fHelp.textContent = 'Scores below ' + dMin + (isPercentage ? '% ' : ' ') + 'will receive an F grade.';
+        fHelp.textContent = <?php echo json_encode(t('admin_shodan-srs.grade_f_prefix')); ?> + dMin + (isPercentage ? '% ' : ' ') + <?php echo json_encode(t('admin_shodan-srs.grade_f_suffix_js')); ?>;
     }
 });
 </script>
@@ -591,11 +591,11 @@ document.getElementById('shodan_grade_d_min')?.addEventListener('input', functio
 
 <div id="shodanSection_weights"<?php echo $shodanSubTab !== 'weights' ? ' style="display: none;"' : ''; ?>>
 <div class="card">
-    <h3>Category Weight Configuration</h3>
+    <h3><?php echo e(t('admin_shodan-srs.weights_heading')); ?></h3>
     <p style="color: #666; margin-bottom: 15px;">
-        Adjust how much each security category contributes to the final score. Weights are relative &mdash; they don't need to sum to exactly 100, but will be normalized proportionally.
+        <?php echo e(t('admin_shodan-srs.weights_intro')); ?>
         <?php if ($hasCustomWeights): ?>
-            <span style="color: #b45309; font-weight: 500;">Custom weights are active.</span>
+            <span style="color: #b45309; font-weight: 500;"><?php echo e(t('admin_shodan-srs.weights_custom_active')); ?></span>
         <?php endif; ?>
     </p>
     <form method="POST" action="admin.php?section=srs&amp;srs_tab=shodan">
@@ -604,9 +604,9 @@ document.getElementById('shodan_grade_d_min')?.addEventListener('input', functio
         <table style="width: 100%; max-width: 600px; border-collapse: collapse; font-size: 14px;">
             <thead>
                 <tr style="border-bottom: 2px solid #e5e7eb;">
-                    <th style="text-align: left; padding: 8px 10px; color: #6b7280; font-weight: 500;">Category</th>
-                    <th style="text-align: center; padding: 8px 10px; color: #6b7280; font-weight: 500; width: 80px;">Default</th>
-                    <th style="text-align: center; padding: 8px 10px; color: #6b7280; font-weight: 500; width: 110px;">Weight (%)</th>
+                    <th style="text-align: left; padding: 8px 10px; color: #6b7280; font-weight: 500;"><?php echo e(t('admin_shodan-srs.th_category')); ?></th>
+                    <th style="text-align: center; padding: 8px 10px; color: #6b7280; font-weight: 500; width: 80px;"><?php echo e(t('admin_shodan-srs.th_default')); ?></th>
+                    <th style="text-align: center; padding: 8px 10px; color: #6b7280; font-weight: 500; width: 110px;"><?php echo e(t('admin_shodan-srs.th_weight_pct')); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -628,7 +628,7 @@ document.getElementById('shodan_grade_d_min')?.addEventListener('input', functio
             </tbody>
             <tfoot>
                 <tr style="border-top: 2px solid #e5e7eb;">
-                    <td style="padding: 8px 10px; font-weight: 600; color: #374151;">Total</td>
+                    <td style="padding: 8px 10px; font-weight: 600; color: #374151;"><?php echo e(t('admin_shodan-srs.th_total')); ?></td>
                     <td style="text-align: center; padding: 8px 10px; color: #9ca3af; font-size: 13px;">100%</td>
                     <td style="text-align: center; padding: 8px 10px;">
                         <span id="weightTotal" style="font-weight: 700; font-size: 14px;"><?php echo array_sum($weightCurrent); ?></span><span style="color: #6b7280;">%</span>
@@ -637,12 +637,12 @@ document.getElementById('shodan_grade_d_min')?.addEventListener('input', functio
             </tfoot>
         </table>
         <p id="weightWarning" style="display: none; margin-top: 8px; padding: 8px 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; font-size: 13px; color: #92400e;">
-            Weights don't sum to 100% &mdash; they will be normalized proportionally when computing the final score.
+            <?php echo e(t('admin_shodan-srs.weights_warning')); ?>
         </p>
 
         <div style="display: flex; gap: 10px; margin-top: 15px;">
-            <button type="submit" name="update_shodan_weights" class="btn btn-primary">Save Category Weights</button>
-            <button type="submit" name="reset_shodan_weights" class="btn btn-secondary" data-confirm="Reset all category weights to their default values?">Reset to Defaults</button>
+            <button type="submit" name="update_shodan_weights" class="btn btn-primary"><?php echo e(t('admin_shodan-srs.save_weights_button')); ?></button>
+            <button type="submit" name="reset_shodan_weights" class="btn btn-secondary" data-confirm="<?php echo e(t('admin_shodan-srs.reset_weights_confirm')); ?>"><?php echo e(t('admin_shodan-srs.reset_to_defaults_button')); ?></button>
         </div>
     </form>
 </div>
@@ -671,12 +671,11 @@ updateWeightTotal();
 
 <div id="shodanSection_signals"<?php echo $shodanSubTab !== 'signals' ? ' style="display: none;"' : ''; ?>>
 <div class="card">
-    <h3>Signal Point Configuration</h3>
+    <h3><?php echo e(t('admin_shodan-srs.signals_heading')); ?></h3>
     <p style="color: #666; margin-bottom: 15px;">
-        Customize point values for each security signal. Positive values are bonuses; negative values are deductions.
-        Each category starts at a baseline of 50 and is adjusted by these signals.
+        <?php echo e(t('admin_shodan-srs.signals_intro')); ?>
         <?php if ($hasCustomSignals): ?>
-            <span style="color: #b45309; font-weight: 500;">Custom values are active.</span>
+            <span style="color: #b45309; font-weight: 500;"><?php echo e(t('admin_shodan-srs.signals_custom_active')); ?></span>
         <?php endif; ?>
     </p>
     <form method="POST" action="admin.php?section=srs&amp;srs_tab=shodan">
@@ -692,10 +691,10 @@ updateWeightTotal();
                 <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                     <thead>
                         <tr style="border-bottom: 2px solid #e5e7eb;">
-                            <th style="text-align: left; padding: 6px 8px; color: #6b7280; font-weight: 500;">Signal</th>
-                            <th style="text-align: center; padding: 6px 8px; color: #6b7280; font-weight: 500; width: 60px;">Type</th>
-                            <th style="text-align: center; padding: 6px 8px; color: #6b7280; font-weight: 500; width: 70px;">Default</th>
-                            <th style="text-align: center; padding: 6px 8px; color: #6b7280; font-weight: 500; width: 90px;">Points</th>
+                            <th style="text-align: left; padding: 6px 8px; color: #6b7280; font-weight: 500;"><?php echo e(t('admin_shodan-srs.th_signal')); ?></th>
+                            <th style="text-align: center; padding: 6px 8px; color: #6b7280; font-weight: 500; width: 60px;"><?php echo e(t('admin_shodan-srs.th_type')); ?></th>
+                            <th style="text-align: center; padding: 6px 8px; color: #6b7280; font-weight: 500; width: 70px;"><?php echo e(t('admin_shodan-srs.th_default')); ?></th>
+                            <th style="text-align: center; padding: 6px 8px; color: #6b7280; font-weight: 500; width: 90px;"><?php echo e(t('admin_shodan-srs.th_points')); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -728,8 +727,8 @@ updateWeightTotal();
         <?php endforeach; ?>
 
         <div style="display: flex; gap: 10px; margin-top: 15px;">
-            <button type="submit" name="update_shodan_signals" class="btn btn-primary">Save Signal Points</button>
-            <button type="submit" name="reset_shodan_signals" class="btn btn-secondary" data-confirm="Reset all signal points to their default values?">Reset to Defaults</button>
+            <button type="submit" name="update_shodan_signals" class="btn btn-primary"><?php echo e(t('admin_shodan-srs.save_signals_button')); ?></button>
+            <button type="submit" name="reset_shodan_signals" class="btn btn-secondary" data-confirm="<?php echo e(t('admin_shodan-srs.reset_signals_confirm')); ?>"><?php echo e(t('admin_shodan-srs.reset_to_defaults_button')); ?></button>
         </div>
     </form>
 </div>
@@ -751,29 +750,29 @@ function toggleSignalCategory(category) {
 
 <div id="shodanSection_waivers"<?php echo $shodanSubTab !== 'waivers' ? ' style="display: none;"' : ''; ?>>
 <div class="card">
-    <h3>Risk Waivers Management</h3>
+    <h3><?php echo e(t('admin_shodan-srs.waivers_heading')); ?></h3>
     <p style="color: #666; margin-bottom: 15px;">
-        View and manage risk waivers across all vendors. Waivers exclude specific findings from scoring on a per-subdomain basis.
+        <?php echo e(t('admin_shodan-srs.waivers_intro')); ?>
     </p>
 
     <?php if (empty($waiversByVendor)): ?>
     <div style="text-align: center; padding: 30px 20px; background: #f9fafb; border-radius: 8px; color: #6b7280;">
         <div style="font-size: 24px; margin-bottom: 8px;">&#10003;</div>
-        <div style="font-size: 14px; font-weight: 500;">No active risk waivers</div>
-        <div style="font-size: 12px; margin-top: 4px;">Risk waivers can be added from individual vendor SRS details pages.</div>
+        <div style="font-size: 14px; font-weight: 500;"><?php echo e(t('admin_shodan-srs.waivers_empty_title')); ?></div>
+        <div style="font-size: 12px; margin-top: 4px;"><?php echo e(t('admin_shodan-srs.waivers_empty_hint')); ?></div>
     </div>
     <?php else: ?>
 
     <!-- Filter -->
     <div style="margin-bottom: 15px;">
-        <input type="text" id="waiverFilter" placeholder="Filter by vendor name or domain..." autocomplete="off"
+        <input type="text" id="waiverFilter" placeholder="<?php echo e(t('admin_shodan-srs.waiver_filter_placeholder')); ?>" autocomplete="off"
                class="focus-ring-blue"
                style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box;">
     </div>
 
     <!-- Summary -->
     <div style="margin-bottom: 15px; padding: 10px 14px; background: #f0f4ff; border-radius: 8px; font-size: 13px; color: #374151;">
-        <?php echo count($allWaivers); ?> active waiver<?php echo count($allWaivers) !== 1 ? 's' : ''; ?> across <?php echo count($waiversByVendor); ?> vendor<?php echo count($waiversByVendor) !== 1 ? 's' : ''; ?>
+        <?php echo count($allWaivers); ?> <?php echo count($allWaivers) !== 1 ? e(t('admin_shodan-srs.active_waivers_plural')) : e(t('admin_shodan-srs.active_waiver_singular')); ?> <?php echo e(t('admin_shodan-srs.across')); ?> <?php echo count($waiversByVendor); ?> <?php echo count($waiversByVendor) !== 1 ? e(t('admin_shodan-srs.word_vendors')) : e(t('admin_shodan-srs.word_vendor')); ?>
     </div>
 
     <!-- Vendor list -->
@@ -803,17 +802,17 @@ function toggleSignalCategory(category) {
                 <span style="color: #9ca3af; font-size: 12px;"><?php echo $vendorDomain; ?></span>
                 <?php endif; ?>
                 <span style="background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;">
-                    <?php echo $waiverCount; ?> waiver<?php echo $waiverCount !== 1 ? 's' : ''; ?>
+                    <?php echo $waiverCount; ?> <?php echo $waiverCount !== 1 ? e(t('admin_shodan-srs.word_waivers')) : e(t('admin_shodan-srs.word_waiver')); ?>
                 </span>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-                <a href="vendor-srs-details.php?id=<?php echo (int)$vendorId; ?>" style="padding: 4px 10px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; font-size: 11px; font-weight: 500; text-decoration: none;">View SRS</a>
+                <a href="vendor-srs-details.php?id=<?php echo (int)$vendorId; ?>" style="padding: 4px 10px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; font-size: 11px; font-weight: 500; text-decoration: none;"><?php echo e(t('admin_shodan-srs.view_srs_button')); ?></a>
                 <form method="POST" action="admin.php?section=srs&amp;srs_tab=shodan&amp;shodan_tab=waivers" style="display: inline;">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                     <input type="hidden" name="vendor_id" value="<?php echo (int)$vendorId; ?>">
                     <input type="hidden" name="remove_all_waivers" value="1">
                     <button type="submit" style="padding: 4px 10px; background: #dc2626; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;"
-                            data-confirm="Remove ALL <?php echo $waiverCount; ?> waiver<?php echo $waiverCount !== 1 ? 's' : ''; ?> for <?php echo $vendorName; ?>? This cannot be undone.">Remove All</button>
+                            data-confirm="<?php echo e(t('admin_shodan-srs.remove_all_confirm_prefix')); ?> <?php echo $waiverCount; ?> <?php echo $waiverCount !== 1 ? e(t('admin_shodan-srs.word_waivers')) : e(t('admin_shodan-srs.word_waiver')); ?> <?php echo e(t('admin_shodan-srs.remove_all_confirm_for')); ?> <?php echo $vendorName; ?><?php echo e(t('admin_shodan-srs.remove_all_confirm_suffix')); ?>"><?php echo e(t('admin_shodan-srs.remove_all_button')); ?></button>
                 </form>
             </div>
         </div>
@@ -821,12 +820,12 @@ function toggleSignalCategory(category) {
         <div id="waiverDetail-<?php echo (int)$vendorId; ?>" class="waiver-detail-panel" style="display: none;">
             <table style="font-size: 12px; margin: 0; width: 100%;">
                 <thead><tr style="background: #fafafa;">
-                    <th style="padding: 6px 10px; text-align: left;">Finding</th>
-                    <th style="padding: 6px 10px; text-align: left; width: 100px;">Category</th>
-                    <th style="padding: 6px 10px; text-align: left; width: 140px;">Subdomain</th>
-                    <th style="padding: 6px 10px; text-align: left;">Reason</th>
-                    <th style="padding: 6px 10px; text-align: left; width: 100px;">Waived By</th>
-                    <th style="padding: 6px 10px; text-align: left; width: 90px;">Date</th>
+                    <th style="padding: 6px 10px; text-align: left;"><?php echo e(t('admin_shodan-srs.th_finding')); ?></th>
+                    <th style="padding: 6px 10px; text-align: left; width: 100px;"><?php echo e(t('admin_shodan-srs.th_category')); ?></th>
+                    <th style="padding: 6px 10px; text-align: left; width: 140px;"><?php echo e(t('admin_shodan-srs.th_subdomain')); ?></th>
+                    <th style="padding: 6px 10px; text-align: left;"><?php echo e(t('admin_shodan-srs.th_reason')); ?></th>
+                    <th style="padding: 6px 10px; text-align: left; width: 100px;"><?php echo e(t('admin_shodan-srs.th_waived_by')); ?></th>
+                    <th style="padding: 6px 10px; text-align: left; width: 90px;"><?php echo e(t('admin_shodan-srs.th_date')); ?></th>
                     <th style="padding: 6px 10px; width: 60px;"></th>
                 </tr></thead>
                 <tbody>
@@ -847,7 +846,7 @@ function toggleSignalCategory(category) {
                             <input type="hidden" name="waiver_id" value="<?php echo (int)$w['id']; ?>">
                             <input type="hidden" name="remove_waiver" value="1">
                             <button type="submit" style="padding: 2px 8px; background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; border-radius: 4px; font-size: 11px; cursor: pointer;"
-                                    data-confirm="Remove this waiver for <?php echo htmlspecialchars($w['subdomain'] ?? ''); ?>?">Remove</button>
+                                    data-confirm="<?php echo e(t('admin_shodan-srs.remove_waiver_confirm_prefix')); ?><?php echo htmlspecialchars($w['subdomain'] ?? ''); ?><?php echo e(t('admin_shodan-srs.remove_waiver_confirm_suffix')); ?>"><?php echo e(t('admin_shodan-srs.remove_button')); ?></button>
                         </form>
                     </td>
                 </tr>
@@ -899,21 +898,16 @@ function toggleSignalCategory(category) {
 
 <div id="shodanSection_about"<?php echo $shodanSubTab !== 'about' ? ' style="display: none;"' : ''; ?>>
 <div class="card">
-    <h3>About Shodan</h3>
+    <h3><?php echo e(t('admin_shodan-srs.about_heading')); ?></h3>
     <p style="color: #666; line-height: 1.6;">
-        Shodan is an internet intelligence platform that scans and indexes every internet-connected device it can find.
-        The integration enables:<br><br>
-        <strong>• Port Scanning:</strong> Identify open ports on vendor infrastructure, including high-risk services (FTP, Telnet, RDP, SMB)<br>
-        <strong>• Vulnerability Detection:</strong> Discover known CVEs associated with vendor IP addresses and services<br>
-        <strong>• Service Identification:</strong> Catalog running services, software versions, and server configurations<br>
-        <strong>• Security Scoring:</strong> Generate a 0-100 security score based on exposed attack surface
+        <?php echo t('admin_shodan-srs.about_body'); ?>
     </p>
     <p style="margin-top: 15px; padding: 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
-        <strong style="color: #92400e;">Note:</strong>
-        <span style="font-size: 13px; color: #92400e;"> Shodan scores are complementary to UpGuard scores. UpGuard focuses on overall security posture (0-950 scale), while Shodan focuses on exposed infrastructure (0-100 scale). Both can be enabled simultaneously for comprehensive vendor assessments.</span>
+        <strong style="color: #92400e;"><?php echo e(t('admin_shodan-srs.about_note_label')); ?></strong>
+        <span style="font-size: 13px; color: #92400e;"> <?php echo e(t('admin_shodan-srs.about_note_body')); ?></span>
     </p>
     <p style="margin-top: 15px;">
-        <a href="https://www.shodan.io" target="_blank" style="color: var(--theme-header-color);">Learn more about Shodan →</a>
+        <a href="https://www.shodan.io" target="_blank" style="color: var(--theme-header-color);"><?php echo e(t('admin_shodan-srs.about_learn_more')); ?></a>
     </p>
 </div>
 </div><!-- end shodanSection_about -->

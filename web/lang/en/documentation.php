@@ -155,6 +155,12 @@
         <tr><td><strong><a href="#question-types">Phone &amp; VAT question types</a></strong></td><td>New assessment/onboarding field types: a phone number with a country-code &amp; flag picker (auto-formatted), and an EU VAT number with double entry and free live validation against the official EU VIES service.</td><td>Everyone</td></tr>
         <tr><td><strong><a href="#question-types">Vendor data &amp; search improvements</a></strong></td><td>Store a VAT number on each vendor (shown on the vendor page with an &quot;Add VAT&quot; shortcut), find vendors by VAT number in the quick search, and a clearer Procurement-Onboarding scoring banner.</td><td>Procurement, Cyber TPRM</td></tr>
         <tr><td><strong><a href="#admin-backup">Large database backups</a></strong></td><td>Backup and restore now support multi-gigabyte databases and very large records without timing out.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#assessment-forms">Assessment forms &amp; AI Auto-Fill</a></strong></td><td>Download an assessment as a fillable PDF or Excel workbook, import a completed file back, and &mdash; with an AI provider &mdash; auto-fill answers from the vendor's current certificates.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#tprm-action-plan">Vendor Action Plan</a></strong></td><td>Schedule follow-up actions against a vendor (contact, send assessment, force annual review) with due dates, owners, email alerts, and status notes.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#custom-onboarding">Custom onboarding fields &amp; Custom Data</a></strong></td><td>Capture extra, org-specific fields on a vendor with per-role visibility, edit them on the Custom Data tab, and read them in the CSV export and API.</td><td>Admins, Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#breach-alerts">Breach / Cyber Alerts</a></strong></td><td>A supply-chain breach feed (including Grip incidents) with an affected-users drill-down and bulk acknowledge / false-positive / delete.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#admin-acl-groups">Custom access-control groups</a></strong></td><td>Create your own ACL groups, clone permissions from an existing group, and set Read vs Read/Write per module. The shipped groups are protected.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-templates">Assessment Template Builder</a></strong></td><td>New question types (multi-select, phone, VAT), template-driven certificate instructions, per-role field gating, and deactivated templates hidden by default.</td><td>Admins, Cyber TPRM</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>How do I know which version I'm on?</strong> Administrators can go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> to see the installed version. This guide describes <strong>v2.6.2</strong>. See <a href="#admin-updates">Updating the Platform</a>.
@@ -205,7 +211,7 @@
     </figure>
 
     <div class="callout callout-warning">
-        <strong>Good to know:</strong> Most of the interface (menus, buttons, labels, and form fields) is translated. Vendor assessment <em>questions</em> can also be translated automatically when an AI provider is configured (see <a href="#admin-ai">AI Integration</a>), but the stored answer values stay in English so that scoring and reports remain consistent across languages.
+        <strong>Good to know:</strong> The interface is translated wherever a translation exists for your language; a string that has not been translated yet falls back to English, so you may still see the occasional English label. Content that you or your vendors type (vendor names, notes, uploaded file names, free-text answers) is always shown exactly as entered. Vendor assessment <em>questions</em> can be translated automatically for display when an AI provider is configured (see <a href="#admin-ai">AI Integration</a>); without one they stay in the language they were written in. Stored answer values always remain in English so that scoring and reports stay consistent across languages.
     </div>
 </div>
 
@@ -868,6 +874,76 @@
     </ol>
 </div>
 
+<div class="doc-section" id="assessment-forms">
+    <h2>Assessment Forms: Download, Fill, Import &amp; AI Auto-Fill <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Not every vendor wants to answer a questionnaire in the browser. From an individual assessment's page (<span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Assessments</span> &rarr; open an assessment) you can hand the vendor an offline copy, take back a completed file, or let an AI provider pre-fill answers from the vendor's own certificates. The buttons sit in a row near the top of the assessment.</p>
+
+    <h3>Download the assessment as a fillable file</h3>
+    <ul>
+        <li><span class="btn-label">Download PDF</span> &mdash; a fillable PDF form. Every question becomes a real form field, so the vendor can type and tick boxes directly in the file.</li>
+        <li><span class="btn-label">Download Excel</span> &mdash; a real <code>.xlsx</code> workbook that can be completed in Excel, Google Sheets, or LibreOffice. Single-choice questions get in-cell dropdowns, and conditional questions gray out automatically when they do not apply.</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>The fillable PDF now works in any browser, not just Adobe.</strong> Check boxes carry baked-in appearances so they show and toggle in Chrome, Edge, and other built-in PDF viewers (previously they only worked in Adobe Acrobat/Reader). A typed-name field labelled <strong>&ldquo;SIGNATURE (TYPE FULL NAME)&rdquo;</strong> lets anyone sign in any viewer; the Adobe-only digital-signature and date-signed fields stay hidden except in Acrobat/Reader, which can actually use them.
+    </div>
+
+    <h3>Import a completed assessment (PDF, Excel, or CSV)</h3>
+    <p>When the vendor sends the finished file back, click <span class="btn-label">Import Completed Assessment</span> and upload it. The platform detects the format automatically &mdash; a completed <strong>PDF</strong>, <strong>Excel (.xlsx)</strong>, or <strong>CSV</strong> &mdash; and merges the answers into the assessment's existing responses.</p>
+    <div class="callout callout-warning">
+        <strong>The file's Reference must match.</strong> Every downloaded file carries a hidden <strong>Reference</strong> (the assessment's ID). If the Reference is missing or belongs to a different assessment, the import is refused and nothing is written &mdash; so answers can never land on the wrong assessment.
+    </div>
+
+    <h3>Have a certificate instead? <span class="new-badge">New in 2.6.2</span></h3>
+    <p>A vendor completing an assessment may be offered a shortcut: if they hold a relevant certification, they can upload it instead of answering every question. The <strong>&ldquo;Do you have a Certificate?&rdquo;</strong> prompt now shows whatever <strong>Certificate Upload Instructions</strong> the template author wrote, so it is no longer limited to ISO 27001 &mdash; a template can invite a SOC 2 Type 2, ISO 27001, or any other certificate. (Template authors set this text in the Template Builder; see <a href="#admin-templates">Assessment Template Builder</a>.)</p>
+
+    <h3>AI Auto-Fill from Certifications <span class="new-badge">New in 2.6.2</span></h3>
+    <p>If your administrator has configured an <a href="#admin-ai">AI provider</a>, an authorized reviewer can let the AI read the vendor's uploaded certification documents and pre-fill the questionnaire. Click <span class="btn-label">&#9889; Auto-Fill from Certifications</span> on the assessment page.</p>
+    <figure class="doc-figure">
+        <img src="app/docs/assessment-ai-autofill.png" alt="The Auto-Fill from Certifications button on a vendor assessment" loading="lazy">
+        <figcaption><strong>Auto-Fill from Certifications.</strong> With an AI provider configured, the button appears alongside <strong>Download PDF</strong>, <strong>Download Excel</strong>, and <strong>Import Completed Assessment</strong>. It reads the vendor's current certification documents and fills in the questions those documents answer.</figcaption>
+    </figure>
+    <p>When you click it you are reminded: <em>&ldquo;This will analyze the vendor's certification documents and pre-fill unanswered questions. Existing answers will not be changed.&rdquo;</em> The AI then works through the vendor's certificates and reports, for example, <em>&ldquo;Filled 12 of 30 unanswered questions.&rdquo;</em> A few things to know:</p>
+    <ul>
+        <li><strong>Only current certificates are used.</strong> It reads the vendor's uploaded documents whose type is <em>Certification</em> and that are <strong>active and not expired</strong> (PDF, CSV, and Excel documents; the most recent few). An expired or superseded certificate is ignored.</li>
+        <li><strong>It only fills blanks.</strong> Questions you have already answered are left untouched, and it never overwrites an existing answer.</li>
+        <li><strong>It answers only from what the documents actually say.</strong> The AI is instructed not to guess; anything it cannot confidently support from the documents is left unanswered for a person to complete.</li>
+        <li><strong>You stay in control.</strong> The filled answers are saved and the page reloads showing them, so you can review and change any answer before the assessment is submitted.</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>Who can use it, and when it appears.</strong> The button is shown only to <strong>Administrators</strong> and <strong>Cyber TPRM</strong> users, only when an AI provider is enabled, and only when the vendor has at least one current certification document on file. It is hidden on completed assessments.
+    </div>
+</div>
+
+<div class="doc-section" id="tprm-action-plan">
+    <h2>Vendor Action Plan <span class="new-badge">New in 2.6.2</span></h2>
+    <p>The <strong>Action Plan</strong> tab on a vendor's page lets the cyber team schedule follow-up work against that vendor &mdash; contact the vendor, send another assessment, force an annual review &mdash; with a due date, owners, and a running set of status notes. A daily job fires each action when its date arrives and turns it into a tracked to-do.</p>
+    <p>Open a vendor from <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Onboarding</span> &rarr; <span class="menu-label">My Vendors</span>, then click the <strong>Action Plan</strong> tab. The tab is available to <strong>Administrators</strong> and <strong>Cyber TPRM</strong> users.</p>
+
+    <h3>Scheduling an action</h3>
+    <ol class="steps">
+        <li>On the <strong>Action Plan</strong> tab, click <span class="btn-label">+ Create Action</span>.</li>
+        <li>Choose the <span class="field-label">Action</span>: <strong>Contact Vendor</strong>, <strong>Contact Stakeholder</strong>, <strong>Send Assessment</strong>, or <strong>Force Annual Review</strong>. (If you pick <strong>Send Assessment</strong>, a <span class="field-label">Vendor Assessment</span> picker appears so you can choose which template to send.)</li>
+        <li>Set the <span class="field-label">Due Date</span> &mdash; the day the action should fire.</li>
+        <li>Under <span class="field-label">Assign to (Cyber TPRM)</span>, tick one or more Cyber TPRM owners. (If there are none, the action falls back to the vendor's stakeholder.)</li>
+        <li>Optionally tick <span class="field-label">Email assigned individuals when this action fires</span>, and use <span class="field-label">Notification email addresses</span> to send to specific addresses instead &mdash; comma-separated. Leave it blank to use the assignees' own account emails.</li>
+        <li>Write a <span class="field-label">Description</span> (it is carried into the to-do that gets created), then click <span class="btn-label">Create Action</span>.</li>
+    </ol>
+
+    <h3>What happens when an action fires</h3>
+    <p>Each action fires once, on or after its due date. Firing creates a linked <strong>Cyber To-Do</strong> that deep-links back to this Action Plan tab, carries out the action (for <strong>Send Assessment</strong> it emails the vendor the questionnaire; for <strong>Force Annual Review</strong> it marks the annual review due), and &mdash; if you enabled it &mdash; emails the owners or the addresses you listed.</p>
+
+    <h3>Action statuses</h3>
+    <p>An action moves through these statuses:</p>
+    <p><span class="status-label">Pending</span> &rarr; <span class="status-label">In Progress</span> (set automatically when it fires) &rarr; <span class="status-label">Completed</span>, or <span class="status-label">Problem</span> if something went wrong when it fired, or <span class="status-label">Cancelled</span> if you cancel it before it fires. You can change the status yourself at any time; the daily job never overwrites a status you have set.</p>
+
+    <h3>Status notes</h3>
+    <p>Open an action to add dated <strong>Status Notes</strong> as the work progresses. Type a note and click <span class="btn-label">Add Note</span>. You can edit or delete your own notes; administrators can edit or delete anyone's. Every create, edit, and delete is audit-logged.</p>
+
+    <div class="callout callout-info">
+        <strong>The &ldquo;Vendor Remediation Schedule&rdquo; job.</strong> The daily job that fires due actions is called <strong>Vendor Remediation Schedule</strong> and runs every day at <strong>7:00 AM</strong> by default. Administrators can enable, disable, or retime it on the <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Scheduler</span> page. If it has been off, it catches up the next time it runs, firing everything that came due in the meantime.
+    </div>
+</div>
+
 <div class="doc-section" id="tprm-srs">
     <h2>Security Risk Scorecard (SRS)</h2>
     <p>The SRS provides an automated, external security score for each vendor based on DNS configuration, SSL/TLS, email security (SPF, DKIM, DMARC), open ports, and other technical indicators.</p>
@@ -882,8 +958,19 @@
 
 <div class="doc-section" id="tprm-fourth-party">
     <h2>4th Party Risk</h2>
-    <p>Track the vendors that <em>your vendors</em> rely on. If your cloud provider uses a subcontractor for data storage, that is a 4th-party risk.</p>
-    <p>Navigate to <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">4th Party Risk</span>.</p>
+    <p>Track the vendors that <em>your vendors</em> rely on. If your cloud provider uses a subcontractor for data storage, that is a 4th-party risk. From the sidebar you can open <span class="menu-label">4th Party Risk</span> (technology concentration), <span class="menu-label">CVE Search</span>, and <span class="menu-label">Subprocessors</span>. It is available to administrators and Cyber TPRM users; auditors can view but not act.</p>
+
+    <h3>Subprocessor concentration <span class="new-badge">New in 2.6.2</span></h3>
+    <p>Open <span class="menu-label">Subprocessors</span> to see the <strong>Subprocessor Concentration</strong> view: every subprocessor your vendors have declared, and how many of your vendors use each one. A subprocessor shared across several vendors is highlighted &mdash; that shared dependency is supply-chain concentration risk. (Subprocessors are added to a vendor from that vendor's detail page.)</p>
+
+    <h3>Send an assessment to everyone using a subprocessor <span class="new-badge">New in 2.6.2</span></h3>
+    <p>When a subprocessor concentrates risk, you can survey the vendors that depend on it in one action:</p>
+    <ol class="steps">
+        <li>On the Subprocessors list, click <span class="btn-label">Send Assessment</span> on that subprocessor's row.</li>
+        <li>In the vendor picker, choose which of the vendors using that subprocessor should receive the assessment (or <span class="field-label">Select All Visible</span>), then continue.</li>
+        <li>Pick an <span class="field-label">Assessment Template</span> and an <span class="field-label">Expires In</span> window (14, 30, 60, or 90 days), then click <span class="btn-label">Assign Assessment</span>.</li>
+    </ol>
+    <p>Each selected vendor is emailed the questionnaire (a request-for-information), and a reminder is tracked so follow-ups go out automatically. Vendors with no email on file are skipped, and any send that fails is retried by the reminder job. The same <strong>Assign Assessment</strong> flow is available from the technology-concentration and CVE views.</p>
 </div>
 
 <div class="doc-section" id="tprm-shadow-saas">
@@ -945,6 +1032,50 @@
         </ul>
         See <a href="#troubleshooting">Troubleshooting</a> for why this rule exists.
     </div>
+</div>
+
+<div class="doc-section" id="custom-onboarding">
+    <h2>Custom Onboarding Fields &amp; the Custom Data Tab <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Standard vendor fields (name, domain, tier, VAT, and so on) cover most needs, but every organization tracks something extra. In v2.6.2 an onboarding template can define <strong>custom fields</strong> that have no standard vendor column. Their values are captured per vendor and shown on the vendor's <strong>Custom Data</strong> tab.</p>
+
+    <h3>Where custom values live: the Custom Data tab</h3>
+    <p>Open a vendor (<span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Onboarding</span> &rarr; <span class="menu-label">My Vendors</span> &rarr; open a vendor). If the vendor's onboarding template defines any custom fields, a <strong>Custom Data</strong> tab appears alongside the other vendor tabs, with a count of how many custom values are on file. The tab is read-only until you click <span class="btn-label">Edit</span>; make your changes and click <span class="btn-label">Save Custom Data</span>. Fields are grouped by their template section. Users who are allowed to see a field but not edit it see it marked <em>(view only)</em>.</p>
+
+    <h3>Defining a custom field (administrators)</h3>
+    <p>A custom field is just a question on an <strong>Onboarding</strong>-category template whose <span class="field-label">Field Name</span> is one that is <em>not</em> a built-in vendor column. There are two steps, both in the Admin Portal:</p>
+    <ol class="steps">
+        <li><strong>Register the field name.</strong> Go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Field Reference</span>, click <span class="btn-label">+ Add Field</span>, and add your custom field (lowercase letters, numbers, and underscores; e.g. <code>data_residency_region</code>). Choose a column type (text, number, date, etc.) and the <span class="field-label">Onboarding</span> category.</li>
+        <li><strong>Add a question that maps to it.</strong> In <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Template Builder</span>, open your onboarding template, add a question, and set its <span class="field-label">Field Name</span> to the field you just registered. See <a href="#admin-templates">Assessment Template Builder</a>.</li>
+    </ol>
+
+    <h3>New field types for richer answers <span class="new-badge">New in 2.6.2</span></h3>
+    <p>Beyond the existing text, number, date, dropdown, and radio types, questions (custom or standard) can now use:</p>
+    <table class="doc-table">
+        <tr><th>Type</th><th>What the vendor sees</th></tr>
+        <tr><td><strong>Checkboxes</strong></td><td>A multi-select list &mdash; tick every option that applies.</td></tr>
+        <tr><td><strong>Button Group (Multi)</strong></td><td>The same multi-select, shown as a row of toggle buttons.</td></tr>
+        <tr><td><strong>Phone</strong></td><td>A phone number with a country-code &amp; flag picker (see <a href="#question-types">Phone &amp; VAT Question Types</a>).</td></tr>
+        <tr><td><strong>VAT Number</strong></td><td>An EU VAT number with double entry and live VIES validation (see <a href="#question-types">Phone &amp; VAT Question Types</a>).</td></tr>
+    </table>
+    <p>The single-select counterparts (<strong>Dropdown</strong>, <strong>Radio Buttons</strong>, <strong>Button Group</strong>) are still available. Multi-select types need an <span class="field-label">Options</span> list (one per line).</p>
+
+    <h3>Controlling who can see and edit a field (role-based gating) <span class="new-badge">New in 2.6.2</span></h3>
+    <p>On onboarding templates, each <strong>custom</strong> section and question carries two role controls, so you can keep sensitive fields away from people who should not see them:</p>
+    <ul>
+        <li><span class="field-label">Visible to Roles</span> &mdash; which roles can <em>see</em> the field.</li>
+        <li><span class="field-label">Visible and Editable Roles</span> &mdash; which roles can <em>edit</em> it.</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>Custom fields are private by default.</strong> Unlike a standard question, a custom field is hidden until you grant a role. Until a role is granted, only super administrators can see or edit it. A field a viewer is not allowed to see is left out of the Custom Data tab, the vendor page, the CSV export, and the API for that person. (This grant-only default applies to custom fields; standard onboarding questions are never gated this way.)
+    </div>
+    <p>Both a section's grant and a question's grant must allow a person before they see that question, so you can hide a whole section or just individual fields within it.</p>
+
+    <h3>Custom values in exports and the API</h3>
+    <ul>
+        <li><strong>CSV export.</strong> On the <span class="menu-label">Vendor Onboarding</span> list, <span class="btn-label">Export CSV</span> (administrators and Cyber TPRM) now adds one column per custom field, named <code>custom:&lt;field_name&gt;</code>, alongside the standard columns.</li>
+        <li><strong>REST API.</strong> The single-vendor response (<code>GET /vendors/{id}</code>) includes a <code>custom_onboarding_data</code> array; each entry has <code>field_name</code>, <code>label</code>, <code>value</code>, <code>type</code>, <code>section</code>, and <code>template_name</code>.</li>
+    </ul>
+    <p>Both read from the same place as the Custom Data tab and honor the same role-based visibility &mdash; a field the caller (or the API key's owner) cannot see is blanked or omitted.</p>
 </div>
 
 <div class="doc-section" id="ai-review">
@@ -1036,6 +1167,28 @@
         <img src="app/docs/shadow-saas.png" alt="Shadow SaaS list page" loading="lazy">
         <figcaption><strong>The Shadow SaaS page.</strong> Discovered and imported apps with their risk and actions. Apps onboarded as vendors are skipped on future syncs, and anything you dismiss stays dismissed.</figcaption>
     </figure>
+
+    <h3>Live vs. Local (cached) data source <span class="new-badge">New in 2.6.2</span></h3>
+    <p>On the Grip Security Connection card, <span class="field-label">Data source</span> controls where Grip pages read from:</p>
+    <ul>
+        <li><strong>Live</strong> &mdash; calls the Grip API for each page. Always current, but heavier on the API.</li>
+        <li><strong>Local (Hydrated/cached)</strong> &mdash; serves from the copy of Grip data held in the platform's database. Lighter on the API. In Local mode each sync <strong>fully refreshes</strong> that copy; between syncs pages serve from the snapshot rather than calling Grip.</li>
+    </ul>
+
+    <h3>Watching and controlling a sync <span class="new-badge">New in 2.6.2</span></h3>
+    <p>While a sync is running, the <strong>Last Sync</strong> card shows a live progress readout &mdash; <em>&ldquo;Hydrating per-app rosters &mdash; NN% (D / T apps)&rdquo;</em> &mdash; above a <span class="btn-label">Stop Sync</span> button that cooperatively cancels the run. To wipe the locally-served Grip data entirely, use <span class="btn-label">Truncate Data</span> on the same card: it clears the Grip mirror tables, the Grip rows on the Shadow SaaS list, and the Grip telemetry stamped on vendor records (the SaaS Data tab). Your sync history is kept, and the next sync re-hydrates everything from Grip.</p>
+
+    <h3>SecurityScorecard (SSC) rating <span class="new-badge">New in 2.6.2</span></h3>
+    <p>When Grip is connected, an <strong>SSC</strong> column shows each app or vendor's <strong>SecurityScorecard</strong> letter grade (A&ndash;F) on the Shadow SaaS list and on the vendor SRS list, and on the vendor's SaaS Data tab. It appears only while Grip is enabled.</p>
+
+    <h3>The vendor &ldquo;SaaS Data&rdquo; tab <span class="new-badge">New in 2.6.2</span></h3>
+    <p>When a vendor matches a Grip-discovered app, a read-only <strong>SaaS Data</strong> tab appears on that vendor's page, surfacing the Grip telemetry gathered during sync without leaving the vendor: <strong>First Discovered</strong>, <strong>Active Accounts</strong> (a link into the affected-users list), <strong>Last Known Usage</strong>, app classification, the <strong>Security Scorecard</strong> grade, category, AI depth, compliance signals, and SAML/MFA support.</p>
+
+    <h3>Grip breach alerts <span class="new-badge">New in 2.6.2</span></h3>
+    <p>Grip can also feed security incidents into the platform. Tick <span class="field-label">Flow Grip breach information into Breach / Cyber Alerts</span> on the connection card and Grip &ldquo;Security Incident Detected&rdquo; alerts are written into your <a href="#breach-alerts">Breach / Cyber Alerts</a> list on each sync. (This also requires the Breach/Cyber Alerts feature to be enabled under <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email Settings</span>.)</p>
+    <div class="callout callout-info">
+        <strong>Personal data is encrypted at rest.</strong> Names, email addresses, and other personal details in the cached Grip data are encrypted in the database and decrypted only when shown in the app or returned by the API. This is automatic and needs no configuration.
+    </div>
 </div>
 
 <div class="doc-section" id="shadow-saas-hero">
@@ -1090,6 +1243,26 @@
 </div>
 
 
+<div class="doc-section" id="breach-alerts">
+    <h2>Breach / Cyber Alerts <span class="new-badge">New in 2.6.2</span></h2>
+    <p>The <strong>Breach / Cyber Alerts</strong> page collects breach and threat-intelligence signals for your vendor supply chain in one place. Open it from the sidebar under <span class="menu-label">Breach / Cyber Alerts</span> &rarr; <span class="menu-label">Breach Alerts</span>; a red badge shows the number of new alerts.</p>
+
+    <h3>Where alerts come from</h3>
+    <p>Alerts include breaches surfaced by the AI Breach &amp; OSINT scanners (see <a href="#admin-ai">AI Integration</a>) and, when enabled, security incidents from <a href="#shadow-saas-grip">Grip</a>. Each alert shows the affected entity, users potentially impacted, technology, and when it was detected. An incident on a SaaS app you have <strong>not</strong> onboarded as a vendor is tagged <strong>&ldquo;Shadow SaaS&rdquo;</strong> with the number of users potentially impacted; if that app is later onboarded, future incidents attach to the vendor instead.</p>
+
+    <h3>Who was affected</h3>
+    <p>For a Grip-sourced incident, the impacted-user count links to an <strong>affected-users</strong> list for that app. The list is paged and filterable (for example by authentication method), and has a <strong>Search by name or email</strong> box to find a specific person. Because the roster is stored encrypted, the search runs over the decrypted data in the application, so it works the same as sorting and paging.</p>
+
+    <h3>Working through alerts in bulk</h3>
+    <p>Administrators and Cyber TPRM users get a multi-select toolbar on the list. Tick the alerts you want (or use <strong>Check all</strong>) and apply an action to all of them at once:</p>
+    <ul>
+        <li><span class="btn-label">Acknowledge</span> &mdash; mark the alerts as seen.</li>
+        <li><span class="btn-label">False Positive</span> &mdash; mark them as not a real issue.</li>
+        <li><span class="btn-label">Delete</span> &mdash; remove them. <strong>Administrators only</strong>, and confirmed before it runs.</li>
+    </ul>
+</div>
+
+
 <!-- ================================================================
      ADMIN PORTAL
      ================================================================ -->
@@ -1116,6 +1289,49 @@
         <li>A modal will appear showing all available groups with checkboxes. Check the groups you want to assign (e.g., <strong>Cyber GRC</strong>, <strong>Administrator</strong>).</li>
         <li>Click <span class="btn-label">Save Changes</span>.</li>
     </ol>
+    <p>Beyond assigning the shipped groups, super administrators can build their own groups with a custom permission set &mdash; see <a href="#admin-acl-groups">ACL Groups &amp; Custom Access Control</a>.</p>
+</div>
+
+<div class="doc-section" id="admin-acl-groups">
+    <h2>ACL Groups &amp; Custom Access Control <span class="new-badge">New in 2.6.2</span></h2>
+    <p>The platform ships with seven built-in groups (administrator, cyber_tprm, procurement, stakeholder, auditor, cyber_grc, grc_contributors). In v2.6.2, <strong>super administrators</strong> can also create their own groups and tune exactly what each one can do. Open <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Access Control</span> &rarr; <span class="menu-label">ACL Groups</span>. Any administrator can view this page; only super administrators see the create, edit, and permission controls.</p>
+
+    <h3>The shipped groups are protected</h3>
+    <p>The seven built-in groups are marked <strong>System</strong>. They cannot be deleted or renamed, and their permissions are read-only &mdash; you can open <span class="btn-label">View Permissions</span> to see exactly what they grant, but not change them. This keeps the defaults everyone relies on stable.</p>
+
+    <h3>Creating a custom group</h3>
+    <ol class="steps">
+        <li>Click <span class="btn-label">+ Create Group</span>.</li>
+        <li>Enter a <span class="field-label">Group Name (machine)</span> (lowercase letters, numbers, underscores &mdash; this is fixed once created), a friendly <span class="field-label">Display Name</span>, and a <span class="field-label">Description</span>.</li>
+        <li>Optionally use <span class="field-label">Copy permissions from</span> to <strong>clone</strong> an existing group (including a System group) as your starting point &mdash; then refine it. Leave it on <em>&mdash; Start with no permissions &mdash;</em> to build up from nothing.</li>
+        <li>Click <span class="btn-label">Create Group</span>.</li>
+    </ol>
+
+    <h3>Tuning the permission matrix</h3>
+    <p>Open a custom group's <span class="btn-label">Permissions</span>. Permissions are grouped by module (Vendor Onboarding, FAIR Analysis, Assessments, Security Rating (SRS), Annual Reviews, GRC, and Other). Each permission is tagged as either <strong>Read</strong> or <strong>Read/Write</strong>, and each module has three one-click presets:</p>
+    <ul>
+        <li><span class="btn-label">Read</span> &mdash; grants only the view/list/export permissions for that module.</li>
+        <li><span class="btn-label">Read &amp; Write</span> &mdash; grants everything (view <em>and</em> change).</li>
+        <li><span class="btn-label">None</span> &mdash; clears the module.</li>
+    </ul>
+    <p>Click <span class="btn-label">Save Permissions</span> when done. Granting <strong>Read</strong> never implies write access &mdash; the ability to change something is always a separate, explicit grant. All group changes are audit-logged.</p>
+</div>
+
+<div class="doc-section" id="admin-templates">
+    <h2>Assessment Template Builder <span class="new-badge">New in 2.6.2</span></h2>
+    <p>The <strong>Template Builder</strong> (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Template Builder</span>) is where administrators and Cyber TPRM users design assessment and onboarding questionnaires. Use <span class="btn-label">+ Add Section</span> and <span class="btn-label">+ Add Question</span> to build a template. A few v2.6.2 additions are worth calling out.</p>
+
+    <h3>Question types and field mapping</h3>
+    <p>A question's <span class="field-label">Question Type</span> now includes <strong>Phone</strong>, <strong>VAT Number</strong>, <strong>Checkboxes</strong>, and <strong>Button Group (Multi)</strong> in addition to the familiar text, dropdown, and radio types (see <a href="#custom-onboarding">Custom Onboarding Fields</a> for what each captures). A question's <span class="field-label">Field Name</span> maps its answer onto a vendor field; pick a built-in field or a custom one you registered under <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Field Reference</span>.</p>
+
+    <h3>Certificate Upload Instructions</h3>
+    <p>On a template you can fill in <span class="field-label">Certificate Upload Instructions</span> &mdash; the text shown to a vendor in the <em>&ldquo;Do you have a Certificate?&rdquo;</em> prompt. This lets a template invite any certificate (SOC 2 Type 2, ISO 27001, and so on), not just ISO 27001. If you leave it blank, a generic message is shown.</p>
+
+    <h3>Role-based visibility on onboarding templates</h3>
+    <p>For <strong>onboarding</strong> templates, custom sections and questions carry <span class="field-label">Visible to Roles</span> and <span class="field-label">Visible and Editable Roles</span> controls, so you decide who can see and edit each custom field. See <a href="#custom-onboarding">Custom Onboarding Fields &amp; the Custom Data Tab</a>.</p>
+
+    <h3>Deactivated templates are hidden by default</h3>
+    <p>The template list shows only <strong>active</strong> templates. If any have been deactivated, a <span class="btn-label">Show Deactivated (N)</span> button reveals them (and toggles back to <span class="btn-label">Hide Deactivated (N)</span>), keeping a long-lived tenant's list focused on the templates actually in use without losing access to retired ones.</p>
 </div>
 
 <div class="doc-section" id="admin-email">
@@ -1182,7 +1398,7 @@
         <li>If a newer version is listed, follow the on-screen <strong>Upgrade</strong> action to apply it.</li>
     </ol>
     <figure class="doc-figure">
-        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.2" loading="lazy">
+        <img src="app/docs/admin-version.png?v=20260711" alt="Version Management page showing installed version 2.6.2" loading="lazy">
         <figcaption><strong>Admin &rarr; Version.</strong> Here the installed version is <strong>v2.6.2</strong> and the platform reports it is up to date. This is also where you confirm which version this guide applies to.</figcaption>
     </figure>
 </div>
@@ -1213,7 +1429,14 @@
             <div class="faq-body"><p>English, Spanish, Italian, Ukrainian, Chinese (Simplified), Hindi, French, and Portuguese. Your administrator decides which of these appear in your list; English is always available.</p></div></details>
 
         <details class="faq-item"><summary>I changed my language but some text is still in English. Why?<span class="faq-tag">Language</span></summary>
-            <div class="faq-body"><p>Menus, buttons, and labels are translated. Vendor assessment <em>questions</em> are translated automatically only when an AI provider is configured by your administrator, and stored answer values always remain in English so scoring stays consistent. A few third-party messages may also remain in English.</p></div></details>
+            <div class="faq-body"><p>A few different things can stay in English even after you switch language:</p>
+            <ul>
+                <li><strong>Interface text that has not been translated yet.</strong> Menus, buttons, and labels are translated wherever a translation exists for your language. If a particular string has not been translated into your language yet, it falls back to English rather than showing a blank &mdash; so you may see the occasional English label.</li>
+                <li><strong>Anything that was typed in.</strong> Content you or your vendors enter &mdash; vendor names, notes, uploaded document names, free-text answers &mdash; is shown exactly as it was written, in whatever language that was.</li>
+                <li><strong>Assessment questions without an AI provider.</strong> Vendor assessment <em>question</em> text is translated automatically only when your administrator has configured an AI provider; without one, questions stay in the language they were authored in. Stored answer values always remain in English so scoring stays consistent.</li>
+                <li><strong>Emails and some third-party components</strong> are not controlled by your language setting.</li>
+            </ul>
+            <p>If you see an interface label that should be translated but is not, let your administrator know so the missing text can be added.</p></div></details>
 
         <details class="faq-item"><summary>Why can't I submit my vendor for review?<span class="faq-tag">Onboarding</span></summary>
             <div class="faq-body"><p>A vendor can only be submitted once it has completed <strong>Procurement Onboarding</strong> (set to <strong>Yes</strong>) and has a valid <strong>Vendor ID (VID)</strong> of 4&ndash;8 digits. Open the vendor, fill in both on the <strong>Vendor Information</strong> card, save, then click <strong>Submit for Review</strong>. See <a href="#onboarding-workflow">Vendor Onboarding</a> and <a href="#troubleshooting">Troubleshooting</a>.</p></div></details>
@@ -1314,6 +1537,7 @@
     <table class="doc-table">
         <tr><th>Term</th><th>Definition</th></tr>
         <tr><td><strong>ACL</strong></td><td>Access Control List &mdash; defines what actions users in a group can perform</td></tr>
+        <tr><td><strong>Action Plan</strong></td><td>A per-vendor tab for scheduling follow-up actions (contact, send assessment, force annual review) with due dates, owners, and status notes; fired daily by the Vendor Remediation Schedule job</td></tr>
         <tr><td><strong>AI Review</strong></td><td>A vendor onboarding status for vendors whose services use AI, tracked separately during review</td></tr>
         <tr><td><strong>Assessment</strong></td><td>A point-in-time compliance evaluation using the unified questionnaire</td></tr>
         <tr><td><strong>CIS Controls</strong></td><td>Center for Internet Security Controls &mdash; a prioritized set of security best practices</td></tr>
@@ -1322,6 +1546,7 @@
         <tr><td><strong>Control</strong></td><td>A specific security measure implemented to meet compliance requirements</td></tr>
         <tr><td><strong>Crosswalk</strong></td><td>A mapping between two frameworks showing which requirements overlap</td></tr>
         <tr><td><strong>CSF</strong></td><td>NIST Cybersecurity Framework &mdash; a widely-used cybersecurity risk management framework</td></tr>
+        <tr><td><strong>Custom Field / Custom Data</strong></td><td>An organization-specific onboarding field with no standard vendor column; captured per vendor and shown on the vendor's Custom Data tab, with per-role visibility (see <a href="#custom-onboarding">Custom Onboarding Fields</a>)</td></tr>
         <tr><td><strong>Domain</strong></td><td>A category of security questions (e.g., Governance, Identity &amp; Access Management)</td></tr>
         <tr><td><strong>Evidence</strong></td><td>Documents, screenshots, or files that prove a compliance claim</td></tr>
         <tr><td><strong>FAIR</strong></td><td>Factor Analysis of Information Risk &mdash; a quantitative risk analysis methodology</td></tr>
@@ -1344,6 +1569,8 @@
         <tr><td><strong>SOC 2</strong></td><td>Service Organization Control Type 2 &mdash; trust services criteria for service organizations</td></tr>
         <tr><td><strong>SPII</strong></td><td>Sensitive PII (SSNs, financial data, health records)</td></tr>
         <tr><td><strong>SRS</strong></td><td>Security Risk Scorecard &mdash; the platform's external security rating/grade for a vendor</td></tr>
+        <tr><td><strong>SSC (SecurityScorecard)</strong></td><td>A third-party security letter-grade (A&ndash;F) shown for Grip-discovered apps and vendors when Grip is connected</td></tr>
+        <tr><td><strong>Subprocessor</strong></td><td>A vendor's own downstream vendor; the same subprocessor shared across several of your vendors indicates supply-chain concentration (see <a href="#tprm-fourth-party">4th Party Risk</a>)</td></tr>
         <tr><td><strong>TPRM</strong></td><td>Third Party Risk Management</td></tr>
         <tr><td><strong>Unified Question</strong></td><td>A single security question that maps to requirements across multiple frameworks</td></tr>
         <tr><td><strong>VID</strong></td><td>Vendor ID &mdash; a 4&ndash;8 digit identifier assigned to a vendor by your procurement system</td></tr>
@@ -1394,6 +1621,8 @@
                     <a href="#tprm-add-vendor">Adding a Vendor</a>
                     <a href="#tprm-lifecycle">Vendor Lifecycle</a>
                     <a href="#tprm-assessments">Vendor Assessments</a>
+                    <a href="#assessment-forms">Assessment Forms &amp; AI Fill</a>
+                    <a href="#tprm-action-plan">Vendor Action Plan</a>
                     <a href="#tprm-srs">Security Risk Scorecard</a>
                     <a href="#tprm-fair">FAIR Analysis</a>
                     <a href="#tprm-fourth-party">4th Party Risk</a>
@@ -1401,16 +1630,20 @@
 
                     <h4>Onboarding &amp; Procurement</h4>
                     <a href="#onboarding-workflow">Vendor Onboarding</a>
+                    <a href="#custom-onboarding">Custom Onboarding Fields</a>
                     <a href="#ai-review">AI Review</a>
                     <a href="#procurement-cyber-status">Procurement Cyber Status</a>
                     <a href="#shadow-saas-grip">Grip Shadow SaaS Integration</a>
                     <a href="#shadow-saas-hero">Hero Shadow SaaS Integration</a>
                     <a href="#zscaler">Zscaler Blocking</a>
+                    <a href="#breach-alerts">Breach / Cyber Alerts</a>
 
                     <h4>Admin Portal</h4>
                     <a href="#admin-general">General Settings</a>
                     <a href="#admin-branding">Branding &amp; Theme</a>
                     <a href="#admin-users">User Management</a>
+                    <a href="#admin-acl-groups">ACL Groups</a>
+                    <a href="#admin-templates">Assessment Templates</a>
                     <a href="#admin-email">Email Configuration</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">AI Integration</a>

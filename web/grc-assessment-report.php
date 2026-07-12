@@ -28,7 +28,7 @@ $isContributor = hasGroup('grc_contributors');
 
 if (!$isAdmin && !$isCyberGRC && !$isAuditor && !$isContributor) {
     http_response_code(403);
-    die('Access denied. Report editing requires cyber_grc or administrator role.');
+    die(t('grc-assessment-report.access_denied'));
 }
 
 $canEdit = $isAdmin || $isCyberGRC;
@@ -80,11 +80,11 @@ function rptScoreColor(float $s): string {
     return '#dc3545';
 }
 function rptScoreTier(float $s): string {
-    if ($s >= 3.5) return 'Adaptive (Tier 4)';
-    if ($s >= 2.5) return 'Repeatable (Tier 3)';
-    if ($s >= 1.5) return 'Risk-Informed (Tier 2)';
-    if ($s >= 0.5) return 'Partial (Tier 1)';
-    return 'Not Assessed';
+    if ($s >= 3.5) return t('grc-assessment-report.tier_adaptive');
+    if ($s >= 2.5) return t('grc-assessment-report.tier_repeatable');
+    if ($s >= 1.5) return t('grc-assessment-report.tier_risk_informed');
+    if ($s >= 0.5) return t('grc-assessment-report.tier_partial');
+    return t('grc-assessment-report.tier_not_assessed');
 }
 
 // Default section texts
@@ -505,7 +505,7 @@ $csrfToken = $security->generateCSRFToken();
     if (companyInput) {
         companyInput.addEventListener('input', function() {
             var name = this.value.trim() || 'Organization';
-            document.getElementById('reportTitle').textContent = name + ' Cyber Report';
+            document.getElementById('reportTitle').textContent = name + ' ' + <?php echo json_encode(t('grc-assessment-report.cyber_report')); ?>;
         });
     }
 
@@ -569,7 +569,7 @@ $csrfToken = $security->generateCSRFToken();
 
     function savePdf(btn) {
         btn.disabled = true;
-        btn.textContent = 'Generating PDF...';
+        btn.textContent = <?php echo json_encode(t('grc-assessment-report.js_generating_pdf')); ?>;
 
         fetch('api/grc-assessment-report.php', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -584,25 +584,25 @@ $csrfToken = $security->generateCSRFToken();
         .then(function(resp) {
             if (resp.csrf_token) _csrfToken = resp.csrf_token;
             btn.disabled = false;
-            btn.textContent = 'Save & Generate PDF';
+            btn.textContent = <?php echo json_encode(t('grc-assessment-report.save_generate_pdf')); ?>;
             if (resp.success) {
-                showStatus('Report generated: ' + resp.file_name, 'success');
+                showStatus(<?php echo json_encode(t('grc-assessment-report.js_report_generated_prefix')); ?> + resp.file_name, 'success');
                 // Add download button if not present
                 if (!document.querySelector('a[href*="grc-assessment-report.php?action=download"]')) {
                     var dl = document.createElement('a');
                     dl.href = resp.download_url;
                     dl.className = 'btn btn-primary';
-                    dl.textContent = 'Download PDF';
+                    dl.textContent = <?php echo json_encode(t('grc-assessment-report.download_pdf')); ?>;
                     btn.parentNode.appendChild(dl);
                 }
             } else {
-                showStatus('Error: ' + (resp.error || 'Unknown error'), 'error');
+                showStatus(<?php echo json_encode(t('grc-assessment-report.js_error_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment-report.js_unknown_error')); ?>), 'error');
             }
         })
         .catch(function(err) {
             btn.disabled = false;
-            btn.textContent = 'Save & Generate PDF';
-            showStatus('Failed: ' + err.message, 'error');
+            btn.textContent = <?php echo json_encode(t('grc-assessment-report.save_generate_pdf')); ?>;
+            showStatus(<?php echo json_encode(t('grc-assessment-report.js_failed_prefix')); ?> + err.message, 'error');
         });
     }
 
@@ -612,12 +612,12 @@ $csrfToken = $security->generateCSRFToken();
 
         if (!_aiEnabled) {
             // Without AI, populate with the existing default text
-            showStatus('Assisted writing is not configured. You can manually edit the section text. An administrator can enable this feature under Admin \u2192 Settings.', 'error');
+            showStatus(<?php echo json_encode(t('grc-assessment-report.js_assist_not_configured')); ?>, 'error');
             return;
         }
 
         btn.disabled = true;
-        btn.textContent = 'Thinking...';
+        btn.textContent = <?php echo json_encode(t('grc-assessment-report.js_thinking')); ?>;
 
         // Remove existing preview
         var existing = document.getElementById('assist-preview-' + section);
@@ -645,43 +645,43 @@ $csrfToken = $security->generateCSRFToken();
         .then(function(resp) {
             if (resp.csrf_token) _csrfToken = resp.csrf_token;
             btn.disabled = false;
-            btn.textContent = 'Propose Language';
+            btn.textContent = <?php echo json_encode(t('grc-assessment-report.propose_language')); ?>;
             if (resp.success && resp.content) {
                 var preview = document.createElement('div');
                 preview.className = 'assist-preview';
                 preview.id = 'assist-preview-' + section;
-                preview.innerHTML = '<div style="font-size:11px;font-weight:600;color:#6d28d9;margin-bottom:6px;">Proposed Language</div>' +
+                preview.innerHTML = '<div style="font-size:11px;font-weight:600;color:#6d28d9;margin-bottom:6px;">' + <?php echo json_encode(t('grc-assessment-report.js_proposed_language')); ?> + '</div>' +
                     '<div class="assist-text">' + escHtml(resp.content) + '</div>' +
                     '<div class="assist-actions">' +
-                    '<button class="btn btn-xs btn-success" data-action="accept-assist" data-section="' + section + '">Accept</button>' +
-                    '<button class="btn btn-xs btn-outline" data-action="discard-assist" data-section="' + section + '">Discard</button>' +
+                    '<button class="btn btn-xs btn-success" data-action="accept-assist" data-section="' + section + '">' + <?php echo json_encode(t('grc-assessment-report.js_accept')); ?> + '</button>' +
+                    '<button class="btn btn-xs btn-outline" data-action="discard-assist" data-section="' + section + '">' + <?php echo json_encode(t('grc-assessment-report.js_discard')); ?> + '</button>' +
                     '</div>';
                 ta.parentNode.insertBefore(preview, ta.nextSibling);
             } else {
-                showStatus('Assistant: ' + (resp.error || 'No response'), 'error');
+                showStatus(<?php echo json_encode(t('grc-assessment-report.js_assistant_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment-report.js_no_response')); ?>), 'error');
             }
         })
         .catch(function() {
             btn.disabled = false;
-            btn.textContent = 'Propose Language';
-            showStatus('Connection error', 'error');
+            btn.textContent = <?php echo json_encode(t('grc-assessment-report.propose_language')); ?>;
+            showStatus(<?php echo json_encode(t('grc-assessment-report.js_connection_error')); ?>, 'error');
         });
     }
 
     function assistRewrite(section, btn) {
         var ta = document.getElementById('section-' + section);
         if (!ta || !ta.value.trim()) {
-            showStatus('Write content first, then click Rewrite for an improved version.', 'error');
+            showStatus(<?php echo json_encode(t('grc-assessment-report.js_write_content_first')); ?>, 'error');
             return;
         }
 
         if (!_aiEnabled) {
-            showStatus('AI platform is not configured. You can manually edit the section text. To enable AI-assisted rewriting, an administrator can configure it under Admin \u2192 AI Platform Settings.', 'error');
+            showStatus(<?php echo json_encode(t('grc-assessment-report.js_ai_not_configured_rewrite')); ?>, 'error');
             return;
         }
 
         btn.disabled = true;
-        btn.textContent = 'Rewriting...';
+        btn.textContent = <?php echo json_encode(t('grc-assessment-report.js_rewriting')); ?>;
 
         var existing = document.getElementById('assist-preview-' + section);
         if (existing) existing.remove();
@@ -700,26 +700,26 @@ $csrfToken = $security->generateCSRFToken();
         .then(function(resp) {
             if (resp.csrf_token) _csrfToken = resp.csrf_token;
             btn.disabled = false;
-            btn.textContent = 'Rewrite';
+            btn.textContent = <?php echo json_encode(t('grc-assessment-report.rewrite')); ?>;
             if (resp.success && resp.content) {
                 var preview = document.createElement('div');
                 preview.className = 'assist-preview';
                 preview.id = 'assist-preview-' + section;
-                preview.innerHTML = '<div style="font-size:11px;font-weight:600;color:#6d28d9;margin-bottom:6px;">Proposed Rewrite</div>' +
+                preview.innerHTML = '<div style="font-size:11px;font-weight:600;color:#6d28d9;margin-bottom:6px;">' + <?php echo json_encode(t('grc-assessment-report.js_proposed_rewrite')); ?> + '</div>' +
                     '<div class="assist-text">' + escHtml(resp.content) + '</div>' +
                     '<div class="assist-actions">' +
-                    '<button class="btn btn-xs btn-success" data-action="accept-assist" data-section="' + section + '">Accept</button>' +
-                    '<button class="btn btn-xs btn-outline" data-action="discard-assist" data-section="' + section + '">Discard</button>' +
+                    '<button class="btn btn-xs btn-success" data-action="accept-assist" data-section="' + section + '">' + <?php echo json_encode(t('grc-assessment-report.js_accept')); ?> + '</button>' +
+                    '<button class="btn btn-xs btn-outline" data-action="discard-assist" data-section="' + section + '">' + <?php echo json_encode(t('grc-assessment-report.js_discard')); ?> + '</button>' +
                     '</div>';
                 ta.parentNode.insertBefore(preview, ta.nextSibling);
             } else {
-                showStatus('Rewrite failed: ' + (resp.error || 'No response'), 'error');
+                showStatus(<?php echo json_encode(t('grc-assessment-report.js_rewrite_failed_prefix')); ?> + (resp.error || <?php echo json_encode(t('grc-assessment-report.js_no_response')); ?>), 'error');
             }
         })
         .catch(function() {
             btn.disabled = false;
-            btn.textContent = 'Rewrite';
-            showStatus('Connection error', 'error');
+            btn.textContent = <?php echo json_encode(t('grc-assessment-report.rewrite')); ?>;
+            showStatus(<?php echo json_encode(t('grc-assessment-report.js_connection_error')); ?>, 'error');
         });
     }
 

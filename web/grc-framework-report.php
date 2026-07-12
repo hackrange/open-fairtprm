@@ -31,7 +31,7 @@ $isAuditor = hasGroup('auditor');
 
 if (!$isAdmin && !$isCyberGRC && !$isAuditor) {
     http_response_code(403);
-    die('Access denied. GRC module requires cyber_grc, administrator, or auditor role.');
+    die(t('grc-framework-report.access_denied'));
 }
 
 $canDownload = $isAdmin || $isCyberGRC || $isAuditor;
@@ -177,34 +177,34 @@ $applicableReqs = $totalReqs - $naReqs;
 $compliancePct = $applicableReqs > 0 ? round((($conformingReqs + $partialReqs * 0.5) / $applicableReqs) * 100, 1) : 0;
 
 $statusLabels = [
-    'conforming' => ['Conforming', '#059669', '#d1fae5'],
-    'partial' => ['Partial', '#d97706', '#fef3c7'],
-    'non_conforming' => ['Non-Conforming', '#dc2626', '#fee2e2'],
-    'not_applicable' => ['N/A', '#6b7280', '#f3f4f6'],
-    'not_assessed' => ['Not Assessed', '#9ca3af', '#f9fafb'],
+    'conforming' => [t('grc-framework-report.status_conforming'), '#059669', '#d1fae5'],
+    'partial' => [t('grc-framework-report.status_partial'), '#d97706', '#fef3c7'],
+    'non_conforming' => [t('grc-framework-report.status_non_conforming'), '#dc2626', '#fee2e2'],
+    'not_applicable' => [t('grc-framework-report.status_na'), '#6b7280', '#f3f4f6'],
+    'not_assessed' => [t('grc-framework-report.status_not_assessed'), '#9ca3af', '#f9fafb'],
 ];
 
 $validationLabels = [
-    'validated' => ['Validated', '#059669', '#d1fae5'],
-    'rejected' => ['Rejected', '#dc2626', '#fee2e2'],
-    'needs_review' => ['Needs Review', '#d97706', '#fef3c7'],
-    'pending' => ['Pending', '#9ca3af', '#f3f4f6'],
+    'validated' => [t('grc-framework-report.val_validated'), '#059669', '#d1fae5'],
+    'rejected' => [t('grc-framework-report.val_rejected'), '#dc2626', '#fee2e2'],
+    'needs_review' => [t('grc-framework-report.val_needs_review'), '#d97706', '#fef3c7'],
+    'pending' => [t('grc-framework-report.val_pending'), '#9ca3af', '#f3f4f6'],
 ];
 
 $typeLabels = [
-    'initial' => 'Initial',
-    'periodic' => 'Periodic',
-    'targeted' => 'Targeted',
-    'pre_audit' => 'Pre-Audit',
-    'certification' => 'Certification',
+    'initial' => t('grc-framework-report.type_initial'),
+    'periodic' => t('grc-framework-report.type_periodic'),
+    'targeted' => t('grc-framework-report.type_targeted'),
+    'pre_audit' => t('grc-framework-report.type_pre_audit'),
+    'certification' => t('grc-framework-report.type_certification'),
 ];
 
 $assessmentStatusLabels = [
-    'draft' => ['Draft', '#6b7280'],
-    'in_progress' => ['In Progress', '#3b82f6'],
-    'under_review' => ['Under Review', '#d97706'],
-    'completed' => ['Completed', '#059669'],
-    'archived' => ['Archived', '#9ca3af'],
+    'draft' => [t('grc-framework-report.astatus_draft'), '#6b7280'],
+    'in_progress' => [t('grc-framework-report.astatus_in_progress'), '#3b82f6'],
+    'under_review' => [t('grc-framework-report.astatus_under_review'), '#d97706'],
+    'completed' => [t('grc-framework-report.astatus_completed'), '#059669'],
+    'archived' => [t('grc-framework-report.astatus_archived'), '#9ca3af'],
 ];
 
 // Risk Heatmap data (5x5 grid from grc_risk_register)
@@ -232,7 +232,7 @@ $csrfToken = $security->getCSRFToken();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo e($framework['code']); ?> Compliance Report - <?php echo e($assessment['title']); ?></title>
+    <title><?php echo e($framework['code']); ?> <?php echo e(t('grc-framework-report.compliance_report')); ?> - <?php echo e($assessment['title']); ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <?php
@@ -443,8 +443,8 @@ $csrfToken = $security->getCSRFToken();
 
             <!-- Assessment Header -->
             <div class="report-header">
-                <div class="report-title"><?php echo e($framework['name']); ?> <?php echo e($framework['version'] ?? ''); ?> &mdash; Compliance Report</div>
-                <div class="report-subtitle">Assessment: <?php echo e($assessment['assessment_ref'] ?? ''); ?> &mdash; <?php echo e($assessment['title']); ?></div>
+                <div class="report-title"><?php echo e($framework['name']); ?> <?php echo e($framework['version'] ?? ''); ?> &mdash; <?php echo e(t('grc-framework-report.compliance_report')); ?></div>
+                <div class="report-subtitle"><?php echo e(t('grc-framework-report.assessment_prefix')); ?> <?php echo e($assessment['assessment_ref'] ?? ''); ?> &mdash; <?php echo e($assessment['title']); ?></div>
 
                 <div class="header-grid">
                     <div class="header-field">
@@ -455,7 +455,7 @@ $csrfToken = $security->getCSRFToken();
                         <div class="label"><?php echo e(t('grc-framework-report.status')); ?></div>
                         <div class="value">
                             <?php
-                            $as = $assessmentStatusLabels[$assessment['status']] ?? ['Unknown', '#6b7280'];
+                            $as = $assessmentStatusLabels[$assessment['status']] ?? [t('grc-framework-report.astatus_unknown'), '#6b7280'];
                             ?>
                             <span class="status-badge" style="background: <?php echo $as[1]; ?>20; color: <?php echo $as[1]; ?>;"><?php echo e($as[0]); ?></span>
                         </div>

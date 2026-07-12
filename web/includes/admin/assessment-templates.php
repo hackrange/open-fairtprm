@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'certificate_upload_mode' => $_POST['certificate_upload_mode'] ?? 'none',
                     'certificate_upload_prompt' => trim($_POST['certificate_upload_prompt'] ?? ''),
                 ]);
-                $success = 'Template created. <a href="?section=assessment-templates&action=edit&template_id=' . $newId . '">Edit it now</a>';
+                $success = t('admin_assessment-templates.template_created') . ' <a href="?section=assessment-templates&action=edit&template_id=' . $newId . '">' . t('admin_assessment-templates.edit_it_now') . '</a>';
             } catch (Exception $e) {
                 error_log('Create template error: ' . $e->getMessage());
                 $error = t('admin_assessment-templates.create_failed');
@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($tid) {
             try {
                 $newId = $assessmentService->duplicateTemplate($tid);
-                $success = 'Template duplicated. <a href="?section=assessment-templates&action=edit&template_id=' . $newId . '">Edit the copy</a>';
+                $success = t('admin_assessment-templates.template_duplicated') . ' <a href="?section=assessment-templates&action=edit&template_id=' . $newId . '">' . t('admin_assessment-templates.edit_the_copy') . '</a>';
             } catch (Exception $e) {
                 error_log('Duplicate template error: ' . $e->getMessage());
                 $error = t('admin_assessment-templates.duplicate_failed');
@@ -368,20 +368,20 @@ foreach ($editTemplate['sections'] as $sec) {
 <div class="page-header-bar">
     <h1>
         <a href="?section=assessment-templates" style="color:#666; text-decoration:none;">&larr;</a>
-        Edit: <?php echo e($editTemplate['name']); ?>
+        <?php echo e(t('admin_assessment-templates.edit_prefix')); ?> <?php echo e($editTemplate['name']); ?>
     </h1>
     <p>
         <?php echo e($categoryLabels[$editTemplate['category'] ?? 'vendor_assessment'] ?? ''); ?> &middot;
-        <?php echo $editTemplate['is_active'] ? '<span style="color:#166534;">Active</span>' : '<span style="color:#991b1b;">Inactive</span>'; ?>
+        <?php echo $editTemplate['is_active'] ? '<span style="color:#166534;">' . t('admin_assessment-templates.status_active') . '</span>' : '<span style="color:#991b1b;">' . t('admin_assessment-templates.status_inactive') . '</span>'; ?>
         <?php if ($assessmentCount > 0): ?>
-        &middot; <span style="color:#92400e;"><?php echo $assessmentCount; ?> linked assessment(s)</span>
+        &middot; <span style="color:#92400e;"><?php echo $assessmentCount; ?> <?php echo e(t('admin_assessment-templates.linked_assessments_suffix')); ?></span>
         <?php endif; ?>
     </p>
 </div>
 
 <?php if ($assessmentCount > 0): ?>
 <div class="alert" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">
-    This template has <?php echo $assessmentCount; ?> linked assessment(s). Changes will affect future assessments but not existing ones.
+    <?php echo e(t('admin_assessment-templates.linked_warning_prefix')); ?> <?php echo $assessmentCount; ?> <?php echo e(t('admin_assessment-templates.linked_warning_suffix')); ?>
 </div>
 <?php endif; ?>
 
@@ -495,7 +495,7 @@ foreach ($editTemplate['sections'] as $sec) {
             <div class="section-header">
                 <div class="section-header-left">
                     <strong class="section-title-text"><?php echo e($sec['name']); ?></strong>
-                    <small style="color:#666; margin-left:10px;"><?php echo count($sec['questions']); ?> question(s)</small>
+                    <small style="color:#666; margin-left:10px;"><?php echo count($sec['questions']); ?> <?php echo e(t('admin_assessment-templates.questions_suffix')); ?></small>
                 </div>
                 <div class="section-header-right">
                     <?php if ($sIdx > 0): ?>
@@ -522,7 +522,7 @@ foreach ($editTemplate['sections'] as $sec) {
                         <span class="badge badge-danger" style="font-size:10px;"><?php echo e(t('admin_assessment-templates.badge_required')); ?></span>
                         <?php endif; ?>
                         <?php if (!empty($q['field_name'])): ?>
-                        <span class="badge" style="font-size:10px; background:#dbeafe; color:#1e40af;" title="Maps to vendor field: <?php echo e($q['field_name']); ?>"><?php echo e($q['field_name']); ?></span>
+                        <span class="badge" style="font-size:10px; background:#dbeafe; color:#1e40af;" title="<?php echo e(t('admin_assessment-templates.maps_to_field')); ?> <?php echo e($q['field_name']); ?>"><?php echo e($q['field_name']); ?></span>
                         <?php endif; ?>
                         <?php if (!empty($q['depends_on_question_id'])): ?>
                         <span class="badge badge-purple" style="font-size:10px;" title="<?php echo e(t('admin_assessment-templates.badge_conditional')); ?>"><?php echo e(t('admin_assessment-templates.badge_conditional')); ?></span>
@@ -555,12 +555,12 @@ foreach ($editTemplate['sections'] as $sec) {
 // role slugs persisted in visible_roles (matches VendorAssessmentService::VISIBILITY_ROLES).
 // 'super_admin' is the is_super_admin flag, not an ACL group. Empty selection = visible to all.
 $visibilityRoles = [
-    'stakeholder'   => 'Stakeholder',
-    'cyber_tprm'    => 'Cyber TPRM',
-    'administrator' => 'Administrator',
-    'auditor'       => 'Auditor',
-    'procurement'   => 'Procurement',
-    'super_admin'   => 'Super Admin',
+    'stakeholder'   => t('admin_assessment-templates.role_stakeholder'),
+    'cyber_tprm'    => t('admin_assessment-templates.role_cyber_tprm'),
+    'administrator' => t('admin_assessment-templates.role_administrator'),
+    'auditor'       => t('admin_assessment-templates.role_auditor'),
+    'procurement'   => t('admin_assessment-templates.role_procurement'),
+    'super_admin'   => t('admin_assessment-templates.role_super_admin'),
 ];
 ?>
 <!-- Section Modal -->
@@ -817,7 +817,7 @@ document.getElementById('qModalFieldName')?.addEventListener('change', function(
     var editingId = parseInt(document.getElementById('qModalId').value) || 0;
     var val = this.value;
     if (val && usedFieldNames[val] && usedFieldNames[val] !== editingId) {
-        warning.textContent = 'Warning: "' + val + '" is already used by another question in this template.';
+        warning.textContent = <?php echo json_encode(t('admin_assessment-templates.js_field_warning_prefix')); ?> + val + <?php echo json_encode(t('admin_assessment-templates.js_field_warning_suffix')); ?>;
         warning.style.display = 'block';
     } else {
         warning.style.display = 'none';

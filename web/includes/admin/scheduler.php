@@ -178,7 +178,7 @@ function describeCron(string $expr): string
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_scheduler.invalid_request');
     } elseif (isset($_POST['save_schedules'])) {
         $changes = [];
         $validationError = false;
@@ -186,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Validate and collect timezone
         $tz = trim($_POST['cron_timezone'] ?? 'UTC');
         if ($tz === '' || !in_array($tz, timezone_identifiers_list())) {
-            $error = 'Invalid timezone selected.';
+            $error = t('admin_scheduler.invalid_timezone');
             $validationError = true;
         }
 
@@ -196,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!empty($job['hidden'])) { continue; } // managed on its own admin page
                 $schedule = trim($_POST["schedule_{$key}"] ?? $job['default_schedule']);
                 if (!isValidCronExpression($schedule)) {
-                    $error = 'Invalid cron expression for ' . e($job['name']) . ': must be 5 space-separated fields (e.g. 0 4 * * *)';
+                    $error = t('admin_scheduler.invalid_cron_prefix') . e($job['name']) . t('admin_scheduler.invalid_cron_suffix');
                     $validationError = true;
                     break;
                 }
@@ -278,9 +278,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Regenerate crontab
                 if (!regenerateCrontab($db, $cronJobs)) {
-                    $error = 'Schedules saved to database, but failed to write /etc/cron.d/open-tprm. Check file permissions.';
+                    $error = t('admin_scheduler.crontab_write_failed');
                 } else {
-                    $success = 'Cron schedules updated successfully.';
+                    $success = t('admin_scheduler.schedules_updated');
                 }
 
                 // Audit log
@@ -291,7 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             } catch (Exception $e) {
                 error_log('Scheduler save error: ' . $e->getMessage());
-                $error = 'Failed to save schedules: ' . $e->getMessage();
+                $error = t('admin_scheduler.save_failed_prefix') . $e->getMessage();
             }
         }
     }
@@ -396,8 +396,8 @@ $timezones = timezone_identifiers_list();
 // ============================================================================
 ?>
 <div class="page-header-bar">
-    <h1 class="page-title">Scheduler</h1>
-    <p>Manage cron job schedules, enable or disable jobs, and view execution history.</p>
+    <h1 class="page-title"><?php echo e(t('admin_scheduler.page_title')); ?></h1>
+    <p><?php echo e(t('admin_scheduler.page_subtitle')); ?></p>
 </div>
 
 <form method="POST" action="admin.php?section=scheduler">
@@ -405,29 +405,29 @@ $timezones = timezone_identifiers_list();
     <input type="hidden" name="save_schedules" value="1">
 
     <div class="card">
-        <h3>Scheduled Jobs</h3>
+        <h3><?php echo e(t('admin_scheduler.scheduled_jobs_heading')); ?></h3>
 
         <div class="form-group" style="max-width: 350px; margin-bottom: 20px;">
-            <label for="cron_timezone">Timezone</label>
+            <label for="cron_timezone"><?php echo e(t('admin_scheduler.timezone_label')); ?></label>
             <select name="cron_timezone" id="cron_timezone" class="form-control">
                 <?php foreach ($timezones as $tz): ?>
                     <option value="<?php echo e($tz); ?>"<?php echo $tz === $cronTimezone ? ' selected' : ''; ?>><?php echo e($tz); ?></option>
                 <?php endforeach; ?>
             </select>
-            <div class="form-help">All cron schedules run in this timezone. Current server time in this zone: <strong id="tzClock">--</strong></div>
+            <div class="form-help"><?php echo e(t('admin_scheduler.timezone_help_prefix')); ?> <strong id="tzClock">--</strong></div>
         </div>
 
         <div style="overflow-x: auto;">
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 50px;">Enabled</th>
-                        <th>Job Name</th>
-                        <th>Description</th>
-                        <th style="width: 140px;">Schedule</th>
-                        <th style="width: 160px;">Runs At</th>
-                        <th>Last Run</th>
-                        <th style="width: 90px;">Status</th>
+                        <th style="width: 50px;"><?php echo e(t('admin_scheduler.th_enabled')); ?></th>
+                        <th><?php echo e(t('admin_scheduler.th_job_name')); ?></th>
+                        <th><?php echo e(t('admin_scheduler.th_description')); ?></th>
+                        <th style="width: 140px;"><?php echo e(t('admin_scheduler.th_schedule')); ?></th>
+                        <th style="width: 160px;"><?php echo e(t('admin_scheduler.th_runs_at')); ?></th>
+                        <th><?php echo e(t('admin_scheduler.th_last_run')); ?></th>
+                        <th style="width: 90px;"><?php echo e(t('admin_scheduler.th_status')); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -459,18 +459,18 @@ $timezones = timezone_identifiers_list();
                                     <span style="color: #999;">(<?php echo e(round((float)$lastExec['execution_time_seconds'], 1)); ?>s)</span>
                                 <?php endif; ?>
                             <?php else: ?>
-                                <span style="color: #999;">Never</span>
+                                <span style="color: #999;"><?php echo e(t('admin_scheduler.never')); ?></span>
                             <?php endif; ?>
                         </td>
                         <td>
                             <?php if (!$lastExec): ?>
-                                <span class="badge" style="background: #f3f4f6; color: #6b7280;">Never run</span>
+                                <span class="badge" style="background: #f3f4f6; color: #6b7280;"><?php echo e(t('admin_scheduler.never_run')); ?></span>
                             <?php elseif ($lastExec['status'] === 'completed'): ?>
-                                <span class="badge badge-success">Completed</span>
+                                <span class="badge badge-success"><?php echo e(t('admin_scheduler.status_completed')); ?></span>
                             <?php elseif ($lastExec['status'] === 'failed'): ?>
-                                <span class="badge badge-danger">Failed</span>
+                                <span class="badge badge-danger"><?php echo e(t('admin_scheduler.status_failed')); ?></span>
                             <?php elseif ($lastExec['status'] === 'running'): ?>
-                                <span class="badge badge-blue">Running</span>
+                                <span class="badge badge-blue"><?php echo e(t('admin_scheduler.status_running')); ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -480,39 +480,39 @@ $timezones = timezone_identifiers_list();
         </div>
 
         <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-            <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">SRS Rescoring Batch Size</h4>
+            <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 10px;"><?php echo e(t('admin_scheduler.srs_batch_heading')); ?></h4>
             <div class="form-group" style="max-width: 200px; margin-bottom: 10px;">
                 <input type="number" name="srs_rescore_batch_size"
                        value="<?php echo e(getAppConfig('cron_srs_rescore_batch_size', '20')); ?>"
                        min="1" max="100" class="form-control" style="padding: 6px 8px;">
-                <div class="form-help">Vendors scored per cron run (1-100). With an hourly schedule, this equals the maximum vendors scored per hour.</div>
+                <div class="form-help"><?php echo e(t('admin_scheduler.srs_batch_help')); ?></div>
             </div>
         </div>
 
         <div style="margin-top: 20px; display: flex; align-items: center; gap: 15px;">
-            <button type="submit" class="btn btn-primary" data-disable-on-click="Saving...">Save Schedules</button>
-            <span style="font-size: 12px; color: #999;">Changes are written to <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">/etc/cron.d/open-tprm</code> immediately.</span>
+            <button type="submit" class="btn btn-primary" data-disable-on-click="<?php echo e(t('admin_scheduler.saving')); ?>"><?php echo e(t('admin_scheduler.save_button')); ?></button>
+            <span style="font-size: 12px; color: #999;"><?php echo e(t('admin_scheduler.changes_written_prefix')); ?> <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">/etc/cron.d/open-tprm</code> <?php echo e(t('admin_scheduler.changes_written_suffix')); ?></span>
         </div>
     </div>
 </form>
 
 <div class="card">
-    <h3>Execution History</h3>
+    <h3><?php echo e(t('admin_scheduler.execution_history_heading')); ?></h3>
     <?php if (empty($recentHistory)): ?>
-        <p style="color: #999;">No execution history recorded yet. Jobs will appear here after their first run.</p>
+        <p style="color: #999;"><?php echo e(t('admin_scheduler.no_history')); ?></p>
     <?php else: ?>
-        <p style="color: #666; margin-bottom: 15px; font-size: 13px;">Last 20 job executions across all scheduled tasks.</p>
+        <p style="color: #666; margin-bottom: 15px; font-size: 13px;"><?php echo e(t('admin_scheduler.history_subtitle')); ?></p>
         <div style="overflow-x: auto;">
             <table>
                 <thead>
                     <tr>
-                        <th>Job</th>
-                        <th>Started</th>
-                        <th>Duration</th>
-                        <th>Processed</th>
-                        <th>Success</th>
-                        <th>Failed</th>
-                        <th>Status</th>
+                        <th><?php echo e(t('admin_scheduler.th_job')); ?></th>
+                        <th><?php echo e(t('admin_scheduler.th_started')); ?></th>
+                        <th><?php echo e(t('admin_scheduler.th_duration')); ?></th>
+                        <th><?php echo e(t('admin_scheduler.th_processed')); ?></th>
+                        <th><?php echo e(t('admin_scheduler.th_success')); ?></th>
+                        <th><?php echo e(t('admin_scheduler.status_failed')); ?></th>
+                        <th><?php echo e(t('admin_scheduler.th_status')); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -538,11 +538,11 @@ $timezones = timezone_identifiers_list();
                         </td>
                         <td>
                             <?php if ($exec['status'] === 'completed'): ?>
-                                <span class="badge badge-success">Completed</span>
+                                <span class="badge badge-success"><?php echo e(t('admin_scheduler.status_completed')); ?></span>
                             <?php elseif ($exec['status'] === 'failed'): ?>
-                                <span class="badge badge-danger">Failed</span>
+                                <span class="badge badge-danger"><?php echo e(t('admin_scheduler.status_failed')); ?></span>
                             <?php elseif ($exec['status'] === 'running'): ?>
-                                <span class="badge badge-blue">Running</span>
+                                <span class="badge badge-blue"><?php echo e(t('admin_scheduler.status_running')); ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -554,7 +554,7 @@ $timezones = timezone_identifiers_list();
                             if (is_array($errors)) {
                                 echo e(implode('; ', array_slice($errors, 0, 3)));
                                 if (count($errors) > 3) {
-                                    echo ' <span style="color: #999;">... and ' . (count($errors) - 3) . ' more</span>';
+                                    echo ' <span style="color: #999;">' . e(t('admin_scheduler.errors_and_prefix')) . ' ' . (count($errors) - 3) . ' ' . e(t('admin_scheduler.errors_more_suffix')) . '</span>';
                                 }
                             } else {
                                 echo e($exec['error_messages']);

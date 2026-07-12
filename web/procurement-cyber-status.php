@@ -30,7 +30,7 @@ $isStakeholderOnly = $isStakeholderGroup && !$isAdmin && !$isProcurement && !$is
 
 if (!$isAdmin && !$isProcurement && !$isCyberTPRM) {
     http_response_code(403);
-    die(e('Access denied'));
+    die(e(t('procurement-cyber-status.access_denied')));
 }
 
 // cyber_tprm / administrators may multi-select vendors and provide a procurement
@@ -122,13 +122,13 @@ if ($vendorId > 0) {
 
 // Helper: human label for a review status value.
 function cyberStatusLabel($status) {
-    return $status === 'ai_review' ? 'AI Review' : 'In Review';
+    return $status === 'ai_review' ? t('procurement-cyber-status.status_ai_review') : t('procurement-cyber-status.status_in_review');
 }
 ?>
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Cyber Status - TPRM</title>
+    <title><?php echo e(t('procurement-cyber-status.page_title_tag')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -500,25 +500,25 @@ function cyberStatusLabel($status) {
             <!-- Main Content -->
             <main class="main-content">
                 <div class="page-header-row">
-                    <h1 class="page-title">Cyber Status</h1>
+                    <h1 class="page-title"><?php echo e(t('procurement-cyber-status.page_title')); ?></h1>
                 </div>
 
                 <!-- Vendors in Review -->
-                <div class="section-title">Vendors in Review</div>
+                <div class="section-title"><?php echo e(t('procurement-cyber-status.vendors_in_review_heading')); ?></div>
                 <?php if (empty($reviewVendors)): ?>
                 <div class="empty-state">
-                    <h3>No vendors in review</h3>
-                    <p>There are currently no vendors with an In Review or AI Review status.</p>
+                    <h3><?php echo e(t('procurement-cyber-status.no_vendors_in_review_title')); ?></h3>
+                    <p><?php echo e(t('procurement-cyber-status.no_vendors_in_review_body')); ?></p>
                 </div>
                 <?php else: ?>
                 <table class="vendor-table">
                     <thead>
                         <tr>
-                            <?php if ($canApprove): ?><th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllReview" title="Select all vendors" style="cursor: pointer;"></th><?php endif; ?>
-                            <th>Vendor</th>
-                            <th>Status</th>
-                            <th>Updates</th>
-                            <th>Latest Update</th>
+                            <?php if ($canApprove): ?><th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllReview" title="<?php echo e(t('procurement-cyber-status.select_all_vendors_title')); ?>" style="cursor: pointer;"></th><?php endif; ?>
+                            <th><?php echo e(t('procurement-cyber-status.th_vendor')); ?></th>
+                            <th><?php echo e(t('procurement-cyber-status.th_status')); ?></th>
+                            <th><?php echo e(t('procurement-cyber-status.th_updates')); ?></th>
+                            <th><?php echo e(t('procurement-cyber-status.th_latest_update')); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -554,10 +554,10 @@ function cyberStatusLabel($status) {
                 <?php if ($canApprove && !empty($reviewVendors)): ?>
                 <!-- Procurement Update Action Bar (hidden until vendors are selected) -->
                 <div id="procUpdateBar" style="display: none; position: sticky; bottom: 0; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 12px 20px; margin: -10px 0 30px; box-shadow: 0 -2px 8px rgba(0,0,0,0.1); z-index: 10; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                    <span style="font-size: 14px; color: #3730a3; font-weight: 500;"><span id="procSelectedCount">0</span> vendor(s) selected</span>
+                    <span style="font-size: 14px; color: #3730a3; font-weight: 500;"><span id="procSelectedCount">0</span> <?php echo e(t('procurement-cyber-status.vendors_selected_suffix')); ?></span>
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" id="procClearSelection" style="padding: 8px 16px; border: 1px solid #d1d5db; border-radius: 6px; background: white; color: #374151; font-size: 13px; cursor: pointer;">Clear selection</button>
-                        <button type="button" id="procProvideUpdateBtn" style="padding: 8px 16px; border: none; border-radius: 6px; background: #4f46e5; color: white; font-size: 13px; font-weight: 600; cursor: pointer;">Provide Procurement with Update</button>
+                        <button type="button" id="procClearSelection" style="padding: 8px 16px; border: 1px solid #d1d5db; border-radius: 6px; background: white; color: #374151; font-size: 13px; cursor: pointer;"><?php echo e(t('procurement-cyber-status.clear_selection')); ?></button>
+                        <button type="button" id="procProvideUpdateBtn" style="padding: 8px 16px; border: none; border-radius: 6px; background: #4f46e5; color: white; font-size: 13px; font-weight: 600; cursor: pointer;"><?php echo e(t('procurement-cyber-status.provide_update_button')); ?></button>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -571,16 +571,16 @@ function cyberStatusLabel($status) {
                         <span class="status-badge <?php echo $svStatus; ?>"><?php echo e(cyberStatusLabel($selectedVendor['status'])); ?></span>
                     </div>
 
-                    <div class="section-title">Procurement Update History</div>
+                    <div class="section-title"><?php echo e(t('procurement-cyber-status.procurement_update_history_heading')); ?></div>
 
                     <?php if (empty($updates)): ?>
                     <div class="empty-state">
-                        <h3>No procurement updates yet.</h3>
-                        <p>This vendor has no recorded procurement updates.</p>
+                        <h3><?php echo e(t('procurement-cyber-status.no_updates_title')); ?></h3>
+                        <p><?php echo e(t('procurement-cyber-status.no_updates_body')); ?></p>
                     </div>
                     <?php else: ?>
                         <?php foreach ($updates as $upd):
-                            $author = !empty($upd['author_name']) ? $upd['author_name'] : 'System';
+                            $author = !empty($upd['author_name']) ? $upd['author_name'] : t('procurement-cyber-status.author_system');
                             // Per-object authz: cyber_tprm / admin, or the note's own author.
                             $isNoteAuthor = isset($upd['created_by']) && (int)$upd['created_by'] === (int)$user['id'];
                             $canManageNote = $isAdmin || $isCyberTPRM || $isNoteAuthor;
@@ -593,11 +593,11 @@ function cyberStatusLabel($status) {
                                     <?php $suStatus = $upd['status_at_update'] === 'ai_review' ? 'ai_review' : ($upd['status_at_update'] === 'in_review' ? 'in_review' : ''); ?>
                                     <span class="status-badge <?php echo e($suStatus); ?>"><?php echo e($upd['status_at_update']); ?></span>
                                 <?php endif; ?>
-                                <span class="note-edited-marker" style="font-size:12px; color:#9ca3af; font-style:italic;<?php echo empty($upd['edited_at']) ? ' display:none;' : ''; ?>">(edited<?php echo !empty($upd['edited_at']) ? ' ' . e(date('M j, Y g:i A', strtotime($upd['edited_at']))) : ''; ?>)</span>
+                                <span class="note-edited-marker" style="font-size:12px; color:#9ca3af; font-style:italic;<?php echo empty($upd['edited_at']) ? ' display:none;' : ''; ?>">(<?php echo e(t('procurement-cyber-status.edited_label')); ?><?php echo !empty($upd['edited_at']) ? ' ' . e(date('M j, Y g:i A', strtotime($upd['edited_at']))) : ''; ?>)</span>
                                 <?php if ($canManageNote): ?>
                                 <span class="note-actions" style="margin-left:auto; display:inline-flex; gap:10px;">
-                                    <button type="button" class="note-edit-btn" style="background:none; border:none; padding:0; color:#4f46e5; font-size:13px; cursor:pointer;">Edit</button>
-                                    <button type="button" class="note-delete-btn" style="background:none; border:none; padding:0; color:#dc2626; font-size:13px; cursor:pointer;">Delete</button>
+                                    <button type="button" class="note-edit-btn" style="background:none; border:none; padding:0; color:#4f46e5; font-size:13px; cursor:pointer;"><?php echo e(t('procurement-cyber-status.action_edit')); ?></button>
+                                    <button type="button" class="note-delete-btn" style="background:none; border:none; padding:0; color:#dc2626; font-size:13px; cursor:pointer;"><?php echo e(t('procurement-cyber-status.action_delete')); ?></button>
                                 </span>
                                 <?php endif; ?>
                             </div>
@@ -606,8 +606,8 @@ function cyberStatusLabel($status) {
                             <div class="note-edit-form" style="display:none; margin-top:8px;">
                                 <textarea class="note-edit-textarea" rows="4" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:inherit; box-sizing:border-box;"><?php echo e($upd['update_text']); ?></textarea>
                                 <div style="margin-top:6px; display:flex; gap:8px; align-items:center;">
-                                    <button type="button" class="note-edit-save" style="padding:6px 14px; border:none; border-radius:6px; background:#4f46e5; color:#fff; font-size:13px; font-weight:600; cursor:pointer;">Save</button>
-                                    <button type="button" class="note-edit-cancel" style="padding:6px 14px; border:1px solid #d1d5db; border-radius:6px; background:#fff; color:#374151; font-size:13px; cursor:pointer;">Cancel</button>
+                                    <button type="button" class="note-edit-save" style="padding:6px 14px; border:none; border-radius:6px; background:#4f46e5; color:#fff; font-size:13px; font-weight:600; cursor:pointer;"><?php echo e(t('procurement-cyber-status.action_save')); ?></button>
+                                    <button type="button" class="note-edit-cancel" style="padding:6px 14px; border:1px solid #d1d5db; border-radius:6px; background:#fff; color:#374151; font-size:13px; cursor:pointer;"><?php echo e(t('procurement-cyber-status.action_cancel')); ?></button>
                                     <span class="note-edit-msg" style="font-size:12px;"></span>
                                 </div>
                             </div>
@@ -627,28 +627,28 @@ function cyberStatusLabel($status) {
         <div id="procUpdateModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
             <div style="background:#fff; border-radius:8px; width:90%; max-width:560px; max-height:90vh; overflow:auto; box-shadow:0 10px 40px rgba(0,0,0,0.2);">
                 <div style="padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
-                    <h3 style="margin:0; font-size:16px; color:#111827;">Provide Procurement with Update</h3>
+                    <h3 style="margin:0; font-size:16px; color:#111827;"><?php echo e(t('procurement-cyber-status.provide_update_button')); ?></h3>
                     <button type="button" id="procModalClose" style="background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:#6b7280;">&times;</button>
                 </div>
                 <div style="padding:20px;">
-                    <p style="margin:0 0 12px; font-size:13px; color:#6b7280;"><span id="procModalCount">0</span> vendor(s) selected: <span id="procModalVendors" style="color:#374151;"></span></p>
-                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:6px;">Update</label>
-                    <textarea id="procUpdateText" rows="5" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:inherit; box-sizing:border-box;" placeholder="Type the update for procurement..."></textarea>
-                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin:14px 0 6px;">Change status (optional)</label>
+                    <p style="margin:0 0 12px; font-size:13px; color:#6b7280;"><span id="procModalCount">0</span> <?php echo e(t('procurement-cyber-status.vendors_selected_colon')); ?> <span id="procModalVendors" style="color:#374151;"></span></p>
+                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:6px;"><?php echo e(t('procurement-cyber-status.label_update')); ?></label>
+                    <textarea id="procUpdateText" rows="5" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:inherit; box-sizing:border-box;" placeholder="<?php echo e(t('procurement-cyber-status.update_placeholder')); ?>"></textarea>
+                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin:14px 0 6px;"><?php echo e(t('procurement-cyber-status.change_status_label')); ?></label>
                     <select id="procNewStatus" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:14px;">
-                        <option value="">Keep current status</option>
-                        <option value="in_review">In Review</option>
-                        <option value="ai_review">AI Review</option>
-                        <option value="evaluation">Evaluation</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="inactive">Inactive</option>
+                        <option value=""><?php echo e(t('procurement-cyber-status.status_keep_current')); ?></option>
+                        <option value="in_review"><?php echo e(t('procurement-cyber-status.status_in_review')); ?></option>
+                        <option value="ai_review"><?php echo e(t('procurement-cyber-status.status_ai_review')); ?></option>
+                        <option value="evaluation"><?php echo e(t('procurement-cyber-status.status_evaluation')); ?></option>
+                        <option value="approved"><?php echo e(t('procurement-cyber-status.status_approved')); ?></option>
+                        <option value="rejected"><?php echo e(t('procurement-cyber-status.status_rejected')); ?></option>
+                        <option value="inactive"><?php echo e(t('procurement-cyber-status.status_inactive')); ?></option>
                     </select>
                     <div id="procModalMsg" style="margin-top:14px; font-size:13px;"></div>
                 </div>
                 <div style="padding:16px 20px; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:8px;">
-                    <button type="button" id="procModalCancel" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; cursor:pointer;">Close</button>
-                    <button type="button" id="procModalSubmit" style="padding:8px 16px; border:none; border-radius:6px; background:#4f46e5; color:white; font-size:13px; font-weight:600; cursor:pointer;">Save Update</button>
+                    <button type="button" id="procModalCancel" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; cursor:pointer;"><?php echo e(t('procurement-cyber-status.close')); ?></button>
+                    <button type="button" id="procModalSubmit" style="padding:8px 16px; border:none; border-radius:6px; background:#4f46e5; color:white; font-size:13px; font-weight:600; cursor:pointer;"><?php echo e(t('procurement-cyber-status.save_update')); ?></button>
                 </div>
             </div>
         </div>
@@ -670,7 +670,7 @@ function cyberStatusLabel($status) {
                         <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                         <span class="copyright-year"><?php echo date('Y'); ?></span>
                         <span>.&nbsp;</span>
-                        <span>All Rights Reserved</span>
+                        <span><?php echo e(t('procurement-cyber-status.all_rights_reserved')); ?></span>
                     </p>
                 </div>
             </div>
@@ -732,23 +732,23 @@ function cyberStatusLabel($status) {
             if (pmSubmit) pmSubmit.addEventListener('click', function() {
                 var text = document.getElementById('procUpdateText').value.trim();
                 var msg = document.getElementById('procModalMsg');
-                if (!text) { msg.style.color = '#dc2626'; msg.textContent = 'Please enter an update.'; return; }
+                if (!text) { msg.style.color = '#dc2626'; msg.textContent = <?php echo json_encode(t('procurement-cyber-status.js_enter_update')); ?>; return; }
                 var checked = document.querySelectorAll('.review-checkbox:checked');
                 var ids = Array.prototype.map.call(checked, function(cb) { return parseInt(cb.value, 10); });
-                if (!ids.length) { msg.style.color = '#dc2626'; msg.textContent = 'No vendors selected.'; return; }
+                if (!ids.length) { msg.style.color = '#dc2626'; msg.textContent = <?php echo json_encode(t('procurement-cyber-status.js_no_vendors_selected')); ?>; return; }
                 pmSubmit.disabled = true;
-                msg.style.color = '#6b7280'; msg.textContent = 'Saving...';
+                msg.style.color = '#6b7280'; msg.textContent = <?php echo json_encode(t('procurement-cyber-status.js_saving')); ?>;
                 fetch('api/procurement-update-save.php', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ csrf_token: csrf, vendor_ids: ids, update_text: text, new_status: document.getElementById('procNewStatus').value })
                 }).then(function(r) { return r.json(); }).then(function(resp) {
                     pmSubmit.disabled = false;
                     if (resp.csrf_token) csrf = resp.csrf_token;
-                    if (!resp.success) { msg.style.color = '#dc2626'; msg.textContent = resp.error || 'Failed to save.'; return; }
+                    if (!resp.success) { msg.style.color = '#dc2626'; msg.textContent = resp.error || <?php echo json_encode(t('procurement-cyber-status.js_failed_save')); ?>; return; }
                     reloadOnClose = true;
                     msg.style.color = '#166534';
-                    msg.textContent = 'Saved update for ' + (resp.updated || ids.length) + ' vendor(s). Close to refresh.';
-                }).catch(function() { pmSubmit.disabled = false; msg.style.color = '#dc2626'; msg.textContent = 'Network error.'; });
+                    msg.textContent = <?php echo json_encode(t('procurement-cyber-status.js_saved_prefix')); ?> + (resp.updated || ids.length) + <?php echo json_encode(t('procurement-cyber-status.js_saved_suffix')); ?>;
+                }).catch(function() { pmSubmit.disabled = false; msg.style.color = '#dc2626'; msg.textContent = <?php echo json_encode(t('procurement-cyber-status.js_network_error')); ?>; });
             });
         }
     })();
@@ -813,12 +813,12 @@ function cyberStatusLabel($status) {
                 var ta2 = form ? form.querySelector('.note-edit-textarea') : null;
                 var msg = form ? form.querySelector('.note-edit-msg') : null;
                 var text = ta2 ? ta2.value.trim() : '';
-                if (!text) { if (msg) { msg.style.color = '#dc2626'; msg.textContent = 'Note text is required.'; } return; }
+                if (!text) { if (msg) { msg.style.color = '#dc2626'; msg.textContent = <?php echo json_encode(t('procurement-cyber-status.js_note_text_required')); ?>; } return; }
                 btn.disabled = true;
-                if (msg) { msg.style.color = '#6b7280'; msg.textContent = 'Saving...'; }
+                if (msg) { msg.style.color = '#6b7280'; msg.textContent = <?php echo json_encode(t('procurement-cyber-status.js_saving')); ?>; }
                 post({ action: 'edit', note_id: noteId, update_text: text }).then(function(resp) {
                     btn.disabled = false;
-                    if (!resp.success) { if (msg) { msg.style.color = '#dc2626'; msg.textContent = resp.error || 'Failed to save.'; } return; }
+                    if (!resp.success) { if (msg) { msg.style.color = '#dc2626'; msg.textContent = resp.error || <?php echo json_encode(t('procurement-cyber-status.js_failed_save')); ?>; } return; }
                     if (textEl) {
                         textEl.textContent = resp.text;   // textContent: XSS-safe; pre-wrap preserves newlines
                         textEl.style.display = '';
@@ -827,21 +827,21 @@ function cyberStatusLabel($status) {
                     if (actions) actions.style.display = '';
                     if (resp.edited_at) {
                         var marker = item.querySelector('.note-edited-marker');
-                        if (marker) { marker.textContent = '(edited ' + resp.edited_at + ')'; marker.style.display = ''; }
+                        if (marker) { marker.textContent = '(' + <?php echo json_encode(t('procurement-cyber-status.edited_label')); ?> + ' ' + resp.edited_at + ')'; marker.style.display = ''; }
                     }
                     if (msg) msg.textContent = '';
-                }).catch(function() { btn.disabled = false; if (msg) { msg.style.color = '#dc2626'; msg.textContent = 'Network error.'; } });
+                }).catch(function() { btn.disabled = false; if (msg) { msg.style.color = '#dc2626'; msg.textContent = <?php echo json_encode(t('procurement-cyber-status.js_network_error')); ?>; } });
                 return;
             }
 
             // --- Delete ---
             if (btn.classList.contains('note-delete-btn')) {
-                if (!window.confirm('Delete this procurement note? This cannot be undone.')) return;
+                if (!window.confirm(<?php echo json_encode(t('procurement-cyber-status.js_confirm_delete_note')); ?>)) return;
                 btn.disabled = true;
                 post({ action: 'delete', note_id: noteId }).then(function(resp) {
-                    if (!resp.success) { btn.disabled = false; alert(resp.error || 'Failed to delete.'); return; }
+                    if (!resp.success) { btn.disabled = false; alert(resp.error || <?php echo json_encode(t('procurement-cyber-status.js_failed_delete')); ?>); return; }
                     if (item.parentNode) item.parentNode.removeChild(item);
-                }).catch(function() { btn.disabled = false; alert('Network error.'); });
+                }).catch(function() { btn.disabled = false; alert(<?php echo json_encode(t('procurement-cyber-status.js_network_error')); ?>); });
                 return;
             }
         });

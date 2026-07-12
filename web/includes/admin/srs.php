@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['purge_pending_scores'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_srs.err_invalid_request');
     } else {
         try {
             $pendingCount = $db->fetchOne(
@@ -75,13 +75,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['purge_pending_scores'
                 $auth->audit($user['id'], 'purge_pending_scores', 'vendor_onboarding_requests', null, [
                     'purged_count' => $totalPurged, 'vendor_purged' => $purged, 'shadow_saas_purged' => $shadowPendingCount
                 ]);
-                $success = "Purged {$totalPurged} pending rescore(s).";
+                $success = t('admin_srs.purged_prefix') . $totalPurged . t('admin_srs.purged_suffix');
             } else {
-                $success = 'No pending rescores to purge.';
+                $success = t('admin_srs.no_pending_rescores');
             }
         } catch (Exception $e) {
             error_log('Error purging pending scores: ' . $e->getMessage());
-            $error = 'Failed to purge pending scores.';
+            $error = t('admin_srs.err_purge_failed');
         }
     }
 }
@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['purge_pending_scores'
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_custom_scoring'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_srs.err_invalid_request');
     } else {
         try {
             $customEnabled = isset($_POST['custom_scoring_enabled']) ? '1' : '0';
@@ -107,10 +107,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_custom_scoring
             $auth->audit($user['id'], 'config_update_custom_scoring', 'app_config', null, [
                 'new' => ['custom_scoring_enabled' => $customEnabled]
             ]);
-            $success = 'Custom scoring configuration updated successfully.';
+            $success = t('admin_srs.custom_scoring_updated');
         } catch (Exception $e) {
             error_log('Error updating custom scoring config: ' . $e->getMessage());
-            $error = 'Failed to update custom scoring configuration.';
+            $error = t('admin_srs.err_custom_scoring_failed');
         }
     }
 }
@@ -122,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_custom_scoring
 $_upguardPostAction = isset($_POST['update_srs']) || isset($_POST['test_srs_connection']) || isset($_POST['update_tier_schedule']);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_upguardPostAction) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_srs.err_invalid_request');
     } elseif (isset($_POST['update_srs'])) {
         try {
             $db->beginTransaction();
@@ -204,11 +204,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_upguardPostAction) {
             $auth->audit($user['id'], 'config_update_srs', 'app_config', null, [
                 'new' => $auditSrs
             ]);
-            $success = 'SRS/UpGuard configuration updated successfully';
+            $success = t('admin_srs.srs_config_updated');
         } catch (Exception $e) {
             $db->rollback();
             error_log('Error updating SRS config: ' . $e->getMessage());
-            $error = 'Failed to update SRS configuration';
+            $error = t('admin_srs.err_srs_config_failed');
         }
     } elseif (isset($_POST['test_srs_connection'])) {
         try {
@@ -216,13 +216,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_upguardPostAction) {
             $srsService = new SRSService();
             $result = $srsService->testConnection();
             if ($result['success']) {
-                $success = 'SRS Connection Test: ' . $result['message'];
+                $success = t('admin_srs.conn_test_prefix') . $result['message'];
             } else {
-                $error = 'SRS Connection Test Failed: ' . $result['message'];
+                $error = t('admin_srs.conn_test_failed_prefix') . $result['message'];
             }
         } catch (Exception $e) {
             error_log('SRS Connection Test Error: ' . $e->getMessage());
-            $error = 'SRS Connection Test Error. Check the error log for details.';
+            $error = t('admin_srs.err_conn_test');
         }
     } elseif (isset($_POST['update_tier_schedule'])) {
         try {
@@ -261,11 +261,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_upguardPostAction) {
             $auth->audit($user['id'], 'config_update_tier_schedule', 'app_config', null, [
                 'new' => $tierSettings
             ]);
-            $success = 'Tier rescoring schedule updated successfully';
+            $success = t('admin_srs.tier_schedule_updated');
         } catch (Exception $e) {
             $db->rollback();
             error_log('Error updating tier schedule: ' . $e->getMessage());
-            $error = 'Failed to update tier schedule';
+            $error = t('admin_srs.err_tier_schedule_failed');
         }
     }
 }
@@ -320,14 +320,14 @@ if ($_anyCronEnabled) {
 ?>
 <div class="page-header-bar" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
     <div>
-        <h1 class="page-title">Security Rating Service (SRS)</h1>
-        <p>Configure UpGuard, Shodan, and Custom integrations for vendor security scoring.</p>
+        <h1 class="page-title"><?php echo e(t('admin_srs.page_title')); ?></h1>
+        <p><?php echo e(t('admin_srs.page_desc')); ?></p>
     </div>
     <?php if ($_anyCronEnabled): ?>
     <form method="POST" action="admin.php?section=srs" style="margin: 0;" onsubmit="return confirm('Purge all <?php echo $_pendingRescoreCount; ?> pending rescore(s)? This will cancel any queued or in-progress cron rescores.');">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <button type="submit" name="purge_pending_scores" value="1" class="btn btn-secondary" style="white-space: nowrap; display: flex; align-items: center; gap: 6px;">
-            Purge Pending Scores
+            <?php echo e(t('admin_srs.purge_pending_scores')); ?>
             <?php if ($_pendingRescoreCount > 0): ?>
             <span style="background: #dc2626; color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700;"><?php echo $_pendingRescoreCount; ?></span>
             <?php endif; ?>
@@ -343,7 +343,7 @@ if ($_anyCronEnabled) {
     <button type="button" data-action="showSrsSection" data-arg="shodan" id="srsTab_shodan" class="srs-section-tab"
         style="padding: 8px 16px; border: none; border-bottom: 2px solid <?php echo $srsTab === 'shodan' ? 'var(--theme-header-color, #2563eb)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $srsTab === 'shodan' ? '600' : '500'; ?>; color: <?php echo $srsTab === 'shodan' ? 'var(--theme-header-color, #2563eb)' : '#6b7280'; ?>; margin-bottom: -2px;">Shodan</button>
     <button type="button" data-action="showSrsSection" data-arg="custom" id="srsTab_custom" class="srs-section-tab"
-        style="padding: 8px 16px; border: none; border-bottom: 2px solid <?php echo $srsTab === 'custom' ? 'var(--theme-header-color, #2563eb)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $srsTab === 'custom' ? '600' : '500'; ?>; color: <?php echo $srsTab === 'custom' ? 'var(--theme-header-color, #2563eb)' : '#6b7280'; ?>; margin-bottom: -2px;">Custom Scoring</button>
+        style="padding: 8px 16px; border: none; border-bottom: 2px solid <?php echo $srsTab === 'custom' ? 'var(--theme-header-color, #2563eb)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $srsTab === 'custom' ? '600' : '500'; ?>; color: <?php echo $srsTab === 'custom' ? 'var(--theme-header-color, #2563eb)' : '#6b7280'; ?>; margin-bottom: -2px;"><?php echo e(t('admin_srs.custom_scoring')); ?></button>
 </div>
 
 <!-- ================================================================== -->
@@ -351,34 +351,34 @@ if ($_anyCronEnabled) {
 <!-- ================================================================== -->
 <div id="srsSection_upguard" <?php echo $srsTab !== 'upguard' ? 'style="display: none;"' : ''; ?>>
 <div class="card">
-    <h3>UpGuard Integration Settings</h3>
+    <h3><?php echo e(t('admin_srs.upguard_integration_heading')); ?></h3>
     <form method="POST" action="admin.php?section=srs">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="upguard_enabled" value="1" <?php echo ($srsConfig['enabled'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                <span>Enable UpGuard SRS Integration</span>
+                <span><?php echo e(t('admin_srs.enable_upguard_label')); ?></span>
             </label>
-            <div class="form-help">Enable automated vendor security scoring using UpGuard CyberRisk API</div>
+            <div class="form-help"><?php echo e(t('admin_srs.enable_upguard_help')); ?></div>
         </div>
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="upguard_vendor_domains" value="1" <?php echo ($srsConfig['vendor_domains'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                <span>Enable Vendor Domains</span>
+                <span><?php echo e(t('admin_srs.enable_vendor_domains_label')); ?></span>
             </label>
-            <div class="form-help">When enabled, vendor rescoring will also fetch all subdomains/domains from UpGuard's <code>/vendor/domains</code> endpoint for attack surface visibility.</div>
+            <div class="form-help"><?php echo t('admin_srs.enable_vendor_domains_help'); ?></div>
         </div>
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="upguard_use_cron" value="1" <?php echo ($srsConfig['use_cron'] ?? '0') === '1' ? 'checked' : ''; ?>>
-                <span>Use Cron for Rescoring</span>
+                <span><?php echo e(t('admin_srs.use_cron_label')); ?></span>
             </label>
-            <div class="form-help">When enabled, manual rescores are queued and processed by a background cron job instead of running in real-time. This prevents the browser from waiting during scoring.</div>
+            <div class="form-help"><?php echo e(t('admin_srs.use_cron_help')); ?></div>
             <div id="upguard_cron_setup" style="<?php echo ($srsConfig['use_cron'] ?? '0') === '1' ? '' : 'display: none;'; ?> margin-top: 10px; padding: 12px 16px; background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 6px;">
-                <div style="font-weight: 600; font-size: 13px; color: #374151; margin-bottom: 6px;">Cron Job Required</div>
-                <p style="font-size: 12px; color: #6b7280; margin: 0 0 8px 0;">Add this cron entry to process queued rescores (runs every minute):</p>
+                <div style="font-weight: 600; font-size: 13px; color: #374151; margin-bottom: 6px;"><?php echo e(t('admin_srs.cron_job_required')); ?></div>
+                <p style="font-size: 12px; color: #6b7280; margin: 0 0 8px 0;"><?php echo e(t('admin_srs.cron_add_entry')); ?></p>
                 <div style="background: #1e1e1e; color: #d4d4d4; padding: 8px 12px; border-radius: 4px; font-family: monospace; font-size: 11px; overflow-x: auto;">* * * * * /usr/bin/php <?php echo e(dirname(dirname(__DIR__))); ?>/cron/rescore-queue.php >> /var/log/tprm/rescore-queue.log 2>&1</div>
-                <p style="font-size: 11px; color: #9ca3af; margin: 6px 0 0 0;">Uses lock files to prevent overlapping executions. See the <span data-action="openCronInfoModal" style="color: var(--theme-header-color, #2563eb); cursor: pointer; text-decoration: underline;">Cron Setup Guide</span> for details.</p>
+                <p style="font-size: 11px; color: #9ca3af; margin: 6px 0 0 0;"><?php echo t('admin_srs.cron_lock_files_note'); ?></p>
             </div>
         </div>
         <script nonce="<?php echo cspNonce(); ?>">
@@ -388,79 +388,79 @@ if ($_anyCronEnabled) {
         </script>
         <div class="form-row">
             <div class="form-group">
-                <label for="upguard_api_key">UpGuard API Key</label>
-                <input type="password" id="upguard_api_key" name="upguard_api_key" class="form-control" placeholder="<?php echo !empty($srsConfig['api_key']) ? '••••••••••••••••' : 'Enter API key'; ?>">
-                <div class="form-help">API key from UpGuard CyberRisk console. Leave blank to keep existing key.</div>
+                <label for="upguard_api_key"><?php echo e(t('admin_srs.api_key_label')); ?></label>
+                <input type="password" id="upguard_api_key" name="upguard_api_key" class="form-control" placeholder="<?php echo !empty($srsConfig['api_key']) ? '••••••••••••••••' : e(t('admin_srs.api_key_placeholder')); ?>">
+                <div class="form-help"><?php echo e(t('admin_srs.api_key_help')); ?></div>
             </div>
             <div class="form-group">
-                <label for="upguard_display_name">Display Name</label>
+                <label for="upguard_display_name"><?php echo e(t('admin_srs.display_name_label')); ?></label>
                 <input type="text" id="upguard_display_name" name="upguard_display_name" class="form-control" value="<?php echo e($srsConfig['display_name'] ?? 'UpGuard'); ?>" placeholder="UpGuard" maxlength="50">
-                <div class="form-help">Custom display name shown across all pages. Default: UpGuard</div>
+                <div class="form-help"><?php echo e(t('admin_srs.display_name_help')); ?></div>
             </div>
         </div>
         <div class="form-group">
-            <label for="upguard_org_domain">Organization Domain</label>
-            <input type="text" id="upguard_org_domain" name="upguard_org_domain" class="form-control" value="<?php echo e($srsConfig['org_domain'] ?? ''); ?>" placeholder="e.g. example.com" maxlength="255" style="max-width: 400px;">
-            <div class="form-help">Your organization's primary domain in UpGuard. When Vendor Domains is enabled, this tells the system to use the BreachSight <code>/domains</code> endpoint (your own attack surface) instead of the third-party <code>/vendor/domains</code> endpoint.</div>
+            <label for="upguard_org_domain"><?php echo e(t('admin_srs.org_domain_label')); ?></label>
+            <input type="text" id="upguard_org_domain" name="upguard_org_domain" class="form-control" value="<?php echo e($srsConfig['org_domain'] ?? ''); ?>" placeholder="<?php echo e(t('admin_srs.org_domain_placeholder')); ?>" maxlength="255" style="max-width: 400px;">
+            <div class="form-help"><?php echo t('admin_srs.org_domain_help'); ?></div>
         </div>
         <div class="form-group">
-            <label for="github_pat">GitHub Personal Access Token <span style="font-weight: 400; color: #6b7280;">(optional)</span></label>
+            <label for="github_pat"><?php echo t('admin_srs.github_pat_label'); ?></label>
             <input type="password" id="github_pat" name="github_pat" class="form-control" autocomplete="off" placeholder="<?php echo $githubPatIsSet ? '••••••••  (leave blank to keep)' : 'github_pat_… or ghp_…'; ?>" maxlength="255" style="max-width: 400px;">
-            <div class="form-help">Used by OSINT breach scans to search public GitHub code for leaked secrets/credentials mentioning your domains (GitHub's code-search API requires an authenticated token). A fine-grained PAT with read-only public-repo / code-search access is sufficient. Stored AES-256 encrypted; leave blank to keep the existing token.</div>
+            <div class="form-help"><?php echo e(t('admin_srs.github_pat_help')); ?></div>
         </div>
 
-        <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;">Score Display & Grading</h4>
+        <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;"><?php echo e(t('admin_srs.score_display_grading_heading')); ?></h4>
         <div class="form-row">
             <div class="form-group">
-                <label for="upguard_display_mode">Score Display Mode</label>
+                <label for="upguard_display_mode"><?php echo e(t('admin_srs.display_mode_label')); ?></label>
                 <select id="upguard_display_mode" name="upguard_display_mode" class="form-control">
-                    <option value="raw" <?php echo ($srsConfig['display_mode'] ?? 'raw') === 'raw' ? 'selected' : ''; ?>>Raw Score (0-950)</option>
-                    <option value="percentage" <?php echo ($srsConfig['display_mode'] ?? 'raw') === 'percentage' ? 'selected' : ''; ?>>Percentage (0-100%)</option>
+                    <option value="raw" <?php echo ($srsConfig['display_mode'] ?? 'raw') === 'raw' ? 'selected' : ''; ?>><?php echo e(t('admin_srs.display_mode_raw')); ?></option>
+                    <option value="percentage" <?php echo ($srsConfig['display_mode'] ?? 'raw') === 'percentage' ? 'selected' : ''; ?>><?php echo e(t('admin_srs.display_mode_percentage')); ?></option>
                 </select>
-                <div class="form-help">How scores are displayed. "Raw" shows 0-950. "Percentage" converts to 0-100%.</div>
+                <div class="form-help"><?php echo e(t('admin_srs.display_mode_help')); ?></div>
             </div>
             <div class="form-group">
-                <label for="upguard_scoring_method">Grade Calculation Method</label>
+                <label for="upguard_scoring_method"><?php echo e(t('admin_srs.scoring_method_label')); ?></label>
                 <select id="upguard_scoring_method" name="upguard_scoring_method" class="form-control" data-action="toggleScoringMethod">
-                    <option value="range" <?php echo ($srsConfig['scoring_method'] ?? 'range') === 'range' ? 'selected' : ''; ?>>Range (Fixed Score Thresholds)</option>
-                    <option value="percentage" <?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? 'selected' : ''; ?>>Percentage (Score / Max Score)</option>
+                    <option value="range" <?php echo ($srsConfig['scoring_method'] ?? 'range') === 'range' ? 'selected' : ''; ?>><?php echo e(t('admin_srs.scoring_method_range')); ?></option>
+                    <option value="percentage" <?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? 'selected' : ''; ?>><?php echo e(t('admin_srs.scoring_method_percentage')); ?></option>
                 </select>
-                <div class="form-help" id="scoring_method_help"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade is calculated as (Score / Max Score) x 100. Enter percentage thresholds below.' : 'Grade is based on the raw score value. Enter score thresholds below.'; ?></div>
+                <div class="form-help" id="scoring_method_help"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_srs.scoring_help_pct')) : e(t('admin_srs.scoring_help_range')); ?></div>
             </div>
         </div>
 
         <div class="form-group" id="max_score_group" style="<?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? '' : 'display: none;'; ?>">
-            <label for="upguard_max_score">Maximum Score</label>
+            <label for="upguard_max_score"><?php echo e(t('admin_srs.max_score_label')); ?></label>
             <input type="number" id="upguard_max_score" name="upguard_max_score" class="form-control" value="<?php echo e($srsConfig['max_score'] ?? '950'); ?>" min="1" max="10000">
-            <div class="form-help">The maximum possible score (UpGuard default: 950). Used to calculate percentage.</div>
+            <div class="form-help"><?php echo e(t('admin_srs.max_score_help')); ?></div>
         </div>
 
         <div id="grade_thresholds_label" style="font-weight: 500; margin-bottom: 10px; color: #374151;">
-            <?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade Thresholds (Percentage)' : 'Grade Thresholds (Score Values)'; ?>
+            <?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_srs.grade_thresholds_pct')) : e(t('admin_srs.grade_thresholds_score')); ?>
         </div>
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
             <div class="form-group">
-                <label for="upguard_grade_a_min" id="grade_a_label"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade A Minimum (%)' : 'Grade A Minimum Score'; ?></label>
+                <label for="upguard_grade_a_min" id="grade_a_label"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_srs.grade_a_min_pct')) : e(t('admin_srs.grade_a_min_score')); ?></label>
                 <input type="number" id="upguard_grade_a_min" name="upguard_grade_a_min" class="form-control" value="<?php echo e($srsConfig['grade_a_min'] ?? '850'); ?>" min="0" placeholder="<?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? '90' : '850'; ?>">
             </div>
             <div class="form-group">
-                <label for="upguard_grade_b_min" id="grade_b_label"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade B Minimum (%)' : 'Grade B Minimum Score'; ?></label>
+                <label for="upguard_grade_b_min" id="grade_b_label"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_srs.grade_b_min_pct')) : e(t('admin_srs.grade_b_min_score')); ?></label>
                 <input type="number" id="upguard_grade_b_min" name="upguard_grade_b_min" class="form-control" value="<?php echo e($srsConfig['grade_b_min'] ?? '700'); ?>" min="0" placeholder="<?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? '70' : '700'; ?>">
             </div>
             <div class="form-group">
-                <label for="upguard_grade_c_min" id="grade_c_label"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade C Minimum (%)' : 'Grade C Minimum Score'; ?></label>
+                <label for="upguard_grade_c_min" id="grade_c_label"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_srs.grade_c_min_pct')) : e(t('admin_srs.grade_c_min_score')); ?></label>
                 <input type="number" id="upguard_grade_c_min" name="upguard_grade_c_min" class="form-control" value="<?php echo e($srsConfig['grade_c_min'] ?? '500'); ?>" min="0" placeholder="<?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? '50' : '500'; ?>">
             </div>
             <div class="form-group">
-                <label for="upguard_grade_d_min" id="grade_d_label"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Grade D Minimum (%)' : 'Grade D Minimum Score'; ?></label>
+                <label for="upguard_grade_d_min" id="grade_d_label"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_srs.grade_d_min_pct')) : e(t('admin_srs.grade_d_min_score')); ?></label>
                 <input type="number" id="upguard_grade_d_min" name="upguard_grade_d_min" class="form-control" value="<?php echo e($srsConfig['grade_d_min'] ?? '300'); ?>" min="0" placeholder="<?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? '30' : '300'; ?>">
             </div>
         </div>
-        <div class="form-help" id="grade_f_help" style="margin-top: 5px; color: #666;"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? 'Scores below ' . ($srsConfig['grade_d_min'] ?? '300') . '% will receive an F grade.' : 'Scores below ' . ($srsConfig['grade_d_min'] ?? '300') . ' will receive an F grade.'; ?></div>
+        <div class="form-help" id="grade_f_help" style="margin-top: 5px; color: #666;"><?php echo ($srsConfig['scoring_method'] ?? 'range') === 'percentage' ? e(t('admin_srs.scores_below_prefix')) . e($srsConfig['grade_d_min'] ?? '300') . e(t('admin_srs.scores_below_suffix_pct')) : e(t('admin_srs.scores_below_prefix')) . e($srsConfig['grade_d_min'] ?? '300') . e(t('admin_srs.scores_below_suffix')); ?></div>
 
         <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button type="submit" name="update_srs" class="btn btn-primary">Save SRS Configuration</button>
-            <button type="submit" name="test_srs_connection" class="btn btn-secondary">Test Connection</button>
+            <button type="submit" name="update_srs" class="btn btn-primary"><?php echo e(t('admin_srs.save_srs_config_btn')); ?></button>
+            <button type="submit" name="test_srs_connection" class="btn btn-secondary"><?php echo e(t('admin_srs.test_connection_btn')); ?></button>
         </div>
     </form>
 </div>
@@ -476,13 +476,13 @@ function toggleScoringMethod() {
     const methodHelp = document.getElementById('scoring_method_help');
     if (methodHelp) {
         methodHelp.textContent = isPercentage
-            ? 'Grade is calculated as (Score / Max Score) x 100. Enter percentage thresholds below.'
-            : 'Grade is based on the raw score value. Enter score thresholds below.';
+            ? <?php echo json_encode(t('admin_srs.scoring_help_pct')); ?>
+            : <?php echo json_encode(t('admin_srs.scoring_help_range')); ?>;
     }
 
     const thresholdsLabel = document.getElementById('grade_thresholds_label');
     if (thresholdsLabel) {
-        thresholdsLabel.textContent = isPercentage ? 'Grade Thresholds (Percentage)' : 'Grade Thresholds (Score Values)';
+        thresholdsLabel.textContent = isPercentage ? <?php echo json_encode(t('admin_srs.grade_thresholds_pct')); ?> : <?php echo json_encode(t('admin_srs.grade_thresholds_score')); ?>;
     }
 
     const gradeDefaults = {
@@ -512,8 +512,8 @@ function toggleScoringMethod() {
     if (fHelp && dMinInput) {
         const dMin = dMinInput.value || (isPercentage ? '30' : '300');
         fHelp.textContent = isPercentage
-            ? 'Scores below ' + dMin + '% will receive an F grade.'
-            : 'Scores below ' + dMin + ' will receive an F grade.';
+            ? <?php echo json_encode(t('admin_srs.scores_below_prefix')); ?> + dMin + <?php echo json_encode(t('admin_srs.scores_below_suffix_pct')); ?>
+            : <?php echo json_encode(t('admin_srs.scores_below_prefix')); ?> + dMin + <?php echo json_encode(t('admin_srs.scores_below_suffix')); ?>;
     }
 }
 
@@ -524,79 +524,74 @@ document.getElementById('upguard_grade_d_min')?.addEventListener('input', functi
     if (fHelp) {
         const dMin = this.value || (isPercentage ? '30' : '300');
         fHelp.textContent = isPercentage
-            ? 'Scores below ' + dMin + '% will receive an F grade.'
-            : 'Scores below ' + dMin + ' will receive an F grade.';
+            ? <?php echo json_encode(t('admin_srs.scores_below_prefix')); ?> + dMin + <?php echo json_encode(t('admin_srs.scores_below_suffix_pct')); ?>
+            : <?php echo json_encode(t('admin_srs.scores_below_prefix')); ?> + dMin + <?php echo json_encode(t('admin_srs.scores_below_suffix')); ?>;
     }
 });
 </script>
 
 <div class="card">
     <h3>
-        Vendor Tier Rescoring Schedule
-        <span data-action="openCronInfoModal" style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #e5e7eb; color: #666; font-size: 12px; margin-left: 8px; vertical-align: middle;" title="Cron Setup Instructions">?</span>
+        <?php echo e(t('admin_srs.tier_schedule_heading')); ?>
+        <span data-action="openCronInfoModal" style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #e5e7eb; color: #666; font-size: 12px; margin-left: 8px; vertical-align: middle;" title="<?php echo e(t('admin_srs.cron_setup_instructions_title')); ?>">?</span>
     </h3>
-    <p style="color: #666; margin-bottom: 15px;">Configure the rescoring frequency for each vendor tier. Vendors are automatically rescored based on their assigned tier.</p>
+    <p style="color: #666; margin-bottom: 15px;"><?php echo e(t('admin_srs.tier_schedule_desc')); ?></p>
     <form method="POST" action="admin.php?section=srs">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <table>
             <thead>
                 <tr>
-                    <th>Tier</th>
-                    <th>Rescore Frequency (Days)</th>
-                    <th>Description</th>
+                    <th><?php echo e(t('admin_srs.col_tier')); ?></th>
+                    <th><?php echo e(t('admin_srs.col_rescore_frequency')); ?></th>
+                    <th><?php echo e(t('admin_srs.col_description')); ?></th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td><span class="badge badge-danger">Tier 1</span></td>
+                    <td><span class="badge badge-danger"><?php echo e(t('admin_srs.tier1_badge')); ?></span></td>
                     <td>
                         <input type="number" name="upguard_tier1_days" class="form-control" style="width: 100px;" value="<?php echo e($srsConfig['tier1_days'] ?? '30'); ?>" min="1" max="365">
                     </td>
-                    <td>Critical vendors with highest risk exposure - most frequent monitoring</td>
+                    <td><?php echo e(t('admin_srs.tier1_desc')); ?></td>
                 </tr>
                 <tr>
-                    <td><span class="badge" style="background: #fef3c7; color: #92400e;">Tier 2</span></td>
+                    <td><span class="badge" style="background: #fef3c7; color: #92400e;"><?php echo e(t('admin_srs.tier2_badge')); ?></span></td>
                     <td>
                         <input type="number" name="upguard_tier2_days" class="form-control" style="width: 100px;" value="<?php echo e($srsConfig['tier2_days'] ?? '90'); ?>" min="1" max="365">
                     </td>
-                    <td>Standard vendors with moderate risk - regular monitoring</td>
+                    <td><?php echo e(t('admin_srs.tier2_desc')); ?></td>
                 </tr>
                 <tr>
-                    <td><span class="badge badge-success">Tier 3</span></td>
+                    <td><span class="badge badge-success"><?php echo e(t('admin_srs.tier3_badge')); ?></span></td>
                     <td>
                         <input type="number" name="upguard_tier3_days" class="form-control" style="width: 100px;" value="<?php echo e($srsConfig['tier3_days'] ?? '365'); ?>" min="1" max="730">
                     </td>
-                    <td>Lower-risk vendors - annual or less frequent monitoring</td>
+                    <td><?php echo e(t('admin_srs.tier3_desc')); ?></td>
                 </tr>
             </tbody>
         </table>
 
-        <h4 style="margin-top: 25px; margin-bottom: 15px;">Trend Chart Settings</h4>
+        <h4 style="margin-top: 25px; margin-bottom: 15px;"><?php echo e(t('admin_srs.trend_chart_heading')); ?></h4>
         <div style="display: flex; align-items: center; gap: 15px;">
-            <label style="font-weight: 500;">Default Trending Period:</label>
+            <label style="font-weight: 500;"><?php echo e(t('admin_srs.default_trending_period_label')); ?></label>
             <input type="number" name="upguard_trending_days" class="form-control" style="width: 100px;" value="<?php echo e($srsConfig['trending_days'] ?? '90'); ?>" min="7" max="365">
-            <span style="color: #666;">days</span>
-            <span style="color: #999; font-size: 13px;">(Shown on vendor SRS details page)</span>
+            <span style="color: #666;"><?php echo e(t('admin_srs.days_label')); ?></span>
+            <span style="color: #999; font-size: 13px;"><?php echo e(t('admin_srs.trending_shown_note')); ?></span>
         </div>
 
         <div style="margin-top: 20px;">
-            <button type="submit" name="update_tier_schedule" class="btn btn-primary">Save Tier Schedule</button>
+            <button type="submit" name="update_tier_schedule" class="btn btn-primary"><?php echo e(t('admin_srs.save_tier_schedule_btn')); ?></button>
         </div>
     </form>
 </div>
 
 <div class="card">
-    <h3>About UpGuard CyberRisk</h3>
+    <h3><?php echo e(t('admin_srs.about_upguard_heading')); ?></h3>
     <p style="color: #666; line-height: 1.6;">
-        UpGuard CyberRisk provides automated security ratings and continuous monitoring for third-party vendors.
-        The integration enables:<br><br>
-        <strong>• Automated Security Scoring:</strong> Get instant security ratings (0-950) for vendors based on their external security posture<br>
-        <strong>• Risk Identification:</strong> Automatically identify high, medium, and low severity security risks<br>
-        <strong>• Trend Analysis:</strong> Track vendor security scores over time to identify improvements or degradation<br>
-        <strong>• Tier-Based Monitoring:</strong> Configure rescoring frequency based on vendor criticality
+        <?php echo t('admin_srs.about_upguard_body'); ?>
     </p>
     <p style="margin-top: 15px;">
-        <a href="https://cyber-risk.upguard.com" target="_blank" style="color: var(--theme-header-color);">Learn more about UpGuard CyberRisk &rarr;</a>
+        <a href="https://cyber-risk.upguard.com" target="_blank" style="color: var(--theme-header-color);"><?php echo t('admin_srs.about_upguard_learn_more'); ?></a>
     </p>
 </div>
 
@@ -604,47 +599,47 @@ document.getElementById('upguard_grade_d_min')?.addEventListener('input', functi
 <div id="cronInfoModal" class="modal">
     <div class="modal-content" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
         <span class="close" data-action="closeCronInfoModal">&times;</span>
-        <h3 style="margin-top: 0; color: var(--theme-header-color);">Cron Job Setup for SRS Rescoring</h3>
+        <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo e(t('admin_srs.cron_modal_heading')); ?></h3>
 
-        <h4 style="margin: 15px 0 10px; font-size: 14px; color: #333;">Prerequisites</h4>
+        <h4 style="margin: 15px 0 10px; font-size: 14px; color: #333;"><?php echo e(t('admin_srs.cron_prerequisites_heading')); ?></h4>
         <ul style="font-size: 13px; color: #666; margin-bottom: 15px; padding-left: 20px;">
-            <li>Ensure at least one SRS integration is enabled with a valid API key</li>
-            <li>Verify PHP CLI is installed: <code style="background: #f8f9fa; padding: 2px 6px; border-radius: 3px;">php -v</code></li>
-            <li>Create log directory if needed: <code style="background: #f8f9fa; padding: 2px 6px; border-radius: 3px;">sudo mkdir -p /var/log</code></li>
+            <li><?php echo e(t('admin_srs.cron_prereq_enabled')); ?></li>
+            <li><?php echo t('admin_srs.cron_prereq_php_cli'); ?></li>
+            <li><?php echo t('admin_srs.cron_prereq_log_dir'); ?></li>
         </ul>
 
-        <h4 style="margin: 20px 0 10px; font-size: 14px; color: #333;">1. Tier-Based Automatic Rescoring</h4>
+        <h4 style="margin: 20px 0 10px; font-size: 14px; color: #333;"><?php echo e(t('admin_srs.cron_tier_based_heading')); ?></h4>
         <p style="font-size: 13px; color: #666; margin-bottom: 8px;">
-            Automatically rescores vendors based on their tier schedule (Tier 1 = every 30 days, etc.):
+            <?php echo e(t('admin_srs.cron_tier_based_desc')); ?>
         </p>
         <div style="background: #1e1e1e; color: #d4d4d4; padding: 12px 15px; border-radius: 6px; font-family: monospace; font-size: 12px; overflow-x: auto; margin-bottom: 10px;">
             <code style="color: #9cdcfe;">0 * * * *</code> <code style="color: #ce9178;">/usr/bin/php</code> <code style="color: #dcdcaa;"><?php echo e(dirname(dirname(__DIR__))); ?>/cron/srs-rescore.php</code> <code style="color: #6a9955;">>> /var/log/tprm-srs.log 2>&1</code>
         </div>
         <table style="width: 100%; font-size: 12px; margin-bottom: 10px; border-collapse: collapse;">
-            <tr><td style="padding: 5px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb; width: 120px;">--batch-size=N</td><td style="padding: 5px 8px; border: 1px solid #e5e7eb;">Vendors per run (default: 10)</td></tr>
-            <tr><td style="padding: 5px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb;">--dry-run</td><td style="padding: 5px 8px; border: 1px solid #e5e7eb;">Preview without making changes</td></tr>
-            <tr><td style="padding: 5px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb;">--verbose</td><td style="padding: 5px 8px; border: 1px solid #e5e7eb;">Detailed output</td></tr>
+            <tr><td style="padding: 5px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb; width: 120px;">--batch-size=N</td><td style="padding: 5px 8px; border: 1px solid #e5e7eb;"><?php echo e(t('admin_srs.flag_batch_size')); ?></td></tr>
+            <tr><td style="padding: 5px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb;">--dry-run</td><td style="padding: 5px 8px; border: 1px solid #e5e7eb;"><?php echo e(t('admin_srs.flag_dry_run')); ?></td></tr>
+            <tr><td style="padding: 5px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb;">--verbose</td><td style="padding: 5px 8px; border: 1px solid #e5e7eb;"><?php echo e(t('admin_srs.flag_verbose')); ?></td></tr>
         </table>
 
-        <h4 style="margin: 20px 0 10px; font-size: 14px; color: #333;">2. On-Demand Rescore Queue <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; vertical-align: middle;">Required for "Use Cron"</span></h4>
+        <h4 style="margin: 20px 0 10px; font-size: 14px; color: #333;"><?php echo t('admin_srs.cron_ondemand_heading'); ?></h4>
         <p style="font-size: 13px; color: #666; margin-bottom: 8px;">
-            Processes manual rescore requests queued from the vendor details page. <strong>Required</strong> when "Use Cron for Rescoring" is enabled on either integration:
+            <?php echo t('admin_srs.cron_ondemand_desc'); ?>
         </p>
         <div style="background: #1e1e1e; color: #d4d4d4; padding: 12px 15px; border-radius: 6px; font-family: monospace; font-size: 12px; overflow-x: auto; margin-bottom: 10px;">
             <code style="color: #9cdcfe;">* * * * *</code> <code style="color: #ce9178;">/usr/bin/php</code> <code style="color: #dcdcaa;"><?php echo e(dirname(dirname(__DIR__))); ?>/cron/rescore-queue.php</code> <code style="color: #6a9955;">>> /var/log/tprm/rescore-queue.log 2>&1</code>
         </div>
         <p style="font-size: 12px; color: #6b7280; margin-bottom: 10px;">
-            Runs every minute. Uses lock files to prevent overlapping executions. Only processes one vendor at a time to avoid API rate limits. If no pending rescores exist, the job exits immediately.
+            <?php echo e(t('admin_srs.cron_ondemand_note')); ?>
         </p>
 
-        <h4 style="margin: 20px 0 10px; font-size: 14px; color: #333;">Example Schedules (Tier-Based)</h4>
+        <h4 style="margin: 20px 0 10px; font-size: 14px; color: #333;"><?php echo e(t('admin_srs.cron_example_schedules_heading')); ?></h4>
         <table style="width: 100%; font-size: 13px; border-collapse: collapse; margin-bottom: 10px;">
-            <tr><td style="padding: 6px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb;">0 * * * *</td><td style="padding: 6px 8px; border: 1px solid #e5e7eb;">Every hour (recommended)</td></tr>
-            <tr><td style="padding: 6px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb;">0 */4 * * *</td><td style="padding: 6px 8px; border: 1px solid #e5e7eb;">Every 4 hours</td></tr>
-            <tr><td style="padding: 6px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb;">0 2 * * *</td><td style="padding: 6px 8px; border: 1px solid #e5e7eb;">Daily at 2:00 AM</td></tr>
+            <tr><td style="padding: 6px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb;">0 * * * *</td><td style="padding: 6px 8px; border: 1px solid #e5e7eb;"><?php echo e(t('admin_srs.schedule_every_hour')); ?></td></tr>
+            <tr><td style="padding: 6px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb;">0 */4 * * *</td><td style="padding: 6px 8px; border: 1px solid #e5e7eb;"><?php echo e(t('admin_srs.schedule_every_4h')); ?></td></tr>
+            <tr><td style="padding: 6px 8px; background: #f8f9fa; font-family: monospace; border: 1px solid #e5e7eb;">0 2 * * *</td><td style="padding: 6px 8px; border: 1px solid #e5e7eb;"><?php echo e(t('admin_srs.schedule_daily_2am')); ?></td></tr>
         </table>
 
-        <h4 style="margin: 20px 0 10px; font-size: 14px; color: #333;">Testing</h4>
+        <h4 style="margin: 20px 0 10px; font-size: 14px; color: #333;"><?php echo e(t('admin_srs.cron_testing_heading')); ?></h4>
         <div style="background: #1e1e1e; color: #d4d4d4; padding: 12px 15px; border-radius: 6px; font-family: monospace; font-size: 12px; margin-bottom: 8px;">
             <code style="color: #6a9955;"># Test tier-based rescoring</code><br>
             <code style="color: #ce9178;">php</code> <code style="color: #dcdcaa;"><?php echo e(dirname(dirname(__DIR__))); ?>/cron/srs-rescore.php</code> <code style="color: #9cdcfe;">--dry-run --verbose</code><br><br>
@@ -652,7 +647,7 @@ document.getElementById('upguard_grade_d_min')?.addEventListener('input', functi
             <code style="color: #ce9178;">php</code> <code style="color: #dcdcaa;"><?php echo e(dirname(dirname(__DIR__))); ?>/cron/rescore-queue.php</code> <code style="color: #9cdcfe;">--verbose</code>
         </div>
 
-        <h4 style="margin: 20px 0 10px; font-size: 14px; color: #333;">Verify Setup</h4>
+        <h4 style="margin: 20px 0 10px; font-size: 14px; color: #333;"><?php echo e(t('admin_srs.cron_verify_heading')); ?></h4>
         <div style="background: #1e1e1e; color: #d4d4d4; padding: 10px 15px; border-radius: 6px; font-family: monospace; font-size: 12px; margin-bottom: 10px;">
             <code style="color: #ce9178;">crontab -l</code> <code style="color: #6a9955;">&nbsp;&nbsp;# View registered cron jobs</code><br>
             <code style="color: #ce9178;">tail -f /var/log/tprm-srs.log</code> <code style="color: #6a9955;">&nbsp;&nbsp;# Monitor tier-based log</code><br>
@@ -660,12 +655,12 @@ document.getElementById('upguard_grade_d_min')?.addEventListener('input', functi
         </div>
 
         <div style="margin-top: 15px; padding: 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
-            <strong style="color: #92400e;">Note:</strong>
-            <span style="font-size: 13px; color: #92400e;"> Execution history is logged in the database. Check Admin &gt; SRS for past executions and any errors.</span>
+            <strong style="color: #92400e;"><?php echo e(t('admin_srs.note_label')); ?></strong>
+            <span style="font-size: 13px; color: #92400e;"> <?php echo t('admin_srs.cron_note_body'); ?></span>
         </div>
 
         <div style="margin-top: 20px; text-align: right;">
-            <button type="button" class="btn btn-secondary" data-action="closeCronInfoModal">Close</button>
+            <button type="button" class="btn btn-secondary" data-action="closeCronInfoModal"><?php echo e(t('admin_srs.close_btn')); ?></button>
         </div>
     </div>
 </div>
@@ -695,27 +690,24 @@ window.addEventListener('click', function(event) {
 <?php $customScoringEnabled = getAppConfig('custom_scoring_enabled', '0'); ?>
 <div id="srsSection_custom" <?php echo $srsTab !== 'custom' ? 'style="display: none;"' : ''; ?>>
 <div class="card">
-    <h3>Custom Scoring</h3>
-    <p style="color: #666; margin-bottom: 15px;">Enable manual score entry for vendors when using external security rating tools not integrated with Open TPRM.</p>
+    <h3><?php echo e(t('admin_srs.custom_scoring')); ?></h3>
+    <p style="color: #666; margin-bottom: 15px;"><?php echo e(t('admin_srs.custom_scoring_intro')); ?></p>
     <form method="POST" action="admin.php?section=srs&srs_tab=custom">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="custom_scoring_enabled" value="1" <?php echo $customScoringEnabled === '1' ? 'checked' : ''; ?>>
-                <span>Enable Custom Scoring</span>
+                <span><?php echo e(t('admin_srs.enable_custom_scoring_label')); ?></span>
             </label>
-            <div class="form-help">When enabled, a manual score entry field (1-100) will appear on vendor SRS detail pages. Use this for organizations that use external security rating providers not directly integrated with Open TPRM.</div>
+            <div class="form-help"><?php echo e(t('admin_srs.enable_custom_scoring_help')); ?></div>
         </div>
-        <button type="submit" name="update_custom_scoring" class="btn btn-primary">Save Custom Scoring Settings</button>
+        <button type="submit" name="update_custom_scoring" class="btn btn-primary"><?php echo e(t('admin_srs.save_custom_scoring_btn')); ?></button>
     </form>
 </div>
 <div class="card">
-    <h3>About Custom Scoring</h3>
+    <h3><?php echo e(t('admin_srs.about_custom_heading')); ?></h3>
     <p style="color: #666; line-height: 1.6;">
-        Custom scoring allows you to manually enter security scores for vendors using external assessment tools or rating services.<br><br>
-        <strong>Score Range:</strong> 1-100 (percentage scale)<br>
-        <strong>Grading:</strong> A &ge; 90, B &ge; 75, C &ge; 60, D &ge; 40, F &lt; 40<br><br>
-        When multiple scoring sources exist (UpGuard, Shodan, Custom), a combined average score is calculated and displayed across the application. This provides a unified view of each vendor's security posture from all available sources.
+        <?php echo t('admin_srs.about_custom_body'); ?>
     </p>
 </div>
 </div><!-- end srsSection_custom -->

@@ -155,6 +155,12 @@
         <tr><td><strong><a href="#question-types">Types de questions Téléphone &amp; TVA</a></strong></td><td>Nouveaux types de champs pour les évaluations/intégrations : un numéro de téléphone avec sélecteur d'indicatif pays &amp; drapeau (formaté automatiquement), et un numéro de TVA UE avec double saisie et validation en direct gratuite via le service officiel EU VIES.</td><td>Tout le monde</td></tr>
         <tr><td><strong><a href="#question-types">Données fournisseurs &amp; améliorations de la recherche</a></strong></td><td>Enregistrez un numéro de TVA pour chaque fournisseur (affiché sur la page du fournisseur avec un raccourci « Ajouter TVA »), trouvez des fournisseurs par numéro de TVA dans la recherche rapide, et une bannière de score d'intégration par approvisionnement plus claire.</td><td>Approvisionnement, Cyber TPRM</td></tr>
         <tr><td><strong><a href="#admin-backup">Sauvegardes de grandes bases de données</a></strong></td><td>La sauvegarde et la restauration prennent désormais en charge les bases de données de plusieurs gigaoctets et les enregistrements très volumineux sans expiration du délai.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#assessment-forms">Formulaires d'évaluation &amp; Remplissage automatique par IA</a></strong></td><td>Téléchargez une évaluation sous forme de PDF à remplir ou de classeur Excel, réimportez un fichier complété, et &mdash; avec un fournisseur IA &mdash; remplissez automatiquement les réponses à partir des certificats actuels du fournisseur.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#tprm-action-plan">Plan d'action fournisseur</a></strong></td><td>Planifiez des actions de suivi pour un fournisseur (contacter, envoyer une évaluation, forcer une révision annuelle) avec des dates d'échéance, des responsables, des alertes par e-mail et des notes de statut.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#custom-onboarding">Champs d'intégration personnalisés &amp; Données personnalisées</a></strong></td><td>Capturez des champs supplémentaires propres à votre organisation sur un fournisseur avec une visibilité par rôle, modifiez-les dans l'onglet Données personnalisées, et lisez-les dans l'export CSV et l'API.</td><td>Admins, Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#breach-alerts">Alertes de violation / cyber</a></strong></td><td>Un flux de violations de la chaîne d'approvisionnement (y compris les incidents Grip) avec une analyse détaillée des utilisateurs affectés et des actions groupées d'accusé de réception / faux positif / suppression.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#admin-acl-groups">Groupes de contrôle d'accès personnalisés</a></strong></td><td>Créez vos propres groupes ACL, clonez les permissions d'un groupe existant et définissez Lecture ou Lecture/Écriture par module. Les groupes fournis sont protégés.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-templates">Générateur de modèles d'évaluation</a></strong></td><td>Nouveaux types de questions (choix multiple, téléphone, TVA), instructions de certificat pilotées par modèle, restriction des champs par rôle, et modèles désactivés masqués par défaut.</td><td>Admins, Cyber TPRM</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>Comment savoir quelle version j'utilise ?</strong> Les administrateurs peuvent aller dans <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> pour voir la version installée. Ce guide décrit la version <strong>v2.6.2</strong>. Voir <a href="#admin-updates">Mise à jour de la plateforme</a>.
@@ -205,7 +211,7 @@
     </figure>
 
     <div class="callout callout-warning">
-        <strong>Bon à savoir :</strong> La majeure partie de l'interface (menus, boutons, étiquettes et champs de formulaire) est traduite. Les <em>questions</em> d'évaluation des fournisseurs peuvent également être traduites automatiquement lorsqu'un fournisseur IA est configuré (voir <a href="#admin-ai">Intégration IA</a>), mais les valeurs des réponses enregistrées restent en anglais afin que la notation et les rapports restent cohérents entre les langues.
+        <strong>Bon à savoir :</strong> L'interface est traduite partout où une traduction existe pour votre langue ; une chaîne qui n'a pas encore été traduite revient à l'anglais, vous pouvez donc encore voir occasionnellement une étiquette en anglais. Le contenu que vous ou vos fournisseurs saisissez (noms de fournisseurs, notes, noms de fichiers importés, réponses en texte libre) est toujours affiché exactement tel qu'il a été saisi. Les <em>questions</em> d'évaluation des fournisseurs peuvent être traduites automatiquement pour l'affichage lorsqu'un fournisseur IA est configuré (voir <a href="#admin-ai">Intégration IA</a>) ; sans cela, elles restent dans la langue dans laquelle elles ont été rédigées. Les valeurs des réponses enregistrées restent toujours en anglais afin que la notation et les rapports restent cohérents entre les langues.
     </div>
 </div>
 
@@ -868,6 +874,76 @@
     </ol>
 </div>
 
+<div class="doc-section" id="assessment-forms">
+    <h2>Formulaires d'évaluation : Télécharger, remplir, importer &amp; Remplissage automatique par IA <span class="new-badge">Nouveau dans 2.6.2</span></h2>
+    <p>Tous les fournisseurs ne souhaitent pas répondre à un questionnaire dans le navigateur. Depuis la page d'une évaluation individuelle (<span class="menu-label">Module TPRM</span> &rarr; <span class="menu-label">Évaluations des fournisseurs</span> &rarr; ouvrez une évaluation), vous pouvez remettre au fournisseur une copie hors ligne, récupérer un fichier complété, ou laisser un fournisseur IA préremplir les réponses à partir des propres certificats du fournisseur. Les boutons se trouvent sur une ligne près du haut de l'évaluation.</p>
+
+    <h3>Télécharger l'évaluation sous forme de fichier à remplir</h3>
+    <ul>
+        <li><span class="btn-label">Télécharger le PDF</span> &mdash; un formulaire PDF à remplir. Chaque question devient un véritable champ de formulaire, de sorte que le fournisseur peut saisir du texte et cocher des cases directement dans le fichier.</li>
+        <li><span class="btn-label">Télécharger Excel</span> &mdash; un véritable classeur <code>.xlsx</code> qui peut être complété dans Excel, Google Sheets ou LibreOffice. Les questions à choix unique disposent de listes déroulantes intégrées aux cellules, et les questions conditionnelles se grisent automatiquement lorsqu'elles ne s'appliquent pas.</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>Le PDF à remplir fonctionne désormais dans n'importe quel navigateur, pas seulement Adobe.</strong> Les cases à cocher intègrent des apparences prégénérées afin de s'afficher et de basculer dans Chrome, Edge et d'autres visionneuses PDF intégrées (auparavant, elles ne fonctionnaient que dans Adobe Acrobat/Reader). Un champ de nom saisi intitulé <strong>&ldquo;SIGNATURE (TYPE FULL NAME)&rdquo;</strong> permet à quiconque de signer dans n'importe quelle visionneuse ; les champs de signature numérique et de date de signature propres à Adobe restent masqués sauf dans Acrobat/Reader, qui peut réellement les utiliser.
+    </div>
+
+    <h3>Importer une évaluation complétée (PDF, Excel ou CSV)</h3>
+    <p>Lorsque le fournisseur renvoie le fichier terminé, cliquez sur <span class="btn-label">Importer l'évaluation complétée</span> et importez-le. La plateforme détecte le format automatiquement &mdash; un <strong>PDF</strong>, un fichier <strong>Excel (.xlsx)</strong> ou un <strong>CSV</strong> complété &mdash; et fusionne les réponses dans les réponses existantes de l'évaluation.</p>
+    <div class="callout callout-warning">
+        <strong>La référence du fichier doit correspondre.</strong> Chaque fichier téléchargé porte une <strong>Référence</strong> masquée (l'ID de l'évaluation). Si la référence est manquante ou appartient à une autre évaluation, l'import est refusé et rien n'est écrit &mdash; les réponses ne peuvent donc jamais aboutir sur la mauvaise évaluation.
+    </div>
+
+    <h3>Vous avez plutôt un certificat ? <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Un fournisseur qui complète une évaluation peut se voir proposer un raccourci : s'il détient une certification pertinente, il peut l'importer au lieu de répondre à chaque question. L'invite <strong>&ldquo;Avez-vous un certificat ?&rdquo;</strong> affiche désormais les <strong>Instructions d'import de certificat</strong> rédigées par l'auteur du modèle, elle n'est donc plus limitée à ISO 27001 &mdash; un modèle peut inviter un certificat SOC 2 Type 2, ISO 27001 ou tout autre certificat. (Les auteurs de modèles définissent ce texte dans le Générateur de modèles ; voir <a href="#admin-templates">Générateur de modèles d'évaluation</a>.)</p>
+
+    <h3>Remplissage automatique par IA à partir des certifications <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Si votre administrateur a configuré un <a href="#admin-ai">fournisseur IA</a>, un examinateur autorisé peut laisser l'IA lire les documents de certification importés par le fournisseur et préremplir le questionnaire. Cliquez sur <span class="btn-label">&#9889; Remplissage automatique à partir des certifications</span> sur la page d'évaluation.</p>
+    <figure class="doc-figure">
+        <img src="app/docs/assessment-ai-autofill.png" alt="The Auto-Fill from Certifications button on a vendor assessment" loading="lazy">
+        <figcaption><strong>Remplissage automatique à partir des certifications.</strong> Avec un fournisseur IA configuré, le bouton apparaît à côté de <strong>Télécharger le PDF</strong>, <strong>Télécharger Excel</strong> et <strong>Importer l'évaluation complétée</strong>. Il lit les documents de certification actuels du fournisseur et remplit les questions auxquelles ces documents répondent.</figcaption>
+    </figure>
+    <p>Lorsque vous cliquez dessus, un rappel s'affiche : <em>&ldquo;Cela analysera les documents de certification du fournisseur et préremplira les questions sans réponse. Les réponses existantes ne seront pas modifiées.&rdquo;</em> L'IA parcourt ensuite les certificats du fournisseur et rapporte, par exemple, <em>&ldquo;12 questions sans réponse sur 30 remplies.&rdquo;</em> Quelques points à connaître :</p>
+    <ul>
+        <li><strong>Seuls les certificats actuels sont utilisés.</strong> Elle lit les documents importés du fournisseur dont le type est <em>Certification</em> et qui sont <strong>actifs et non expirés</strong> (documents PDF, CSV et Excel ; les quelques plus récents). Un certificat expiré ou remplacé est ignoré.</li>
+        <li><strong>Elle ne remplit que les champs vides.</strong> Les questions auxquelles vous avez déjà répondu restent intactes, et elle n'écrase jamais une réponse existante.</li>
+        <li><strong>Elle ne répond qu'à partir de ce que disent réellement les documents.</strong> L'IA a pour consigne de ne pas deviner ; tout ce qu'elle ne peut pas étayer avec certitude à partir des documents reste sans réponse pour qu'une personne le complète.</li>
+        <li><strong>Vous gardez le contrôle.</strong> Les réponses remplies sont enregistrées et la page se recharge en les affichant, de sorte que vous pouvez examiner et modifier n'importe quelle réponse avant que l'évaluation ne soit soumise.</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>Qui peut l'utiliser, et quand il apparaît.</strong> Le bouton n'est affiché qu'aux <strong>Administrateurs</strong> et aux utilisateurs <strong>Cyber TPRM</strong>, uniquement lorsqu'un fournisseur IA est activé, et uniquement lorsque le fournisseur possède au moins un document de certification actuel au dossier. Il est masqué sur les évaluations terminées.
+    </div>
+</div>
+
+<div class="doc-section" id="tprm-action-plan">
+    <h2>Plan d'action fournisseur <span class="new-badge">Nouveau dans 2.6.2</span></h2>
+    <p>L'onglet <strong>Plan d'action</strong> sur la page d'un fournisseur permet à l'équipe cyber de planifier un travail de suivi pour ce fournisseur &mdash; contacter le fournisseur, envoyer une autre évaluation, forcer une révision annuelle &mdash; avec une date d'échéance, des responsables et un ensemble de notes de statut. Une tâche quotidienne déclenche chaque action à l'arrivée de sa date et la transforme en tâche à faire suivie.</p>
+    <p>Ouvrez un fournisseur depuis <span class="menu-label">Module TPRM</span> &rarr; <span class="menu-label">Intégration des fournisseurs</span> &rarr; <span class="menu-label">Mes fournisseurs</span>, puis cliquez sur l'onglet <strong>Plan d'action</strong>. Cet onglet est disponible pour les utilisateurs <strong>Administrateurs</strong> et <strong>Cyber TPRM</strong>.</p>
+
+    <h3>Planifier une action</h3>
+    <ol class="steps">
+        <li>Dans l'onglet <strong>Plan d'action</strong>, cliquez sur <span class="btn-label">+ Créer une action</span>.</li>
+        <li>Choisissez l'<span class="field-label">Action</span> : <strong>Contacter le fournisseur</strong>, <strong>Contacter la partie prenante</strong>, <strong>Envoyer une évaluation</strong> ou <strong>Forcer la révision annuelle</strong>. (Si vous choisissez <strong>Envoyer une évaluation</strong>, un sélecteur <span class="field-label">Évaluation du fournisseur</span> apparaît pour vous permettre de choisir le modèle à envoyer.)</li>
+        <li>Définissez la <span class="field-label">Date d'échéance</span> &mdash; le jour où l'action doit se déclencher.</li>
+        <li>Sous <span class="field-label">Assigner à (Cyber TPRM)</span>, cochez un ou plusieurs responsables Cyber TPRM. (S'il n'y en a aucun, l'action revient à la partie prenante du fournisseur.)</li>
+        <li>Cochez facultativement <span class="field-label">Envoyer un e-mail aux personnes assignées au déclenchement de cette action</span>, et utilisez <span class="field-label">Adresses e-mail de notification</span> pour envoyer plutôt à des adresses spécifiques &mdash; séparées par des virgules. Laissez ce champ vide pour utiliser les adresses e-mail de compte des personnes assignées.</li>
+        <li>Rédigez une <span class="field-label">Description</span> (elle est reportée dans la tâche à faire qui est créée), puis cliquez sur <span class="btn-label">Créer une action</span>.</li>
+    </ol>
+
+    <h3>Ce qui se passe lorsqu'une action se déclenche</h3>
+    <p>Chaque action se déclenche une fois, à sa date d'échéance ou après. Le déclenchement crée une <strong>tâche cyber</strong> liée qui renvoie directement vers cet onglet Plan d'action, exécute l'action (pour <strong>Envoyer une évaluation</strong>, elle envoie le questionnaire par e-mail au fournisseur ; pour <strong>Forcer la révision annuelle</strong>, elle marque la révision annuelle comme due) et &mdash; si vous l'avez activé &mdash; envoie un e-mail aux responsables ou aux adresses que vous avez listées.</p>
+
+    <h3>Statuts des actions</h3>
+    <p>Une action passe par ces statuts :</p>
+    <p><span class="status-label">En attente</span> &rarr; <span class="status-label">En cours</span> (défini automatiquement lors du déclenchement) &rarr; <span class="status-label">Terminée</span>, ou <span class="status-label">Problème</span> si quelque chose s'est mal passé lors du déclenchement, ou <span class="status-label">Annulée</span> si vous l'annulez avant son déclenchement. Vous pouvez modifier le statut vous-même à tout moment ; la tâche quotidienne n'écrase jamais un statut que vous avez défini.</p>
+
+    <h3>Notes de statut</h3>
+    <p>Ouvrez une action pour ajouter des <strong>Notes de statut</strong> datées au fur et à mesure de l'avancement. Tapez une note et cliquez sur <span class="btn-label">Ajouter une note</span>. Vous pouvez modifier ou supprimer vos propres notes ; les administrateurs peuvent modifier ou supprimer celles de n'importe qui. Chaque création, modification et suppression est consignée dans le journal d'audit.</p>
+
+    <div class="callout callout-info">
+        <strong>La tâche &ldquo;Calendrier de remédiation des fournisseurs&rdquo;.</strong> La tâche quotidienne qui déclenche les actions dues s'appelle <strong>Calendrier de remédiation des fournisseurs</strong> et s'exécute chaque jour à <strong>7h00</strong> par défaut. Les administrateurs peuvent l'activer, la désactiver ou la reprogrammer sur la page <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Planificateur</span>. Si elle a été désactivée, elle rattrape son retard lors de sa prochaine exécution, en déclenchant tout ce qui est devenu dû entre-temps.
+    </div>
+</div>
+
 <div class="doc-section" id="tprm-srs">
     <h2>Carte de score des risques de sécurité (SRS)</h2>
     <p>La SRS fournit un score de sécurité externe automatisé pour chaque fournisseur basé sur la configuration DNS, SSL/TLS, la sécurité des e-mails (SPF, DKIM, DMARC), les ports ouverts et d'autres indicateurs techniques.</p>
@@ -882,8 +958,19 @@
 
 <div class="doc-section" id="tprm-fourth-party">
     <h2>Risque de quatrième partie</h2>
-    <p>Suivez les fournisseurs dont <em>vos fournisseurs</em> dépendent. Si votre fournisseur cloud utilise un sous-traitant pour le stockage des données, il s'agit d'un risque de quatrième partie.</p>
-    <p>Accédez à <span class="menu-label">Module TPRM</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">Risque de quatrième partie</span>.</p>
+    <p>Suivez les fournisseurs dont <em>vos fournisseurs</em> dépendent. Si votre fournisseur cloud utilise un sous-traitant pour le stockage des données, il s'agit d'un risque de quatrième partie. Depuis la barre latérale, vous pouvez ouvrir <span class="menu-label">Risque de quatrième partie</span> (concentration technologique), <span class="menu-label">Recherche CVE</span> et <span class="menu-label">Sous-traitants</span>. Cette fonctionnalité est disponible pour les administrateurs et les utilisateurs Cyber TPRM ; les auditeurs peuvent consulter mais pas agir.</p>
+
+    <h3>Concentration des sous-traitants <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Ouvrez <span class="menu-label">Sous-traitants</span> pour voir la vue <strong>Concentration des sous-traitants</strong> : chaque sous-traitant que vos fournisseurs ont déclaré, et combien de vos fournisseurs utilisent chacun d'eux. Un sous-traitant partagé par plusieurs fournisseurs est mis en évidence &mdash; cette dépendance partagée constitue un risque de concentration de la chaîne d'approvisionnement. (Les sous-traitants sont ajoutés à un fournisseur depuis la page de détail de ce fournisseur.)</p>
+
+    <h3>Envoyer une évaluation à tous ceux qui utilisent un sous-traitant <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Lorsqu'un sous-traitant concentre le risque, vous pouvez interroger les fournisseurs qui en dépendent en une seule action :</p>
+    <ol class="steps">
+        <li>Dans la liste des sous-traitants, cliquez sur <span class="btn-label">Envoyer une évaluation</span> sur la ligne de ce sous-traitant.</li>
+        <li>Dans le sélecteur de fournisseurs, choisissez lesquels des fournisseurs utilisant ce sous-traitant doivent recevoir l'évaluation (ou <span class="field-label">Sélectionner tous les éléments visibles</span>), puis continuez.</li>
+        <li>Choisissez un <span class="field-label">Modèle d'évaluation</span> et une fenêtre <span class="field-label">Expire dans</span> (14, 30, 60 ou 90 jours), puis cliquez sur <span class="btn-label">Attribuer l'évaluation</span>.</li>
+    </ol>
+    <p>Chaque fournisseur sélectionné reçoit le questionnaire par e-mail (une demande d'informations), et un rappel est suivi afin que les relances soient envoyées automatiquement. Les fournisseurs sans adresse e-mail au dossier sont ignorés, et tout envoi qui échoue est retenté par la tâche de rappel. Le même flux <strong>Attribuer l'évaluation</strong> est disponible depuis les vues de concentration technologique et de CVE.</p>
 </div>
 
 <div class="doc-section" id="tprm-shadow-saas">
@@ -945,6 +1032,50 @@
         </ul>
         Voir <a href="#troubleshooting">Dépannage</a> pour comprendre pourquoi cette règle existe.
     </div>
+</div>
+
+<div class="doc-section" id="custom-onboarding">
+    <h2>Champs d'intégration personnalisés &amp; l'onglet Données personnalisées <span class="new-badge">Nouveau dans 2.6.2</span></h2>
+    <p>Les champs fournisseur standard (nom, domaine, niveau, TVA, etc.) couvrent la plupart des besoins, mais chaque organisation suit quelque chose de supplémentaire. Dans la v2.6.2, un modèle d'intégration peut définir des <strong>champs personnalisés</strong> qui n'ont aucune colonne fournisseur standard. Leurs valeurs sont capturées par fournisseur et affichées dans l'onglet <strong>Données personnalisées</strong> du fournisseur.</p>
+
+    <h3>Où résident les valeurs personnalisées : l'onglet Données personnalisées</h3>
+    <p>Ouvrez un fournisseur (<span class="menu-label">Module TPRM</span> &rarr; <span class="menu-label">Intégration des fournisseurs</span> &rarr; <span class="menu-label">Mes fournisseurs</span> &rarr; ouvrez un fournisseur). Si le modèle d'intégration du fournisseur définit des champs personnalisés, un onglet <strong>Données personnalisées</strong> apparaît à côté des autres onglets du fournisseur, avec un décompte du nombre de valeurs personnalisées au dossier. L'onglet est en lecture seule jusqu'à ce que vous cliquiez sur <span class="btn-label">Modifier</span> ; effectuez vos modifications et cliquez sur <span class="btn-label">Enregistrer les données personnalisées</span>. Les champs sont regroupés par section de modèle. Les utilisateurs autorisés à voir un champ mais pas à le modifier le voient marqué <em>(lecture seule)</em>.</p>
+
+    <h3>Définir un champ personnalisé (administrateurs)</h3>
+    <p>Un champ personnalisé est simplement une question sur un modèle de catégorie <strong>Intégration</strong> dont le <span class="field-label">Nom du champ</span> n'est <em>pas</em> une colonne fournisseur intégrée. Il y a deux étapes, toutes deux dans le Portail d'administration :</p>
+    <ol class="steps">
+        <li><strong>Enregistrez le nom du champ.</strong> Allez dans <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Référence des champs</span>, cliquez sur <span class="btn-label">+ Ajouter un champ</span>, et ajoutez votre champ personnalisé (lettres minuscules, chiffres et traits de soulignement ; par ex. <code>data_residency_region</code>). Choisissez un type de colonne (texte, nombre, date, etc.) et la catégorie <span class="field-label">Intégration</span>.</li>
+        <li><strong>Ajoutez une question qui y est mappée.</strong> Dans <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Générateur de modèles</span>, ouvrez votre modèle d'intégration, ajoutez une question et définissez son <span class="field-label">Nom du champ</span> sur le champ que vous venez d'enregistrer. Voir <a href="#admin-templates">Générateur de modèles d'évaluation</a>.</li>
+    </ol>
+
+    <h3>Nouveaux types de champs pour des réponses plus riches <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Au-delà des types texte, nombre, date, liste déroulante et bouton radio existants, les questions (personnalisées ou standard) peuvent désormais utiliser :</p>
+    <table class="doc-table">
+        <tr><th>Type</th><th>Ce que voit le fournisseur</th></tr>
+        <tr><td><strong>Cases à cocher</strong></td><td>Une liste à choix multiple &mdash; cochez chaque option applicable.</td></tr>
+        <tr><td><strong>Groupe de boutons (multiple)</strong></td><td>Le même choix multiple, affiché sous forme de rangée de boutons bascule.</td></tr>
+        <tr><td><strong>Téléphone</strong></td><td>Un numéro de téléphone avec un sélecteur d'indicatif pays &amp; drapeau (voir <a href="#question-types">Types de questions Téléphone &amp; TVA</a>).</td></tr>
+        <tr><td><strong>Numéro de TVA</strong></td><td>Un numéro de TVA UE avec double saisie et validation VIES en direct (voir <a href="#question-types">Types de questions Téléphone &amp; TVA</a>).</td></tr>
+    </table>
+    <p>Les équivalents à choix unique (<strong>Liste déroulante</strong>, <strong>Boutons radio</strong>, <strong>Groupe de boutons</strong>) sont toujours disponibles. Les types à choix multiple nécessitent une liste d'<span class="field-label">Options</span> (une par ligne).</p>
+
+    <h3>Contrôler qui peut voir et modifier un champ (restriction par rôle) <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Sur les modèles d'intégration, chaque section et question <strong>personnalisée</strong> comporte deux contrôles de rôle, afin que vous puissiez tenir les champs sensibles à l'écart des personnes qui ne devraient pas les voir :</p>
+    <ul>
+        <li><span class="field-label">Visible par les rôles</span> &mdash; quels rôles peuvent <em>voir</em> le champ.</li>
+        <li><span class="field-label">Rôles avec accès en visualisation et modification</span> &mdash; quels rôles peuvent le <em>modifier</em>.</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>Les champs personnalisés sont privés par défaut.</strong> Contrairement à une question standard, un champ personnalisé est masqué jusqu'à ce que vous accordiez un rôle. Tant qu'aucun rôle n'est accordé, seuls les super administrateurs peuvent le voir ou le modifier. Un champ qu'un utilisateur n'est pas autorisé à voir est exclu de l'onglet Données personnalisées, de la page fournisseur, de l'export CSV et de l'API pour cette personne. (Cette valeur par défaut d'octroi uniquement s'applique aux champs personnalisés ; les questions d'intégration standard ne sont jamais restreintes de cette façon.)
+    </div>
+    <p>L'octroi d'une section et l'octroi d'une question doivent tous deux autoriser une personne avant qu'elle ne voie cette question, vous pouvez donc masquer une section entière ou seulement des champs individuels à l'intérieur.</p>
+
+    <h3>Valeurs personnalisées dans les exports et l'API</h3>
+    <ul>
+        <li><strong>Export CSV.</strong> Sur la liste <span class="menu-label">Intégration des fournisseurs</span>, <span class="btn-label">Exporter en CSV</span> (administrateurs et Cyber TPRM) ajoute désormais une colonne par champ personnalisé, nommée <code>custom:&lt;field_name&gt;</code>, à côté des colonnes standard.</li>
+        <li><strong>API REST.</strong> La réponse pour un seul fournisseur (<code>GET /vendors/{id}</code>) inclut un tableau <code>custom_onboarding_data</code> ; chaque entrée contient <code>field_name</code>, <code>label</code>, <code>value</code>, <code>type</code>, <code>section</code> et <code>template_name</code>.</li>
+    </ul>
+    <p>Les deux lisent depuis le même endroit que l'onglet Données personnalisées et respectent la même visibilité par rôle &mdash; un champ que l'appelant (ou le propriétaire de la clé API) ne peut pas voir est laissé vide ou omis.</p>
 </div>
 
 <div class="doc-section" id="ai-review">
@@ -1036,6 +1167,28 @@
         <img src="app/docs/shadow-saas.png" alt="Shadow SaaS list page" loading="lazy">
         <figcaption><strong>La page Shadow SaaS.</strong> Applications découvertes et importées avec leurs risques et actions. Les applications intégrées en tant que fournisseurs sont ignorées lors des synchronisations futures, et tout ce que vous ignorez reste ignoré.</figcaption>
     </figure>
+
+    <h3>Source de données Live vs. Local (en cache) <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Sur la carte Connexion Grip Security, <span class="field-label">Source de données</span> contrôle d'où les pages Grip lisent :</p>
+    <ul>
+        <li><strong>Live</strong> &mdash; appelle l'API Grip pour chaque page. Toujours à jour, mais plus lourd pour l'API.</li>
+        <li><strong>Local (hydraté/en cache)</strong> &mdash; sert à partir de la copie des données Grip conservée dans la base de données de la plateforme. Plus léger pour l'API. En mode Local, chaque synchronisation <strong>actualise entièrement</strong> cette copie ; entre les synchronisations, les pages servent à partir de l'instantané plutôt que d'appeler Grip.</li>
+    </ul>
+
+    <h3>Surveiller et contrôler une synchronisation <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Pendant qu'une synchronisation est en cours, la carte <strong>Dernière synchronisation</strong> affiche un relevé de progression en direct &mdash; <em>&ldquo;Hydratation des listes d'utilisateurs par application &mdash; NN% (D / T applications)&rdquo;</em> &mdash; au-dessus d'un bouton <span class="btn-label">Arrêter la synchronisation</span> qui annule l'exécution de manière coopérative. Pour effacer entièrement les données Grip servies localement, utilisez <span class="btn-label">Vider les données</span> sur la même carte : cela efface les tables miroir Grip, les lignes Grip de la liste Shadow SaaS et la télémétrie Grip apposée sur les fiches fournisseurs (l'onglet Données SaaS). Votre historique de synchronisation est conservé, et la synchronisation suivante réhydrate tout à partir de Grip.</p>
+
+    <h3>Note SecurityScorecard (SSC) <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Lorsque Grip est connecté, une colonne <strong>SSC</strong> affiche la note en lettre <strong>SecurityScorecard</strong> (A&ndash;F) de chaque application ou fournisseur sur la liste Shadow SaaS, sur la liste SRS des fournisseurs et sur l'onglet Données SaaS du fournisseur. Elle n'apparaît que lorsque Grip est activé.</p>
+
+    <h3>L'onglet &ldquo;Données SaaS&rdquo; du fournisseur <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Lorsqu'un fournisseur correspond à une application découverte par Grip, un onglet <strong>Données SaaS</strong> en lecture seule apparaît sur la page de ce fournisseur, faisant remonter la télémétrie Grip recueillie lors de la synchronisation sans quitter le fournisseur : <strong>Première découverte</strong>, <strong>Comptes actifs</strong> (un lien vers la liste des utilisateurs affectés), <strong>Dernière utilisation connue</strong>, classification de l'application, note <strong>Security Scorecard</strong>, catégorie, profondeur d'IA, signaux de conformité et prise en charge SAML/MFA.</p>
+
+    <h3>Alertes de violation Grip <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Grip peut également alimenter la plateforme en incidents de sécurité. Cochez <span class="field-label">Faire remonter les informations de violation Grip dans les Alertes de violation / cyber</span> sur la carte de connexion et les alertes Grip &ldquo;Security Incident Detected&rdquo; sont écrites dans votre liste <a href="#breach-alerts">Alertes de violation / cyber</a> à chaque synchronisation. (Cela nécessite également que la fonctionnalité Alertes de violation / cyber soit activée sous <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Paramètres de messagerie</span>.)</p>
+    <div class="callout callout-info">
+        <strong>Les données personnelles sont chiffrées au repos.</strong> Les noms, adresses e-mail et autres détails personnels dans les données Grip mises en cache sont chiffrés dans la base de données et déchiffrés uniquement lorsqu'ils sont affichés dans l'application ou renvoyés par l'API. Ceci est automatique et ne nécessite aucune configuration.
+    </div>
 </div>
 
 <div class="doc-section" id="shadow-saas-hero">
@@ -1090,6 +1243,26 @@
 </div>
 
 
+<div class="doc-section" id="breach-alerts">
+    <h2>Alertes de violation / cyber <span class="new-badge">Nouveau dans 2.6.2</span></h2>
+    <p>La page <strong>Alertes de violation / cyber</strong> regroupe en un seul endroit les signaux de violation et de renseignement sur les menaces pour votre chaîne d'approvisionnement de fournisseurs. Ouvrez-la depuis la barre latérale sous <span class="menu-label">Alertes de violation / cyber</span> &rarr; <span class="menu-label">Alertes de violation</span> ; un badge rouge indique le nombre de nouvelles alertes.</p>
+
+    <h3>D'où proviennent les alertes</h3>
+    <p>Les alertes comprennent les violations révélées par les analyseurs IA de violations &amp; OSINT (voir <a href="#admin-ai">Intégration IA</a>) et, lorsqu'ils sont activés, les incidents de sécurité de <a href="#shadow-saas-grip">Grip</a>. Chaque alerte affiche l'entité affectée, les utilisateurs potentiellement impactés, la technologie et la date de détection. Un incident sur une application SaaS que vous n'avez <strong>pas</strong> intégrée en tant que fournisseur est étiqueté <strong>&ldquo;Shadow SaaS&rdquo;</strong> avec le nombre d'utilisateurs potentiellement impactés ; si cette application est intégrée ultérieurement, les incidents futurs sont plutôt rattachés au fournisseur.</p>
+
+    <h3>Qui a été affecté</h3>
+    <p>Pour un incident provenant de Grip, le nombre d'utilisateurs impactés renvoie à une liste des <strong>utilisateurs affectés</strong> pour cette application. La liste est paginée et filtrable (par exemple par méthode d'authentification) et dispose d'une zone <strong>Rechercher par nom ou e-mail</strong> pour trouver une personne spécifique. Comme la liste des utilisateurs est stockée chiffrée, la recherche s'exécute sur les données déchiffrées dans l'application, elle fonctionne donc de la même manière que le tri et la pagination.</p>
+
+    <h3>Traiter les alertes en masse</h3>
+    <p>Les administrateurs et les utilisateurs Cyber TPRM disposent d'une barre d'outils à sélection multiple sur la liste. Cochez les alertes souhaitées (ou utilisez <strong>Tout cocher</strong>) et appliquez une action à toutes en même temps :</p>
+    <ul>
+        <li><span class="btn-label">Accuser réception</span> &mdash; marquez les alertes comme vues.</li>
+        <li><span class="btn-label">Faux positif</span> &mdash; marquez-les comme n'étant pas un problème réel.</li>
+        <li><span class="btn-label">Supprimer</span> &mdash; supprimez-les. <strong>Administrateurs uniquement</strong>, et confirmé avant exécution.</li>
+    </ul>
+</div>
+
+
 <!-- ================================================================
      ADMIN PORTAL
      ================================================================ -->
@@ -1116,6 +1289,49 @@
         <li>Une fenêtre modale apparaîtra affichant tous les groupes disponibles avec des cases à cocher. Cochez les groupes que vous souhaitez affecter (par ex., <strong>Cyber GRC</strong>, <strong>Administrateur</strong>).</li>
         <li>Cliquez sur <span class="btn-label">Enregistrer les modifications</span>.</li>
     </ol>
+    <p>Au-delà de l'affectation des groupes fournis, les super administrateurs peuvent créer leurs propres groupes avec un ensemble de permissions personnalisé &mdash; voir <a href="#admin-acl-groups">Groupes ACL &amp; Contrôle d'accès personnalisé</a>.</p>
+</div>
+
+<div class="doc-section" id="admin-acl-groups">
+    <h2>Groupes ACL &amp; Contrôle d'accès personnalisé <span class="new-badge">Nouveau dans 2.6.2</span></h2>
+    <p>La plateforme est livrée avec sept groupes intégrés (administrator, cyber_tprm, procurement, stakeholder, auditor, cyber_grc, grc_contributors). Dans la v2.6.2, les <strong>super administrateurs</strong> peuvent également créer leurs propres groupes et ajuster exactement ce que chacun peut faire. Ouvrez <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Contrôle d'accès</span> &rarr; <span class="menu-label">Groupes ACL</span>. Tout administrateur peut consulter cette page ; seuls les super administrateurs voient les contrôles de création, de modification et de permission.</p>
+
+    <h3>Les groupes fournis sont protégés</h3>
+    <p>Les sept groupes intégrés sont marqués <strong>Système</strong>. Ils ne peuvent être ni supprimés ni renommés, et leurs permissions sont en lecture seule &mdash; vous pouvez ouvrir <span class="btn-label">Voir les permissions</span> pour voir exactement ce qu'ils accordent, mais pas les modifier. Cela maintient stables les valeurs par défaut sur lesquelles tout le monde s'appuie.</p>
+
+    <h3>Créer un groupe personnalisé</h3>
+    <ol class="steps">
+        <li>Cliquez sur <span class="btn-label">+ Créer un groupe</span>.</li>
+        <li>Entrez un <span class="field-label">Nom de groupe (machine)</span> (lettres minuscules, chiffres, traits de soulignement &mdash; il est fixé une fois créé), un <span class="field-label">Nom d'affichage</span> convivial et une <span class="field-label">Description</span>.</li>
+        <li>Utilisez facultativement <span class="field-label">Copier les permissions de</span> pour <strong>cloner</strong> un groupe existant (y compris un groupe Système) comme point de départ &mdash; puis affinez-le. Laissez sur <em>&mdash; Commencer sans aucune permission &mdash;</em> pour partir de rien.</li>
+        <li>Cliquez sur <span class="btn-label">Créer le groupe</span>.</li>
+    </ol>
+
+    <h3>Ajuster la matrice des permissions</h3>
+    <p>Ouvrez les <span class="btn-label">Permissions</span> d'un groupe personnalisé. Les permissions sont regroupées par module (Intégration des fournisseurs, Analyse FAIR, Évaluations, Notation de sécurité (SRS), Révisions annuelles, GRC et Autres). Chaque permission est étiquetée soit <strong>Lecture</strong>, soit <strong>Lecture/Écriture</strong>, et chaque module dispose de trois préréglages en un clic :</p>
+    <ul>
+        <li><span class="btn-label">Lecture</span> &mdash; accorde uniquement les permissions de consultation/liste/export pour ce module.</li>
+        <li><span class="btn-label">Lecture &amp; Écriture</span> &mdash; accorde tout (consulter <em>et</em> modifier).</li>
+        <li><span class="btn-label">Aucune</span> &mdash; efface le module.</li>
+    </ul>
+    <p>Cliquez sur <span class="btn-label">Enregistrer les permissions</span> une fois terminé. Accorder la <strong>Lecture</strong> n'implique jamais l'accès en écriture &mdash; la capacité de modifier quelque chose est toujours un octroi séparé et explicite. Toutes les modifications de groupe sont consignées dans le journal d'audit.</p>
+</div>
+
+<div class="doc-section" id="admin-templates">
+    <h2>Générateur de modèles d'évaluation <span class="new-badge">Nouveau dans 2.6.2</span></h2>
+    <p>Le <strong>Générateur de modèles</strong> (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Générateur de modèles</span>) est l'endroit où les administrateurs et les utilisateurs Cyber TPRM conçoivent les questionnaires d'évaluation et d'intégration. Utilisez <span class="btn-label">+ Ajouter une section</span> et <span class="btn-label">+ Ajouter une question</span> pour construire un modèle. Quelques ajouts de la v2.6.2 méritent d'être signalés.</p>
+
+    <h3>Types de questions et mapping des champs</h3>
+    <p>Le <span class="field-label">Type de question</span> d'une question inclut désormais <strong>Téléphone</strong>, <strong>Numéro de TVA</strong>, <strong>Cases à cocher</strong> et <strong>Groupe de boutons (multiple)</strong> en plus des types texte, liste déroulante et radio habituels (voir <a href="#custom-onboarding">Champs d'intégration personnalisés</a> pour savoir ce que chacun capture). Le <span class="field-label">Nom du champ</span> d'une question mappe sa réponse sur un champ fournisseur ; choisissez un champ intégré ou un champ personnalisé que vous avez enregistré sous <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Référence des champs</span>.</p>
+
+    <h3>Instructions d'import de certificat</h3>
+    <p>Sur un modèle, vous pouvez renseigner les <span class="field-label">Instructions d'import de certificat</span> &mdash; le texte affiché à un fournisseur dans l'invite <em>&ldquo;Avez-vous un certificat ?&rdquo;</em>. Cela permet à un modèle d'inviter n'importe quel certificat (SOC 2 Type 2, ISO 27001, etc.), pas seulement ISO 27001. Si vous le laissez vide, un message générique est affiché.</p>
+
+    <h3>Visibilité par rôle sur les modèles d'intégration</h3>
+    <p>Pour les modèles d'<strong>intégration</strong>, les sections et questions personnalisées comportent des contrôles <span class="field-label">Visible par les rôles</span> et <span class="field-label">Rôles avec accès en visualisation et modification</span>, afin que vous décidiez qui peut voir et modifier chaque champ personnalisé. Voir <a href="#custom-onboarding">Champs d'intégration personnalisés &amp; l'onglet Données personnalisées</a>.</p>
+
+    <h3>Les modèles désactivés sont masqués par défaut</h3>
+    <p>La liste des modèles n'affiche que les modèles <strong>actifs</strong>. Si certains ont été désactivés, un bouton <span class="btn-label">Afficher les désactivés (N)</span> les révèle (et bascule sur <span class="btn-label">Masquer les désactivés (N)</span>), gardant la liste d'un tenant de longue date centrée sur les modèles réellement utilisés sans perdre l'accès à ceux qui ont été retirés.</p>
 </div>
 
 <div class="doc-section" id="admin-email">
@@ -1182,7 +1398,7 @@
         <li>Si une version plus récente est listée, suivez l'action <strong>Mise à niveau</strong> à l'écran pour l'appliquer.</li>
     </ol>
     <figure class="doc-figure">
-        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.2" loading="lazy">
+        <img src="app/docs/admin-version.png?v=20260711" alt="Version Management page showing installed version 2.6.2" loading="lazy">
         <figcaption><strong>Admin &rarr; Version.</strong> Ici, la version installée est <strong>v2.6.2</strong> et la plateforme indique qu'elle est à jour. C'est aussi ici que vous confirmez à quelle version ce guide s'applique.</figcaption>
     </figure>
 </div>
@@ -1213,7 +1429,14 @@
             <div class="faq-body"><p>Anglais, espagnol, italien, ukrainien, chinois (simplifié), hindi, français et portugais. Votre administrateur décide lesquelles apparaissent dans votre liste ; l'anglais est toujours disponible.</p></div></details>
 
         <details class="faq-item"><summary>J'ai changé ma langue mais certains textes sont encore en anglais. Pourquoi ?<span class="faq-tag">Language</span></summary>
-            <div class="faq-body"><p>Les menus, boutons et étiquettes sont traduits. Les <em>questions</em> d'évaluation des fournisseurs sont traduites automatiquement uniquement lorsqu'un fournisseur IA est configuré par votre administrateur, et les valeurs des réponses enregistrées restent toujours en anglais afin que la notation reste cohérente. Quelques messages tiers peuvent également rester en anglais.</p></div></details>
+            <div class="faq-body"><p>Plusieurs éléments différents peuvent rester en anglais même après le changement de langue :</p>
+            <ul>
+                <li><strong>Texte d'interface pas encore traduit.</strong> Les menus, boutons et étiquettes sont traduits partout où une traduction existe pour votre langue. Si une chaîne particulière n'a pas encore été traduite dans votre langue, elle revient à l'anglais plutôt que d'afficher un vide &mdash; vous pouvez donc voir occasionnellement une étiquette en anglais.</li>
+                <li><strong>Tout ce qui a été saisi.</strong> Le contenu que vous ou vos fournisseurs saisissez &mdash; noms de fournisseurs, notes, noms de documents importés, réponses en texte libre &mdash; est affiché exactement tel qu'il a été écrit, quelle que soit la langue.</li>
+                <li><strong>Questions d'évaluation sans fournisseur IA.</strong> Le texte des <em>questions</em> d'évaluation des fournisseurs n'est traduit automatiquement que lorsque votre administrateur a configuré un fournisseur IA ; sans cela, les questions restent dans la langue dans laquelle elles ont été rédigées. Les valeurs des réponses enregistrées restent toujours en anglais afin que la notation reste cohérente.</li>
+                <li><strong>Les e-mails et certains composants tiers</strong> ne sont pas contrôlés par votre paramètre de langue.</li>
+            </ul>
+            <p>Si vous voyez une étiquette d'interface qui devrait être traduite mais ne l'est pas, informez-en votre administrateur afin que le texte manquant puisse être ajouté.</p></div></details>
 
         <details class="faq-item"><summary>Pourquoi je ne peux pas soumettre mon fournisseur pour examen ?<span class="faq-tag">Onboarding</span></summary>
             <div class="faq-body"><p>Un fournisseur ne peut être soumis qu'une fois qu'il a complété l'<strong>Intégration par l'approvisionnement</strong> (définie sur <strong>Oui</strong>) et dispose d'un <strong>ID fournisseur (VID)</strong> valide de 4&ndash;8 chiffres. Ouvrez le fournisseur, remplissez les deux champs dans la carte <strong>Informations fournisseur</strong>, enregistrez, puis cliquez sur <strong>Soumettre pour examen</strong>. Voir <a href="#onboarding-workflow">Intégration des fournisseurs</a> et <a href="#troubleshooting">Dépannage</a>.</p></div></details>
@@ -1314,6 +1537,7 @@
     <table class="doc-table">
         <tr><th>Terme</th><th>Définition</th></tr>
         <tr><td><strong>ACL</strong></td><td>Liste de contrôle d'accès (Access Control List) &mdash; définit les actions que les utilisateurs d'un groupe peuvent effectuer</td></tr>
+        <tr><td><strong>Action Plan</strong></td><td>Un onglet par fournisseur pour planifier des actions de suivi (contacter, envoyer une évaluation, forcer une révision annuelle) avec des dates d'échéance, des responsables et des notes de statut ; déclenché quotidiennement par la tâche Calendrier de remédiation des fournisseurs</td></tr>
         <tr><td><strong>AI Review</strong></td><td>Un statut d'intégration de fournisseur pour les fournisseurs dont les services utilisent l'IA, suivi séparément lors de l'examen</td></tr>
         <tr><td><strong>Assessment</strong></td><td>Une évaluation de conformité à un moment précis utilisant le questionnaire unifié</td></tr>
         <tr><td><strong>CIS Controls</strong></td><td>Center for Internet Security Controls &mdash; un ensemble priorisé de meilleures pratiques de sécurité</td></tr>
@@ -1322,6 +1546,7 @@
         <tr><td><strong>Control</strong></td><td>Une mesure de sécurité spécifique mise en œuvre pour satisfaire aux exigences de conformité</td></tr>
         <tr><td><strong>Crosswalk</strong></td><td>Un mappage entre deux référentiels montrant quelles exigences se recoupent</td></tr>
         <tr><td><strong>CSF</strong></td><td>NIST Cybersecurity Framework &mdash; un référentiel de gestion des risques de cybersécurité largement utilisé</td></tr>
+        <tr><td><strong>Custom Field / Custom Data</strong></td><td>Un champ d'intégration propre à l'organisation sans colonne fournisseur standard ; capturé par fournisseur et affiché dans l'onglet Données personnalisées du fournisseur, avec une visibilité par rôle (voir <a href="#custom-onboarding">Champs d'intégration personnalisés</a>)</td></tr>
         <tr><td><strong>Domain</strong></td><td>Une catégorie de questions de sécurité (par ex., Gouvernance, Gestion des identités &amp; des accès)</td></tr>
         <tr><td><strong>Evidence</strong></td><td>Documents, captures d'écran ou fichiers prouvant une affirmation de conformité</td></tr>
         <tr><td><strong>FAIR</strong></td><td>Factor Analysis of Information Risk &mdash; une méthodologie d'analyse quantitative des risques</td></tr>
@@ -1344,6 +1569,8 @@
         <tr><td><strong>SOC 2</strong></td><td>Service Organization Control Type 2 &mdash; critères de services de confiance pour les organisations de services</td></tr>
         <tr><td><strong>SPII</strong></td><td>PII sensibles (numéros de sécurité sociale, données financières, dossiers médicaux)</td></tr>
         <tr><td><strong>SRS</strong></td><td>Carte de score des risques de sécurité (Security Risk Scorecard) &mdash; la notation/note de sécurité externe de la plateforme pour un fournisseur</td></tr>
+        <tr><td><strong>SSC (SecurityScorecard)</strong></td><td>Une note de sécurité tierce en lettre (A&ndash;F) affichée pour les applications et fournisseurs découverts par Grip lorsque Grip est connecté</td></tr>
+        <tr><td><strong>Subprocessor</strong></td><td>Le fournisseur en aval d'un fournisseur ; le même sous-traitant partagé par plusieurs de vos fournisseurs indique une concentration de la chaîne d'approvisionnement (voir <a href="#tprm-fourth-party">Risque de quatrième partie</a>)</td></tr>
         <tr><td><strong>TPRM</strong></td><td>Gestion des risques tiers (Third Party Risk Management)</td></tr>
         <tr><td><strong>Unified Question</strong></td><td>Une question de sécurité unique mappée aux exigences de plusieurs référentiels</td></tr>
         <tr><td><strong>VID</strong></td><td>ID fournisseur (Vendor ID) &mdash; un identifiant de 4&ndash;8 chiffres attribué à un fournisseur par votre système d'approvisionnement</td></tr>
@@ -1394,6 +1621,8 @@
                     <a href="#tprm-add-vendor">Ajouter un fournisseur</a>
                     <a href="#tprm-lifecycle">Cycle de vie du fournisseur</a>
                     <a href="#tprm-assessments">Évaluations des fournisseurs</a>
+                    <a href="#assessment-forms">Formulaires d'évaluation &amp; Remplissage IA</a>
+                    <a href="#tprm-action-plan">Plan d'action fournisseur</a>
                     <a href="#tprm-srs">Carte de score des risques de sécurité</a>
                     <a href="#tprm-fair">Analyse FAIR</a>
                     <a href="#tprm-fourth-party">Risque de quatrième partie</a>
@@ -1401,16 +1630,20 @@
 
                     <h4>Intégration &amp; Approvisionnement</h4>
                     <a href="#onboarding-workflow">Intégration des fournisseurs</a>
+                    <a href="#custom-onboarding">Champs d'intégration personnalisés</a>
                     <a href="#ai-review">Examen IA</a>
                     <a href="#procurement-cyber-status">Statut cyber de l'approvisionnement</a>
                     <a href="#shadow-saas-grip">Intégration Grip Shadow SaaS</a>
                     <a href="#shadow-saas-hero">Intégration Hero Shadow SaaS</a>
                     <a href="#zscaler">Blocage Zscaler</a>
+                    <a href="#breach-alerts">Alertes de violation / cyber</a>
 
                     <h4>Portail d'administration</h4>
                     <a href="#admin-general">Paramètres généraux</a>
                     <a href="#admin-branding">Image de marque &amp; Thème</a>
                     <a href="#admin-users">Gestion des utilisateurs</a>
+                    <a href="#admin-acl-groups">Groupes ACL</a>
+                    <a href="#admin-templates">Modèles d'évaluation</a>
                     <a href="#admin-email">Configuration des e-mails</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">Intégration IA</a>

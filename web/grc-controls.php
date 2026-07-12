@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                 $ownerUserId = $candidateOwner;
             } else {
                 $ownerValid = false;
-                $msg = 'Invalid control owner selected.';
+                $msg = t('grc-controls.invalid_owner');
                 $msgType = 'danger';
             }
         }
@@ -131,7 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                         $added++;
                     }
                 }
-                $msg = $added > 0 ? $added . ' requirement mapping(s) added.' : t('grc-controls.all_already_mapped');
+                $msg = $added > 0 ? $added . t('grc-controls.mappings_added_suffix') : t('grc-controls.all_already_mapped');
                 $msgType = $added > 0 ? 'success' : 'info';
             }
         } elseif ($action === 'update_coverage') {
@@ -343,7 +343,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Internal Controls - GRC Compliance Engine</title>
+    <title><?php echo e(t('grc-controls.page_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -533,7 +533,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                                 <input type="hidden" name="action" value="unmap">
                                 <input type="hidden" name="control_id" value="<?php echo (int)$controlDetail['id']; ?>">
                                 <input type="hidden" name="requirement_id" value="<?php echo (int)$req['requirement_id']; ?>">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this mapping?')"><?php echo e(t('grc-controls.unmap')); ?></button>
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm(<?php echo e(json_encode(t('grc-controls.confirm_remove_mapping'))); ?>)"><?php echo e(t('grc-controls.unmap')); ?></button>
                             </form>
                         </td>
                         <?php endif; ?>
@@ -605,7 +605,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                                 <input type="hidden" name="action" value="unlink_evidence">
                                 <input type="hidden" name="control_id" value="<?php echo (int)$controlDetail['id']; ?>">
                                 <input type="hidden" name="evidence_id" value="<?php echo (int)$ev['id']; ?>">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Unlink this evidence from the control?')"><?php echo e(t('grc-controls.unlink')); ?></button>
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm(<?php echo e(json_encode(t('grc-controls.confirm_unlink_evidence'))); ?>)"><?php echo e(t('grc-controls.unlink')); ?></button>
                             </form>
                         </td>
                         <?php endif; ?>
@@ -902,7 +902,7 @@ function grcAutosave(form) {
     }).then(function(r) { return r.json(); }).then(function(d) {
         if (d.csrf_token) document.querySelector('input[name=csrf_token]').value = d.csrf_token;
         var indicator = form.querySelector('.autosave-status');
-        if (indicator) { indicator.textContent = 'Draft saved'; setTimeout(function() { indicator.textContent = ''; }, 3000); }
+        if (indicator) { indicator.textContent = <?php echo json_encode(t('grc-controls.js_draft_saved')); ?>; setTimeout(function() { indicator.textContent = ''; }, 3000); }
     });
 }
 
@@ -930,7 +930,7 @@ var questionMapData = <?php echo json_encode($questionDataList, JSON_HEX_TAG | J
             if (item.t === 'q') {
                 div.innerHTML = '<span style="display:inline-block;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:600;margin-right:6px;">Q</span>' +
                     '<strong>' + escHtml(item.ref) + '</strong> — ' + escHtml(item.text.length > 90 ? item.text.substring(0, 90) + '...' : item.text) +
-                    '<br><span style="font-size:11px;color:#6b7280;margin-left:28px;">' + item.reqs.length + ' mapped requirement' + (item.reqs.length !== 1 ? 's' : '') + ' (exact/strong)</span>';
+                    '<br><span style="font-size:11px;color:#6b7280;margin-left:28px;">' + item.reqs.length + <?php echo json_encode(t('grc-controls.js_mapped_requirement')); ?> + (item.reqs.length !== 1 ? 's' : '') + <?php echo json_encode(t('grc-controls.js_exact_strong_suffix')); ?> + '</span>';
             } else {
                 div.innerHTML = '<span style="display:inline-block;background:#f0fdf4;color:#166534;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:600;margin-right:6px;">R</span>' + escHtml(item.l);
             }
@@ -941,7 +941,7 @@ var questionMapData = <?php echo json_encode($questionDataList, JSON_HEX_TAG | J
         });
         if (items.length > 40) {
             var more = document.createElement('div');
-            more.textContent = '... ' + (items.length - 40) + ' more results. Keep typing to narrow.';
+            more.textContent = '... ' + (items.length - 40) + <?php echo json_encode(t('grc-controls.js_more_results')); ?>;
             more.style.cssText = 'padding:8px 12px;font-size:11px;color:#9ca3af;font-style:italic;';
             dropdown.appendChild(more);
         }
@@ -986,7 +986,7 @@ var questionMapData = <?php echo json_encode($questionDataList, JSON_HEX_TAG | J
                 '<td>' + escHtml(r.fw) + '</td>' +
                 '<td>' + escHtml(r.ref) + ' - ' + escHtml(r.title) + '</td>' +
                 '<td><span style="font-size:11px;padding:2px 6px;border-radius:3px;background:' + (r.strength === 'exact' ? '#dcfce7;color:#166534' : '#fef3c7;color:#92400e') + ';">' + escHtml(r.strength) + '</span></td>' +
-                '<td><select class="bulk-coverage" data-rid="' + r.id + '" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;"><option value="full">Full</option><option value="partial">Partial</option></select></td>';
+                '<td><select class="bulk-coverage" data-rid="' + r.id + '" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;"><option value="full">' + <?php echo json_encode(t('grc-controls.full')); ?> + '</option><option value="partial">' + <?php echo json_encode(t('grc-controls.partial')); ?> + '</option></select></td>';
             tbody.appendChild(tr);
         });
         preview.style.display = 'block';
@@ -997,7 +997,7 @@ var questionMapData = <?php echo json_encode($questionDataList, JSON_HEX_TAG | J
         var checked = document.querySelectorAll('.bulk-check:checked');
         var btn = document.getElementById('bulk_map_submit');
         if (btn) {
-            btn.textContent = 'Map ' + checked.length + ' Selected Requirement' + (checked.length !== 1 ? 's' : '');
+            btn.textContent = <?php echo json_encode(t('grc-controls.js_map_prefix')); ?> + checked.length + <?php echo json_encode(t('grc-controls.js_selected_requirement')); ?> + (checked.length !== 1 ? 's' : '');
             btn.disabled = checked.length === 0;
         }
     }

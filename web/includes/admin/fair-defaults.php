@@ -23,7 +23,7 @@ if (!defined('ADMIN_DISPATCH')) { http_response_code(403); exit('Forbidden'); }
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_calculation_defaults'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_fair-defaults.error_invalid_request');
     } else {
         try {
             $db->beginTransaction();
@@ -63,11 +63,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_calculation_de
             $auth->audit($user['id'], 'config_update_fair_defaults', 'app_config', null, [
                 'new' => $calculationDefaults
             ]);
-            $success = 'FAIR calculation defaults updated successfully.';
+            $success = t('admin_fair-defaults.success_saved');
         } catch (Exception $e) {
             $db->rollback();
             error_log('Error updating calculation defaults: ' . $e->getMessage());
-            $error = 'Failed to update calculation defaults';
+            $error = t('admin_fair-defaults.error_save_failed');
         }
     }
 }
@@ -94,8 +94,8 @@ $maxLossExample = ($annualRev > 0) ? '$' . number_format($annualRev * ($capPct /
 // ============================================================================
 ?>
 <div class="page-header-bar">
-    <h1 class="page-title">FAIR Calculation Defaults</h1>
-    <p>Configure default values for FAIR risk calculations, organization financial profile, and AI-assisted analysis.</p>
+    <h1 class="page-title"><?php echo e(t('admin_fair-defaults.page_title')); ?></h1>
+    <p><?php echo e(t('admin_fair-defaults.page_subtitle')); ?></p>
 </div>
 
 <form method="POST" action="admin.php?section=fair">
@@ -103,69 +103,69 @@ $maxLossExample = ($annualRev > 0) ? '$' . number_format($annualRev * ($capPct /
 
     <!-- Card 1: Breach Cost Defaults -->
     <div class="card" style="margin-bottom: 20px;">
-        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #1e3a5f;">Breach Cost Defaults</h3>
-        <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;">Industry-standard per-record breach costs used in FAIR primary loss calculations. Based on Ponemon Institute and IBM Cost of a Data Breach reports.</p>
+        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #1e3a5f;"><?php echo e(t('admin_fair-defaults.breach_cost_defaults_heading')); ?></h3>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;"><?php echo e(t('admin_fair-defaults.breach_cost_defaults_help')); ?></p>
         <div class="form-row">
             <div class="form-group">
-                <label for="pii_breach_cost_per_record">PII Breach Cost Per Record (USD)</label>
+                <label for="pii_breach_cost_per_record"><?php echo e(t('admin_fair-defaults.pii_cost_per_record_label')); ?></label>
                 <input type="number" id="pii_breach_cost_per_record" name="pii_breach_cost_per_record" class="form-control" step="0.01" min="0" value="<?php echo e($appConfig['pii_breach_cost_per_record'] ?? '160'); ?>" required>
-                <div class="form-help">Cost per PII record if breached (Default: $160)</div>
+                <div class="form-help"><?php echo e(t('admin_fair-defaults.pii_cost_per_record_help')); ?></div>
             </div>
             <div class="form-group">
-                <label for="spii_breach_cost_per_record">SPII Breach Cost Per Record (USD)</label>
+                <label for="spii_breach_cost_per_record"><?php echo e(t('admin_fair-defaults.spii_cost_per_record_label')); ?></label>
                 <input type="number" id="spii_breach_cost_per_record" name="spii_breach_cost_per_record" class="form-control" step="0.01" min="0" value="<?php echo e($appConfig['spii_breach_cost_per_record'] ?? '200'); ?>" required>
-                <div class="form-help">Cost per Sensitive PII record (SSN, financial, health) if breached (Default: $200)</div>
+                <div class="form-help"><?php echo e(t('admin_fair-defaults.spii_cost_per_record_help')); ?></div>
             </div>
         </div>
         <div class="form-group">
-            <label for="sox_breach_penalty">SOX Breach Penalty (USD)</label>
+            <label for="sox_breach_penalty"><?php echo e(t('admin_fair-defaults.sox_penalty_label')); ?></label>
             <input type="number" id="sox_breach_penalty" name="sox_breach_penalty" class="form-control" step="0.01" min="0" value="<?php echo e($appConfig['sox_breach_penalty'] ?? '5000000'); ?>" required>
-            <div class="form-help">Sarbanes-Oxley compliance penalty if SOX data is breached (Default: $5,000,000)</div>
+            <div class="form-help"><?php echo e(t('admin_fair-defaults.sox_penalty_help')); ?></div>
         </div>
     </div>
 
     <!-- Card 2: Organization Financial Profile -->
     <div class="card" style="margin-bottom: 20px;">
-        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #1e3a5f;">Organization Financial Profile</h3>
-        <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;">Your organization's annual revenue is used to cap FAIR loss calculations at a realistic maximum. A vendor breach shouldn't produce a loss estimate that exceeds a reasonable percentage of your annual revenue.</p>
+        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #1e3a5f;"><?php echo e(t('admin_fair-defaults.org_financial_profile_heading')); ?></h3>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;"><?php echo e(t('admin_fair-defaults.org_financial_profile_help')); ?></p>
         <div class="form-row">
             <div class="form-group">
-                <label for="fair_annual_revenue">Annual Revenue (USD)</label>
+                <label for="fair_annual_revenue"><?php echo e(t('admin_fair-defaults.annual_revenue_label')); ?></label>
                 <input type="number" id="fair_annual_revenue" name="fair_annual_revenue" class="form-control" step="1" min="0" value="<?php echo e($appConfig['fair_annual_revenue'] ?? '0'); ?>">
-                <div class="form-help">Your organization's annual revenue. Set to 0 to disable revenue-based capping.</div>
+                <div class="form-help"><?php echo e(t('admin_fair-defaults.annual_revenue_help')); ?></div>
             </div>
             <div class="form-group">
-                <label for="fair_revenue_cap_pct">Maximum Loss Cap (% of Annual Revenue)</label>
+                <label for="fair_revenue_cap_pct"><?php echo e(t('admin_fair-defaults.revenue_cap_pct_label')); ?></label>
                 <input type="number" id="fair_revenue_cap_pct" name="fair_revenue_cap_pct" class="form-control" step="0.1" min="0" max="100" value="<?php echo e($appConfig['fair_revenue_cap_pct'] ?? '10'); ?>">
-                <div class="form-help">Maximum ALE as a percentage of annual revenue (Default: 10%). For example, at $5M revenue and 10%, no single vendor's ALE will exceed $500,000.</div>
+                <div class="form-help"><?php echo e(t('admin_fair-defaults.revenue_cap_pct_help')); ?></div>
             </div>
         </div>
         <div id="revCapPreview" style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 12px 16px; font-size: 13px; color: #0c4a6e; display: <?php echo ($annualRev > 0) ? 'block' : 'none'; ?>;">
-            Maximum ALE cap: <strong id="revCapAmount"><?php echo $maxLossExample; ?></strong> per vendor
+            <?php echo e(t('admin_fair-defaults.revenue_cap_preview_prefix')); ?> <strong id="revCapAmount"><?php echo $maxLossExample; ?></strong> <?php echo e(t('admin_fair-defaults.revenue_cap_preview_suffix')); ?>
         </div>
     </div>
 
     <!-- Card 3: AI-Assisted Analysis (only shown if an AI platform is enabled) -->
     <?php if ($aiPlatformEnabled): ?>
     <div class="card" style="margin-bottom: 20px;">
-        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #1e3a5f;">AI-Assisted FAIR Analysis</h3>
-        <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;">When enabled, analysts can use AI to estimate realistic ALE, primary/secondary loss magnitudes, and recommended cyber insurance coverage based on all available vendor security data (Shodan signals, UpGuard risks, vulnerability data, and financial context).</p>
+        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #1e3a5f;"><?php echo e(t('admin_fair-defaults.ai_analysis_heading')); ?></h3>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;"><?php echo e(t('admin_fair-defaults.ai_analysis_help')); ?></p>
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" name="fair_ai_enabled" value="1" <?php echo ($appConfig['fair_ai_enabled'] ?? '1') === '1' ? 'checked' : ''; ?>>
-                <span>Enable AI-Assisted FAIR Calculations</span>
+                <span><?php echo e(t('admin_fair-defaults.ai_enable_checkbox_label')); ?></span>
             </label>
-            <div class="form-help">Adds an "AI-Assisted Analysis" button to the FAIR analysis form. The AI uses the FAIR model methodology along with all available vendor security intelligence (Shodan, UpGuard, CVEs, certifications) to estimate financial risk values. Analysts can review and accept or reject AI estimates before saving.</div>
+            <div class="form-help"><?php echo e(t('admin_fair-defaults.ai_enable_help')); ?></div>
         </div>
     </div>
     <?php else: ?>
     <div class="card" style="margin-bottom: 20px; opacity: 0.6;">
-        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #1e3a5f;">AI-Assisted FAIR Analysis</h3>
-        <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">AI-assisted FAIR calculations require an AI platform (OpenWebUI or LibreChat) to be enabled. <a href="admin.php?section=ai-integration">Configure AI Integration settings</a> first.</p>
+        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #1e3a5f;"><?php echo e(t('admin_fair-defaults.ai_analysis_heading')); ?></h3>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 0;"><?php echo t('admin_fair-defaults.ai_disabled_help'); ?></p>
     </div>
     <?php endif; ?>
 
-    <button type="submit" name="update_calculation_defaults" class="btn btn-primary">Save FAIR Defaults</button>
+    <button type="submit" name="update_calculation_defaults" class="btn btn-primary"><?php echo e(t('admin_fair-defaults.save_button')); ?></button>
 </form>
 
 <script>

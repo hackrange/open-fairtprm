@@ -80,7 +80,7 @@ $success = '';
 // Handle POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('vendor-srs-list.err_invalid_request');
     } elseif (isset($_POST['rescore_vendor_id'])) {
         // Individual vendor rescore (supports provider selection)
         $vendorId = intval($_POST['rescore_vendor_id']);
@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $useShodan = in_array($provider, ['all', 'shodan']) && $shodanAvailable;
 
         if (!$useUpguard && !$useShodan) {
-            $error = 'Selected scoring provider is not configured or available.';
+            $error = t('vendor-srs-list.err_provider_unavailable');
         } else {
             $vendor = $db->fetchOne(
                 'SELECT id, vendor_name, vendor_domain, status FROM vendor_onboarding_requests WHERE id = :id',
@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
 
             if ($vendor && ($vendor['status'] ?? '') === 'inactive') {
-                $error = 'Cannot score an inactive vendor. Re-activate the vendor first.';
+                $error = t('vendor-srs-list.err_inactive_vendor');
             } elseif ($vendor && !empty($vendor['vendor_domain'])) {
                 // Determine if cron mode applies
                 $useCron = false;
@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'UPDATE vendor_onboarding_requests SET rescore_status = ?, rescore_started_at = NOW(), rescore_result = NULL WHERE id = ?',
                         [$statusLabel, $vendorId]
                     );
-                    $success = "Scoring queued for '{$vendor['vendor_name']}'. The background processor will handle it shortly.";
+                    $success = t('vendor-srs-list.success_scoring_queued_one', $vendor['vendor_name']);
                 } else {
                     // REALTIME MODE: Score synchronously
                     $messages = [];
@@ -162,21 +162,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'UPDATE vendor_onboarding_requests SET last_srs_score_at = NOW() WHERE id = ?',
                             [$vendorId]
                         );
-                        $success = "Vendor '{$vendor['vendor_name']}' scored: " . implode(' | ', $messages);
+                        $success = t('vendor-srs-list.success_vendor_scored_prefix', $vendor['vendor_name']) . implode(' | ', $messages);
                     }
                     if (!empty($errors)) {
-                        $error = 'Some scoring failed: ' . implode(' | ', $errors);
+                        $error = t('vendor-srs-list.err_some_scoring_failed') . implode(' | ', $errors);
                     }
                 }
             } else {
-                $error = 'Vendor not found or has no domain configured.';
+                $error = t('vendor-srs-list.err_vendor_no_domain');
             }
         }
     } elseif (isset($_POST['score_selected'])) {
         // Score selected vendors (checkbox bulk action)
         $selectedIds = array_filter(array_map('intval', explode(',', $_POST['selected_vendor_ids'] ?? '')));
         if (empty($selectedIds)) {
-            $error = 'No vendors selected for scoring.';
+            $error = t('vendor-srs-list.err_no_vendors_scoring');
         } else {
             $placeholders = implode(',', $selectedIds);
             $vendors = $db->fetchAll(
@@ -184,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
 
             if (empty($vendors)) {
-                $error = 'No valid vendors found with domains configured.';
+                $error = t('vendor-srs-list.err_no_valid_vendors_domains');
             } else {
                 $useCronSelected = ($upguardUseCron || $shodanUseCron);
 
@@ -197,7 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         );
                         $queued++;
                     }
-                    $success = "Scoring queued for {$queued} selected vendor(s). The background processor will handle them shortly.";
+                    $success = t('vendor-srs-list.success_scoring_queued_many', $queued);
                 } else {
                     $scored = 0;
                     $failed = 0;
@@ -236,7 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             [$v['id']]
                         );
                     }
-                    $success = "Selected vendor scoring complete: {$scored} scored, {$failed} failed out of " . count($vendors) . " vendors.";
+                    $success = t('vendor-srs-list.success_scoring_complete', $scored, $failed, count($vendors));
                 }
             }
         }
@@ -247,11 +247,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $justification = trim($_POST['tier_justification'] ?? '');
 
         if (empty($selectedIds)) {
-            $error = 'No vendors selected for re-tiering.';
+            $error = t('vendor-srs-list.err_no_vendors_retier');
         } elseif (!in_array($newTier, ['1', '2', '3'])) {
-            $error = 'Invalid tier selected. Please choose Tier 1, 2, or 3.';
+            $error = t('vendor-srs-list.err_invalid_tier');
         } elseif (empty($justification)) {
-            $error = 'A justification is required for tier changes.';
+            $error = t('vendor-srs-list.err_justification_required');
         } else {
             $placeholders = implode(',', $selectedIds);
             $vendors = $db->fetchAll(
@@ -259,7 +259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
 
             if (empty($vendors)) {
-                $error = 'No valid vendors found.';
+                $error = t('vendor-srs-list.err_no_valid_vendors');
             } else {
                 $updated = 0;
                 foreach ($vendors as $v) {
@@ -281,7 +281,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $tierNames = ['1' => 'Tier 1', '2' => 'Tier 2', '3' => 'Tier 3'];
-                $success = "{$updated} vendor(s) updated to {$tierNames[$newTier]}.";
+                $success = t('vendor-srs-list.success_vendors_retiered', $updated, $tierNames[$newTier]);
             }
         }
     } elseif (isset($_POST['add_case']) && ($isAdmin || $isCyberTPRM)) {
@@ -293,9 +293,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $caseAssignedTo = intval($_POST['case_assigned_to'] ?? 0);
 
         if ($caseVendorId <= 0) {
-            $error = 'Invalid vendor.';
+            $error = t('vendor-srs-list.err_invalid_vendor');
         } elseif (empty($caseTitle)) {
-            $error = 'Case title is required.';
+            $error = t('vendor-srs-list.err_case_title_required');
         } else {
             // Validate the vendor exists
             $caseVendor = $db->fetchOne(
@@ -303,7 +303,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 [':id' => $caseVendorId]
             );
             if (!$caseVendor) {
-                $error = 'Vendor not found.';
+                $error = t('vendor-srs-list.err_vendor_not_found');
             } else {
                 // Validate assignee belongs to an allowed group
                 $allowedCaseGroups = 'cyber_tprm,administrator';
@@ -346,10 +346,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $auth->audit($user['id'], 'case_add_note', 'cyber_todo_activities', $caseVendorId, [
                         'new' => ['title' => $caseTitle, 'assigned_to' => $caseAssignedTo ?: null, 'vendor_request_id' => $caseVendorId]
                     ]);
-                    $success = "Case created for '" . $caseVendor['vendor_name'] . "'.";
+                    $success = t('vendor-srs-list.success_case_created', $caseVendor['vendor_name']);
                 } catch (Exception $e) {
                     error_log('Add case error (SRS list): ' . $e->getMessage());
-                    $error = 'Failed to create case. Please try again.';
+                    $error = t('vendor-srs-list.err_case_create_failed');
                 }
             }
         }
@@ -358,7 +358,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $aiVid = intval($_POST['ai_risk_vendor_id'] ?? 0);
         $vRow = $aiVid > 0 ? $db->fetchOne('SELECT id, vendor_name FROM vendor_onboarding_requests WHERE id = :id', [':id' => $aiVid]) : null;
         if (!$vRow) {
-            $error = 'Invalid vendor.';
+            $error = t('vendor-srs-list.err_invalid_vendor');
         } else {
             $aiTitle = trim($security->cleanInput($_POST['ai_risk_title'] ?? ''));
             if ($aiTitle === '') {
@@ -460,7 +460,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $auth->audit($user['id'], 'ai_risk_update', 'grc_risk_register', (int)$existingAiRisk['id'], [
                         'new' => ['vendor_id' => $aiVid, 'title' => $aiTitle]
                     ]);
-                    $success = "AI risk updated for '" . $vRow['vendor_name'] . "'.";
+                    $success = t('vendor-srs-list.success_ai_risk_updated', $vRow['vendor_name']);
                 } else {
                     $lastRef = $db->fetchOne("SELECT risk_ref FROM grc_risk_register WHERE risk_ref LIKE 'RSK-%' ORDER BY id DESC LIMIT 1");
                     $newRef = $lastRef
@@ -472,18 +472,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $auth->audit($user['id'], 'ai_risk_create', 'grc_risk_register', (int)$newId, [
                         'new' => ['vendor_id' => $aiVid, 'title' => $aiTitle, 'risk_ref' => $newRef]
                     ]);
-                    $success = "AI risk created for '" . $vRow['vendor_name'] . "' (" . $newRef . ").";
+                    $success = t('vendor-srs-list.success_ai_risk_created', $vRow['vendor_name'], $newRef);
                 }
             } catch (Exception $e) {
                 error_log('AI risk save error: ' . $e->getMessage());
-                $error = 'Failed to save AI risk. Please try again.';
+                $error = t('vendor-srs-list.err_ai_risk_save_failed');
             }
         }
     } elseif (isset($_POST['eval_selected'])) {
         // Mark selected vendors as Evaluation status
         $selectedIds = array_filter(array_map('intval', explode(',', $_POST['eval_vendor_ids'] ?? '')));
         if (empty($selectedIds)) {
-            $error = 'No vendors selected.';
+            $error = t('vendor-srs-list.err_no_vendors_selected');
         } else {
             $placeholders = implode(',', $selectedIds);
             $vendors = $db->fetchAll(
@@ -491,7 +491,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
 
             if (empty($vendors)) {
-                $error = 'No valid vendors found.';
+                $error = t('vendor-srs-list.err_no_valid_vendors');
             } else {
                 $updated = 0;
                 foreach ($vendors as $v) {
@@ -511,7 +511,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $updated++;
                 }
-                $success = "{$updated} vendor(s) marked as Evaluation.";
+                $success = t('vendor-srs-list.success_vendors_eval', $updated);
             }
         }
     }
@@ -1768,15 +1768,15 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 <form id="complianceReportForm" method="GET" action="vendor-srs-compliance-report.php" target="_blank">
                     <div style="padding: 24px;">
                         <p style="margin: 0 0 18px; font-size: 13px; color: #666;">
-                            Generates a fiscal-quarter compliance summary showing the average UpGuard SRS, Shodan, and combined scores for all Tier&nbsp;1 vendors and for FairTPRM.
+                            <?php echo t('vendor-srs-list.compliance_modal_desc'); ?>
                         </p>
                         <div style="margin-bottom: 18px;">
                             <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;"><?php echo e(t('vendor-srs-list.fiscal_quarter')); ?></label>
                             <select name="quarter" required style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
-                                <option value="Q1">Q1 &mdash; Jan 1 to Apr 1</option>
-                                <option value="Q2">Q2 &mdash; Apr 1 to Jul 1</option>
-                                <option value="Q3">Q3 &mdash; Jul 1 to Oct 1</option>
-                                <option value="Q4">Q4 &mdash; Oct 1 to Dec 31</option>
+                                <option value="Q1"><?php echo e(t('vendor-srs-list.quarter_q1')); ?></option>
+                                <option value="Q2"><?php echo e(t('vendor-srs-list.quarter_q2')); ?></option>
+                                <option value="Q3"><?php echo e(t('vendor-srs-list.quarter_q3')); ?></option>
+                                <option value="Q4"><?php echo e(t('vendor-srs-list.quarter_q4')); ?></option>
                             </select>
                         </div>
                         <div style="margin-bottom: 0;">
@@ -1804,7 +1804,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     <input type="hidden" name="retier_selected" value="1">
                     <input type="hidden" name="retier_vendor_ids" id="retierVendorIds" value="">
                     <div style="padding: 24px;">
-                        <p id="retierCountLabel" style="margin: 0 0 20px; font-size: 13px; color: #666;">0 vendor(s) will be updated.</p>
+                        <p id="retierCountLabel" style="margin: 0 0 20px; font-size: 13px; color: #666;"><?php echo e(t('vendor-srs-list.retier_count_default')); ?></p>
                         <div style="margin-bottom: 18px;">
                             <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;"><?php echo e(t('vendor-srs-list.new_tier')); ?></label>
                             <select name="new_tier" id="retierTierSelect" required style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
@@ -1851,7 +1851,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <?php else: ?>
             <?php if ($isCveSearch): ?>
             <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; font-size: 13px; color: #991b1b; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <span><strong>CVE Search:</strong> <?php echo count($vendors); ?> vendor(s) affected by <?php echo e($cveSearchQuery); ?></span>
+                <span><?php echo t('vendor-srs-list.cve_search_result', count($vendors), e($cveSearchQuery)); ?></span>
                 <?php if (preg_match('/^CVE-\d{4}-\d+$/', $cveSearchQuery)): ?>
                 <a href="https://nvd.nist.gov/vuln/detail/<?php echo urlencode($cveSearchQuery); ?>" target="_blank" rel="noopener" style="padding: 4px 12px; background: #991b1b; color: white; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600;"><?php echo e(t('vendor-srs-list.view_on_nvd')); ?></a>
                 <?php endif; ?>
@@ -1934,7 +1934,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                      style="vertical-align: middle; margin-right: 4px;"
                                      onerror="this.style.display='none'">
                                 <?php endif; ?>
-                                <?php echo e($vendor['vendor_name'] ?? 'Unnamed'); ?>
+                                <?php echo e($vendor['vendor_name'] ?? t('vendor-srs-list.unnamed')); ?>
                                 <?php if (($vendor['status'] ?? '') === 'evaluation'): ?>
                                 <span style="font-size: 10px; background: #e0f2fe; color: #0369a1; padding: 1px 6px; border-radius: 8px; margin-left: 4px; font-weight: 500;"><?php echo e(t('vendor-srs-list.badge_eval')); ?></span>
                                 <?php endif; ?>
@@ -2057,10 +2057,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                data-vendor-id="<?php echo (int)$vendor['id']; ?>"
                                data-vendor-name="<?php echo e($vendor['vendor_name'] ?? ''); ?>"
                                data-existing="<?php echo $existingAiBtn ? '1' : '0'; ?>"
-                               title="<?php echo $existingAiBtn ? 'Update AI risk register entry' : 'Add AI risk register entry'; ?>"
+                               title="<?php echo e($existingAiBtn ? t('vendor-srs-list.ai_update_title') : t('vendor-srs-list.ai_add_title')); ?>"
                                style="background: <?php echo $existingAiBtn ? '#ede9fe' : '#f5f3ff'; ?>; color: #6d28d9; border: 1px solid #ddd6fe; text-decoration: none; margin-left: 4px; display: inline-flex; align-items: center; gap: 3px;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2zm6 10l.9 2.6L21.5 15.5l-2.6.9L18 19l-.9-2.6L14.5 15.5l2.6-.9L18 12z"/></svg>
-                                <?php echo $existingAiBtn ? 'Update AI Risk' : 'AI Risk'; ?>
+                                <?php echo e($existingAiBtn ? t('vendor-srs-list.ai_update_btn') : t('vendor-srs-list.ai_add_btn')); ?>
                             </a>
                             <?php endif; ?>
                             <?php if (!$isAuditor): ?>
@@ -2072,9 +2072,9 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     <form method="POST">
                                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                         <input type="hidden" name="rescore_vendor_id" value="<?php echo $vendor['id']; ?>">
-                                        <button type="submit" name="rescore_provider" value="all" data-confirm="Score <?php echo e($vendor['vendor_name']); ?> with all providers?" style="display: block; width: 100%; padding: 6px 12px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; color: #374151; border-bottom: 1px solid #f3f4f6;" class="hover-bg-gray"><?php echo e(t('vendor-srs-list.score_all')); ?></button>
-                                        <button type="submit" name="rescore_provider" value="upguard" data-confirm="Score <?php echo e($vendor['vendor_name']); ?> with <?php echo e($upguardName); ?>?" style="display: block; width: 100%; padding: 6px 12px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; color: #374151; border-bottom: 1px solid #f3f4f6;" class="hover-bg-gray"><?php echo e($upguardName); ?></button>
-                                        <button type="submit" name="rescore_provider" value="shodan" data-confirm="Score <?php echo e($vendor['vendor_name']); ?> with <?php echo e($shodanName); ?>?" style="display: block; width: 100%; padding: 6px 12px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; color: #374151;" class="hover-bg-gray"><?php echo e($shodanName); ?></button>
+                                        <button type="submit" name="rescore_provider" value="all" data-confirm="<?php echo e(t('vendor-srs-list.confirm_score_all_providers', $vendor['vendor_name'])); ?>" style="display: block; width: 100%; padding: 6px 12px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; color: #374151; border-bottom: 1px solid #f3f4f6;" class="hover-bg-gray"><?php echo e(t('vendor-srs-list.score_all')); ?></button>
+                                        <button type="submit" name="rescore_provider" value="upguard" data-confirm="<?php echo e(t('vendor-srs-list.confirm_score_with_provider', $vendor['vendor_name'], $upguardName)); ?>" style="display: block; width: 100%; padding: 6px 12px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; color: #374151; border-bottom: 1px solid #f3f4f6;" class="hover-bg-gray"><?php echo e($upguardName); ?></button>
+                                        <button type="submit" name="rescore_provider" value="shodan" data-confirm="<?php echo e(t('vendor-srs-list.confirm_score_with_provider', $vendor['vendor_name'], $shodanName)); ?>" style="display: block; width: 100%; padding: 6px 12px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; color: #374151;" class="hover-bg-gray"><?php echo e($shodanName); ?></button>
                                     </form>
                                 </div>
                             </div>
@@ -2083,7 +2083,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                 <input type="hidden" name="rescore_vendor_id" value="<?php echo $vendor['id']; ?>">
                                 <input type="hidden" name="rescore_provider" value="all">
-                                <button type="submit" class="btn-sm btn-rescore" data-confirm="Score <?php echo e($vendor['vendor_name']); ?>?"><?php echo e(t('vendor-srs-list.score')); ?></button>
+                                <button type="submit" class="btn-sm btn-rescore" data-confirm="<?php echo e(t('vendor-srs-list.confirm_score_vendor', $vendor['vendor_name'])); ?>"><?php echo e(t('vendor-srs-list.score')); ?></button>
                             </form>
                             <?php endif; ?>
                             <?php endif; ?>
@@ -2112,7 +2112,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     <?php endif; ?>
                                     <?php if (($vendor['vendor_use_ai'] ?? '') === 'yes' && ($isAdmin || $isCyberTPRM || $acl->hasGroup('cyber_grc'))): ?>
                                     <?php $existingAi = $aiRiskMap[(int)$vendor['id']] ?? null; ?>
-                                    <a href="#" class="ai-risk-link" data-vendor-id="<?php echo (int)$vendor['id']; ?>" data-vendor-name="<?php echo e($vendor['vendor_name'] ?? ''); ?>" data-existing="<?php echo $existingAi ? '1' : '0'; ?>" style="display: inline-block; margin-top: 6px; margin-left: 10px; font-size: 12px; color: #6d28d9; text-decoration: none; font-weight: 500;"><?php echo $existingAi ? '✎ Update AI Risk' : '+ Add AI Risk'; ?></a>
+                                    <a href="#" class="ai-risk-link" data-vendor-id="<?php echo (int)$vendor['id']; ?>" data-vendor-name="<?php echo e($vendor['vendor_name'] ?? ''); ?>" data-existing="<?php echo $existingAi ? '1' : '0'; ?>" style="display: inline-block; margin-top: 6px; margin-left: 10px; font-size: 12px; color: #6d28d9; text-decoration: none; font-weight: 500;"><?php echo e($existingAi ? t('vendor-srs-list.ai_update_link') : t('vendor-srs-list.ai_add_link')); ?></a>
                                     <?php endif; ?>
                                 </div>
                                 <div class="detail-item">
@@ -2154,7 +2154,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <?php if ($totalPages > 1 || $totalVendors > 0): ?>
             <div class="pagination-bar">
                 <div class="pagination-info">
-                    Showing <?php echo $offset + 1; ?>-<?php echo min($offset + $perPage, $totalVendors); ?> of <?php echo $totalVendors; ?> vendors<?php if ($shadowSaasTotal > 0): ?> (incl. <?php echo $shadowSaasTotal; ?> shadow SaaS)<?php endif; ?>
+                    <?php echo e(t('vendor-srs-list.pagination_showing', $offset + 1, min($offset + $perPage, $totalVendors), $totalVendors)); ?><?php if ($shadowSaasTotal > 0): ?><?php echo e(t('vendor-srs-list.pagination_incl_shadow', $shadowSaasTotal)); ?><?php endif; ?>
                 </div>
                 <?php if ($totalPages > 1): ?>
                 <ul class="pagination">
@@ -2469,7 +2469,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             window.scoreSelected = function() {
                 var checked = document.querySelectorAll('.vendor-checkbox:checked');
                 if (checked.length === 0) return;
-                if (!confirm('Score ' + checked.length + ' selected vendor(s)?')) return;
+                if (!confirm(<?php echo json_encode(t('vendor-srs-list.js_score_prefix')); ?> + checked.length + <?php echo json_encode(t('vendor-srs-list.js_selected_vendors_q_suffix')); ?>)) return;
                 var ids = [];
                 checked.forEach(function(cb) { ids.push(cb.value); });
                 document.getElementById('selectedVendorIds').value = ids.join(',');
@@ -2479,7 +2479,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             window.evalSelected = function() {
                 var checked = document.querySelectorAll('.vendor-checkbox:checked');
                 if (checked.length === 0) return;
-                if (!confirm('Mark ' + checked.length + ' selected vendor(s) as Evaluation? This will set their onboarding status to Evaluation and assign VID 99999.')) return;
+                if (!confirm(<?php echo json_encode(t('vendor-srs-list.js_mark_prefix')); ?> + checked.length + <?php echo json_encode(t('vendor-srs-list.js_mark_eval_suffix')); ?>)) return;
                 var ids = [];
                 checked.forEach(function(cb) { ids.push(cb.value); });
                 document.getElementById('evalVendorIds').value = ids.join(',');
@@ -2495,7 +2495,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 var ids = [];
                 checked.forEach(function(cb) { ids.push(cb.value); });
                 document.getElementById('retierVendorIds').value = ids.join(',');
-                document.getElementById('retierCountLabel').textContent = checked.length + ' vendor(s) will be updated.';
+                document.getElementById('retierCountLabel').textContent = checked.length + <?php echo json_encode(t('vendor-srs-list.js_vendors_will_update_suffix')); ?>;
                 document.getElementById('retierTierSelect').value = '';
                 document.getElementById('retierJustification').value = '';
                 retierModal.style.display = 'flex';
@@ -2585,7 +2585,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
 
             function openAddCaseModal(vendorId, vendorName) {
                 vendorIdInput.value = vendorId;
-                vendorLabel.textContent = vendorName ? 'Vendor: ' + vendorName : '';
+                vendorLabel.textContent = vendorName ? <?php echo json_encode(t('vendor-srs-list.js_vendor_label_prefix')); ?> + vendorName : '';
                 titleInput.value = '';
                 descInput.value = '';
                 dueDateInput.value = '';
@@ -2633,7 +2633,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     suggestionsBox.style.display = 'none';
                     return;
                 }
-                suggestionsBox.innerHTML = '<div class="autocomplete-loading">Searching...</div>';
+                suggestionsBox.innerHTML = '<div class="autocomplete-loading">' + <?php echo json_encode(e(t('vendor-srs-list.js_searching'))); ?> + '</div>';
                 suggestionsBox.style.display = 'block';
 
                 var url = 'api/search-users.php?q=' + encodeURIComponent(query);
@@ -2648,12 +2648,12 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             renderSuggestions(data.users);
                         } else {
                             results = [];
-                            suggestionsBox.innerHTML = '<div class="autocomplete-no-results">No users found</div>';
+                            suggestionsBox.innerHTML = '<div class="autocomplete-no-results">' + <?php echo json_encode(e(t('vendor-srs-list.js_no_users_found'))); ?> + '</div>';
                         }
                     })
                     .catch(function() {
                         results = [];
-                        suggestionsBox.innerHTML = '<div class="autocomplete-no-results">Search error</div>';
+                        suggestionsBox.innerHTML = '<div class="autocomplete-no-results">' + <?php echo json_encode(e(t('vendor-srs-list.js_search_error'))); ?> + '</div>';
                     });
             }
 
@@ -2828,14 +2828,14 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             function openAiRiskModal(vendorId, vendorName, hasExisting) {
                 resetForm();
                 vendorIdInput.value = vendorId;
-                vendorLabel.textContent = 'Vendor: ' + vendorName;
+                vendorLabel.textContent = <?php echo json_encode(t('vendor-srs-list.js_vendor_label_prefix')); ?> + vendorName;
                 var defaultTitle = vendorName + ' - Uses AI in their services';
                 titleInput.value = defaultTitle;
 
                 var existing = aiRiskMap[String(vendorId)];
                 if (hasExisting && existing) {
-                    modalTitle.textContent = 'Update AI Risk (' + (existing.id ? 'RSK #' + existing.id : '') + ')';
-                    submitBtn.textContent = 'Update Risk';
+                    modalTitle.textContent = <?php echo json_encode(t('vendor-srs-list.js_update_ai_risk_prefix')); ?> + (existing.id ? 'RSK #' + existing.id : '') + ')';
+                    submitBtn.textContent = <?php echo json_encode(t('vendor-srs-list.js_update_risk_btn')); ?>;
                     actionCreate.disabled = true;
                     actionCreate.removeAttribute('name');
                     actionUpdate.disabled = false;
@@ -2867,8 +2867,8 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         }
                     }
                 } else {
-                    modalTitle.textContent = 'Add AI Risk to Register';
-                    submitBtn.textContent = 'Create Risk';
+                    modalTitle.textContent = <?php echo json_encode(t('vendor-srs-list.js_add_ai_risk_title')); ?>;
+                    submitBtn.textContent = <?php echo json_encode(t('vendor-srs-list.js_create_risk_btn')); ?>;
                     actionCreate.disabled = false;
                     actionCreate.name = 'create_ai_risk';
                     actionCreate.value = '1';
@@ -2917,7 +2917,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 }).slice(0, 20);
 
                 if (matches.length === 0) {
-                    ownerBox.innerHTML = '<div style="padding: 10px 12px; font-size: 12px; color: #9ca3af;">No users found</div>';
+                    ownerBox.innerHTML = '<div style="padding: 10px 12px; font-size: 12px; color: #9ca3af;">' + <?php echo json_encode(e(t('vendor-srs-list.js_no_users_found'))); ?> + '</div>';
                 } else {
                     ownerBox.innerHTML = matches.map(function(u) {
                         return '<div class="ai-owner-item" data-user-id="' + u.id +

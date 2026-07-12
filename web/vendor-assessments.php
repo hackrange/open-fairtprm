@@ -223,21 +223,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Show a success message with the link and a handy copy button
                 $emailNote = $emailSent
-                    ? '<br><span style="color:#166534;">Email sent automatically to ' . htmlspecialchars($vendorContactEmail) . '</span>'
+                    ? '<br><span style="color:#166534;">' . t('vendor-assessments.email_sent_auto_prefix') . htmlspecialchars($vendorContactEmail) . '</span>'
                     : '';
 
                 // Let the admin know we carried answers over from a prior assessment
                 if (!empty($result['prefilled_count'])) {
-                    $emailNote .= '<br><span style="color:#166534;">Pre-filled ' . (int)$result['prefilled_count'] .
-                                  ' answer(s) from this vendor\'s previous assessment.</span>';
+                    $emailNote .= '<br><span style="color:#166534;">' . t('vendor-assessments.prefilled_prefix') . (int)$result['prefilled_count'] .
+                                  t('vendor-assessments.prefilled_suffix') . '</span>';
                 }
                 $auth->audit($user['id'], 'assessment_create', 'vendor_assessments', $result['id'] ?? null, [
                     'new' => ['vendor_name' => $vendorName, 'vendor_email' => $vendorEmail, 'template_id' => $templateId, 'vendor_request_id' => $vendorRequestId]
                 ]);
-                $successHtml = 'Assessment created successfully!' . $emailNote . ' Share this link with the vendor: ' .
+                $successHtml = t('vendor-assessments.created_success_html') . $emailNote . t('vendor-assessments.share_link_text') .
                            '<br><br><code style="background:#f3f4f6;padding:8px 12px;border-radius:4px;word-break:break-all;">' .
                            htmlspecialchars($assessmentUrl) . '</code>' .
-                           '<br><br><button type="button" data-clipboard="' . htmlspecialchars($assessmentUrl, ENT_QUOTES, 'UTF-8') . '" class="btn btn-sm" style="background:#6b7280;color:white;">Copy Link</button>';
+                           '<br><br><button type="button" data-clipboard="' . htmlspecialchars($assessmentUrl, ENT_QUOTES, 'UTF-8') . '" class="btn btn-sm" style="background:#6b7280;color:white;">' . t('vendor-assessments.btn_copy_link') . '</button>';
             } catch (Exception $e) {
                 error_log('Create assessment error: ' . $e->getMessage());
                 $error = t('vendor-assessments.failed_create_assessment');
@@ -861,7 +861,7 @@ try {
                                 <td>
                                     <?php echo date('M j, Y', strtotime($a['created_at'])); ?>
                                     <?php if ($a['created_by_name']): ?>
-                                    <br><small style="color: #666;">by <?php echo e($a['created_by_name']); ?></small>
+                                    <br><small style="color: #666;"><?php echo e(t('vendor-assessments.created_by_prefix')); ?> <?php echo e($a['created_by_name']); ?></small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -906,7 +906,7 @@ try {
                     <?php if ($totalPages > 1 || $totalAssessments > 0): ?>
                     <div class="pagination-bar">
                         <div class="pagination-info">
-                            Showing <?php echo $offset + 1; ?>-<?php echo min($offset + $perPage, $totalAssessments); ?> of <?php echo $totalAssessments; ?> assessments
+                            <?php echo e(t('vendor-assessments.showing_prefix')); ?> <?php echo $offset + 1; ?>-<?php echo min($offset + $perPage, $totalAssessments); ?> <?php echo e(t('vendor-assessments.showing_of')); ?> <?php echo $totalAssessments; ?> <?php echo e(t('vendor-assessments.showing_suffix')); ?>
                         </div>
                         <?php if ($totalPages > 1): ?>
                         <ul class="pagination">
@@ -976,9 +976,9 @@ try {
                         <?php
                         // Group templates by category
                         $categoryLabels = [
-                            'vendor_assessment' => 'Vendor Assessment',
-                            'procurement' => 'Procurement',
-                            'onboarding' => 'Onboarding',
+                            'vendor_assessment' => t('vendor-assessments.cat_vendor_assessment'),
+                            'procurement' => t('vendor-assessments.cat_procurement'),
+                            'onboarding' => t('vendor-assessments.cat_onboarding'),
                         ];
                         $grouped = [];
                         foreach ($templates as $t) {
@@ -1311,7 +1311,7 @@ try {
                 var vendorName = document.getElementById('vendorName').value.trim();
                 var vendorEmail = document.getElementById('vendorEmail').value.trim();
                 if (!vendorName || !vendorEmail) {
-                    vendorError.textContent = 'Please enter the vendor name and email.';
+                    vendorError.textContent = <?php echo json_encode(t('vendor-assessments.js_enter_name_email')); ?>;
                     vendorError.style.display = 'block';
                     document.getElementById('vendorName').focus();
                     return false;
@@ -1323,7 +1323,7 @@ try {
             // Non-onboarding: require existing vendor selection
             var vendorRequestId = document.getElementById('vendorRequestId').value;
             if (!vendorRequestId || vendorRequestId === '') {
-                vendorError.textContent = 'Please select a valid vendor from the search results.';
+                vendorError.textContent = <?php echo json_encode(t('vendor-assessments.js_select_valid_vendor')); ?>;
                 vendorError.style.display = 'block';
                 document.getElementById('vendorSearch').focus();
                 return false;
@@ -1336,7 +1336,7 @@ try {
         function copyLink(uuid) {
             const url = <?php echo json_encode(baseUrl('')); ?> + 'vendor-assessment.php?token=' + uuid;
             navigator.clipboard.writeText(url).then(() => {
-                alert('Assessment link copied to clipboard!');
+                alert(<?php echo json_encode(t('vendor-assessments.js_link_copied')); ?>);
             });
         }
 
@@ -1356,7 +1356,7 @@ try {
             document.getElementById('emailModalStatus').textContent = '';
             document.getElementById('emailModalStatus').style.display = 'none';
             document.getElementById('emailModalSendBtn').disabled = false;
-            document.getElementById('emailModalSendBtn').textContent = 'Send';
+            document.getElementById('emailModalSendBtn').textContent = <?php echo json_encode(t('vendor-assessments.btn_send')); ?>;
             renderRecipientTags();
             document.getElementById('emailModal').style.display = 'flex';
         }
@@ -1372,7 +1372,7 @@ try {
                 var tag = document.createElement('span');
                 tag.className = 'email-recipient-tag';
                 tag.innerHTML = '<span>' + escapeHtml(email) + '</span>' +
-                    '<button type="button" class="email-tag-remove" data-idx="' + idx + '" title="Remove">&times;</button>';
+                    '<button type="button" class="email-tag-remove" data-idx="' + idx + '" title="' + <?php echo json_encode(t('vendor-assessments.js_remove_title')); ?> + '">&times;</button>';
                 container.appendChild(tag);
             });
             // Attach remove handlers
@@ -1429,15 +1429,11 @@ try {
             if (!emailEnabled) {
                 // Fall back to mailto: with all recipients
                 var url = <?php echo json_encode(baseUrl('')); ?> + 'vendor-assessment.php?token=' + uuid;
-                var subject = encodeURIComponent('Security Assessment Request - ' + vendorName);
+                var subject = encodeURIComponent(<?php echo json_encode(t('vendor-assessments.js_email_subject_prefix')); ?> + vendorName);
                 var body = encodeURIComponent(
-                    'Hello,\n\n' +
-                    'As part of our vendor risk management process, we require you to complete a security assessment.\n\n' +
-                    'Please click the link below to access and complete the assessment:\n\n' +
+                    <?php echo json_encode(t('vendor-assessments.js_email_body_intro')); ?> +
                     url + '\n\n' +
-                    'This link will expire in 30 days. If you have any questions, please contact us.\n\n' +
-                    'Thank you,\n' +
-                    'Third Party Risk Management Team'
+                    <?php echo json_encode(t('vendor-assessments.js_email_body_outro')); ?>
                 );
                 window.location.href = 'mailto:' + recipients.join(',') + '?subject=' + subject + '&body=' + body;
                 closeEmailModal();
@@ -1445,10 +1441,10 @@ try {
             }
 
             sendBtn.disabled = true;
-            sendBtn.textContent = 'Sending...';
+            sendBtn.textContent = <?php echo json_encode(t('vendor-assessments.js_sending')); ?>;
             statusEl.style.display = 'block';
             statusEl.style.color = '#666';
-            statusEl.textContent = 'Sending to ' + recipients.length + ' recipient(s)...';
+            statusEl.textContent = <?php echo json_encode(t('vendor-assessments.js_sending_to_prefix')); ?> + recipients.length + <?php echo json_encode(t('vendor-assessments.js_sending_to_suffix')); ?>;
 
             var successes = [];
             var failures = [];
@@ -1458,15 +1454,15 @@ try {
             function sendNext(i) {
                 if (i >= recipients.length) {
                     sendBtn.disabled = false;
-                    sendBtn.textContent = 'Send';
+                    sendBtn.textContent = <?php echo json_encode(t('vendor-assessments.btn_send')); ?>;
                     if (failures.length === 0) {
                         statusEl.style.color = '#10b981';
-                        statusEl.textContent = 'Email sent successfully to ' + successes.join(', ');
+                        statusEl.textContent = <?php echo json_encode(t('vendor-assessments.js_email_sent_to')); ?> + successes.join(', ');
                         setTimeout(closeEmailModal, 1500);
                     } else {
                         var msg = '';
-                        if (successes.length) msg += 'Sent to: ' + successes.join(', ') + '. ';
-                        msg += 'Failed: ' + failures.join('; ');
+                        if (successes.length) msg += <?php echo json_encode(t('vendor-assessments.js_sent_to_label')); ?> + successes.join(', ') + '. ';
+                        msg += <?php echo json_encode(t('vendor-assessments.js_failed_label')); ?> + failures.join('; ');
                         statusEl.style.color = '#ef4444';
                         statusEl.textContent = msg;
                     }
@@ -1492,11 +1488,11 @@ try {
                     if (data.success) {
                         successes.push(email);
                     } else {
-                        failures.push(email + ': ' + (data.message || 'Unknown error'));
+                        failures.push(email + ': ' + (data.message || <?php echo json_encode(t('vendor-assessments.js_unknown_error')); ?>));
                     }
                 })
                 .catch(function() {
-                    failures.push(email + ': Network error');
+                    failures.push(email + ': ' + <?php echo json_encode(t('vendor-assessments.js_network_error')); ?>);
                 })
                 .finally(function() {
                     sendNext(i + 1);
@@ -1536,7 +1532,7 @@ try {
                 <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                     <?php if (!empty($theme['footer_logo_url'])): ?>
                         <a class="brand" href="index.php">
-                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('vendor-assessments.footer_logo_alt')); ?>" style="max-height: 45px;">
                         </a>
                     <?php endif; ?>
                     <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>

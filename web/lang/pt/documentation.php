@@ -155,6 +155,12 @@
         <tr><td><strong><a href="#question-types">Tipos de pergunta de telefone &amp; VAT</a></strong></td><td>Novos tipos de campo de avaliação/integração: um número de telefone com seletor de código de país &amp; bandeira (formatado automaticamente) e um número de VAT da UE com dupla entrada e validação gratuita ao vivo contra o serviço oficial EU VIES.</td><td>Todos</td></tr>
         <tr><td><strong><a href="#question-types">Dados de fornecedor &amp; melhorias de busca</a></strong></td><td>Armazene um número de VAT em cada fornecedor (exibido na página do fornecedor com um atalho "Add VAT"), encontre fornecedores por número de VAT na busca rápida e um banner de pontuação de Integração-Compras mais claro.</td><td>Procurement, Cyber TPRM</td></tr>
         <tr><td><strong><a href="#admin-backup">Backups de banco de dados grandes</a></strong></td><td>O backup e a restauração agora suportam bancos de dados de vários gigabytes e registros muito grandes sem tempo limite.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#assessment-forms">Formulários de avaliação &amp; Preenchimento Automático por IA</a></strong></td><td>Baixe uma avaliação como um PDF preenchível ou planilha Excel, importe de volta um arquivo concluído e &mdash; com um provedor de IA &mdash; preencha automaticamente as respostas a partir dos certificados atuais do fornecedor.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#tprm-action-plan">Plano de Ação do Fornecedor</a></strong></td><td>Agende ações de acompanhamento para um fornecedor (contatar, enviar avaliação, forçar revisão anual) com datas de prazo, responsáveis, alertas por e-mail e notas de status.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#custom-onboarding">Campos de integração personalizados &amp; Dados Personalizados</a></strong></td><td>Capture campos extras específicos da organização em um fornecedor com visibilidade por função, edite-os na aba Custom Data e leia-os na exportação CSV e na API.</td><td>Admins, Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#breach-alerts">Alertas de Violação / Cibernéticos</a></strong></td><td>Um feed de violações da cadeia de suprimentos (incluindo incidentes do Grip) com um detalhamento de usuários afetados e ações em massa de reconhecer / falso positivo / excluir.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#admin-acl-groups">Grupos de controle de acesso personalizados</a></strong></td><td>Crie seus próprios grupos ACL, clone permissões de um grupo existente e defina Leitura vs Leitura/Escrita por módulo. Os grupos fornecidos são protegidos.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-templates">Construtor de Modelos de Avaliação</a></strong></td><td>Novos tipos de pergunta (seleção múltipla, telefone, VAT), instruções de certificado orientadas por modelo, controle de campos por função e modelos desativados ocultos por padrão.</td><td>Admins, Cyber TPRM</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>Como saber qual versão estou usando?</strong> Os administradores podem ir a <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> para ver a versão instalada. Este guia descreve a <strong>v2.6.2</strong>. Consulte <a href="#admin-updates">Atualizando a Plataforma</a>.
@@ -205,7 +211,7 @@
     </figure>
 
     <div class="callout callout-warning">
-        <strong>Bom saber:</strong> A maior parte da interface (menus, botões, rótulos e campos de formulário) está traduzida. As <em>perguntas</em> das avaliações de fornecedores também podem ser traduzidas automaticamente quando um provedor de IA está configurado (veja <a href="#admin-ai">Integração de IA</a>), mas os valores de resposta armazenados permanecem em inglês para que a pontuação e os relatórios permaneçam consistentes em todos os idiomas.
+        <strong>Bom saber:</strong> A interface é traduzida sempre que existe uma tradução para o seu idioma; uma string que ainda não foi traduzida recorre ao inglês, portanto você ainda pode ver algum rótulo ocasional em inglês. O conteúdo que você ou seus fornecedores digitam (nomes de fornecedores, notas, nomes de arquivos enviados, respostas de texto livre) é sempre exibido exatamente como inserido. As <em>perguntas</em> das avaliações de fornecedores podem ser traduzidas automaticamente para exibição quando um provedor de IA está configurado (veja <a href="#admin-ai">Integração de IA</a>); sem um, elas permanecem no idioma em que foram escritas. Os valores de resposta armazenados sempre permanecem em inglês para que a pontuação e os relatórios permaneçam consistentes em todos os idiomas.
     </div>
 </div>
 
@@ -868,6 +874,76 @@
     </ol>
 </div>
 
+<div class="doc-section" id="assessment-forms">
+    <h2>Formulários de Avaliação: Baixar, Preencher, Importar &amp; Preenchimento Automático por IA <span class="new-badge">Novo em 2.6.2</span></h2>
+    <p>Nem todo fornecedor quer responder a um questionário no navegador. Na página de uma avaliação individual (<span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Assessments</span> &rarr; abra uma avaliação) você pode entregar ao fornecedor uma cópia offline, receber de volta um arquivo concluído ou deixar um provedor de IA preencher previamente as respostas a partir dos próprios certificados do fornecedor. Os botões ficam em uma linha perto do topo da avaliação.</p>
+
+    <h3>Baixe a avaliação como um arquivo preenchível</h3>
+    <ul>
+        <li><span class="btn-label">Download PDF</span> &mdash; um formulário PDF preenchível. Cada pergunta se torna um campo de formulário real, para que o fornecedor possa digitar e marcar caixas diretamente no arquivo.</li>
+        <li><span class="btn-label">Download Excel</span> &mdash; uma planilha <code>.xlsx</code> real que pode ser preenchida no Excel, Google Sheets ou LibreOffice. Perguntas de escolha única recebem menus suspensos na célula, e perguntas condicionais ficam esmaecidas automaticamente quando não se aplicam.</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>O PDF preenchível agora funciona em qualquer navegador, não apenas no Adobe.</strong> As caixas de seleção carregam aparências embutidas, portanto são exibidas e alternadas no Chrome, Edge e outros visualizadores de PDF integrados (anteriormente funcionavam apenas no Adobe Acrobat/Reader). Um campo de nome digitado rotulado <strong>&ldquo;SIGNATURE (TYPE FULL NAME)&rdquo;</strong> permite que qualquer pessoa assine em qualquer visualizador; os campos de assinatura digital e de data de assinatura exclusivos do Adobe permanecem ocultos exceto no Acrobat/Reader, que pode realmente usá-los.
+    </div>
+
+    <h3>Importe uma avaliação concluída (PDF, Excel ou CSV)</h3>
+    <p>Quando o fornecedor devolver o arquivo finalizado, clique em <span class="btn-label">Import Completed Assessment</span> e faça o upload. A plataforma detecta o formato automaticamente &mdash; um <strong>PDF</strong>, <strong>Excel (.xlsx)</strong> ou <strong>CSV</strong> concluído &mdash; e mescla as respostas às respostas existentes da avaliação.</p>
+    <div class="callout callout-warning">
+        <strong>A Referência do arquivo deve corresponder.</strong> Cada arquivo baixado carrega uma <strong>Referência</strong> oculta (o ID da avaliação). Se a Referência estiver ausente ou pertencer a uma avaliação diferente, a importação é recusada e nada é gravado &mdash; portanto as respostas nunca podem cair na avaliação errada.
+    </div>
+
+    <h3>Tem um certificado em vez disso? <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>Um fornecedor que preenche uma avaliação pode receber um atalho: se possuir uma certificação relevante, pode enviá-la em vez de responder a todas as perguntas. O prompt <strong>&ldquo;Do you have a Certificate?&rdquo;</strong> agora mostra as <strong>Certificate Upload Instructions</strong> que o autor do modelo escreveu, portanto não se limita mais à ISO 27001 &mdash; um modelo pode convidar um SOC 2 Type 2, ISO 27001 ou qualquer outro certificado. (Os autores de modelos definem esse texto no Template Builder; veja <a href="#admin-templates">Construtor de Modelos de Avaliação</a>.)</p>
+
+    <h3>Preenchimento Automático por IA a partir de Certificações <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>Se o seu administrador configurou um <a href="#admin-ai">provedor de IA</a>, um revisor autorizado pode deixar a IA ler os documentos de certificação enviados pelo fornecedor e preencher previamente o questionário. Clique em <span class="btn-label">&#9889; Auto-Fill from Certifications</span> na página da avaliação.</p>
+    <figure class="doc-figure">
+        <img src="app/docs/assessment-ai-autofill.png" alt="The Auto-Fill from Certifications button on a vendor assessment" loading="lazy">
+        <figcaption><strong>Auto-Fill from Certifications.</strong> Com um provedor de IA configurado, o botão aparece ao lado de <strong>Download PDF</strong>, <strong>Download Excel</strong> e <strong>Import Completed Assessment</strong>. Ele lê os documentos de certificação atuais do fornecedor e preenche as perguntas que esses documentos respondem.</figcaption>
+    </figure>
+    <p>Ao clicar, você é lembrado: <em>&ldquo;This will analyze the vendor's certification documents and pre-fill unanswered questions. Existing answers will not be changed.&rdquo;</em> A IA então percorre os certificados do fornecedor e relata, por exemplo, <em>&ldquo;Filled 12 of 30 unanswered questions.&rdquo;</em> Algumas coisas a saber:</p>
+    <ul>
+        <li><strong>Apenas certificados atuais são usados.</strong> Ela lê os documentos enviados pelo fornecedor cujo tipo é <em>Certification</em> e que estão <strong>ativos e não expirados</strong> (documentos PDF, CSV e Excel; os mais recentes). Um certificado expirado ou substituído é ignorado.</li>
+        <li><strong>Ela apenas preenche espaços em branco.</strong> As perguntas que você já respondeu são deixadas intactas, e ela nunca sobrescreve uma resposta existente.</li>
+        <li><strong>Ela responde apenas a partir do que os documentos realmente dizem.</strong> A IA é instruída a não adivinhar; qualquer coisa que ela não possa sustentar com confiança a partir dos documentos é deixada sem resposta para uma pessoa concluir.</li>
+        <li><strong>Você mantém o controle.</strong> As respostas preenchidas são salvas e a página recarrega mostrando-as, para que você possa revisar e alterar qualquer resposta antes que a avaliação seja enviada.</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>Quem pode usá-lo e quando aparece.</strong> O botão é exibido apenas para usuários <strong>Administrators</strong> e <strong>Cyber TPRM</strong>, somente quando um provedor de IA está habilitado, e somente quando o fornecedor tem pelo menos um documento de certificação atual em arquivo. Fica oculto em avaliações concluídas.
+    </div>
+</div>
+
+<div class="doc-section" id="tprm-action-plan">
+    <h2>Plano de Ação do Fornecedor <span class="new-badge">Novo em 2.6.2</span></h2>
+    <p>A aba <strong>Action Plan</strong> na página de um fornecedor permite que a equipe cibernética agende trabalho de acompanhamento para aquele fornecedor &mdash; contatar o fornecedor, enviar outra avaliação, forçar uma revisão anual &mdash; com uma data de prazo, responsáveis e um conjunto contínuo de notas de status. Um trabalho diário dispara cada ação quando sua data chega e a transforma em uma tarefa rastreada.</p>
+    <p>Abra um fornecedor em <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Onboarding</span> &rarr; <span class="menu-label">My Vendors</span>, depois clique na aba <strong>Action Plan</strong>. A aba está disponível para usuários <strong>Administrators</strong> e <strong>Cyber TPRM</strong>.</p>
+
+    <h3>Agendando uma ação</h3>
+    <ol class="steps">
+        <li>Na aba <strong>Action Plan</strong>, clique em <span class="btn-label">+ Create Action</span>.</li>
+        <li>Escolha a <span class="field-label">Action</span>: <strong>Contact Vendor</strong>, <strong>Contact Stakeholder</strong>, <strong>Send Assessment</strong> ou <strong>Force Annual Review</strong>. (Se você escolher <strong>Send Assessment</strong>, um seletor de <span class="field-label">Vendor Assessment</span> aparece para que você escolha qual modelo enviar.)</li>
+        <li>Defina a <span class="field-label">Due Date</span> &mdash; o dia em que a ação deve disparar.</li>
+        <li>Em <span class="field-label">Assign to (Cyber TPRM)</span>, marque um ou mais responsáveis Cyber TPRM. (Se não houver nenhum, a ação recorre ao stakeholder do fornecedor.)</li>
+        <li>Opcionalmente, marque <span class="field-label">Email assigned individuals when this action fires</span> e use <span class="field-label">Notification email addresses</span> para enviar a endereços específicos em vez disso &mdash; separados por vírgula. Deixe em branco para usar os e-mails das próprias contas dos responsáveis.</li>
+        <li>Escreva uma <span class="field-label">Description</span> (ela é levada para a tarefa que é criada), depois clique em <span class="btn-label">Create Action</span>.</li>
+    </ol>
+
+    <h3>O que acontece quando uma ação dispara</h3>
+    <p>Cada ação dispara uma vez, na sua data de prazo ou depois dela. Disparar cria uma <strong>Cyber To-Do</strong> vinculada que faz um link direto de volta para esta aba Action Plan, executa a ação (para <strong>Send Assessment</strong> ela envia o questionário por e-mail ao fornecedor; para <strong>Force Annual Review</strong> ela marca a revisão anual como devida) e &mdash; se você habilitou &mdash; envia e-mails aos responsáveis ou aos endereços que você listou.</p>
+
+    <h3>Status de ação</h3>
+    <p>Uma ação passa por estes status:</p>
+    <p><span class="status-label">Pending</span> &rarr; <span class="status-label">In Progress</span> (definido automaticamente quando dispara) &rarr; <span class="status-label">Completed</span>, ou <span class="status-label">Problem</span> se algo deu errado quando disparou, ou <span class="status-label">Cancelled</span> se você a cancelar antes que dispare. Você pode alterar o status por conta própria a qualquer momento; o trabalho diário nunca sobrescreve um status que você definiu.</p>
+
+    <h3>Notas de status</h3>
+    <p>Abra uma ação para adicionar <strong>Status Notes</strong> com data conforme o trabalho avança. Digite uma nota e clique em <span class="btn-label">Add Note</span>. Você pode editar ou excluir suas próprias notas; administradores podem editar ou excluir as de qualquer pessoa. Cada criação, edição e exclusão é registrada em auditoria.</p>
+
+    <div class="callout callout-info">
+        <strong>O trabalho &ldquo;Vendor Remediation Schedule&rdquo;.</strong> O trabalho diário que dispara as ações devidas se chama <strong>Vendor Remediation Schedule</strong> e é executado todos os dias às <strong>7:00</strong> por padrão. Os administradores podem habilitá-lo, desabilitá-lo ou reprogramá-lo na página <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Scheduler</span>. Se ele estiver desligado, ele se atualiza na próxima vez que for executado, disparando tudo o que se tornou devido nesse meio-tempo.
+    </div>
+</div>
+
 <div class="doc-section" id="tprm-srs">
     <h2>Scorecard de Risco de Segurança (SRS)</h2>
     <p>O SRS fornece uma pontuação de segurança externa automatizada para cada fornecedor com base na configuração DNS, SSL/TLS, segurança de e-mail (SPF, DKIM, DMARC), portas abertas e outros indicadores técnicos.</p>
@@ -882,8 +958,19 @@
 
 <div class="doc-section" id="tprm-fourth-party">
     <h2>Risco de 4ª Parte</h2>
-    <p>Rastreie os fornecedores dos quais <em>seus fornecedores</em> dependem. Se seu provedor de nuvem usa um subcontratado para armazenamento de dados, isso é um risco de 4ª parte.</p>
-    <p>Navegue até <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Modules</span> &rarr; <span class="menu-label">4th Party Risk</span>.</p>
+    <p>Rastreie os fornecedores dos quais <em>seus fornecedores</em> dependem. Se seu provedor de nuvem usa um subcontratado para armazenamento de dados, isso é um risco de 4ª parte. Na barra lateral, você pode abrir <span class="menu-label">4th Party Risk</span> (concentração de tecnologia), <span class="menu-label">CVE Search</span> e <span class="menu-label">Subprocessors</span>. Está disponível para administradores e usuários Cyber TPRM; auditores podem visualizar, mas não agir.</p>
+
+    <h3>Concentração de subprocessadores <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>Abra <span class="menu-label">Subprocessors</span> para ver a visualização de <strong>Subprocessor Concentration</strong>: cada subprocessador que seus fornecedores declararam e quantos dos seus fornecedores usam cada um. Um subprocessador compartilhado por vários fornecedores é destacado &mdash; essa dependência compartilhada é um risco de concentração da cadeia de suprimentos. (Os subprocessadores são adicionados a um fornecedor a partir da página de detalhes desse fornecedor.)</p>
+
+    <h3>Envie uma avaliação a todos que usam um subprocessador <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>Quando um subprocessador concentra risco, você pode pesquisar os fornecedores que dependem dele em uma única ação:</p>
+    <ol class="steps">
+        <li>Na lista de Subprocessors, clique em <span class="btn-label">Send Assessment</span> na linha daquele subprocessador.</li>
+        <li>No seletor de fornecedores, escolha quais dos fornecedores que usam aquele subprocessador devem receber a avaliação (ou <span class="field-label">Select All Visible</span>), depois continue.</li>
+        <li>Escolha um <span class="field-label">Assessment Template</span> e uma janela de <span class="field-label">Expires In</span> (14, 30, 60 ou 90 dias), depois clique em <span class="btn-label">Assign Assessment</span>.</li>
+    </ol>
+    <p>Cada fornecedor selecionado recebe o questionário por e-mail (uma solicitação de informações), e um lembrete é rastreado para que os acompanhamentos saiam automaticamente. Fornecedores sem e-mail em arquivo são ignorados, e qualquer envio que falhe é tentado novamente pelo trabalho de lembrete. O mesmo fluxo <strong>Assign Assessment</strong> está disponível nas visualizações de concentração de tecnologia e de CVE.</p>
 </div>
 
 <div class="doc-section" id="tprm-shadow-saas">
@@ -945,6 +1032,50 @@
         </ul>
         Veja <a href="#troubleshooting">Solução de Problemas</a> para saber por que esta regra existe.
     </div>
+</div>
+
+<div class="doc-section" id="custom-onboarding">
+    <h2>Campos de Integração Personalizados &amp; a Aba Custom Data <span class="new-badge">Novo em 2.6.2</span></h2>
+    <p>Os campos padrão de fornecedor (nome, domínio, nível, VAT e assim por diante) cobrem a maioria das necessidades, mas toda organização rastreia algo extra. Na v2.6.2, um modelo de integração pode definir <strong>campos personalizados</strong> que não têm uma coluna padrão de fornecedor. Seus valores são capturados por fornecedor e exibidos na aba <strong>Custom Data</strong> do fornecedor.</p>
+
+    <h3>Onde os valores personalizados ficam: a aba Custom Data</h3>
+    <p>Abra um fornecedor (<span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Onboarding</span> &rarr; <span class="menu-label">My Vendors</span> &rarr; abra um fornecedor). Se o modelo de integração do fornecedor definir algum campo personalizado, uma aba <strong>Custom Data</strong> aparece ao lado das outras abas do fornecedor, com uma contagem de quantos valores personalizados estão em arquivo. A aba é somente leitura até você clicar em <span class="btn-label">Edit</span>; faça suas alterações e clique em <span class="btn-label">Save Custom Data</span>. Os campos são agrupados por sua seção de modelo. Usuários que têm permissão para ver um campo, mas não editá-lo, o veem marcado como <em>(view only)</em>.</p>
+
+    <h3>Definindo um campo personalizado (administradores)</h3>
+    <p>Um campo personalizado é apenas uma pergunta em um modelo da categoria <strong>Onboarding</strong> cujo <span class="field-label">Field Name</span> é um que <em>não</em> é uma coluna de fornecedor integrada. Há duas etapas, ambas no Portal Admin:</p>
+    <ol class="steps">
+        <li><strong>Registre o nome do campo.</strong> Vá para <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Field Reference</span>, clique em <span class="btn-label">+ Add Field</span> e adicione seu campo personalizado (letras minúsculas, números e sublinhados; ex.: <code>data_residency_region</code>). Escolha um tipo de coluna (texto, número, data, etc.) e a categoria <span class="field-label">Onboarding</span>.</li>
+        <li><strong>Adicione uma pergunta que mapeie para ele.</strong> Em <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Template Builder</span>, abra seu modelo de integração, adicione uma pergunta e defina seu <span class="field-label">Field Name</span> para o campo que você acabou de registrar. Veja <a href="#admin-templates">Construtor de Modelos de Avaliação</a>.</li>
+    </ol>
+
+    <h3>Novos tipos de campo para respostas mais ricas <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>Além dos tipos existentes de texto, número, data, menu suspenso e rádio, as perguntas (personalizadas ou padrão) agora podem usar:</p>
+    <table class="doc-table">
+        <tr><th>Tipo</th><th>O que o fornecedor vê</th></tr>
+        <tr><td><strong>Checkboxes</strong></td><td>Uma lista de seleção múltipla &mdash; marque cada opção que se aplica.</td></tr>
+        <tr><td><strong>Button Group (Multi)</strong></td><td>A mesma seleção múltipla, exibida como uma linha de botões de alternância.</td></tr>
+        <tr><td><strong>Phone</strong></td><td>Um número de telefone com um seletor de código de país &amp; bandeira (veja <a href="#question-types">Tipos de Pergunta Telefone &amp; VAT</a>).</td></tr>
+        <tr><td><strong>VAT Number</strong></td><td>Um número de IVA da UE com dupla entrada e validação VIES ao vivo (veja <a href="#question-types">Tipos de Pergunta Telefone &amp; VAT</a>).</td></tr>
+    </table>
+    <p>Os equivalentes de seleção única (<strong>Dropdown</strong>, <strong>Radio Buttons</strong>, <strong>Button Group</strong>) continuam disponíveis. Os tipos de seleção múltipla precisam de uma lista de <span class="field-label">Options</span> (uma por linha).</p>
+
+    <h3>Controlando quem pode ver e editar um campo (controle por função) <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>Em modelos de integração, cada seção e pergunta <strong>personalizada</strong> carrega dois controles de função, para que você possa manter campos sensíveis longe de pessoas que não deveriam vê-los:</p>
+    <ul>
+        <li><span class="field-label">Visible to Roles</span> &mdash; quais funções podem <em>ver</em> o campo.</li>
+        <li><span class="field-label">Visible and Editable Roles</span> &mdash; quais funções podem <em>editá-lo</em>.</li>
+    </ul>
+    <div class="callout callout-info">
+        <strong>Os campos personalizados são privados por padrão.</strong> Ao contrário de uma pergunta padrão, um campo personalizado fica oculto até que você conceda uma função. Até que uma função seja concedida, apenas superadministradores podem vê-lo ou editá-lo. Um campo que um visualizador não tem permissão para ver é deixado de fora da aba Custom Data, da página do fornecedor, da exportação CSV e da API para aquela pessoa. (Esse padrão de somente-concessão se aplica a campos personalizados; as perguntas padrão de integração nunca são controladas dessa forma.)
+    </div>
+    <p>Tanto a concessão de uma seção quanto a concessão de uma pergunta devem permitir uma pessoa antes que ela veja aquela pergunta, para que você possa ocultar uma seção inteira ou apenas campos individuais dentro dela.</p>
+
+    <h3>Valores personalizados em exportações e na API</h3>
+    <ul>
+        <li><strong>Exportação CSV.</strong> Na lista <span class="menu-label">Vendor Onboarding</span>, <span class="btn-label">Export CSV</span> (administradores e Cyber TPRM) agora adiciona uma coluna por campo personalizado, nomeada <code>custom:&lt;field_name&gt;</code>, ao lado das colunas padrão.</li>
+        <li><strong>REST API.</strong> A resposta de fornecedor único (<code>GET /vendors/{id}</code>) inclui um array <code>custom_onboarding_data</code>; cada entrada tem <code>field_name</code>, <code>label</code>, <code>value</code>, <code>type</code>, <code>section</code> e <code>template_name</code>.</li>
+    </ul>
+    <p>Ambos leem do mesmo lugar que a aba Custom Data e respeitam a mesma visibilidade por função &mdash; um campo que o solicitante (ou o dono da chave de API) não pode ver é apagado ou omitido.</p>
 </div>
 
 <div class="doc-section" id="ai-review">
@@ -1036,6 +1167,28 @@
         <img src="app/docs/shadow-saas.png" alt="Shadow SaaS list page" loading="lazy">
         <figcaption><strong>A página Shadow SaaS.</strong> Aplicativos descobertos e importados com seus riscos e ações. Aplicativos integrados como fornecedores são ignorados em sincronizações futuras, e qualquer um que você dispensar permanece dispensado.</figcaption>
     </figure>
+
+    <h3>Fonte de dados Live vs. Local (em cache) <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>No cartão Grip Security Connection, <span class="field-label">Data source</span> controla de onde as páginas do Grip leem:</p>
+    <ul>
+        <li><strong>Live</strong> &mdash; chama a API do Grip para cada página. Sempre atual, mas mais pesado sobre a API.</li>
+        <li><strong>Local (Hydrated/cached)</strong> &mdash; serve a partir da cópia dos dados do Grip mantida no banco de dados da plataforma. Mais leve sobre a API. No modo Local, cada sincronização <strong>atualiza totalmente</strong> essa cópia; entre sincronizações, as páginas servem a partir do instantâneo em vez de chamar o Grip.</li>
+    </ul>
+
+    <h3>Acompanhando e controlando uma sincronização <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>Enquanto uma sincronização está em execução, o cartão <strong>Last Sync</strong> mostra uma leitura de progresso ao vivo &mdash; <em>&ldquo;Hydrating per-app rosters &mdash; NN% (D / T apps)&rdquo;</em> &mdash; acima de um botão <span class="btn-label">Stop Sync</span> que cancela a execução de forma cooperativa. Para apagar totalmente os dados do Grip servidos localmente, use <span class="btn-label">Truncate Data</span> no mesmo cartão: ele limpa as tabelas espelho do Grip, as linhas do Grip na lista de Shadow SaaS e a telemetria do Grip gravada nos registros de fornecedores (a aba SaaS Data). Seu histórico de sincronização é mantido, e a próxima sincronização re-hidrata tudo a partir do Grip.</p>
+
+    <h3>Classificação SecurityScorecard (SSC) <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>Quando o Grip está conectado, uma coluna <strong>SSC</strong> mostra a nota em letra do <strong>SecurityScorecard</strong> (A&ndash;F) de cada aplicativo ou fornecedor na lista de Shadow SaaS e na lista SRS de fornecedores, e na aba SaaS Data do fornecedor. Ela aparece apenas enquanto o Grip está habilitado.</p>
+
+    <h3>A aba &ldquo;SaaS Data&rdquo; do fornecedor <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>Quando um fornecedor corresponde a um aplicativo descoberto pelo Grip, uma aba <strong>SaaS Data</strong> somente leitura aparece na página desse fornecedor, exibindo a telemetria do Grip coletada durante a sincronização sem sair do fornecedor: <strong>First Discovered</strong>, <strong>Active Accounts</strong> (um link para a lista de usuários afetados), <strong>Last Known Usage</strong>, classificação do aplicativo, a nota <strong>Security Scorecard</strong>, categoria, profundidade de IA, sinais de conformidade e suporte a SAML/MFA.</p>
+
+    <h3>Alertas de violação do Grip <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>O Grip também pode alimentar incidentes de segurança na plataforma. Marque <span class="field-label">Flow Grip breach information into Breach / Cyber Alerts</span> no cartão de conexão e os alertas &ldquo;Security Incident Detected&rdquo; do Grip são gravados na sua lista de <a href="#breach-alerts">Alertas de Violação / Cibernéticos</a> a cada sincronização. (Isso também requer que o recurso de Alertas de Violação / Cibernéticos esteja habilitado em <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email Settings</span>.)</p>
+    <div class="callout callout-info">
+        <strong>Os dados pessoais são criptografados em repouso.</strong> Nomes, endereços de e-mail e outros detalhes pessoais nos dados do Grip em cache são criptografados no banco de dados e descriptografados apenas quando exibidos no aplicativo ou retornados pela API. Isso é automático e não requer configuração.
+    </div>
 </div>
 
 <div class="doc-section" id="shadow-saas-hero">
@@ -1090,6 +1243,26 @@
 </div>
 
 
+<div class="doc-section" id="breach-alerts">
+    <h2>Alertas de Violação / Cibernéticos <span class="new-badge">Novo em 2.6.2</span></h2>
+    <p>A página de <strong>Breach / Cyber Alerts</strong> reúne em um só lugar sinais de violação e de inteligência de ameaças para a cadeia de suprimentos de fornecedores. Abra-a na barra lateral em <span class="menu-label">Breach / Cyber Alerts</span> &rarr; <span class="menu-label">Breach Alerts</span>; um distintivo vermelho mostra o número de novos alertas.</p>
+
+    <h3>De onde vêm os alertas</h3>
+    <p>Os alertas incluem violações descobertas pelos scanners de Violação &amp; OSINT de IA (veja <a href="#admin-ai">Integração de IA</a>) e, quando habilitado, incidentes de segurança do <a href="#shadow-saas-grip">Grip</a>. Cada alerta mostra a entidade afetada, os usuários potencialmente impactados, a tecnologia e quando foi detectado. Um incidente em um aplicativo SaaS que você <strong>não</strong> integrou como fornecedor é marcado como <strong>&ldquo;Shadow SaaS&rdquo;</strong> com o número de usuários potencialmente impactados; se esse aplicativo for integrado posteriormente, incidentes futuros se anexam ao fornecedor.</p>
+
+    <h3>Quem foi afetado</h3>
+    <p>Para um incidente originado do Grip, a contagem de usuários impactados leva a uma lista de <strong>usuários afetados</strong> para aquele aplicativo. A lista é paginada e filtrável (por exemplo, por método de autenticação) e tem uma caixa <strong>Search by name or email</strong> para encontrar uma pessoa específica. Como a lista é armazenada criptografada, a busca é executada sobre os dados descriptografados no aplicativo, portanto funciona da mesma forma que a ordenação e a paginação.</p>
+
+    <h3>Trabalhando os alertas em massa</h3>
+    <p>Administradores e usuários Cyber TPRM têm uma barra de ferramentas de seleção múltipla na lista. Marque os alertas que deseja (ou use <strong>Check all</strong>) e aplique uma ação a todos eles de uma vez:</p>
+    <ul>
+        <li><span class="btn-label">Acknowledge</span> &mdash; marque os alertas como vistos.</li>
+        <li><span class="btn-label">False Positive</span> &mdash; marque-os como não sendo um problema real.</li>
+        <li><span class="btn-label">Delete</span> &mdash; remova-os. <strong>Somente administradores</strong>, e confirmado antes de executar.</li>
+    </ul>
+</div>
+
+
 <!-- ================================================================
      ADMIN PORTAL
      ================================================================ -->
@@ -1116,6 +1289,49 @@
         <li>Um modal aparecerá mostrando todos os grupos disponíveis com caixas de seleção. Marque os grupos que deseja atribuir (ex.: <strong>Cyber GRC</strong>, <strong>Administrator</strong>).</li>
         <li>Clique em <span class="btn-label">Save Changes</span>.</li>
     </ol>
+    <p>Além de atribuir os grupos fornecidos, os superadministradores podem criar seus próprios grupos com um conjunto de permissões personalizado &mdash; veja <a href="#admin-acl-groups">Grupos ACL &amp; Controle de Acesso Personalizado</a>.</p>
+</div>
+
+<div class="doc-section" id="admin-acl-groups">
+    <h2>Grupos ACL &amp; Controle de Acesso Personalizado <span class="new-badge">Novo em 2.6.2</span></h2>
+    <p>A plataforma vem com sete grupos integrados (administrator, cyber_tprm, procurement, stakeholder, auditor, cyber_grc, grc_contributors). Na v2.6.2, os <strong>superadministradores</strong> também podem criar seus próprios grupos e ajustar exatamente o que cada um pode fazer. Abra <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Access Control</span> &rarr; <span class="menu-label">ACL Groups</span>. Qualquer administrador pode visualizar esta página; apenas superadministradores veem os controles de criação, edição e permissões.</p>
+
+    <h3>Os grupos fornecidos são protegidos</h3>
+    <p>Os sete grupos integrados são marcados como <strong>System</strong>. Eles não podem ser excluídos ou renomeados, e suas permissões são somente leitura &mdash; você pode abrir <span class="btn-label">View Permissions</span> para ver exatamente o que concedem, mas não alterá-las. Isso mantém estáveis os padrões dos quais todos dependem.</p>
+
+    <h3>Criando um grupo personalizado</h3>
+    <ol class="steps">
+        <li>Clique em <span class="btn-label">+ Create Group</span>.</li>
+        <li>Insira um <span class="field-label">Group Name (machine)</span> (letras minúsculas, números, sublinhados &mdash; isto é fixo depois de criado), um <span class="field-label">Display Name</span> amigável e uma <span class="field-label">Description</span>.</li>
+        <li>Opcionalmente, use <span class="field-label">Copy permissions from</span> para <strong>clonar</strong> um grupo existente (incluindo um grupo System) como ponto de partida &mdash; depois refine-o. Deixe em <em>&mdash; Start with no permissions &mdash;</em> para construir do zero.</li>
+        <li>Clique em <span class="btn-label">Create Group</span>.</li>
+    </ol>
+
+    <h3>Ajustando a matriz de permissões</h3>
+    <p>Abra as <span class="btn-label">Permissions</span> de um grupo personalizado. As permissões são agrupadas por módulo (Vendor Onboarding, FAIR Analysis, Assessments, Security Rating (SRS), Annual Reviews, GRC e Other). Cada permissão é marcada como <strong>Read</strong> ou <strong>Read/Write</strong>, e cada módulo tem três predefinições de um clique:</p>
+    <ul>
+        <li><span class="btn-label">Read</span> &mdash; concede apenas as permissões de visualizar/listar/exportar daquele módulo.</li>
+        <li><span class="btn-label">Read &amp; Write</span> &mdash; concede tudo (visualizar <em>e</em> alterar).</li>
+        <li><span class="btn-label">None</span> &mdash; limpa o módulo.</li>
+    </ul>
+    <p>Clique em <span class="btn-label">Save Permissions</span> quando terminar. Conceder <strong>Read</strong> nunca implica acesso de escrita &mdash; a capacidade de alterar algo é sempre uma concessão separada e explícita. Todas as alterações de grupo são registradas em auditoria.</p>
+</div>
+
+<div class="doc-section" id="admin-templates">
+    <h2>Construtor de Modelos de Avaliação <span class="new-badge">Novo em 2.6.2</span></h2>
+    <p>O <strong>Template Builder</strong> (<span class="menu-label">Admin</span> &rarr; <span class="menu-label">Template Builder</span>) é onde administradores e usuários Cyber TPRM projetam questionários de avaliação e integração. Use <span class="btn-label">+ Add Section</span> e <span class="btn-label">+ Add Question</span> para construir um modelo. Vale destacar algumas adições da v2.6.2.</p>
+
+    <h3>Tipos de pergunta e mapeamento de campo</h3>
+    <p>O <span class="field-label">Question Type</span> de uma pergunta agora inclui <strong>Phone</strong>, <strong>VAT Number</strong>, <strong>Checkboxes</strong> e <strong>Button Group (Multi)</strong> além dos familiares tipos de texto, menu suspenso e rádio (veja <a href="#custom-onboarding">Campos de Integração Personalizados</a> para o que cada um captura). O <span class="field-label">Field Name</span> de uma pergunta mapeia sua resposta para um campo de fornecedor; escolha um campo integrado ou um personalizado que você registrou em <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Field Reference</span>.</p>
+
+    <h3>Certificate Upload Instructions</h3>
+    <p>Em um modelo, você pode preencher <span class="field-label">Certificate Upload Instructions</span> &mdash; o texto exibido a um fornecedor no prompt <em>&ldquo;Do you have a Certificate?&rdquo;</em>. Isso permite que um modelo convide qualquer certificado (SOC 2 Type 2, ISO 27001 e assim por diante), não apenas ISO 27001. Se você deixar em branco, uma mensagem genérica é exibida.</p>
+
+    <h3>Visibilidade por função em modelos de integração</h3>
+    <p>Para modelos de <strong>integração</strong>, seções e perguntas personalizadas carregam controles <span class="field-label">Visible to Roles</span> e <span class="field-label">Visible and Editable Roles</span>, para que você decida quem pode ver e editar cada campo personalizado. Veja <a href="#custom-onboarding">Campos de Integração Personalizados &amp; a Aba Custom Data</a>.</p>
+
+    <h3>Modelos desativados ficam ocultos por padrão</h3>
+    <p>A lista de modelos mostra apenas modelos <strong>ativos</strong>. Se algum tiver sido desativado, um botão <span class="btn-label">Show Deactivated (N)</span> os revela (e alterna de volta para <span class="btn-label">Hide Deactivated (N)</span>), mantendo a lista de um locatário de longa duração focada nos modelos realmente em uso sem perder o acesso aos aposentados.</p>
 </div>
 
 <div class="doc-section" id="admin-email">
@@ -1182,7 +1398,7 @@
         <li>Se uma versão mais recente estiver listada, siga a ação de <strong>Upgrade</strong> na tela para aplicá-la.</li>
     </ol>
     <figure class="doc-figure">
-        <img src="app/docs/admin-version.png" alt="Version Management page showing installed version 2.6.2" loading="lazy">
+        <img src="app/docs/admin-version.png?v=20260711" alt="Version Management page showing installed version 2.6.2" loading="lazy">
         <figcaption><strong>Admin &rarr; Version.</strong> Aqui a versão instalada é <strong>v2.6.2</strong> e a plataforma informa que está atualizada. Este também é o lugar onde você confirma a qual versão este guia se aplica.</figcaption>
     </figure>
 </div>
@@ -1213,7 +1429,14 @@
             <div class="faq-body"><p>Inglês, Espanhol, Italiano, Ucraniano, Chinês (Simplificado), Hindi, Francês e Português. Seu administrador decide quais desses aparecem na sua lista; o inglês está sempre disponível.</p></div></details>
 
         <details class="faq-item"><summary>Alterei meu idioma, mas alguns textos ainda estão em inglês. Por quê?<span class="faq-tag">Language</span></summary>
-            <div class="faq-body"><p>Menus, botões e rótulos são traduzidos. As <em>perguntas</em> de avaliação de fornecedores são traduzidas automaticamente apenas quando um provedor de IA está configurado pelo seu administrador, e os valores de resposta armazenados sempre permanecem em inglês para que a pontuação permaneça consistente. Algumas mensagens de terceiros também podem permanecer em inglês.</p></div></details>
+            <div class="faq-body"><p>Algumas coisas diferentes podem permanecer em inglês mesmo depois de você trocar de idioma:</p>
+            <ul>
+                <li><strong>Texto da interface que ainda não foi traduzido.</strong> Menus, botões e rótulos são traduzidos sempre que existe uma tradução para o seu idioma. Se uma determinada string ainda não foi traduzida para o seu idioma, ela recorre ao inglês em vez de exibir um espaço em branco &mdash; portanto você pode ver algum rótulo ocasional em inglês.</li>
+                <li><strong>Qualquer coisa que foi digitada.</strong> O conteúdo que você ou seus fornecedores inserem &mdash; nomes de fornecedores, notas, nomes de documentos enviados, respostas de texto livre &mdash; é exibido exatamente como foi escrito, em qualquer idioma que tenha sido.</li>
+                <li><strong>Perguntas de avaliação sem um provedor de IA.</strong> O texto das <em>perguntas</em> de avaliação de fornecedores é traduzido automaticamente apenas quando o seu administrador configurou um provedor de IA; sem um, as perguntas permanecem no idioma em que foram redigidas. Os valores de resposta armazenados sempre permanecem em inglês para que a pontuação permaneça consistente.</li>
+                <li><strong>E-mails e alguns componentes de terceiros</strong> não são controlados pela sua configuração de idioma.</li>
+            </ul>
+            <p>Se você vir um rótulo de interface que deveria estar traduzido, mas não está, avise o seu administrador para que o texto ausente possa ser adicionado.</p></div></details>
 
         <details class="faq-item"><summary>Por que não consigo enviar meu fornecedor para revisão?<span class="faq-tag">Onboarding</span></summary>
             <div class="faq-body"><p>Um fornecedor só pode ser enviado quando tiver concluído a <strong>Procurement Onboarding</strong> (definida como <strong>Yes</strong>) e tiver um <strong>Vendor ID (VID)</strong> válido de 4&ndash;8 dígitos. Abra o fornecedor, preencha ambos no cartão <strong>Vendor Information</strong>, salve e clique em <strong>Submit for Review</strong>. Veja <a href="#onboarding-workflow">Integração de Fornecedor</a> e <a href="#troubleshooting">Solução de Problemas</a>.</p></div></details>
@@ -1314,6 +1537,7 @@
     <table class="doc-table">
         <tr><th>Termo</th><th>Definição</th></tr>
         <tr><td><strong>ACL</strong></td><td>Access Control List &mdash; define quais ações os usuários de um grupo podem realizar</td></tr>
+        <tr><td><strong>Action Plan</strong></td><td>Uma aba por fornecedor para agendar ações de acompanhamento (contatar, enviar avaliação, forçar revisão anual) com datas de prazo, responsáveis e notas de status; disparada diariamente pelo trabalho Vendor Remediation Schedule</td></tr>
         <tr><td><strong>AI Review</strong></td><td>Um status de integração de fornecedor para fornecedores cujos serviços usam IA, rastreado separadamente durante a revisão</td></tr>
         <tr><td><strong>Assessment</strong></td><td>Uma avaliação de conformidade em um ponto no tempo usando o questionário unificado</td></tr>
         <tr><td><strong>CIS Controls</strong></td><td>Center for Internet Security Controls &mdash; um conjunto priorizado de melhores práticas de segurança</td></tr>
@@ -1322,6 +1546,7 @@
         <tr><td><strong>Control</strong></td><td>Uma medida de segurança específica implementada para atender aos requisitos de conformidade</td></tr>
         <tr><td><strong>Crosswalk</strong></td><td>Um mapeamento entre dois frameworks mostrando quais requisitos se sobrepõem</td></tr>
         <tr><td><strong>CSF</strong></td><td>NIST Cybersecurity Framework &mdash; um framework amplamente utilizado de gestão de risco de cibersegurança</td></tr>
+        <tr><td><strong>Custom Field / Custom Data</strong></td><td>Um campo de integração específico da organização sem uma coluna padrão de fornecedor; capturado por fornecedor e exibido na aba Custom Data do fornecedor, com visibilidade por função (veja <a href="#custom-onboarding">Campos de Integração Personalizados</a>)</td></tr>
         <tr><td><strong>Domain</strong></td><td>Uma categoria de perguntas de segurança (ex.: Governance, Identity &amp; Access Management)</td></tr>
         <tr><td><strong>Evidence</strong></td><td>Documentos, capturas de tela ou arquivos que comprovam uma afirmação de conformidade</td></tr>
         <tr><td><strong>FAIR</strong></td><td>Factor Analysis of Information Risk &mdash; uma metodologia quantitativa de análise de risco</td></tr>
@@ -1344,6 +1569,8 @@
         <tr><td><strong>SOC 2</strong></td><td>Service Organization Control Type 2 &mdash; critérios de serviços de confiança para organizações de serviço</td></tr>
         <tr><td><strong>SPII</strong></td><td>PII Sensível (CPFs, dados financeiros, registros de saúde)</td></tr>
         <tr><td><strong>SRS</strong></td><td>Security Risk Scorecard &mdash; a classificação/nota de segurança externa da plataforma para um fornecedor</td></tr>
+        <tr><td><strong>SSC (SecurityScorecard)</strong></td><td>Uma nota de segurança em letra de terceiros (A&ndash;F) exibida para aplicativos e fornecedores descobertos pelo Grip quando o Grip está conectado</td></tr>
+        <tr><td><strong>Subprocessor</strong></td><td>O próprio fornecedor a jusante de um fornecedor; o mesmo subprocessador compartilhado por vários dos seus fornecedores indica concentração da cadeia de suprimentos (veja <a href="#tprm-fourth-party">Risco de 4ª Parte</a>)</td></tr>
         <tr><td><strong>TPRM</strong></td><td>Third Party Risk Management (Gestão de Risco de Terceiros)</td></tr>
         <tr><td><strong>Unified Question</strong></td><td>Uma única pergunta de segurança que mapeia para requisitos em múltiplos frameworks</td></tr>
         <tr><td><strong>VID</strong></td><td>Vendor ID &mdash; um identificador de 4&ndash;8 dígitos atribuído a um fornecedor pelo seu sistema de compras</td></tr>
@@ -1394,6 +1621,8 @@
                     <a href="#tprm-add-vendor">Adicionando um Fornecedor</a>
                     <a href="#tprm-lifecycle">Ciclo de Vida do Fornecedor</a>
                     <a href="#tprm-assessments">Avaliações de Fornecedores</a>
+                    <a href="#assessment-forms">Formulários de Avaliação &amp; IA</a>
+                    <a href="#tprm-action-plan">Plano de Ação do Fornecedor</a>
                     <a href="#tprm-srs">Scorecard de Risco de Segurança</a>
                     <a href="#tprm-fair">Análise FAIR</a>
                     <a href="#tprm-fourth-party">Risco de 4ª Parte</a>
@@ -1401,16 +1630,20 @@
 
                     <h4>Integração &amp; Compras</h4>
                     <a href="#onboarding-workflow">Integração de Fornecedor</a>
+                    <a href="#custom-onboarding">Campos de Integração Personalizados</a>
                     <a href="#ai-review">AI Review</a>
                     <a href="#procurement-cyber-status">Status Cibernético de Compras</a>
                     <a href="#shadow-saas-grip">Integração Grip Shadow SaaS</a>
                     <a href="#shadow-saas-hero">Integração Hero Shadow SaaS</a>
                     <a href="#zscaler">Bloqueio Zscaler</a>
+                    <a href="#breach-alerts">Alertas de Violação / Cibernéticos</a>
 
                     <h4>Portal Admin</h4>
                     <a href="#admin-general">Configurações Gerais</a>
                     <a href="#admin-branding">Identidade Visual &amp; Tema</a>
                     <a href="#admin-users">Gestão de Usuários</a>
+                    <a href="#admin-acl-groups">Grupos ACL</a>
+                    <a href="#admin-templates">Modelos de Avaliação</a>
                     <a href="#admin-email">Configuração de E-mail</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">Integração de IA</a>

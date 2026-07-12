@@ -359,7 +359,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                     }
                     $count++;
                 }
-                $msg = $count . ' requirement assessment(s) saved.';
+                $msg = $count . ' ' . t('grc-audits.requirement_assessments_saved');
                 $msgType = 'success';
             }
         } elseif ($action === 'delete_audit') {
@@ -531,7 +531,7 @@ $currentPage = 'grc_audits';
 <!DOCTYPE html>
 <html class="wide wow-animation" lang="en">
 <head>
-    <title>Audits - GRC Compliance Engine</title>
+    <title><?php echo e(t('grc-audits.browser_title')); ?></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -760,7 +760,7 @@ $currentPage = 'grc_audits';
                             </div>
                         </div>
                         <?php if ($isAdmin): ?>
-                        <form method="post" style="display:inline;" data-confirm="Delete this audit and all its findings, assessments, and evidence requests? This cannot be undone.">
+                        <form method="post" style="display:inline;" data-confirm="<?php echo e(t('grc-audits.confirm_delete_audit')); ?>">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="action" value="delete_audit">
                             <input type="hidden" name="audit_id" value="<?php echo (int)$auditDetail['id']; ?>">
@@ -791,7 +791,7 @@ $currentPage = 'grc_audits';
             <?php if (!empty($frameworkRequirements)): ?>
             <!-- Framework Requirements Assessment -->
             <div class="detail-card">
-                <h3>Framework Requirements &mdash; <?php echo e($auditDetail['framework_name'] ?? $auditDetail['framework_code']); ?> (<?php echo count($frameworkRequirements); ?>)</h3>
+                <h3><?php echo e(t('grc-audits.framework_requirements')); ?> &mdash; <?php echo e($auditDetail['framework_name'] ?? $auditDetail['framework_code']); ?> (<?php echo count($frameworkRequirements); ?>)</h3>
                 <?php
                     $assessedCount = 0;
                     $conformingCount = 0;
@@ -804,9 +804,9 @@ $currentPage = 'grc_audits';
                     }
                 ?>
                 <div style="display:flex;gap:20px;margin-bottom:16px;font-size:13px;">
-                    <span>Assessed: <strong><?php echo $assessedCount; ?>/<?php echo count($frameworkRequirements); ?></strong></span>
-                    <span style="color:#065f46;">Conforming: <strong><?php echo $conformingCount; ?></strong></span>
-                    <span style="color:#991b1b;">Non-Conforming: <strong><?php echo $nonConformingCount; ?></strong></span>
+                    <span><?php echo e(t('grc-audits.assessed_label')); ?> <strong><?php echo $assessedCount; ?>/<?php echo count($frameworkRequirements); ?></strong></span>
+                    <span style="color:#065f46;"><?php echo e(t('grc-audits.conforming_label')); ?> <strong><?php echo $conformingCount; ?></strong></span>
+                    <span style="color:#991b1b;"><?php echo e(t('grc-audits.non_conforming_label')); ?> <strong><?php echo $nonConformingCount; ?></strong></span>
                 </div>
 
                 <?php if (!$readOnly): ?>
@@ -1204,9 +1204,9 @@ $currentPage = 'grc_audits';
                     var title = titleEl ? titleEl.value.trim() : '';
                     var auditType = typeEl ? typeEl.value : '';
                     var fwText = fwEl && fwEl.selectedIndex > 0 ? fwEl.options[fwEl.selectedIndex].text : '';
-                    if (!title) { alert('Please enter an audit title first.'); return; }
+                    if (!title) { alert(<?php echo json_encode(t('grc-audits.js_enter_audit_title')); ?>); return; }
                     btn.disabled = true;
-                    btn.textContent = 'Generating...';
+                    btn.textContent = <?php echo json_encode(t('grc-audits.generating')); ?>;
 
                     fetch('api/grc-refine-notes.php', {
                         method: 'POST',
@@ -1228,19 +1228,19 @@ $currentPage = 'grc_audits';
                                     fetch('api/ai-job-status.php?id=' + data.job_id).then(function(r) { return r.json(); }).then(function(poll) {
                                         if (poll.csrf_token) csrfToken = poll.csrf_token;
                                         if (poll.status === 'completed' && poll.result) {
-                                            btn.disabled = false; btn.textContent = 'Suggest with AI';
+                                            btn.disabled = false; btn.textContent = <?php echo json_encode(t('grc-audits.suggest_with_ai')); ?>;
                                             if (poll.result.refined) { descEl.value = poll.result.refined; descEl.style.borderColor = '#6366f1'; setTimeout(function() { descEl.style.borderColor = ''; }, 2000); }
                                             else if (poll.result.content) { descEl.value = poll.result.content; descEl.style.borderColor = '#6366f1'; setTimeout(function() { descEl.style.borderColor = ''; }, 2000); }
                                         } else if (poll.status === 'failed') {
-                                            btn.disabled = false; btn.textContent = 'Suggest with AI'; alert('Error:' + (poll.error || 'Failed'));
+                                            btn.disabled = false; btn.textContent = <?php echo json_encode(t('grc-audits.suggest_with_ai')); ?>; alert('Error:' + (poll.error || 'Failed'));
                                         } else { pollJob(); }
-                                    }).catch(function() { btn.disabled = false; btn.textContent = 'Suggest with AI'; });
+                                    }).catch(function() { btn.disabled = false; btn.textContent = <?php echo json_encode(t('grc-audits.suggest_with_ai')); ?>; });
                                 }, 3000);
                             })();
                             return;
                         }
                         btn.disabled = false;
-                        btn.textContent = 'Suggest with AI';
+                        btn.textContent = <?php echo json_encode(t('grc-audits.suggest_with_ai')); ?>;
                         if (data.error) { alert('Error:' + data.error); return; }
                         if (data.refined) {
                             descEl.value = data.refined;
@@ -1250,7 +1250,7 @@ $currentPage = 'grc_audits';
                     })
                     .catch(function(err) {
                         btn.disabled = false;
-                        btn.textContent = 'Suggest with AI';
+                        btn.textContent = <?php echo json_encode(t('grc-audits.suggest_with_ai')); ?>;
                         alert('Request failed: ' + err.message);
                     });
                 });
@@ -1332,7 +1332,7 @@ $currentPage = 'grc_audits';
                 <div class="footer-modern-brand" style="display: flex; align-items: center; gap: 12px;">
                     <?php if (!empty($theme['footer_logo_url'])): ?>
                         <a class="brand" href="index.php">
-                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="Footer Logo" style="max-height: 45px;">
+                            <img src="<?php echo e($theme['footer_logo_url']); ?>" alt="<?php echo e(t('grc-audits.footer_logo_alt')); ?>" style="max-height: 45px;">
                         </a>
                     <?php endif; ?>
                     <span style="color: rgba(255,255,255,0.7); font-size: 13px;"><?php echo e(getAppVersion()); ?></span>
@@ -1612,7 +1612,7 @@ $currentPage = 'grc_audits';
         _notesReqTitle = reqTitle;
         var hidden = document.getElementById('notes-val-' + reqId);
         var val = hidden ? hidden.value : '';
-        document.getElementById('notesModalTitle').textContent = reqRef + ' - Notes';
+        document.getElementById('notesModalTitle').textContent = reqRef + ' - ' + <?php echo json_encode(t('grc-audits.notes_word')); ?>;
         document.getElementById('notesModalRef').textContent = reqTitle;
         var ta = document.getElementById('notesTextarea');
         // If no notes yet, pre-populate with example text
@@ -1652,13 +1652,13 @@ $currentPage = 'grc_audits';
         var btn = hidden ? hidden.nextElementSibling : null;
         if (btn && btn.classList.contains('btn-notes')) {
             if (val.trim()) {
-                btn.textContent = 'Edit Notes';
+                btn.textContent = <?php echo json_encode(t('grc-audits.edit_notes')); ?>;
                 btn.classList.add('has-notes');
                 btn.title = val;
             } else {
-                btn.textContent = 'Add Notes';
+                btn.textContent = <?php echo json_encode(t('grc-audits.add_notes')); ?>;
                 btn.classList.remove('has-notes');
-                btn.title = 'Add notes';
+                btn.title = <?php echo json_encode(t('grc-audits.add_notes_title')); ?>;
             }
         }
         closeNotesModal();
@@ -1666,10 +1666,10 @@ $currentPage = 'grc_audits';
 
     function refineNotes() {
         var notes = document.getElementById('notesTextarea').value.trim();
-        if (!notes) { alert('Please enter notes first before refining.'); return; }
+        if (!notes) { alert(<?php echo json_encode(t('grc-audits.js_enter_notes_first')); ?>); return; }
         var btn = document.getElementById('refineBtn');
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-sm"></span> Refining...';
+        btn.innerHTML = '<span class="spinner-sm"></span> ' + <?php echo json_encode(t('grc-audits.refining')); ?>;
         var statusSelect = document.querySelector('select[name="assessments[' + _notesReqId + ']"]');
         var assessmentStatus = statusSelect ? statusSelect.value : '';
         fetch('api/grc-refine-notes.php', {
@@ -1686,32 +1686,32 @@ $currentPage = 'grc_audits';
                         fetch('api/ai-job-status.php?id=' + data.job_id).then(function(r) { return r.json(); }).then(function(poll) {
                             if (poll.csrf_token) _csrfToken = poll.csrf_token;
                             if (poll.status === 'completed' && poll.result) {
-                                btn.disabled = false; btn.innerHTML = 'Refine with AI';
+                                btn.disabled = false; btn.innerHTML = <?php echo json_encode(t('grc-audits.refine_with_ai')); ?>;
                                 var refined = poll.result.refined || poll.result.content || '';
                                 document.getElementById('refinePreviewText').textContent = refined;
                                 document.getElementById('refinePreview').style.display = 'block';
                             } else if (poll.status === 'failed') {
-                                btn.disabled = false; btn.innerHTML = 'Refine with AI'; alert('Error: ' + (poll.error || 'Failed'));
+                                btn.disabled = false; btn.innerHTML = <?php echo json_encode(t('grc-audits.refine_with_ai')); ?>; alert('Error: ' + (poll.error || 'Failed'));
                             } else { pollJob(); }
-                        }).catch(function() { btn.disabled = false; btn.innerHTML = 'Refine with AI'; });
+                        }).catch(function() { btn.disabled = false; btn.innerHTML = <?php echo json_encode(t('grc-audits.refine_with_ai')); ?>; });
                     }, 3000);
                 })();
                 return;
             }
             btn.disabled = false;
-            btn.innerHTML = 'Refine with AI';
+            btn.innerHTML = <?php echo json_encode(t('grc-audits.refine_with_ai')); ?>;
             if (data.error) { alert('Error: ' + data.error); return; }
             document.getElementById('refinePreviewText').textContent = data.refined;
             document.getElementById('refinePreview').style.display = 'block';
         })
-        .catch(function(err) { btn.disabled = false; btn.innerHTML = 'Refine with AI'; alert('Request failed: ' + err.message); });
+        .catch(function(err) { btn.disabled = false; btn.innerHTML = <?php echo json_encode(t('grc-audits.refine_with_ai')); ?>; alert('Request failed: ' + err.message); });
     }
 
     // --- Evidence Functions ---
     function renderEvidenceList(items) {
         var list = document.getElementById('evidenceList');
         if (!items || items.length === 0) {
-            list.innerHTML = '<li style="color:#9ca3af;border:none;background:none;padding:4px 0;font-style:italic;">No evidence attached</li>';
+            list.innerHTML = '<li style="color:#9ca3af;border:none;background:none;padding:4px 0;font-style:italic;">' + <?php echo json_encode(t('grc-audits.no_evidence_attached')); ?> + '</li>';
             return;
         }
         var html = '';
@@ -1731,7 +1731,7 @@ $currentPage = 'grc_audits';
             }
             html += '<span class="ev-meta">' + escapeHtml(meta) + size + '</span></span>';
             if (!_readOnly) {
-                html += '<button type="button" class="ev-remove" data-action="unlink-evidence" data-evidence-id="' + ev.id + '" title="Remove link">&times;</button>';
+                html += '<button type="button" class="ev-remove" data-action="unlink-evidence" data-evidence-id="' + ev.id + '" title="' + <?php echo json_encode(t('grc-audits.remove_link')); ?> + '">&times;</button>';
             }
             html += '</li>';
         }
@@ -1767,10 +1767,10 @@ $currentPage = 'grc_audits';
 
     function uploadEvidence() {
         var fileInput = document.getElementById('evidenceFileInput');
-        if (!fileInput.files || !fileInput.files[0]) { alert('Please select a file to upload.'); return; }
+        if (!fileInput.files || !fileInput.files[0]) { alert(<?php echo json_encode(t('grc-audits.js_select_file')); ?>); return; }
         var btn = document.querySelector('[data-action="upload-evidence"]');
         btn.disabled = true;
-        btn.textContent = 'Uploading...';
+        btn.textContent = <?php echo json_encode(t('grc-audits.uploading')); ?>;
         var fd = new FormData();
         fd.append('evidence_file', fileInput.files[0]);
         fd.append('csrf_token', _csrfToken);
@@ -1785,7 +1785,7 @@ $currentPage = 'grc_audits';
         .then(function(data) {
             if (data.csrf_token) _csrfToken = data.csrf_token;
             btn.disabled = false;
-            btn.textContent = 'Upload';
+            btn.textContent = <?php echo json_encode(t('grc-audits.upload')); ?>;
             if (data.error) { alert('Error: ' + data.error); return; }
             fileInput.value = '';
             renderEvidenceList(data.evidence || []);
@@ -1809,12 +1809,12 @@ $currentPage = 'grc_audits';
 
     function linkEvidenceUrl() {
         var url = document.getElementById('evidenceLinkUrl').value.trim();
-        if (!url) { alert('Please enter a URL.'); return; }
-        if (!/^https?:\/\//i.test(url)) { alert('URL must start with http:// or https://'); return; }
+        if (!url) { alert(<?php echo json_encode(t('grc-audits.js_enter_url')); ?>); return; }
+        if (!/^https?:\/\//i.test(url)) { alert(<?php echo json_encode(t('grc-audits.js_url_must_start')); ?>); return; }
         var title = document.getElementById('evidenceLinkTitle').value.trim();
         var btn = document.querySelector('[data-action="link-evidence-url"]');
         btn.disabled = true;
-        btn.textContent = 'Adding...';
+        btn.textContent = <?php echo json_encode(t('grc-audits.adding')); ?>;
         fetch('api/grc-assessment-evidence.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1831,7 +1831,7 @@ $currentPage = 'grc_audits';
         .then(function(data) {
             if (data.csrf_token) _csrfToken = data.csrf_token;
             btn.disabled = false;
-            btn.textContent = 'Add Link';
+            btn.textContent = <?php echo json_encode(t('grc-audits.add_link')); ?>;
             if (data.error) { alert('Error: ' + data.error); return; }
             document.getElementById('evidenceLinkUrl').value = '';
             document.getElementById('evidenceLinkTitle').value = '';
@@ -1844,7 +1844,7 @@ $currentPage = 'grc_audits';
     function renderControlList(linked, available) {
         var list = document.getElementById('controlList');
         if (!linked || linked.length === 0) {
-            list.innerHTML = '<li style="color:#9ca3af;border:none;background:none;padding:4px 0;font-style:italic;">No controls linked</li>';
+            list.innerHTML = '<li style="color:#9ca3af;border:none;background:none;padding:4px 0;font-style:italic;">' + <?php echo json_encode(t('grc-audits.no_controls_linked')); ?> + '</li>';
         } else {
             var html = '';
             for (var i = 0; i < linked.length; i++) {
@@ -1858,7 +1858,7 @@ $currentPage = 'grc_audits';
                 html += '<span class="ev-info"><span class="ev-title">' + escapeHtml(c.control_ref + ' - ' + c.title) + '</span><br>';
                 html += '<span class="ev-meta">' + escapeHtml(typeLabel + ' / ' + catLabel + ' / ' + statusLabel) + '</span></span>';
                 if (!_readOnly) {
-                    html += '<button type="button" class="ev-remove" data-action="unlink-control" data-control-id="' + c.id + '" title="Unlink control">&times;</button>';
+                    html += '<button type="button" class="ev-remove" data-action="unlink-control" data-control-id="' + c.id + '" title="' + <?php echo json_encode(t('grc-audits.unlink_control')); ?> + '">&times;</button>';
                 }
                 html += '</li>';
             }
@@ -1866,7 +1866,7 @@ $currentPage = 'grc_audits';
         }
         // Update the link dropdown
         var sel = document.getElementById('linkControlSelect');
-        sel.innerHTML = '<option value="">-- Link existing control --</option>';
+        sel.innerHTML = '<option value="">' + <?php echo json_encode(t('grc-audits.link_existing_control')); ?> + '</option>';
         if (available) {
             for (var j = 0; j < available.length; j++) {
                 var a = available[j];
@@ -1895,7 +1895,7 @@ $currentPage = 'grc_audits';
     function linkExistingControl() {
         var sel = document.getElementById('linkControlSelect');
         var controlId = parseInt(sel.value);
-        if (!controlId) { alert('Please select a control to link.'); return; }
+        if (!controlId) { alert(<?php echo json_encode(t('grc-audits.js_select_control')); ?>); return; }
         fetch('api/grc-assessment-control.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1926,7 +1926,7 @@ $currentPage = 'grc_audits';
 
     function openCreateControlModal() {
         var ctx = document.getElementById('createControlContext');
-        ctx.textContent = 'For requirement: ' + _notesReqRef + ' - ' + _notesReqTitle;
+        ctx.textContent = <?php echo json_encode(t('grc-audits.for_requirement_prefix')); ?> + ' ' + _notesReqRef + ' - ' + _notesReqTitle;
         // Set non-AI defaults immediately (button always enabled)
         var fallbackTitle = _notesReqTitle;
         var fallbackDesc = 'This control addresses ' + _notesReqRef + ' (' + _notesReqTitle + '). [Describe the specific control activities, responsible parties, and how effectiveness is measured.]';
@@ -2009,10 +2009,10 @@ $currentPage = 'grc_audits';
 
     function saveCreateControl() {
         var title = document.getElementById('ccTitle').value.trim();
-        if (!title) { alert('Title is required.'); return; }
+        if (!title) { alert(<?php echo json_encode(t('grc-audits.js_title_required')); ?>); return; }
         var btn = document.getElementById('ccSaveBtn');
         btn.disabled = true;
-        btn.textContent = 'Creating...';
+        btn.textContent = <?php echo json_encode(t('grc-audits.creating')); ?>;
         fetch('api/grc-assessment-control.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2034,20 +2034,20 @@ $currentPage = 'grc_audits';
         .then(function(data) {
             if (data.csrf_token) _csrfToken = data.csrf_token;
             btn.disabled = false;
-            btn.textContent = 'Create & Link';
+            btn.textContent = <?php echo json_encode(t('grc-audits.create_and_link')); ?>;
             if (data.error) { alert('Error: ' + data.error); return; }
             renderControlList(data.linked || [], data.available || []);
             closeCreateControlModal();
         })
-        .catch(function(err) { btn.disabled = false; btn.textContent = 'Create & Link'; alert('Failed: ' + err.message); });
+        .catch(function(err) { btn.disabled = false; btn.textContent = <?php echo json_encode(t('grc-audits.create_and_link')); ?>; alert('Failed: ' + err.message); });
     }
 
     // --- Requirement Detail Modal ---
     function openRequirementDetail(reqId, reqRef, reqTitle, reqDesc) {
-        document.getElementById('reqDetailTitle').textContent = reqRef + ' - Detail';
+        document.getElementById('reqDetailTitle').textContent = reqRef + ' - ' + <?php echo json_encode(t('grc-audits.detail_word')); ?>;
         document.getElementById('reqDetailRef').textContent = reqRef;
         document.getElementById('reqDetailName').textContent = ' - ' + reqTitle;
-        document.getElementById('reqDetailDesc').textContent = reqDesc || 'No description available.';
+        document.getElementById('reqDetailDesc').textContent = reqDesc || <?php echo json_encode(t('grc-audits.no_description_available')); ?>;
         document.getElementById('reqDetailModal').classList.add('active');
         if (_reqDetailCache[reqId]) {
             document.getElementById('reqDetailContent').innerHTML = _reqDetailCache[reqId];
@@ -2055,12 +2055,12 @@ $currentPage = 'grc_audits';
         }
         if (!_aiEnabled) {
             // No AI — show requirement description only
-            var noAiHtml = reqDesc ? '<p style="color:#374151;font-size:13px;">' + escapeHtml(reqDesc) + '</p>' : '<p style="color:#6b7280;font-style:italic;">No additional detail available. Enable AI for enhanced requirement analysis.</p>';
+            var noAiHtml = reqDesc ? '<p style="color:#374151;font-size:13px;">' + escapeHtml(reqDesc) + '</p>' : '<p style="color:#6b7280;font-style:italic;">' + <?php echo json_encode(t('grc-audits.no_additional_detail')); ?> + '</p>';
             _reqDetailCache[reqId] = noAiHtml;
             document.getElementById('reqDetailContent').innerHTML = noAiHtml;
             return;
         }
-        document.getElementById('reqDetailContent').innerHTML = '<div style="text-align:center;padding:30px;color:#6b7280;"><span class="spinner-sm" style="border-color:#6b7280;border-top-color:transparent;"></span> Generating requirement details...</div>';
+        document.getElementById('reqDetailContent').innerHTML = '<div style="text-align:center;padding:30px;color:#6b7280;"><span class="spinner-sm" style="border-color:#6b7280;border-top-color:transparent;"></span> ' + <?php echo json_encode(t('grc-audits.generating_req_details')); ?> + '</div>';
         fetch('api/grc-requirement-detail.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2081,7 +2081,7 @@ $currentPage = 'grc_audits';
                             } else if (poll.status === 'failed') {
                                 document.getElementById('reqDetailContent').innerHTML = '<p style="color:#dc3545;">' + escapeHtml(poll.error || 'Failed') + '</p>';
                             } else { pollJob(); }
-                        }).catch(function() { document.getElementById('reqDetailContent').innerHTML = '<p style="color:#dc3545;">Network error.</p>'; });
+                        }).catch(function() { document.getElementById('reqDetailContent').innerHTML = '<p style="color:#dc3545;">' + <?php echo json_encode(t('grc-audits.js_network_error')); ?> + '</p>'; });
                     }, 3000);
                 })();
                 return;
@@ -2099,7 +2099,7 @@ $currentPage = 'grc_audits';
     // --- Create Finding Functions ---
     function openCreateFindingModal() {
         var ctx = document.getElementById('createFindingContext');
-        ctx.textContent = 'Audit finding for: ' + _notesReqRef + ' - ' + _notesReqTitle;
+        ctx.textContent = <?php echo json_encode(t('grc-audits.audit_finding_for_prefix')); ?> + ' ' + _notesReqRef + ' - ' + _notesReqTitle;
         document.getElementById('cfTitle').value = '';
         document.getElementById('cfDescription').value = '';
         document.getElementById('cfRecommendation').value = '';
@@ -2132,10 +2132,10 @@ $currentPage = 'grc_audits';
 
     function saveCreateFinding() {
         var title = document.getElementById('cfTitle').value.trim();
-        if (!title) { alert('Finding title is required.'); return; }
+        if (!title) { alert(<?php echo json_encode(t('grc-audits.js_finding_title_required')); ?>); return; }
         var btn = document.getElementById('cfSaveBtn');
         btn.disabled = true;
-        btn.textContent = 'Creating...';
+        btn.textContent = <?php echo json_encode(t('grc-audits.creating')); ?>;
         fetch('api/grc-audit-finding.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2157,9 +2157,9 @@ $currentPage = 'grc_audits';
         .then(function(data) {
             if (data.csrf_token) _csrfToken = data.csrf_token;
             btn.disabled = false;
-            btn.textContent = 'Create Finding';
+            btn.textContent = <?php echo json_encode(t('grc-audits.create_finding')); ?>;
             if (data.error) { alert('Error: ' + data.error); return; }
-            alert('Finding ' + data.finding_ref + ' created successfully.');
+            alert(<?php echo json_encode(t('grc-audits.finding_created_prefix')); ?> + ' ' + data.finding_ref + ' ' + <?php echo json_encode(t('grc-audits.finding_created_suffix')); ?>);
             closeCreateFindingModal();
         })
         .catch(function(err) { btn.disabled = false; btn.textContent = 'Create Finding'; alert('Failed: ' + err.message); });

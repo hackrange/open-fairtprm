@@ -1318,10 +1318,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <div class="import-card">
                 <h3><?php echo e(t('shadow-saas.import_heading')); ?></h3>
                 <p style="font-size: 13px; color: #6b7280; margin: 0 0 15px 0;">
-                    Upload a CSV with columns: <code>vendor_name</code> (required), <code>vendor_domain</code> (required), <code>risk</code> (required, 1-5),
-                    <code>description</code>, <code>type of risk</code> (semicolon-separated), <code>relationship_manager</code>, <code>number_of_users</code>,
-                    <code>application_category</code>, <code>breaches_in_three_years</code>, <code>downloadbytes</code>, <code>uploadbytes</code>, <code>filesharing</code>, <code>mfasupport</code>.
-                    Duplicates are updated based on matching <code>vendor_domain</code>.
+                    <?php echo t('shadow-saas.import_help'); ?>
                 </p>
                 <form method="POST" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -1339,8 +1336,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <div class="import-card">
                 <h3><?php echo e(t('shadow-saas.zscaler_oneoff_heading')); ?></h3>
                 <p style="font-size: 13px; color: #6b7280; margin: 0 0 15px 0;">
-                    Add or remove an arbitrary domain from the configured Zscaler URL Category without it being tied to a vendor row.
-                    Scheme and path are stripped automatically (<code>https://example.com/foo</code> → <code>example.com</code>).
+                    <?php echo t('shadow-saas.zscaler_oneoff_help'); ?>
                 </p>
                 <form method="POST" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -1587,7 +1583,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     // Grip-sourced apps expose a per-app user roster; link the count to the
                                     // drill-down (new tab). Param is "id" so Pagination preserves it across pages.
                                     if (!empty($entry['grip_id']) && ($entry['source'] ?? '') === 'grip') {
-                                        echo '<a href="grip-saas-users.php?id=' . urlencode($entry['grip_id']) . '" target="_blank" rel="noopener" title="' . e('View the users Grip observed for this application') . '" style="color:#2563eb;font-weight:600;text-decoration:none;">' . $userCount . '</a>';
+                                        echo '<a href="grip-saas-users.php?id=' . urlencode($entry['grip_id']) . '" target="_blank" rel="noopener" title="' . e(t('shadow-saas.grip_users_title')) . '" style="color:#2563eb;font-weight:600;text-decoration:none;">' . $userCount . '</a>';
                                     } else {
                                         echo $userCount;
                                     }
@@ -1681,7 +1677,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                         <span class="detail-value"><?php echo e($entry['mfasupport'] ?? '—'); ?></span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label"><?php echo e($upguardName); ?> Score</span>
+                                        <span class="detail-label"><?php echo e($upguardName); ?> <?php echo e(t('shadow-saas.score_suffix')); ?></span>
                                         <span class="detail-value">
                                             <?php if ($hasUpguard): ?>
                                             <?php echo displayUpguardScore((int)$entry['current_srs_score'], $upguardDisplayMode, $upguardMaxScore); ?>
@@ -1693,7 +1689,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                     </div>
                                     <?php if ($shodanColumnsExist): ?>
                                     <div class="detail-item">
-                                        <span class="detail-label"><?php echo e($shodanName); ?> Score</span>
+                                        <span class="detail-label"><?php echo e($shodanName); ?> <?php echo e(t('shadow-saas.score_suffix')); ?></span>
                                         <span class="detail-value">
                                             <?php if ($hasShodan): ?>
                                             <?php echo e($entry['current_shodan_score']); ?>%
@@ -1860,35 +1856,35 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Download Bytes</label>
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_download_bytes')); ?></label>
                         <input type="number" name="edit_downloadbytes" id="editDl" min="0" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                     </div>
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Upload Bytes</label>
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_upload_bytes')); ?></label>
                         <input type="number" name="edit_uploadbytes" id="editUl" min="0" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">File Sharing</label>
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_file_sharing')); ?></label>
                         <select name="edit_filesharing" id="editFs" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                             <option value="">—</option>
-                            <option value="Yes">Yes</option>
-                            <option value="No">No</option>
+                            <option value="Yes"><?php echo e(t('shadow-saas.opt_yes')); ?></option>
+                            <option value="No"><?php echo e(t('shadow-saas.opt_no')); ?></option>
                         </select>
                     </div>
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">MFA Support</label>
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_mfa_support')); ?></label>
                         <select name="edit_mfasupport" id="editMfa" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                             <option value="">—</option>
-                            <option value="Yes">Yes</option>
-                            <option value="No">No</option>
+                            <option value="Yes"><?php echo e(t('shadow-saas.opt_yes')); ?></option>
+                            <option value="No"><?php echo e(t('shadow-saas.opt_no')); ?></option>
                         </select>
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" id="editCancelBtn" class="btn-sm btn-secondary" style="padding: 8px 16px;">Cancel</button>
-                    <button type="submit" class="btn-sm btn-primary" style="padding: 8px 16px;">Save</button>
+                    <button type="button" id="editCancelBtn" class="btn-sm btn-secondary" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.btn_cancel')); ?></button>
+                    <button type="submit" class="btn-sm btn-primary" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.btn_save')); ?></button>
                 </div>
             </form>
         </div>
@@ -1897,79 +1893,79 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
     <!-- Add Modal -->
     <div id="addModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
         <div style="background: white; border-radius: 10px; padding: 25px; max-width: 550px; width: 90%; margin: auto; position: relative; top: 50%; transform: translateY(-50%); max-height: 90vh; overflow-y: auto;">
-            <h3 style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;">Add Shadow SaaS Entry</h3>
+            <h3 style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;"><?php echo e(t('shadow-saas.add_modal_title')); ?></h3>
             <form method="POST" id="addForm">
                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                 <input type="hidden" name="action" value="add_entry">
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Vendor Name *</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_vendor_name')); ?> *</label>
                     <input type="text" name="add_vendor_name" required style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Domain</label>
-                    <input type="text" name="add_vendor_domain" placeholder="e.g. example.com" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_domain')); ?></label>
+                    <input type="text" name="add_vendor_domain" placeholder="<?php echo e(t('shadow-saas.placeholder_domain_example')); ?>" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Description</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_description')); ?></label>
                     <textarea name="add_description" rows="3" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; resize: vertical;"></textarea>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Risk Score (1-5)</label>
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.add_label_risk_score')); ?></label>
                         <input type="number" name="add_risk_score" min="1" max="5" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                     </div>
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Risk Type</label>
-                        <input type="text" name="add_risk_type" placeholder="e.g. Shadow IT; Data Leakage" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_risk_type')); ?></label>
+                        <input type="text" name="add_risk_type" placeholder="<?php echo e(t('shadow-saas.add_risk_type_placeholder')); ?>" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                     </div>
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Relationship Manager</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_rm')); ?></label>
                     <input type="text" name="add_relationship_manager" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Number of Users</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_num_users')); ?></label>
                     <input type="number" name="add_number_of_users" min="0" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Application Category</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_app_category')); ?></label>
                     <input type="text" name="add_application_category" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Breaches in Three Years</label>
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_breaches')); ?></label>
                     <input type="number" name="add_breaches_in_three_years" min="0" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Download Bytes</label>
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_download_bytes')); ?></label>
                         <input type="number" name="add_downloadbytes" min="0" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                     </div>
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">Upload Bytes</label>
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_upload_bytes')); ?></label>
                         <input type="number" name="add_uploadbytes" min="0" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">File Sharing</label>
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_file_sharing')); ?></label>
                         <select name="add_filesharing" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                             <option value="">—</option>
-                            <option value="Yes">Yes</option>
-                            <option value="No">No</option>
+                            <option value="Yes"><?php echo e(t('shadow-saas.opt_yes')); ?></option>
+                            <option value="No"><?php echo e(t('shadow-saas.opt_no')); ?></option>
                         </select>
                     </div>
                     <div>
-                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;">MFA Support</label>
+                        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('shadow-saas.label_mfa_support')); ?></label>
                         <select name="add_mfasupport" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
                             <option value="">—</option>
-                            <option value="Yes">Yes</option>
-                            <option value="No">No</option>
+                            <option value="Yes"><?php echo e(t('shadow-saas.opt_yes')); ?></option>
+                            <option value="No"><?php echo e(t('shadow-saas.opt_no')); ?></option>
                         </select>
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" id="addCancelBtn" class="btn-sm btn-secondary" style="padding: 8px 16px;">Cancel</button>
-                    <button type="submit" class="btn-sm btn-success" style="padding: 8px 16px;">Add Entry</button>
+                    <button type="button" id="addCancelBtn" class="btn-sm btn-secondary" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.btn_cancel')); ?></button>
+                    <button type="submit" class="btn-sm btn-success" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.btn_add_entry')); ?></button>
                 </div>
             </form>
         </div>
@@ -2017,10 +2013,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             var form = document.getElementById('onboardForm');
             var checked = form.querySelectorAll('input[name="selected[]"]:checked');
             if (checked.length === 0) {
-                alert('Please select at least one entry.');
+                alert(<?php echo json_encode(t('shadow-saas.js_select_one')); ?>);
                 return;
             }
-            if (confirm('Onboard ' + checked.length + ' selected entries as vendors? This will create vendor onboarding requests and trigger background scoring.')) {
+            if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_onboard_prefix')); ?> + checked.length + <?php echo json_encode(t('shadow-saas.js_confirm_onboard_suffix')); ?>)) {
                 document.getElementById('bulkAction').value = 'onboard_selected';
                 form.submit();
             }
@@ -2031,10 +2027,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             var form = document.getElementById('onboardForm');
             var checked = form.querySelectorAll('input[name="selected[]"]:checked');
             if (checked.length === 0) {
-                alert('Please select at least one entry.');
+                alert(<?php echo json_encode(t('shadow-saas.js_select_one')); ?>);
                 return;
             }
-            if (confirm('Scan ' + checked.length + ' selected entries? Entries with a domain will be queued for background scoring.')) {
+            if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_scan_prefix')); ?> + checked.length + <?php echo json_encode(t('shadow-saas.js_confirm_scan_suffix')); ?>)) {
                 document.getElementById('bulkAction').value = 'scan_selected';
                 form.submit();
             }
@@ -2045,10 +2041,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             var form = document.getElementById('onboardForm');
             var checked = form.querySelectorAll('input[name="selected[]"]:checked');
             if (checked.length === 0) {
-                alert('Please select at least one entry.');
+                alert(<?php echo json_encode(t('shadow-saas.js_select_one')); ?>);
                 return;
             }
-            if (confirm('Restore ' + checked.length + ' selected entries to pending?')) {
+            if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_restore_prefix')); ?> + checked.length + <?php echo json_encode(t('shadow-saas.js_confirm_restore_suffix')); ?>)) {
                 document.getElementById('bulkAction').value = 'restore_selected';
                 form.submit();
             }
@@ -2059,10 +2055,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             var form = document.getElementById('onboardForm');
             var checked = form.querySelectorAll('input[name="selected[]"]:checked');
             if (checked.length === 0) {
-                alert('Please select at least one entry.');
+                alert(<?php echo json_encode(t('shadow-saas.js_select_one')); ?>);
                 return;
             }
-            if (confirm('Dismiss ' + checked.length + ' selected entries?')) {
+            if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_dismiss_prefix')); ?> + checked.length + <?php echo json_encode(t('shadow-saas.js_confirm_dismiss_suffix')); ?>)) {
                 document.getElementById('bulkAction').value = 'dismiss_selected';
                 form.submit();
             }
@@ -2073,10 +2069,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             var form = document.getElementById('onboardForm');
             var checked = form.querySelectorAll('input[name="selected[]"]:checked');
             if (checked.length === 0) {
-                alert('Please select at least one entry.');
+                alert(<?php echo json_encode(t('shadow-saas.js_select_one')); ?>);
                 return;
             }
-            if (confirm('Delete ' + checked.length + ' selected entries? This cannot be undone.')) {
+            if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_delete_prefix')); ?> + checked.length + <?php echo json_encode(t('shadow-saas.js_confirm_delete_suffix')); ?>)) {
                 document.getElementById('bulkAction').value = 'delete_selected';
                 form.submit();
             }
@@ -2086,7 +2082,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         document.querySelectorAll('.dismiss-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var entryId = this.dataset.id;
-                if (confirm('Dismiss this entry?')) {
+                if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_dismiss_one')); ?>)) {
                     var form = document.getElementById('rowActionForm');
                     document.getElementById('rowAction').value = 'dismiss';
                     document.getElementById('rowDismissId').value = entryId;
@@ -2099,7 +2095,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         document.querySelectorAll('.undismiss-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var entryId = this.dataset.id;
-                if (confirm('Restore this entry to pending?')) {
+                if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_restore_one')); ?>)) {
                     var form = document.getElementById('rowActionForm');
                     document.getElementById('rowAction').value = 'undismiss';
                     document.getElementById('rowUndismissId').value = entryId;
@@ -2113,7 +2109,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         document.querySelectorAll('.deny-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var entryId = this.dataset.id;
-                if (confirm('Mark this vendor as Unsanctioned? If Zscaler is configured, the domain will also be added to the URL Category.')) {
+                if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_deny')); ?>)) {
                     var form = document.getElementById('rowActionForm');
                     document.getElementById('rowAction').value = 'deny_zscaler';
                     document.getElementById('rowDenyId').value = entryId;
@@ -2127,7 +2123,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         document.querySelectorAll('.allow-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var entryId = this.dataset.id;
-                if (confirm('Onboard this vendor to TPRM? If the domain was Zscaler-blocked, it will also be removed from the URL Category.')) {
+                if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_allow')); ?>)) {
                     var form = document.getElementById('rowActionForm');
                     document.getElementById('rowAction').value = 'allow_zscaler';
                     document.getElementById('rowAllowId').value = entryId;

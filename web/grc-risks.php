@@ -39,18 +39,18 @@ $msgType = '';
 
 // Enum mappings
 $likelihoodOptions = [
-    'rare' => '1 - Rare',
-    'unlikely' => '2 - Unlikely',
-    'possible' => '3 - Possible',
-    'likely' => '4 - Likely',
-    'almost_certain' => '5 - Almost Certain',
+    'rare' => t('grc-risks.opt_likelihood_rare'),
+    'unlikely' => t('grc-risks.opt_likelihood_unlikely'),
+    'possible' => t('grc-risks.opt_likelihood_possible'),
+    'likely' => t('grc-risks.opt_likelihood_likely'),
+    'almost_certain' => t('grc-risks.opt_likelihood_almost_certain'),
 ];
 $impactOptions = [
-    'insignificant' => '1 - Insignificant',
-    'minor' => '2 - Minor',
-    'moderate' => '3 - Moderate',
-    'major' => '4 - Major',
-    'catastrophic' => '5 - Catastrophic',
+    'insignificant' => t('grc-risks.opt_impact_insignificant'),
+    'minor' => t('grc-risks.opt_impact_minor'),
+    'moderate' => t('grc-risks.opt_impact_moderate'),
+    'major' => t('grc-risks.opt_impact_major'),
+    'catastrophic' => t('grc-risks.opt_impact_catastrophic'),
 ];
 $likelihoodNumeric = ['rare' => 1, 'unlikely' => 2, 'possible' => 3, 'likely' => 4, 'almost_certain' => 5];
 $impactNumeric = ['insignificant' => 1, 'minor' => 2, 'moderate' => 3, 'major' => 4, 'catastrophic' => 5];
@@ -650,7 +650,7 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                     ?>
                     <div class="heatmap-label"><?php echo $l; ?></div>
                     <?php for ($i = 1; $i <= 5; $i++): ?>
-                    <div class="heatmap-cell <?php echo getHeatColor($l, $i); ?>" data-likelihood="<?php echo $l; ?>" data-impact="<?php echo $i; ?>" title="Likelihood <?php echo $l; ?>, Impact <?php echo $i; ?>"><?php echo $heatmapData[$l][$i] > 0 ? $heatmapData[$l][$i] : ''; ?></div>
+                    <div class="heatmap-cell <?php echo getHeatColor($l, $i); ?>" data-likelihood="<?php echo $l; ?>" data-impact="<?php echo $i; ?>" title="<?php echo e(t('grc-risks.likelihood')); ?> <?php echo $l; ?>, <?php echo e(t('grc-risks.impact')); ?> <?php echo $i; ?>"><?php echo $heatmapData[$l][$i] > 0 ? $heatmapData[$l][$i] : ''; ?></div>
                     <?php endfor; ?>
                     <?php endfor; ?>
                     <div class="heatmap-label"></div>
@@ -851,7 +851,7 @@ function grcAutosave(form) {
     }).then(function(r) { return r.json(); }).then(function(d) {
         if (d.csrf_token) document.querySelector('input[name=csrf_token]').value = d.csrf_token;
         var indicator = form.querySelector('.autosave-status');
-        if (indicator) { indicator.textContent = 'Draft saved'; setTimeout(function() { indicator.textContent = ''; }, 3000); }
+        if (indicator) { indicator.textContent = <?php echo json_encode(t('grc-risks.js_draft_saved')); ?>; setTimeout(function() { indicator.textContent = ''; }, 3000); }
     });
 }
 
@@ -867,8 +867,8 @@ function grcAutosave(form) {
     var heatmapImpact = null;
     var sortKey = null;
     var sortDir = 'asc';
-    var likelihoodLabels = {1:'Rare', 2:'Unlikely', 3:'Possible', 4:'Likely', 5:'Almost Certain'};
-    var impactLabels = {1:'Insignificant', 2:'Minor', 3:'Moderate', 4:'Major', 5:'Catastrophic'};
+    var likelihoodLabels = {1:<?php echo json_encode(t('grc-risks.label_rare')); ?>, 2:<?php echo json_encode(t('grc-risks.label_unlikely')); ?>, 3:<?php echo json_encode(t('grc-risks.label_possible')); ?>, 4:<?php echo json_encode(t('grc-risks.label_likely')); ?>, 5:<?php echo json_encode(t('grc-risks.label_almost_certain')); ?>};
+    var impactLabels = {1:<?php echo json_encode(t('grc-risks.label_insignificant')); ?>, 2:<?php echo json_encode(t('grc-risks.label_minor')); ?>, 3:<?php echo json_encode(t('grc-risks.label_moderate')); ?>, 4:<?php echo json_encode(t('grc-risks.label_major')); ?>, 5:<?php echo json_encode(t('grc-risks.label_catastrophic')); ?>};
 
     var searchTitle = document.getElementById('searchTitle');
     var searchControls = document.getElementById('searchControls');
@@ -1000,7 +1000,7 @@ function grcAutosave(form) {
 
         if (pageInfo) {
             if (totalFiltered === 0) {
-                pageInfo.textContent = 'No risks match your filters';
+                pageInfo.textContent = <?php echo json_encode(t('grc-risks.js_no_risks_match')); ?>;
             } else {
                 pageInfo.textContent = 'Showing ' + (start + 1) + '-' + Math.min(end, totalFiltered) + ' of ' + totalFiltered + ' risk' + (totalFiltered !== 1 ? 's' : '');
             }
@@ -1009,14 +1009,14 @@ function grcAutosave(form) {
         // Build pagination buttons (no inline onclick - uses event delegation)
         if (paginationControls) {
             var html = '';
-            html += '<button data-page="prev" ' + (currentPage <= 1 ? 'disabled' : '') + '>&laquo; Prev</button>';
+            html += '<button data-page="prev" ' + (currentPage <= 1 ? 'disabled' : '') + '>&laquo; ' + <?php echo json_encode(t('grc-risks.js_prev')); ?> + '</button>';
             var startPage = Math.max(1, currentPage - 2);
             var endPage = Math.min(totalPages, startPage + 4);
             if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
             for (var p = startPage; p <= endPage; p++) {
                 html += '<button data-page="' + p + '" class="' + (p === currentPage ? 'active' : '') + '">' + p + '</button>';
             }
-            html += '<button data-page="next" ' + (currentPage >= totalPages ? 'disabled' : '') + '>Next &raquo;</button>';
+            html += '<button data-page="next" ' + (currentPage >= totalPages ? 'disabled' : '') + '>' + <?php echo json_encode(t('grc-risks.js_next')); ?> + ' &raquo;</button>';
             paginationControls.innerHTML = html;
         }
 
@@ -1034,7 +1034,7 @@ function grcAutosave(form) {
         // Show/hide heatmap label (no inline onclick - uses event delegation)
         if (heatmapLabel) {
             if (heatmapLikelihood !== null && heatmapImpact !== null) {
-                heatmapLabel.innerHTML = 'Heatmap: Likelihood ' + (likelihoodLabels[heatmapLikelihood] || heatmapLikelihood) + ' &times; Impact ' + (impactLabels[heatmapImpact] || heatmapImpact) + ' <span class="heatmap-dismiss" style="cursor:pointer;font-weight:bold;margin-left:4px;" title="Remove heatmap filter">&times;</span>';
+                heatmapLabel.innerHTML = <?php echo json_encode(t('grc-risks.js_heatmap_prefix')); ?> + ' ' + (likelihoodLabels[heatmapLikelihood] || heatmapLikelihood) + ' &times; ' + <?php echo json_encode(t('grc-risks.js_impact_label')); ?> + ' ' + (impactLabels[heatmapImpact] || heatmapImpact) + ' <span class="heatmap-dismiss" style="cursor:pointer;font-weight:bold;margin-left:4px;" title="' + <?php echo json_encode(t('grc-risks.js_remove_heatmap_filter')); ?> + '">&times;</span>';
                 heatmapLabel.classList.add('visible');
             } else {
                 heatmapLabel.classList.remove('visible');
@@ -1147,7 +1147,7 @@ function grcAutosave(form) {
     document.querySelectorAll('.delete-risk-form').forEach(function(form) {
         form.addEventListener('submit', function(e) {
             var ref = form.dataset.riskRef || '';
-            if (!confirm('Delete risk ' + ref + '? This cannot be undone.')) {
+            if (!confirm(<?php echo json_encode(t('grc-risks.js_delete_confirm_prefix')); ?> + ref + <?php echo json_encode(t('grc-risks.js_delete_confirm_suffix')); ?>)) {
                 e.preventDefault();
             }
         });
@@ -1159,9 +1159,9 @@ function grcAutosave(form) {
         var filtered = getFilteredRows();
         var csvRows = [];
         // Header row
-        csvRows.push(['Reference','Title','Category','Owner','Likelihood','Impact','Inherent Score','Residual Score','Treatment','Status','Mitigating Controls'].join(','));
-        var likLabels = {1:'Rare',2:'Unlikely',3:'Possible',4:'Likely',5:'Almost Certain'};
-        var impLabels = {1:'Insignificant',2:'Minor',3:'Moderate',4:'Major',5:'Catastrophic'};
+        csvRows.push([<?php echo json_encode(t('grc-risks.csv_reference')); ?>,<?php echo json_encode(t('grc-risks.csv_title')); ?>,<?php echo json_encode(t('grc-risks.csv_category')); ?>,<?php echo json_encode(t('grc-risks.csv_owner')); ?>,<?php echo json_encode(t('grc-risks.csv_likelihood')); ?>,<?php echo json_encode(t('grc-risks.csv_impact')); ?>,<?php echo json_encode(t('grc-risks.csv_inherent_score')); ?>,<?php echo json_encode(t('grc-risks.csv_residual_score')); ?>,<?php echo json_encode(t('grc-risks.csv_treatment')); ?>,<?php echo json_encode(t('grc-risks.csv_status')); ?>,<?php echo json_encode(t('grc-risks.csv_mitigating_controls')); ?>].join(','));
+        var likLabels = {1:<?php echo json_encode(t('grc-risks.label_rare')); ?>,2:<?php echo json_encode(t('grc-risks.label_unlikely')); ?>,3:<?php echo json_encode(t('grc-risks.label_possible')); ?>,4:<?php echo json_encode(t('grc-risks.label_likely')); ?>,5:<?php echo json_encode(t('grc-risks.label_almost_certain')); ?>};
+        var impLabels = {1:<?php echo json_encode(t('grc-risks.label_insignificant')); ?>,2:<?php echo json_encode(t('grc-risks.label_minor')); ?>,3:<?php echo json_encode(t('grc-risks.label_moderate')); ?>,4:<?php echo json_encode(t('grc-risks.label_major')); ?>,5:<?php echo json_encode(t('grc-risks.label_catastrophic')); ?>};
         filtered.forEach(function(row) {
             var cells = row.querySelectorAll('td');
             var ref = (row.dataset.ref || '').replace(/"/g, '""');

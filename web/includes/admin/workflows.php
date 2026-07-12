@@ -23,7 +23,7 @@ $assessmentService->initializeTables();
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_workflows.error_invalid_request');
 
     } elseif (isset($_POST['create_rule'])) {
         $name = trim($_POST['rule_name'] ?? '');
@@ -36,9 +36,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($assignTo, ['vendor', 'stakeholder', 'creator'])) $assignTo = 'vendor';
 
         if (empty($name) || !$sourceTemplateId || !$questionId || $conditionValue === '' || !$targetTemplateId) {
-            $error = 'All fields are required.';
+            $error = t('admin_workflows.error_all_fields_required');
         } elseif ($sourceTemplateId === $targetTemplateId) {
-            $error = 'Source and target templates must be different.';
+            $error = t('admin_workflows.error_templates_must_differ');
         } else {
             try {
                 $db->insert('assessment_workflow_rules', [
@@ -56,10 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $auth->audit($user['id'], 'workflow_rule_create', 'assessment_workflow_rules', null, [
                     'new' => ['name' => $name, 'source_template_id' => $sourceTemplateId, 'target_template_id' => $targetTemplateId]
                 ]);
-                $success = 'Workflow rule created successfully.';
+                $success = t('admin_workflows.success_rule_created');
             } catch (Exception $e) {
                 error_log('Create workflow rule error: ' . $e->getMessage());
-                $error = 'Failed to create workflow rule.';
+                $error = t('admin_workflows.error_create_failed');
             }
         }
 
@@ -75,9 +75,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($assignTo, ['vendor', 'stakeholder', 'creator'])) $assignTo = 'vendor';
 
         if (!$ruleId || empty($name) || !$sourceTemplateId || !$questionId || $conditionValue === '' || !$targetTemplateId) {
-            $error = 'All fields are required.';
+            $error = t('admin_workflows.error_all_fields_required');
         } elseif ($sourceTemplateId === $targetTemplateId) {
-            $error = 'Source and target templates must be different.';
+            $error = t('admin_workflows.error_templates_must_differ');
         } else {
             try {
                 $db->update('assessment_workflow_rules', [
@@ -93,10 +93,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $auth->audit($user['id'], 'workflow_rule_update', 'assessment_workflow_rules', $ruleId, [
                     'new' => ['name' => $name, 'source_template_id' => $sourceTemplateId, 'target_template_id' => $targetTemplateId]
                 ]);
-                $success = 'Workflow rule updated.';
+                $success = t('admin_workflows.success_rule_updated');
             } catch (Exception $e) {
                 error_log('Update workflow rule error: ' . $e->getMessage());
-                $error = 'Failed to update workflow rule.';
+                $error = t('admin_workflows.error_update_failed');
             }
         }
 
@@ -111,11 +111,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $auth->audit($user['id'], 'workflow_rule_toggle', 'assessment_workflow_rules', $ruleId, [
                         'new' => ['is_active' => $newStatus]
                     ]);
-                    $success = 'Rule ' . ($newStatus ? 'activated' : 'deactivated') . '.';
+                    $success = $newStatus ? t('admin_workflows.success_rule_activated') : t('admin_workflows.success_rule_deactivated');
                 }
             } catch (Exception $e) {
                 error_log('Toggle workflow rule error: ' . $e->getMessage());
-                $error = 'Failed to toggle rule.';
+                $error = t('admin_workflows.error_toggle_failed');
             }
         }
 
@@ -125,10 +125,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $db->query('DELETE FROM assessment_workflow_rules WHERE id = ?', [$ruleId]);
                 $auth->audit($user['id'], 'workflow_rule_delete', 'assessment_workflow_rules', $ruleId, []);
-                $success = 'Workflow rule deleted.';
+                $success = t('admin_workflows.success_rule_deleted');
             } catch (Exception $e) {
                 error_log('Delete workflow rule error: ' . $e->getMessage());
-                $error = 'Failed to delete rule.';
+                $error = t('admin_workflows.error_delete_failed');
             }
         }
     }
@@ -163,9 +163,9 @@ try {
 $allTemplates = $assessmentService->getTemplates(true);
 
 $categoryLabels = [
-    'vendor_assessment' => 'Vendor Assessment',
-    'procurement' => 'Procurement',
-    'onboarding' => 'Onboarding',
+    'vendor_assessment' => t('admin_workflows.category_vendor_assessment'),
+    'procurement' => t('admin_workflows.category_procurement'),
+    'onboarding' => t('admin_workflows.category_onboarding'),
 ];
 
 // Build template→questions JSON for dynamic dropdowns
@@ -203,34 +203,34 @@ foreach ($allTemplates as $tpl) {
 ?>
 
 <div class="page-header-bar">
-    <h1 class="page-title">Workflow Rules</h1>
-    <p>Define rules that automatically create follow-up assessments when specific conditions are met.</p>
+    <h1 class="page-title"><?php echo e(t('admin_workflows.page_title')); ?></h1>
+    <p><?php echo e(t('admin_workflows.page_subtitle')); ?></p>
 </div>
 
 <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h3 style="margin:0;">Rules</h3>
-        <button class="btn btn-primary" data-action="openCreateRule">+ Create Rule</button>
+        <h3 style="margin:0;"><?php echo e(t('admin_workflows.rules_heading')); ?></h3>
+        <button class="btn btn-primary" data-action="openCreateRule"><?php echo e(t('admin_workflows.create_rule_button')); ?></button>
     </div>
 
     <?php if (empty($rules)): ?>
     <div style="text-align:center; padding:40px; color:#666;">
-        <h3>No workflow rules yet</h3>
-        <p>Create your first rule to automatically trigger follow-up assessments based on vendor responses.</p>
+        <h3><?php echo e(t('admin_workflows.empty_heading')); ?></h3>
+        <p><?php echo e(t('admin_workflows.empty_text')); ?></p>
     </div>
     <?php else: ?>
     <div style="overflow-x:auto;">
         <table>
             <thead>
                 <tr>
-                    <th>Rule Name</th>
-                    <th>When Template Completed</th>
-                    <th>If Question</th>
-                    <th>Equals</th>
-                    <th>Then Create</th>
-                    <th>Assign To</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th><?php echo e(t('admin_workflows.th_rule_name')); ?></th>
+                    <th><?php echo e(t('admin_workflows.th_when_template_completed')); ?></th>
+                    <th><?php echo e(t('admin_workflows.th_if_question')); ?></th>
+                    <th><?php echo e(t('admin_workflows.th_equals')); ?></th>
+                    <th><?php echo e(t('admin_workflows.th_then_create')); ?></th>
+                    <th><?php echo e(t('admin_workflows.th_assign_to')); ?></th>
+                    <th><?php echo e(t('admin_workflows.th_status')); ?></th>
+                    <th><?php echo e(t('admin_workflows.th_actions')); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -243,28 +243,28 @@ foreach ($allTemplates as $tpl) {
                         <?php endif; ?>
                     </td>
                     <td>
-                        <?php echo e($rule['source_template_name'] ?? 'Deleted template'); ?>
+                        <?php echo e($rule['source_template_name'] ?? t('admin_workflows.deleted_template')); ?>
                         <br><span class="badge badge-blue" style="font-size:10px;"><?php echo e($categoryLabels[$rule['source_template_category'] ?? ''] ?? $rule['source_template_category'] ?? ''); ?></span>
                     </td>
                     <td style="max-width:200px;">
-                        <span style="font-size:13px;"><?php echo e(mb_strimwidth($rule['question_text'] ?? 'Deleted question', 0, 60, '...')); ?></span>
+                        <span style="font-size:13px;"><?php echo e(mb_strimwidth($rule['question_text'] ?? t('admin_workflows.deleted_question'), 0, 60, '...')); ?></span>
                     </td>
                     <td>
                         <code style="background:#f3f4f6; padding:2px 6px; border-radius:3px; font-size:12px;"><?php echo e($rule['condition_value']); ?></code>
                     </td>
                     <td>
-                        <?php echo e($rule['target_template_name'] ?? 'Deleted template'); ?>
+                        <?php echo e($rule['target_template_name'] ?? t('admin_workflows.deleted_template')); ?>
                         <br><span class="badge badge-blue" style="font-size:10px;"><?php echo e($categoryLabels[$rule['target_template_category'] ?? ''] ?? $rule['target_template_category'] ?? ''); ?></span>
                     </td>
                     <td>
                         <?php
-                        $assignLabels = ['vendor' => 'Vendor Contact', 'stakeholder' => 'Stakeholder', 'creator' => 'Assessment Creator'];
-                        echo e($assignLabels[$rule['assign_to'] ?? 'vendor'] ?? 'Vendor Contact');
+                        $assignLabels = ['vendor' => t('admin_workflows.assign_vendor'), 'stakeholder' => t('admin_workflows.assign_stakeholder'), 'creator' => t('admin_workflows.assign_creator')];
+                        echo e($assignLabels[$rule['assign_to'] ?? 'vendor'] ?? t('admin_workflows.assign_vendor'));
                         ?>
                     </td>
                     <td>
                         <span class="badge <?php echo $rule['is_active'] ? 'badge-success' : ''; ?>" style="<?php echo !$rule['is_active'] ? 'background:#e5e7eb; color:#6b7280;' : ''; ?>">
-                            <?php echo $rule['is_active'] ? 'Active' : 'Inactive'; ?>
+                            <?php echo e($rule['is_active'] ? t('admin_workflows.status_active') : t('admin_workflows.status_inactive')); ?>
                         </span>
                     </td>
                     <td style="white-space:nowrap;">
@@ -277,18 +277,18 @@ foreach ($allTemplates as $tpl) {
                             'condition_value' => $rule['condition_value'],
                             'target_template_id' => $rule['target_template_id'],
                             'assign_to' => $rule['assign_to'] ?? 'vendor',
-                        ])); ?>">Edit</button>
+                        ])); ?>"><?php echo e(t('admin_workflows.action_edit')); ?></button>
                         <form method="POST" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="rule_id" value="<?php echo $rule['id']; ?>">
                             <button type="submit" name="toggle_rule" class="btn btn-sm" style="background:<?php echo $rule['is_active'] ? '#6b7280' : '#22c55e'; ?>; color:white;">
-                                <?php echo $rule['is_active'] ? 'Disable' : 'Enable'; ?>
+                                <?php echo e($rule['is_active'] ? t('admin_workflows.action_disable') : t('admin_workflows.action_enable')); ?>
                             </button>
                         </form>
-                        <form method="POST" style="display:inline;" data-confirm="Delete this workflow rule?">
+                        <form method="POST" style="display:inline;" data-confirm="<?php echo e(t('admin_workflows.confirm_delete_rule')); ?>">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="rule_id" value="<?php echo $rule['id']; ?>">
-                            <button type="submit" name="delete_rule" class="btn btn-sm" style="background:#ef4444; color:white;">Delete</button>
+                            <button type="submit" name="delete_rule" class="btn btn-sm" style="background:#ef4444; color:white;"><?php echo e(t('admin_workflows.action_delete')); ?></button>
                         </form>
                     </td>
                 </tr>
@@ -301,22 +301,22 @@ foreach ($allTemplates as $tpl) {
 
 <!-- How It Works info card -->
 <div class="card">
-    <h3>How Workflow Rules Work</h3>
+    <h3><?php echo e(t('admin_workflows.how_heading')); ?></h3>
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-top:15px;">
         <div style="text-align:center; padding:15px;">
             <div style="font-size:28px; margin-bottom:8px;">1.</div>
-            <strong>Vendor Completes Assessment</strong>
-            <p style="font-size:13px; color:#666; margin-top:5px;">A vendor submits their completed assessment form.</p>
+            <strong><?php echo e(t('admin_workflows.step1_heading')); ?></strong>
+            <p style="font-size:13px; color:#666; margin-top:5px;"><?php echo e(t('admin_workflows.step1_text')); ?></p>
         </div>
         <div style="text-align:center; padding:15px;">
             <div style="font-size:28px; margin-bottom:8px;">2.</div>
-            <strong>Rules Are Evaluated</strong>
-            <p style="font-size:13px; color:#666; margin-top:5px;">Active rules matching the template are checked against the vendor's responses.</p>
+            <strong><?php echo e(t('admin_workflows.step2_heading')); ?></strong>
+            <p style="font-size:13px; color:#666; margin-top:5px;"><?php echo e(t('admin_workflows.step2_text')); ?></p>
         </div>
         <div style="text-align:center; padding:15px;">
             <div style="font-size:28px; margin-bottom:8px;">3.</div>
-            <strong>Follow-up Created</strong>
-            <p style="font-size:13px; color:#666; margin-top:5px;">If a rule matches, a new assessment is automatically created and emailed to the vendor.</p>
+            <strong><?php echo e(t('admin_workflows.step3_heading')); ?></strong>
+            <p style="font-size:13px; color:#666; margin-top:5px;"><?php echo e(t('admin_workflows.step3_text')); ?></p>
         </div>
     </div>
 </div>
@@ -325,29 +325,29 @@ foreach ($allTemplates as $tpl) {
 <div id="ruleModal" class="modal">
     <div class="modal-content" style="max-width:600px;">
         <span class="close" data-close="ruleModal">&times;</span>
-        <h3 id="ruleModalTitle" style="margin-top:0; color:var(--theme-header-color);">Create Workflow Rule</h3>
+        <h3 id="ruleModalTitle" style="margin-top:0; color:var(--theme-header-color);"><?php echo e(t('admin_workflows.modal_title_create')); ?></h3>
 
         <form method="POST" action="admin.php?section=workflows" id="ruleForm">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <input type="hidden" name="rule_id" id="ruleId" value="">
 
             <div class="form-group">
-                <label for="ruleName">Rule Name <span style="color:#ef4444;">*</span></label>
-                <input type="text" id="ruleName" name="rule_name" class="form-control" placeholder="e.g. AI vendor triggers AI Risk Assessment" required>
+                <label for="ruleName"><?php echo e(t('admin_workflows.label_rule_name')); ?> <span style="color:#ef4444;">*</span></label>
+                <input type="text" id="ruleName" name="rule_name" class="form-control" placeholder="<?php echo e(t('admin_workflows.placeholder_rule_name')); ?>" required>
             </div>
 
             <div class="form-group">
-                <label for="ruleDescription">Description</label>
-                <textarea id="ruleDescription" name="rule_description" class="form-control" rows="2" placeholder="Optional description of what this rule does"></textarea>
+                <label for="ruleDescription"><?php echo e(t('admin_workflows.label_description')); ?></label>
+                <textarea id="ruleDescription" name="rule_description" class="form-control" rows="2" placeholder="<?php echo e(t('admin_workflows.placeholder_description')); ?>"></textarea>
             </div>
 
             <div style="border:1px solid #e5e7eb; border-radius:8px; padding:15px; margin:15px 0; background:#f9fafb;">
-                <label style="font-weight:600; font-size:13px; margin-bottom:10px; display:block;">Condition</label>
+                <label style="font-weight:600; font-size:13px; margin-bottom:10px; display:block;"><?php echo e(t('admin_workflows.section_condition')); ?></label>
 
                 <div class="form-group">
-                    <label for="ruleSourceTemplate">When this assessment template is completed:</label>
+                    <label for="ruleSourceTemplate"><?php echo e(t('admin_workflows.label_source_template')); ?></label>
                     <select id="ruleSourceTemplate" name="source_template_id" class="form-control" data-action="onSourceTemplateChange" required>
-                        <option value="">-- Select template --</option>
+                        <option value=""><?php echo e(t('admin_workflows.opt_select_template')); ?></option>
                         <?php foreach ($allTemplates as $tpl): ?>
                         <option value="<?php echo $tpl['id']; ?>"><?php echo e($tpl['name']); ?> (<?php echo e($categoryLabels[$tpl['category'] ?? 'vendor_assessment'] ?? $tpl['category']); ?>)</option>
                         <?php endforeach; ?>
@@ -356,28 +356,28 @@ foreach ($allTemplates as $tpl) {
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="ruleQuestion">And this question:</label>
+                        <label for="ruleQuestion"><?php echo e(t('admin_workflows.label_question')); ?></label>
                         <select id="ruleQuestion" name="question_id" class="form-control" data-action="onQuestionChange" required>
-                            <option value="">-- Select template first --</option>
+                            <option value=""><?php echo e(t('admin_workflows.opt_select_template_first')); ?></option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="ruleConditionValue">Equals this value:</label>
+                        <label for="ruleConditionValue"><?php echo e(t('admin_workflows.label_condition_value')); ?></label>
                         <select id="ruleConditionValue" name="condition_value" class="form-control" required>
-                            <option value="">-- Select question first --</option>
+                            <option value=""><?php echo e(t('admin_workflows.opt_select_question_first')); ?></option>
                         </select>
-                        <input type="text" id="ruleConditionValueText" name="condition_value_text" class="form-control" placeholder="Enter value" style="display:none;">
+                        <input type="text" id="ruleConditionValueText" name="condition_value_text" class="form-control" placeholder="<?php echo e(t('admin_workflows.placeholder_enter_value')); ?>" style="display:none;">
                     </div>
                 </div>
             </div>
 
             <div style="border:1px solid #e5e7eb; border-radius:8px; padding:15px; margin:15px 0; background:#f0fdf4;">
-                <label style="font-weight:600; font-size:13px; margin-bottom:10px; display:block;">Action</label>
+                <label style="font-weight:600; font-size:13px; margin-bottom:10px; display:block;"><?php echo e(t('admin_workflows.section_action')); ?></label>
 
                 <div class="form-group">
-                    <label for="ruleTargetTemplate">Then automatically create this assessment:</label>
+                    <label for="ruleTargetTemplate"><?php echo e(t('admin_workflows.label_target_template')); ?></label>
                     <select id="ruleTargetTemplate" name="target_template_id" class="form-control" required>
-                        <option value="">-- Select target template --</option>
+                        <option value=""><?php echo e(t('admin_workflows.opt_select_target_template')); ?></option>
                         <?php foreach ($allTemplates as $tpl): ?>
                         <option value="<?php echo $tpl['id']; ?>"><?php echo e($tpl['name']); ?> (<?php echo e($categoryLabels[$tpl['category'] ?? 'vendor_assessment'] ?? $tpl['category']); ?>)</option>
                         <?php endforeach; ?>
@@ -385,19 +385,19 @@ foreach ($allTemplates as $tpl) {
                 </div>
 
                 <div class="form-group">
-                    <label for="ruleAssignTo">And assign it to:</label>
+                    <label for="ruleAssignTo"><?php echo e(t('admin_workflows.label_assign_to')); ?></label>
                     <select id="ruleAssignTo" name="assign_to" class="form-control">
-                        <option value="vendor">Vendor Contact (sends to vendor email)</option>
-                        <option value="stakeholder">Stakeholder (sends to assigned stakeholder)</option>
-                        <option value="creator">Assessment Creator (sends to the admin who created the original)</option>
+                        <option value="vendor"><?php echo e(t('admin_workflows.assign_option_vendor')); ?></option>
+                        <option value="stakeholder"><?php echo e(t('admin_workflows.assign_option_stakeholder')); ?></option>
+                        <option value="creator"><?php echo e(t('admin_workflows.assign_option_creator')); ?></option>
                     </select>
-                    <div class="form-help" style="font-size:11px; color:#888; margin-top:4px;">Controls who receives the triggered assessment link.</div>
+                    <div class="form-help" style="font-size:11px; color:#888; margin-top:4px;"><?php echo e(t('admin_workflows.assign_help')); ?></div>
                 </div>
             </div>
 
             <div style="display:flex; gap:10px; margin-top:20px;">
-                <button type="submit" id="ruleSubmitBtn" name="create_rule" class="btn btn-primary">Create Rule</button>
-                <button type="button" class="btn btn-secondary" data-close="ruleModal">Cancel</button>
+                <button type="submit" id="ruleSubmitBtn" name="create_rule" class="btn btn-primary"><?php echo e(t('admin_workflows.create_rule_submit')); ?></button>
+                <button type="button" class="btn btn-secondary" data-close="ruleModal"><?php echo e(t('admin_workflows.cancel')); ?></button>
             </div>
         </form>
     </div>
@@ -416,8 +416,8 @@ function onSourceTemplateChange(templateId) {
     var vText = document.getElementById('ruleConditionValueText');
 
     // Reset downstream dropdowns
-    qSelect.innerHTML = '<option value="">-- Select question --</option>';
-    vSelect.innerHTML = '<option value="">-- Select question first --</option>';
+    qSelect.innerHTML = '<option value="">' + <?php echo json_encode(t('admin_workflows.opt_select_question')); ?> + '</option>';
+    vSelect.innerHTML = '<option value="">' + <?php echo json_encode(t('admin_workflows.opt_select_question_first')); ?> + '</option>';
     vSelect.style.display = '';
     vText.style.display = 'none';
     vText.value = '';
@@ -486,13 +486,13 @@ function openCreateRule() {
 }
 
 function resetRuleModal() {
-    document.getElementById('ruleModalTitle').textContent = 'Create Workflow Rule';
+    document.getElementById('ruleModalTitle').textContent = <?php echo json_encode(t('admin_workflows.modal_title_create')); ?>;
     document.getElementById('ruleId').value = '';
     document.getElementById('ruleName').value = '';
     document.getElementById('ruleDescription').value = '';
     document.getElementById('ruleSourceTemplate').value = '';
-    document.getElementById('ruleQuestion').innerHTML = '<option value="">-- Select template first --</option>';
-    document.getElementById('ruleConditionValue').innerHTML = '<option value="">-- Select question first --</option>';
+    document.getElementById('ruleQuestion').innerHTML = '<option value="">' + <?php echo json_encode(t('admin_workflows.opt_select_template_first')); ?> + '</option>';
+    document.getElementById('ruleConditionValue').innerHTML = '<option value="">' + <?php echo json_encode(t('admin_workflows.opt_select_question_first')); ?> + '</option>';
     document.getElementById('ruleConditionValue').style.display = '';
     document.getElementById('ruleConditionValue').setAttribute('name', 'condition_value');
     document.getElementById('ruleConditionValueText').style.display = 'none';
@@ -503,12 +503,12 @@ function resetRuleModal() {
 
     var btn = document.getElementById('ruleSubmitBtn');
     btn.name = 'create_rule';
-    btn.textContent = 'Create Rule';
+    btn.textContent = <?php echo json_encode(t('admin_workflows.create_rule_submit')); ?>;
 }
 
 function editRule(dataStr) {
     var data = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
-    document.getElementById('ruleModalTitle').textContent = 'Edit Workflow Rule';
+    document.getElementById('ruleModalTitle').textContent = <?php echo json_encode(t('admin_workflows.modal_title_edit')); ?>;
     document.getElementById('ruleId').value = data.id;
     document.getElementById('ruleName').value = data.name;
     document.getElementById('ruleDescription').value = data.description || '';
@@ -543,7 +543,7 @@ function editRule(dataStr) {
 
     var btn = document.getElementById('ruleSubmitBtn');
     btn.name = 'update_rule';
-    btn.textContent = 'Update Rule';
+    btn.textContent = <?php echo json_encode(t('admin_workflows.update_rule_submit')); ?>;
 
     // Show modal
     document.getElementById('ruleModal').style.display = 'block';

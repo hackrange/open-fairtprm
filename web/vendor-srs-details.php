@@ -135,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
     $restoreScroll = intval($_POST['_scroll'] ?? 0);
 
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('vendor-srs-details.err_invalid_request');
     } elseif (isset($_POST['update_tier'])) {
         // Tier update -- changes how often this vendor gets rescored.
         // We log every tier change into the additional_information field
@@ -145,9 +145,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
         $oldTier = $vendor['vendor_tier'] ?? '';
 
         if (!in_array($newTier, ['', '1', '2', '3'])) {
-            $error = 'Invalid tier value.';
+            $error = t('vendor-srs-details.err_invalid_tier');
         } elseif (empty($justification)) {
-            $error = 'Justification is required when changing vendor tier.';
+            $error = t('vendor-srs-details.err_tier_justification_required');
         } else {
             // Build tier change log entry
             $currentDate = date('m/d/Y, h:i A');
@@ -180,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                     'old' => ['vendor_tier' => $oldTier],
                     'new' => ['vendor_tier' => $newTier, 'justification' => $justification]
                 ]);
-                $success = 'Vendor tier updated successfully.';
+                $success = t('vendor-srs-details.success_tier_updated');
 
                 // Refresh vendor data
                 $vendor = $db->fetchOne(
@@ -189,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                 );
             } catch (Exception $e) {
                 error_log('Failed to update vendor tier: ' . $e->getMessage());
-                $error = 'Failed to update vendor tier. Check the error log for details.';
+                $error = t('vendor-srs-details.err_tier_update_failed');
             }
         }
     } elseif (isset($_POST['update_vendor_name'])) {
@@ -197,7 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
         $newVendorName = trim($_POST['new_vendor_name'] ?? '');
 
         if (empty($newVendorName)) {
-            $error = 'Vendor name cannot be empty.';
+            $error = t('vendor-srs-details.err_vendor_name_empty');
         } else {
             try {
                 $oldName = $vendor['vendor_name'] ?? '';
@@ -223,7 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                     'old' => ['vendor_name' => $oldName],
                     'new' => ['vendor_name' => $newVendorName]
                 ]);
-                $success = 'Vendor name updated successfully.';
+                $success = t('vendor-srs-details.success_vendor_name_updated');
 
                 // Refresh vendor data
                 $vendor = $db->fetchOne(
@@ -232,7 +232,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                 );
             } catch (Exception $e) {
                 error_log('Failed to update vendor name: ' . $e->getMessage());
-                $error = 'Failed to update vendor name. Check the error log for details.';
+                $error = t('vendor-srs-details.err_vendor_name_update_failed');
             }
         }
     } elseif (isset($_POST['update_contact_info'])) {
@@ -242,7 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
         $newContactPhone = trim($_POST['new_contact_phone'] ?? '');
 
         if ($newContactEmail !== '' && !filter_var($newContactEmail, FILTER_VALIDATE_EMAIL)) {
-            $error = 'Please enter a valid email address.';
+            $error = t('vendor-srs-details.err_invalid_email');
         } else {
             try {
                 $db->update('vendor_onboarding_requests', [
@@ -266,7 +266,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                         'primary_contact_phone' => $newContactPhone,
                     ]
                 ]);
-                $success = 'Contact information updated successfully.';
+                $success = t('vendor-srs-details.success_contact_updated');
 
                 $vendor = $db->fetchOne(
                     'SELECT * FROM vendor_onboarding_requests WHERE id = :id',
@@ -274,7 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                 );
             } catch (Exception $e) {
                 error_log('Failed to update contact info: ' . $e->getMessage());
-                $error = 'Failed to update contact information.';
+                $error = t('vendor-srs-details.err_contact_update_failed');
             }
         }
     } elseif (isset($_POST['update_vendor_type'])) {
@@ -295,7 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
         ];
 
         if ($newVendorType !== '' && !in_array($newVendorType, $validTypes)) {
-            $error = 'Invalid vendor type.';
+            $error = t('vendor-srs-details.err_invalid_vendor_type');
         } else {
             // Update vendor type
             try {
@@ -307,7 +307,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                     'old' => ['vendor_type' => $vendor['vendor_type'] ?? ''],
                     'new' => ['vendor_type' => $newVendorType]
                 ]);
-                $success = 'Vendor type updated successfully.';
+                $success = t('vendor-srs-details.success_vendor_type_updated');
 
                 // Refresh vendor data
                 $vendor = $db->fetchOne(
@@ -316,7 +316,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                 );
             } catch (Exception $e) {
                 error_log('Failed to update vendor type: ' . $e->getMessage());
-                $error = 'Failed to update vendor type. Check the error log for details.';
+                $error = t('vendor-srs-details.err_vendor_type_update_failed');
             }
         }
     } elseif (isset($_POST['update_status'])) {
@@ -326,7 +326,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
         $validStatuses = ['draft', 'submitted', 'in_review', 'approved', 'rejected', 'inactive'];
 
         if (!in_array($newStatus, $validStatuses)) {
-            $error = 'Invalid status value.';
+            $error = t('vendor-srs-details.err_invalid_status');
         } else {
             // Update vendor status
             try {
@@ -338,7 +338,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                     'old' => ['status' => $vendor['status'] ?? ''],
                     'new' => ['status' => $newStatus]
                 ]);
-                $success = 'Vendor status updated successfully.';
+                $success = t('vendor-srs-details.success_status_updated');
 
                 // Refresh vendor data
                 $vendor = $db->fetchOne(
@@ -347,7 +347,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                 );
             } catch (Exception $e) {
                 error_log('Failed to update vendor status: ' . $e->getMessage());
-                $error = 'Failed to update vendor status. Check the error log for details.';
+                $error = t('vendor-srs-details.err_status_update_failed');
             }
         }
     } elseif (isset($_POST['update_stakeholder'])) {
@@ -356,7 +356,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
         $newStakeholderId = intval($_POST['stakeholder_user_id'] ?? 0);
 
         if ($newStakeholderId <= 0) {
-            $error = 'Please select a valid stakeholder.';
+            $error = t('vendor-srs-details.err_select_stakeholder');
         } else {
             // Verify the user exists
             $userExists = $db->fetchOne(
@@ -365,7 +365,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
             );
 
             if (!$userExists) {
-                $error = 'Selected user does not exist.';
+                $error = t('vendor-srs-details.err_user_not_exist');
             } else {
                 try {
                     // Remove existing stakeholder assignments (role = 'stakeholder')
@@ -386,7 +386,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                     $auth->audit($user['id'], 'vendor_stakeholder_update', 'vendor_onboarding_stakeholders', $vendorId, [
                         'new' => ['stakeholder_user_id' => $newStakeholderId]
                     ]);
-                    $success = 'Stakeholder updated successfully.';
+                    $success = t('vendor-srs-details.success_stakeholder_updated');
 
                     // Refresh vendor data
                     $vendor = $db->fetchOne(
@@ -395,7 +395,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                     );
                 } catch (Exception $e) {
                     error_log('Failed to update stakeholder: ' . $e->getMessage());
-                    $error = 'Failed to update stakeholder. Check the error log for details.';
+                    $error = t('vendor-srs-details.err_stakeholder_update_failed');
                 }
             }
         }
@@ -404,7 +404,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
         // Assessments use ON DELETE SET NULL (not CASCADE), so we must explicitly
         // delete them before removing the vendor record.
         if (!$canDelete) {
-            $error = 'You do not have permission to delete vendors.';
+            $error = t('vendor-srs-details.err_no_delete_permission');
         } else {
             try {
                 $auth->audit($user['id'], 'vendor_delete', 'vendor_onboarding_requests', $vendorId, [
@@ -462,12 +462,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                 redirect('vendor-srs-list.php');
             } catch (Exception $e) {
                 error_log('Failed to delete vendor: ' . $e->getMessage());
-                $error = 'Failed to delete vendor. Please try again.';
+                $error = t('vendor-srs-details.err_delete_failed');
             }
         }
     } elseif (isset($_POST['clear_score_history'])) {
         if (!$canDelete) {
-            $error = 'You do not have permission to clear score history.';
+            $error = t('vendor-srs-details.err_no_clear_permission');
         } else {
             try {
                 // Delete UpGuard SRS risks, then scores
@@ -500,12 +500,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                     [':id' => $vendorId]
                 );
 
-                $success = 'All score history has been cleared for this vendor.';
+                $success = t('vendor-srs-details.success_history_cleared');
                 // Reload vendor data to reflect cleared scores
                 $vendor = $db->fetchOne('SELECT * FROM vendor_onboarding_requests WHERE id = :id', [':id' => $vendorId]);
             } catch (Exception $e) {
                 error_log('Failed to clear score history: ' . $e->getMessage());
-                $error = 'Failed to clear score history. Please try again.';
+                $error = t('vendor-srs-details.err_clear_history_failed');
             }
         }
     } elseif (isset($_POST['cancel_rescore'])) {
@@ -516,19 +516,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                 'UPDATE vendor_onboarding_requests SET rescore_status = NULL, rescore_started_at = NULL, rescore_result = NULL WHERE id = ? AND rescore_status = ?',
                 [$vendorId, $rs]
             );
-            $success = 'Pending scan cancelled.';
+            $success = t('vendor-srs-details.success_scan_cancelled');
             // Refresh vendor data
             $vendor = $db->fetchOne('SELECT * FROM vendor_onboarding_requests WHERE id = :id', [':id' => $vendorId]);
         } else {
-            $error = 'Cannot cancel: scoring is already in progress.';
+            $error = t('vendor-srs-details.err_cannot_cancel');
         }
     } elseif (isset($_POST['rescore']) || isset($_POST['rescore_upguard']) || isset($_POST['rescore_shodan'])) {
         if (($vendor['status'] ?? '') === 'inactive') {
-            $error = 'Cannot score an inactive vendor. Re-activate the vendor first.';
+            $error = t('vendor-srs-details.err_inactive_vendor');
         } elseif (empty($vendor['vendor_domain'])) {
-            $error = 'Cannot score vendor: No domain specified.';
+            $error = t('vendor-srs-details.err_no_domain');
         } elseif (!$srsService->isAvailable() && !$shodanAvailable) {
-            $error = 'No SRS integration is configured. Please configure UpGuard or Shodan in Administration > Integrations.';
+            $error = t('vendor-srs-details.err_no_integration');
         } else {
             $scoreType = 'all';
             if (isset($_POST['rescore_upguard'])) $scoreType = 'upguard';
@@ -632,9 +632,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
         $userName = $user['full_name'] ?? $user['username'] ?? 'Unknown';
 
         if (empty($signalName) || empty($category) || empty($subdomain)) {
-            $error = 'Missing required waiver information.';
+            $error = t('vendor-srs-details.err_missing_waiver_info');
         } elseif (empty($reason)) {
-            $error = 'A justification reason is required to waive a risk.';
+            $error = t('vendor-srs-details.err_waiver_reason_required');
         } else {
             $result = $shodanService->addWaiver($vendorId, $signalName, $category, $subdomain, $label, $reason, $userName);
             if ($result !== false) {
@@ -643,9 +643,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                 ]);
                 $shodanService->recalculateScoreFromFindings($vendorId);
                 $vendor = $db->fetchOne('SELECT * FROM vendor_onboarding_requests WHERE id = :id', [':id' => $vendorId]);
-                $success = 'Risk waived successfully. Score has been recalculated.';
+                $success = t('vendor-srs-details.success_risk_waived');
             } else {
-                $error = 'Failed to waive risk. Please try again.';
+                $error = t('vendor-srs-details.err_waive_failed');
             }
         }
     } elseif (isset($_POST['unwaive_risk'])) {
@@ -660,9 +660,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                 $auth->audit($user['id'], 'vendor_unwaive_risk', 'vendor_shodan_waivers', $waiverId);
                 $shodanService->recalculateScoreFromFindings($vendorId);
                 $vendor = $db->fetchOne('SELECT * FROM vendor_onboarding_requests WHERE id = :id', [':id' => $vendorId]);
-                $success = 'Waiver removed. Score has been recalculated.';
+                $success = t('vendor-srs-details.success_waiver_removed');
             } else {
-                $error = 'Failed to remove waiver.';
+                $error = t('vendor-srs-details.err_remove_waiver_failed');
             }
         } elseif ($waiverId > 0) {
             $error = 'Failed to remove waiver.';
@@ -698,7 +698,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                 }
             }
         } else {
-            $error = 'Invalid IP address for rescan.';
+            $error = t('vendor-srs-details.err_invalid_ip');
         }
     } elseif (isset($_POST['rescan_all_ips'])) {
         // Request Shodan to rescan all IPs in a single batch API call,
@@ -709,13 +709,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
             $allIps = json_decode($latestScore['ip_addresses'], true) ?: [];
         }
         if (empty($allIps)) {
-            $error = 'No IP addresses found for this vendor. Score the vendor first.';
+            $error = t('vendor-srs-details.err_no_ips');
         } else {
             $validIps = array_values(array_filter($allIps, function ($ip) {
                 return filter_var($ip, FILTER_VALIDATE_IP);
             }));
             if (empty($validIps)) {
-                $error = 'No valid IP addresses found for this vendor.';
+                $error = t('vendor-srs-details.err_no_valid_ips');
             } else {
                 $cooldownRow = $db->fetchOne(
                     'SELECT config_value FROM app_config WHERE config_key = ?',
@@ -770,7 +770,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
     } elseif (isset($_POST['exclude_subdomain'])) {
         $excludeDomain = strtolower(trim($_POST['exclude_subdomain'] ?? ''));
         if (empty($excludeDomain)) {
-            $error = 'No subdomain specified for exclusion.';
+            $error = t('vendor-srs-details.err_no_subdomain');
         } else {
             // Fetch current excluded domains list
             $currentExcluded = $db->fetchOne(
@@ -1276,7 +1276,7 @@ $csrfToken = $security->generateCSRFToken();
             <div class="user-menu">
                 <?php if ($acl->hasGroup('administrator')): ?>
                     <a href="admin.php"><?php echo e(t('chrome.admin')); ?></a>
-                    <a href="admin.php?section=srs" class="btn-configure">Configure SRS</a>
+                    <a href="admin.php?section=srs" class="btn-configure"><?php echo e(t('vendor-srs-details.configure_srs')); ?></a>
                 <?php endif; ?>
                 <a href="profile.php"><?php echo e(t('chrome.profile')); ?></a>
                 <a href="logout.php"><?php echo e(t('chrome.logout')); ?></a>
@@ -1307,7 +1307,7 @@ $csrfToken = $security->generateCSRFToken();
                 </div>
                 <?php if (!empty($vendor['last_srs_score_at'])): ?>
                 <div style="color: #666; font-size: 13px; margin-top: 4px;">
-                    Last scored: <?php echo date('M j, Y g:i A', strtotime($vendor['last_srs_score_at'])); ?>
+                    <?php echo e(t('vendor-srs-details.last_scored_prefix')); ?> <?php echo date('M j, Y g:i A', strtotime($vendor['last_srs_score_at'])); ?>
                 </div>
                 <?php endif; ?>
             </div>
@@ -1485,29 +1485,29 @@ $csrfToken = $security->generateCSRFToken();
                         <span class="score-value"><?php echo displayUpguardScore($score, $upguardDisplayMode, $upguardMaxScore); ?></span>
                         <span class="score-grade <?php echo $gradeClass; ?>"><?php echo $grade; ?></span>
                         <div class="score-label"><?php echo $upguardDisplayMode === 'percentage' ? 'percentage score' : 'out of ' . e($upguardMaxScore); ?></div>
-                        <div class="score-date">Scored on <?php echo date('M j, Y g:i A', strtotime($latestScore['scored_at'])); ?></div>
+                        <div class="score-date"><?php echo e(t('vendor-srs-details.scored_on_prefix')); ?> <?php echo date('M j, Y g:i A', strtotime($latestScore['scored_at'])); ?></div>
                     </div>
 
                     <div class="risk-counts">
                         <div class="risk-count critical" style="cursor: pointer;" data-action="scrollToSection" data-arg="upguard-risks" title="Jump to Identified Risks">
                             <div class="count"><?php echo intval($latestScore['critical_risks'] ?? 0); ?></div>
-                            <div class="label">Critical</div>
+                            <div class="label"><?php echo e(t('vendor-srs-details.col_critical')); ?></div>
                         </div>
                         <div class="risk-count high" style="cursor: pointer;" data-action="scrollToSection" data-arg="upguard-risks" title="Jump to Identified Risks">
                             <div class="count"><?php echo intval($latestScore['high_risks']); ?></div>
-                            <div class="label">High</div>
+                            <div class="label"><?php echo e(t('vendor-srs-details.col_high')); ?></div>
                         </div>
                         <div class="risk-count medium" style="cursor: pointer;" data-action="scrollToSection" data-arg="upguard-risks" title="Jump to Identified Risks">
                             <div class="count"><?php echo intval($latestScore['medium_risks']); ?></div>
-                            <div class="label">Medium</div>
+                            <div class="label"><?php echo e(t('vendor-srs-details.col_medium')); ?></div>
                         </div>
                         <div class="risk-count low" style="cursor: pointer;" data-action="scrollToSection" data-arg="upguard-risks" title="Jump to Identified Risks">
                             <div class="count"><?php echo intval($latestScore['low_risks']); ?></div>
-                            <div class="label">Low</div>
+                            <div class="label"><?php echo e(t('vendor-srs-details.col_low')); ?></div>
                         </div>
                         <div class="risk-count info" style="cursor: pointer;" data-action="scrollToSection" data-arg="upguard-risks" title="Jump to Identified Risks">
                             <div class="count"><?php echo intval($latestScore['info_risks']); ?></div>
-                            <div class="label">Info</div>
+                            <div class="label"><?php echo e(t('vendor-srs-details.col_info')); ?></div>
                         </div>
                     </div>
 
@@ -1576,7 +1576,7 @@ $csrfToken = $security->generateCSRFToken();
                         $shodanGradeClass = 'grade-' . strtolower($shodanGrade);
                         $shodanTrafficLight = $shodanLatestScore['traffic_light'] ?? null;
                         $tlColors = ['green' => '#16a34a', 'yellow' => '#eab308', 'red' => '#dc2626'];
-                        $tlLabels = ['green' => 'Acceptable', 'yellow' => 'Needs Improvement', 'red' => 'Unacceptable'];
+                        $tlLabels = ['green' => t('vendor-srs-details.tl_acceptable'), 'yellow' => t('vendor-srs-details.tl_needs_improvement'), 'red' => t('vendor-srs-details.tl_unacceptable')];
                         ?>
                         <span class="score-value"><?php echo $shodanScore; ?>%</span>
                         <span class="score-grade <?php echo $shodanGradeClass; ?>"><?php echo $shodanGrade; ?></span>
@@ -1584,7 +1584,7 @@ $csrfToken = $security->generateCSRFToken();
                         <span style="display: inline-block; width: 18px; height: 18px; border-radius: 50%; background: <?php echo $tlColors[$shodanTrafficLight] ?? '#9ca3af'; ?>; vertical-align: middle; margin-left: 8px; box-shadow: 0 0 6px <?php echo $tlColors[$shodanTrafficLight] ?? '#9ca3af'; ?>;" title="Risk: <?php echo e($tlLabels[$shodanTrafficLight] ?? 'Unknown'); ?>"></span>
                         <?php endif; ?>
                         <div class="score-label">percentage score (<?php echo e($shodanName); ?>)</div>
-                        <div class="score-date">Scored on <?php echo date('M j, Y g:i A', strtotime($shodanLatestScore['scored_at'])); ?></div>
+                        <div class="score-date"><?php echo e(t('vendor-srs-details.scored_on_prefix')); ?> <?php echo date('M j, Y g:i A', strtotime($shodanLatestScore['scored_at'])); ?></div>
                     </div>
 
                     <?php
@@ -1643,43 +1643,43 @@ $csrfToken = $security->generateCSRFToken();
                         ?>
                         <div style="text-align: center; padding: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; cursor: pointer;" data-action="scrollToSection" data-arg="shodan-signals" title="Jump to Security Signals">
                             <div style="font-size: 24px; font-weight: 700; color: #16a34a;"><?php echo $shodanPositive; ?></div>
-                            <div style="font-size: 11px; color: #666; margin-top: 4px;">Positive Signals</div>
+                            <div style="font-size: 11px; color: #666; margin-top: 4px;"><?php echo e(t('vendor-srs-details.positive_signals')); ?></div>
                         </div>
                         <div style="text-align: center; padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; cursor: pointer;" data-action="scrollToSection" data-arg="shodan-signals" title="Jump to Security Signals">
                             <div style="font-size: 24px; font-weight: 700; color: #dc2626;"><?php echo $shodanNegative; ?></div>
-                            <div style="font-size: 11px; color: #666; margin-top: 4px;">Negative Signals</div>
+                            <div style="font-size: 11px; color: #666; margin-top: 4px;"><?php echo e(t('vendor-srs-details.negative_signals')); ?></div>
                         </div>
                         <div style="text-align: center; padding: 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; cursor: pointer;" data-action="scrollToSection" data-arg="shodan-findings" title="Jump to Raw Findings">
                             <div style="font-size: 24px; font-weight: 700; color: #0284c7;"><?php echo intval($shodanLatestScore['open_ports_count']); ?></div>
-                            <div style="font-size: 11px; color: #666; margin-top: 4px;">Open Ports</div>
+                            <div style="font-size: 11px; color: #666; margin-top: 4px;"><?php echo e(t('vendor-srs-details.col_open_ports')); ?></div>
                         </div>
                         <?php if (!empty($shodanWaivers)): ?>
                         <div style="text-align: center; padding: 10px; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; cursor: pointer;" data-action="scrollToSection" data-arg="shodan-signals" title="Jump to Security Signals">
                             <div style="font-size: 24px; font-weight: 700; color: #4f46e5;"><?php echo count($shodanWaivers); ?></div>
-                            <div style="font-size: 11px; color: #666; margin-top: 4px;">Waived Risks</div>
+                            <div style="font-size: 11px; color: #666; margin-top: 4px;"><?php echo e(t('vendor-srs-details.waived_risks_label')); ?></div>
                         </div>
                         <?php else: ?>
                         <div style="text-align: center; padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; cursor: pointer;" data-action="scrollToSection" data-arg="cat_section_vuln_exposure" title="Jump to Vulnerability Exposure">
                             <div style="font-size: 24px; font-weight: 700; color: #dc2626;"><?php echo intval($shodanLatestScore['vuln_count']); ?></div>
-                            <div style="font-size: 11px; color: #666; margin-top: 4px;">Total CVEs</div>
+                            <div style="font-size: 11px; color: #666; margin-top: 4px;"><?php echo e(t('vendor-srs-details.total_cves_label')); ?></div>
                         </div>
                         <?php endif; ?>
                         <?php else: ?>
                         <div style="text-align: center; padding: 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; cursor: pointer;" data-action="scrollToSection" data-arg="shodan-findings" title="Jump to Findings">
                             <div style="font-size: 24px; font-weight: 700; color: #0284c7;"><?php echo intval($shodanLatestScore['open_ports_count']); ?></div>
-                            <div style="font-size: 11px; color: #666; margin-top: 4px;">Open Ports</div>
+                            <div style="font-size: 11px; color: #666; margin-top: 4px;"><?php echo e(t('vendor-srs-details.col_open_ports')); ?></div>
                         </div>
                         <div style="text-align: center; padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; cursor: pointer;" data-action="scrollToSection" data-arg="shodan-findings" title="Jump to Findings">
                             <div style="font-size: 24px; font-weight: 700; color: #dc2626;"><?php echo intval($shodanLatestScore['critical_vulns']); ?></div>
-                            <div style="font-size: 11px; color: #666; margin-top: 4px;">Critical CVEs</div>
+                            <div style="font-size: 11px; color: #666; margin-top: 4px;"><?php echo e(t('vendor-srs-details.critical_cves_label')); ?></div>
                         </div>
                         <div style="text-align: center; padding: 10px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; cursor: pointer;" data-action="scrollToSection" data-arg="shodan-findings" title="Jump to Findings">
                             <div style="font-size: 24px; font-weight: 700; color: #ea580c;"><?php echo intval($shodanLatestScore['high_vulns']); ?></div>
-                            <div style="font-size: 11px; color: #666; margin-top: 4px;">High CVEs</div>
+                            <div style="font-size: 11px; color: #666; margin-top: 4px;"><?php echo e(t('vendor-srs-details.high_cves_label')); ?></div>
                         </div>
                         <div style="text-align: center; padding: 10px; background: #fefce8; border: 1px solid #fef08a; border-radius: 8px; cursor: pointer;" data-action="scrollToSection" data-arg="shodan-findings" title="Jump to Findings">
                             <div style="font-size: 24px; font-weight: 700; color: #ca8a04;"><?php echo intval($shodanLatestScore['medium_vulns'] + $shodanLatestScore['low_vulns']); ?></div>
-                            <div style="font-size: 11px; color: #666; margin-top: 4px;">Med/Low CVEs</div>
+                            <div style="font-size: 11px; color: #666; margin-top: 4px;"><?php echo e(t('vendor-srs-details.medlow_cves_label')); ?></div>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -1697,7 +1697,7 @@ $csrfToken = $security->generateCSRFToken();
                     <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
                         <span style="font-size: 11px; color: #666; font-weight: 600; cursor: pointer; user-select: none;" data-toggle="shodanSubsList" data-toggle-arrow="shodanSubsArrow">
                             <span id="shodanSubsArrow" style="font-size: 9px; margin-right: 3px; display: inline-block;">&#9654;</span>
-                            Subdomains Scanned (<?php echo count($shodanSubdomains); ?>)
+                            <?php echo e(t('vendor-srs-details.subdomains_scanned_label')); ?> (<?php echo count($shodanSubdomains); ?>)
                         </span>
                         <div id="shodanSubsList" style="display: none; margin-top: 6px; font-size: 12px; color: #333; font-family: monospace; padding: 6px 8px; background: #f9fafb; border-radius: 4px; line-height: 1.8;">
                             <?php echo e(implode(', ', $shodanSubdomains)); ?>
@@ -1715,7 +1715,7 @@ $csrfToken = $security->generateCSRFToken();
                     <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0;">
                         <span style="font-size: 11px; color: #666; font-weight: 600; cursor: pointer; user-select: none;" data-toggle="shodanIPsList" data-toggle-arrow="shodanIPsArrow">
                             <span id="shodanIPsArrow" style="font-size: 9px; margin-right: 3px; display: inline-block;">&#9654;</span>
-                            IPs Scanned (<?php echo count($shodanIPs); ?>)
+                            <?php echo e(t('vendor-srs-details.ips_scanned_label')); ?> (<?php echo count($shodanIPs); ?>)
                         </span>
                         <div id="shodanIPsList" style="display: none; margin-top: 6px; font-size: 12px; color: #333; font-family: monospace; padding: 6px 8px; background: #f9fafb; border-radius: 4px; line-height: 1.8;">
                             <?php echo e(implode(', ', $shodanIPs)); ?>
@@ -1788,7 +1788,7 @@ $csrfToken = $security->generateCSRFToken();
                         <span style="font-size: 36px; font-weight: 700; color: #1f2937;"><?php echo $combScore; ?>%</span>
                         <span style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; font-weight: 700; font-size: 18px; background: <?php echo $combBg; ?>; color: <?php echo $combColor; ?>;"><?php echo $combGrade; ?></span>
                     </div>
-                    <div style="font-size: 12px; color: #6b7280;">Average of: <?php echo e(implode(' + ', $sources)); ?></div>
+                    <div style="font-size: 12px; color: #6b7280;"><?php echo e(t('vendor-srs-details.average_of_prefix')); ?> <?php echo e(implode(' + ', $sources)); ?></div>
                 </div>
                 <?php endif; ?>
 
@@ -2075,7 +2075,7 @@ $csrfToken = $security->generateCSRFToken();
             <?php if (!empty($vendorSubdomains)): ?>
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" data-action="toggleVendorDomains">
-                    <h3 style="margin: 0;">Vendor Domains (<span id="vdCountDisplay"><?php echo count($vendorSubdomains); ?></span>)</h3>
+                    <h3 style="margin: 0;"><?php echo e(t('vendor-srs-details.vendor_domains_heading')); ?> (<span id="vdCountDisplay"><?php echo count($vendorSubdomains); ?></span>)</h3>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <button type="button" data-action="exportVendorDomainsCSV" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;"><?php echo e(t('vendor-srs-details.export_csv')); ?></button>
                         <span id="vendorDomainsArrow" style="color: #9ca3af; font-size: 14px; transition: transform 0.2s;">&#9660;</span>
@@ -2090,7 +2090,7 @@ $csrfToken = $security->generateCSRFToken();
                             <option value="0"><?php echo e(t('vendor-srs-details.inactive')); ?></option>
                         </select>
                         <div style="display: flex; gap: 4px; align-items: center;">
-                            <span style="font-size: 11px; color: #6b7280; margin-right: 2px;">Grade:</span>
+                            <span style="font-size: 11px; color: #6b7280; margin-right: 2px;"><?php echo e(t('vendor-srs-details.grade_label')); ?></span>
                             <button type="button" class="vd-grade-btn" data-grade="" style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid var(--theme-header-color,#2563eb);background:var(--theme-header-color,#2563eb);color:white;cursor:pointer;"><?php echo e(t('vendor-srs-details.all')); ?></button>
                             <button type="button" class="vd-grade-btn" data-grade="A" style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid #166534;background:transparent;color:#166534;cursor:pointer;">A</button>
                             <button type="button" class="vd-grade-btn" data-grade="B" style="padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid #1e40af;background:transparent;color:#1e40af;cursor:pointer;">B</button>
@@ -2313,9 +2313,9 @@ $csrfToken = $security->generateCSRFToken();
             <?php if (!empty($vendorTechnologies)): ?>
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" data-action="toggleVendorTech">
-                    <h3 style="margin: 0;">4th Party Technologies (<span id="vtCountDisplay"><?php echo count($vendorTechnologies); ?></span>)</h3>
+                    <h3 style="margin: 0;"><?php echo e(t('vendor-srs-details.fourth_party_tech_heading')); ?> (<span id="vtCountDisplay"><?php echo count($vendorTechnologies); ?></span>)</h3>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <a href="fourth-party-risk.php" style="padding: 4px 12px; background: var(--theme-header-color, #2563eb); color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; text-decoration: none;">4th Party Risk</a>
+                        <a href="fourth-party-risk.php" style="padding: 4px 12px; background: var(--theme-header-color, #2563eb); color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; text-decoration: none;"><?php echo e(t('vendor-srs-details.fourth_party_risk_link')); ?></a>
                         <button type="button" data-action="exportVendorTechCSV" style="padding: 4px 12px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;"><?php echo e(t('vendor-srs-details.export_csv')); ?></button>
                         <span id="vendorTechArrow" style="color: #9ca3af; font-size: 14px; transition: transform 0.2s;">&#9660;</span>
                     </div>
@@ -2739,7 +2739,7 @@ $csrfToken = $security->generateCSRFToken();
                                 <td colspan="6" style="padding: 0;">
                                     <div style="margin: 0 12px 8px 32px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px;">
                                         <?php if ($hasProof): ?>
-                                        <div style="font-weight: 600; color: #475569; margin-bottom: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Evidence from <?php echo e($shodanName); ?></div>
+                                        <div style="font-weight: 600; color: #475569; margin-bottom: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;"><?php echo e(t('vendor-srs-details.evidence_from')); ?> <?php echo e($shodanName); ?></div>
                                         <table style="width: 100%; font-size: 11px; border-collapse: collapse; margin: 0;">
                                             <?php foreach ($proofData as $proofLabel => $proofValue): ?>
                                             <tr>
@@ -2759,9 +2759,9 @@ $csrfToken = $security->generateCSRFToken();
                                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                                 <input type="hidden" name="rescan_ip" value="<?php echo e($findingIp); ?>">
                                                 <button type="submit" style="padding: 4px 10px; background: #0891b2; color: white; border: none; border-radius: 4px; font-size: 11px; font-weight: 500; cursor: pointer;" data-confirm="Request Shodan to rescan <?php echo e($findingIp); ?>? This uses scan credits." title="Request fresh scan from Shodan">
-                                                    &#8635; Request Rescan
+                                                    &#8635; <?php echo e(t('vendor-srs-details.request_rescan')); ?>
                                                 </button>
-                                                <span style="font-size: 10px; color: #6b7280; margin-left: 6px;">Stale data? Request Shodan to rescan this IP (uses scan credits)</span>
+                                                <span style="font-size: 10px; color: #6b7280; margin-left: 6px;"><?php echo e(t('vendor-srs-details.stale_data_note')); ?></span>
                                             </form>
                                         </div>
                                         <?php endif; ?>
@@ -2921,7 +2921,7 @@ $csrfToken = $security->generateCSRFToken();
                                     style="padding: 4px 12px; background: #0891b2; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;"
                                     data-confirm="Request Shodan to rescan <?php echo count($shodanIPs); ?> IP<?php echo count($shodanIPs) !== 1 ? 's' : ''; ?>? This uses scan credits."
                                     title="Request Shodan to rescan all <?php echo count($shodanIPs); ?> IP(s) — uses scan credits">
-                                &#8635; Request Rescan
+                                &#8635; <?php echo e(t('vendor-srs-details.request_rescan')); ?>
                             </button>
                         </form>
                         <?php endif; ?>
@@ -3328,7 +3328,7 @@ $csrfToken = $security->generateCSRFToken();
                 }, $shodanScoreHistory))); ?>;
                 const shTotalPages = Math.ceil(shHistData.length / perPage);
                 const tlColors = {green:'#16a34a', yellow:'#eab308', red:'#dc2626'};
-                const riskLabels = {green:'Acceptable', yellow:'Needs Improvement', red:'Unacceptable'};
+                const riskLabels = {green:<?php echo json_encode(t('vendor-srs-details.tl_acceptable')); ?>, yellow:<?php echo json_encode(t('vendor-srs-details.tl_needs_improvement')); ?>, red:<?php echo json_encode(t('vendor-srs-details.tl_unacceptable')); ?>};
                 function renderShHist(page) {
                     const start = (page - 1) * perPage;
                     const slice = shHistData.slice(start, start + perPage);
@@ -3790,7 +3790,7 @@ $csrfToken = $security->generateCSRFToken();
                     });
 
                     datasets.push({
-                        label: 'Avg Score (%)',
+                        label: <?php echo json_encode(t('vendor-srs-details.chart_avg_score')); ?>,
                         data: avgData,
                         borderColor: '#8b5cf6',
                         backgroundColor: '#8b5cf620',
@@ -3840,7 +3840,7 @@ $csrfToken = $security->generateCSRFToken();
                             x: {
                                 title: {
                                     display: true,
-                                    text: 'Date'
+                                    text: <?php echo json_encode(t('vendor-srs-details.chart_axis_date')); ?>
                                 }
                             }
                         },
@@ -4123,7 +4123,7 @@ function openExecReport(aiSummary, w) {
     let tlHtml = '';
     if (hasSh && shTrafficLight) {
         const tlColors = {green:'#16a34a', yellow:'#eab308', red:'#dc2626'};
-        const execRiskLabels = {green:'Acceptable', yellow:'Needs Improvement', red:'Unacceptable'};
+        const execRiskLabels = {green:<?php echo json_encode(t('vendor-srs-details.tl_acceptable')); ?>, yellow:<?php echo json_encode(t('vendor-srs-details.tl_needs_improvement')); ?>, red:<?php echo json_encode(t('vendor-srs-details.tl_unacceptable')); ?>};
         const c = tlColors[shTrafficLight] || '#9ca3af';
         const rLabel = execRiskLabels[shTrafficLight] || shTrafficLight;
         tlHtml = '<span style="display:inline-flex;align-items:center;gap:5px;margin-left:10px;">'

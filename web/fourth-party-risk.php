@@ -53,7 +53,7 @@ $techTableExists = $shodanService->hasTechnologiesTable();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['waive_single_cve', 'unwaive_single_cve'])) {
     header('Content-Type: application/json');
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
+        echo json_encode(['success' => false, 'error' => t('fourth-party-risk.api_csrf_invalid')]);
         exit;
     }
     $vid = intval($_POST['vendor_id'] ?? 0);
@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 
     if ($_POST['action'] === 'waive_single_cve') {
         if (!$vid || !preg_match('/^CVE-\d{4}-\d+$/', $cve)) {
-            echo json_encode(['success' => false, 'error' => 'Invalid vendor or CVE ID']);
+            echo json_encode(['success' => false, 'error' => t('fourth-party-risk.api_invalid_vendor_cve')]);
             exit;
         }
         $result = $shodanService->addCveWaivers($vid, [$cve], '', $user['username']);
@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
     } else {
         // unwaive — find and remove the waiver
         if (!$vid || empty($cve)) {
-            echo json_encode(['success' => false, 'error' => 'Invalid vendor or CVE ID']);
+            echo json_encode(['success' => false, 'error' => t('fourth-party-risk.api_invalid_vendor_cve')]);
             exit;
         }
         $waiver = $db->fetchOne(
@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
             $shodanService->recalculateScoreFromFindings($vid);
             echo json_encode(['success' => true, 'removed' => true]);
         } else {
-            echo json_encode(['success' => false, 'error' => 'Waiver not found']);
+            echo json_encode(['success' => false, 'error' => t('fourth-party-risk.api_waiver_not_found')]);
         }
     }
     exit;
@@ -93,16 +93,16 @@ $massWaiveMessage = '';
 $massWaiveError = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'mass_waive_cves') {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $massWaiveError = 'Invalid CSRF token. Please try again.';
+        $massWaiveError = t('fourth-party-risk.csrf_invalid');
     } else {
         $waiveVendorId = intval($_POST['vendor_id'] ?? 0);
         $waiveCveText = trim($_POST['cve_ids'] ?? '');
         $waiveReason = trim($_POST['reason'] ?? '');
 
         if (!$waiveVendorId) {
-            $massWaiveError = 'Please select a vendor.';
+            $massWaiveError = t('fourth-party-risk.select_vendor_error');
         } elseif (empty($waiveCveText)) {
-            $massWaiveError = 'Please enter at least one CVE ID.';
+            $massWaiveError = t('fourth-party-risk.enter_cve_error');
         } else {
             // Parse CVE IDs from textarea (one per line, or comma-separated)
             // Supports exact IDs (CVE-2024-38474) and wildcard prefixes (CVE-2007-*, CVE-2007-)
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $cveIds = array_unique($cveIds);
 
             if (empty($cveIds)) {
-                $massWaiveError = 'No matching CVE IDs found. Use exact IDs (CVE-2024-38474) or wildcards (CVE-2007-*)';
+                $massWaiveError = t('fourth-party-risk.no_matching_cve_error');
             } else {
                 $result = $shodanService->addCveWaivers($waiveVendorId, $cveIds, $waiveReason, $user['username']);
 
@@ -163,7 +163,7 @@ $bulkAssessmentMessage = '';
 $bulkAssessmentError = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'bulk_assign_assessment' && !$isAuditor) {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $bulkAssessmentError = 'Invalid CSRF token. Please try again.';
+        $bulkAssessmentError = t('fourth-party-risk.csrf_invalid');
     } else {
         $assessmentService = new VendorAssessmentService();
         $vendorIdsJson = $_POST['vendor_ids'] ?? '[]';
@@ -173,11 +173,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         if ($expiresInDays < 1) $expiresInDays = 30;
 
         if (empty($vendorIds) || !is_array($vendorIds)) {
-            $bulkAssessmentError = 'No vendors selected.';
+            $bulkAssessmentError = t('fourth-party-risk.no_vendors_selected_error');
         } elseif (!$templateId) {
-            $bulkAssessmentError = 'Please select an assessment template.';
+            $bulkAssessmentError = t('fourth-party-risk.select_template_error');
         } elseif (!$assessmentService->getTemplate($templateId)) {
-            $bulkAssessmentError = 'Invalid assessment template.';
+            $bulkAssessmentError = t('fourth-party-risk.invalid_template_error');
         } else {
             $created = 0;
             $emailed = 0;
@@ -622,7 +622,7 @@ function renderCveBadges($cvesRaw): string {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title><?php echo $searchMode === 'cve' ? 'CVE Search' : '4th Party Risk'; ?> - TPRM</title>
+    <title><?php echo $searchMode === 'cve' ? e(t('fourth-party-risk.cve_search')) : e(t('fourth-party-risk.page_title')); ?> - TPRM</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="app/images/favicon.ico" type="image/x-icon">
@@ -814,7 +814,7 @@ function renderCveBadges($cvesRaw): string {
                             </form>
                         </div>
                     </div>
-                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #9ca3af;">Enter a CVE ID (e.g. CVE-2024-38474) to find affected vendors, or search by vendor name or domain to see all CVEs for that vendor. Results show affected hosts and which scanning source (<?php echo e($shodanDisplayName); ?> / <?php echo e($upguardDisplayName); ?>) detected activity.</p>
+                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #9ca3af;"><?php echo e(t('fourth-party-risk.cve_search_source_note_prefix')); ?><?php echo e($shodanDisplayName); ?> / <?php echo e($upguardDisplayName); ?><?php echo e(t('fourth-party-risk.cve_search_source_note_suffix')); ?></p>
                 </div>
 
                 <?php elseif ($searchMode === 'subprocessors'): ?>
@@ -992,7 +992,7 @@ function renderCveBadges($cvesRaw): string {
                 <!-- Vendor Technology Results -->
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3 style="margin: 0;">Technologies for &ldquo;<?php echo e($searchQuery); ?>&rdquo; (<?php echo $totalResults; ?>)</h3>
+                        <h3 style="margin: 0;"><?php echo e(t('fourth-party-risk.results_technologies_for')); ?> &ldquo;<?php echo e($searchQuery); ?>&rdquo; (<?php echo $totalResults; ?>)</h3>
                         <a href="?export=csv&mode=vendor&q=<?php echo urlencode($searchQuery); ?>" style="padding: 6px 14px; background: #6b7280; color: white; border-radius: 6px; text-decoration: none; font-size: 12px;"><?php echo e(t('fourth-party-risk.export_csv')); ?></a>
                     </div>
                     <div style="margin-bottom: 12px;">
@@ -1058,7 +1058,7 @@ function renderCveBadges($cvesRaw): string {
 
                 <?php elseif ($resultType === 'vendor_tech' && empty($results)): ?>
                 <div class="card">
-                    <p style="color: #6b7280; text-align: center; padding: 20px;">No technologies found for &ldquo;<?php echo e($searchQuery); ?>&rdquo;. The vendor may not have been scored yet, or no technologies were detected.</p>
+                    <p style="color: #6b7280; text-align: center; padding: 20px;"><?php echo e(t('fourth-party-risk.no_tech_found_prefix')); ?> &ldquo;<?php echo e($searchQuery); ?>&rdquo;<?php echo e(t('fourth-party-risk.no_tech_found_suffix')); ?></p>
                 </div>
 
                 <?php elseif ($resultType === 'tech_vendors' && !empty($results)): ?>
@@ -1088,7 +1088,7 @@ function renderCveBadges($cvesRaw): string {
                 ?>
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3 style="margin: 0;">Vendors using &ldquo;<?php echo e($searchQuery); ?>&rdquo; (<?php echo $uniqueVendorCount; ?> vendor<?php echo $uniqueVendorCount !== 1 ? 's' : ''; ?>, <?php echo count($results); ?> detection<?php echo count($results) !== 1 ? 's' : ''; ?>)</h3>
+                        <h3 style="margin: 0;"><?php echo e(t('fourth-party-risk.vendors_using')); ?> &ldquo;<?php echo e($searchQuery); ?>&rdquo; (<?php echo $uniqueVendorCount; ?> vendor<?php echo $uniqueVendorCount !== 1 ? 's' : ''; ?>, <?php echo count($results); ?> detection<?php echo count($results) !== 1 ? 's' : ''; ?>)</h3>
                         <a href="?export=csv&mode=technology&q=<?php echo urlencode($searchQuery); ?>" style="padding: 6px 14px; background: #6b7280; color: white; border-radius: 6px; text-decoration: none; font-size: 12px;"><?php echo e(t('fourth-party-risk.export_csv')); ?></a>
                     </div>
                     <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; font-size: 13px; color: #92400e;">
@@ -1203,7 +1203,7 @@ function renderCveBadges($cvesRaw): string {
 
                 <?php elseif ($resultType === 'tech_vendors' && empty($results)): ?>
                 <div class="card">
-                    <p style="color: #6b7280; text-align: center; padding: 20px;">No vendors found using &ldquo;<?php echo e($searchQuery); ?>&rdquo;. Try a broader search term.</p>
+                    <p style="color: #6b7280; text-align: center; padding: 20px;"><?php echo e(t('fourth-party-risk.no_vendors_found_prefix')); ?> &ldquo;<?php echo e($searchQuery); ?>&rdquo;<?php echo e(t('fourth-party-risk.no_vendors_found_suffix')); ?></p>
                 </div>
 
                 <?php elseif ($resultType === 'cve_vendors' && !empty($results)): ?>
@@ -1231,7 +1231,7 @@ function renderCveBadges($cvesRaw): string {
                 <div class="card">
                     <?php $isCveId = (bool) preg_match('/^CVE-\d{4}/i', $searchQuery); ?>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-                        <h3 style="margin: 0;"><?php echo $isCveId ? 'CVE Impact' : 'CVEs for'; ?>: <?php echo e($searchQuery); ?> (<?php echo $cveUniqueVendors; ?> vendor<?php echo $cveUniqueVendors !== 1 ? 's' : ''; ?>, <?php echo count($results); ?> finding<?php echo count($results) !== 1 ? 's' : ''; ?>)</h3>
+                        <h3 style="margin: 0;"><?php echo $isCveId ? e(t('fourth-party-risk.cve_impact')) : e(t('fourth-party-risk.cves_for')); ?>: <?php echo e($searchQuery); ?> (<?php echo $cveUniqueVendors; ?> vendor<?php echo $cveUniqueVendors !== 1 ? 's' : ''; ?>, <?php echo count($results); ?> finding<?php echo count($results) !== 1 ? 's' : ''; ?>)</h3>
                         <div style="display: flex; gap: 8px;">
                             <?php if (preg_match('/^CVE-\d{4}-\d+$/i', $searchQuery)): ?>
                             <a href="https://nvd.nist.gov/vuln/detail/<?php echo urlencode($searchQuery); ?>" target="_blank" rel="noopener" style="padding: 6px 14px; background: var(--theme-button-color); color: white; border-radius: 6px; text-decoration: none; font-size: 12px;"><?php echo e(t('fourth-party-risk.view_on_nvd')); ?></a>
@@ -1241,11 +1241,11 @@ function renderCveBadges($cvesRaw): string {
                     </div>
                     <?php if ($isCveId): ?>
                     <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; font-size: 13px; color: #991b1b;">
-                        <strong>CVE Impact:</strong> <?php echo e($searchQuery); ?> was detected across <?php echo $cveUniqueVendors; ?> vendor(s) in your portfolio on <?php echo count($results); ?> host(s). A red dot under a source column indicates that source detected activity on the same host.
+                        <strong>CVE Impact:</strong> <?php echo e($searchQuery); ?> was detected across <?php echo $cveUniqueVendors; ?> vendor(s) in your portfolio on <?php echo count($results); ?> host(s). <?php echo e(t('fourth-party-risk.red_dot_note')); ?>
                     </div>
                     <?php else: ?>
                     <div style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; font-size: 13px; color: #1e40af;">
-                        <strong>Vendor CVEs:</strong> Showing all CVE findings detected across hosts for &ldquo;<?php echo e($searchQuery); ?>&rdquo;. A red dot under a source column indicates that source detected activity on the same host.
+                        <strong>Vendor CVEs:</strong> Showing all CVE findings detected across hosts for &ldquo;<?php echo e($searchQuery); ?>&rdquo;. <?php echo e(t('fourth-party-risk.red_dot_note')); ?>
                     </div>
                     <?php endif; ?>
 
@@ -1450,7 +1450,7 @@ function renderCveBadges($cvesRaw): string {
 
                 <?php elseif ($resultType === 'cve_vendors' && empty($results)): ?>
                 <div class="card">
-                    <p style="color: #6b7280; text-align: center; padding: 20px;">No CVE results found for &ldquo;<?php echo e($searchQuery); ?>&rdquo;. <?php echo preg_match('/^CVE-/i', $searchQuery) ? 'This CVE may not be present in any scanned vendor\'s technology stack, or vendors haven\'t been rescored since CVE data became available.' : 'Try searching by a different vendor name, domain, or a CVE ID like CVE-2024-38474.'; ?></p>
+                    <p style="color: #6b7280; text-align: center; padding: 20px;"><?php echo e(t('fourth-party-risk.no_cve_results_prefix')); ?> &ldquo;<?php echo e($searchQuery); ?>&rdquo;. <?php echo preg_match('/^CVE-/i', $searchQuery) ? e(t('fourth-party-risk.no_cve_results_cve_msg')) : e(t('fourth-party-risk.no_cve_results_general_msg')); ?></p>
                 </div>
                 <?php endif; ?>
 
@@ -1527,13 +1527,13 @@ function renderCveBadges($cvesRaw): string {
                 <?php if ($searchMode !== 'cve'): ?>
                 <?php if (!$techTableExists): ?>
                 <div class="card" style="text-align: center; padding: 40px;">
-                    <p style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 8px 0;">No Technology Data Yet</p>
-                    <p style="color: #6b7280; margin: 0;">The vendor_technologies table has not been created yet. Run the v2.5.3 migration from <a href="admin.php" style="color: var(--theme-header-color);">Admin &gt; Updates</a>, then rescore a vendor with Shodan to populate technology data.</p>
+                    <p style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 8px 0;"><?php echo e(t('fourth-party-risk.no_tech_data_title')); ?></p>
+                    <p style="color: #6b7280; margin: 0;"><?php echo t('fourth-party-risk.no_tech_data_desc'); ?></p>
                 </div>
                 <?php elseif (empty($concentrationRaw) && empty($results)): ?>
                 <div class="card" style="text-align: center; padding: 40px;">
-                    <p style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 8px 0;">No Technologies Detected</p>
-                    <p style="color: #6b7280; margin: 0;">Score at least one vendor with Shodan to populate the technology inventory. Technologies are automatically extracted from scan data during scoring.</p>
+                    <p style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 8px 0;"><?php echo e(t('fourth-party-risk.no_tech_detected_title')); ?></p>
+                    <p style="color: #6b7280; margin: 0;"><?php echo e(t('fourth-party-risk.no_tech_detected_desc')); ?></p>
                 </div>
                 <?php endif; ?>
                 <?php endif; ?>
@@ -1545,7 +1545,7 @@ function renderCveBadges($cvesRaw): string {
         <div id="massWaiveModal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
             <div style="background: white; border-radius: 12px; width: 95%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.25);">
                 <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: 18px; color: #1f2937;">Mass Waive CVEs</h3>
+                    <h3 style="margin: 0; font-size: 18px; color: #1f2937;"><?php echo e(t('fourth-party-risk.mass_waive_cves')); ?></h3>
                     <button type="button" id="massWaiveClose" style="background: none; border: none; font-size: 24px; color: #9ca3af; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
                 </div>
                 <form method="post" action="?mode=cve<?php echo !empty($searchQuery) ? '&q=' . urlencode($searchQuery) : ''; ?>">
@@ -1554,29 +1554,29 @@ function renderCveBadges($cvesRaw): string {
                     <input type="hidden" name="vendor_id" id="massWaiveVendorId" value="">
                     <div style="padding: 24px;">
                         <div style="margin-bottom: 20px;">
-                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Vendor</label>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;"><?php echo e(t('fourth-party-risk.label_vendor')); ?></label>
                             <div style="position: relative;">
-                                <input type="text" id="massWaiveVendorSearch" placeholder="Search vendor by name or domain..." autocomplete="off" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box;">
+                                <input type="text" id="massWaiveVendorSearch" placeholder="<?php echo e(t('fourth-party-risk.mass_waive_vendor_search_placeholder')); ?>" autocomplete="off" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box;">
                                 <div id="massWaiveVendorDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-top: none; border-radius: 0 0 8px 8px; max-height: 200px; overflow-y: auto; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
                             </div>
                             <div id="massWaiveVendorSelected" style="display: none; margin-top: 8px; padding: 8px 12px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; font-size: 13px; color: #166534;">
                                 <span id="massWaiveVendorLabel"></span>
-                                <button type="button" id="massWaiveVendorClear" style="float: right; background: none; border: none; color: #991b1b; cursor: pointer; font-size: 12px; padding: 0;">Clear</button>
+                                <button type="button" id="massWaiveVendorClear" style="float: right; background: none; border: none; color: #991b1b; cursor: pointer; font-size: 12px; padding: 0;"><?php echo e(t('fourth-party-risk.clear')); ?></button>
                             </div>
                         </div>
                         <div style="margin-bottom: 20px;">
-                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">CVE IDs</label>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;"><?php echo e(t('fourth-party-risk.label_cve_ids')); ?></label>
                             <textarea name="cve_ids" id="massWaiveCveIds" rows="6" placeholder="Enter CVE IDs or wildcard prefixes, one per line:&#10;CVE-2024-38474&#10;CVE-2007-*&#10;CVE-2023-12345" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: monospace; outline: none; resize: vertical; box-sizing: border-box;"></textarea>
-                            <p style="margin: 4px 0 0; font-size: 11px; color: #9ca3af;">Use exact IDs or wildcards (CVE-2007-*) to match all CVEs with that prefix for this vendor.</p>
+                            <p style="margin: 4px 0 0; font-size: 11px; color: #9ca3af;"><?php echo e(t('fourth-party-risk.mass_waive_help')); ?></p>
                         </div>
                         <div style="margin-bottom: 20px;">
-                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Reason (optional)</label>
-                            <input type="text" name="reason" placeholder="e.g. False positive — not running affected version" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box;">
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;"><?php echo e(t('fourth-party-risk.label_reason_optional')); ?></label>
+                            <input type="text" name="reason" placeholder="<?php echo e(t('fourth-party-risk.mass_waive_reason_placeholder')); ?>" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box;">
                         </div>
                     </div>
                     <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; background: #f9fafb; border-radius: 0 0 12px 12px;">
-                        <button type="button" id="massWaiveCancel" style="padding: 10px 20px; background: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;">Cancel</button>
-                        <button type="submit" style="padding: 10px 20px; background: #7c3aed; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">Waive CVEs</button>
+                        <button type="button" id="massWaiveCancel" style="padding: 10px 20px; background: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;"><?php echo e(t('fourth-party-risk.cancel')); ?></button>
+                        <button type="submit" style="padding: 10px 20px; background: #7c3aed; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;"><?php echo e(t('fourth-party-risk.waive_cves_btn')); ?></button>
                     </div>
                 </form>
             </div>
@@ -1587,7 +1587,7 @@ function renderCveBadges($cvesRaw): string {
         <div id="bulkAssessmentModal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
             <div style="background: white; border-radius: 12px; width: 95%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.25);">
                 <div style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: 18px; color: #1f2937;">Assign Assessment</h3>
+                    <h3 style="margin: 0; font-size: 18px; color: #1f2937;"><?php echo e(t('fourth-party-risk.assign_assessment')); ?></h3>
                     <button type="button" id="bulkAssessmentClose" style="background: none; border: none; font-size: 24px; color: #9ca3af; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
                 </div>
                 <form method="post" action="?mode=<?php echo urlencode($searchMode ?: 'technology'); ?>&q=<?php echo urlencode($searchQuery); ?>">
@@ -1596,14 +1596,14 @@ function renderCveBadges($cvesRaw): string {
                     <input type="hidden" name="vendor_ids" id="bulkAssessmentVendorIds" value="[]">
                     <div style="padding: 24px;">
                         <div style="margin-bottom: 20px;">
-                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Selected Vendors</label>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;"><?php echo e(t('fourth-party-risk.label_selected_vendors')); ?></label>
                             <div id="bulkAssessmentVendorSummary" style="font-size: 13px; font-weight: 600; color: #1f2937; margin-bottom: 6px;"></div>
                             <div id="bulkAssessmentVendorList" style="max-height: 150px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #374151; background: #f9fafb;"></div>
                         </div>
                         <div style="margin-bottom: 20px;">
-                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Assessment Template</label>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;"><?php echo e(t('fourth-party-risk.label_assessment_template')); ?></label>
                             <select name="template_id" id="bulkAssessmentTemplate" required style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; background: white;">
-                                <option value="">-- Select a template --</option>
+                                <option value=""><?php echo e(t('fourth-party-risk.select_template_option')); ?></option>
                                 <?php
                                 $templatesByCategory = [];
                                 foreach ($assessmentTemplates as $t) {
@@ -1613,25 +1613,25 @@ function renderCveBadges($cvesRaw): string {
                                 foreach ($templatesByCategory as $cat => $templates): ?>
                                 <optgroup label="<?php echo e(ucwords(str_replace('_', ' ', $cat))); ?>">
                                     <?php foreach ($templates as $t): ?>
-                                    <option value="<?php echo (int)$t['id']; ?>"><?php echo e($t['name']); ?> (<?php echo (int)$t['question_count']; ?> questions)</option>
+                                    <option value="<?php echo (int)$t['id']; ?>"><?php echo e($t['name']); ?> (<?php echo (int)$t['question_count']; ?> <?php echo e(t('fourth-party-risk.questions_label')); ?>)</option>
                                     <?php endforeach; ?>
                                 </optgroup>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div style="margin-bottom: 20px;">
-                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Expires In</label>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;"><?php echo e(t('fourth-party-risk.label_expires_in')); ?></label>
                             <select name="expires_in_days" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; background: white;">
-                                <option value="14">14 days</option>
-                                <option value="30" selected>30 days</option>
-                                <option value="60">60 days</option>
-                                <option value="90">90 days</option>
+                                <option value="14"><?php echo e(t('fourth-party-risk.expires_14_days')); ?></option>
+                                <option value="30" selected><?php echo e(t('fourth-party-risk.expires_30_days')); ?></option>
+                                <option value="60"><?php echo e(t('fourth-party-risk.expires_60_days')); ?></option>
+                                <option value="90"><?php echo e(t('fourth-party-risk.expires_90_days')); ?></option>
                             </select>
                         </div>
                     </div>
                     <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; background: #f9fafb; border-radius: 0 0 12px 12px;">
-                        <button type="button" id="bulkAssessmentCancel" style="padding: 10px 20px; background: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;">Cancel</button>
-                        <button type="submit" id="bulkAssessmentSubmit" style="padding: 10px 20px; background: var(--theme-button-color); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">Assign Assessment</button>
+                        <button type="button" id="bulkAssessmentCancel" style="padding: 10px 20px; background: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;"><?php echo e(t('fourth-party-risk.cancel')); ?></button>
+                        <button type="submit" id="bulkAssessmentSubmit" style="padding: 10px 20px; background: var(--theme-button-color); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;"><?php echo e(t('fourth-party-risk.assign_assessment')); ?></button>
                     </div>
                 </form>
             </div>
@@ -1654,7 +1654,7 @@ function renderCveBadges($cvesRaw): string {
                     <div id="spVendorSelectList" style="max-height: 260px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; background: #f9fafb;"></div>
                 </div>
                 <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; background: #f9fafb; border-radius: 0 0 12px 12px;">
-                    <button type="button" id="spVendorSelectCancel" style="padding: 10px 20px; background: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;">Cancel</button>
+                    <button type="button" id="spVendorSelectCancel" style="padding: 10px 20px; background: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;"><?php echo e(t('fourth-party-risk.cancel')); ?></button>
                     <button type="button" id="spVendorSelectContinue" disabled style="padding: 10px 20px; background: var(--theme-button-color); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; opacity: 0.5;"><?php echo e(t('fourth-party-risk.assign_assessment')); ?> (<span id="spVendorSelectCount">0</span>)</button>
                 </div>
             </div>
@@ -1675,7 +1675,7 @@ function renderCveBadges($cvesRaw): string {
                     <span><?php $cn = getAppConfig('company_name', ''); if ($cn) echo e($cn) . ' '; ?>&copy;&nbsp;</span>
                     <span class="copyright-year"><?php echo date('Y'); ?></span>
                     <span>.&nbsp;</span>
-                    <span>All Rights Reserved</span>
+                    <span><?php echo e(t('fourth-party-risk.all_rights_reserved')); ?></span>
                 </p>
             </div>
         </footer>
@@ -1779,7 +1779,7 @@ function renderCveBadges($cvesRaw): string {
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (!data.success) {
-                    alert('Error: ' + (data.error || 'Unknown error'));
+                    alert(<?php echo json_encode(t('fourth-party-risk.js_error_prefix')); ?> + (data.error || <?php echo json_encode(t('fourth-party-risk.js_unknown_error')); ?>));
                     btn.style.opacity = '';
                     btn.disabled = false;
                     return;
@@ -1793,7 +1793,7 @@ function renderCveBadges($cvesRaw): string {
                 }
             })
             .catch(function() {
-                alert('Network error. Please try again.');
+                alert(<?php echo json_encode(t('fourth-party-risk.js_network_error')); ?>);
                 btn.style.opacity = '';
                 btn.disabled = false;
             });
@@ -1834,7 +1834,7 @@ function renderCveBadges($cvesRaw): string {
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (!data.success || !data.vendors.length) {
-                            vendorDropdown.innerHTML = '<div style="padding: 10px 14px; color: #9ca3af; font-size: 13px;">No vendors found</div>';
+                            vendorDropdown.innerHTML = '<div style="padding: 10px 14px; color: #9ca3af; font-size: 13px;">' + <?php echo json_encode(t('fourth-party-risk.js_no_vendors_found')); ?> + '</div>';
                             vendorDropdown.style.display = 'block';
                             return;
                         }
@@ -2113,7 +2113,7 @@ function renderCveBadges($cvesRaw): string {
             if (!vendors.length) {
                 var empty = document.createElement('div');
                 empty.style.cssText = 'padding: 8px 0; font-size: 13px; color: #9ca3af;';
-                empty.textContent = 'No vendors are linked to this subprocessor.';
+                empty.textContent = <?php echo json_encode(t('fourth-party-risk.js_no_vendors_linked')); ?>;
                 listEl.appendChild(empty);
             }
             vendors.forEach(function(v) {

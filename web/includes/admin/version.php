@@ -508,7 +508,7 @@ if (validateRegistryHost($registryHost)) {
     }
 } else {
     $registryError  = true;
-    $registryErrMsg = 'Invalid registry hostname. Enter a hostname only (e.g. dockerregistry.fairtprm.com) — no https://, no path, no image name.';
+    $registryErrMsg = t('admin_version.err_invalid_registry_host');
 }
 
 // Build "all versions" list for reference table (only valid semver tags)
@@ -530,7 +530,7 @@ $upgradeLog = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_version.err_invalid_request');
     } elseif (isset($_POST['perform_docker_upgrade']) || isset($_POST['perform_docker_redeploy'])) {
         // Redeploy re-pulls and re-applies the CURRENTLY installed version. It exists
         // for the case where a fix was published under the same tag (a rolling re-push):
@@ -559,7 +559,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if (!$versionValid) {
-                $error = 'Selected version is not available.';
+                $error = t('admin_version.err_version_not_available');
                 $upgradeLog[] = ['step' => 'Validate version', 'status' => 'error', 'detail' => 'v' . $selectedVersion . ' not in available upgrades'];
                 $upgradeFailed = true;
             } else {
@@ -582,7 +582,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$upgradeFailed) {
             $targetManifest = fetchDockerManifest($registryHost, $dockerImageName, $targetTag, $regUser, $regPass);
             if ($targetManifest === false) {
-                $error = 'Could not fetch manifest for ' . $targetTag . ' from registry.';
+                $error = t('admin_version.err_manifest_fetch_prefix') . $targetTag . t('admin_version.err_manifest_fetch_suffix');
                 $upgradeLog[] = ['step' => 'Fetch manifests', 'status' => 'error', 'detail' => 'Failed to get manifest for ' . $registryHost . '/' . $dockerImageName . ':' . $targetTag];
                 $upgradeFailed = true;
             }
@@ -598,7 +598,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // without re-downloading the multi-hundred-MB OS base layers.
                 $topLayer = !empty($targetManifest['layers']) ? end($targetManifest['layers']) : null;
                 if ($topLayer === null) {
-                    $error = 'Target image manifest has no layers to apply.';
+                    $error = t('admin_version.err_manifest_no_layers');
                     $upgradeLog[] = ['step' => 'Fetch manifests', 'status' => 'error', 'detail' => 'Empty layer list for ' . $targetTag];
                     $upgradeFailed = true;
                 } else {
@@ -625,7 +625,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 if (empty($newLayers)) {
-                    $error = 'No new layers found between current and target versions.';
+                    $error = t('admin_version.err_no_new_layers');
                     $upgradeLog[] = ['step' => 'Fetch manifests', 'status' => 'error', 'detail' => 'Target image has no new layers compared to current (are they identical?)'];
                     $upgradeFailed = true;
                 } else {
@@ -671,7 +671,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $upgradeLog[] = ['step' => 'Database backup', 'status' => 'ok', 'detail' => $backupFilename . ' (' . $formattedSize . ')'];
             } catch (Exception $e) {
                 error_log('Pre-upgrade backup failed: ' . $e->getMessage());
-                $error = 'Upgrade aborted: failed to create database backup.';
+                $error = t('admin_version.err_backup_failed');
                 $upgradeLog[] = ['step' => 'Database backup', 'status' => 'error', 'detail' => $e->getMessage()];
                 $upgradeFailed = true;
             }
@@ -684,7 +684,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tempDir = sys_get_temp_dir() . '/tprm_upgrade_' . time() . '_' . getmypid();
             $stagingDir = $tempDir . '/staging';
             if (!@mkdir($stagingDir, 0700, true)) {
-                $error = 'Failed to create temporary directory.';
+                $error = t('admin_version.err_temp_dir');
                 $upgradeLog[] = ['step' => 'Download layers', 'status' => 'error', 'detail' => 'Could not create temp dir'];
                 $upgradeFailed = true;
                 $tempDir = null;
@@ -697,7 +697,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $layerFile = $tempDir . '/layer_' . $idx . '.tar.gz';
                 $ok = downloadDockerBlob($registryHost, $dockerImageName, $layer['digest'], $layerFile, $regUser, $regPass);
                 if (!$ok) {
-                    $error = 'Failed to download image layer from registry.';
+                    $error = t('admin_version.err_download_layer');
                     $upgradeLog[] = ['step' => 'Download layers', 'status' => 'error', 'detail' => 'Could not download layer ' . ($idx + 1) . ' (' . substr($layer['digest'], 7, 12) . '...)'];
                     $upgradeFailed = true;
                     break;
@@ -707,7 +707,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 list($tarOut, $tarCode) = runShellCommand(['tar', '-xzf', $layerFile, '-C', $stagingDir], $tempDir);
                 @unlink($layerFile);
                 if ($tarCode !== 0) {
-                    $error = 'Failed to extract image layer.';
+                    $error = t('admin_version.err_extract_layer');
                     $upgradeLog[] = ['step' => 'Download layers', 'status' => 'error', 'detail' => 'Extraction failed for layer ' . ($idx + 1) . ': ' . implode(' ', $tarOut)];
                     $upgradeFailed = true;
                     break;
@@ -727,7 +727,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // The layers may not contain /var/www/html changes (e.g., only VERSION changed at root)
                 // Check for VERSION file at the root of the layer
                 $stagedVersion = $stagingDir . '/var/www/html';
-                $error = 'No application files found in the new image layers.';
+                $error = t('admin_version.err_no_app_files');
                 $upgradeLog[] = ['step' => 'Apply files', 'status' => 'error', 'detail' => 'Layer extraction did not contain /var/www/html. The image may not have application code changes.'];
                 $upgradeFailed = true;
             } else {
@@ -765,7 +765,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 if (!empty($cpErrors)) {
-                    $error = 'Failed to copy updated files.';
+                    $error = t('admin_version.err_copy_files');
                     $upgradeLog[] = ['step' => 'Apply files', 'status' => 'error', 'detail' => implode("\n", $cpErrors)];
                     $upgradeFailed = true;
                 } else {
@@ -991,7 +991,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$upgradeFailed) {
             postUpgradeRefresh($upgradeLog);
-            $success = ($isRedeploy ? 'Redeploy of v' : 'Upgrade to v') . $selectedVersion . ' completed successfully.';
+            $success = ($isRedeploy ? t('admin_version.success_redeploy_prefix') : t('admin_version.success_upgrade_prefix')) . $selectedVersion . t('admin_version.success_completed_suffix');
             $currentVersion = getAppVersion();
             $newerVersions = getNewerDockerVersions($dockerTags, $currentVersion);
         }
@@ -1001,37 +1001,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <div class="page-header-bar">
-    <h1 class="page-title">Version Management</h1>
-    <p>Docker container detected &mdash; check for newer images from your registry.</p>
+    <h1 class="page-title"><?php echo e(t('admin_version.page_title')); ?></h1>
+    <p><?php echo e(t('admin_version.subtitle_docker')); ?></p>
 </div>
 
 <!-- Current Status -->
 <div class="card">
-    <h3>Current Status</h3>
+    <h3><?php echo e(t('admin_version.current_status_heading')); ?></h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
         <div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Installed Version</div>
+            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;"><?php echo e(t('admin_version.installed_version_label')); ?></div>
             <div style="font-size: 16px; font-weight: 600;">
                 <span style="display: inline-block; padding: 2px 10px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 14px;"><?php echo e($currentVersion); ?></span>
             </div>
         </div>
         <div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Environment</div>
+            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;"><?php echo e(t('admin_version.environment_label')); ?></div>
             <div style="font-size: 14px;">
-                <span style="display: inline-block; padding: 2px 10px; background: #f3e8ff; color: #7c3aed; border-radius: 4px; font-size: 13px;">Docker Container</span>
+                <span style="display: inline-block; padding: 2px 10px; background: #f3e8ff; color: #7c3aed; border-radius: 4px; font-size: 13px;"><?php echo e(t('admin_version.docker_container_badge')); ?></span>
             </div>
         </div>
         <div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Latest Available</div>
+            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;"><?php echo e(t('admin_version.latest_available_label')); ?></div>
             <div style="font-size: 14px;">
                 <?php if ($registryError): ?>
-                    <span style="color: #991b1b;">Unable to check</span>
+                    <span style="color: #991b1b;"><?php echo e(t('admin_version.unable_to_check')); ?></span>
                 <?php elseif (!empty($newerVersions)): ?>
-                    <span style="color: #b45309;">v<?php echo e($newerVersions[0]['version']); ?> (update available)</span>
+                    <span style="color: #b45309;">v<?php echo e($newerVersions[0]['version']); ?> <?php echo e(t('admin_version.update_available_suffix')); ?></span>
                 <?php elseif (!empty($allVersions)): ?>
-                    <span style="color: #166534;"><?php echo e($currentVersion); ?> (up to date)</span>
+                    <span style="color: #166534;"><?php echo e($currentVersion); ?> <?php echo e(t('admin_version.up_to_date_suffix')); ?></span>
                 <?php else: ?>
-                    <span style="color: #999;">No versions found</span>
+                    <span style="color: #999;"><?php echo e(t('admin_version.no_versions_found')); ?></span>
                 <?php endif; ?>
             </div>
         </div>
@@ -1040,31 +1040,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!-- Update Server -->
 <div class="card">
-    <h3>Update Server</h3>
+    <h3><?php echo e(t('admin_version.update_server_heading')); ?></h3>
     <form method="POST" action="admin.php?section=version">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <div class="form-group">
-            <label for="docker_registry_host">Registry Hostname</label>
+            <label for="docker_registry_host"><?php echo e(t('admin_version.registry_hostname_label')); ?></label>
             <input type="text" id="docker_registry_host" name="docker_registry_host" class="form-control" style="max-width: 500px;"
                    value="<?php echo e($registryHost); ?>"
                    placeholder="dockerregistry.fairtprm.com">
-            <div class="form-help">Enter the Docker registry hostname only (e.g. dockerregistry.fairtprm.com). Do not include https://, paths, or image names.</div>
+            <div class="form-help"><?php echo e(t('admin_version.registry_hostname_help')); ?></div>
         </div>
         <div style="display: flex; gap: 15px; max-width: 500px;">
             <div class="form-group" style="flex: 1;">
-                <label for="docker_registry_user">Username <span style="color: #999; font-weight: 400;">(optional)</span></label>
+                <label for="docker_registry_user"><?php echo e(t('admin_version.username_label')); ?> <span style="color: #999; font-weight: 400;"><?php echo e(t('admin_version.optional_note')); ?></span></label>
                 <input type="text" id="docker_registry_user" name="docker_registry_user" class="form-control"
                        value="<?php echo e($registryUser); ?>"
-                       placeholder="username" autocomplete="off">
+                       placeholder="<?php echo e(t('admin_version.username_placeholder')); ?>" autocomplete="off">
             </div>
             <div class="form-group" style="flex: 1;">
-                <label for="docker_registry_pass">Password <span style="color: #999; font-weight: 400;">(optional)</span></label>
+                <label for="docker_registry_pass"><?php echo e(t('admin_version.password_label')); ?> <span style="color: #999; font-weight: 400;"><?php echo e(t('admin_version.optional_note')); ?></span></label>
                 <input type="password" id="docker_registry_pass" name="docker_registry_pass" class="form-control"
                        value="<?php echo e($registryPass); ?>"
-                       placeholder="password" autocomplete="off">
+                       placeholder="<?php echo e(t('admin_version.password_placeholder')); ?>" autocomplete="off">
             </div>
         </div>
-        <button type="submit" class="btn btn-primary">Check for Updates</button>
+        <button type="submit" class="btn btn-primary"><?php echo e(t('admin_version.check_for_updates_button')); ?></button>
     </form>
     <?php if ($registryError && $registryErrMsg): ?>
         <div class="alert alert-danger" style="margin-top: 10px;"><?php echo e($registryErrMsg); ?></div>
@@ -1074,13 +1074,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!-- Re-apply current version (redeploy) -->
 <?php if (!$registryError): ?>
 <div class="card">
-    <h3>Re-apply Current Version</h3>
+    <h3><?php echo e(t('admin_version.reapply_heading')); ?></h3>
     <p style="color: #555; font-size: 14px; margin-top: 0;">
-        Re-download and re-apply the <strong>v<?php echo e(ltrim($currentVersion, 'v')); ?></strong> image from the registry. Use this when a fix was published under the <em>same</em> version tag &mdash; the upgrade list below only offers <em>newer</em> versions, so it won't show a same-tag rebuild. Your data is preserved; this refreshes the application code in place, then flushes the cache and gracefully reloads.
+        <?php echo e(t('admin_version.reapply_desc_prefix')); ?><strong>v<?php echo e(ltrim($currentVersion, 'v')); ?></strong><?php echo t('admin_version.reapply_desc_suffix'); ?>
     </p>
     <button type="button" class="btn btn-primary docker-redeploy-btn"
             data-version="<?php echo e(ltrim($currentVersion, 'v')); ?>">
-        Redeploy v<?php echo e(ltrim($currentVersion, 'v')); ?>
+        <?php echo e(t('admin_version.redeploy_button_label')); ?> v<?php echo e(ltrim($currentVersion, 'v')); ?>
     </button>
 </div>
 <?php endif; ?>
@@ -1088,20 +1088,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!-- Available Updates (only newer versions) -->
 <?php if (!empty($newerVersions)): ?>
 <div class="card">
-    <h3>Available Updates</h3>
+    <h3><?php echo e(t('admin_version.available_updates_heading')); ?></h3>
     <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
-        <strong style="color: #166534;">&#10003; Your settings are safe</strong>
+        <strong style="color: #166534;">&#10003; <?php echo e(t('admin_version.settings_safe_heading')); ?></strong>
         <span style="font-size: 13px; color: #15803d;">
-            &mdash; Docker upgrades preserve all your data: database, profile colors, API configurations, branding, email templates, and custom settings. These are stored on persistent volumes unaffected by image updates.
+            <?php echo e(t('admin_version.settings_safe_detail_updates')); ?>
         </span>
     </div>
     <table>
         <thead>
             <tr>
-                <th>Version</th>
-                <th>Image</th>
-                <th>Status</th>
-                <th style="width: 120px;">Action</th>
+                <th><?php echo e(t('admin_version.th_version')); ?></th>
+                <th><?php echo e(t('admin_version.th_image')); ?></th>
+                <th><?php echo e(t('admin_version.th_status')); ?></th>
+                <th style="width: 120px;"><?php echo e(t('admin_version.th_action')); ?></th>
             </tr>
         </thead>
         <tbody>
@@ -1109,12 +1109,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <tr>
                 <td><strong>v<?php echo e($nv['version']); ?></strong></td>
                 <td style="font-size: 12px; color: #666;"><?php echo e($registryHost . '/' . $dockerImageName . ':v' . $nv['version']); ?></td>
-                <td><span class="badge badge-blue">Available</span></td>
+                <td><span class="badge badge-blue"><?php echo e(t('admin_version.badge_available')); ?></span></td>
                 <td>
                     <button type="button" class="btn btn-sm btn-primary docker-upgrade-btn"
                             data-version="<?php echo e($nv['version']); ?>"
                             data-registry="<?php echo e($registryHost); ?>">
-                        Upgrade
+                        <?php echo e(t('admin_version.upgrade_button')); ?>
                     </button>
                 </td>
             </tr>
@@ -1127,13 +1127,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!-- All Registry Versions (reference) -->
 <?php if (!empty($allVersions)): ?>
 <div class="card">
-    <h3>All Registry Versions</h3>
+    <h3><?php echo e(t('admin_version.all_registry_versions_heading')); ?></h3>
     <table>
         <thead>
             <tr>
-                <th>Tag</th>
-                <th>Version</th>
-                <th>Status</th>
+                <th><?php echo e(t('admin_version.th_tag')); ?></th>
+                <th><?php echo e(t('admin_version.th_version')); ?></th>
+                <th><?php echo e(t('admin_version.th_status')); ?></th>
             </tr>
         </thead>
         <tbody>
@@ -1145,11 +1145,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <td>v<?php echo e($av['version']); ?></td>
                 <td>
                     <?php if ($cmp === 0): ?>
-                        <span class="badge badge-success">Installed</span>
+                        <span class="badge badge-success"><?php echo e(t('admin_version.badge_installed')); ?></span>
                     <?php elseif ($cmp > 0): ?>
-                        <span class="badge badge-blue">Newer</span>
+                        <span class="badge badge-blue"><?php echo e(t('admin_version.badge_newer')); ?></span>
                     <?php else: ?>
-                        <span class="badge" style="background: #f3f4f6; color: #6b7280;">Older</span>
+                        <span class="badge" style="background: #f3f4f6; color: #6b7280;"><?php echo e(t('admin_version.badge_older')); ?></span>
                     <?php endif; ?>
                 </td>
             </tr>
@@ -1161,13 +1161,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <?php if ($upgradeLog !== null): ?>
 <div class="card">
-    <h3>Upgrade Log</h3>
+    <h3><?php echo e(t('admin_version.upgrade_log_heading')); ?></h3>
     <table>
         <thead>
             <tr>
-                <th>Step</th>
-                <th>Status</th>
-                <th>Details</th>
+                <th><?php echo e(t('admin_version.th_step')); ?></th>
+                <th><?php echo e(t('admin_version.th_status')); ?></th>
+                <th><?php echo e(t('admin_version.th_details')); ?></th>
             </tr>
         </thead>
         <tbody>
@@ -1176,11 +1176,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <td><strong><?php echo e($entry['step']); ?></strong></td>
                 <td>
                     <?php if ($entry['status'] === 'ok'): ?>
-                        <span style="display: inline-block; padding: 2px 8px; background: #dcfce7; color: #166534; border-radius: 4px; font-size: 12px; font-weight: 500;">OK</span>
+                        <span style="display: inline-block; padding: 2px 8px; background: #dcfce7; color: #166534; border-radius: 4px; font-size: 12px; font-weight: 500;"><?php echo e(t('admin_version.status_ok')); ?></span>
                     <?php elseif ($entry['status'] === 'skip'): ?>
-                        <span style="display: inline-block; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 12px; font-weight: 500;">Skipped</span>
+                        <span style="display: inline-block; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 12px; font-weight: 500;"><?php echo e(t('admin_version.status_skipped')); ?></span>
                     <?php else: ?>
-                        <span style="display: inline-block; padding: 2px 8px; background: #fef2f2; color: #991b1b; border-radius: 4px; font-size: 12px; font-weight: 500;">Error</span>
+                        <span style="display: inline-block; padding: 2px 8px; background: #fef2f2; color: #991b1b; border-radius: 4px; font-size: 12px; font-weight: 500;"><?php echo e(t('admin_version.status_error')); ?></span>
                     <?php endif; ?>
                 </td>
                 <td style="font-size: 13px; color: #555; white-space: pre-line;"><?php echo e($entry['detail']); ?></td>
@@ -1195,37 +1195,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div id="dockerUpgradeModal" class="modal">
     <div class="modal-content" style="max-width: 550px;">
         <span class="close" data-close="dockerUpgradeModal">&times;</span>
-        <h3 style="margin-top: 0; color: var(--theme-header-color);">Confirm Docker Upgrade</h3>
+        <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo e(t('admin_version.confirm_docker_upgrade_heading')); ?></h3>
 
         <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
             <div style="display: flex; align-items: start; gap: 10px;">
                 <span style="font-size: 20px;">&#10003;</span>
                 <div>
-                    <strong style="color: #166534;">Your settings are safe</strong>
+                    <strong style="color: #166534;"><?php echo e(t('admin_version.settings_safe_heading')); ?></strong>
                     <p style="margin: 5px 0 0; font-size: 13px; color: #15803d;">
-                        All database data, profile colors, API keys, SMTP settings, branding, and configurations are stored on persistent volumes. They will not be affected by this upgrade.
+                        <?php echo e(t('admin_version.settings_safe_detail_upgrade')); ?>
                     </p>
                 </div>
             </div>
         </div>
 
         <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
-            <strong style="color: #92400e;">What happens:</strong>
+            <strong style="color: #92400e;"><?php echo e(t('admin_version.what_happens_label')); ?></strong>
             <ul style="margin: 8px 0 0; padding-left: 20px; font-size: 13px; color: #78350f;">
-                <li>A database backup is created automatically</li>
-                <li>The update archive is downloaded and applied</li>
-                <li>Docker symlinks are restored for persistent data</li>
-                <li>Any pending SQL migrations are applied</li>
+                <li><?php echo e(t('admin_version.step_backup_auto')); ?></li>
+                <li><?php echo e(t('admin_version.step_archive_applied')); ?></li>
+                <li><?php echo e(t('admin_version.step_symlinks_restored')); ?></li>
+                <li><?php echo e(t('admin_version.step_sql_applied')); ?></li>
             </ul>
         </div>
 
         <p style="color: #666; margin-bottom: 15px;">
-            Upgrading to: <strong id="docker_upgrade_version_display" style="color: #333;"></strong>
+            <?php echo e(t('admin_version.upgrading_to_label')); ?> <strong id="docker_upgrade_version_display" style="color: #333;"></strong>
         </p>
 
         <div class="form-group" style="margin-bottom: 20px;">
-            <label for="docker_upgrade_confirm_input" style="font-weight: 500;">Type <strong>UPGRADE</strong> to confirm:</label>
-            <input type="text" id="docker_upgrade_confirm_input" class="form-control" placeholder="Type UPGRADE to confirm" autocomplete="off">
+            <label for="docker_upgrade_confirm_input" style="font-weight: 500;"><?php echo t('admin_version.type_upgrade_confirm_label'); ?></label>
+            <input type="text" id="docker_upgrade_confirm_input" class="form-control" placeholder="<?php echo e(t('admin_version.type_upgrade_confirm_placeholder')); ?>" autocomplete="off">
         </div>
 
         <form method="POST" action="admin.php?section=version" id="dockerUpgradeForm">
@@ -1234,8 +1234,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="hidden" name="perform_docker_upgrade" value="1">
 
             <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-                <button type="button" class="btn" style="background: #6b7280; color: white;" data-close="dockerUpgradeModal">Cancel</button>
-                <button type="button" id="dockerConfirmUpgradeBtn" class="btn btn-primary" disabled>Upgrade</button>
+                <button type="button" class="btn" style="background: #6b7280; color: white;" data-close="dockerUpgradeModal"><?php echo e(t('admin_version.cancel_button')); ?></button>
+                <button type="button" id="dockerConfirmUpgradeBtn" class="btn btn-primary" disabled><?php echo e(t('admin_version.upgrade_button')); ?></button>
             </div>
         </form>
     </div>
@@ -1274,7 +1274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         confirmBtn.addEventListener('click', function() {
             if (confirmInput.value !== 'UPGRADE') return;
             confirmBtn.disabled = true;
-            confirmBtn.textContent = 'Upgrading...';
+            confirmBtn.textContent = <?php echo json_encode(t('admin_version.js_upgrading_progress')); ?>;
             form.submit();
         });
     }
@@ -1285,37 +1285,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div id="dockerRedeployModal" class="modal">
     <div class="modal-content" style="max-width: 550px;">
         <span class="close" data-close="dockerRedeployModal">&times;</span>
-        <h3 style="margin-top: 0; color: var(--theme-header-color);">Confirm Redeploy</h3>
+        <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo e(t('admin_version.confirm_redeploy_heading')); ?></h3>
 
         <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
             <div style="display: flex; align-items: start; gap: 10px;">
                 <span style="font-size: 20px;">&#10003;</span>
                 <div>
-                    <strong style="color: #166534;">Your settings are safe</strong>
+                    <strong style="color: #166534;"><?php echo e(t('admin_version.settings_safe_heading')); ?></strong>
                     <p style="margin: 5px 0 0; font-size: 13px; color: #15803d;">
-                        All database data, profile colors, API keys, SMTP settings, branding, and configurations are stored on persistent volumes. They will not be affected by this redeploy.
+                        <?php echo e(t('admin_version.settings_safe_detail_redeploy')); ?>
                     </p>
                 </div>
             </div>
         </div>
 
         <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
-            <strong style="color: #92400e;">What happens:</strong>
+            <strong style="color: #92400e;"><?php echo e(t('admin_version.what_happens_label')); ?></strong>
             <ul style="margin: 8px 0 0; padding-left: 20px; font-size: 13px; color: #78350f;">
-                <li>A database backup is created automatically</li>
-                <li>The current version's image is re-downloaded and its application files re-applied in place</li>
-                <li>Docker symlinks are restored for persistent data</li>
-                <li>Any pending SQL migrations are applied, then OPcache is flushed and Apache gracefully reloaded</li>
+                <li><?php echo e(t('admin_version.step_backup_auto')); ?></li>
+                <li><?php echo e(t('admin_version.step_reapply_files')); ?></li>
+                <li><?php echo e(t('admin_version.step_symlinks_restored')); ?></li>
+                <li><?php echo e(t('admin_version.step_sql_opcache')); ?></li>
             </ul>
         </div>
 
         <p style="color: #666; margin-bottom: 15px;">
-            Re-applying: <strong id="docker_redeploy_version_display" style="color: #333;"></strong>
+            <?php echo e(t('admin_version.reapplying_label')); ?> <strong id="docker_redeploy_version_display" style="color: #333;"></strong>
         </p>
 
         <div class="form-group" style="margin-bottom: 20px;">
-            <label for="docker_redeploy_confirm_input" style="font-weight: 500;">Type <strong>REDEPLOY</strong> to confirm:</label>
-            <input type="text" id="docker_redeploy_confirm_input" class="form-control" placeholder="Type REDEPLOY to confirm" autocomplete="off">
+            <label for="docker_redeploy_confirm_input" style="font-weight: 500;"><?php echo t('admin_version.type_redeploy_confirm_label'); ?></label>
+            <input type="text" id="docker_redeploy_confirm_input" class="form-control" placeholder="<?php echo e(t('admin_version.type_redeploy_confirm_placeholder')); ?>" autocomplete="off">
         </div>
 
         <form method="POST" action="admin.php?section=version" id="dockerRedeployForm">
@@ -1324,8 +1324,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="hidden" name="perform_docker_redeploy" value="1">
 
             <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-                <button type="button" class="btn" style="background: #6b7280; color: white;" data-close="dockerRedeployModal">Cancel</button>
-                <button type="button" id="dockerConfirmRedeployBtn" class="btn btn-primary" disabled>Redeploy</button>
+                <button type="button" class="btn" style="background: #6b7280; color: white;" data-close="dockerRedeployModal"><?php echo e(t('admin_version.cancel_button')); ?></button>
+                <button type="button" id="dockerConfirmRedeployBtn" class="btn btn-primary" disabled><?php echo e(t('admin_version.redeploy_button_label')); ?></button>
             </div>
         </form>
     </div>
@@ -1364,7 +1364,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         confirmBtn.addEventListener('click', function() {
             if (confirmInput.value !== 'REDEPLOY') return;
             confirmBtn.disabled = true;
-            confirmBtn.textContent = 'Redeploying...';
+            confirmBtn.textContent = <?php echo json_encode(t('admin_version.js_redeploying_progress')); ?>;
             form.submit();
         });
     }
@@ -1391,7 +1391,7 @@ $upgradeLog = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
-        $error = 'Invalid request. Please try again.';
+        $error = t('admin_version.err_invalid_request');
     } elseif (isset($_POST['perform_version_upgrade'])) {
         $upgradeLog = [];
         $selectedVersion = $_POST['target_version'] ?? '';
@@ -1410,7 +1410,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$validVersion) {
-            $error = 'Invalid version selected or unable to verify versions.';
+            $error = t('admin_version.err_invalid_version_selected');
             $upgradeLog[] = ['step' => 'Validate version', 'status' => 'error', 'detail' => 'Version not found in manifest: ' . $selectedVersion];
         } else {
             $upgradeLog[] = ['step' => 'Validate version', 'status' => 'ok', 'detail' => 'v' . $selectedVersion];
@@ -1453,7 +1453,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $upgradeLog[] = ['step' => 'Database backup', 'status' => 'ok', 'detail' => $backupFilename . ' (' . $formattedSize . ')'];
             } catch (Exception $e) {
                 error_log('Pre-upgrade backup failed: ' . $e->getMessage());
-                $error = 'Upgrade aborted: failed to create pre-upgrade database backup.';
+                $error = t('admin_version.err_pre_upgrade_backup_failed');
                 $upgradeLog[] = ['step' => 'Database backup', 'status' => 'error', 'detail' => $e->getMessage()];
                 $upgradeFailed = true;
             }
@@ -1463,7 +1463,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$upgradeFailed) {
                 // Sanitize filename -- only allow alphanumeric, hyphens, underscores, dots
                 if (!preg_match('/^[a-zA-Z0-9._-]+\.tar\.gz$/', $selectedFilename)) {
-                    $error = 'Invalid archive filename.';
+                    $error = t('admin_version.err_invalid_archive_filename');
                     $upgradeLog[] = ['step' => 'Download archive', 'status' => 'error', 'detail' => 'Filename failed validation'];
                     $upgradeFailed = true;
                 } else {
@@ -1471,7 +1471,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $downloadUrl = $downloadBaseUrl . $selectedFilename;
 
                     if (!downloadArchive($downloadUrl, $tarPath)) {
-                        $error = 'Failed to download update archive.';
+                        $error = t('admin_version.err_download_archive');
                         $upgradeLog[] = ['step' => 'Download archive', 'status' => 'error', 'detail' => 'Could not download: ' . $selectedFilename];
                         $upgradeFailed = true;
                         $tarPath = null;
@@ -1543,7 +1543,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$upgradeFailed && $tarPath) {
                 $tempDir = sys_get_temp_dir() . '/tprm_upgrade_' . time() . '_' . getmypid();
                 if (!@mkdir($tempDir, 0700, true)) {
-                    $error = 'Failed to create temporary extraction directory.';
+                    $error = t('admin_version.err_temp_extract_dir');
                     $upgradeLog[] = ['step' => 'Extract archive', 'status' => 'error', 'detail' => 'Could not create temp directory'];
                     $upgradeFailed = true;
                     $tempDir = null;
@@ -1554,7 +1554,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$upgradeFailed && $tempDir) {
                 list($tarOut, $tarCode) = runShellCommand(['tar', '-xzf', $tarPath, '-C', $tempDir], $webRoot);
                 if ($tarCode !== 0) {
-                    $error = 'Failed to extract update archive.';
+                    $error = t('admin_version.err_extract_archive');
                     $upgradeLog[] = ['step' => 'Extract archive', 'status' => 'error', 'detail' => implode("\n", $tarOut)];
                     runShellCommand(['rm', '-rf', $tempDir], $webRoot);
                     $tempDir = null;
@@ -1599,7 +1599,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                     if (!empty($copyErrors)) {
-                        $error = 'Failed to copy updated files to web root.';
+                        $error = t('admin_version.err_copy_files_webroot');
                         $upgradeLog[] = ['step' => 'Copy files', 'status' => 'error', 'detail' => implode("\n", $copyErrors)];
                         $upgradeFailed = true;
                     } else {
@@ -1788,7 +1788,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$upgradeFailed) {
                 postUpgradeRefresh($upgradeLog);
-                $success = 'Upgrade to v' . $selectedVersion . ' completed successfully.';
+                $success = t('admin_version.success_upgrade_prefix') . $selectedVersion . t('admin_version.success_completed_suffix');
             }
         }
     }
@@ -1809,24 +1809,24 @@ if (file_exists($logFile)) {
 // ============================================================================
 ?>
 <div class="page-header-bar">
-    <h1 class="page-title">Version Management</h1>
-    <p>Check for updates and upgrade your application.</p>
+    <h1 class="page-title"><?php echo e(t('admin_version.page_title')); ?></h1>
+    <p><?php echo e(t('admin_version.subtitle_nondocker')); ?></p>
 </div>
 
 <div class="card">
-    <h3>Current Status</h3>
+    <h3><?php echo e(t('admin_version.current_status_heading')); ?></h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
         <div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Installed Version</div>
+            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;"><?php echo e(t('admin_version.installed_version_label')); ?></div>
             <div style="font-size: 16px; font-weight: 600; color: #333;">
                 <span style="display: inline-block; padding: 2px 10px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 14px;"><?php echo e($currentVersion); ?></span>
             </div>
         </div>
         <div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Latest Available</div>
+            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;"><?php echo e(t('admin_version.latest_available_label')); ?></div>
             <div style="font-size: 14px; color: #333;">
                 <?php if ($versionsFetchError): ?>
-                    <span style="color: #991b1b;">Could not fetch version info</span>
+                    <span style="color: #991b1b;"><?php echo e(t('admin_version.could_not_fetch_version')); ?></span>
                 <?php elseif (!empty($availableVersions)): ?>
                     <?php
                     $latest = end($availableVersions);
@@ -1834,23 +1834,23 @@ if (file_exists($logFile)) {
                     $isUpToDate = ($currentVersion === $latestDisplay);
                     ?>
                     <?php if ($isUpToDate): ?>
-                        <span style="color: #166534;">v<?php echo e($latest['version']); ?> (up to date)</span>
+                        <span style="color: #166534;">v<?php echo e($latest['version']); ?> <?php echo e(t('admin_version.up_to_date_suffix')); ?></span>
                     <?php else: ?>
-                        <span style="color: #b45309;">v<?php echo e($latest['version']); ?> (update available)</span>
+                        <span style="color: #b45309;">v<?php echo e($latest['version']); ?> <?php echo e(t('admin_version.update_available_suffix')); ?></span>
                     <?php endif; ?>
                 <?php else: ?>
-                    <span style="color: #999;">No versions found</span>
+                    <span style="color: #999;"><?php echo e(t('admin_version.no_versions_found')); ?></span>
                 <?php endif; ?>
             </div>
         </div>
         <div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Last Migration Applied</div>
+            <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;"><?php echo e(t('admin_version.last_migration_label')); ?></div>
             <div style="font-size: 14px; color: #333;">
                 <?php if ($lastApplied): ?>
                     <strong><?php echo e($lastApplied['filename']); ?></strong>
-                    <span style="color: #666; font-size: 12px;">on <?php echo e($lastApplied['applied_at']); ?> by <?php echo e($lastApplied['applied_by']); ?></span>
+                    <span style="color: #666; font-size: 12px;"><?php echo e(t('admin_version.migration_on_label')); ?> <?php echo e($lastApplied['applied_at']); ?> <?php echo e(t('admin_version.migration_by_label')); ?> <?php echo e($lastApplied['applied_by']); ?></span>
                 <?php else: ?>
-                    <span style="color: #999;">None</span>
+                    <span style="color: #999;"><?php echo e(t('admin_version.none_label')); ?></span>
                 <?php endif; ?>
             </div>
         </div>
@@ -1859,14 +1859,14 @@ if (file_exists($logFile)) {
 
 <?php if (!empty($availableVersions)): ?>
 <div class="card">
-    <h3>Available Versions</h3>
+    <h3><?php echo e(t('admin_version.available_versions_heading')); ?></h3>
     <table>
         <thead>
             <tr>
-                <th>Version</th>
-                <th>Release Date</th>
-                <th>Archive</th>
-                <th>Status</th>
+                <th><?php echo e(t('admin_version.th_version')); ?></th>
+                <th><?php echo e(t('admin_version.th_release_date')); ?></th>
+                <th><?php echo e(t('admin_version.th_archive')); ?></th>
+                <th><?php echo e(t('admin_version.th_status')); ?></th>
             </tr>
         </thead>
         <tbody>
@@ -1877,9 +1877,9 @@ if (file_exists($logFile)) {
                 <td style="font-size: 12px; color: #666;"><?php echo e($ver['filename']); ?></td>
                 <td>
                     <?php if ($currentVersion === 'v' . $ver['version']): ?>
-                        <span class="badge badge-success">Installed</span>
+                        <span class="badge badge-success"><?php echo e(t('admin_version.badge_installed')); ?></span>
                     <?php else: ?>
-                        <span class="badge badge-blue">Available</span>
+                        <span class="badge badge-blue"><?php echo e(t('admin_version.badge_available')); ?></span>
                     <?php endif; ?>
                 </td>
             </tr>
@@ -1890,45 +1890,45 @@ if (file_exists($logFile)) {
 <?php endif; ?>
 
 <div class="card">
-    <h3>Version Upgrade</h3>
+    <h3><?php echo e(t('admin_version.version_upgrade_heading')); ?></h3>
     <?php if ($versionsFetchError): ?>
-        <div class="alert alert-danger">Unable to fetch available versions from the update server. Please check your server's internet connectivity and try again.</div>
+        <div class="alert alert-danger"><?php echo e(t('admin_version.unable_fetch_versions_alert')); ?></div>
     <?php elseif (empty($availableVersions)): ?>
-        <div class="alert alert-danger">No versions available from the update server.</div>
+        <div class="alert alert-danger"><?php echo e(t('admin_version.no_versions_available_alert')); ?></div>
     <?php else: ?>
         <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
-            <strong style="color: #92400e;">Important:</strong>
+            <strong style="color: #92400e;"><?php echo e(t('admin_version.important_label')); ?></strong>
             <span style="font-size: 13px; color: #78350f;">
-                A database backup is created automatically before each upgrade. The update archive will be downloaded, extracted, and any pending SQL migrations will be applied. Custom logos and favicon will be preserved.
+                <?php echo e(t('admin_version.upgrade_important_note')); ?>
             </span>
         </div>
 
         <div class="form-group">
-            <label for="target_version">Target Version</label>
+            <label for="target_version"><?php echo e(t('admin_version.target_version_label')); ?></label>
             <select id="target_version" class="form-control" style="max-width: 300px;">
-                <option value="">-- Select version --</option>
+                <option value=""><?php echo e(t('admin_version.select_version_option')); ?></option>
                 <?php foreach (array_reverse($availableVersions) as $ver): ?>
                     <option value="<?php echo e($ver['version']); ?>" data-filename="<?php echo e($ver['filename']); ?>">
                         v<?php echo e($ver['version']); ?> (<?php echo e($ver['date']); ?>)
                     </option>
                 <?php endforeach; ?>
             </select>
-            <div class="form-help">Select the version to upgrade to.</div>
+            <div class="form-help"><?php echo e(t('admin_version.target_version_help')); ?></div>
         </div>
 
-        <button type="button" class="btn btn-primary" id="openUpgradeModalBtn" disabled>Upgrade</button>
+        <button type="button" class="btn btn-primary" id="openUpgradeModalBtn" disabled><?php echo e(t('admin_version.upgrade_button')); ?></button>
     <?php endif; ?>
 </div>
 
 <?php if ($upgradeLog !== null): ?>
 <div class="card">
-    <h3>Upgrade Log</h3>
+    <h3><?php echo e(t('admin_version.upgrade_log_heading')); ?></h3>
     <table>
         <thead>
             <tr>
-                <th>Step</th>
-                <th>Status</th>
-                <th>Details</th>
+                <th><?php echo e(t('admin_version.th_step')); ?></th>
+                <th><?php echo e(t('admin_version.th_status')); ?></th>
+                <th><?php echo e(t('admin_version.th_details')); ?></th>
             </tr>
         </thead>
         <tbody>
@@ -1937,11 +1937,11 @@ if (file_exists($logFile)) {
                 <td><strong><?php echo e($entry['step']); ?></strong></td>
                 <td>
                     <?php if ($entry['status'] === 'ok'): ?>
-                        <span style="display: inline-block; padding: 2px 8px; background: #dcfce7; color: #166534; border-radius: 4px; font-size: 12px; font-weight: 500;">OK</span>
+                        <span style="display: inline-block; padding: 2px 8px; background: #dcfce7; color: #166534; border-radius: 4px; font-size: 12px; font-weight: 500;"><?php echo e(t('admin_version.status_ok')); ?></span>
                     <?php elseif ($entry['status'] === 'skip'): ?>
-                        <span style="display: inline-block; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 12px; font-weight: 500;">Skipped</span>
+                        <span style="display: inline-block; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 12px; font-weight: 500;"><?php echo e(t('admin_version.status_skipped')); ?></span>
                     <?php else: ?>
-                        <span style="display: inline-block; padding: 2px 8px; background: #fef2f2; color: #991b1b; border-radius: 4px; font-size: 12px; font-weight: 500;">Error</span>
+                        <span style="display: inline-block; padding: 2px 8px; background: #fef2f2; color: #991b1b; border-radius: 4px; font-size: 12px; font-weight: 500;"><?php echo e(t('admin_version.status_error')); ?></span>
                     <?php endif; ?>
                 </td>
                 <td style="font-size: 13px; color: #555; white-space: pre-line;"><?php echo e($entry['detail']); ?></td>
@@ -1956,27 +1956,27 @@ if (file_exists($logFile)) {
 <div id="upgradeModal" class="modal">
     <div class="modal-content" style="max-width: 550px;">
         <span class="close" id="closeUpgradeModal">&times;</span>
-        <h3 style="margin-top: 0; color: var(--theme-header-color);">Confirm Version Upgrade</h3>
+        <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo e(t('admin_version.confirm_version_upgrade_heading')); ?></h3>
 
         <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
             <div style="display: flex; align-items: start; gap: 10px;">
                 <span style="font-size: 20px;">&#9888;</span>
                 <div>
-                    <strong style="color: #92400e;">This will modify application files</strong>
+                    <strong style="color: #92400e;"><?php echo e(t('admin_version.modify_files_heading')); ?></strong>
                     <p style="margin: 5px 0 0; font-size: 13px; color: #78350f;">
-                        The upgrade will automatically create a database backup, download and extract the release archive, and apply any pending SQL migrations. Custom logos and favicon will be preserved.
+                        <?php echo e(t('admin_version.modify_files_detail')); ?>
                     </p>
                 </div>
             </div>
         </div>
 
         <p style="color: #666; margin-bottom: 15px;">
-            Upgrading to: <strong id="upgrade_version_display" style="color: #333;"></strong>
+            <?php echo e(t('admin_version.upgrading_to_label')); ?> <strong id="upgrade_version_display" style="color: #333;"></strong>
         </p>
 
         <div class="form-group" style="margin-bottom: 20px;">
-            <label for="upgrade_confirm_input" style="font-weight: 500;">Type <strong>UPGRADE</strong> to confirm:</label>
-            <input type="text" id="upgrade_confirm_input" class="form-control" placeholder="Type UPGRADE to confirm" autocomplete="off">
+            <label for="upgrade_confirm_input" style="font-weight: 500;"><?php echo t('admin_version.type_upgrade_confirm_label'); ?></label>
+            <input type="text" id="upgrade_confirm_input" class="form-control" placeholder="<?php echo e(t('admin_version.type_upgrade_confirm_placeholder')); ?>" autocomplete="off">
         </div>
 
         <form method="POST" action="admin.php?section=version" id="upgradeForm">
@@ -1986,8 +1986,8 @@ if (file_exists($logFile)) {
             <input type="hidden" name="perform_version_upgrade" value="1">
 
             <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-                <button type="button" class="btn btn-secondary" id="cancelUpgradeBtn">Cancel</button>
-                <button type="button" id="confirmUpgradeBtn" class="btn btn-primary" disabled>Upgrade</button>
+                <button type="button" class="btn btn-secondary" id="cancelUpgradeBtn"><?php echo e(t('admin_version.cancel_button')); ?></button>
+                <button type="button" id="confirmUpgradeBtn" class="btn btn-primary" disabled><?php echo e(t('admin_version.upgrade_button')); ?></button>
             </div>
         </form>
     </div>
@@ -2050,7 +2050,7 @@ if (file_exists($logFile)) {
         confirmBtn.addEventListener('click', function() {
             if (confirmInput.value !== 'UPGRADE') return;
             confirmBtn.disabled = true;
-            confirmBtn.textContent = 'Upgrading...';
+            confirmBtn.textContent = <?php echo json_encode(t('admin_version.js_upgrading_progress')); ?>;
             form.submit();
         });
     }
