@@ -193,6 +193,15 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Shadow SaaS "Risk Type" filter matched only single-value rows.** `risk_type`
+  is stored as a `"; "`-separated list (Grip writes `implode('; ', ...)`, as does
+  the CSV import), but the filter built its `LIKE` patterns with a bare `;` and no
+  space (`%;Type;%`, `%;Type`). Those never matched the stored `"; Type"` text, so
+  selecting a risk type only returned rows where that type was the first or only
+  element - to the user the filter looked like it did nothing. The query now
+  normalizes the separators (`REPLACE`) and wraps the value in `;` before a single
+  delimited `LIKE`, so any element in a multi-value list matches regardless of
+  spacing. The CSV export honors the same corrected filter.
 - **Recreating the database volume alone left the install broken.** `.passwords`
   lives in the `mariadb_data` volume, while `config.php` and `.sensitive` live in
   `persistent_data`. Destroying the database volume without also destroying the

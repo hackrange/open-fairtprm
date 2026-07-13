@@ -992,12 +992,14 @@ if ($riskFilter === 'unscored') {
     $params[':risk'] = (int)$riskFilter;
 }
 if ($riskTypeFilter !== '') {
-    // Match exact value, or at start/end/middle of semicolon-separated list
-    $whereConditions[] = "(s.risk_type = :rt_exact OR s.risk_type LIKE :rt_start OR s.risk_type LIKE :rt_mid OR s.risk_type LIKE :rt_end)";
-    $params[':rt_exact'] = $riskTypeFilter;
-    $params[':rt_start'] = $riskTypeFilter . ';%';
-    $params[':rt_mid'] = '%;' . $riskTypeFilter . ';%';
-    $params[':rt_end'] = '%;' . $riskTypeFilter;
+    // risk_type holds a "; "-separated list (GripService writes implode('; '),
+    // as does the CSV import). Normalize the separators to a bare ';' and wrap
+    // the whole value in ';' so the first and last elements are bounded, then
+    // match the selected type as a single delimited element. This tolerates
+    // optional spaces around the ';' - a plain ";Type;" LIKE misses any type
+    // that is not the first element because of the space after the semicolon.
+    $whereConditions[] = "CONCAT(';', REPLACE(REPLACE(s.risk_type, '; ', ';'), ' ;', ';'), ';') LIKE :rt_like";
+    $params[':rt_like'] = '%;' . $riskTypeFilter . ';%';
 }
 if ($mfaFilter !== '') {
     $whereConditions[] = "s.mfasupport = :mfa";
