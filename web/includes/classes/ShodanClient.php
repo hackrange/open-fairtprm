@@ -80,6 +80,12 @@ class ShodanClient
     // surface -- including them inflates open port counts dramatically.
     private const CDN_PROXIED_PORTS = [80, 443];
 
+    // Ports never subjected to active TCP re-verification. 80/443 are the standard
+    // web ports; if Shodan reported one and it is actually filtered, the only effect
+    // is a missed positive signal, never a penalty, so trusting them is safe and
+    // avoids hammering every scanned host with an extra connect.
+    private const ALWAYS_TRUST_PORTS = [80, 443];
+
     // WAF/CDN detection patterns
     private const WAF_CDN_PATTERNS = [
         'headers' => [
@@ -430,6 +436,8 @@ class ShodanClient
     private int $minCveYear = 0; // 0 = use default (5 years from current year)
     private int $bannerMaxAgeDays = self::BANNER_MAX_AGE_DAYS;
     private bool $onDemandScan = false;
+    private bool $verifyOpenPorts = true;   // active TCP-verify reported ports before scoring
+    private bool $verifyAttribution = true; // cross-check Shodan IPs against live DNS
 
     public function __construct()
     {
@@ -492,6 +500,16 @@ class ShodanClient
                         break;
                     case 'shodan_on_demand_scan':
                         $this->onDemandScan = ($value === '1');
+                        break;
+                    case 'shodan_verify_open_ports':
+                        // Default ON; only an explicit '0' disables active TCP port
+                        // verification (for deployments without outbound TCP egress).
+                        $this->verifyOpenPorts = ($value !== '0');
+                        break;
+                    case 'shodan_verify_attribution':
+                        // Default ON; only an explicit '0' disables the live-DNS
+                        // stale-attribution cross-check.
+                        $this->verifyAttribution = ($value !== '0');
                         break;
                 }
             }
@@ -992,6 +1010,113 @@ class ShodanClient
         $this->onDemandScan = $enabled;
     }
 
+    /** Enable/disable active TCP verification of reported open ports. */
+    public function setVerifyOpenPorts(bool $enabled): void
+    {
+        $this->verifyOpenPorts = $enabled;
+    }
+
+    /** Enable/disable cross-checking Shodan-attributed IPs against live authoritative DNS. */
+    public function setVerifyAttribution(bool $enabled): void
+    {
+        $this->verifyAttribution = $enabled;
+    }
+
+    /**
+     * Current authoritative A/AAAA addresses for a hostname, following CNAME chains
+     * (what `dig` returns). Used to catch stale Shodan attributions: Shodan's cached
+     * /dns/resolve can point a host at an IP it no longer uses. Returns [] on lookup
+     * failure so callers can fail OPEN and never drop data on a transient DNS error.
+     */
+    private function liveResolve(string $hostname): array
+    {
+        $ips = [];
+        foreach ([DNS_A, DNS_AAAA] as $type) {
+            $recs = @dns_get_record($hostname, $type);
+            if (is_array($recs)) {
+                foreach ($recs as $r) {
+                    if (!empty($r['ip']))   { $ips[] = $r['ip']; }
+                    if (!empty($r['ipv6'])) { $ips[] = $r['ipv6']; }
+                }
+            }
+        }
+        if (empty($ips)) {
+            $a = @gethostbynamel($hostname);   // all A records, follows CNAME
+            if (is_array($a)) {
+                $ips = array_merge($ips, $a);
+            }
+        }
+        return array_values(array_unique($ips));
+    }
+
+    /**
+     * Active TCP verification of reported ports (nmap -sT equivalent). Shodan's port
+     * data is historical and vantage-dependent, so it can report a port as open when
+     * it is currently FILTERED (no handshake) or closed. Confirm each port with a real,
+     * concurrent, non-blocking TCP connect and return only those that complete the
+     * handshake. Anything still pending at the deadline is treated as filtered/closed.
+     */
+    private function filterOpenPorts(array $ports, float $timeout = 2.0): array
+    {
+        $pending = []; // "ip:port" => ['sock'=>resource, 'data'=>portData]
+        foreach ($ports as $pd) {
+            $ip   = (string) ($pd['ip'] ?? '');
+            $port = (int) ($pd['port'] ?? 0);
+            if ($ip === '' || $port < 1 || $port > 65535) {
+                continue;
+            }
+            $host = (strpos($ip, ':') !== false) ? '[' . $ip . ']' : $ip; // bracket IPv6
+            $errno = 0; $errstr = '';
+            $sock = @stream_socket_client(
+                "tcp://{$host}:{$port}",
+                $errno,
+                $errstr,
+                $timeout,
+                STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT
+            );
+            if ($sock !== false) {
+                $pending[$ip . ':' . $port] = ['sock' => $sock, 'data' => $pd];
+            }
+        }
+
+        $open     = [];
+        $deadline = microtime(true) + $timeout;
+        while (!empty($pending) && microtime(true) < $deadline) {
+            $write = [];
+            foreach ($pending as $k => $p) {
+                $write[$k] = $p['sock'];
+            }
+            $read = null; $except = null; $wsel = $write;
+            $n = @stream_select($read, $wsel, $except, 0, 200000); // 0.2s slices
+            if ($n === false) {
+                break;
+            }
+            if ($n === 0) {
+                continue; // nothing settled yet; loop until the deadline
+            }
+            foreach ($pending as $k => $p) {
+                $ready = false;
+                foreach ($wsel as $ws) {
+                    if ($ws === $p['sock']) { $ready = true; break; }
+                }
+                if (!$ready) {
+                    continue;
+                }
+                // A settled async connect is writable; a real peer name means it connected.
+                if (@stream_socket_get_name($p['sock'], true) !== false) {
+                    $open[$k] = $p['data'];
+                }
+                @fclose($p['sock']);
+                unset($pending[$k]);
+            }
+        }
+        // Anything still pending timed out => filtered => not open.
+        foreach ($pending as $p) {
+            @fclose($p['sock']);
+        }
+        return array_values($open);
+    }
+
     /**
      * Verifies the API key is valid by calling /api-info.
      */
@@ -1262,6 +1387,52 @@ class ShodanClient
             }
         }
 
+        // Attribution helper: Shodan's /dns/resolve is cached and can attribute an IP a
+        // host no longer points to (e.g. after a move to Oracle Cloud WAAS / Cloudflare).
+        // Cross-check each attribution against LIVE authoritative DNS and drop stale ones
+        // -- but only on a positive contradiction (host resolves, and the IP isn't in the
+        // live set); a failed/empty lookup keeps the data, so a DNS hiccup never nukes a scan.
+        if ($this->verifyAttribution && !empty($hostnameToIp)) {
+            // Bound total DNS time, but SCALE the budget to the host count. A flat 8s cap
+            // silently skipped every host past ~#46 on a 100-host domain (measured ~0.18s
+            // per live lookup), so late-listed stale attributions -- e.g. a Shodan-cached
+            // Oracle WAAS edge on a subdomain near the end of the list -- survived unchecked.
+            $numHosts = count($hostnameToIp);
+            $deadline = microtime(true) + max(10.0, min(35.0, $numHosts * 0.30));
+            // Fail fast on dead subdomains (NXDOMAIN) so they don't starve the budget.
+            $prevRes = getenv('RES_OPTIONS');
+            @putenv('RES_OPTIONS=timeout:2 attempts:1');
+            $liveCache = [];
+            $checked   = 0;
+            foreach ($hostnameToIp as $hn => $ip) {
+                if (microtime(true) > $deadline) {
+                    break;
+                }
+                $checked++;
+                if (!array_key_exists($hn, $liveCache)) {
+                    $liveCache[$hn] = $this->liveResolve($hn);
+                }
+                $live = $liveCache[$hn];
+                if (!empty($live) && !in_array($ip, $live, true)) {
+                    unset($hostnameToIp[$hn]);
+                    if (isset($ipToHostnames[$ip])) {
+                        $ipToHostnames[$ip] = array_values(array_diff($ipToHostnames[$ip], [$hn]));
+                        if (empty($ipToHostnames[$ip])) {
+                            unset($ipToHostnames[$ip]);
+                        }
+                    }
+                    error_log("Shodan attribution: dropped stale IP {$ip} for {$hn} (live: " . implode(',', $live) . ")");
+                }
+            }
+            // Restore the resolver options for the rest of the process.
+            @putenv($prevRes === false ? 'RES_OPTIONS' : "RES_OPTIONS={$prevRes}");
+            // Never skip silently: if the budget ran out, say how many hosts went unchecked.
+            if ($checked < $numHosts) {
+                error_log("Shodan attribution: verified {$checked}/{$numHosts} hosts for {$domain}; "
+                    . ($numHosts - $checked) . " unverified (DNS budget exhausted)");
+            }
+        }
+
         $uniqueIps = array_unique(array_values($hostnameToIp));
 
         if (empty($uniqueIps)) {
@@ -1376,6 +1547,11 @@ class ShodanClient
                             'cvss' => null,
                             'severity' => 'unknown',
                             'subdomain' => $primarySubdomain,
+                            // Host-level `vulns` is a bare CVE-ID list with no
+                            // confirmation detail, so treat as version-inferred
+                            // until a banner-level entry (which carries Shodan's
+                            // `verified` flag) overwrites it below.
+                            'verified' => false,
                         ];
                     }
                 }
@@ -1429,6 +1605,11 @@ class ShodanClient
                                 'cvss' => $cvss,
                                 'severity' => $this->cvssToSeverity($cvss),
                                 'subdomain' => $primarySubdomain,
+                                // Shodan sets `verified` true only when a check
+                                // module actively confirmed the vuln; the common
+                                // case (false/absent) is pure version-banner
+                                // inference and a frequent false-positive source.
+                                'verified' => (is_array($vulnData) && !empty($vulnData['verified'])),
                             ];
                         }
                     }
@@ -1499,6 +1680,50 @@ class ShodanClient
             });
             $allBanners = array_values($allBanners);
 
+        }
+
+        // Step 3c: Active TCP verification (nmap -sT equivalent). Shodan's port data
+        // is historical and vantage-dependent, so it can report a port as open when
+        // it is currently FILTERED (no handshake) or closed. Confirm every reported
+        // port (except standard proxied web ports) with a real, concurrent TCP connect
+        // from here, and drop any that don't complete the handshake -- then prune the
+        // services/banners on those ports so they can't produce false-positive findings.
+        if ($this->verifyOpenPorts && !empty($allPorts)) {
+            $toVerify = [];
+            foreach ($allPorts as $key => $pd) {
+                if (!in_array((int) $pd['port'], self::ALWAYS_TRUST_PORTS, true)) {
+                    $toVerify[$key] = $pd;
+                }
+            }
+            if (!empty($toVerify)) {
+                $confirmed = [];
+                foreach ($this->filterOpenPorts(array_values($toVerify)) as $pd) {
+                    $confirmed[$pd['ip'] . ':' . $pd['port']] = true;
+                }
+                $removed = []; // "ip:port" => true for ports that failed verification
+                foreach ($toVerify as $key => $pd) {
+                    $k = $pd['ip'] . ':' . $pd['port'];
+                    if (empty($confirmed[$k])) {
+                        unset($allPorts[$key]);
+                        $removed[$k] = true;
+                    }
+                }
+                if (!empty($removed)) {
+                    error_log('Shodan: dropped ' . count($removed) . ' filtered/unreachable port(s) for ' . $domain . ' after active TCP check');
+                    $allServices = array_values(array_filter($allServices, function ($s) use ($removed) {
+                        return empty($removed[($s['ip'] ?? '') . ':' . ($s['port'] ?? 0)]);
+                    }));
+                    $allBanners = array_values(array_filter($allBanners, function ($b) use ($removed) {
+                        return empty($removed[($b['_ip'] ?? '') . ':' . ($b['port'] ?? 0)]);
+                    }));
+                    // Drop CVEs tied to a port we could not confirm open. Host-level
+                    // vulns (no port) are left to the existing keepVuln() logic.
+                    $allVulns = array_filter($allVulns, function ($v) use ($removed) {
+                        if (!isset($v['port']) || $v['port'] === null) return true;
+                        return empty($removed[($v['ip'] ?? '') . ':' . ($v['port'] ?? 0)]);
+                    });
+                }
+            }
         }
 
         // Drop CVE false positives in one pass. Runs unconditionally (not only
@@ -2965,61 +3190,61 @@ class ShodanClient
         $score = 50;
         $findings = [];
 
-        // Count CVEs by severity
+        // Only CONFIRMED (verified) CVEs move the score. Version-inferred CVEs are
+        // the dominant external-scan false positive (e.g. backported distro patches
+        // that keep the original version string), so they are surfaced in the report
+        // but never deducted. Split the input up front.
+        $verifiedVulns = array_values(array_filter($vulns, fn($v) => !empty($v['verified'])));
+        $inferredCount = count($vulns) - count($verifiedVulns);
+
+        // Count CONFIRMED CVEs by severity (these drive the deductions below) and
+        // collect their IDs for proof data.
         $criticalCount = 0;
         $highCount = 0;
         $mediumCount = 0;
         $lowCount = 0;
-
-        foreach ($vulns as $vuln) {
-            $cvss = $vuln['cvss'] ?? null;
-            $severity = $vuln['severity'] ?? $this->cvssToSeverity($cvss);
-
-            switch ($severity) {
-                case 'critical':
-                    $criticalCount++;
-                    break;
-                case 'high':
-                    $highCount++;
-                    break;
-                case 'medium':
-                    $mediumCount++;
-                    break;
-                case 'low':
-                    $lowCount++;
-                    break;
-            }
-        }
-
-        $totalVulns = count($vulns);
-        $c = 'vuln_exposure';
-
-        // Collect CVE IDs by severity for proof data
         $critCveIds = [];
         $highCveIds = [];
         $medCveIds = [];
         $lowCveIds = [];
-        foreach ($vulns as $vuln) {
+
+        foreach ($verifiedVulns as $vuln) {
             $cvss = $vuln['cvss'] ?? null;
             $severity = $vuln['severity'] ?? $this->cvssToSeverity($cvss);
             $cveId = $vuln['cve_id'] ?? '';
             switch ($severity) {
-                case 'critical': $critCveIds[] = $cveId; break;
-                case 'high':     $highCveIds[] = $cveId; break;
-                case 'medium':   $medCveIds[] = $cveId; break;
-                case 'low':      $lowCveIds[] = $cveId; break;
+                case 'critical': $criticalCount++; $critCveIds[] = $cveId; break;
+                case 'high':     $highCount++;     $highCveIds[] = $cveId; break;
+                case 'medium':   $mediumCount++;   $medCveIds[]  = $cveId; break;
+                case 'low':      $lowCount++;      $lowCveIds[]  = $cveId; break;
             }
         }
 
-        // Positive: no CVEs
-        if ($totalVulns === 0) {
+        $verifiedTotal = count($verifiedVulns);
+        $c = 'vuln_exposure';
+
+        // When CVEs were excluded for inadequate validation, note it on whichever
+        // finding we emit so the score stays explainable next to the report's
+        // low-fidelity (not-counted) table.
+        $inferredNote = $inferredCount > 0
+            ? ['CVEs not validated' => $inferredCount . ' (version-inferred; not scored)']
+            : [];
+
+        // Positive: no VALIDATED CVEs. Version-inferred hosts still count as clean
+        // here, since those findings lack the validation needed to confirm the
+        // vulnerability and are deliberately excluded from scoring.
+        if ($verifiedTotal === 0) {
             $p = $this->pts($c, 'no_cves');
             $score += $p;
-            $findings[] = $this->makeFinding($c, 'no_cves', 'positive', $p, 'high', 'No CVEs Detected', 'No known vulnerabilities detected across all hosts', null, null, null, ['Hosts Scanned' => count($services) . ' services across all IPs']);
-        } elseif ($totalVulns <= 3 && $criticalCount === 0 && $highCount === 0) {
+            if ($inferredCount > 0) {
+                $findings[] = $this->makeFinding($c, 'no_cves', 'positive', $p, 'high', 'No Validated CVEs', 'No validated vulnerabilities detected. ' . $inferredCount . ' version-inferred CVE' . ($inferredCount === 1 ? '' : 's') . ' observed but not validated, so excluded from the score.', null, null, null, array_merge(['Hosts Scanned' => count($services) . ' services across all IPs'], $inferredNote));
+            } else {
+                $findings[] = $this->makeFinding($c, 'no_cves', 'positive', $p, 'high', 'No CVEs Detected', 'No known vulnerabilities detected across all hosts', null, null, null, ['Hosts Scanned' => count($services) . ' services across all IPs']);
+            }
+        } elseif ($verifiedTotal <= 3 && $criticalCount === 0 && $highCount === 0) {
             $p = $this->pts($c, 'low_cve_count');
             $score += $p;
-            $findings[] = $this->makeFinding($c, 'low_cve_count', 'positive', $p, 'high', 'Low CVE Count', "Only {$totalVulns} non-critical vulnerabilit" . ($totalVulns === 1 ? 'y' : 'ies') . " detected", null, null, null, ['CVE Count' => $totalVulns, 'Severities' => 'No critical or high severity']);
+            $findings[] = $this->makeFinding($c, 'low_cve_count', 'positive', $p, 'high', 'Low Validated CVE Count', "Only {$verifiedTotal} non-critical validated vulnerabilit" . ($verifiedTotal === 1 ? 'y' : 'ies') . " detected", null, null, null, array_merge(['Validated CVE Count' => $verifiedTotal, 'Severities' => 'No critical or high severity'], $inferredNote));
         }
 
         // Negative: CVEs by severity (with caps at 3x per-CVE points)
@@ -3027,28 +3252,28 @@ class ShodanClient
         $critDeduct = min($criticalCount * $perCritPts, $perCritPts * 3);
         if ($critDeduct > 0) {
             $score -= $critDeduct;
-            $findings[] = $this->makeFinding($c, 'critical_cves', 'negative', -$critDeduct, 'high', "Critical CVEs ({$criticalCount})", "{$criticalCount} critical vulnerabilit" . ($criticalCount === 1 ? 'y' : 'ies') . " detected (CVSS >= 9.0)", null, null, null, ['CVE IDs' => implode(', ', $critCveIds)]);
+            $findings[] = $this->makeFinding($c, 'critical_cves', 'negative', -$critDeduct, 'high', "Critical CVEs ({$criticalCount})", "{$criticalCount} validated critical vulnerabilit" . ($criticalCount === 1 ? 'y' : 'ies') . " detected (CVSS >= 9.0)", null, null, null, ['CVE IDs' => implode(', ', $critCveIds)]);
         }
 
         $perHighPts = abs($this->pts($c, 'high_cve'));
         $highDeduct = min($highCount * $perHighPts, $perHighPts * 3);
         if ($highDeduct > 0) {
             $score -= $highDeduct;
-            $findings[] = $this->makeFinding($c, 'high_cves', 'negative', -$highDeduct, 'high', "High CVEs ({$highCount})", "{$highCount} high-severity vulnerabilit" . ($highCount === 1 ? 'y' : 'ies') . " detected (CVSS 7.0-8.9)", null, null, null, ['CVE IDs' => implode(', ', $highCveIds)]);
+            $findings[] = $this->makeFinding($c, 'high_cves', 'negative', -$highDeduct, 'high', "High CVEs ({$highCount})", "{$highCount} validated high-severity vulnerabilit" . ($highCount === 1 ? 'y' : 'ies') . " detected (CVSS 7.0-8.9)", null, null, null, ['CVE IDs' => implode(', ', $highCveIds)]);
         }
 
         $perMedPts = abs($this->pts($c, 'medium_cve'));
         $medDeduct = min($mediumCount * $perMedPts, $perMedPts * 5);
         if ($medDeduct > 0) {
             $score -= $medDeduct;
-            $findings[] = $this->makeFinding($c, 'medium_cves', 'negative', -$medDeduct, 'high', "Medium CVEs ({$mediumCount})", "{$mediumCount} medium-severity vulnerabilit" . ($mediumCount === 1 ? 'y' : 'ies') . " detected (CVSS 4.0-6.9)", null, null, null, ['CVE IDs' => implode(', ', $medCveIds)]);
+            $findings[] = $this->makeFinding($c, 'medium_cves', 'negative', -$medDeduct, 'high', "Medium CVEs ({$mediumCount})", "{$mediumCount} validated medium-severity vulnerabilit" . ($mediumCount === 1 ? 'y' : 'ies') . " detected (CVSS 4.0-6.9)", null, null, null, ['CVE IDs' => implode(', ', $medCveIds)]);
         }
 
         $perLowPts = abs($this->pts($c, 'low_cve'));
         $lowDeduct = min($lowCount * $perLowPts, $perLowPts * 5);
         if ($lowDeduct > 0) {
             $score -= $lowDeduct;
-            $findings[] = $this->makeFinding($c, 'low_cves', 'negative', -$lowDeduct, 'high', "Low CVEs ({$lowCount})", "{$lowCount} low-severity vulnerabilit" . ($lowCount === 1 ? 'y' : 'ies') . " detected (CVSS < 4.0)", null, null, null, ['CVE IDs' => implode(', ', $lowCveIds)]);
+            $findings[] = $this->makeFinding($c, 'low_cves', 'negative', -$lowDeduct, 'high', "Low CVEs ({$lowCount})", "{$lowCount} validated low-severity vulnerabilit" . ($lowCount === 1 ? 'y' : 'ies') . " detected (CVSS < 4.0)", null, null, null, ['CVE IDs' => implode(', ', $lowCveIds)]);
         }
 
         // Check for outdated software

@@ -2565,6 +2565,18 @@ $csrfToken = $security->generateCSRFToken();
                             $legacyFindings[] = $f;
                         }
                     }
+                    // Full set of scanned hosts, used to show, per negative signal, which
+                    // hosts carry it (WITH) and which were scanned but do not (WITHOUT).
+                    $allScannedHosts = [];
+                    foreach ($shodanSubdomains as $s) {
+                        $s = trim((string)$s);
+                        if ($s !== '') { $allScannedHosts[$s] = true; }
+                    }
+                    foreach ($vendorSubdomains as $vs) {
+                        $s = trim((string)($vs['subdomain'] ?? ''));
+                        if ($s !== '') { $allScannedHosts[$s] = true; }
+                    }
+                    $allScannedHosts = array_keys($allScannedHosts);
             ?>
             <div class="card" id="shodan-signals">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -2750,6 +2762,47 @@ $csrfToken = $security->generateCSRFToken();
                                         </table>
                                         <?php endif; ?>
                                         <?php
+                                        // Per-signal host breakdown: which scanned hosts carry this
+                                        // negative signal, and which were scanned but do NOT. Only
+                                        // meaningful for host-specific signals (those tied to a
+                                        // subdomain); host-agnostic ones (e.g. DNS-level SPF/DMARC)
+                                        // are skipped.
+                                        $withHosts = [];
+                                        if (!empty($findingSubdomain)) { $withHosts[$findingSubdomain] = true; }
+                                        if ($hasProof && !empty($proofData['Observed Subdomains'])) {
+                                            foreach (explode(', ', $proofData['Observed Subdomains']) as $ps) {
+                                                $ps = trim($ps);
+                                                if ($ps !== '') { $withHosts[$ps] = true; }
+                                            }
+                                        }
+                                        $withHosts = array_keys($withHosts);
+                                        $withoutHosts = array_values(array_diff($allScannedHosts, $withHosts));
+                                        if (!$isPositive && !empty($withHosts)):
+                                        ?>
+                                        <div style="margin-top: <?php echo $hasProof ? '10px; padding-top: 8px; border-top: 1px solid #e2e8f0' : '0'; ?>;">
+                                            <div style="margin-bottom: 6px;">
+                                                <span style="font-weight: 600; color: #991b1b; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Hosts with this signal (<?php echo count($withHosts); ?>)</span>
+                                                <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;">
+                                                    <?php foreach ($withHosts as $wh): ?>
+                                                    <span style="background: #fef2f2; color: #991b1b; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-family: monospace;"><?php echo e($wh); ?></span>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span style="font-weight: 600; color: #166534; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Hosts scanned without this signal (<?php echo count($withoutHosts); ?>)</span>
+                                                <?php if (!empty($withoutHosts)): ?>
+                                                <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; max-height: 96px; overflow-y: auto;">
+                                                    <?php foreach ($withoutHosts as $woh): ?>
+                                                    <span style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-family: monospace;"><?php echo e($woh); ?></span>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                                <?php else: ?>
+                                                <div style="margin-top: 4px; font-size: 10px; color: #9ca3af; font-style: italic;">All scanned hosts carry this signal.</div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                        <?php endif; ?>
+                                        <?php
                                         // Show rescan button if we have a valid IP address
                                         $findingIp = $finding['ip_address'] ?? '';
                                         if (!empty($findingIp) && filter_var($findingIp, FILTER_VALIDATE_IP) && !$isStakeholderView):
@@ -2930,6 +2983,18 @@ $csrfToken = $security->generateCSRFToken();
                     </div>
                 </div>
                 <div id="rawFindingsBody" style="display: none; margin-top: 12px;">
+                    <?php
+                    $lowFidelityCveCount = count(array_filter($legacyFindings, function ($f) {
+                        return ($f['finding_type'] ?? '') === 'vulnerability'
+                            && array_key_exists('verified', $f) && $f['verified'] !== null
+                            && (int)$f['verified'] === 0;
+                    }));
+                    if ($lowFidelityCveCount > 0):
+                    ?>
+                    <div style="margin-bottom: 10px; padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px; color: #475569;">
+                        <strong style="color: #334155;"><?php echo $lowFidelityCveCount; ?></strong> CVE<?php echo $lowFidelityCveCount !== 1 ? 's are' : ' is'; ?> tagged <span style="background:#f3f4f6;color:#6b7280;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;">LOW FIDELITY &mdash; NOT SCORED</span>: these are version/banner-inferred by <?php echo e($shodanName); ?> and not actively confirmed, so they are shown for awareness but excluded from the score.
+                    </div>
+                    <?php endif; ?>
                     <table style="font-size: 12px;">
                         <thead>
                             <tr>
@@ -2965,6 +3030,9 @@ $csrfToken = $security->generateCSRFToken();
                         'description' => $f['description'] ?? '',
                         'cvss' => $f['cvss_score'] ?? null,
                         'protocol' => $f['protocol'] ?? '',
+                        // 1 = Shodan-confirmed, 0 = version-inferred (low fidelity, not
+                        // scored), null = pre-fidelity data / not applicable.
+                        'verified' => array_key_exists('verified', $f) && $f['verified'] !== null ? (int)$f['verified'] : null,
                     ];
                 }, $legacyFindings))); ?>;
                 const perPage = 10;
@@ -2995,6 +3063,9 @@ $csrfToken = $security->generateCSRFToken();
                         if (f.cve_id) details += '<strong>' + linkifyCvesJs(esc(f.cve_id)) + '</strong>';
                         else if (f.service_name) details += esc(f.service_name);
                         if (f.description) details += '<span style="color:#666;"> - ' + linkifyCvesJs(esc(f.description)) + '</span>';
+                        if (f.type === 'vulnerability' && f.verified === 0) {
+                            details += ' <span style="background:#f3f4f6;color:#6b7280;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;white-space:nowrap;" title="Version/banner-inferred by Shodan and not actively confirmed. Shown for awareness but excluded from the score (low fidelity).">LOW FIDELITY &mdash; NOT SCORED</span>';
+                        }
                         let excludeBtn = '';
                         if (f.subdomain && f.subdomain !== '-' && !isStakeholderView) {
                             excludeBtn = ' <form method="POST" style="display:inline;" data-stop-propagation>'
@@ -3129,6 +3200,9 @@ $csrfToken = $security->generateCSRFToken();
                         if (f.cve_id) details += '<strong>' + linkifyCvesJs(esc(f.cve_id)) + '</strong>';
                         else if (f.service_name) details += esc(f.service_name);
                         if (f.description) details += '<span style="color:#666;"> - ' + linkifyCvesJs(esc(f.description)) + '</span>';
+                        if (f.type === 'vulnerability' && f.verified === 0) {
+                            details += ' <span style="background:#f3f4f6;color:#6b7280;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;white-space:nowrap;" title="Version/banner-inferred by Shodan and not actively confirmed. Shown for awareness but excluded from the score (low fidelity).">LOW FIDELITY &mdash; NOT SCORED</span>';
+                        }
                         let excludeBtn = '';
                         if (f.subdomain && f.subdomain !== '-' && !isStakeholderView) {
                             excludeBtn = ' <form method="POST" style="display:inline;" data-stop-propagation>'

@@ -6389,6 +6389,17 @@ SET @sql = IF(@needs_widen > 0,
   'DO 0');
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
+-- vendor_shodan_findings.verified (CVE fidelity: 1 = Shodan-confirmed, 0 = version-
+-- inferred/low-fidelity shown-but-not-scored, NULL = not applicable). Placed here so
+-- the ADD runs after the table's CREATE earlier in this file.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_shodan_findings' AND column_name = 'verified') = 0,
+  'ALTER TABLE `vendor_shodan_findings` ADD COLUMN `verified` TINYINT(1) DEFAULT NULL AFTER `confidence`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

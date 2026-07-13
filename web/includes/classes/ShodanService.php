@@ -1204,7 +1204,11 @@ class ShodanService
 
         // Store vulnerability findings
         if (!empty($scoreData['vulns'])) {
+            $hasVerifiedCol = $this->hasVerifiedColumn();
             foreach ($scoreData['vulns'] as $vuln) {
+                // Shodan-confirmed vs. version-inferred. Inferred CVEs are surfaced
+                // but excluded from scoring, so mark them low-confidence for the UI.
+                $isVerified = !empty($vuln['verified']);
                 $row = [
                     'shodan_score_id' => $scoreId,
                     'finding_type' => 'vulnerability',
@@ -1219,6 +1223,10 @@ class ShodanService
                     $row['signal_type'] = 'negative';
                     $row['category'] = 'vuln_exposure';
                     $row['subdomain'] = $vuln['subdomain'] ?? null;
+                    $row['confidence'] = $isVerified ? 'high' : 'low';
+                }
+                if ($hasVerifiedCol) {
+                    $row['verified'] = $isVerified ? 1 : 0;
                 }
                 $this->db->insert('vendor_shodan_findings', $row);
             }
@@ -1295,6 +1303,25 @@ class ShodanService
         }
 
         return $this->proofColumnCache;
+    }
+
+    private ?bool $verifiedColumnCache = null;
+    private function hasVerifiedColumn(): bool
+    {
+        if ($this->verifiedColumnCache !== null) {
+            return $this->verifiedColumnCache;
+        }
+
+        try {
+            $result = $this->db->fetchOne(
+                "SELECT 1 AS ok FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vendor_shodan_findings' AND COLUMN_NAME = 'verified'"
+            );
+            $this->verifiedColumnCache = !empty($result);
+        } catch (Exception $e) {
+            $this->verifiedColumnCache = false;
+        }
+
+        return $this->verifiedColumnCache;
     }
 
     /**

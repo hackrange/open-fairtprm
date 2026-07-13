@@ -12,6 +12,23 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **SRS / Shodan external-scan accuracy - fewer false positives.** The Shodan
+  scoring engine now actively TCP-verifies every reported open port (except the
+  standard web ports 80/443) with a real concurrent connect and drops any that
+  do not complete a handshake, along with the services, banners, and CVEs tied
+  to those ports - so a port Shodan lists as open but that is actually filtered
+  no longer counts against a vendor. CVE findings are split by fidelity: only
+  vulnerabilities Shodan actively confirmed (its `verified` flag) affect the
+  score, while version/banner-inferred CVEs - the dominant external-scan false
+  positive - are shown for awareness, labeled "low fidelity - not scored," and
+  excluded from the grade (so a vendor scored only on inferred CVEs may see its
+  score rise on the next rescan). Host attribution is cross-checked against live
+  authoritative DNS, dropping stale Shodan-cached attributions (a failed lookup
+  fails open, so a DNS hiccup never discards data). Both the active port check
+  and the DNS attribution check are on by default and can be disabled per
+  deployment from Admin -> SRS -> Shodan (Scan Accuracy). On the vendor SRS
+  details page, each negative Security Signal now expands to list the hosts that
+  carry it and, below, the scanned hosts that do not.
 - **Full application internationalization (i18n).** Every user-facing string
   across ~40 admin and vendor pages - including Shadow SaaS, Grip, the GRC suite
   (dashboard, assessments, audits, frameworks, controls, crosswalk, risks,

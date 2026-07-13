@@ -42,6 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_shodanPostAction) {
                 'shodan_excluded_domains' => trim($_POST['shodan_excluded_domains'] ?? ''),
                 'shodan_use_cron' => isset($_POST['shodan_use_cron']) ? '1' : '0',
                 'shodan_on_demand_scan' => isset($_POST['shodan_on_demand_scan']) ? '1' : '0',
+                'shodan_verify_open_ports' => isset($_POST['shodan_verify_open_ports']) ? '1' : '0',
+                'shodan_verify_attribution' => isset($_POST['shodan_verify_attribution']) ? '1' : '0',
                 'shodan_min_cve_year' => max(0, intval($_POST['shodan_min_cve_year'] ?? 0)),
                 'shodan_banner_max_age' => max(0, intval($_POST['shodan_banner_max_age'] ?? 7)),
                 'shodan_rescan_cooldown_hours' => max(0, intval($_POST['shodan_rescan_cooldown_hours'] ?? 24))
@@ -484,6 +486,22 @@ if (!in_array($shodanSubTab, ['settings', 'weights', 'signals', 'waivers', 'abou
             <label for="shodan_rescan_cooldown_hours"><?php echo e(t('admin_shodan-srs.rescan_cooldown_label')); ?></label>
             <input type="number" id="shodan_rescan_cooldown_hours" name="shodan_rescan_cooldown_hours" class="form-control" value="<?php echo e($shodanConfig['rescan_cooldown_hours'] ?? '24'); ?>" min="0" max="720" style="max-width: 200px;">
             <div class="form-help"><?php echo e(t('admin_shodan-srs.rescan_cooldown_help')); ?></div>
+        </div>
+
+        <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;">Scan Accuracy</h4>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="shodan_verify_open_ports" value="1" <?php echo ($shodanConfig['verify_open_ports'] ?? '1') === '1' ? 'checked' : ''; ?>>
+                <span>Actively verify open ports (TCP connect)</span>
+            </label>
+            <div class="form-help">Confirms each Shodan-reported port with a real TCP connection and drops any that are actually filtered/closed, removing false-positive "exposed port" findings. Requires outbound TCP egress from this server. Leave enabled unless this deployment cannot make outbound connections.</div>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="shodan_verify_attribution" value="1" <?php echo ($shodanConfig['verify_attribution'] ?? '1') === '1' ? 'checked' : ''; ?>>
+                <span>Cross-check host attribution against live DNS</span>
+            </label>
+            <div class="form-help">Drops findings on IPs that Shodan attributes to a host but that live authoritative DNS no longer resolves to (stale/cached attributions), reducing misattributed findings.</div>
         </div>
 
         <h4 style="margin-top: 30px; margin-bottom: 15px; padding-top: 20px; border-top: 1px solid #e5e7eb;"><?php echo e(t('admin_shodan-srs.grade_scoring_heading')); ?></h4>
