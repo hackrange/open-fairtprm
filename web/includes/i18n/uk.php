@@ -3449,6 +3449,7 @@ return [
     'vendor-srs-list.needs_rescore_only' => 'Лише ті, що потребують переоцінювання',
     'vendor-srs-list.uses_ai' => 'Використовує ШІ',
     'vendor-srs-list.include_shadow_saas' => 'Включити Shadow SaaS',
+    'vendor-srs-list.show_inactive' => 'Показати неактивні',
     'vendor-srs-list.filter_button' => 'Фільтрувати',
     'vendor-srs-list.reset' => 'Скинути',
     'vendor-srs-list.show' => 'Показати:',

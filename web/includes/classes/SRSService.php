@@ -499,22 +499,53 @@ class SRSService
      */
     public function getVendorsNeedingRescore(int $limit = 50): array
     {
-        // Grab candidates: must have a tier, a domain, and not be inactive/rejected
+        // Resolve the per-tier rescore intervals (admin-configurable, days).
+        $config = $this->loadScoringConfig();
+        $t1 = (int)($config['tier1_days'] ?? self::DEFAULT_TIER_DAYS['1']);
+        $t2 = (int)($config['tier2_days'] ?? self::DEFAULT_TIER_DAYS['2']);
+        $t3 = (int)($config['tier3_days'] ?? self::DEFAULT_TIER_DAYS['3']);
+
+        // Only pull vendors that are ACTUALLY due for a rescore, deciding
+        // due-ness in SQL *before* the LIMIT is applied.
+        //
+        // This ordering matters a great deal. The previous version fetched a
+        // tier-ordered page of candidates and only checked due-ness afterward
+        // in PHP. On a large tenant that quietly starved the lower tiers: a
+        // batch could fill up entirely with not-yet-due Tier 1 vendors (they
+        // sort first purely by tier), every one of them then gets filtered out
+        // as "not due," and the genuinely-overdue Tier 2 / Tier 3 vendors --
+        // which sort *after* every Tier 1 row -- are never fetched at all. The
+        // result is a handful of correctly-tiered, active vendors stuck on
+        // "Needs Rescore" forever while the cron reports "nothing to do."
+        // Filtering in SQL means the LIMIT can only ever select vendors that
+        // are truly due, so lower tiers can no longer be crowded out.
+        // $t1/$t2/$t3 are cast to int above, so they are safe to interpolate.
         $vendors = $this->db->fetchAll(
             "SELECT * FROM vendor_onboarding_requests
              WHERE vendor_tier IS NOT NULL
                AND vendor_domain IS NOT NULL
                AND vendor_domain != ''
                AND status NOT IN ('inactive', 'rejected')
+               AND (
+                   last_srs_score_at IS NULL
+                   OR last_srs_score_at < DATE_SUB(NOW(), INTERVAL
+                       CASE vendor_tier
+                           WHEN '1' THEN {$t1}
+                           WHEN '2' THEN {$t2}
+                           WHEN '3' THEN {$t3}
+                           ELSE {$t2}
+                       END DAY)
+               )
              ORDER BY vendor_tier ASC, last_srs_score_at IS NULL DESC, last_srs_score_at ASC
              LIMIT " . intval($limit)
         );
 
-        // Run each through the needsRescore check to filter out vendors
-        // that were scored recently enough for their tier
-        return array_filter($vendors, function ($vendor) {
+        // Defense in depth: re-run the same tier check in PHP so any drift
+        // between the SQL interval math and needsRescore() can only ever
+        // REMOVE rows, never add ones that aren't genuinely due.
+        return array_values(array_filter($vendors, function ($vendor) {
             return $this->needsRescore($vendor);
-        });
+        }));
     }
 
     /**

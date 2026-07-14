@@ -78,7 +78,7 @@ RUN set -e; \
     cp -p  $pp/ACL.php \
            $pp/EmailService.php $pp/LockdownService.php $pp/BreachAlertService.php \
            $pp/AIPlatformService.php $pp/GitHubOSINTScanner.php \
-           $pp/ShodanClient.php $pp/ShodanService.php $pp/Security.php $pp/Session.php \
+           $pp/ShodanClient.php $pp/ShodanService.php $pp/SRSService.php $pp/Security.php $pp/Session.php \
            $pp/VendorAssessmentService.php $pp/AssessmentTranslationService.php \
            $pp/CyberTodoService.php \
            $pp/GripService.php $pp/HeroService.php \

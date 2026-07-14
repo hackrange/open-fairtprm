@@ -12,6 +12,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Vendor SRS list hides inactive vendors by default, with a "Show Inactive"
+  toggle.** The Vendor Security Scores board no longer lists vendors whose status
+  is `inactive` unless the new "Show Inactive" checkbox in the filter bar is
+  ticked; the default view and the Reset link both exclude them. Inactive vendors
+  were already excluded from rescoring and bulk actions, so this aligns the list
+  with the rest of the page. The toggle is translated into all seven supported
+  languages.
 - **SRS / Shodan external-scan accuracy - fewer false positives.** The Shodan
   scoring engine now actively TCP-verifies every reported open port (except the
   standard web ports 80/443) with a real concurrent connect and drops any that
@@ -210,6 +217,20 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Automatic SRS rescoring starved lower tiers on large tenants.** The hourly
+  rescore cron asks `SRSService::getVendorsNeedingRescore()` for a batch, but
+  that method applied its `LIMIT` (batch size) to a strictly tier-ordered
+  candidate list *before* deciding which rows were actually due, then filtered
+  due-ness in PHP. On a large fleet the batch could fill entirely with
+  not-yet-due Tier 1 vendors (they sort ahead of every lower tier regardless of
+  due date); all of them were then discarded as "not due," the job logged
+  "No vendors require rescoring," and genuinely-overdue Tier 2 / Tier 3 vendors -
+  which sort after every Tier 1 row - were never fetched. The effect was a small
+  set of correctly-tiered, active vendors stuck on "Needs Rescore" indefinitely
+  while the rest of the fleet stayed current. Due-ness is now computed in SQL
+  (per-tier `DATE_SUB` interval) before the `LIMIT`, so the batch can only ever
+  contain vendors that are genuinely due and lower tiers can no longer be crowded
+  out. The PHP `needsRescore()` pass is retained as defense in depth.
 - **Shadow SaaS "Risk Type" filter matched only single-value rows.** `risk_type`
   is stored as a `"; "`-separated list (Grip writes `implode('; ', ...)`, as does
   the CSV import), but the filter built its `LIKE` patterns with a bare `;` and no

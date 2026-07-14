@@ -564,6 +564,8 @@ $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
 $showNeedsRescore = isset($_GET['needs_rescore']) && $_GET['needs_rescore'] === '1';
 $showShadowSaas = isset($_GET['show_shadow_saas']) && $_GET['show_shadow_saas'] === '1';
 $showUsesAi = isset($_GET['uses_ai']) && $_GET['uses_ai'] === '1';
+// Inactive vendors are hidden by default; the "Show Inactive" toggle opts them back in
+$showInactive = isset($_GET['show_inactive']) && $_GET['show_inactive'] === '1';
 $statFilter = $_GET['filter'] ?? '';
 
 // Map stat tile filter to specific filter behavior
@@ -717,6 +719,11 @@ $stats = [
 $params = [];
 $whereConditions = ["r.vendor_domain IS NOT NULL", "r.vendor_domain != ''"];
 
+// Hide inactive vendors unless the user explicitly opts in via "Show Inactive"
+if (!$showInactive) {
+    $whereConditions[] = "r.status != 'inactive'";
+}
+
 if ($tierFilter === 'none') {
     $whereConditions[] = "(r.vendor_tier IS NULL OR r.vendor_tier = '')";
 } elseif (!empty($tierFilter) && in_array($tierFilter, ['1', '2', '3'])) {
@@ -836,7 +843,7 @@ $filteredAvgScore = (int)($filteredAvgRow['filtered_avg'] ?? 0);
 
 // Build dynamic label for the avg score card
 $avgScoreLabel = 'Avg Score';
-$hasActiveFilter = !empty($statFilter) || $showNeedsRescore || $showUsesAi || !empty($tierFilter) || !empty($gradeFilter) || !empty($searchQuery);
+$hasActiveFilter = !empty($statFilter) || $showNeedsRescore || $showUsesAi || $showInactive || !empty($tierFilter) || !empty($gradeFilter) || !empty($searchQuery);
 if ($hasActiveFilter) {
     $parts = [];
     if ($tierFilter === 'none') $parts[] = 'No Tier';
@@ -848,6 +855,7 @@ if ($hasActiveFilter) {
     elseif ($statFilter === 'in_review') $parts[] = 'In Review';
     if (!empty($gradeFilter)) $parts[] = 'Grade ' . $gradeFilter;
     if ($showUsesAi) $parts[] = 'Uses AI';
+    if ($showInactive) $parts[] = 'Incl. Inactive';
     if (!empty($searchQuery)) $parts[] = 'Search';
     $avgScoreLabel = 'Avg ' . (!empty($parts) ? implode(' + ', $parts) : 'Selected');
 }
@@ -1694,6 +1702,12 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 <label>
                     <input type="checkbox" name="uses_ai" value="1" <?php echo $showUsesAi ? 'checked' : ''; ?>>
                     <?php echo e(t('vendor-srs-list.uses_ai')); ?>
+                </label>
+            </div>
+            <div class="filter-group">
+                <label>
+                    <input type="checkbox" name="show_inactive" value="1" <?php echo $showInactive ? 'checked' : ''; ?>>
+                    <?php echo e(t('vendor-srs-list.show_inactive')); ?>
                 </label>
             </div>
             <?php if ($shadowSaasTableExists): ?>

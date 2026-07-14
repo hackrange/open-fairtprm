@@ -3469,6 +3469,7 @@ You will be logged in as this user and see the application from their perspectiv
     'vendor-srs-list.needs_rescore_only' => 'Needs Rescore Only',
     'vendor-srs-list.uses_ai' => 'Uses AI',
     'vendor-srs-list.include_shadow_saas' => 'Include Shadow SaaS',
+    'vendor-srs-list.show_inactive' => 'Show Inactive',
     'vendor-srs-list.filter_button' => 'Filter',
     'vendor-srs-list.reset' => 'Reset',
     'vendor-srs-list.show' => 'Show:',

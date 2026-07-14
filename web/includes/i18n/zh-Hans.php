@@ -3449,6 +3449,7 @@ return [
     'vendor-srs-list.needs_rescore_only' => '仅需重新评分',
     'vendor-srs-list.uses_ai' => '使用 AI',
     'vendor-srs-list.include_shadow_saas' => '包含 Shadow SaaS',
+    'vendor-srs-list.show_inactive' => '显示停用',
     'vendor-srs-list.filter_button' => '筛选',
     'vendor-srs-list.reset' => '重置',
     'vendor-srs-list.show' => '显示：',
