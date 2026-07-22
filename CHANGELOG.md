@@ -380,6 +380,36 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - **Admin section handlers** refuse direct web access (must be dispatched via
   `admin.php`).
 - **BOLA/IDOR remediation** across object-access paths, plus OS package updates.
+- **TOTP verification is now rate limited.** The second-factor step previously
+  had no throttle of any kind: an attacker who already held a valid password
+  could guess the six-digit code without limit. `Auth::verifyTOTP()` now honors
+  `account_locked_until` before checking a code, counts each failure against the
+  same budget as a bad password (`auth.max_login_attempts` /
+  `auth.lockout_duration`, 5 attempts / 30 minutes by default), and clears the
+  counter on success. No schema change - it reuses the existing
+  `failed_login_attempts` and `account_locked_until` columns.
+- **Content-Security-Policy `script-src` no longer allowlists bare Google
+  origins.** Allowlisting `https://www.google.com` and `https://www.gstatic.com`
+  wholesale is a known CSP bypass, since those hosts serve JSONP callback
+  endpoints and legacy AngularJS builds that turn any HTML injection into script
+  execution. The policy now scopes them to the paths actually loaded -
+  `https://www.google.com/recaptcha/`, `https://www.gstatic.com/recaptcha/` and
+  `https://maps.google.com/maps/api/` - so reCAPTCHA and Maps keep working
+  without granting the bypass. `frame-src` is likewise narrowed to
+  `https://www.google.com/recaptcha/`.
+- **`.sql` files are no longer fetchable over HTTP.** `/init-db/` and
+  `/migrations/` shipped inside the docroot without a deny rule, so the full
+  database schema could be retrieved anonymously. A new
+  `zz-fairtprm-sql-deny.conf` denies both directories and adds a blanket
+  `<FilesMatch "\.sql$">` deny across the docroot. Schema and migration files
+  still reach the database from inside the container (entrypoint seeding) and
+  through the admin backup/update pages, which read them server-side.
+- **Removed a stale, unauthenticated copy of the SQL-update page from the
+  docroot.** `web/updates.php` was a fork of `includes/admin/updates.php`
+  carrying the same `.sql` upload / apply / delete handlers but none of the
+  `ADMIN_DISPATCH` guard, leaving an unauthenticated SQL handler in the webroot.
+  Nothing referenced it - `admin.php` dispatches the guarded copy from
+  `includes/admin/` - so it is deleted from the image as well as the tree.
 
 ## [2.6.1] - 2026-06-17
 

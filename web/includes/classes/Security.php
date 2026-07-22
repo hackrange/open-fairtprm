@@ -367,13 +367,21 @@ class Security {
         // Content-Security-Policy must be emitted from PHP because it
         // contains a per-request nonce for inline script blocks.
         $nonce = $this->getNonce();
+        // Google origins are path-scoped on purpose. Allowlisting the bare
+        // https://www.google.com and https://www.gstatic.com origins is a well
+        // known CSP bypass: those hosts serve JSONP callback endpoints (e.g.
+        // /complete/search?callback=) and old AngularJS builds, either of which
+        // turns any HTML injection in this app into full script execution.
+        // Restricting to the reCAPTCHA and Maps API paths we actually load
+        // (see app/js/script.js) keeps both features working without handing
+        // out that bypass.
         $csp = "default-src 'self'; "
-             . "script-src 'self' 'nonce-{$nonce}' https://maps.google.com https://www.google.com https://www.gstatic.com; "
+             . "script-src 'self' 'nonce-{$nonce}' https://maps.google.com/maps/api/ https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; "
              . "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
              . "font-src 'self' https://fonts.gstatic.com; "
              . "img-src 'self' data: https:; "
              . "connect-src 'self'; "
-             . "frame-src https://www.google.com blob:; "
+             . "frame-src https://www.google.com/recaptcha/ blob:; "
              . "frame-ancestors 'none'; "
              . "base-uri 'self'; "
              . "form-action 'self'; "

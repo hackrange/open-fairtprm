@@ -34,6 +34,13 @@
 # so it cannot contain `#` comments inside; the file groupings below are
 # organised by destination path, blank-line-separated for readability.
 # sql_updates is purged to a single authoritative schema file (v2.6.2.sql).
+#
+# Two docroot files inherited from the base image are deleted rather than
+# overwritten: lockdown.php, and updates.php -- a stale fork of the admin
+# SQL-update page that carries the .sql upload/apply/delete handlers but none
+# of the ADMIN_DISPATCH guard, i.e. an unauthenticated SQL handler in the
+# webroot. admin.php dispatches the guarded copy from includes/admin/, so
+# nothing references the docroot one.
 # =============================================================================
 FROM dockerregistry.fairtprm.com/fairtprm:v2.6.1
 
@@ -75,7 +82,7 @@ RUN set -e; \
            $pp/assessment-templates.php $pp/api-integration.php \
            /var/www/html/includes/admin/; \
     \
-    cp -p  $pp/ACL.php \
+    cp -p  $pp/ACL.php $pp/Auth.php \
            $pp/EmailService.php $pp/LockdownService.php $pp/BreachAlertService.php \
            $pp/AIPlatformService.php $pp/GitHubOSINTScanner.php \
            $pp/ShodanClient.php $pp/ShodanService.php $pp/SRSService.php $pp/Security.php $pp/Session.php \
@@ -114,7 +121,7 @@ RUN set -e; \
            $pp/grc-monitors.php $pp/grc-policies.php $pp/grc-risks.php \
            $pp/grc-tasks.php $pp/admin.php $pp/index.php $pp/login.php $pp/profile.php \
            $pp/procurement-contracts.php $pp/procurement-cyber-status.php $pp/shadow-saas.php $pp/grip-saas-users.php \
-           $pp/updates.php $pp/vendor-assessment.php $pp/vendor-assessments.php \
+           $pp/vendor-assessment.php $pp/vendor-assessments.php \
            $pp/vendor-assessment-view.php $pp/vendor-detailed-summary.php \
            $pp/vendor-domains.php $pp/vendor-onboarding-list.php \
            $pp/vendor-onboarding.php \
@@ -150,6 +157,7 @@ RUN set -e; \
     done; \
     printf 'Timeout 1800\n<IfModule mod_proxy.c>\nProxyTimeout 1800\n</IfModule>\n' > /etc/apache2/conf-enabled/zz-fairtprm-timeout.conf; \
     printf '# API reference docs (OpenAPI/Swagger/Postman) must not be world-readable\n# static files. Deny direct access; they are served by reference-doc.php behind\n# the admin session.\n<LocationMatch "^/app/(grip|hero)-reference/">\n    Require all denied\n</LocationMatch>\n' > /etc/apache2/conf-enabled/zz-fairtprm-reference-deny.conf; \
+    printf '# No .sql file is ever served directly over HTTP. Schema and migration files\n# reach the database from inside the container (entrypoint seeding) or through\n# the admin backup/update pages, which read them server-side. Fetching one off\n# the docroot is never legitimate.\n<LocationMatch "^/(init-db|migrations)/">\n    Require all denied\n</LocationMatch>\n<FilesMatch "\\.sql$">\n    Require all denied\n</FilesMatch>\n' > /etc/apache2/conf-enabled/zz-fairtprm-sql-deny.conf; \
     \
     composer require onelogin/php-saml:^4.3 --no-interaction --no-progress \
         --working-dir=/var/www/html; \
@@ -157,6 +165,7 @@ RUN set -e; \
     cp -p  /tmp/build/icons/announcement-03.svg /var/www/html/app/icons/announcement-03.svg; \
     \
     rm -f /var/www/html/lockdown.php; \
+    rm -f /var/www/html/updates.php; \
     \
     cp -p  $pp/LICENSE.md /var/www/html/LICENSE.md; \
     \
@@ -208,6 +217,7 @@ RUN set -e; \
         /var/www/html/includes/classes/GitHubOSINTScanner.php \
         /var/www/html/includes/classes/ShodanClient.php \
         /var/www/html/includes/classes/ShodanService.php \
+        /var/www/html/includes/classes/Auth.php \
         /var/www/html/includes/classes/Security.php \
         /var/www/html/includes/classes/Session.php \
         /var/www/html/includes/classes/VendorAssessmentService.php \
@@ -294,7 +304,6 @@ RUN set -e; \
         /var/www/html/procurement-cyber-status.php \
         /var/www/html/shadow-saas.php \
         /var/www/html/grip-saas-users.php \
-        /var/www/html/updates.php \
         /var/www/html/vendor-assessment.php \
         /var/www/html/vendor-assessments.php \
         /var/www/html/vendor-assessment-view.php \

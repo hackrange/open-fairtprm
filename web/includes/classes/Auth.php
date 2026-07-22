@@ -174,17 +174,39 @@ class Auth {
                 return ['success' => false, 'message' => 'TOTP not enabled for this user'];
             }
 
+            // Step 1: Is this account in the penalty box? The TOTP step gets the
+            // same lockout treatment as the password step. Without this, someone
+            // who already has the password gets unlimited guesses at six digits,
+            // which is a few hundred thousand requests -- not a real second factor.
+            if ($user['account_locked_until'] && strtotime($user['account_locked_until']) > time()) {
+                $lockoutRemaining = strtotime($user['account_locked_until']) - time();
+                $minutes = ceil($lockoutRemaining / 60);
+                return [
+                    'success' => false,
+                    'message' => "Account is locked. Please try again in {$minutes} minute(s)."
+                ];
+            }
+
             // Decrypt the stored TOTP secret and verify the code.
             // The secret is encrypted at rest because we're not animals.
             $secret = $this->encryption->decrypt($user['totp_secret']);
             $totp = new TOTP();
 
             if (!$totp->verifyCode($secret, $code)) {
+                // Count this against the same failed-attempt budget as a bad
+                // password, so max_login_attempts / lockout_duration apply here too.
+                $this->handleFailedLogin($userId);
                 $this->logAudit($userId, 'totp_verification_failed', 'users', $userId);
                 return ['success' => false, 'message' => 'Invalid TOTP code'];
             }
 
-            // Code checks out! Clean up the pending state and let them in.
+            // Code checks out! Wipe the failed attempt slate, clean up the
+            // pending state, and let them in.
+            $this->db->update('users', [
+                'failed_login_attempts' => 0,
+                'account_locked_until' => null
+            ], 'id = :id', [':id' => $user['id']]);
+
             $this->session->remove('pending_totp_user_id');
             $this->establishSession($user);
 
