@@ -1341,6 +1341,7 @@ CREATE TABLE IF NOT EXISTS `grc_policies` (
   `related_frameworks` text DEFAULT NULL COMMENT 'JSON array of framework IDs this policy covers',
   `related_controls` text DEFAULT NULL COMMENT 'JSON array of control IDs',
   `is_active` tinyint(1) DEFAULT 1,
+  `is_system` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = shipped with the product, permanent: never deletable from the UI',
   `created_by` int(10) unsigned NOT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),

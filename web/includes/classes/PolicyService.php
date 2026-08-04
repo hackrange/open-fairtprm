@@ -274,6 +274,54 @@ class PolicyService {
         );
     }
 
+    /**
+     * Delete a policy outright. Two things are never deletable:
+     *
+     *   - System policies (is_system = 1). These ship with the product; an admin
+     *     who does not want one retires it, but it stays in the table.
+     *   - Anything a user has acknowledged. The acknowledgment is a digital
+     *     signature attesting somebody read the thing, and an auditor will ask
+     *     for it long after the policy itself stops mattering. Retire instead.
+     *
+     * What is left is a user-created policy nobody is tied to -- a typo, a
+     * duplicate, an experiment -- and removing it loses nothing. The child rows
+     * (versions, acknowledgments, review schedule) are ON DELETE CASCADE, so the
+     * single delete takes them with it and leaves nothing dangling.
+     *
+     * Returns '' on success, or a reason code the caller maps to a message:
+     * 'not_found', 'system', 'acknowledged'.
+     */
+    public function deletePolicy(int $id): string {
+        $policy = $this->db->fetchOne(
+            'SELECT id, is_system FROM grc_policies WHERE id = :id',
+            [':id' => $id]
+        );
+        if (!$policy) return 'not_found';
+        if ((int)$policy['is_system'] === 1) return 'system';
+
+        $acks = (int)($this->db->fetchOne(
+            'SELECT COUNT(*) as c FROM grc_policy_acknowledgments WHERE policy_id = :id',
+            [':id' => $id]
+        )['c'] ?? 0);
+        if ($acks > 0) return 'acknowledged';
+
+        $this->db->delete('grc_policies', 'id = :id', [':id' => $id]);
+        return '';
+    }
+
+    /**
+     * Whether the delete control should be offered for a policy row. Accepts
+     * either shape the pages carry: a detail row (with an 'acknowledgments'
+     * array) or a list row (with an 'ack_count'). This decides what is drawn --
+     * deletePolicy() re-checks both conditions against the database before
+     * anything is removed.
+     */
+    public function canDeletePolicy(array $policy): bool {
+        if (!empty($policy['is_system'])) return false;
+        if (isset($policy['acknowledgments'])) return empty($policy['acknowledgments']);
+        return (int)($policy['ack_count'] ?? 0) === 0;
+    }
+
     private function generateNextRef(): string {
         $last = $this->db->fetchOne(
             "SELECT policy_ref FROM grc_policies WHERE policy_ref LIKE 'POL-%' ORDER BY id DESC LIMIT 1"

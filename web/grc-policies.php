@@ -90,6 +90,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg = t('grc_policies.version_published');
                 $msgType = 'success';
             }
+        } elseif ($action === 'delete' && !$readOnly) {
+            // The button is only drawn for deletable policies, but drawn-or-not is
+            // not a control -- deletePolicy() re-checks is_system and the
+            // acknowledgment count against the database before removing anything.
+            $policyId = (int)($_POST['policy_id'] ?? 0);
+            if ($policyId > 0) {
+                $reason = $policyService->deletePolicy($policyId);
+                if ($reason === '') {
+                    header('Location: grc-policies.php?msg=deleted');
+                    exit;
+                }
+                $msg = t('grc_policies.delete_blocked_' . $reason);
+                $msgType = 'danger';
+            }
         } elseif ($action === 'acknowledge') {
             $policyId = (int)($_POST['policy_id'] ?? 0);
             if ($policyId > 0) {
@@ -114,6 +128,9 @@ if (!isset($csrfToken)) {
 
 if (isset($_GET['msg']) && $_GET['msg'] === 'created') {
     $msg = t('grc_policies.policy_created');
+    $msgType = 'success';
+} elseif (isset($_GET['msg']) && $_GET['msg'] === 'deleted') {
+    $msg = t('grc_policies.policy_deleted');
     $msgType = 'success';
 }
 
@@ -222,6 +239,9 @@ $currentPage = 'grc_policies';
         .btn-outline:hover { background: #f3f4f6; }
         .btn-success { background: #28a745; color: #fff; }
         .btn-info { background: #3b82f6; color: #fff; }
+        .btn-danger { background: #dc3545; color: #fff; }
+        .btn-danger:hover { opacity: 0.9; }
+        .delete-blocked { font-size: 12px; color: #6b7280; }
 
         .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; }
         .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
@@ -310,8 +330,20 @@ $currentPage = 'grc_policies';
                 <p style="font-size:13px;color:#374151;"><?php echo e($policyDetail['description']); ?></p>
                 <?php endif; ?>
                 <?php if (!$readOnly): ?>
-                <div style="margin-top:12px;">
+                <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                     <a href="grc-policies.php?edit=<?php echo (int)$policyDetail['id']; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc_policies.edit_new_version')); ?></a>
+                    <?php if ($policyService->canDeletePolicy($policyDetail)): ?>
+                    <form method="post" class="js-confirm-delete" style="display:inline;margin:0;" data-confirm="<?php echo e(t('grc_policies.delete_confirm')); ?>">
+                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="policy_id" value="<?php echo (int)$policyDetail['id']; ?>">
+                        <button type="submit" class="btn btn-sm btn-danger"><?php echo e(t('grc_policies.delete_policy')); ?></button>
+                    </form>
+                    <?php elseif (!empty($policyDetail['is_system'])): ?>
+                    <span class="delete-blocked"><?php echo e(t('grc_policies.cannot_delete_system')); ?></span>
+                    <?php else: ?>
+                    <span class="delete-blocked"><?php echo e(t('grc_policies.cannot_delete_acknowledged')); ?></span>
+                    <?php endif; ?>
                 </div>
                 <?php endif; ?>
             </div>
@@ -667,6 +699,16 @@ if (document.getElementById('content') && typeof tinymce !== 'undefined') {
         }
     });
 }
+
+// Confirm before deleting a policy. The CSP is nonce-based, so this is wired
+// here rather than with an inline onclick.
+document.querySelectorAll('form.js-confirm-delete').forEach(function(form) {
+    form.addEventListener('submit', function(ev) {
+        if (!window.confirm(form.dataset.confirm)) {
+            ev.preventDefault();
+        }
+    });
+});
 
 // Autosave every 30 seconds for forms with class .grc-autosave-form
 var autosaveTimer;

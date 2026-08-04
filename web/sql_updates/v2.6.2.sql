@@ -1012,6 +1012,7 @@ CREATE TABLE IF NOT EXISTS `grc_policies` (
   `related_frameworks` text DEFAULT NULL COMMENT 'JSON array of framework IDs this policy covers',
   `related_controls` text DEFAULT NULL COMMENT 'JSON array of control IDs',
   `is_active` tinyint(1) DEFAULT 1,
+  `is_system` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = shipped with the product, permanent: never deletable from the UI',
   `created_by` int(10) unsigned NOT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -6396,6 +6397,18 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'vendor_shodan_findings' AND column_name = 'verified') = 0,
   'ALTER TABLE `vendor_shodan_findings` ADD COLUMN `verified` TINYINT(1) DEFAULT NULL AFTER `confidence`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- grc_policies.is_system (1 = shipped with the product and permanent). Policy delete
+-- refuses these outright; user-created policies default to 0 and stay deletable while
+-- nobody has acknowledged them. Placed here so the ADD runs after the table's CREATE
+-- earlier in this file.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_policies' AND column_name = 'is_system') = 0,
+  'ALTER TABLE `grc_policies` ADD COLUMN `is_system` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_active`',
   'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;

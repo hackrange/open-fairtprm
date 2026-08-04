@@ -91,7 +91,7 @@ RUN set -e; \
            $pp/GripService.php $pp/HeroService.php \
            $pp/ZscalerService.php $pp/SAMLHandler.php \
            $pp/FaviconService.php $pp/ContinuousMonitor.php $pp/VirusScanService.php \
-           $pp/BackupService.php $pp/APIService.php \
+           $pp/BackupService.php $pp/APIService.php $pp/PolicyService.php \
            /var/www/html/includes/classes/; \
     \
     mkdir -p /var/www/html/includes/partials; \

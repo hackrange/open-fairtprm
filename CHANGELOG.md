@@ -12,6 +12,20 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Policies can be deleted when nothing is tied to them.** Policy Management
+  previously had no way to remove a policy, so a typo, a duplicate, or an
+  abandoned experiment stayed on the list forever. The policy detail page now
+  offers a Delete Policy button, guarded by two rules that can never be
+  bypassed. System policies (the new `is_system` flag, set on any policy that
+  ships with the product) are permanent and are never deletable. Any policy a
+  user has acknowledged is also permanent, because the acknowledgment is a
+  digital signature an auditor may ask for long after the policy stops
+  mattering; retire those instead. Everything else is a user-created policy
+  nobody is tied to, and deleting it also removes its version history,
+  acknowledgment records, and review schedule. Where the button would be, a
+  blocked policy shows the reason instead. Both conditions are re-checked on
+  the server, so a hand-crafted request cannot delete what the page declines to
+  offer. Translated into all seven supported languages.
 - **Vendor SRS list hides inactive vendors by default, with a "Show Inactive"
   toggle.** The Vendor Security Scores board no longer lists vendors whose status
   is `inactive` unless the new "Show Inactive" checkbox in the filter bar is
