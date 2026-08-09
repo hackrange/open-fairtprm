@@ -12,6 +12,21 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Each policy chooses which ACL groups have to acknowledge it.** Acknowledgment
+  used to be addressed to every active user, which made the acknowledged
+  percentage meaningless for a policy that only concerns one team. A policy can
+  now name any number of ACL groups, picked when it is created and changeable
+  afterwards from the policy page; the audience is the union of those groups'
+  members. This scopes everything downstream: the "N of M acknowledged" figure
+  and its progress bar count only the audience, the Pending Acknowledgments list
+  shows only people who actually owe a signature, and a user's pending-policy
+  queue no longer includes policies aimed at teams they are not in. Users
+  outside the audience are not offered the acknowledge button and cannot record
+  one, so a policy's compliance record stays limited to the people it was
+  addressed to. A policy with no groups selected is addressed to every active
+  user, which is how policies behaved before, so existing policies are
+  unaffected. Changing the audience never deletes acknowledgments already given.
+  Translated into all seven supported languages.
 - **Policies can be retired, reinstated, or (for administrators) force deleted.**
   Retiring a policy takes it out of force without destroying anything: it drops
   off the default list, stops appearing in anyone's pending acknowledgments, and

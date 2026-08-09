@@ -1375,6 +1375,21 @@ CREATE TABLE IF NOT EXISTS `grc_policy_versions` (
   CONSTRAINT `fk_pver_policy` FOREIGN KEY (`policy_id`) REFERENCES `grc_policies` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Table: grc_policy_ack_groups
+-- Which ACL groups have to acknowledge a policy. No rows = every active user.
+CREATE TABLE IF NOT EXISTS `grc_policy_ack_groups` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `policy_id` int(10) unsigned NOT NULL,
+  `group_id` int(10) unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_policy_group` (`policy_id`,`group_id`),
+  KEY `idx_policy` (`policy_id`),
+  KEY `idx_group` (`group_id`),
+  CONSTRAINT `fk_pag_policy` FOREIGN KEY (`policy_id`) REFERENCES `grc_policies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_pag_group` FOREIGN KEY (`group_id`) REFERENCES `acl_groups` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Table: grc_policy_acknowledgments
 CREATE TABLE IF NOT EXISTS `grc_policy_acknowledgments` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,

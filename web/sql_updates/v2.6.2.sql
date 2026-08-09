@@ -1078,6 +1078,22 @@ CREATE TABLE IF NOT EXISTS `grc_policy_versions` (
   KEY `idx_status` (`status`),
   CONSTRAINT `fk_pver_policy` FOREIGN KEY (`policy_id`) REFERENCES `grc_policies` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Which ACL groups have to acknowledge a policy. A policy with no rows here is
+-- addressed to every active user, which is how policies behaved before this
+-- table existed. One row per group; the audience is the union of their members.
+-- Created after grc_policies and acl_groups, both of which it references.
+CREATE TABLE IF NOT EXISTS `grc_policy_ack_groups` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `policy_id` int(10) unsigned NOT NULL,
+  `group_id` int(10) unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_policy_group` (`policy_id`,`group_id`),
+  KEY `idx_policy` (`policy_id`),
+  KEY `idx_group` (`group_id`),
+  CONSTRAINT `fk_pag_policy` FOREIGN KEY (`policy_id`) REFERENCES `grc_policies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_pag_group` FOREIGN KEY (`group_id`) REFERENCES `acl_groups` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS `grc_question_framework_map` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `question_id` int(10) unsigned NOT NULL COMMENT 'FK to unified question',

@@ -57,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'review_frequency_months' => (int)($_POST['review_frequency_months'] ?? 12),
                     'requires_acknowledgment' => isset($_POST['requires_acknowledgment']) ? 1 : 0,
                     'acknowledgment_deadline_days' => (int)($_POST['acknowledgment_deadline_days'] ?? 30),
+                    'ack_groups' => is_array($_POST['ack_groups'] ?? null) ? $_POST['ack_groups'] : [],
                     'content' => $_POST['content'] ?? '',
                 ], (int)$user['id']);
                 $msg = t('grc_policies.policy_created');
@@ -103,6 +104,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $msg = t('grc_policies.delete_blocked_' . $reason);
                 $msgType = 'danger';
+            }
+        } elseif ($action === 'set_ack_groups' && !$readOnly) {
+            $policyId = (int)($_POST['policy_id'] ?? 0);
+            if ($policyId > 0) {
+                $groups = $_POST['ack_groups'] ?? [];
+                // setAckGroups validates every id against acl_groups itself, so a
+                // hand-edited checkbox value cannot address a policy to a group
+                // that does not exist or has been deactivated.
+                $reason = $policyService->setAckGroups($policyId, is_array($groups) ? $groups : []);
+                if ($reason === '') {
+                    $msg = t('grc_policies.audience_saved');
+                    $msgType = 'success';
+                } else {
+                    $msg = t('grc_policies.retire_blocked_' . $reason);
+                    $msgType = 'danger';
+                }
             }
         } elseif ($action === 'retire' && !$readOnly) {
             $policyId = (int)($_POST['policy_id'] ?? 0);
@@ -524,14 +541,27 @@ $currentPage = 'grc_policies';
                 <h3><?php echo e(t('grc_policies.acknowledgment_tracking')); ?></h3>
                 <?php
                 $ackCount = count($policyDetail['acknowledgments'] ?? []);
-                $totalUsers = (int)($policyDetail['versions'][0]['total_users'] ?? 0);
-                if ($totalUsers === 0) {
-                    $totalUsers = (int)($db->fetchOne('SELECT COUNT(*) as c FROM users WHERE is_active = 1')['c'] ?? 1);
-                }
+                // The denominator is the policy's own audience, so the figure
+                // reads "of those who have to", not "of everyone on the system".
+                $totalUsers = (int)($policyDetail['audience_size'] ?? 0);
                 $ackPct = $totalUsers > 0 ? round(($ackCount / $totalUsers) * 100) : 0;
+                $ackGroups = $policyDetail['ack_groups'] ?? [];
                 ?>
                 <div style="font-size:13px;color:#374151;margin-bottom:8px;">
                     <strong><?php echo $ackCount; ?></strong> of <strong><?php echo $totalUsers; ?></strong> users acknowledged (<?php echo $ackPct; ?>%)
+                </div>
+                <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">
+                    <?php echo e(t('grc_policies.audience_label')); ?>:
+                    <?php if (empty($ackGroups)): ?>
+                        <strong><?php echo e(t('grc_policies.audience_all_users')); ?></strong>
+                    <?php else: ?>
+                        <strong><?php
+                            echo e(implode(', ', array_map(
+                                fn($g) => $g['display_name'] ?: $g['group_name'],
+                                $ackGroups
+                            )));
+                        ?></strong>
+                    <?php endif; ?>
                 </div>
                 <div class="ack-progress"><div class="ack-progress-fill" style="width:<?php echo $ackPct; ?>%"></div></div>
 
@@ -545,7 +575,8 @@ $currentPage = 'grc_policies';
                     }
                 }
                 ?>
-                <?php if (!$userHasAcked && $policyDetail['status'] === 'published'): ?>
+                <?php $userInAudience = $policyService->isInAudience((int)$policyDetail['id'], (int)$user['id']); ?>
+                <?php if (!$userHasAcked && $policyDetail['status'] === 'published' && $userInAudience): ?>
                 <form method="post" style="margin-top:12px;">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                     <input type="hidden" name="action" value="acknowledge">
@@ -554,6 +585,32 @@ $currentPage = 'grc_policies';
                 </form>
                 <?php elseif ($userHasAcked): ?>
                 <p style="color:#065f46;font-size:13px;margin-top:8px;"><?php echo e(t('grc_policies.you_acknowledged')); ?></p>
+                <?php elseif (!$userInAudience && $policyDetail['status'] === 'published'): ?>
+                <p style="color:#6b7280;font-size:13px;margin-top:8px;"><?php echo e(t('grc_policies.not_in_audience')); ?></p>
+                <?php endif; ?>
+
+                <?php if (!$readOnly): ?>
+                <details style="margin-top:14px;">
+                    <summary style="cursor:pointer;font-size:13px;font-weight:500;color:#374151;"><?php echo e(t('grc_policies.change_audience')); ?></summary>
+                    <form method="post" style="margin-top:10px;">
+                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                        <input type="hidden" name="action" value="set_ack_groups">
+                        <input type="hidden" name="policy_id" value="<?php echo (int)$policyDetail['id']; ?>">
+                        <p style="font-size:12px;color:#6b7280;margin:0 0 8px;"><?php echo e(t('grc_policies.audience_help')); ?></p>
+                        <?php
+                        $selectedIds = array_map(fn($g) => (int)$g['id'], $ackGroups);
+                        foreach ($policyService->getSelectableGroups() as $g):
+                        ?>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;margin-bottom:6px;">
+                            <input type="checkbox" name="ack_groups[]" value="<?php echo (int)$g['id']; ?>" style="width:auto;margin:0;"
+                                   <?php echo in_array((int)$g['id'], $selectedIds, true) ? 'checked' : ''; ?>>
+                            <span><?php echo e($g['display_name'] ?: $g['group_name']); ?>
+                                <span style="color:#6b7280;">(<?php echo (int)$g['member_count']; ?>)</span></span>
+                        </label>
+                        <?php endforeach; ?>
+                        <button type="submit" class="btn btn-sm btn-primary" style="margin-top:8px;"><?php echo e(t('grc_policies.save_audience')); ?></button>
+                    </form>
+                </details>
                 <?php endif; ?>
 
                 <?php if (!empty($policyDetail['acknowledgments'])): ?>
@@ -675,7 +732,17 @@ $currentPage = 'grc_policies';
                         </div>
                     </div>
 
-                    <label for="content"><?php echo e(t('grc_policies.policy_content')); ?></label>
+                    <label><?php echo e(t('grc_policies.audience_label')); ?></label>
+                    <p style="font-size:12px;color:#6b7280;margin:0 0 8px;"><?php echo e(t('grc_policies.audience_help')); ?></p>
+                    <?php foreach ($policyService->getSelectableGroups() as $g): ?>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;margin-bottom:6px;">
+                        <input type="checkbox" name="ack_groups[]" value="<?php echo (int)$g['id']; ?>" style="width:auto;margin:0;">
+                        <span><?php echo e($g['display_name'] ?: $g['group_name']); ?>
+                            <span style="color:#6b7280;">(<?php echo (int)$g['member_count']; ?>)</span></span>
+                    </label>
+                    <?php endforeach; ?>
+
+                    <label for="content" style="margin-top:12px;"><?php echo e(t('grc_policies.policy_content')); ?></label>
                     <textarea id="content" name="content" placeholder="<?php echo e(t('grc_policies.content_placeholder')); ?>"></textarea>
 
                     <div style="margin-top:8px;">

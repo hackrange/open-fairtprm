@@ -30,13 +30,39 @@ class PolicyService {
         return self::$instance;
     }
 
+    /**
+     * SQL predicate selecting the users who have to acknowledge a given policy.
+     * Expects the policy to be aliased `p` and the user to be aliased with
+     * whatever is passed in $userAlias.
+     *
+     * A policy with no rows in grc_policy_ack_groups is addressed to every
+     * active user -- that is how policies behaved before audiences existed, so
+     * existing policies keep their meaning. Otherwise the audience is the union
+     * of the members of the selected groups.
+     */
+    private function audiencePredicate(string $userAlias): string {
+        return "{$userAlias}.is_active = 1
+                AND (
+                    NOT EXISTS (SELECT 1 FROM grc_policy_ack_groups g0 WHERE g0.policy_id = p.id)
+                    OR EXISTS (
+                        SELECT 1 FROM grc_policy_ack_groups g1
+                        JOIN user_acl_groups ug1 ON ug1.group_id = g1.group_id
+                        WHERE g1.policy_id = p.id AND ug1.user_id = {$userAlias}.id
+                    )
+                )";
+    }
+
     public function getPolicies(array $filters = []): array {
-        $sql = 'SELECT p.*,
+        // total_users is the size of each policy's own audience, not the whole
+        // user table, so the acknowledged percentage means "of those who must".
+        $audience = $this->audiencePredicate('u2');
+        $sql = "SELECT p.*,
                        u.full_name as owner_name,
                        au.full_name as approver_name,
                        (SELECT COUNT(*) FROM grc_policy_acknowledgments pa WHERE pa.policy_id = p.id) as ack_count,
-                       (SELECT COUNT(*) FROM users WHERE is_active = 1) as total_users
-                FROM grc_policies p
+                       (SELECT COUNT(*) FROM users u2 WHERE {$audience}) as total_users
+                FROM grc_policies p";
+        $sql .= '
                 LEFT JOIN users u ON u.id = p.owner_user_id
                 LEFT JOIN users au ON au.id = p.approver_user_id';
 
@@ -106,20 +132,28 @@ class PolicyService {
             [':pid' => $id]
         );
 
+        // Only the policy's audience can be pending -- someone outside it was
+        // never being asked in the first place.
+        $audience = $this->audiencePredicate('u');
         $policy['pending_ack_users'] = $this->db->fetchAll(
-            'SELECT u.id, u.full_name, u.email
+            "SELECT u.id, u.full_name, u.email
              FROM users u
-             WHERE u.is_active = 1
+             CROSS JOIN grc_policies p
+             WHERE p.id = :pid0
+               AND {$audience}
                AND u.id NOT IN (
                    SELECT pa.user_id FROM grc_policy_acknowledgments pa
                    WHERE pa.policy_id = :pid AND pa.policy_version_id = (
                        SELECT MAX(pv.id) FROM grc_policy_versions pv
-                       WHERE pv.policy_id = :pid2 AND pv.status = "published"
+                       WHERE pv.policy_id = :pid2 AND pv.status = \"published\"
                    )
                )
-             ORDER BY u.full_name',
-            [':pid' => $id, ':pid2' => $id]
+             ORDER BY u.full_name",
+            [':pid0' => $id, ':pid' => $id, ':pid2' => $id]
         );
+
+        $policy['ack_groups']      = $this->getAckGroups($id);
+        $policy['audience_size']   = $this->getAudienceSize($id);
 
         return $policy;
     }
@@ -145,6 +179,18 @@ class PolicyService {
             ]);
 
             $policyId = (int)$this->db->lastInsertId();
+
+            // Acknowledgment audience. No groups means every active user.
+            foreach (array_unique(array_map('intval', $data['ack_groups'] ?? [])) as $gid) {
+                if ($gid <= 0) continue;
+                $group = $this->db->fetchOne('SELECT id FROM acl_groups WHERE id = :id AND is_active = 1', [':id' => $gid]);
+                if ($group) {
+                    $this->db->insert('grc_policy_ack_groups', [
+                        'policy_id' => $policyId,
+                        'group_id'  => (int)$group['id'],
+                    ]);
+                }
+            }
 
             // Create initial version
             $this->db->insert('grc_policy_versions', [
@@ -235,6 +281,10 @@ class PolicyService {
     }
 
     public function acknowledgePolicy(int $policyId, int $userId, string $ipAddress, string $userAgent): bool {
+        // Someone outside the audience was never asked, so their signature would
+        // be noise in the compliance record.
+        if (!$this->isInAudience($policyId, $userId)) return false;
+
         $publishedVersion = $this->db->fetchOne(
             'SELECT id FROM grc_policy_versions
              WHERE policy_id = :pid AND status = "published"
@@ -266,22 +316,26 @@ class PolicyService {
     }
 
     public function getPendingAcknowledgments(int $userId): array {
+        // Only chase this user for policies actually addressed to them.
+        $audience = $this->audiencePredicate('u');
         return $this->db->fetchAll(
-            'SELECT p.id, p.policy_ref, p.title, p.category,
+            "SELECT p.id, p.policy_ref, p.title, p.category,
                     pv.version_number, pv.published_at,
                     p.acknowledgment_deadline_days,
                     DATE_ADD(pv.published_at, INTERVAL p.acknowledgment_deadline_days DAY) as deadline
              FROM grc_policies p
-             JOIN grc_policy_versions pv ON pv.policy_id = p.id AND pv.status = "published"
+             JOIN grc_policy_versions pv ON pv.policy_id = p.id AND pv.status = \"published\"
+             JOIN users u ON u.id = :uid0
              WHERE p.is_active = 1
                AND p.requires_acknowledgment = 1
-               AND p.status = "published"
+               AND p.status = \"published\"
+               AND {$audience}
                AND NOT EXISTS (
                    SELECT 1 FROM grc_policy_acknowledgments pa
                    WHERE pa.policy_id = p.id AND pa.policy_version_id = pv.id AND pa.user_id = :uid
                )
-             ORDER BY pv.published_at DESC',
-            [':uid' => $userId]
+             ORDER BY pv.published_at DESC",
+            [':uid0' => $userId, ':uid' => $userId]
         );
     }
 
@@ -318,6 +372,100 @@ class PolicyService {
 
         $this->db->delete('grc_policies', 'id = :id', [':id' => $id]);
         return '';
+    }
+
+    /**
+     * The ACL groups a policy is addressed to, with their display names.
+     * An empty array means the policy is addressed to every active user.
+     */
+    public function getAckGroups(int $policyId): array {
+        return $this->db->fetchAll(
+            'SELECT g.id, g.group_name, g.display_name
+             FROM grc_policy_ack_groups pag
+             JOIN acl_groups g ON g.id = pag.group_id
+             WHERE pag.policy_id = :pid
+             ORDER BY g.display_name',
+            [':pid' => $policyId]
+        );
+    }
+
+    /**
+     * Replace a policy's acknowledgment audience with the given group ids.
+     * Passing an empty array addresses the policy to every active user.
+     *
+     * Existing acknowledgments are deliberately left alone. If someone
+     * acknowledged a policy and is then no longer in its audience, their
+     * signature stays on file -- it was true when they gave it, and deleting
+     * signed attestations because an audience changed would be exactly the kind
+     * of quiet evidence loss the rest of this module works to prevent.
+     */
+    public function setAckGroups(int $policyId, array $groupIds): string {
+        $policy = $this->db->fetchOne('SELECT id FROM grc_policies WHERE id = :id', [':id' => $policyId]);
+        if (!$policy) return 'not_found';
+
+        // Only real, active groups -- a stale id would silently shrink the audience.
+        $valid = [];
+        foreach (array_unique(array_map('intval', $groupIds)) as $gid) {
+            if ($gid <= 0) continue;
+            $row = $this->db->fetchOne('SELECT id FROM acl_groups WHERE id = :id AND is_active = 1', [':id' => $gid]);
+            if ($row) $valid[] = (int)$row['id'];
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $this->db->delete('grc_policy_ack_groups', 'policy_id = :pid', [':pid' => $policyId]);
+            foreach ($valid as $gid) {
+                $this->db->insert('grc_policy_ack_groups', [
+                    'policy_id' => $policyId,
+                    'group_id'  => $gid,
+                ]);
+            }
+            $this->db->commit();
+        } catch (\Exception $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+
+        return '';
+    }
+
+    /**
+     * Active groups that can be picked as an acknowledgment audience.
+     */
+    public function getSelectableGroups(): array {
+        return $this->db->fetchAll(
+            'SELECT g.id, g.group_name, g.display_name,
+                    (SELECT COUNT(*) FROM user_acl_groups ug
+                      JOIN users u ON u.id = ug.user_id
+                      WHERE ug.group_id = g.id AND u.is_active = 1) as member_count
+             FROM acl_groups g
+             WHERE g.is_active = 1
+             ORDER BY g.display_name'
+        );
+    }
+
+    /**
+     * How many active users are actually required to acknowledge this policy.
+     */
+    public function getAudienceSize(int $policyId): int {
+        $audience = $this->audiencePredicate('u');
+        return (int)($this->db->fetchOne(
+            "SELECT COUNT(*) as c FROM users u CROSS JOIN grc_policies p
+             WHERE p.id = :pid AND {$audience}",
+            [':pid' => $policyId]
+        )['c'] ?? 0);
+    }
+
+    /**
+     * Whether a user is in a policy's acknowledgment audience.
+     */
+    public function isInAudience(int $policyId, int $userId): bool {
+        $audience = $this->audiencePredicate('u');
+        return (bool)$this->db->fetchOne(
+            "SELECT 1 as ok FROM users u CROSS JOIN grc_policies p
+             WHERE p.id = :pid AND u.id = :uid AND {$audience}",
+            [':pid' => $policyId, ':uid' => $userId]
+        );
     }
 
     /**
