@@ -104,6 +104,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg = t('grc_policies.delete_blocked_' . $reason);
                 $msgType = 'danger';
             }
+        } elseif ($action === 'retire' && !$readOnly) {
+            $policyId = (int)($_POST['policy_id'] ?? 0);
+            if ($policyId > 0) {
+                $reason = $policyService->retirePolicy($policyId);
+                if ($reason === '') {
+                    $msg = t('grc_policies.policy_retired');
+                    $msgType = 'success';
+                } else {
+                    $msg = t('grc_policies.retire_blocked_' . $reason);
+                    $msgType = 'danger';
+                }
+            }
+        } elseif ($action === 'reinstate' && !$readOnly) {
+            $policyId = (int)($_POST['policy_id'] ?? 0);
+            if ($policyId > 0) {
+                $reason = $policyService->reinstatePolicy($policyId);
+                if ($reason === '') {
+                    $msg = t('grc_policies.policy_reinstated');
+                    $msgType = 'success';
+                } else {
+                    $msg = t('grc_policies.retire_blocked_' . $reason);
+                    $msgType = 'danger';
+                }
+            }
+        } elseif ($action === 'force_delete') {
+            // Administrators only -- cyber_grc can run the whole policy
+            // lifecycle but cannot destroy signed attestations. The explicit
+            // confirm_force field means a replayed plain delete POST can never
+            // escalate into this branch by accident.
+            $policyId = (int)($_POST['policy_id'] ?? 0);
+            if (!$isAdmin) {
+                $msg = t('grc_policies.force_delete_blocked_not_admin');
+                $msgType = 'danger';
+            } elseif (($_POST['confirm_force'] ?? '') !== '1') {
+                $msg = t('grc_policies.force_delete_blocked_unconfirmed');
+                $msgType = 'danger';
+            } elseif ($policyId > 0) {
+                $reason = $policyService->forceDeletePolicy(
+                    $policyId,
+                    (int)$user['id'],
+                    $_SERVER['REMOTE_ADDR'] ?? '',
+                    $_SERVER['HTTP_USER_AGENT'] ?? ''
+                );
+                if ($reason === '') {
+                    header('Location: grc-policies.php?msg=force_deleted');
+                    exit;
+                }
+                $msg = t('grc_policies.force_delete_blocked_' . $reason);
+                $msgType = 'danger';
+            }
         } elseif ($action === 'acknowledge') {
             $policyId = (int)($_POST['policy_id'] ?? 0);
             if ($policyId > 0) {
@@ -132,6 +182,9 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'created') {
 } elseif (isset($_GET['msg']) && $_GET['msg'] === 'deleted') {
     $msg = t('grc_policies.policy_deleted');
     $msgType = 'success';
+} elseif (isset($_GET['msg']) && $_GET['msg'] === 'force_deleted') {
+    $msg = t('grc_policies.policy_force_deleted');
+    $msgType = 'success';
 }
 
 // Filters
@@ -140,6 +193,7 @@ if (!empty($_GET['status'])) $filters['status'] = $_GET['status'];
 if (!empty($_GET['category'])) $filters['category'] = $_GET['category'];
 if (!empty($_GET['search'])) $filters['search'] = $_GET['search'];
 if (!empty($_GET['needs_review'])) $filters['needs_review'] = true;
+if (!empty($_GET['show_retired'])) $filters['show_retired'] = true;
 
 $policies = $policyService->getPolicies($filters);
 
@@ -243,6 +297,12 @@ $currentPage = 'grc_policies';
         .btn-danger:hover { opacity: 0.9; }
         .delete-blocked { font-size: 12px; color: #6b7280; }
 
+        /* Force delete destroys signed attestations, so it is deliberately set
+           apart from the ordinary actions rather than sitting in the same row. */
+        .force-delete-zone { margin-top: 16px; padding: 14px 16px; border: 1px solid #fecaca; border-left: 4px solid #dc3545; border-radius: 8px; background: #fef2f2; }
+        .force-delete-banner strong { display: block; font-size: 13px; color: #991b1b; margin-bottom: 4px; }
+        .force-delete-banner p { font-size: 12px; color: #7f1d1d; margin: 0 0 12px; line-height: 1.5; }
+
         .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; }
         .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
         .alert-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
@@ -330,21 +390,65 @@ $currentPage = 'grc_policies';
                 <p style="font-size:13px;color:#374151;"><?php echo e($policyDetail['description']); ?></p>
                 <?php endif; ?>
                 <?php if (!$readOnly): ?>
+                <?php
+                $pid        = (int)$policyDetail['id'];
+                $isRetired  = ($policyDetail['status'] ?? '') === 'retired';
+                $isSystem   = !empty($policyDetail['is_system']);
+                $canDelete  = $policyService->canDeletePolicy($policyDetail);
+                $ackCount   = count($policyDetail['acknowledgments'] ?? []);
+                // Force delete exists only for the case the normal delete refuses
+                // on acknowledgment grounds. A system policy is never destroyable.
+                $canForce   = $isAdmin && !$canDelete && !$isSystem && $ackCount > 0;
+                ?>
                 <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <a href="grc-policies.php?edit=<?php echo (int)$policyDetail['id']; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc_policies.edit_new_version')); ?></a>
-                    <?php if ($policyService->canDeletePolicy($policyDetail)): ?>
+                    <a href="grc-policies.php?edit=<?php echo $pid; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc_policies.edit_new_version')); ?></a>
+
+                    <?php if ($canDelete): ?>
                     <form method="post" class="js-confirm-delete" style="display:inline;margin:0;" data-confirm="<?php echo e(t('grc_policies.delete_confirm')); ?>">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="policy_id" value="<?php echo (int)$policyDetail['id']; ?>">
+                        <input type="hidden" name="policy_id" value="<?php echo $pid; ?>">
                         <button type="submit" class="btn btn-sm btn-danger"><?php echo e(t('grc_policies.delete_policy')); ?></button>
                     </form>
-                    <?php elseif (!empty($policyDetail['is_system'])): ?>
+                    <?php elseif ($isSystem): ?>
                     <span class="delete-blocked"><?php echo e(t('grc_policies.cannot_delete_system')); ?></span>
                     <?php else: ?>
                     <span class="delete-blocked"><?php echo e(t('grc_policies.cannot_delete_acknowledged')); ?></span>
                     <?php endif; ?>
+
+                    <?php if ($isRetired): ?>
+                    <form method="post" style="display:inline;margin:0;">
+                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                        <input type="hidden" name="action" value="reinstate">
+                        <input type="hidden" name="policy_id" value="<?php echo $pid; ?>">
+                        <button type="submit" class="btn btn-sm btn-outline"><?php echo e(t('grc_policies.reinstate_policy')); ?></button>
+                    </form>
+                    <?php else: ?>
+                    <form method="post" class="js-confirm-delete" style="display:inline;margin:0;" data-confirm="<?php echo e(t('grc_policies.retire_confirm')); ?>">
+                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                        <input type="hidden" name="action" value="retire">
+                        <input type="hidden" name="policy_id" value="<?php echo $pid; ?>">
+                        <button type="submit" class="btn btn-sm btn-outline"><?php echo e(t('grc_policies.retire_policy')); ?></button>
+                    </form>
+                    <?php endif; ?>
                 </div>
+
+                <?php if ($canForce): ?>
+                <div class="force-delete-zone">
+                    <div class="force-delete-banner">
+                        <strong><?php echo e(t('grc_policies.force_delete_banner_title')); ?></strong>
+                        <p><?php echo e(t('grc_policies.force_delete_banner_body', $ackCount)); ?></p>
+                    </div>
+                    <form method="post" class="js-confirm-delete" style="display:inline;margin:0;"
+                          data-confirm="<?php echo e(t('grc_policies.force_delete_confirm', $policyDetail['policy_ref'], $ackCount)); ?>">
+                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                        <input type="hidden" name="action" value="force_delete">
+                        <input type="hidden" name="confirm_force" value="1">
+                        <input type="hidden" name="policy_id" value="<?php echo $pid; ?>">
+                        <button type="submit" class="btn btn-sm btn-danger"><?php echo e(t('grc_policies.force_delete_policy')); ?></button>
+                    </form>
+                </div>
+                <?php endif; ?>
                 <?php endif; ?>
             </div>
 
@@ -606,6 +710,10 @@ $currentPage = 'grc_policies';
                     <div>
                         <label><?php echo e(t('grc_policies.filter_search')); ?></label>
                         <input type="text" name="search" value="<?php echo e($filters['search'] ?? ''); ?>" placeholder="<?php echo e(t('grc_policies.search_placeholder')); ?>">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <input type="checkbox" id="show_retired" name="show_retired" value="1" <?php echo !empty($filters['show_retired']) ? 'checked' : ''; ?>>
+                        <label for="show_retired" style="margin:0;"><?php echo e(t('grc_policies.show_retired')); ?></label>
                     </div>
                     <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;"><?php echo e(t('grc_policies.filter_button')); ?></button>
                     <a href="grc-policies.php?needs_review=1" class="btn btn-sm <?php echo !empty($filters['needs_review']) ? 'btn-primary' : 'btn-outline'; ?>" style="margin-bottom:0;"><?php echo e(t('grc_policies.due_for_review')); ?></a>

@@ -12,6 +12,22 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Policies can be retired, reinstated, or (for administrators) force deleted.**
+  Retiring a policy takes it out of force without destroying anything: it drops
+  off the default list, stops appearing in anyone's pending acknowledgments, and
+  stops generating review reminders, while every acknowledgment record is kept.
+  A "Show Retired" checkbox in the filter bar brings retired policies back into
+  view, and Reinstate returns one to circulation (to published if it has a
+  published version, otherwise to draft). Retiring is available for system
+  policies too - `is_system` means "cannot be destroyed", not "must stay in
+  force". For the case where a policy genuinely has to go despite carrying
+  acknowledgments, administrators (and only administrators) get a Force Delete
+  in a separate red danger zone, behind a banner stating exactly how many signed
+  attestations will be destroyed. Force delete writes the policy and every
+  acknowledgment it carried - including signature hashes and who destroyed them
+  - to the audit log before removing anything, and aborts without deleting if
+  that audit record cannot be written. It still refuses system policies. All new
+  strings are translated into the seven supported languages.
 - **Policies can be deleted when nothing is tied to them.** Policy Management
   previously had no way to remove a policy, so a typo, a duplicate, or an
   abandoned experiment stayed on the list forever. The policy detail page now

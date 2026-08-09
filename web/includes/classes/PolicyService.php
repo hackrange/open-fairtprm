@@ -40,8 +40,17 @@ class PolicyService {
                 LEFT JOIN users u ON u.id = p.owner_user_id
                 LEFT JOIN users au ON au.id = p.approver_user_id';
 
-        $where = ['p.is_active = 1'];
+        // Retired policies are hidden by default -- they are out of force, and
+        // leaving them on the board is what made retirement feel like a dead
+        // end. They come back when explicitly asked for, either via the "Show
+        // Retired" toggle or by filtering on the retired status directly.
+        $where = [];
         $params = [];
+
+        $showRetired = !empty($filters['show_retired']) || (($filters['status'] ?? '') === 'retired');
+        if (!$showRetired) {
+            $where[] = 'p.is_active = 1';
+        }
 
         if (!empty($filters['status'])) {
             $where[] = 'p.status = :status';
@@ -60,7 +69,9 @@ class PolicyService {
             $where[] = 'p.next_review_date <= CURDATE()';
         }
 
-        $sql .= ' WHERE ' . implode(' AND ', $where);
+        if ($where) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
         $sql .= ' ORDER BY p.policy_ref';
         return $this->db->fetchAll($sql, $params);
     }
@@ -307,6 +318,127 @@ class PolicyService {
 
         $this->db->delete('grc_policies', 'id = :id', [':id' => $id]);
         return '';
+    }
+
+    /**
+     * Retire a policy: it stops being live, but every record it produced stays.
+     * This is the end-of-life route for a policy people have acknowledged --
+     * the attestations remain queryable, the policy drops off the default list
+     * (getPolicies filters on is_active), stops appearing in anyone's pending
+     * acknowledgments, and stops generating review reminders.
+     *
+     * Retiring a system policy is allowed and expected. is_system means "cannot
+     * be destroyed", not "must stay in force".
+     *
+     * Returns '' on success, or 'not_found' / 'already_retired'.
+     */
+    public function retirePolicy(int $id): string {
+        $policy = $this->db->fetchOne('SELECT id, status FROM grc_policies WHERE id = :id', [':id' => $id]);
+        if (!$policy) return 'not_found';
+        if ($policy['status'] === 'retired') return 'already_retired';
+
+        $this->db->update('grc_policies', [
+            'status'    => 'retired',
+            'is_active' => 0,
+        ], 'id = :id', [':id' => $id]);
+
+        return '';
+    }
+
+    /**
+     * Put a retired policy back into circulation. Retirement is reversible on
+     * purpose -- an irreversible one would push people toward force delete,
+     * which is the thing we least want them reaching for.
+     *
+     * The pre-retirement status is not recorded anywhere, so it is derived: a
+     * policy with a published version goes back to published, anything else to
+     * draft.
+     *
+     * Returns '' on success, or 'not_found' / 'not_retired'.
+     */
+    public function reinstatePolicy(int $id): string {
+        $policy = $this->db->fetchOne('SELECT id, status FROM grc_policies WHERE id = :id', [':id' => $id]);
+        if (!$policy) return 'not_found';
+        if ($policy['status'] !== 'retired') return 'not_retired';
+
+        $published = $this->db->fetchOne(
+            'SELECT id FROM grc_policy_versions WHERE policy_id = :pid AND status = "published" LIMIT 1',
+            [':pid' => $id]
+        );
+
+        $this->db->update('grc_policies', [
+            'status'    => $published ? 'published' : 'draft',
+            'is_active' => 1,
+        ], 'id = :id', [':id' => $id]);
+
+        return '';
+    }
+
+    /**
+     * Destroy a policy that users have acknowledged, along with those
+     * acknowledgments. Administrators only, and deliberately not the easy path:
+     * an acknowledgment is signed evidence that a named person read a named
+     * version on a date, which is usually the most valuable thing attached to a
+     * policy. retirePolicy() is the answer almost every time.
+     *
+     * is_system is still absolute here. Force delete overrides the
+     * acknowledgment guard, never the "ships with the product" guard.
+     *
+     * Before deleting, the policy and every acknowledgment it carries are
+     * written to audit_log, so the fact that signed attestations existed -- and
+     * who destroyed them -- outlives the rows themselves.
+     *
+     * Returns '' on success, or 'not_found' / 'system'.
+     */
+    public function forceDeletePolicy(int $id, int $userId, string $ipAddress, string $userAgent): string {
+        $policy = $this->db->fetchOne('SELECT * FROM grc_policies WHERE id = :id', [':id' => $id]);
+        if (!$policy) return 'not_found';
+        if ((int)$policy['is_system'] === 1) return 'system';
+
+        $acks = $this->db->fetchAll(
+            'SELECT pa.user_id, u.full_name, u.email, pa.policy_version_id,
+                    pa.acknowledged_at, pa.signature_hash
+             FROM grc_policy_acknowledgments pa
+             LEFT JOIN users u ON u.id = pa.user_id
+             WHERE pa.policy_id = :pid
+             ORDER BY pa.acknowledged_at',
+            [':pid' => $id]
+        );
+
+        try {
+            $this->db->insert('audit_log', [
+                'user_id'    => $userId,
+                'action'     => 'policy_force_delete',
+                'table_name' => 'grc_policies',
+                'record_id'  => $id,
+                'old_values' => json_encode([
+                    'policy'                => $policy,
+                    'acknowledgments'       => $acks,
+                    'acknowledgment_count'  => count($acks),
+                ]),
+                'new_values' => null,
+                'ip_address' => $ipAddress,
+                'user_agent' => substr($userAgent, 0, 500),
+            ]);
+        } catch (\Exception $e) {
+            // An unwritable audit trail is a reason not to destroy the evidence.
+            error_log('policy force delete aborted, audit write failed: ' . $e->getMessage());
+            return 'audit_failed';
+        }
+
+        $this->db->delete('grc_policies', 'id = :id', [':id' => $id]);
+        return '';
+    }
+
+    /**
+     * How many acknowledgments a policy carries -- i.e. how many signed
+     * attestations a force delete would destroy.
+     */
+    public function countAcknowledgments(int $id): int {
+        return (int)($this->db->fetchOne(
+            'SELECT COUNT(*) as c FROM grc_policy_acknowledgments WHERE policy_id = :id',
+            [':id' => $id]
+        )['c'] ?? 0);
     }
 
     /**
