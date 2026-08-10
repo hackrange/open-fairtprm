@@ -179,7 +179,7 @@ $csrfToken = $security->generateCSRFToken();
             <div style="margin-bottom:24px;padding:14px 20px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;">
                 <div style="display:flex;align-items:center;gap:12px;">
                     <label style="font-size:13px;font-weight:600;color:#374151;white-space:nowrap;"><?php echo e(t('grc_gaps.assessment_label')); ?></label>
-                    <select id="assessmentSelect" onchange="window.location='grc-gaps.php?id='+this.value" style="flex:1;max-width:500px;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+                    <select id="assessmentSelect" class="js-navigate" data-url-base="grc-gaps.php?id=" style="flex:1;max-width:500px;padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
                         <option value="">-- <?php echo e(t('grc_gaps.select_assessment')); ?> --</option>
                         <?php foreach ($assessments as $a): ?>
                         <option value="<?php echo (int)$a['id']; ?>" <?php echo (int)$a['id'] === $selectedId ? 'selected' : ''; ?>>
@@ -305,5 +305,16 @@ $csrfToken = $security->generateCSRFToken();
         </div>
     </footer>
 </div>
+
+<script nonce="<?php echo cspNonce(); ?>">
+// The assessment picker navigates on change. Wired here rather than with an
+// inline onchange: the CSP is script-src 'self' plus a nonce, with no
+// unsafe-inline, so inline event-handler attributes never run at all.
+document.querySelectorAll('.js-navigate').forEach(function(el) {
+    el.addEventListener('change', function() {
+        if (el.value) window.location = el.dataset.urlBase + encodeURIComponent(el.value);
+    });
+});
+</script>
 </body>
 </html>

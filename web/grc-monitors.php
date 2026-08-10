@@ -303,7 +303,7 @@ $currentPage = 'grc_monitors';
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="action" value="run_monitor">
                             <input type="hidden" name="monitor_id" value="<?php echo (int)$monitorDetail['id']; ?>">
-                            <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Run this monitor now?')"><?php echo e(t('grc_monitors.run_now')); ?></button>
+                            <button type="submit" class="btn btn-sm btn-success" data-confirm="<?php echo e(t('grc_monitors.confirm_run')); ?>"><?php echo e(t('grc_monitors.run_now')); ?></button>
                         </form>
                         <?php endif; ?>
                     </div>
@@ -511,5 +511,29 @@ $currentPage = 'grc_monitors';
 </div>
 
 <?php include __DIR__ . '/includes/scroll_to_top.php'; ?>
+
+<script nonce="<?php echo cspNonce(); ?>">
+// Confirm dialogs and disclosure toggles are wired here rather than with inline
+// onclick attributes: the CSP is script-src 'self' plus a nonce, with no
+// unsafe-inline, so inline event-handler attributes never run at all. As inline
+// handlers these confirms silently never fired, and destructive buttons
+// submitted on a single click.
+document.querySelectorAll('[data-confirm]').forEach(function(el) {
+    el.addEventListener('click', function(ev) {
+        if (!window.confirm(el.dataset.confirm)) {
+            ev.preventDefault();
+        }
+    });
+});
+document.querySelectorAll('[data-toggle-target]').forEach(function(el) {
+    el.addEventListener('click', function() {
+        var t = document.getElementById(el.dataset.toggleTarget);
+        if (!t) return;
+        var mode = el.dataset.toggleMode || 'toggle';
+        t.style.display = (mode === 'hide') ? 'none'
+                        : (t.style.display === 'none' ? 'block' : 'none');
+    });
+});
+</script>
 </body>
 </html>

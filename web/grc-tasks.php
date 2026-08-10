@@ -317,7 +317,7 @@ $currentPage = 'grc_tasks';
                 <input type="hidden" name="view" value="<?php echo e($filterView); ?>">
                 <div>
                     <label><?php echo e(t('grc-tasks.status')); ?></label>
-                    <select name="status" onchange="this.form.submit()">
+                    <select name="status" class="js-autosubmit">
                         <option value=""><?php echo e(t('grc-tasks.open_in_progress')); ?></option>
                         <option value="open" <?php echo $filterStatus === 'open' ? 'selected' : ''; ?>><?php echo e(t('grc-tasks.open')); ?></option>
                         <option value="in_progress" <?php echo $filterStatus === 'in_progress' ? 'selected' : ''; ?>><?php echo e(t('grc-tasks.in_progress')); ?></option>
@@ -327,7 +327,7 @@ $currentPage = 'grc_tasks';
                 </div>
                 <div>
                     <label><?php echo e(t('grc-tasks.priority')); ?></label>
-                    <select name="priority" onchange="this.form.submit()">
+                    <select name="priority" class="js-autosubmit">
                         <option value=""><?php echo e(t('grc-tasks.all_priorities')); ?></option>
                         <?php foreach (['critical', 'high', 'medium', 'low'] as $p): ?>
                         <option value="<?php echo $p; ?>" <?php echo $filterPriority === $p ? 'selected' : ''; ?>><?php echo ucfirst($p); ?></option>
@@ -404,7 +404,7 @@ $currentPage = 'grc_tasks';
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="action" value="reassign">
                         <input type="hidden" name="task_id" value="<?php echo (int)$task['id']; ?>">
-                        <select name="assigned_to" onchange="this.form.submit()" style="padding:3px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
+                        <select name="assigned_to" class="js-autosubmit" style="padding:3px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
                             <option value=""><?php echo e(t('grc-tasks.reassign_placeholder')); ?></option>
                             <?php foreach ($users as $u): ?>
                             <?php if ((int)$u['id'] !== (int)$task['assigned_to']): ?>
@@ -419,7 +419,7 @@ $currentPage = 'grc_tasks';
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="task_id" value="<?php echo (int)$task['id']; ?>">
-                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this task permanently?')"><?php echo e(t('grc-tasks.delete')); ?></button>
+                        <button type="submit" class="btn btn-sm btn-danger" data-confirm="<?php echo e(t('grc-tasks.confirm_delete')); ?>"><?php echo e(t('grc-tasks.delete')); ?></button>
                     </form>
                     <?php endif; ?>
                 </div>
@@ -455,5 +455,38 @@ $currentPage = 'grc_tasks';
 </div>
 
 <?php include __DIR__ . '/includes/scroll_to_top.php'; ?>
+
+<script nonce="<?php echo cspNonce(); ?>">
+// Filter controls submit their form on change. Wired here rather than with an
+// inline onchange: the CSP is script-src 'self' plus a nonce, with no
+// unsafe-inline, so inline event-handler attributes never run at all.
+// Confirm dialogs and disclosure toggles are wired here rather than with inline
+// onclick attributes: the CSP is script-src 'self' plus a nonce, with no
+// unsafe-inline, so inline event-handler attributes never run at all. As inline
+// handlers these confirms silently never fired, and destructive buttons
+// submitted on a single click.
+document.querySelectorAll('[data-confirm]').forEach(function(el) {
+    el.addEventListener('click', function(ev) {
+        if (!window.confirm(el.dataset.confirm)) {
+            ev.preventDefault();
+        }
+    });
+});
+document.querySelectorAll('[data-toggle-target]').forEach(function(el) {
+    el.addEventListener('click', function() {
+        var t = document.getElementById(el.dataset.toggleTarget);
+        if (!t) return;
+        var mode = el.dataset.toggleMode || 'toggle';
+        t.style.display = (mode === 'hide') ? 'none'
+                        : (t.style.display === 'none' ? 'block' : 'none');
+    });
+});
+
+document.querySelectorAll('.js-autosubmit').forEach(function(el) {
+    el.addEventListener('change', function() {
+        if (el.form) el.form.submit();
+    });
+});
+</script>
 </body>
 </html>

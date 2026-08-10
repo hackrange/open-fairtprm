@@ -97,7 +97,12 @@ if (isset($_GET['export']) && (int)$_GET['export'] > 0) {
                 .print-btn { display: block; text-align: center; margin: 20px auto; padding: 10px 30px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
                 @media print { .print-btn { display: none; } }
             </style></head><body>';
-            $html .= '<button class="print-btn" onclick="window.print()">Print / Save as PDF</button>';
+            // Standalone export document, but served from this same response, so the
+            // app CSP applies: no unsafe-inline, hence a nonced handler rather than
+            // an inline onclick (which never fired).
+            $html .= '<button class="print-btn" id="printBtn">Print / Save as PDF</button>';
+            $html .= '<script nonce="' . e(cspNonce()) . '">document.getElementById("printBtn")'
+                   . '.addEventListener("click", function () { window.print(); });<\/script>';
             $html .= '<h1>Audit Report</h1>';
             $html .= '<div class="subtitle">' . htmlspecialchars($exportAudit['audit_ref'] . ' - ' . $exportAudit['title']) . '<br>Generated: ' . date('F j, Y') . '</div>';
 

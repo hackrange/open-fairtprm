@@ -262,6 +262,22 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **GRC filter dropdowns, confirmation prompts, and the Add Evidence form did
+  nothing.** Seventeen inline `onchange` / `onclick` attributes across the GRC
+  pages were dead code: the Content-Security-Policy is `script-src 'self'` plus
+  a nonce, with no `unsafe-inline`, so the browser never ran an inline event
+  handler. Three consequences, in increasing order of seriousness. Filter
+  dropdowns on Policies, Controls, Tasks and the Gaps assessment picker did not
+  apply on selection, so a filter only took effect if you also clicked the
+  Filter button. The "Remove mapping" and "Unlink evidence" buttons on Controls
+  and the "Delete" button on Tasks were meant to ask for confirmation first and
+  never did, so those destructive actions went through on a single click with no
+  prompt. And the "+ New Evidence" button on Controls, which toggles the create
+  form open, did nothing at all, leaving that form unreachable. All seventeen
+  are now wired from the pages' nonced script blocks, including the print button
+  in the audit HTML export, which is a standalone document but is served from
+  the same response and so is covered by the same policy. The two confirmation
+  prompts that were hardcoded English strings are now translated.
 - **Automatic SRS rescoring starved lower tiers on large tenants.** The hourly
   rescore cron asks `SRSService::getVendorsNeedingRescore()` for a batch, but
   that method applied its `LIMIT` (batch size) to a strictly tier-ordered

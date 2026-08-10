@@ -517,7 +517,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                                 <input type="hidden" name="action" value="update_coverage">
                                 <input type="hidden" name="control_id" value="<?php echo (int)$controlDetail['id']; ?>">
                                 <input type="hidden" name="requirement_id" value="<?php echo (int)$req['requirement_id']; ?>">
-                                <select name="coverage" onchange="this.form.submit()" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;cursor:pointer;background:#fff;">
+                                <select name="coverage" class="js-autosubmit" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;cursor:pointer;background:#fff;">
                                     <option value="full" <?php echo ($req['coverage'] ?? 'full') === 'full' ? 'selected' : ''; ?>><?php echo e(t('grc-controls.full')); ?></option>
                                     <option value="partial" <?php echo ($req['coverage'] ?? '') === 'partial' ? 'selected' : ''; ?>><?php echo e(t('grc-controls.partial')); ?></option>
                                 </select>
@@ -533,7 +533,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                                 <input type="hidden" name="action" value="unmap">
                                 <input type="hidden" name="control_id" value="<?php echo (int)$controlDetail['id']; ?>">
                                 <input type="hidden" name="requirement_id" value="<?php echo (int)$req['requirement_id']; ?>">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm(<?php echo e(json_encode(t('grc-controls.confirm_remove_mapping'))); ?>)"><?php echo e(t('grc-controls.unmap')); ?></button>
+                                <button type="submit" class="btn btn-sm btn-danger" data-confirm="<?php echo e(t('grc-controls.confirm_remove_mapping')); ?>"><?php echo e(t('grc-controls.unmap')); ?></button>
                             </form>
                         </td>
                         <?php endif; ?>
@@ -605,7 +605,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                                 <input type="hidden" name="action" value="unlink_evidence">
                                 <input type="hidden" name="control_id" value="<?php echo (int)$controlDetail['id']; ?>">
                                 <input type="hidden" name="evidence_id" value="<?php echo (int)$ev['id']; ?>">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm(<?php echo e(json_encode(t('grc-controls.confirm_unlink_evidence'))); ?>)"><?php echo e(t('grc-controls.unlink')); ?></button>
+                                <button type="submit" class="btn btn-sm btn-danger" data-confirm="<?php echo e(t('grc-controls.confirm_unlink_evidence')); ?>"><?php echo e(t('grc-controls.unlink')); ?></button>
                             </form>
                         </td>
                         <?php endif; ?>
@@ -639,7 +639,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
 
                 <!-- Create New Evidence -->
                 <div style="margin-top:16px;border-top:1px solid #e5e7eb;padding-top:16px;">
-                    <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('newEvidenceForm').style.display = document.getElementById('newEvidenceForm').style.display === 'none' ? 'block' : 'none';">+ <?php echo e(t('grc-controls.new_evidence')); ?></button>
+                    <button type="button" class="btn btn-sm btn-outline" data-toggle-target="newEvidenceForm">+ <?php echo e(t('grc-controls.new_evidence')); ?></button>
                     <form method="post" enctype="multipart/form-data" id="newEvidenceForm" style="display:none;margin-top:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="action" value="upload_evidence">
@@ -688,7 +688,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
 
                         <div style="margin-top:12px;">
                             <button type="submit" class="btn btn-primary"><?php echo e(t('grc-controls.create_link_evidence')); ?></button>
-                            <button type="button" class="btn btn-outline" onclick="document.getElementById('newEvidenceForm').style.display='none';"><?php echo e(t('grc-controls.cancel')); ?></button>
+                            <button type="button" class="btn btn-outline" data-toggle-target="newEvidenceForm" data-toggle-mode="hide"><?php echo e(t('grc-controls.cancel')); ?></button>
                         </div>
                     </form>
                 </div>
@@ -783,7 +783,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                 <form method="get" class="filter-bar">
                     <div>
                         <label><?php echo e(t('grc-controls.status')); ?></label>
-                        <select name="status" onchange="this.form.submit()">
+                        <select name="status" class="js-autosubmit">
                             <option value=""><?php echo e(t('grc-controls.all_statuses')); ?></option>
                             <?php foreach (['planned', 'in_progress', 'implemented', 'not_applicable'] as $s): ?>
                             <option value="<?php echo e($s); ?>" <?php echo ($filters['status'] ?? '') === $s ? 'selected' : ''; ?>><?php echo e(ucfirst(str_replace('_', ' ', $s))); ?></option>
@@ -792,7 +792,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                     </div>
                     <div>
                         <label><?php echo e(t('grc-controls.type')); ?></label>
-                        <select name="type" onchange="this.form.submit()">
+                        <select name="type" class="js-autosubmit">
                             <option value=""><?php echo e(t('grc-controls.all_types')); ?></option>
                             <?php foreach (['preventive', 'detective', 'corrective', 'directive'] as $t): ?>
                             <option value="<?php echo e($t); ?>" <?php echo ($filters['type'] ?? '') === $t ? 'selected' : ''; ?>><?php echo e(ucfirst($t)); ?></option>
@@ -801,7 +801,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                     </div>
                     <div>
                         <label><?php echo e(t('grc-controls.framework')); ?></label>
-                        <select name="framework_id" onchange="this.form.submit()">
+                        <select name="framework_id" class="js-autosubmit">
                             <option value=""><?php echo e(t('grc-controls.all_frameworks')); ?></option>
                             <?php foreach ($frameworks as $fw): ?>
                             <option value="<?php echo (int)$fw['id']; ?>" <?php echo ((int)($filters['framework_id'] ?? 0)) === (int)$fw['id'] ? 'selected' : ''; ?>><?php echo e($fw['code']); ?></option>
@@ -879,6 +879,37 @@ $showForm = isset($_GET['new']) || $editId > 0;
 </div>
 
 <script nonce="<?php echo cspNonce(); ?>">
+// Filter controls submit their form on change. Wired here rather than with an
+// inline onchange: the CSP is script-src 'self' plus a nonce, with no
+// unsafe-inline, so inline event-handler attributes never run at all.
+// Confirm dialogs and disclosure toggles are wired here rather than with inline
+// onclick attributes: the CSP is script-src 'self' plus a nonce, with no
+// unsafe-inline, so inline event-handler attributes never run at all. As inline
+// handlers these confirms silently never fired, and destructive buttons
+// submitted on a single click.
+document.querySelectorAll('[data-confirm]').forEach(function(el) {
+    el.addEventListener('click', function(ev) {
+        if (!window.confirm(el.dataset.confirm)) {
+            ev.preventDefault();
+        }
+    });
+});
+document.querySelectorAll('[data-toggle-target]').forEach(function(el) {
+    el.addEventListener('click', function() {
+        var t = document.getElementById(el.dataset.toggleTarget);
+        if (!t) return;
+        var mode = el.dataset.toggleMode || 'toggle';
+        t.style.display = (mode === 'hide') ? 'none'
+                        : (t.style.display === 'none' ? 'block' : 'none');
+    });
+});
+
+document.querySelectorAll('.js-autosubmit').forEach(function(el) {
+    el.addEventListener('change', function() {
+        if (el.form) el.form.submit();
+    });
+});
+
 // Autosave every 30 seconds for forms with class .grc-autosave-form
 var autosaveTimer;
 document.querySelectorAll('.grc-autosave-form').forEach(function(form) {

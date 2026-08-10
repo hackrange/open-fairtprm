@@ -758,7 +758,7 @@ $currentPage = 'grc_policies';
                 <form method="get" class="filter-bar">
                     <div>
                         <label><?php echo e(t('grc_policies.filter_status')); ?></label>
-                        <select name="status" onchange="this.form.submit()">
+                        <select name="status" class="js-autosubmit">
                             <option value=""><?php echo e(t('grc_policies.all_statuses')); ?></option>
                             <?php foreach (['draft', 'approved', 'published', 'retired'] as $s): ?>
                             <option value="<?php echo e($s); ?>" <?php echo ($filters['status'] ?? '') === $s ? 'selected' : ''; ?>><?php echo e(ucfirst($s)); ?></option>
@@ -767,7 +767,7 @@ $currentPage = 'grc_policies';
                     </div>
                     <div>
                         <label><?php echo e(t('grc_policies.filter_category')); ?></label>
-                        <select name="category" onchange="this.form.submit()">
+                        <select name="category" class="js-autosubmit">
                             <option value=""><?php echo e(t('grc_policies.all_categories')); ?></option>
                             <?php foreach (['security', 'privacy', 'compliance', 'hr', 'it', 'operations', 'other'] as $cat): ?>
                             <option value="<?php echo e($cat); ?>" <?php echo ($filters['category'] ?? '') === $cat ? 'selected' : ''; ?>><?php echo e(ucfirst($cat)); ?></option>
@@ -779,7 +779,7 @@ $currentPage = 'grc_policies';
                         <input type="text" name="search" value="<?php echo e($filters['search'] ?? ''); ?>" placeholder="<?php echo e(t('grc_policies.search_placeholder')); ?>">
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;">
-                        <input type="checkbox" id="show_retired" name="show_retired" value="1" <?php echo !empty($filters['show_retired']) ? 'checked' : ''; ?>>
+                        <input type="checkbox" id="show_retired" name="show_retired" value="1" class="js-autosubmit" <?php echo !empty($filters['show_retired']) ? 'checked' : ''; ?>>
                         <label for="show_retired" style="margin:0;"><?php echo e(t('grc_policies.show_retired')); ?></label>
                     </div>
                     <button type="submit" class="btn btn-outline btn-sm" style="margin-bottom:0;"><?php echo e(t('grc_policies.filter_button')); ?></button>
@@ -874,6 +874,15 @@ if (document.getElementById('content') && typeof tinymce !== 'undefined') {
         }
     });
 }
+
+// Filter controls submit their form on change. Wired here rather than with an
+// inline onchange: the CSP is script-src 'self' plus a nonce, with no
+// unsafe-inline, so inline event-handler attributes never run at all.
+document.querySelectorAll('.js-autosubmit').forEach(function(el) {
+    el.addEventListener('change', function() {
+        if (el.form) el.form.submit();
+    });
+});
 
 // Confirm before deleting a policy. The CSP is nonce-based, so this is wired
 // here rather than with an inline onclick.
