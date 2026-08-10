@@ -209,6 +209,17 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **`init-db/` is now built from the repository rather than inherited from the
+  base image.** The three seed-schema files were previously outside the image
+  overlay, so edits to them in the repository never reached a build and the two
+  copies drifted apart unnoticed. They are now copied from source like every
+  other shipped file, which makes the repository authoritative and lets the
+  drift checker enforce that they match. `init-db/01-grc_schema.sql` is also
+  brought up to date with the `is_system` column and the `grc_policy_ack_groups`
+  table. That file is a reference copy that nothing loads at runtime -- the
+  entrypoint seeds from `00-master_schema.sql` and `grant_remote_access.sql`,
+  then applies `sql_updates/*.sql` -- but it is the file a reader is most likely
+  to consult, so it should be accurate. All `.sql` paths remain denied over HTTP.
 - **Promoted 2.6.2 to the stable release line.** `2.6.2` supersedes `2.6.1` (now
   frozen as the final 2.6.1 codeset) and is published to both the `master` and
   `2.6.2` branches. Removed the "pre-release / not-yet-production-ready" language

@@ -97,6 +97,8 @@ RUN set -e; \
     mkdir -p /var/www/html/includes/partials; \
     cp -rp $pp/includes/partials/. /var/www/html/includes/partials/; \
     \
+    cp -rp $pp/init-db/. /var/www/html/init-db/; \
+    \
     cp -p  $pp/config.sample.php /var/www/html/config/; \
     \
     mkdir -p /var/www/html/includes/i18n; \
