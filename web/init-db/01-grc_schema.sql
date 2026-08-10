@@ -472,7 +472,7 @@ CREATE TABLE IF NOT EXISTS `shadow_saas` (
   `rescore_status` varchar(30) DEFAULT NULL,
   `rescore_started_at` datetime DEFAULT NULL,
   `rescore_result` text DEFAULT NULL,
-  `status` enum('pending','onboarded','dismissed','unsanctioned') DEFAULT 'pending',
+  `status` enum('pending','onboarded','dismissed') DEFAULT 'pending',
   `onboarded_vendor_id` int(10) unsigned DEFAULT NULL,
   `onboarded_at` datetime DEFAULT NULL,
   `onboarded_by` int(10) unsigned DEFAULT NULL,
@@ -1341,7 +1341,6 @@ CREATE TABLE IF NOT EXISTS `grc_policies` (
   `related_frameworks` text DEFAULT NULL COMMENT 'JSON array of framework IDs this policy covers',
   `related_controls` text DEFAULT NULL COMMENT 'JSON array of control IDs',
   `is_active` tinyint(1) DEFAULT 1,
-  `is_system` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = shipped with the product, permanent: never deletable from the UI',
   `created_by` int(10) unsigned NOT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -1373,21 +1372,6 @@ CREATE TABLE IF NOT EXISTS `grc_policy_versions` (
   KEY `idx_policy` (`policy_id`),
   KEY `idx_status` (`status`),
   CONSTRAINT `fk_pver_policy` FOREIGN KEY (`policy_id`) REFERENCES `grc_policies` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table: grc_policy_ack_groups
--- Which ACL groups have to acknowledge a policy. No rows = every active user.
-CREATE TABLE IF NOT EXISTS `grc_policy_ack_groups` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `policy_id` int(10) unsigned NOT NULL,
-  `group_id` int(10) unsigned NOT NULL,
-  `created_at` timestamp NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_policy_group` (`policy_id`,`group_id`),
-  KEY `idx_policy` (`policy_id`),
-  KEY `idx_group` (`group_id`),
-  CONSTRAINT `fk_pag_policy` FOREIGN KEY (`policy_id`) REFERENCES `grc_policies` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_pag_group` FOREIGN KEY (`group_id`) REFERENCES `acl_groups` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table: grc_policy_acknowledgments
@@ -2177,6 +2161,24 @@ CREATE TABLE IF NOT EXISTS `waf_whitelist_rules` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_rule_id` (`rule_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=469 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table: auth_failed_attempts
+-- Per-IP+UA failed-login tracking. Drives the IP-fingerprint lockout that
+-- replaces blanket account lockout as the primary brute-force defense, so a
+-- threat actor at one source IP cannot DoS legitimate users by guessing
+-- their passwords. Account-level lockout still triggers on distributed
+-- attacks (failures from 3+ IPs against one username in 24h).
+CREATE TABLE IF NOT EXISTS `auth_failed_attempts` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `client_ip` varchar(45) NOT NULL,
+  `ua_hash` char(64) NOT NULL,
+  `username_attempted` varchar(255) DEFAULT NULL,
+  `attempted_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_ip_ua_time` (`client_ip`, `ua_hash`, `attempted_at`),
+  KEY `idx_username_time` (`username_attempted`, `attempted_at`),
+  KEY `idx_attempted_at` (`attempted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 -- =============================================================================
@@ -4219,20 +4221,16 @@ INSERT IGNORE INTO `grc_recommended_controls` VALUES
 -- Creates GRC-specific groups and permissions. Uses INSERT IGNORE with
 -- named columns (no hardcoded IDs) so they work on any installation.
 
-INSERT IGNORE INTO acl_groups (group_name, display_name, description, is_active, is_system)
+INSERT IGNORE INTO acl_groups (group_name, display_name, description, is_active)
 VALUES
-    ('auditor', 'Auditor', 'Read-only access to all modules. Cannot create, update, delete, or send.', 1, 1),
-    ('cyber_grc', 'Cyber GRC', 'GRC Compliance team members - full access to GRC module', 1, 1),
-    ('grc_contributors', 'GRC Contributors', 'GRC Contributors - IT and Compliance staff who provide evidence and complete assessment tasks', 1, 1);
+    ('auditor', 'Auditor', 'Read-only access to all modules. Cannot create, update, delete, or send.', 1),
+    ('cyber_grc', 'Cyber GRC', 'GRC Compliance team members - full access to GRC module', 1),
+    ('grc_contributors', 'GRC Contributors', 'GRC Contributors - IT and Compliance staff who provide evidence and complete assessment tasks', 1);
 
 -- Update display_name for any existing rows that may have empty display_name
 UPDATE acl_groups SET display_name = 'Auditor' WHERE group_name = 'auditor' AND (display_name IS NULL OR display_name = '');
 UPDATE acl_groups SET display_name = 'Cyber GRC' WHERE group_name = 'cyber_grc' AND (display_name IS NULL OR display_name = '');
 UPDATE acl_groups SET display_name = 'GRC Contributors' WHERE group_name = 'grc_contributors' AND (display_name IS NULL OR display_name = '');
-
--- These three are shipped defaults too: protect them from deletion/renaming.
--- Idempotent re-assertion in case the rows pre-existed the is_system column.
-UPDATE acl_groups SET is_system = 1 WHERE group_name IN ('auditor', 'cyber_grc', 'grc_contributors');
 
 -- GRC Permissions
 INSERT IGNORE INTO acl_permissions (permission_code, module, resource, action, description)

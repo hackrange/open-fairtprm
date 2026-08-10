@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true);
 $security = Security::getInstance();
 
-if (empty($input['csrf_token']) || !$security->validateCSRFToken($input['csrf_token'])) {
+if (!$security->validateCSRFToken($input['csrf_token'] ?? '')) {
     http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
     exit;

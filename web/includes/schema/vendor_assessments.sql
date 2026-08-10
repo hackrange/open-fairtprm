@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS assessment_templates (
     category VARCHAR(50) DEFAULT 'vendor_assessment',
     allow_certificate_upload TINYINT(1) DEFAULT 0,
     certificate_upload_prompt TEXT,
-    certificate_upload_mode VARCHAR(20) DEFAULT 'none',
     is_active TINYINT(1) DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -41,7 +40,6 @@ CREATE TABLE IF NOT EXISTS assessment_questions (
     depends_on_value VARCHAR(255) DEFAULT NULL,
     triggers_assessment_template_id INT DEFAULT NULL,
     triggers_on_value VARCHAR(255) DEFAULT NULL,
-    include_in_minimal TINYINT(1) DEFAULT 0,
     FOREIGN KEY (section_id) REFERENCES assessment_sections(id) ON DELETE CASCADE,
     INDEX idx_question_order (section_id, sort_order),
     INDEX idx_depends_on (depends_on_question_id)
@@ -323,7 +321,7 @@ INSERT IGNORE INTO assessment_questions (section_id, question_text, question_typ
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What other Domain Names are associated with this vendor (sister domains)?', 'textarea', NULL, 0, 'Comma-separated list of related domains for Shodan scanning.', 3, 'vendor_sisterdomains'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
-'Has this vendor completed Procurement Onboarding?', 'button_group', '["Yes", "No"]', 1, NULL, 4, 'vsu_onboarded'),
+'Has this vendor completed VSU Procurement Onboarding?', 'button_group', '["Yes", "No"]', 1, NULL, 4, 'vsu_onboarded'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What is the Vendor ID (VID)?', 'number', NULL, 0, '4-8 digit vendor ID from VSU procurement system.', 5, 'vendor_id'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
@@ -343,7 +341,7 @@ INSERT IGNORE INTO assessment_questions (section_id, question_text, question_typ
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What is the primary contact''s title?', 'text', NULL, 0, 'e.g., Account Manager, Sales Director', 13, 'primary_contact_title'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
-'What is the primary contact''s direct phone number?', 'phone', NULL, 0, NULL, 14, 'primary_contact_phone'),
+'What is the primary contact''s direct phone number?', 'text', NULL, 0, NULL, 14, 'primary_contact_phone'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'Is an NDA in place with this vendor?', 'button_group', '["Yes", "No"]', 1, NULL, 15, 'nda_in_place'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),

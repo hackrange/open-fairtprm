@@ -63,7 +63,12 @@ class DocumentTextExtractor
         $text = preg_replace('/\n{3,}/', "\n\n", $text);
         $text = mb_substr(trim($text), 0, $maxChars);
 
-        return mb_strlen($text) >= 50 ? $text : null;
+        $len = mb_strlen($text);
+        if ($len < 50) {
+            error_log("DocumentTextExtractor: extracted only {$len} chars (minimum 50) — document may be scanned/image-based");
+            return null;
+        }
+        return $text;
     }
 
     /**
@@ -78,16 +83,32 @@ class DocumentTextExtractor
             file_put_contents($tmpFile, $data);
 
             $tmpOut = $tmpFile . '.txt';
-            $cmd = 'pdftotext -l 10 -enc UTF-8 '
-                . escapeshellarg($tmpFile) . ' '
-                . escapeshellarg($tmpOut) . ' 2>/dev/null';
-            exec($cmd, $cmdOutput, $retCode);
+            // Use proc_open (exec is disabled in php-hardening.ini).
+            // Use pipes instead of /dev/null — open_basedir blocks /dev/null access.
+            $cmd = ['/usr/bin/pdftotext', '-l', '10', '-enc', 'UTF-8', $tmpFile, $tmpOut];
+            $desc = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+            $proc = proc_open($cmd, $desc, $pipes);
+            if (!is_resource($proc)) {
+                error_log('DocumentTextExtractor: proc_open failed for pdftotext — check open_basedir or disable_functions');
+                return null;
+            }
+            fclose($pipes[0]);
+            $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $retCode = proc_close($proc);
 
-            if ($retCode === 0 && file_exists($tmpOut)) {
+            if ($retCode !== 0) {
+                error_log("DocumentTextExtractor: pdftotext exit code {$retCode}" . ($stderr ? ": {$stderr}" : ''));
+                return null;
+            }
+
+            if (file_exists($tmpOut)) {
                 return file_get_contents($tmpOut);
             }
             return null;
         } catch (\Exception $e) {
+            error_log('DocumentTextExtractor: PDF exception — ' . $e->getMessage());
             return null;
         } finally {
             if ($tmpFile && file_exists($tmpFile)) @unlink($tmpFile);

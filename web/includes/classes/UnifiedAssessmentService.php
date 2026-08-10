@@ -109,7 +109,7 @@ class UnifiedAssessmentService {
     // ASSESSMENTS
     // =========================================================================
 
-    public function getAssessments(?string $status = null): array {
+    public function getAssessments(?string $status = null, bool $excludeArchived = false): array {
         $sql = 'SELECT a.*, u.full_name as lead_auditor_name, cu.full_name as created_by_name
                 FROM grc_assessments a
                 LEFT JOIN users u ON u.id = a.lead_auditor_id
@@ -119,6 +119,8 @@ class UnifiedAssessmentService {
         if ($status) {
             $sql .= ' AND a.status = :status';
             $params[':status'] = $status;
+        } elseif ($excludeArchived) {
+            $sql .= " AND a.status != 'archived'";
         }
         $sql .= ' ORDER BY a.created_at DESC';
         return $this->db->fetchAll($sql, $params);
@@ -200,9 +202,27 @@ class UnifiedAssessmentService {
     public function deleteAssessment(int $id): array {
         $assessment = $this->getAssessment($id);
         if (!$assessment) return ['success' => false, 'error' => 'Assessment not found.'];
-        if ($assessment['status'] === 'completed') return ['success' => false, 'error' => 'Cannot delete completed assessments.'];
+        if ($assessment['status'] === 'completed') return ['success' => false, 'error' => 'Cannot delete completed assessments. Archive it first.'];
 
         $this->db->query('DELETE FROM grc_assessments WHERE id = :id', [':id' => $id]);
+        return ['success' => true];
+    }
+
+    public function archiveAssessment(int $id): array {
+        $assessment = $this->getAssessment($id);
+        if (!$assessment) return ['success' => false, 'error' => 'Assessment not found.'];
+        if ($assessment['status'] === 'archived') return ['success' => false, 'error' => 'Assessment is already archived.'];
+
+        $this->db->update('grc_assessments', ['status' => 'archived'], 'id = :id', [':id' => $id]);
+        return ['success' => true];
+    }
+
+    public function unarchiveAssessment(int $id): array {
+        $assessment = $this->getAssessment($id);
+        if (!$assessment) return ['success' => false, 'error' => 'Assessment not found.'];
+        if ($assessment['status'] !== 'archived') return ['success' => false, 'error' => 'Assessment is not archived.'];
+
+        $this->db->update('grc_assessments', ['status' => 'completed'], 'id = :id', [':id' => $id]);
         return ['success' => true];
     }
 

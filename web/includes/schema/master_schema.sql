@@ -97,7 +97,6 @@ CREATE TABLE IF NOT EXISTS users (
     theme_nav_font_color VARCHAR(20) DEFAULT NULL COMMENT 'User-specific navigation font color',
     theme_nav_width VARCHAR(10) DEFAULT NULL COMMENT 'User-specific navigation width in pixels',
     dashboard_modules TEXT DEFAULT NULL COMMENT 'JSON array of selected dashboard module keys (max 9)',
-    preferred_language VARCHAR(10) DEFAULT NULL COMMENT 'User UI language code (e.g. en, es, zh-Hans); NULL = use system default',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_username (username),
@@ -116,9 +115,6 @@ CREATE TABLE IF NOT EXISTS acl_groups (
     display_name VARCHAR(255) NOT NULL,
     description TEXT,
     is_active TINYINT(1) DEFAULT 1,
-    -- 1 = shipped default group (non-deletable, name-locked, frozen permissions);
-    -- 0 = admin-created custom group (editable + deletable).
-    is_system TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_group_name (group_name),
@@ -804,23 +800,6 @@ CREATE TABLE IF NOT EXISTS assessment_questions (
     INDEX idx_depends_on (depends_on_question_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Cached machine translations of assessment content for the public vendor form.
--- One row per (source field, source id, language). source_hash is a SHA-256 of
--- the original text so a translation is reused until the admin edits the source,
--- then transparently regenerated. source_type 'options' stores a JSON array.
-CREATE TABLE IF NOT EXISTS assessment_translations (
-    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    source_type VARCHAR(32) NOT NULL COMMENT 'question_text | help_text | options | section_name | section_description | template_name | template_description',
-    source_id INT UNSIGNED NOT NULL COMMENT 'question/section/template id the text belongs to',
-    language_code VARCHAR(10) NOT NULL,
-    source_hash CHAR(64) NOT NULL COMMENT 'SHA-256 of the source text; invalidates the cache when the source changes',
-    translated_text TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_translation (source_type, source_id, language_code),
-    INDEX idx_lookup (source_type, source_id, language_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- Vendor assessment instances (sent to vendors)
 CREATE TABLE IF NOT EXISTS vendor_assessments (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -836,14 +815,6 @@ CREATE TABLE IF NOT EXISTS vendor_assessments (
     certificate_uploaded TINYINT(1) DEFAULT 0,
     certificate_path VARCHAR(500) COMMENT 'Path or db:ID reference for certificate',
     certificate_expiry DATE,
-    -- Submitter attestation captured at final submission (questionnaire or certificate skip)
-    submitter_name VARCHAR(255) DEFAULT NULL COMMENT 'Name of the person who submitted',
-    submitter_title VARCHAR(255) DEFAULT NULL COMMENT 'Job title of the submitter',
-    submitter_email VARCHAR(255) DEFAULT NULL COMMENT 'Email of the submitter',
-    submitter_phone VARCHAR(50) DEFAULT NULL COMMENT 'Phone number of the submitter',
-    submitter_ip_address VARCHAR(45) DEFAULT NULL COMMENT 'Client IP captured at submission',
-    submitter_attested TINYINT(1) DEFAULT 0 COMMENT '1 = submitter attested the information is truthful',
-    attested_at DATETIME DEFAULT NULL COMMENT 'When the truthfulness attestation was made',
     started_at DATETIME,
     completed_at DATETIME,
     expires_at DATETIME,
@@ -1109,12 +1080,12 @@ VALUES (
 ) ON DUPLICATE KEY UPDATE username = username;
 
 -- Default ACL groups (must be seeded BEFORE user_acl_groups assignment below)
-INSERT INTO acl_groups (group_name, display_name, description, is_active, is_system) VALUES
-('administrator', 'Administrator', 'Full administrative access to all features', 1, 1),
-('cyber_tprm', 'Cyber TPRM', 'Cyber Third Party Risk Management team - can manage vendor assessments and FAIR analysis', 1, 1),
-('procurement', 'Procurement', 'Procurement team - can create and manage vendor onboarding requests', 1, 1),
-('stakeholder', 'Stakeholder', 'Stakeholders - can view and update assigned vendor onboarding requests', 1, 1)
-ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), is_system = VALUES(is_system);
+INSERT INTO acl_groups (group_name, display_name, description, is_active) VALUES
+('administrator', 'Administrator', 'Full administrative access to all features', 1),
+('cyber_tprm', 'Cyber TPRM', 'Cyber Third Party Risk Management team - can manage vendor assessments and FAIR analysis', 1),
+('procurement', 'Procurement', 'Procurement team - can create and manage vendor onboarding requests', 1),
+('stakeholder', 'Stakeholder', 'Stakeholders - can view and update assigned vendor onboarding requests', 1)
+ON DUPLICATE KEY UPDATE display_name = VALUES(display_name);
 
 -- Assign admin to administrator group (after both users and acl_groups are seeded)
 INSERT IGNORE INTO user_acl_groups (user_id, group_id, assigned_by)
@@ -1191,10 +1162,6 @@ INSERT INTO app_config (config_key, config_value, is_encrypted, description) VAL
 ('require_password_complexity', '1', 0, 'Require complex passwords'),
 ('totp_issuer', 'TPRM FAIR Analysis', 0, 'TOTP issuer name'),
 ('app_timezone', 'America/New_York', 0, 'Application timezone for displaying dates and times'),
-
--- Localization / language settings
-('default_language', 'en', 0, 'Default UI language code for new users and pre-login pages'),
-('enabled_languages', '["en","es","it","uk","zh-Hans","hi","fr","pt"]', 0, 'JSON array of language codes users may choose in their profile'),
 
 -- FAIR Analysis cost settings
 ('pii_breach_cost_per_record', '160', 0, 'Cost per PII record if breached'),
@@ -1311,7 +1278,7 @@ INSERT IGNORE INTO assessment_questions (section_id, question_text, question_typ
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What is the vendor''s primary domain?', 'text', NULL, 0, 'e.g., vendor.com', 2, 'vendor_domain'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
-'Has this vendor completed Procurement Onboarding?', 'radio', '["Yes", "No"]', 1, NULL, 3, 'vsu_onboarded'),
+'Has this vendor completed VSU Procurement Onboarding?', 'radio', '["Yes", "No"]', 1, NULL, 3, 'vsu_onboarded'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What is the Vendor ID (VID)?', 'text', NULL, 0, '4-8 digit vendor ID from VSU procurement system.', 4, 'vendor_id'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
@@ -1331,7 +1298,7 @@ INSERT IGNORE INTO assessment_questions (section_id, question_text, question_typ
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'What is the primary contact''s title?', 'text', NULL, 0, 'e.g., Account Manager, Sales Director', 12, 'primary_contact_title'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
-'What is the primary contact''s direct phone number?', 'phone', NULL, 0, NULL, 13, 'primary_contact_phone'),
+'What is the primary contact''s direct phone number?', 'text', NULL, 0, NULL, 13, 'primary_contact_phone'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
 'Is an NDA in place with this vendor?', 'radio', '["Yes", "No"]', 1, NULL, 14, 'nda_in_place'),
 ((SELECT id FROM assessment_sections WHERE template_id = (SELECT id FROM assessment_templates WHERE slug = 'vendor-onboarding') AND sort_order = 1),
@@ -1653,6 +1620,44 @@ CREATE TABLE IF NOT EXISTS waf_learned_requests (
     INDEX idx_uri_method (uri(191), method),
     INDEX idx_client_ip (client_ip),
     INDEX idx_request_at (request_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Per-IP+UA failed-login tracking. Drives the IP-fingerprint lockout that
+-- replaces blanket account lockout as the primary brute-force defense, so a
+-- threat actor at one source IP cannot DoS legitimate users by guessing
+-- their passwords. Account-level lockout still triggers on distributed
+-- attacks (failures from 3+ IPs against one username in 24h).
+CREATE TABLE IF NOT EXISTS auth_failed_attempts (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    client_ip VARCHAR(45) NOT NULL,
+    ua_hash CHAR(64) NOT NULL,
+    username_attempted VARCHAR(255) DEFAULT NULL,
+    attempted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_ip_ua_time (client_ip, ua_hash, attempted_at),
+    INDEX idx_username_time (username_attempted, attempted_at),
+    INDEX idx_attempted_at (attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- SECTION 16: AI JOB QUEUE
+-- Background queue for AI tasks so they don't block web workers.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS ai_job_queue (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    job_type VARCHAR(50) NOT NULL COMMENT 'fair_analysis, contract_pricing, assessment_autofill',
+    status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT 'pending',
+    user_id INT UNSIGNED NOT NULL,
+    request_payload LONGTEXT NOT NULL COMMENT 'JSON: messages, options, and context needed to run the AI call',
+    result_payload LONGTEXT COMMENT 'JSON: full result returned to the frontend',
+    error_message TEXT COMMENT 'Error details if failed',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    started_at DATETIME COMMENT 'When processing began',
+    completed_at DATETIME COMMENT 'When processing finished',
+    INDEX idx_aiq_status (status),
+    INDEX idx_aiq_user_id (user_id),
+    INDEX idx_aiq_created_at (created_at),
+    INDEX idx_aiq_type_status (job_type, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================

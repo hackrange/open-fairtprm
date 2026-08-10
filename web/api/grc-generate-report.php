@@ -33,7 +33,7 @@ if (!$isAdmin && !$isCyberGRC && !$isAuditor) {
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
-if (!$input || empty($input['csrf_token']) || !$security->validateCSRFToken($input['csrf_token'])) {
+if (!$input || !$security->validateCSRFToken($input['csrf_token'] ?? '')) {
     http_response_code(403);
     echo json_encode(['error' => 'Invalid CSRF token', 'csrf_token' => $security->getCSRFToken()]);
     exit;
@@ -169,13 +169,17 @@ if ($isSOC2) {
     $report = generateGenericReport($audit, $requirements, $controls, $findings, $categorySummary, $orgName, $auditPeriod, $frameworkName, $complianceRate, $assessedReqs, $totalReqs, $compliantReqs, $nonCompliantReqs, $ai, $useAI);
 }
 
-echo json_encode([
+$response = [
     'success' => true,
     'report' => $report,
     'framework_code' => $audit['framework_code'],
     'framework_name' => $frameworkName,
     'csrf_token' => $newCsrfToken,
-]);
+];
+if (!empty($GLOBALS['_ai_report_job_id'])) {
+    $response['ai_job_id'] = $GLOBALS['_ai_report_job_id'];
+}
+echo json_encode($response);
 
 /**
  * Generate SOC 2 Type II report
@@ -229,9 +233,8 @@ function generateSOC2Report($audit, $requirements, $controls, $findings, $catego
  * Generate SOC 2 sections using AI
  */
 function generateSOC2SectionsWithAI($ai, $auditContext, $orgName, $auditPeriod, $audit) {
-    $sections = [];
+    // Queue the AI call instead of blocking
     $escapedOrg = addslashes($orgName);
-
     $messages = [
         [
             'role' => 'system',
@@ -267,31 +270,23 @@ You must respond with ONLY valid JSON (no markdown fences). Return an object wit
         ]
     ];
 
-    $result = $ai->chatCompletion($messages, [
-        'max_tokens' => max($ai->getMaxTokens(), 4000),
-        'temperature' => 0.3,
+    global $user;
+    $dbInst = Database::getInstance();
+    $jobId = $dbInst->insert('ai_job_queue', [
+        'job_type' => 'grc_report',
+        'status' => 'pending',
+        'user_id' => $user['id'],
+        'request_payload' => json_encode([
+            'messages' => $messages,
+            'ai_options' => ['max_tokens' => max($ai->getMaxTokens(), 4000), 'temperature' => 0.3],
+            'context' => [],
+        ]),
     ]);
 
-    if ($result['success'] && !empty($result['content'])) {
-        $content = trim($result['content']);
-        $content = preg_replace('/^```(?:json)?\s*/i', '', $content);
-        $content = preg_replace('/```\s*$/s', '', $content);
-        $content = trim($content);
-
-        $parsed = json_decode($content, true);
-        if ($parsed && is_array($parsed)) {
-            foreach ($parsed as $key => $section) {
-                if (is_array($section) && !empty($section['content'])) {
-                    $sections[$key] = [
-                        'title' => $section['title'] ?? ucfirst(str_replace('_', ' ', $key)),
-                        'content' => $section['content'],
-                    ];
-                }
-            }
-        }
-    }
-
-    return $sections;
+    // Return empty sections — the template fallback will fill them in.
+    // The job_id is passed back via global so the caller can include it.
+    $GLOBALS['_ai_report_job_id'] = $jobId;
+    return [];
 }
 
 /**
