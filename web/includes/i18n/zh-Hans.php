@@ -2230,6 +2230,8 @@ return [
     'vendor-onboarding.completed_suffix' => '已完成',
     'vendor-onboarding.confidential' => '机密',
     'vendor-onboarding.confirm_approve' => '您确定要批准此供应商入职请求吗？',
+    'vendor-onboarding.confirm_delete_status_note' => '删除此状态备注？',
+    'vendor-onboarding.confirm_delete_scheduled_action' => '删除此计划操作？',
     'vendor-onboarding.confirm_back_to_draft' => '将此非活动供应商移回草稿状态？',
     'vendor-onboarding.confirm_deactivate' => '您确定要将此请求标记为非活动吗？',
     'vendor-onboarding.confirm_delete' => '永久删除此请求？此操作无法撤销！',

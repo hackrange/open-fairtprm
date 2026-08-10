@@ -481,7 +481,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
                     <button class="btn btn-sm" style="background: #f59e0b; color: white;" data-action="confirmImpersonate" data-args="[<?php echo (int)$u['id']; ?>, <?php echo htmlspecialchars(json_encode($u['full_name']), ENT_QUOTES, 'UTF-8'); ?>]"><?php echo e(t('admin_users.impersonate_btn')); ?></button>
                     <?php endif; ?>
                     <?php if ($u['id'] != $user['id']): ?>
-                    <form method="POST" action="admin.php?section=users" style="display: inline;" onsubmit="return confirm('<?php echo $u['is_active'] ? 'Deactivate' : 'Activate'; ?> user <?php echo e($u['full_name']); ?>?');">
+                    <form method="POST" action="admin.php?section=users" style="display: inline;" data-confirm="<?php echo e(($u['is_active'] ? 'Deactivate' : 'Activate') . ' user ' . $u['full_name'] . '?'); ?>">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="toggle_user_id" value="<?php echo (int)$u['id']; ?>">
                         <?php if ($u['is_active']): ?>
@@ -504,7 +504,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
     <div class="modal-content">
         <span class="close" data-action="closeCreateUserModal">&times;</span>
         <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo e(t('admin_users.create_user_heading')); ?></h3>
-        <form method="POST" action="admin.php?section=users" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
+        <form method="POST" action="admin.php?section=users" data-disable-on-submit>
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <div class="form-group">
                 <label for="create_username"><?php echo e(t('admin_users.label_username_req')); ?></label>
@@ -542,7 +542,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
     <div class="modal-content">
         <span class="close" data-action="closeEditModal">&times;</span>
         <h3 style="margin-top: 0; color: var(--theme-header-color);"><?php echo e(t('admin_users.edit_user_heading')); ?></h3>
-        <form method="POST" action="admin.php?section=users" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
+        <form method="POST" action="admin.php?section=users" data-disable-on-submit>
             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
             <input type="hidden" id="edit_user_id" name="user_id" value="">
             <div class="form-group">

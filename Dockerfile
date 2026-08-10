@@ -75,7 +75,7 @@ RUN set -e; \
     cp -rp $pp/app/flags/. /var/www/html/app/flags/; \
     \
     cp -p  $pp/sidebar_nav.php $pp/init.php $pp/FairCalculator.php $pp/contact-fields.php \
-           $pp/cron-jobs.php \
+           $pp/cron-jobs.php $pp/csp_behaviors.php \
            /var/www/html/includes/; \
     \
     cp -p  $pp/email.php $pp/fair-defaults.php $pp/field-reference.php \

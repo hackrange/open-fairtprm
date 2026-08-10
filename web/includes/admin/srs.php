@@ -324,7 +324,7 @@ if ($_anyCronEnabled) {
         <p><?php echo e(t('admin_srs.page_desc')); ?></p>
     </div>
     <?php if ($_anyCronEnabled): ?>
-    <form method="POST" action="admin.php?section=srs" style="margin: 0;" onsubmit="return confirm('Purge all <?php echo $_pendingRescoreCount; ?> pending rescore(s)? This will cancel any queued or in-progress cron rescores.');">
+    <form method="POST" action="admin.php?section=srs" style="margin: 0;" data-confirm="<?php echo e('Purge all ' . (int)$_pendingRescoreCount . ' pending rescore(s)? This will cancel any queued or in-progress cron rescores.'); ?>">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
         <button type="submit" name="purge_pending_scores" value="1" class="btn btn-secondary" style="white-space: nowrap; display: flex; align-items: center; gap: 6px;">
             <?php echo e(t('admin_srs.purge_pending_scores')); ?>

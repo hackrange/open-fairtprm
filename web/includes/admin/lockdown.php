@@ -574,7 +574,7 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
                 <input type="hidden" name="waf_action" value="disable_waf">
                 <button type="submit" class="btn" style="background: #dc2626; color: white;"
                         data-disable-on-click="<?php echo e(t('admin_lockdown.busy_disabling')); ?>"
-                        onclick="return confirm('Disable WAF enforcement? All traffic will be allowed through.');">
+                        data-confirm="Disable WAF enforcement? All traffic will be allowed through.">
                     <?php echo e(t('admin_lockdown.btn_disable_waf')); ?>
                 </button>
             </form>
@@ -719,7 +719,7 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
                                         <input type="hidden" name="waf_action" value="remove_whitelisted_ip">
                                         <input type="hidden" name="whitelist_ip_id" value="<?php echo (int)$wip['id']; ?>">
                                         <button type="submit" class="btn btn-sm" style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; font-size: 11px; padding: 2px 8px;"
-                                                onclick="return confirm('Remove <?php echo e($wip['ip_address']); ?> from whitelist?');">
+                                                data-confirm="<?php echo e('Remove ' . $wip['ip_address'] . ' from whitelist?'); ?>">
                                             <?php echo e(t('admin_lockdown.btn_remove')); ?>
                                         </button>
                                     </form>
@@ -776,7 +776,7 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                 <input type="hidden" name="waf_action" value="clear_patterns">
                 <button type="submit" class="btn btn-sm btn-secondary"
-                        onclick="return confirm('Clear all learned patterns? This cannot be undone.');"
+                        data-confirm="Clear all learned patterns? This cannot be undone."
                         data-disable-on-click="<?php echo e(t('admin_lockdown.busy_clearing')); ?>">
                     <?php echo e(t('admin_lockdown.btn_clear_all')); ?>
                 </button>
@@ -942,7 +942,7 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
                                 <input type="hidden" name="waf_action" value="remove_rule">
                                 <input type="hidden" name="rule_id" value="<?php echo (int)$r['rule_id']; ?>">
                                 <button type="submit" class="btn btn-sm" style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;"
-                                        onclick="return confirm('Remove rule #<?php echo (int)$r['rule_id']; ?>?');">
+                                        data-confirm="<?php echo e('Remove rule #' . (int)$r['rule_id'] . '?'); ?>">
                                     <?php echo e(t('admin_lockdown.btn_remove')); ?>
                                 </button>
                             </form>
@@ -1023,7 +1023,7 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                 <input type="hidden" name="waf_action" value="clear_block_log">
                 <button type="submit" class="btn btn-sm" style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; font-size: 12px;"
-                        onclick="return confirm('Clear all block log entries? This cannot be undone.');">
+                        data-confirm="Clear all block log entries? This cannot be undone.">
                     <?php echo e(t('admin_lockdown.btn_clear_block_log')); ?>
                 </button>
             </form>
@@ -1074,7 +1074,7 @@ $lockdownUrl = function(array $extra = []) use ($ipFilter) {
                                 <input type="hidden" name="exception_uri" value="<?php echo e($b['uri']); ?>">
                                 <input type="hidden" name="exception_method" value="<?php echo e($b['method']); ?>">
                                 <button type="submit" class="btn btn-sm" style="background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;"
-                                        onclick="return confirm('Add exception for <?php echo e($b['method']); ?> <?php echo e($b['uri']); ?>?');">
+                                        data-confirm="<?php echo e('Add exception for ' . $b['method'] . ' ' . $b['uri'] . '?'); ?>">
                                     <?php echo e(t('admin_lockdown.btn_allow')); ?>
                                 </button>
                             </form>

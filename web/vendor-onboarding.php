@@ -4362,7 +4362,7 @@ function getFieldValue($request, $field, $default = '') {
                                         <?php if ($canManageNote): ?>
                                         <div style="display:flex; gap:10px; white-space:nowrap;">
                                             <button type="button" data-toggle="editSaNote_<?php echo (int)$n['id']; ?>" style="font-size:11px; color:#6b7280; background:none; border:none; cursor:pointer; padding:0;"><?php echo e(t('vendor-onboarding.btn_edit')); ?></button>
-                                            <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan&action_id=<?php echo (int)$selectedAction['id']; ?>" style="display:inline; margin:0;" onsubmit="return confirm('Delete this status note?');">
+                                            <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan&action_id=<?php echo (int)$selectedAction['id']; ?>" style="display:inline; margin:0;" data-confirm="<?php echo e(t('vendor-onboarding.confirm_delete_status_note')); ?>">
                                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                                 <input type="hidden" name="delete_scheduled_action_note" value="1">
                                                 <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$selectedAction['id']; ?>">
@@ -4477,7 +4477,7 @@ function getFieldValue($request, $field, $default = '') {
                                         <td data-toggle="<?php echo $saToggle; ?>" style="padding: 10px; cursor: pointer;"><span style="display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; background: <?php echo $saColor; ?>;"><?php echo e($saStatusLabels[$sa['status']] ?? ucfirst($sa['status'])); ?></span></td>
                                         <td style="padding: 10px; text-align: right; white-space: nowrap;">
                                             <a href="<?php echo e($saDetailUrl); ?>" style="padding: 4px 10px; font-size: 12px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 4px; cursor: pointer; text-decoration: none;"><?php echo e(t('vendor-onboarding.btn_edit')); ?></a>
-                                            <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan" style="display: inline;" onsubmit="return confirm('Delete this scheduled action?');">
+                                            <form method="POST" action="vendor-onboarding.php?id=<?php echo $requestId; ?>&tab=action_plan" style="display: inline;" data-confirm="<?php echo e(t('vendor-onboarding.confirm_delete_scheduled_action')); ?>">
                                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                                 <input type="hidden" name="delete_scheduled_action" value="1">
                                                 <input type="hidden" name="scheduled_action_id" value="<?php echo (int)$sa['id']; ?>">
@@ -4654,7 +4654,7 @@ function getFieldValue($request, $field, $default = '') {
                                             <span style="color: #666; font-size: 12px;"><?php echo e(t('vendor-onboarding.expires_prefix')); ?> <?php echo date('M j, Y', strtotime($assessment['expires_at'])); ?></span>
                                             <?php endif; ?>
                                         </div>
-                                        <div style="display: flex; gap: 10px; align-items: center;" onclick="event.stopPropagation();">
+                                        <div style="display: flex; gap: 10px; align-items: center;" data-stop-propagation>
                                             <a href="vendor-assessment-view.php?id=<?php echo $assessId; ?>" style="color: var(--theme-header-color); text-decoration: none; font-weight: 500; font-size: 13px;"><?php echo e(t('vendor-onboarding.btn_view')); ?></a>
                                             <?php if (!empty($assessment['uuid'])): ?>
                                             <a href="vendor-assessment.php?token=<?php echo urlencode($assessment['uuid']); ?>&edit=1" style="color: #f59e0b; text-decoration: none; font-weight: 500; font-size: 13px;"><?php echo e(t('vendor-onboarding.btn_edit')); ?></a>
@@ -5163,7 +5163,7 @@ function getFieldValue($request, $field, $default = '') {
                             <summary style="padding: 12px 16px; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; border-radius: 8px; user-select: none;">
                                 <h4 style="margin: 0; font-size: 15px; font-weight: 600; color: #333;"><?php echo e($upguardDisplayName); ?> <?php echo e(t('vendor-onboarding.risks_suffix')); ?></h4>
                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                    <a href="vendor-srs-details.php?id=<?php echo $requestId; ?>" style="color: var(--theme-header-color); text-decoration: none; font-size: 13px;" onclick="event.stopPropagation();"><?php echo t('vendor-onboarding.view_details_link'); ?></a>
+                                    <a href="vendor-srs-details.php?id=<?php echo $requestId; ?>" style="color: var(--theme-header-color); text-decoration: none; font-size: 13px;" data-stop-propagation><?php echo t('vendor-onboarding.view_details_link'); ?></a>
                                     <span style="font-size: 10px; color: #9ca3af; transition: transform 0.2s;" class="details-arrow">&#9654;</span>
                                 </div>
                             </summary>

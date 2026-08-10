@@ -1758,7 +1758,7 @@ $csrfToken = $security->generateCSRFToken();
                             <input type="number" name="custom_score" min="1" max="100" class="form-control" style="width: 100px;" value="<?php echo $customScore !== null ? (int)$customScore : ''; ?>" placeholder="1-100">
                             <button type="submit" name="update_custom_score" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px;"><?php echo e(t('vendor-srs-details.save')); ?></button>
                             <?php if ($customScore !== null): ?>
-                            <button type="submit" name="update_custom_score" class="btn btn-secondary" style="padding: 6px 14px; font-size: 12px;" onclick="this.form.querySelector('input[name=custom_score]').value='null';"><?php echo e(t('vendor-srs-details.un_score')); ?></button>
+                            <button type="submit" name="update_custom_score" class="btn btn-secondary" style="padding: 6px 14px; font-size: 12px;" data-set-field="custom_score" data-set-value="null"><?php echo e(t('vendor-srs-details.un_score')); ?></button>
                             <?php endif; ?>
                         </div>
                         <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;"><?php echo e(t('vendor-srs-details.custom_score_hint')); ?></div>
@@ -4437,5 +4437,6 @@ document.querySelectorAll('.scroll-preserve-form').forEach(function(form) {
 </script>
 <?php endif; ?>
     <?php include __DIR__ . '/includes/scroll_to_top.php'; ?>
+<?php include __DIR__ . '/includes/csp_behaviors.php'; ?>
 </body>
 </html>

@@ -1931,7 +1931,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         $needsRescore = !$isShadowSaas ? $srsService->needsRescore($vendor) : false;
                     ?>
                     <tr class="vendor-row<?php echo $isShadowSaas ? '' : ''; ?>" data-vendor-id="<?php echo (int)$vendor['id']; ?>"<?php echo $isShadowSaas ? ' style="background: #fffbeb;"' : ''; ?>>
-                        <td style="text-align: center;" onclick="event.stopPropagation();">
+                        <td style="text-align: center;" data-stop-propagation>
                             <?php if (!$isShadowSaas && !empty($vendor['vendor_domain'])): ?>
                             <input type="checkbox" class="vendor-checkbox" value="<?php echo (int)$vendor['id']; ?>">
                             <?php endif; ?>
@@ -1946,7 +1946,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <img src="api/vendor-favicon.php?vendor_id=<?php echo (int)$vendor['id']; ?>"
                                      alt="" width="16" height="16"
                                      style="vertical-align: middle; margin-right: 4px;"
-                                     onerror="this.style.display='none'">
+                                     data-hide-on-error>
                                 <?php endif; ?>
                                 <?php echo e($vendor['vendor_name'] ?? t('vendor-srs-list.unnamed')); ?>
                                 <?php if (($vendor['status'] ?? '') === 'evaluation'): ?>
@@ -2058,7 +2058,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             <span class="status-badge status-current"><?php echo e(t('vendor-srs-list.status_current')); ?></span>
                             <?php endif; ?>
                         </td>
-                        <td onclick="event.stopPropagation();">
+                        <td data-stop-propagation>
                             <?php if ($isShadowSaas): ?>
                             <a href="shadow-saas.php?search=<?php echo urlencode($vendor['vendor_domain']); ?>" class="btn-sm btn-view"><?php echo e(t('vendor-srs-list.manage')); ?></a>
                             <?php else: ?>
@@ -2981,5 +2981,6 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
     <script src="app/js/mobile-nav.js"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <?php include __DIR__ . '/includes/scroll_to_top.php'; ?>
+<?php include __DIR__ . '/includes/csp_behaviors.php'; ?>
 </body>
 </html>

@@ -2230,6 +2230,8 @@ return [
     'vendor-onboarding.completed_suffix' => 'завершено',
     'vendor-onboarding.confidential' => 'Конфіденційно',
     'vendor-onboarding.confirm_approve' => 'Ви впевнені, що хочете затвердити цей запит на онбординг постачальника?',
+    'vendor-onboarding.confirm_delete_status_note' => 'Видалити цю нотатку статусу?',
+    'vendor-onboarding.confirm_delete_scheduled_action' => 'Видалити цю заплановану дію?',
     'vendor-onboarding.confirm_back_to_draft' => 'Повернути цього неактивного постачальника до статусу чернетки?',
     'vendor-onboarding.confirm_deactivate' => 'Ви впевнені, що хочете позначити цей запит як неактивний?',
     'vendor-onboarding.confirm_delete' => 'ВИДАЛИТИ ЦЕЙ ЗАПИТ НАЗАВЖДИ? Цю дію не можна скасувати!',

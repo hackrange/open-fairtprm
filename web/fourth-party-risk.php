@@ -1125,7 +1125,7 @@ function renderCveBadges($cvesRaw): string {
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f9fafb; cursor: pointer;" data-action="toggleBlastVendor" data-arg="blastVendor<?php echo $vgIdx; ?>">
                             <div style="display: flex; align-items: center; gap: 12px;">
                                 <?php if (!$isAuditor): ?>
-                                <label onclick="event.stopPropagation();" style="display: flex; align-items: center; margin: 0; cursor: pointer;">
+                                <label data-stop-propagation style="display: flex; align-items: center; margin: 0; cursor: pointer;">
                                     <input type="checkbox" class="vendor-select-cb"
                                            value="<?php echo (int)$vg['vendor_onboarding_id']; ?>"
                                            data-vendor-name="<?php echo e($vg['vendor_name']); ?>"
@@ -1135,7 +1135,7 @@ function renderCveBadges($cvesRaw): string {
                                 <span id="blastArrowblastVendor<?php echo $vgIdx; ?>" style="font-size: 10px; color: #9ca3af; transition: transform 0.2s; display: inline-block;">&#9654;</span>
                                 <div>
                                     <?php if (!empty($vg['vendor_onboarding_id'])): ?>
-                                    <a href="vendor-srs-details.php?id=<?php echo (int)$vg['vendor_onboarding_id']; ?>" style="color: var(--theme-header-color); text-decoration: none; font-weight: 600; font-size: 14px;" onclick="event.stopPropagation();"><?php echo e($vg['vendor_name']); ?></a>
+                                    <a href="vendor-srs-details.php?id=<?php echo (int)$vg['vendor_onboarding_id']; ?>" style="color: var(--theme-header-color); text-decoration: none; font-weight: 600; font-size: 14px;" data-stop-propagation><?php echo e($vg['vendor_name']); ?></a>
                                     <?php else: ?>
                                     <span style="font-weight: 600; font-size: 14px;"><?php echo e($vg['vendor_name']); ?></span>
                                     <?php endif; ?>
@@ -1393,7 +1393,7 @@ function renderCveBadges($cvesRaw): string {
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f9fafb; cursor: pointer;" data-action="toggleBlastVendor" data-arg="cveVendor<?php echo $cvIdx; ?>">
                             <div style="display: flex; align-items: center; gap: 12px;">
                                 <?php if (!empty($cvg['vendor_onboarding_id']) && !$isAuditor): ?>
-                                <label onclick="event.stopPropagation();" style="display: flex; align-items: center; margin: 0; cursor: pointer;">
+                                <label data-stop-propagation style="display: flex; align-items: center; margin: 0; cursor: pointer;">
                                     <input type="checkbox" class="cve-vendor-select-cb"
                                            value="<?php echo (int)$cvg['vendor_onboarding_id']; ?>"
                                            data-vendor-name="<?php echo e($cvg['vendor_name']); ?>"
@@ -1403,7 +1403,7 @@ function renderCveBadges($cvesRaw): string {
                                 <span id="blastArrowcveVendor<?php echo $cvIdx; ?>" style="font-size: 10px; color: #9ca3af; transition: transform 0.2s; display: inline-block;">&#9654;</span>
                                 <div>
                                     <?php if (!empty($cvg['vendor_onboarding_id'])): ?>
-                                    <a href="vendor-srs-details.php?id=<?php echo (int)$cvg['vendor_onboarding_id']; ?>" style="color: var(--theme-header-color); text-decoration: none; font-weight: 600; font-size: 14px;" onclick="event.stopPropagation();"><?php echo e($cvg['vendor_name']); ?></a>
+                                    <a href="vendor-srs-details.php?id=<?php echo (int)$cvg['vendor_onboarding_id']; ?>" style="color: var(--theme-header-color); text-decoration: none; font-weight: 600; font-size: 14px;" data-stop-propagation><?php echo e($cvg['vendor_name']); ?></a>
                                     <?php else: ?>
                                     <span style="font-weight: 600; font-size: 14px;"><?php echo e($cvg['vendor_name']); ?></span>
                                     <?php endif; ?>

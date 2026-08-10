@@ -935,7 +935,7 @@ foreach ($todoItems as $ti) {
                     if ($showSnoozed && isset($snoozedLookup[$headerSnoozeKey])):
                     ?>
                     <span style="font-size: 11px; color: #6b7280; margin-left: auto; margin-right: 8px; align-self: center;"><?php echo e(t('cyber-todo.snoozed_until_prefix')); ?> <?php echo date('M j, Y', strtotime($snoozedLookup[$headerSnoozeKey])); ?></span>
-                    <form method="POST" style="display: inline; margin-right: 8px;" onclick="event.stopPropagation();">
+                    <form method="POST" style="display: inline; margin-right: 8px;" data-stop-propagation>
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="todo_type" value="<?php echo e($item['type']); ?>">
                         <input type="hidden" name="reference_type" value="<?php echo e($item['reference_type']); ?>">

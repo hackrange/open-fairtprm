@@ -262,6 +262,27 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Confirmation prompts across Admin, Vendors and Breach Alerts never appeared,
+  and the SRS "Un-score" button did nothing.** A sweep of the rest of the app
+  found 24 more inline event handlers that the Content-Security-Policy discards,
+  in the same way as the GRC ones below. The most serious were confirmations
+  that were written but never asked: on Admin -> Lockdown, "Disable WAF
+  enforcement", "Clear all learned patterns", "Clear all block log entries",
+  remove-whitelist-IP, remove-rule and add-exception all executed on a single
+  unguarded click; likewise delete-status-note and delete-scheduled-action on
+  Vendor Onboarding, deactivate/activate user, and purge-pending-rescores on
+  Admin -> SRS. On Vendor SRS Details, the "Un-score" button was supposed to
+  clear the field before submitting and did not, so it silently re-saved the
+  existing custom score instead of removing it. Also restored: the double-submit
+  guard on the user create and edit forms, the broken-image fallback on the SRS
+  vendor list, and the click guards that stop ticking a row checkbox from also
+  expanding the row (Breach Alerts, Cyber To-Do, Vendor SRS list, Fourth-Party
+  Risk, Vendor Onboarding). Handlers now use the app's existing
+  data-attribute delegation in `app/js/event-handlers.js`; three hooks it does
+  not implement live in a new `includes/csp_behaviors.php`. The lockdown
+  confirmations that interpolate an IP address or request URI are now plain HTML
+  attributes rather than PHP echoed into a JavaScript string inside an HTML
+  attribute, removing a nested-context escaping hazard.
 - **GRC filter dropdowns, confirmation prompts, and the Add Evidence form did
   nothing.** Seventeen inline `onchange` / `onclick` attributes across the GRC
   pages were dead code: the Content-Security-Policy is `script-src 'self'` plus

@@ -442,7 +442,7 @@ $pageKey = 'breach_alerts';
             <div class="alert-card" style="border-left: 4px solid <?php echo $sc['border']; ?>;">
                 <div class="alert-card-header">
                     <?php if ($canManage): ?>
-                    <input type="checkbox" class="bulk-cb" value="<?php echo (int)$alert['id']; ?>" data-status="<?php echo e($alert['status']); ?>" title="<?php echo e(t('breach-alerts.bulk_select_one')); ?>" style="width:16px;height:16px;cursor:pointer;flex:0 0 auto;" onclick="event.stopPropagation();">
+                    <input type="checkbox" class="bulk-cb" value="<?php echo (int)$alert['id']; ?>" data-status="<?php echo e($alert['status']); ?>" title="<?php echo e(t('breach-alerts.bulk_select_one')); ?>" style="width:16px;height:16px;cursor:pointer;flex:0 0 auto;" data-stop-propagation>
                     <?php endif; ?>
                     <span class="severity-badge" style="background:<?php echo $sc['badge']; ?>;"><?php echo strtoupper(e($alert['severity'])); ?></span>
                     <span style="flex:1;font-weight:600;color:#333;font-size:14px;"><?php echo e($displayTitle); ?></span>
@@ -641,6 +641,12 @@ document.querySelectorAll('.resolve-form').forEach(function(form) {
         form.querySelector('[name=resolution_notes]').value = n;
     });
 });
+// Keep a click on a control inside a clickable row from reaching the row.
+// Wired here rather than with an inline onclick, which the CSP discards.
+document.querySelectorAll('[data-stop-propagation]').forEach(function(el) {
+    el.addEventListener('click', function(e) { e.stopPropagation(); });
+});
+
 // Confirm dialogs for data-confirm buttons
 document.querySelectorAll('[data-confirm]').forEach(function(el) {
     el.addEventListener('click', function(e) {
