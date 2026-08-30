@@ -1022,11 +1022,16 @@ INSERT INTO acl_groups (group_name, display_name, description, is_active) VALUES
 ('procurement', 'Procurement', 'Procurement team - can create and manage vendor onboarding requests', 1),
 ('stakeholder', 'Stakeholder', 'Stakeholders - can view and update assigned vendor onboarding requests', 1);
 
--- Default admin user (password: Admin@123 - CHANGE THIS IMMEDIATELY AFTER INSTALL)
+-- Default admin user. The password_hash below is a NON-FUNCTIONAL PLACEHOLDER.
+-- The live seeding path is init-db/00-master_schema.sql, where entrypoint.sh
+-- substitutes CHANGEME_ADMIN_HASH with a bcrypt of a randomly generated
+-- per-install password (see entrypoint.sh; the value is written to
+-- /persistent/config/.sensitive as PORTAL_ADMIN_PASSWORD). This file is a
+-- reference copy and is not loaded by the entrypoint or by any PHP code.
 INSERT INTO users (username, password_hash, email, full_name, is_active, is_admin, is_super_admin, totp_enabled)
 VALUES (
     'admin',
-    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    'CHANGEME_ADMIN_HASH',
     'admin@example.com',
     'System Administrator',
     1,

@@ -49,16 +49,29 @@ try {
         [$vendorId]
     ) : null;
 
-    if ($row && !empty($row['vendor_favicon'])) {
+    $storedMime = strtolower(trim((string)($row['vendor_favicon_mime'] ?? '')));
+
+    // SECURITY: these blobs are fetched from THIRD-PARTY vendor domains by
+    // FaviconService::fetchFavicon(), so their content is attacker-influenced if a
+    // vendor site is malicious or compromised. SVG (and any markup type) is ACTIVE
+    // content: served from our own origin it can carry <script> and become stored
+    // XSS. The app CSP blocks inline script today, but that made CSP the single
+    // point of failure. Refuse active types outright and degrade to the
+    // transparent placeholder below -- a favicon is never worth that risk.
+    $activeTypes = ['image/svg+xml', 'image/svg', 'text/html', 'text/xml', 'application/xml', 'application/xhtml+xml'];
+
+    if ($row && !empty($row['vendor_favicon']) && !in_array($storedMime, $activeTypes, true)) {
         $mime = $row['vendor_favicon_mime'] ?: 'image/png';
 
-        // Only serve known image types
-        $allowedMimes = ['image/png', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/gif', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+        // Only serve known raster image types
+        $allowedMimes = ['image/png', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/gif', 'image/jpeg', 'image/webp'];
         if (!in_array($mime, $allowedMimes, true)) {
             $mime = 'image/png';
         }
 
         header('Content-Type: ' . $mime);
+        // Stop a browser from content-sniffing a raster response back into markup.
+        header('X-Content-Type-Options: nosniff');
         header('Content-Length: ' . strlen($row['vendor_favicon']));
         header('Cache-Control: public, max-age=86400');
         echo $row['vendor_favicon'];

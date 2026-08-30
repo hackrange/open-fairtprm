@@ -470,6 +470,46 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- **dompdf updated from 3.1.5 to 3.1.6, closing six advisories.**
+  `GHSA-8hg6-c449-896m`, `GHSA-f5gf-2cj8-52g2`, `GHSA-7x2p-4jvh-6384` and
+  `GHSA-wvh6-f5jh-8gw4` (CVSS 7.5) plus `GHSA-cx96-42px-69fm` and
+  `GHSA-j8qw-6jw8-r297` (CVSS 6.3) all had fixes in 3.1.6. This was worth
+  treating as reachable rather than theoretical: the PDF export paths
+  (`download-pdf.php`, `api/grc-assessment-report.php`) render app-generated
+  HTML that embeds vendor- and assessment-supplied text, so partially
+  attacker-influenced content does reach the renderer. Same major version, no
+  API change. `vendor/` comes from the base image rather than being built here,
+  so the upgrade runs as a `composer update dompdf/dompdf` inside the existing
+  Dockerfile layer; no new layer is added. Verified in a built image: composer
+  reports "No security vulnerability advisories found", and dompdf still renders
+  a valid PDF.
+- **Vendor favicons are never served as SVG.** `api/vendor-favicon.php` returns a
+  BLOB fetched from the vendor's own domain by `FaviconService::fetchFavicon()`,
+  and its MIME allowlist included `image/svg+xml`. SVG is an active content
+  type, so a malicious or compromised vendor site could have supplied an SVG
+  carrying `<script>` that was then replayed from this application's origin as
+  stored XSS. The app CSP (`script-src 'self' 'nonce-...'`) did block execution,
+  but that made CSP the single point of failure for the whole path. SVG and the
+  other markup types are now refused outright and degrade to the existing 1x1
+  transparent PNG placeholder, and every favicon response carries
+  `X-Content-Type-Options: nosniff` so a raster response cannot be sniffed back
+  into markup. PNG, ICO, GIF, JPEG and WebP are unaffected.
+- **Removed a well-known example password hash from the reference schema files.**
+  `includes/schema/master_schema.sql` and `includes/schema/schema_sqlite.sql`
+  seeded the admin row with a bcrypt hash that is published verbatim in the PHP
+  `password_hash()` documentation and appears in default-credential wordlists,
+  under a comment claiming the password was `Admin@123` (it was not; the hash
+  verifies against `password`). No deployment was ever exposed by this: both
+  files are unreferenced reference copies, they are not web reachable, and the
+  live seeding path is `init-db/00-master_schema.sql`, where `entrypoint.sh`
+  substitutes `CHANGEME_ADMIN_HASH` with a bcrypt of a randomly generated
+  per-install password written to `/persistent/config/.sensitive`. The stale
+  hash and its misleading comment are nonetheless a trap for anyone who later
+  mistakes these files for the live schema, and they made every credential scan
+  report a critical finding. Both now carry the same `CHANGEME_ADMIN_HASH`
+  placeholder as the real schema, with a comment stating plainly where seeding
+  actually happens. No functional change; the generated-password install path is
+  untouched.
 - **Admin section handlers** refuse direct web access (must be dispatched via
   `admin.php`).
 - **BOLA/IDOR remediation** across object-access paths, plus OS package updates.
