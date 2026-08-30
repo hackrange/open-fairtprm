@@ -173,12 +173,12 @@ RUN set -e; \
     \
     # includes/schema/*.sql are unreferenced reference copies (the live seeding
     # path is init-db/00-master_schema.sql, where entrypoint.sh substitutes a
-    # per-install random password). They shipped a well-known example bcrypt;
-    # replace it with the same placeholder the live schema uses so no image
-    # carries a guessable hash, even in an inert file.
-    sed -i "s|'\$2y\$10\$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'|'CHANGEME_ADMIN_HASH'|" \
-        /var/www/html/includes/schema/master_schema.sql \
-        /var/www/html/includes/schema/schema_sqlite.sql; \
+    # per-install random password). They shipped a well-known example bcrypt
+    # under a comment that named the wrong password. Overlay the corrected
+    # copies from the repository so the image matches the repo byte for byte,
+    # rather than patching them in place.
+    cp -p  $pp/includes/schema/master_schema.sql $pp/includes/schema/schema_sqlite.sql \
+           /var/www/html/includes/schema/; \
     \
     cp -p  /tmp/build/icons/announcement-03.svg /var/www/html/app/icons/announcement-03.svg; \
     \
