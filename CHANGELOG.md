@@ -510,6 +510,17 @@ project adheres to [Semantic Versioning](https://semver.org/).
   placeholder as the real schema, with a comment stating plainly where seeding
   actually happens. No functional change; the generated-password install path is
   untouched.
+- **Deleted the stock Debian Apache default page from the repository.**
+  `web/index.html` was the 368-line "Apache2 Debian Default Page" that ships in
+  the base OS package. Nothing referenced it, and it was already excluded from
+  the built image, so it existed only as a permanent gap in the staging drift
+  check and as a recurring pair of `plaintext-http-link` findings in every
+  security scan (its `http://` links point at httpd.apache.org and
+  bugs.debian.org documentation). Removing it clears both findings at the source
+  and closes the drift gap. No runtime effect: the image never contained it, and
+  `/` continues to resolve through `index.php` to the login redirect. Note the
+  unrelated zero-byte `sql_updates/index.html`, which exists to suppress
+  directory listing, is deliberately kept.
 - **Admin section handlers** refuse direct web access (must be dispatched via
   `admin.php`).
 - **BOLA/IDOR remediation** across object-access paths, plus OS package updates.
