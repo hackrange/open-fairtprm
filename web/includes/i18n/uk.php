@@ -4234,6 +4234,8 @@ return [
     'breach-alerts.page_title' => 'Сповіщення про витоки/кіберзагрози',
     'breach-alerts.resolution_notes' => 'Нотатки щодо вирішення',
     'breach-alerts.resolve_btn' => 'Вирішити',
+    'breach-alerts.unverified_label' => 'Неперевірено',
+    'breach-alerts.unverified_heading' => 'Докази не підтверджено',
     'breach-alerts.resolved_by' => 'Вирішив',
     'breach-alerts.scan_all_vendors_btn' => 'Сканувати всіх постачальників',
     'breach-alerts.scan_company_btn' => 'Сканувати компанію',

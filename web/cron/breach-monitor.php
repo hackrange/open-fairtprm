@@ -102,6 +102,7 @@ try {
 
     $created    = 0;
     $duplicates = 0;
+    $rejected   = 0;
     $emailed    = 0;
     $errors     = [];
     $newAlertIds = [];
@@ -129,9 +130,16 @@ try {
             if ($verbose) {
                 CronHelper::info("Skipped duplicate: {$alertData['title']}");
             }
+        } elseif (!empty($createResult['rejected'])) {
+            $rejected++;
+            CronHelper::warn("Rejected (insufficient evidence): {$alertData['title']} - {$createResult['reason']}");
         } else {
             $errors[] = "Failed to create alert: {$alertData['title']}";
         }
+    }
+
+    if ($rejected > 0) {
+        CronHelper::info("{$rejected} candidate alert(s) refused for insufficient evidence - see cyber_breach_alert_rejections.");
     }
 
     // Send the digest for every NEW, not-yet-emailed qualifying alert. Driven by

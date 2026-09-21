@@ -17,6 +17,9 @@ class BreachAlertService {
     /** Flag set when completeScan() has been called — prevents the shutdown handler from overwriting the result. */
     private bool $scanCompleted = false;
 
+    /** Lazily constructed evidence validator (see getValidator()). */
+    private ?BreachEvidenceValidator $validator = null;
+
     private function __construct() {
         $this->db = Database::getInstance();
     }
@@ -77,7 +80,21 @@ class BreachAlertService {
 
     /**
      * Create an alert with deduplication via SHA-256 hash.
-     * Returns ['success' => true, 'id' => int] or ['success' => false, 'duplicate' => true].
+     *
+     * AI-researched alerts are put through BreachEvidenceValidator first. An
+     * alert whose cited evidence does not actually support it is NOT written;
+     * the attempt is logged to cyber_breach_alert_rejections so the decision is
+     * auditable and nothing disappears silently. Alerts that pass structurally
+     * but cannot be corroborated are written as 'unverified' and withheld from
+     * the email digest.
+     *
+     * Pass $data['skip_verification'] = true for alerts that come from a
+     * first-party integration rather than AI research (the Grip Shadow SaaS
+     * breach feed) - those carry their own provenance and have no AI
+     * mis-attribution risk.
+     *
+     * Returns ['success' => true, 'id' => int], ['success' => false, 'duplicate' => true],
+     * or ['success' => false, 'rejected' => true, 'reason' => string].
      */
     public function createAlert(array $data): array {
         // Dedup on entity + alert_type so the same vendor/breach isn't reported twice
@@ -90,6 +107,36 @@ class BreachAlertService {
         );
         if ($existing) {
             return ['success' => false, 'duplicate' => true, 'existing_id' => (int)$existing['id']];
+        }
+
+        // ---------------------------------------------------------------
+        // Evidence verification (AI-researched alerts only)
+        // ---------------------------------------------------------------
+        $verification = null;
+        if (empty($data['skip_verification'])) {
+            $validator = $this->getValidator();
+            if ($validator && $validator->isEnabled()) {
+                try {
+                    $verification = $validator->validate($data);
+                } catch (Throwable $e) {
+                    error_log('BreachAlertService: evidence validation errored, admitting alert unverified - ' . $e->getMessage());
+                    $verification = [
+                        'verdict'    => BreachEvidenceValidator::VERDICT_UNVERIFIED,
+                        'confidence' => 0,
+                        'notes'      => 'Verification failed to run: ' . $e->getMessage(),
+                    ];
+                }
+
+                if ($verification['verdict'] === BreachEvidenceValidator::VERDICT_REJECTED) {
+                    $this->logRejection($data, $verification);
+                    error_log('BreachAlertService: rejected low-evidence alert "' . ($data['title'] ?? '') . '" - ' . $verification['notes']);
+                    return [
+                        'success'  => false,
+                        'rejected' => true,
+                        'reason'   => $verification['notes'],
+                    ];
+                }
+            }
         }
 
         $this->db->insert('cyber_breach_alerts', [
@@ -106,9 +153,63 @@ class BreachAlertService {
             'source_urls'          => is_array($data['source_urls'] ?? null) ? json_encode($data['source_urls']) : ($data['source_urls'] ?? '[]'),
             'ai_analysis'          => $data['ai_analysis'] ?? null,
             'status'               => 'new',
+            'verification_status'  => $verification['verdict']     ?? 'skipped',
+            'verification_score'   => $verification['confidence']  ?? null,
+            'verification_notes'   => $verification['notes']       ?? null,
+            'verified_at'          => date('Y-m-d H:i:s'),
         ]);
 
-        return ['success' => true, 'id' => (int)$this->db->lastInsertId()];
+        return [
+            'success'      => true,
+            'id'           => (int)$this->db->lastInsertId(),
+            'verification' => $verification['verdict'] ?? 'skipped',
+        ];
+    }
+
+    /** Lazily build the evidence validator; null when the class is unavailable. */
+    private function getValidator(): ?BreachEvidenceValidator {
+        if ($this->validator === null) {
+            $file = __DIR__ . '/BreachEvidenceValidator.php';
+            if (!class_exists('BreachEvidenceValidator') && is_file($file)) {
+                require_once $file;
+            }
+            if (!class_exists('BreachEvidenceValidator')) return null;
+            $this->validator = new BreachEvidenceValidator($this->db);
+        }
+        return $this->validator;
+    }
+
+    /**
+     * Record an alert that was refused for lack of evidence. Keeping these
+     * visible is the difference between "the scanner is quiet" and "the scanner
+     * is silently dropping things" - an admin can review the table and loosen
+     * breach_verify_* if the filter is too tight.
+     */
+    private function logRejection(array $data, array $verification): void {
+        try {
+            $sources = $data['source_urls'] ?? [];
+            $this->db->insert('cyber_breach_alert_rejections', [
+                'title'           => mb_substr(trim((string)($data['title'] ?? '')), 0, 500),
+                'affected_entity' => mb_substr(trim((string)($data['affected_entity'] ?? '')), 0, 500),
+                'alert_type'      => $data['alert_type'] ?? 'other',
+                'severity'        => $data['severity'] ?? 'medium',
+                'source_urls'     => is_array($sources) ? json_encode($sources) : (string)$sources,
+                'summary'         => (string)($data['summary'] ?? ''),
+                'reason'          => $verification['notes'] ?? '',
+            ]);
+        } catch (Throwable $e) {
+            // The rejections table is an audit aid; never let it break a scan.
+            error_log('BreachAlertService: could not log rejection - ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Entity/headline pairs a reviewer has already dismissed, for injection
+     * into the research prompt.
+     */
+    public function getDismissedNarratives(int $limit = 40): array {
+        $validator = $this->getValidator();
+        return $validator ? $validator->getDismissedNarratives($limit) : [];
     }
 
     public function updateStatus(int $id, string $status, ?int $userId = null, ?string $notes = null): array {
@@ -163,6 +264,12 @@ class BreachAlertService {
      * breach-monitor run — e.g. the Grip Shadow SaaS breach feed in
      * GripService::syncAll() — are included the next time the digest cron fires.
      * Resolved / false-positive alerts are never (re)emailed.
+     *
+     * Alerts whose cited evidence could not be corroborated are withheld:
+     * verification_status must be 'verified' or 'skipped' (the latter covers
+     * first-party integrations such as the Grip feed, and pre-upgrade rows
+     * where the column is NULL). 'unverified' alerts still appear in the UI —
+     * they are simply not worth a 3am email.
      */
     public function getPendingDigestAlerts(int $limit = 200): array {
         return $this->db->fetchAll(
@@ -170,10 +277,36 @@ class BreachAlertService {
              WHERE email_sent_at IS NULL
                AND status NOT IN ('resolved','false_positive')
                AND (vendor_count > 0 OR affected_entity_type = 'shadow_saas')
+               AND (verification_status IS NULL OR verification_status IN ('verified','skipped'))
              ORDER BY created_at DESC
              LIMIT :limit",
             [':limit' => (int)$limit]
         );
+    }
+
+    /**
+     * Of a set of alert ids, the ones that are cleared to be emailed. Used by
+     * the on-demand scan path, which digests the ids it just created rather
+     * than re-querying for everything pending.
+     */
+    public function filterEmailableAlertIds(array $alertIds): array {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $alertIds))));
+        if (empty($ids)) return [];
+
+        $placeholders = [];
+        $params = [];
+        foreach ($ids as $i => $id) {
+            $placeholders[] = ':id' . $i;
+            $params[':id' . $i] = $id;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT id FROM cyber_breach_alerts
+              WHERE id IN (" . implode(',', $placeholders) . ")
+                AND (verification_status IS NULL OR verification_status IN ('verified','skipped'))",
+            $params
+        );
+        return array_map(function ($r) { return (int)$r['id']; }, $rows);
     }
 
     // =========================================================================
@@ -561,6 +694,25 @@ class BreachAlertService {
         // Calculate the date window
         $sevenDaysAgo = date('Y-m-d', strtotime('-7 days'));
 
+        // Narratives a reviewer already threw out. Feeding these back stops the
+        // model re-proposing the same story against the same vendor every week.
+        $dismissedBlock = '';
+        $dismissed = $this->getDismissedNarratives(40);
+        if (!empty($dismissed)) {
+            $lines = '';
+            foreach ($dismissed as $d) {
+                $lines .= "  - {$d['entity']}: \"{$d['title']}\"\n";
+            }
+            $dismissedBlock = <<<DISMISSED
+
+PREVIOUSLY REJECTED AS FALSE POSITIVES - DO NOT REPORT THESE AGAIN:
+A human analyst reviewed and dismissed each of the following. Do not re-report
+any of them unless you have a NEW primary source, published in the date window
+below, that names the entity explicitly.
+{$lines}
+DISMISSED;
+        }
+
         return <<<PROMPT
 Research and report any REAL, CREDIBLE, VERIFIED security breaches, data breaches, ransomware attacks, cyber attacks, or critical vulnerability disclosures that affect any of the following entities.
 
@@ -574,7 +726,7 @@ MONITORED SUBPROCESSORS (Fourth Parties):
 
 MONITORED TECHNOLOGIES (with vendor impact count):
 {$techList}
-
+{$dismissedBlock}
 RULES:
 1. ONLY report incidents you are confident are REAL and VERIFIED. Do not speculate or fabricate.
 2. Each alert MUST have at least 2 credible source URLs (news articles, CVE databases, CISA advisories, vendor disclosures, etc.)
@@ -582,6 +734,31 @@ RULES:
 4. Do NOT report vulnerabilities unless they are actively exploited or have a CVSS score >= 7.0
 5. For technology vulnerabilities, note how many of our vendors use that technology (vendor_count from the list above)
 6. If no credible incidents from the last 7 days are found, return an empty alerts array
+
+SOURCE QUALITY - THIS IS WHERE MOST BAD ALERTS COME FROM:
+7. Every source URL MUST be a link to ONE article about THIS specific incident.
+   Do NOT cite, and do NOT count toward the 2-source minimum:
+     - rolling "data breaches of 2026" / "recent breaches" / "breach roundup" /
+       "week in breach" / "updated list" listicle pages. These pages name dozens
+       of unrelated companies and are re-dated continuously, so their freshness
+       means nothing. Citing one is not evidence that OUR vendor is on it.
+     - site homepages or section indexes (https://www.securityweek.com/,
+       https://thehackernews.com/, https://www.cisa.gov/news-events/cybersecurity-advisories).
+       A homepage proves nothing about a specific incident.
+   Each cited article will be fetched and checked. If the page does not name the
+   affected entity, the alert is discarded and the scan is recorded as having
+   produced a false positive.
+
+NAME COLLISIONS - THE OTHER MAJOR SOURCE OF BAD ALERTS:
+8. The monitored list above is NOT a list of companies that were breached. It is
+   the list of companies we care about. If your search returns an incident at a
+   company with a SIMILAR name, that is NOT a match. Do not report a SonicWall
+   advisory against "Sonic Boom Wellness", a "The Miller Group" ransomware post
+   against "Miller Safety Consultants", or an "Unlimited Technology Systems"
+   breach against "United Data Technologies".
+9. "affected_entity" MUST be the exact name of the organization the SOURCE
+   ARTICLE says was affected, and that name must also appear in your "title".
+   If the source's subject is not one of the monitored entities, omit the alert.
 
 Respond ONLY with valid JSON in this exact format (no markdown, no code fences, no explanation):
 {

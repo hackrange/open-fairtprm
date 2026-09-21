@@ -4234,6 +4234,8 @@ return [
     'breach-alerts.page_title' => '泄露 / 网络告警',
     'breach-alerts.resolution_notes' => '处置说明',
     'breach-alerts.resolve_btn' => '处置',
+    'breach-alerts.unverified_label' => '未经核实',
+    'breach-alerts.unverified_heading' => '证据未获佐证',
     'breach-alerts.resolved_by' => '处置人',
     'breach-alerts.scan_all_vendors_btn' => '扫描所有供应商',
     'breach-alerts.scan_company_btn' => '扫描公司',

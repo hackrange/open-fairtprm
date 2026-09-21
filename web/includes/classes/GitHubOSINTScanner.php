@@ -360,6 +360,10 @@ class GitHubOSINTScanner {
         return [
             'title'                => $title,
             'alert_type'           => 'osint_exposure',
+            // Deterministic GitHub Code Search hit, not AI research: the source
+            // URL IS the finding, so BreachEvidenceValidator has nothing to
+            // corroborate and must not quarantine it.
+            'skip_verification'    => true,
             'severity'             => $severity,
             'affected_entity'      => $entityName,
             'affected_entity_type' => 'vendor',

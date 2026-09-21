@@ -92,6 +92,8 @@ try {
             $created++;
             $newAlertIds[] = $createResult['id'];
             if ($verbose) CronHelper::info("Created alert #{$createResult['id']}: {$alertData['title']}");
+        } elseif (!empty($createResult['rejected'])) {
+            CronHelper::warn("Rejected (insufficient evidence): {$alertData['title']} - {$createResult['reason']}");
         } elseif (!empty($createResult['duplicate'])) {
             $duplicates++;
             if ($verbose) CronHelper::info("Skipped duplicate: {$alertData['title']}");
@@ -112,6 +114,7 @@ try {
 
                 if ($emailService->isEnabled()) {
                     $digestAlerts = [];
+                    $newAlertIds = $breachService->filterEmailableAlertIds($newAlertIds);
                     foreach ($newAlertIds as $alertId) {
                         $alert = $breachService->getAlert($alertId);
                         if ($alert) $digestAlerts[] = $alert;

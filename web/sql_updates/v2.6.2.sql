@@ -6430,5 +6430,90 @@ SET @sql = IF(
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- =============================================================================
+-- Breach alert evidence verification
+--
+-- AI breach research was producing mis-attributed alerts: a rolling
+-- "2026 data breaches" listicle plus a bare news homepage satisfied the old
+-- "2 credible source URLs" rule while proving nothing, and similarly-named
+-- companies were conflated (a SonicWall advisory filed against "Sonic Boom
+-- Wellness"). BreachEvidenceValidator now grades each candidate alert; these
+-- columns record the outcome, and the digest email only goes out for
+-- 'verified' / 'skipped' rows. Placed here so the ADDs run after the table's
+-- CREATE earlier in this file.
+-- =============================================================================
+
+-- cyber_breach_alerts.verification_status
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND column_name = 'verification_status') = 0,
+  'ALTER TABLE `cyber_breach_alerts` ADD COLUMN `verification_status` ENUM(''verified'',''unverified'',''rejected'',''skipped'') DEFAULT NULL AFTER `ai_analysis`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- cyber_breach_alerts.verification_score (0-100 confidence in the evidence)
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND column_name = 'verification_score') = 0,
+  'ALTER TABLE `cyber_breach_alerts` ADD COLUMN `verification_score` TINYINT UNSIGNED DEFAULT NULL AFTER `verification_status`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- cyber_breach_alerts.verification_notes (human-readable reason, shown in the UI)
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND column_name = 'verification_notes') = 0,
+  'ALTER TABLE `cyber_breach_alerts` ADD COLUMN `verification_notes` TEXT DEFAULT NULL AFTER `verification_score`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- cyber_breach_alerts.verified_at
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND column_name = 'verified_at') = 0,
+  'ALTER TABLE `cyber_breach_alerts` ADD COLUMN `verified_at` DATETIME DEFAULT NULL AFTER `verification_notes`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.statistics
+   WHERE table_schema = DATABASE() AND table_name = 'cyber_breach_alerts' AND index_name = 'idx_verification_status') = 0,
+  'ALTER TABLE `cyber_breach_alerts` ADD INDEX `idx_verification_status` (`verification_status`)',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- Audit trail for candidate alerts refused before insert. Without this the
+-- filter would be invisible and an over-tight rule would look like "the
+-- scanner found nothing" rather than "the scanner threw 12 things away".
+CREATE TABLE IF NOT EXISTS `cyber_breach_alert_rejections` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `title` varchar(500) NOT NULL,
+  `affected_entity` varchar(500) NOT NULL,
+  `alert_type` varchar(32) DEFAULT NULL,
+  `severity` varchar(16) DEFAULT NULL,
+  `source_urls` text DEFAULT NULL,
+  `summary` text DEFAULT NULL,
+  `reason` text NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_rej_created_at` (`created_at`),
+  KEY `idx_rej_entity` (`affected_entity`(191))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Verification defaults. breach_verify_fetch controls the outbound
+-- corroboration fetch; set it to 0 on an air-gapped install and alerts fall
+-- back to the structural check alone (recorded, but never auto-emailed).
+INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`, `description`) VALUES
+  ('breach_verify_enabled',       '1',   0, 'Verify breach alert evidence before recording/emailing'),
+  ('breach_verify_fetch',         '1',   0, 'Fetch cited articles to confirm they name the affected entity'),
+  ('breach_verify_min_articles',  '1',   0, 'Minimum incident-specific source articles required per alert'),
+  ('breach_verify_suppress_fp',   '1',   0, 'Never re-raise a narrative a reviewer marked false positive'),
+  ('breach_verify_fp_similarity', '0.6', 0, 'Headline similarity (0-1) at which a dismissed narrative is suppressed');
+
+-- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

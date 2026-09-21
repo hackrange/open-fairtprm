@@ -599,6 +599,15 @@ class AIPlatformService {
                 if ($text === '') continue;
             }
 
+            // Drop rolling breach-roundup listicles and bare section indexes
+            // before the model sees them. These rank for virtually every
+            // "<company> data breach" query and are re-dated as they are
+            // appended to, so they sail through the age filter above while
+            // naming dozens of unrelated companies — exactly the material the
+            // model was pairing with a vendor name from our own prompt.
+            $text = $this->filterSearchResultsBySourceQuality($text);
+            if ($text === '') continue;
+
             $blocks[] = "Query: {$q}\n{$text}";
         }
         return implode("\n\n---\n\n", $blocks);
@@ -638,6 +647,61 @@ class AIPlatformService {
         return "--- WEB SEARCH RESULTS (filtered to last {$maxAgeDays} days) ---\n\n"
              . implode("\n\n", $renumbered)
              . "\n\n--- END SEARCH RESULTS ---";
+    }
+
+    /**
+     * Drop hits whose URL is a rolling breach roundup / listicle or a bare
+     * site index. Classification lives in BreachEvidenceValidator so the
+     * evidence the model is shown and the evidence we later accept are judged
+     * by one rule set.
+     */
+    private function filterSearchResultsBySourceQuality(string $resultText): string {
+        $file = __DIR__ . '/BreachEvidenceValidator.php';
+        if (!class_exists('BreachEvidenceValidator')) {
+            if (!is_file($file)) return $resultText;
+            require_once $file;
+        }
+
+        try {
+            $validator = new BreachEvidenceValidator();
+        } catch (Throwable $e) {
+            return $resultText;
+        }
+
+        $header = '';
+        if (preg_match('/^(---[^\n]*---)\s*\n/', $resultText, $hm)) {
+            $header = $hm[1];
+        }
+
+        $kept    = [];
+        $dropped = 0;
+        foreach (preg_split('/\n\n+/', $resultText) as $block) {
+            $block = rtrim($block);
+            if ($block === '' || !preg_match('/^\[\d+\]\s/', $block)) continue;
+            if (!preg_match('/^\s*URL:\s*(\S+)\s*$/m', $block, $m)) { $kept[] = $block; continue; }
+
+            $class = $validator->classifySource($m[1])['class'];
+            if ($class === BreachEvidenceValidator::SRC_ROUNDUP || $class === BreachEvidenceValidator::SRC_INDEX) {
+                $dropped++;
+                continue;
+            }
+            $kept[] = $block;
+        }
+
+        if ($dropped > 0) {
+            error_log("Custom AI safe-search: dropped {$dropped} roundup/index hit(s) from web-search evidence");
+        }
+        if (empty($kept)) return '';
+
+        $renumbered = [];
+        foreach ($kept as $i => $entry) {
+            $renumbered[] = preg_replace('/^\[\d+\]/', '[' . ($i + 1) . ']', $entry, 1);
+        }
+
+        $out = implode("\n\n", $renumbered);
+        return $header !== ''
+            ? $header . "\n\n" . $out . "\n\n--- END SEARCH RESULTS ---"
+            : $out;
     }
 
     /**

@@ -4314,6 +4314,8 @@ You will be logged in as this user and see the application from their perspectiv
     'breach-alerts.update_failed' => 'Update failed.',
     'breach-alerts.vendors_label' => 'vendor(s)',
     'breach-alerts.users_label' => 'users',
+    'breach-alerts.unverified_label' => 'Unverified',
+    'breach-alerts.unverified_heading' => 'Evidence not corroborated',
     'breach-alerts.shadow_saas_label' => 'Shadow SaaS',
     'breach-alerts.shadow_saas_title' => 'Not an onboarded vendor — discovered as Shadow SaaS',
     'breach-alerts.users_impacted' => 'Users Potentially Impacted',

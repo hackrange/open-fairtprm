@@ -85,6 +85,7 @@ RUN set -e; \
     cp -p  $pp/ACL.php $pp/Auth.php \
            $pp/EmailService.php $pp/LockdownService.php $pp/BreachAlertService.php \
            $pp/AIPlatformService.php $pp/GitHubOSINTScanner.php \
+           $pp/BreachEvidenceValidator.php \
            $pp/ShodanClient.php $pp/ShodanService.php $pp/SRSService.php $pp/Security.php $pp/Session.php \
            $pp/VendorAssessmentService.php $pp/AssessmentTranslationService.php \
            $pp/CyberTodoService.php \
@@ -233,6 +234,7 @@ RUN set -e; \
         /var/www/html/includes/classes/BreachAlertService.php \
         /var/www/html/includes/classes/AIPlatformService.php \
         /var/www/html/includes/classes/GitHubOSINTScanner.php \
+        /var/www/html/includes/classes/BreachEvidenceValidator.php \
         /var/www/html/includes/classes/ShodanClient.php \
         /var/www/html/includes/classes/ShodanService.php \
         /var/www/html/includes/classes/Auth.php \

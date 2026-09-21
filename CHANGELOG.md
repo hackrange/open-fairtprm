@@ -12,6 +12,57 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Breach alerts are now checked against their own evidence before anyone is
+  told about them.** AI breach research was producing mis-attributed alerts, and
+  the old guard - "at least two credible source URLs" - counted URLs without
+  reading them. Two source types defeated it completely. Rolling roundup pages
+  ("2026 Data Breaches", "recent breaches", "week in breach", "updated list")
+  rank for practically every "<company> data breach" query and are re-dated as
+  they are appended to, so they looked both credible and fresh while naming
+  dozens of unrelated companies; and bare homepages or section indexes
+  (`https://www.securityweek.com/`, CISA's advisories listing) satisfied the
+  count while proving nothing at all. A new `BreachEvidenceValidator` grades
+  every AI-researched alert in three layers: it classifies each cited URL and
+  requires at least one link to coverage of *this* incident, it fetches those
+  articles and requires the affected entity to actually be named on the page
+  alongside incident language, and it refuses to re-raise a narrative a reviewer
+  already dismissed. The same classifier also strips roundup and index hits out
+  of the web-search evidence before the research model ever sees them, and the
+  research prompt now lists previously dismissed narratives and spells out both
+  failure modes. Replayed against the full alert history, 29 of 33 alerts a
+  reviewer had marked false positive no longer generate an email, and no alert
+  a reviewer had accepted is rejected.
+- **Alerts that cannot be corroborated are held back from email instead of being
+  sent or silently dropped.** An alert whose sources are structurally fine but
+  whose pages could not be retrieved (paywall, bot wall, network error), or
+  whose affected entity is not named in its own headline, is recorded with a
+  `verification_status` of `unverified`, shown in Breach / Cyber Alerts with an
+  "Unverified" badge and the reason, and left out of the digest email. The
+  headline check is what catches name-collision mis-attribution, where genuine
+  coverage of one company is filed against a similarly-named monitored vendor -
+  a SonicWall advisory attributed to "Sonic Boom Wellness", an "Unlimited
+  Technology Systems" breach attributed to "United Data Technologies". Alerts
+  refused outright are written to a new `cyber_breach_alert_rejections` table
+  with the reason, so a filter that is too tight is visible rather than looking
+  like a quiet scanner. Tunable through `breach_verify_enabled`,
+  `breach_verify_fetch` (set to 0 on an air-gapped install),
+  `breach_verify_min_articles`, `breach_verify_suppress_fp` and
+  `breach_verify_fp_similarity`. Corroboration fetches are SSRF-guarded: public
+  addresses only, every redirect hop re-validated, the resolved address pinned,
+  and the response size capped. The Grip Shadow SaaS feed and GitHub OSINT
+  findings carry their own provenance and bypass verification unchanged.
+- **Marking a breach alert a false positive now actually stops it coming back.**
+  Deduplication keyed on affected entity plus `alert_type`, and the
+  entity-level check deliberately ignored resolved and false-positive rows, so
+  the same story returned a week later under a different `alert_type` - which is
+  how "Computershare Unauthorized Access via Exposed GitHub Credentials" was
+  raised twice, dismissed both times. A dismissed entity/headline pair is now
+  remembered: a new alert for the same entity telling the same story is refused,
+  with the narrative compared on meaning rather than wording, so "Data Breach
+  via Exposed Developer Credentials" and "Unauthorized Access via Exposed GitHub
+  Personal Access Token" are recognized as one claim. A genuinely different
+  incident at the same vendor still comes through.
+
 - **Each policy chooses which ACL groups have to acknowledge it.** Acknowledgment
   used to be addressed to every active user, which made the acknowledged
   percentage meaningless for a policy that only concerns one team. A policy can

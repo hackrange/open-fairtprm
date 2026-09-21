@@ -227,6 +227,7 @@ try {
 
     $created    = 0;
     $duplicates = 0;
+    $rejected   = 0;
     $emailed    = 0;
     $errors     = [];
     $newAlertIds = [];
@@ -240,13 +241,16 @@ try {
             $created++;
             $newAlertIds[] = $createResult['id'];
             if ($verbose) {
-                CronHelper::info("Created alert #{$createResult['id']}: {$alertData['title']}");
+                CronHelper::info("Created alert #{$createResult['id']} [{$createResult['verification']}]: {$alertData['title']}");
             }
         } elseif (!empty($createResult['duplicate'])) {
             $duplicates++;
             if ($verbose) {
                 CronHelper::info("Skipped duplicate: {$alertData['title']}");
             }
+        } elseif (!empty($createResult['rejected'])) {
+            $rejected++;
+            CronHelper::warn("Rejected (insufficient evidence): {$alertData['title']} - {$createResult['reason']}");
         } else {
             $errors[] = "Failed to create alert: {$alertData['title']}";
         }
@@ -264,9 +268,17 @@ try {
                 $emailService = new EmailService($db, new Encryption());
 
                 if ($emailService->isEnabled()) {
-                    // Collect all new alerts for digest
+                    // Collect the new alerts that are cleared to be emailed.
+                    // Alerts whose cited evidence could not be corroborated are
+                    // recorded and visible in the UI but never emailed.
+                    $emailableIds = $breachService->filterEmailableAlertIds($newAlertIds);
+                    $withheld     = count($newAlertIds) - count($emailableIds);
+                    if ($withheld > 0) {
+                        CronHelper::info("{$withheld} unverified alert(s) withheld from the digest; review them in Breach / Cyber Alerts.");
+                    }
+
                     $digestAlerts = [];
-                    foreach ($newAlertIds as $alertId) {
+                    foreach ($emailableIds as $alertId) {
                         $alert = $breachService->getAlert($alertId);
                         if ($alert) $digestAlerts[] = $alert;
                     }
@@ -285,8 +297,10 @@ try {
                             }
                         }
 
-                        // Mark all alerts as emailed
-                        foreach ($newAlertIds as $alertId) {
+                        // Mark the digested alerts as emailed. Withheld
+                        // alerts keep email_sent_at NULL so they go out later
+                        // if a reviewer promotes them.
+                        foreach ($emailableIds as $alertId) {
                             $breachService->markEmailSent($alertId);
                         }
                     }
@@ -307,6 +321,9 @@ try {
     $resultMsg = "Scan complete: {$processed} researched, {$created} new alert(s) created";
     if ($duplicates > 0) {
         $resultMsg .= ", {$duplicates} duplicate(s) skipped";
+    }
+    if ($rejected > 0) {
+        $resultMsg .= ", {$rejected} rejected for insufficient evidence";
     }
     if ($emailed > 0) {
         $resultMsg .= ", {$emailed} email(s) sent";

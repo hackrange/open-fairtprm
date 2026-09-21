@@ -928,6 +928,10 @@ class GripService
                 'summary'     => $summary,
                 'source_urls' => $sources,
             ];
+            // First-party feed: Grip tells us which SaaS app the incident is on,
+            // so there is no AI mis-attribution risk and no evidence to fetch.
+            $data['skip_verification'] = true;
+
             if ($vendor) {
                 $data['title']                = $this->clip($vendor['vendor_name'] . ' — security incident reported by Grip', 500);
                 $data['affected_entity']      = $vendor['vendor_name'];
