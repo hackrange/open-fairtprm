@@ -32,8 +32,19 @@
 (function () {
     document.querySelectorAll('form[data-disable-on-submit]').forEach(function (form) {
         form.addEventListener('submit', function () {
-            var btn = form.querySelector('button[type=submit]');
-            if (btn) { btn.disabled = true; }
+            // Defer the disable by one task. The browser builds the submission's
+            // entry list AFTER the submit event handlers return, and disabled
+            // controls are excluded from that list -- so disabling the button
+            // synchronously here would drop the button's own name=value pair
+            // (e.g. name="create_user") from the POST body. Server handlers that
+            // dispatch on isset($_POST['create_user']) would then match nothing
+            // and the request would silently do nothing. A zero-delay timeout
+            // runs after the entry list is built but long before the response
+            // lands, so double-post protection still works.
+            setTimeout(function () {
+                var btn = form.querySelector('button[type=submit]');
+                if (btn) { btn.disabled = true; }
+            }, 0);
         });
     });
 

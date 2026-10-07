@@ -324,6 +324,20 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Creating or editing a user on Admin -> Users silently did nothing.** The
+  Create User and Edit User modals are the only two forms carrying
+  `data-disable-on-submit`, the double-post guard added with the CSP hardening.
+  Its handler disabled the submit button from inside the form's own `submit`
+  event, but the browser builds the submission's entry list only after those
+  handlers return, and disabled controls are left out of it - so the button's
+  own `name="create_user"` / `name="update_user"` pair never reached the server.
+  The POST arrived carrying the username, full name, email and password but no
+  action key, matched none of the handler's branches, and fell through to a
+  plain re-render: HTTP 200, no new user, no audit entry, no error message and
+  nothing in the PHP log. The guard now disables the button one task later, so
+  the action key survives in the request while double-posting is still blocked.
+  Affects 2.6.2 only; `data-disable-on-submit` does not exist in 2.6.1.
+
 - **Confirmation prompts across Admin, Vendors and Breach Alerts never appeared,
   and the SRS "Un-score" button did nothing.** A sweep of the rest of the app
   found 24 more inline event handlers that the Content-Security-Policy discards,
