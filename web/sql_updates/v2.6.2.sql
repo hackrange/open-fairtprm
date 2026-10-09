@@ -5751,6 +5751,39 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_alerts` (
   KEY `idx_created_at_grip` (`created_at_grip`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Grip SSPM posture checks (GET /public/posture-checks), mirrored on every
+-- sync for the Shadow SaaS > Posture tab. One row per check result. The
+-- violating entities (findings) are NOT stored: they name users and resources
+-- and are fetched live when a check is opened. report_details is encrypted at
+-- rest (GripService::ENCRYPTED_COLUMNS) because it can quote entity names.
+CREATE TABLE IF NOT EXISTS `shadow_saas_grip_posture_checks` (
+  `uuid` varchar(64) NOT NULL,
+  `posture_check_id` varchar(255) DEFAULT NULL COMMENT 'Human-readable id, e.g. Entra ID 7.9',
+  `description` text DEFAULT NULL,
+  `security_domain` varchar(255) DEFAULT NULL,
+  `severity` varchar(20) DEFAULT NULL,
+  `severity_override_reason` text DEFAULT NULL,
+  `status` varchar(20) DEFAULT NULL COMMENT 'Pass, Fail, Excluded, Pending, Undetectable',
+  `status_override_reason` text DEFAULT NULL,
+  `module` varchar(100) DEFAULT NULL,
+  `tenant_name` varchar(255) DEFAULT NULL,
+  `integration_type` varchar(100) DEFAULT NULL,
+  `tenant_id` varchar(255) DEFAULT NULL,
+  `findings_count` int(10) unsigned DEFAULT NULL,
+  `report_details` longtext DEFAULT NULL COMMENT 'Encrypted',
+  `risk_description` text DEFAULT NULL,
+  `mitigation_steps` longtext DEFAULT NULL,
+  `compliance` longtext DEFAULT NULL COMMENT 'JSON array of {framework, controlPath}',
+  `updated_at_grip` datetime DEFAULT NULL,
+  `first_seen_at` timestamp NULL DEFAULT current_timestamp(),
+  `last_synced_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`uuid`),
+  KEY `idx_status` (`status`),
+  KEY `idx_severity` (`severity`),
+  KEY `idx_security_domain` (`security_domain`),
+  KEY `idx_tenant_name` (`tenant_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `shadow_saas_grip_sync_log` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `started_at` datetime NOT NULL DEFAULT current_timestamp(),

@@ -1310,6 +1310,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         .status-pending { background: #fef3c7; color: #92400e; }
         .status-dismissed { background: #f3f4f6; color: #6b7280; }
         .status-unsanctioned { background: #fee2e2; color: #991b1b; }
+        .ss-tabs { display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; margin: 0 0 22px; flex-wrap: wrap; }
+        .ss-tabs a { padding: 9px 18px; font-size: 14px; font-weight: 500; color: #6b7280; text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+        .ss-tabs a:hover { color: #111827; }
+        .ss-tabs a.active { color: var(--theme-button-color); border-bottom-color: var(--theme-button-color); }
         .grip-unsanctioned-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #fee2e2; color: #991b1b; vertical-align: middle; white-space: nowrap; }
         .grip-sanctioned-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #dcfce7; color: #166534; vertical-align: middle; white-space: nowrap; }
         .score-grade { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; font-size: 11px; margin-left: 3px; }
@@ -1385,6 +1389,12 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <?php $currentPage = 'shadow_saas'; include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
             <main class="main-content">
+        <?php if ($gripEnabled): ?>
+        <nav class="ss-tabs" aria-label="<?php echo e(t('shadow-saas.heading')); ?>">
+            <a href="shadow-saas.php" class="active"><?php echo e(t('shadow-saas-posture.tab_applications')); ?></a>
+            <a href="shadow-saas-posture.php"><?php echo e(t('shadow-saas-posture.tab_posture')); ?></a>
+        </nav>
+        <?php endif; ?>
         <?php if (!$tableExists): ?>
         <div class="alert alert-warning">
             <strong><?php echo e(t('shadow-saas.table_not_found')); ?></strong> <?php echo e(t('shadow-saas.table_not_found_desc')); ?>

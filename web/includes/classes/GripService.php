@@ -61,6 +61,8 @@ class GripService
         'shadow_saas_grip_app_users' => ['mail', 'full_name', 'display_name', 'organizational_unit', 'manager_email'],
         'shadow_saas_grip_apps'      => ['primary_contact_name', 'primary_contact_email', 'primary_contact_user_id', 'business_owner', 'raw_payload'],
         'shadow_saas_grip_alerts'    => ['raw_payload'],
+        // Free-text scan output; can quote user and resource names.
+        'shadow_saas_grip_posture_checks' => ['report_details'],
     ];
 
     /** Shared Encryption instance (key comes from config.php, same as everywhere else). */
@@ -414,6 +416,8 @@ class GripService
             $usersData = $alertsData = [];
             try { $usersData  = $this->fetchAll('/public/users');   $usersCount  = $this->upsertUsers($usersData); }   catch (Throwable $e) { error_log('Grip users fetch failed: ' . $e->getMessage()); }
             try { $alertsData = $this->fetchAll('/public/alerts');  $alertsCount = $this->upsertAlerts($alertsData); } catch (Throwable $e) { error_log('Grip alerts fetch failed: ' . $e->getMessage()); }
+            // SSPM posture checks for the Shadow SaaS > Posture tab. One request.
+            try { $this->syncPostureChecks(); } catch (Throwable $e) { error_log('Grip posture-checks sync failed: ' . $e->getMessage()); }
 
             // Tombstone cleanup: any row in a mirror table whose last_synced_at
             // pre-dates this run is no longer present in Grip. Skip cleanup
@@ -745,6 +749,83 @@ class GripService
             $count++;
         }
         return $count;
+    }
+
+    /**
+     * Mirror Grip's SSPM posture checks (GET /public/posture-checks) into
+     * shadow_saas_grip_posture_checks for the Shadow SaaS > Posture tab. The set
+     * is replaced as a whole inside a transaction, so checks Grip no longer
+     * returns disappear. An empty response (tenant without SSPM) or a failed
+     * fetch (throws) leaves the existing rows untouched.
+     * @return int checks stored
+     */
+    public function syncPostureChecks(): int
+    {
+        $checks = $this->fetchAll('/public/posture-checks', 'Grip posture-checks fetch');
+        if (!$checks) return 0;
+        // Grip HTML-escapes some display strings (e.g. "Data Security &amp; Privacy").
+        $txt = fn($v) => ($v === null || $v === '') ? null : html_entity_decode((string)$v, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $rows = [];
+        foreach ($checks as $c) {
+            $uuid = (string)($c['uuid'] ?? '');
+            if (!preg_match('/^[0-9a-f-]{36}$/i', $uuid)) continue;
+            $rows[$uuid] = [
+                'uuid'                     => $uuid,
+                'posture_check_id'         => $this->clip((string)$txt($c['postureCheckId'] ?? ''), 255) ?: null,
+                'description'              => $txt($c['description'] ?? null),
+                'security_domain'          => $this->clip((string)$txt($c['securityDomain'] ?? ''), 255) ?: null,
+                'severity'                 => $this->clip((string)($c['severity'] ?? ''), 20) ?: null,
+                'severity_override_reason' => $txt($c['severityOverrideReason'] ?? null),
+                'status'                   => $this->clip((string)($c['status'] ?? ''), 20) ?: null,
+                'status_override_reason'   => $txt($c['statusOverrideReason'] ?? null),
+                'module'                   => $this->clip((string)($c['module'] ?? ''), 100) ?: null,
+                'tenant_name'              => $this->clip((string)$txt($c['tenantName'] ?? ''), 255) ?: null,
+                'integration_type'         => $this->clip((string)($c['integrationType'] ?? ''), 100) ?: null,
+                'tenant_id'                => $this->clip((string)($c['tenantId'] ?? ''), 255) ?: null,
+                'findings_count'           => isset($c['findingsCount']) && is_numeric($c['findingsCount']) ? max(0, (int)$c['findingsCount']) : null,
+                'report_details'           => is_string($c['reportDetails'] ?? null) ? $c['reportDetails'] : (isset($c['reportDetails']) ? json_encode($c['reportDetails']) : null),
+                'risk_description'         => $txt($c['riskDescription'] ?? null),
+                'mitigation_steps'         => is_string($c['mitigationSteps'] ?? null) ? $c['mitigationSteps'] : (isset($c['mitigationSteps']) ? json_encode($c['mitigationSteps']) : null),
+                'compliance'               => json_encode(is_array($c['compliance'] ?? null) ? $c['compliance'] : []),
+                'updated_at_grip'          => $this->parseDate($c['updatedAt'] ?? null),
+            ];
+        }
+        if (!$rows) return 0;
+        $this->db->beginTransaction();
+        try {
+            foreach ($rows as $row) {
+                $this->upsert('shadow_saas_grip_posture_checks', $this->encryptRow('shadow_saas_grip_posture_checks', $row), 'uuid');
+            }
+            $keep = array_keys($rows);
+            $ph = [];
+            $params = [];
+            foreach ($keep as $i => $u) { $ph[] = ":u{$i}"; $params[":u{$i}"] = $u; }
+            $this->db->query('DELETE FROM shadow_saas_grip_posture_checks WHERE uuid NOT IN (' . implode(',', $ph) . ')', $params);
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+        return count($rows);
+    }
+
+    /**
+     * One page of a posture check's violating entities, fetched live from Grip
+     * (GET /public/posture-checks/{uuid}/findings). Never stored: findings name
+     * users and resources. Returns ['success' => bool, 'rows' => array, 'error' => string].
+     */
+    public function getPostureFindingsPage(string $uuid, int $offset, int $limit): array
+    {
+        if (!$this->isEnabled()) return ['success' => false, 'rows' => [], 'error' => 'Grip integration is not enabled'];
+        if (!preg_match('/^[0-9a-f-]{36}$/i', $uuid)) return ['success' => false, 'rows' => [], 'error' => 'Invalid posture check id'];
+        $res = $this->request('/public/posture-checks/' . rawurlencode($uuid) . '/findings', [
+            'offset' => max(0, $offset),
+            'limit'  => max(1, min($limit, 500)),
+        ]);
+        if (empty($res['success'])) {
+            return ['success' => false, 'rows' => [], 'error' => $res['error'] ?: ('HTTP ' . $res['http_code'])];
+        }
+        return ['success' => true, 'rows' => is_array($res['data']) ? array_values($res['data']) : [], 'error' => ''];
     }
 
     /**

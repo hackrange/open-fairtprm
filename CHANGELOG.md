@@ -29,6 +29,19 @@ project adheres to [Semantic Versioning](https://semver.org/).
   and onboarded. Grip's sanction tag is stored on `shadow_saas.grip_sanction_tag`
   during every sync, backfilled from the Grip mirror on upgrade, and included
   in the CSV export.
+- **Shadow SaaS > Posture tab (Grip SaaS security posture).** When Grip is
+  connected, Shadow SaaS gains Applications / Posture tabs. Posture mirrors
+  Grip's Posture Management view: the general posture score (Pass / (Pass +
+  Fail), the same figure Grip shows), the lowest-scoring tenants, the security
+  domains with the most failed checks, and every check with status, severity,
+  tenant, module and findings count, filterable by status, severity, domain,
+  module and text. Expanding a check shows its risk, mitigation steps,
+  compliance controls, report details and any overrides. "View findings" lists
+  the violating users and resources, fetched live from Grip and never stored.
+  Checks are mirrored into the new `shadow_saas_grip_posture_checks` table on
+  every Grip sync (one API call), or on demand with "Refresh from Grip";
+  free-text report details are encrypted at rest, and Grip text that carries
+  HTML is reduced to plain text before display.
 - **Apps unsanctioned in Grip show as Unsanctioned in Shadow SaaS.** A pending
   app that Grip tags unsanctioned now counts under the Unsanctioned tile and
   filter (not Pending), reads "Unsanctioned in Grip" in the status column, and
