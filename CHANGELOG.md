@@ -29,6 +29,22 @@ project adheres to [Semantic Versioning](https://semver.org/).
   and onboarded. Grip's sanction tag is stored on `shadow_saas.grip_sanction_tag`
   during every sync, backfilled from the Grip mirror on upgrade, and included
   in the CSV export.
+- **Shadow SaaS > Identity Threat Detection & Response (ITDR).** A new page
+  mirrors Grip's ITDR view: active threats by severity and by status, the top
+  exposed identities (threat count, worst severity, and total SaaS accounts
+  from the Grip users mirror), and every threat with its type, category,
+  identity, detection time and status. Expanding a threat shows the
+  description, potential impacts, mitigation steps, threat details and the
+  triggering event records (time, event, IP, country), with a link to the
+  alert in Grip; filter by severity, status, category or text. Threats are
+  mirrored into the new `shadow_saas_grip_threats` table on every Grip sync
+  (one API call) or with "Refresh from Grip"; the identity name and email, the
+  event logs and the threat details are encrypted at rest.
+- **Collapsible Shadow SaaS navigation.** With Grip connected, Shadow SaaS in
+  the left navigation becomes a collapsible group: Applications, New, Posture
+  (Posture Management) and Identity Threat Detection & Response. The group
+  opens automatically on its own pages and uses native `<details>`, so it
+  needs no script. The tab strip across the Shadow SaaS pages gains ITDR.
 - **Shadow SaaS > New tab: SaaS discovered in the last N days.** Lists every
   Grip application first seen within a chosen window (default 30 days; 7 / 30 /
   90 shortcuts or any 1-365), newest first, with first-seen date and age, user

@@ -5784,6 +5784,39 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_posture_checks` (
   KEY `idx_tenant_name` (`tenant_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Grip Identity Threat Detection & Response alerts (GET /public/threats),
+-- mirrored on every sync for Shadow SaaS > ITDR. The identity name/email, the
+-- triggering event logs and the threat-specific fields (IPs, countries) are
+-- personal data and are encrypted at rest (GripService::ENCRYPTED_COLUMNS).
+CREATE TABLE IF NOT EXISTS `shadow_saas_grip_threats` (
+  `alert_id` varchar(64) NOT NULL COMMENT 'Readable id, e.g. ABC-28',
+  `alert_name` varchar(500) DEFAULT NULL,
+  `alert_type` varchar(255) DEFAULT NULL COMMENT 'Threat type, e.g. admin-escalation',
+  `severity` varchar(50) DEFAULT NULL,
+  `category` varchar(255) DEFAULT NULL COMMENT 'Threat category, e.g. Privilege Escalation',
+  `status` varchar(50) DEFAULT NULL,
+  `source` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `mitigation` longtext DEFAULT NULL COMMENT 'JSON {description, steps}',
+  `potential_impacts` longtext DEFAULT NULL COMMENT 'JSON array',
+  `unique_fields_data` longtext DEFAULT NULL COMMENT 'Encrypted JSON',
+  `event_logs` longtext DEFAULT NULL COMMENT 'Encrypted JSON array',
+  `related_entity_id` varchar(64) DEFAULT NULL,
+  `related_entity_type` varchar(64) DEFAULT NULL,
+  `related_entity_name` text DEFAULT NULL COMMENT 'Encrypted',
+  `related_identity_mail` text DEFAULT NULL COMMENT 'Encrypted',
+  `alert_url` varchar(2048) DEFAULT NULL,
+  `created_at_grip` datetime DEFAULT NULL,
+  `updated_at_grip` datetime DEFAULT NULL,
+  `first_seen_at` timestamp NULL DEFAULT current_timestamp(),
+  `last_synced_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`alert_id`),
+  KEY `idx_severity` (`severity`),
+  KEY `idx_status` (`status`),
+  KEY `idx_related_entity` (`related_entity_id`),
+  KEY `idx_created_at_grip` (`created_at_grip`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `shadow_saas_grip_sync_log` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `started_at` datetime NOT NULL DEFAULT current_timestamp(),

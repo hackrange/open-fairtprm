@@ -67,6 +67,8 @@ class GripService
         'shadow_saas_grip_alerts'    => ['raw_payload'],
         // Free-text scan output; can quote user and resource names.
         'shadow_saas_grip_posture_checks' => ['report_details'],
+        // ITDR threats: who, and the IPs / countries / events that tripped it.
+        'shadow_saas_grip_threats' => ['related_entity_name', 'related_identity_mail', 'unique_fields_data', 'event_logs'],
     ];
 
     /** Shared Encryption instance (key comes from config.php, same as everywhere else). */
@@ -422,6 +424,8 @@ class GripService
             try { $alertsData = $this->fetchAll('/public/alerts');  $alertsCount = $this->upsertAlerts($alertsData); } catch (Throwable $e) { error_log('Grip alerts fetch failed: ' . $e->getMessage()); }
             // SSPM posture checks for the Shadow SaaS > Posture tab. One request.
             try { $this->syncPostureChecks(); } catch (Throwable $e) { error_log('Grip posture-checks sync failed: ' . $e->getMessage()); }
+            // Identity threats for the Shadow SaaS > ITDR page. One request.
+            try { $this->syncThreats(); } catch (Throwable $e) { error_log('Grip threats sync failed: ' . $e->getMessage()); }
 
             // Tombstone cleanup: any row in a mirror table whose last_synced_at
             // pre-dates this run is no longer present in Grip. Skip cleanup
@@ -811,6 +815,67 @@ class GripService
             $params = [];
             foreach ($keep as $i => $u) { $ph[] = ":u{$i}"; $params[":u{$i}"] = $u; }
             $this->db->query('DELETE FROM shadow_saas_grip_posture_checks WHERE uuid NOT IN (' . implode(',', $ph) . ')', $params);
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+        return count($rows);
+    }
+
+    /**
+     * Mirror Grip's Identity Threat Detection & Response alerts (GET
+     * /public/threats) into shadow_saas_grip_threats. Replaced as a whole inside a
+     * transaction, so threats Grip no longer returns disappear; a failed fetch
+     * throws and leaves the existing rows. Personal fields are encrypted.
+     * @return int threats stored
+     */
+    public function syncThreats(): int
+    {
+        $threats = $this->fetchAll('/public/threats', 'Grip threats fetch');
+        $txt = fn($v) => ($v === null || $v === '') ? null : html_entity_decode((string)$v, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $rows = [];
+        foreach ($threats as $t) {
+            $id = (string)($t['alertId'] ?? '');
+            if ($id === '' || strlen($id) > 64) continue;
+            $rel = is_array($t['relatedEntity'] ?? null) ? $t['relatedEntity'] : [];
+            $mit = ['description' => $txt($t['mitigationDescription'] ?? null), 'steps' => $t['mitigationSteps'] ?? null];
+            $rows[$id] = [
+                'alert_id'              => $id,
+                'alert_name'            => $this->clip((string)$txt($t['alertName'] ?? ''), 500) ?: null,
+                'alert_type'            => $this->clip((string)($t['alertType'] ?? ''), 255) ?: null,
+                'severity'              => $this->clip((string)($t['alertSeverity'] ?? ''), 50) ?: null,
+                'category'              => $this->clip((string)$txt($t['category'] ?? ''), 255) ?: null,
+                'status'                => $this->clip((string)($t['status'] ?? ''), 50) ?: null,
+                'source'                => $this->clip((string)$txt($t['source'] ?? ''), 255) ?: null,
+                'description'           => $txt($t['description'] ?? null),
+                'mitigation'            => json_encode($mit),
+                'potential_impacts'     => json_encode(is_array($t['potentialImpacts'] ?? null) ? $t['potentialImpacts'] : []),
+                'unique_fields_data'    => isset($t['uniqueFieldsData']) ? json_encode($t['uniqueFieldsData']) : null,
+                'event_logs'            => isset($t['eventLogs']) ? json_encode($t['eventLogs']) : null,
+                'related_entity_id'     => $this->clip((string)($t['relatedEntityId'] ?? ($rel['id'] ?? '')), 64) ?: null,
+                'related_entity_type'   => $this->clip((string)($t['relatedEntityType'] ?? ($rel['entityType'] ?? '')), 64) ?: null,
+                'related_entity_name'   => $txt($t['relatedEntityName'] ?? ($rel['name'] ?? null)),
+                'related_identity_mail' => $t['relatedIdentityMail'] ?? ($rel['email'] ?? null),
+                'alert_url'             => (isset($t['alertUrl']) && preg_match('#^https://#i', (string)$t['alertUrl'])) ? $this->clip((string)$t['alertUrl'], 2048) : null,
+                'created_at_grip'       => $this->parseDate($t['createdAt'] ?? null),
+                'updated_at_grip'       => $this->parseDate($t['updatedAt'] ?? null),
+            ];
+        }
+        $this->db->beginTransaction();
+        try {
+            foreach ($rows as $row) {
+                $this->upsert('shadow_saas_grip_threats', $this->encryptRow('shadow_saas_grip_threats', $row), 'alert_id');
+            }
+            if ($rows) {
+                $ph = [];
+                $params = [];
+                foreach (array_keys($rows) as $i => $u) { $ph[] = ":a{$i}"; $params[":a{$i}"] = $u; }
+                $this->db->query('DELETE FROM shadow_saas_grip_threats WHERE alert_id NOT IN (' . implode(',', $ph) . ')', $params);
+            } else {
+                // A successful, empty response means Grip has no threats now.
+                $this->db->query('DELETE FROM shadow_saas_grip_threats');
+            }
             $this->db->commit();
         } catch (Throwable $e) {
             $this->db->rollback();

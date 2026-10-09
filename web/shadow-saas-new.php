@@ -258,13 +258,14 @@ $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') 
         </div>
 
         <div class="main-layout">
-            <?php $currentPage = 'shadow_saas'; include __DIR__ . '/includes/sidebar_nav.php'; ?>
+            <?php $currentPage = 'shadow_saas_new'; include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
             <main class="main-content">
                 <nav class="ss-tabs" aria-label="<?php echo e(t('shadow-saas.heading')); ?>">
                     <a href="shadow-saas.php"><?php echo e(t('shadow-saas-posture.tab_applications')); ?></a>
                     <a href="shadow-saas-new.php" class="active"><?php echo e(t('shadow-saas-new.tab_new')); ?></a>
                     <a href="shadow-saas-posture.php"><?php echo e(t('shadow-saas-posture.tab_posture')); ?></a>
+                    <a href="shadow-saas-itdr.php"><?php echo e(t('shadow-saas-itdr.tab_itdr')); ?></a>
                 </nav>
 
                 <?php if ($error): ?><div class="alert alert-danger"><?php echo e($error); ?></div><?php endif; ?>

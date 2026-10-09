@@ -337,6 +337,23 @@ $_isActive = function($page) use ($currentPage) {
     return $currentPage === $page;
 };
 ?>
+<style nonce="<?php echo cspNonce(); ?>">
+    /* Collapsible nav groups (Shadow SaaS with Grip). Pages carry their own copy
+       of the base sidebar CSS; these rules ride with the include instead. */
+    .sidebar .sb-group > details > summary { list-style: none; cursor: pointer; }
+    .sidebar .sb-group > details > summary::-webkit-details-marker { display: none; }
+    .sidebar .sb-group-head { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: var(--nav-font-color); font-size: 14px; transition: background 0.2s; user-select: none; }
+    .sidebar .sidebar-module .sb-group-head { font-size: 12px; padding-top: 9px; padding-bottom: 9px; }
+    .sidebar .sb-group-head:hover { background: rgba(255,255,255,0.1); }
+    .sidebar .sb-group-head .icon { width: 20px; text-align: center; }
+    .sidebar .sb-group-head::after { content: '\25B8'; margin-left: auto; font-size: 10px; opacity: 0.6; transition: transform 0.2s ease; }
+    .sidebar .sb-group-head .badge + * { margin-left: 0; }
+    .sidebar .sb-group > details[open] > .sb-group-head::after { transform: rotate(90deg); }
+    .sidebar .sb-group-active { font-weight: 500; }
+    .sidebar .sb-sub { margin: 0; padding: 0; }
+    .sidebar .sb-sub > li > a, .sidebar .sb-sub .sb-group-head { padding-left: 50px; }
+    .sidebar .sb-sub .sb-sub > li > a { padding-left: 64px; }
+</style>
 <aside class="sidebar">
     <div class="sidebar-brand">
         <a href="index.php">
@@ -670,7 +687,7 @@ $_isActive = function($page) use ($currentPage) {
     <?php endif; ?>
 
     <?php if ($showFairModule || $showSRSModule): ?>
-    <details class="sidebar-section"<?php echo $_isActive(['fair', 'srs', 'vendor_domains', '4th_party', 'cve_search', 'shadow_saas']) ? ' open' : ''; ?>>
+    <details class="sidebar-section"<?php echo $_isActive(['fair', 'srs', 'vendor_domains', '4th_party', 'cve_search', 'shadow_saas', 'shadow_saas_new', 'shadow_saas_posture', 'shadow_saas_itdr']) ? ' open' : ''; ?>>
         <summary class="sidebar-section-title"><?php echo e(t('nav.section.modules')); ?></summary>
         <ul class="sidebar-nav">
             <?php if ($showFairModule): ?>
@@ -721,6 +738,38 @@ $_isActive = function($page) use ($currentPage) {
             </li>
             <?php endif; ?>
             <?php if ($isAdmin || $isCyberTPRM || $isAuditor): ?>
+            <?php
+                // With Grip connected, Shadow SaaS becomes a collapsible group of the
+                // Grip-backed views. Native <details>, so no script (CSP-safe).
+                $_gripNav = function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1';
+                $_ssPages = ['shadow_saas', 'shadow_saas_new', 'shadow_saas_posture', 'shadow_saas_itdr'];
+            ?>
+            <?php if ($_gripNav): ?>
+            <li class="sb-group">
+                <details<?php echo $_isActive($_ssPages) ? ' open' : ''; ?>>
+                    <summary class="sb-group-head<?php echo $_isActive($_ssPages) ? ' sb-group-active' : ''; ?>">
+                        <span class="icon"><img src="app/icons/alert-square.svg" alt="" width="18" height="18"></span>
+                        <span><?php echo e(t('nav.shadow_saas')); ?></span>
+                        <?php if ($shadowSaasCount > 0): ?>
+                        <span class="badge"><?php echo $shadowSaasCount; ?></span>
+                        <?php endif; ?>
+                    </summary>
+                    <ul class="sidebar-nav sb-sub">
+                        <li><a href="shadow-saas.php"<?php echo $_isActive('shadow_saas') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_applications')); ?></span></a></li>
+                        <li><a href="shadow-saas-new.php"<?php echo $_isActive('shadow_saas_new') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_new')); ?></span></a></li>
+                        <li class="sb-group">
+                            <details<?php echo $_isActive('shadow_saas_posture') ? ' open' : ''; ?>>
+                                <summary class="sb-group-head"><span><?php echo e(t('nav.ss_posture')); ?></span></summary>
+                                <ul class="sidebar-nav sb-sub">
+                                    <li><a href="shadow-saas-posture.php"<?php echo $_isActive('shadow_saas_posture') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_posture_management')); ?></span></a></li>
+                                </ul>
+                            </details>
+                        </li>
+                        <li><a href="shadow-saas-itdr.php"<?php echo $_isActive('shadow_saas_itdr') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_itdr')); ?></span></a></li>
+                    </ul>
+                </details>
+            </li>
+            <?php else: ?>
             <li>
                 <a href="shadow-saas.php"<?php echo $_isActive('shadow_saas') ? ' class="active"' : ''; ?>>
                     <span class="icon"><img src="app/icons/alert-square.svg" alt="" width="18" height="18"></span>
@@ -730,6 +779,7 @@ $_isActive = function($page) use ($currentPage) {
                     <?php endif; ?>
                 </a>
             </li>
+            <?php endif; ?>
             <?php endif; ?>
         </ul>
     </details>

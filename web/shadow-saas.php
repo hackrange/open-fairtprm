@@ -1394,6 +1394,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <a href="shadow-saas.php" class="active"><?php echo e(t('shadow-saas-posture.tab_applications')); ?></a>
             <a href="shadow-saas-new.php"><?php echo e(t('shadow-saas-new.tab_new')); ?></a>
             <a href="shadow-saas-posture.php"><?php echo e(t('shadow-saas-posture.tab_posture')); ?></a>
+            <a href="shadow-saas-itdr.php"><?php echo e(t('shadow-saas-itdr.tab_itdr')); ?></a>
         </nav>
         <?php endif; ?>
         <?php if (!$tableExists): ?>
