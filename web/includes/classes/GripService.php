@@ -36,6 +36,10 @@ class GripService
     // Gentle pacing between per-app roster fetches so a full hydration does not
     // hammer Grip's API. Skipped (delta) apps incur no call and no delay.
     private const ROSTER_THROTTLE_MS = 100;
+    // Live mode does not snapshot every app's roster, but newly discovered apps
+    // always get one (their rosters are tiny) so the Shadow SaaS "New" tab can
+    // name patient zero - the earliest user Grip saw - without per-view calls.
+    public const RECENT_ROSTER_DAYS = 90;
 
     private Database $db;
     private string $baseUrl = '';
@@ -469,14 +473,20 @@ class GripService
             // taxing on Grip and much faster. Actual fetches are gently throttled.
             // Cooperative-cancellable; per-app failures are logged, counted, and
             // never abort the run (and never wipe a good cached roster).
+            // Live mode runs the same loop over newly discovered apps only.
             $rosterFetched = $rosterSkipped = $rosterFailed = 0;
-            if ($this->useLocalData() && !empty($apps)) {
+            if (!empty($apps)) {
                 // Worklist: apps that have users, mapped to their current signature.
+                $recentCutoff = time() - self::RECENT_ROSTER_DAYS * 86400;
                 $work = [];
                 foreach ($apps as $app) {
                     $appGid = (string)($app['id'] ?? '');
                     $g = is_array($app['gripData'] ?? null) ? $app['gripData'] : [];
                     if ($appGid === '' || (int)($g['numberOfUsers'] ?? 0) <= 0) continue;
+                    if (!$this->useLocalData()) {
+                        $first = strtotime((string)($g['firstEventTime'] ?? '')) ?: 0;
+                        if ($first < $recentCutoff) continue;
+                    }
                     $work[$appGid] = $this->rosterSignature($g);
                 }
 
@@ -1585,6 +1595,40 @@ class GripService
     // ------------------------------------------------------------------
 
     /** Trim a string to a max length (multibyte-safe). */
+    /**
+     * On-demand roster fetch for apps Grip first saw in the last $days days that
+     * have users but no cached roster yet (the "New" tab's Refresh button, so
+     * patient zero is available before the next scheduled sync). Capped and
+     * throttled. @return int rosters fetched
+     */
+    public function refreshRecentRosters(int $days, int $cap = 200): int
+    {
+        if (!$this->isEnabled()) return 0;
+        $days = max(1, min($days, 365));
+        // first_event_time is stored in the app time zone (parseDate), so the
+        // cutoff is computed in PHP rather than with the database's NOW().
+        $rows = $this->db->fetchAll(
+            "SELECT a.grip_id FROM shadow_saas_grip_apps a
+              WHERE a.first_event_time >= :cutoff
+                AND a.number_of_users > 0
+                AND NOT EXISTS (SELECT 1 FROM shadow_saas_grip_app_users u WHERE u.grip_saas_id = a.grip_id)
+              ORDER BY a.first_event_time DESC
+              LIMIT " . max(1, min($cap, 500)),
+            [':cutoff' => date('Y-m-d H:i:s', time() - $days * 86400)]
+        );
+        $n = 0;
+        foreach ($rows as $r) {
+            try {
+                $this->syncAppUsers((string)$r['grip_id']);
+                $n++;
+            } catch (Throwable $e) {
+                error_log('Grip recent roster fetch failed for ' . $r['grip_id'] . ': ' . $e->getMessage());
+            }
+            if (self::ROSTER_THROTTLE_MS > 0) usleep(self::ROSTER_THROTTLE_MS * 1000);
+        }
+        return $n;
+    }
+
     private function clip(string $s, int $max): string
     {
         return (mb_strlen($s) > $max) ? mb_substr($s, 0, $max) : $s;

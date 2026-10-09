@@ -402,6 +402,7 @@ function ppQuery(array $over = []): string
             <main class="main-content">
                 <nav class="ss-tabs" aria-label="<?php echo e(t('shadow-saas.heading')); ?>">
                     <a href="shadow-saas.php"><?php echo e(t('shadow-saas-posture.tab_applications')); ?></a>
+                    <a href="shadow-saas-new.php"><?php echo e(t('shadow-saas-new.tab_new')); ?></a>
                     <a href="shadow-saas-posture.php" class="active"><?php echo e(t('shadow-saas-posture.tab_posture')); ?></a>
                 </nav>
 
@@ -515,7 +516,7 @@ function ppQuery(array $over = []): string
                             <?php if (!$failedDomains): ?><div class="pp-muted" style="font-size:14px;"><?php echo e(t('shadow-saas-posture.no_failed_domains')); ?></div><?php endif; ?>
                             <?php foreach (array_slice($failedDomains, 0, 5, true) as $dn => $d): ?>
                             <div class="pp-rowstat">
-                                <a href="<?php echo e(ppQuery(['status' => 'Fail', 'domain' => $dn])); ?>"><?php echo e($dn); ?></a>
+                                <a href="<?php echo e(ppQuery(['status' => 'Fail', 'domain' => $dn, 'severity' => '', 'module' => '', 'q' => ''])); ?>" target="_blank" rel="noopener" title="<?php echo e(t('shadow-saas-posture.open_domain_new_tab')); ?>"><?php echo e($dn); ?></a>
                                 <span class="v" title="<?php echo e(t('shadow-saas-posture.failed_of_evaluated')); ?>"><?php echo (int)$d['fail']; ?>/<?php echo (int)($d['fail'] + $d['pass']); ?></span>
                             </div>
                             <?php endforeach; ?>

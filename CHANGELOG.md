@@ -29,6 +29,22 @@ project adheres to [Semantic Versioning](https://semver.org/).
   and onboarded. Grip's sanction tag is stored on `shadow_saas.grip_sanction_tag`
   during every sync, backfilled from the Grip mirror on upgrade, and included
   in the CSV export.
+- **Shadow SaaS > New tab: SaaS discovered in the last N days.** Lists every
+  Grip application first seen within a chosen window (default 30 days; 7 / 30 /
+  90 shortcuts or any 1-365), newest first, with first-seen date and age, user
+  count (linked to the user list), category, AI depth, Grip sanction tag and
+  risk, the app's FairTPRM state (pending, unsanctioned, dismissed, or onboarded
+  with a link to the vendor), how Grip detected it (source platforms) and the
+  Grip discovery alert. Patient zero, the earliest user Grip observed on the
+  app, is shown with their first event and sign-in type, with same-day ties
+  counted. Pending apps can be selected and onboarded from the tab through the
+  existing onboarding path (which also marks them Sanctioned in Grip). In Live
+  data mode the Grip sync now snapshots the user lists of apps discovered in the
+  last 90 days (only those whose numbers changed), and "Refresh from Grip"
+  fetches any that are missing. The day window is computed in the app time zone,
+  which is the zone Grip timestamps are stored in.
+- **Posture: Top Failed Security Domains open in a new tab.** Each domain links
+  to that domain's failed checks in a new browser tab.
 - **Shadow SaaS > Posture tab (Grip SaaS security posture).** When Grip is
   connected, Shadow SaaS gains Applications / Posture tabs. Posture mirrors
   Grip's Posture Management view: the general posture score (Pass / (Pass +
