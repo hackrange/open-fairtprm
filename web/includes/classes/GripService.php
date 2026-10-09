@@ -1784,6 +1784,40 @@ class GripService
      * render; now applied at write so the DB holds 1-5.)
      *   <=0 -> 0, <=20 -> 1, <=40 -> 2, <=60 -> 3, <=80 -> 4, else 5
      */
+    /** Grip AI depth levels that mean the app has AI capability, most to least AI. */
+    public const AI_DEPTH_LEVELS = ['AI-Native App', 'AI Copilot Experience', 'AI Features/Add-on'];
+
+    /**
+     * Grip's AI privacy Q&A (gripData.termsAndConditions.questions, stored as
+     * JSON in shadow_saas_grip_apps.terms_questions) keyed by question text:
+     * ['Trains on customer data' => ['answer' => 'Yes', 'detail' => '...'], ...].
+     */
+    public static function aiPrivacyAnswers(?string $termsJson): array
+    {
+        $out = [];
+        $q = json_decode((string)$termsJson, true);
+        if (!is_array($q)) return $out;
+        foreach ($q as $item) {
+            if (!is_array($item) || empty($item['question'])) continue;
+            $out[(string)$item['question']] = [
+                'answer' => trim((string)($item['answer'] ?? '')),
+                'detail' => trim((string)($item['detailedAnswer'] ?? '')),
+            ];
+        }
+        return $out;
+    }
+
+    /** Normalize a "Trains on customer data" answer to yes / no / optional / unknown. */
+    public static function aiTrainsBucket(?string $answer): string
+    {
+        $a = strtolower(trim((string)$answer));
+        if ($a === '') return 'unknown';
+        if (str_starts_with($a, 'yes')) return 'yes';
+        if (str_starts_with($a, 'no')) return 'no';
+        if (str_starts_with($a, 'optional')) return 'optional';
+        return 'unknown';
+    }
+
     public static function bucketScore($raw): ?int
     {
         if ($raw === null || $raw === '') return null;

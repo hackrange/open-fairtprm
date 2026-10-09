@@ -123,7 +123,7 @@ RUN set -e; \
            $pp/grc-framework-report.php $pp/grc-frameworks.php $pp/grc-gaps.php \
            $pp/grc-monitors.php $pp/grc-policies.php $pp/grc-risks.php \
            $pp/grc-tasks.php $pp/admin.php $pp/index.php $pp/login.php $pp/profile.php \
-           $pp/procurement-contracts.php $pp/procurement-cyber-status.php $pp/shadow-saas.php $pp/shadow-saas-new.php $pp/shadow-saas-posture.php $pp/shadow-saas-itdr.php $pp/shadow-saas-ai-apps.php $pp/shadow-saas-ai-agents.php $pp/grip-saas-users.php \
+           $pp/procurement-contracts.php $pp/procurement-cyber-status.php $pp/shadow-saas.php $pp/shadow-saas-new.php $pp/shadow-saas-posture.php $pp/shadow-saas-itdr.php $pp/shadow-saas-ai-apps.php $pp/shadow-saas-ai-agents.php $pp/shadow-saas-ai-dashboard.php $pp/shadow-saas-compliance.php $pp/grip-saas-users.php \
            $pp/vendor-assessment.php $pp/vendor-assessments.php \
            $pp/vendor-assessment-view.php $pp/vendor-detailed-summary.php \
            $pp/vendor-domains.php $pp/vendor-onboarding-list.php \
@@ -329,6 +329,8 @@ RUN set -e; \
         /var/www/html/shadow-saas-itdr.php \
         /var/www/html/shadow-saas-ai-apps.php \
         /var/www/html/shadow-saas-ai-agents.php \
+        /var/www/html/shadow-saas-ai-dashboard.php \
+        /var/www/html/shadow-saas-compliance.php \
         /var/www/html/includes/partials/shadow-saas-tabs.php \
         /var/www/html/grip-saas-users.php \
         /var/www/html/vendor-assessment.php \

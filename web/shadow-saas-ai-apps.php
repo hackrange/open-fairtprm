@@ -45,16 +45,6 @@ $success = '';
 
 const AI_DEPTH_ORDER = ['AI-Native App' => 0, 'AI Copilot Experience' => 1, 'AI Features/Add-on' => 2];
 
-/** Normalize Grip's "Trains on customer data" answer. */
-function aiTrains(?string $a): string
-{
-    $a = strtolower(trim((string)$a));
-    if ($a === '') return 'unknown';
-    if (str_starts_with($a, 'yes')) return 'yes';
-    if (str_starts_with($a, 'no')) return 'no';
-    if (str_starts_with($a, 'optional')) return 'optional';
-    return 'unknown';
-}
 /** Pill class for a privacy answer where "High"/"Yes" is the risky end. */
 function aiLevelClass(string $q, string $a): string
 {
@@ -90,16 +80,8 @@ if ($gripEnabled) {
               LIMIT 10000"
         );
         foreach ($rows as $r) {
-            $qa = [];
-            $q = json_decode((string)($r['terms_questions'] ?? ''), true);
-            if (is_array($q)) {
-                foreach ($q as $item) {
-                    if (!is_array($item) || empty($item['question'])) continue;
-                    $qa[(string)$item['question']] = ['answer' => trim((string)($item['answer'] ?? '')), 'detail' => trim((string)($item['detailedAnswer'] ?? ''))];
-                }
-            }
-            $r['qa'] = $qa;
-            $r['trains'] = aiTrains($qa['Trains on customer data']['answer'] ?? '');
+            $r['qa'] = GripService::aiPrivacyAnswers($r['terms_questions'] ?? null);
+            $r['trains'] = GripService::aiTrainsBucket($r['qa']['Trains on customer data']['answer'] ?? '');
             $aiApps[] = $r;
         }
     } catch (Throwable $e) {

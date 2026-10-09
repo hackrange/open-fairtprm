@@ -687,7 +687,7 @@ $_isActive = function($page) use ($currentPage) {
     <?php endif; ?>
 
     <?php if ($showFairModule || $showSRSModule): ?>
-    <details class="sidebar-section"<?php echo $_isActive(['fair', 'srs', 'vendor_domains', '4th_party', 'cve_search', 'shadow_saas', 'shadow_saas_new', 'shadow_saas_posture', 'shadow_saas_itdr', 'shadow_saas_ai_apps', 'shadow_saas_ai_agents']) ? ' open' : ''; ?>>
+    <details class="sidebar-section"<?php echo $_isActive(['fair', 'srs', 'vendor_domains', '4th_party', 'cve_search', 'shadow_saas', 'shadow_saas_new', 'shadow_saas_posture', 'shadow_saas_itdr', 'shadow_saas_ai_apps', 'shadow_saas_ai_agents', 'shadow_saas_ai_dashboard', 'shadow_saas_compliance']) ? ' open' : ''; ?>>
         <summary class="sidebar-section-title"><?php echo e(t('nav.section.modules')); ?></summary>
         <ul class="sidebar-nav">
             <?php if ($showFairModule): ?>
@@ -742,8 +742,9 @@ $_isActive = function($page) use ($currentPage) {
                 // With Grip connected, Shadow SaaS becomes a collapsible group of the
                 // Grip-backed views. Native <details>, so no script (CSP-safe).
                 $_gripNav = function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1';
-                $_ssAiPages = ['shadow_saas_ai_apps', 'shadow_saas_ai_agents'];
-                $_ssPages = array_merge(['shadow_saas', 'shadow_saas_new', 'shadow_saas_posture', 'shadow_saas_itdr'], $_ssAiPages);
+                $_ssAiPages = ['shadow_saas_ai_dashboard', 'shadow_saas_ai_apps', 'shadow_saas_ai_agents'];
+                $_ssPosturePages = ['shadow_saas_compliance', 'shadow_saas_posture'];
+                $_ssPages = array_merge(['shadow_saas', 'shadow_saas_new', 'shadow_saas_itdr'], $_ssAiPages, $_ssPosturePages);
             ?>
             <?php if ($_gripNav): ?>
             <li class="sb-group">
@@ -762,15 +763,17 @@ $_isActive = function($page) use ($currentPage) {
                             <details<?php echo $_isActive($_ssAiPages) ? ' open' : ''; ?>>
                                 <summary class="sb-group-head"><span><?php echo e(t('nav.ss_ai_security')); ?></span></summary>
                                 <ul class="sidebar-nav sb-sub">
+                                    <li><a href="shadow-saas-ai-dashboard.php"<?php echo $_isActive('shadow_saas_ai_dashboard') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_ai_dashboard')); ?></span></a></li>
                                     <li><a href="shadow-saas-ai-apps.php"<?php echo $_isActive('shadow_saas_ai_apps') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_ai_apps')); ?></span></a></li>
                                     <li><a href="shadow-saas-ai-agents.php"<?php echo $_isActive('shadow_saas_ai_agents') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_ai_agents')); ?></span></a></li>
                                 </ul>
                             </details>
                         </li>
                         <li class="sb-group">
-                            <details<?php echo $_isActive('shadow_saas_posture') ? ' open' : ''; ?>>
+                            <details<?php echo $_isActive($_ssPosturePages) ? ' open' : ''; ?>>
                                 <summary class="sb-group-head"><span><?php echo e(t('nav.ss_posture')); ?></span></summary>
                                 <ul class="sidebar-nav sb-sub">
+                                    <li><a href="shadow-saas-compliance.php"<?php echo $_isActive('shadow_saas_compliance') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_compliance_posture')); ?></span></a></li>
                                     <li><a href="shadow-saas-posture.php"<?php echo $_isActive('shadow_saas_posture') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_posture_management')); ?></span></a></li>
                                 </ul>
                             </details>

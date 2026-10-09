@@ -29,6 +29,29 @@ project adheres to [Semantic Versioning](https://semver.org/).
   and onboarded. Grip's sanction tag is stored on `shadow_saas.grip_sanction_tag`
   during every sync, backfilled from the Grip mirror on upgrade, and included
   in the CSV export.
+- **Shadow SaaS > Posture > Compliance Posture, with Add to Risk Register.**
+  Grip's posture checks rolled up by the compliance frameworks they map to
+  (NIST CSF 1.1 / 2.0, NIST 800-53, ISO 27001:2022, SOC 2, CIS v8, HITRUST,
+  CMMC, GDPR, HIPAA, PCI, SOX and more). Each framework card shows the share of
+  evaluated controls passing and counts of failing, passing and not-evaluated
+  controls; a control fails when any mapped check fails. Opening a framework
+  lists its controls, failing first, with the checks behind each and links into
+  Posture Management. Failing controls have an "Add to Risk Register" button
+  (administrators and Cyber GRC only, re-checked on the server along with the
+  control still failing) that creates a compliance risk: likelihood and impact
+  from the worst failing check's severity, description and treatment plan from
+  the checks' risk text and fix steps, and links to any internal controls
+  mapped to the matching FairTPRM framework requirement. A control that
+  already has an open risk shows its RSK link instead of the button.
+- **Shadow SaaS > AI Security > AI Dashboard.** A one-page AI risk summary:
+  AI apps (total, by AI depth, training on customer data, not onboarded, total
+  users), AI agents (total, awaiting review, high risk, internet-connected,
+  by sanction state), the most used and most recently discovered AI apps, and
+  recent "New Unmanaged AI App" alerts, each linking to the filtered view.
+- **Grouped Shadow SaaS tabs.** The tab strip is now Applications | New | AI
+  Security | Posture | ITDR, with a second row for the pages inside AI Security
+  (Dashboard, Applications, Agents) and Posture (Compliance Posture, Posture
+  Management), matching the sidebar.
 - **Shadow SaaS > AI Security: AI Applications and AI Agents.** A new AI
   Security group in the Shadow SaaS navigation. AI Applications lists every
   Grip app with AI capability (AI-Native, AI Copilot Experience, AI
