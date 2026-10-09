@@ -29,6 +29,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
   and onboarded. Grip's sanction tag is stored on `shadow_saas.grip_sanction_tag`
   during every sync, backfilled from the Grip mirror on upgrade, and included
   in the CSV export.
+- **Apps unsanctioned in Grip show as Unsanctioned in Shadow SaaS.** A pending
+  app that Grip tags unsanctioned now counts under the Unsanctioned tile and
+  filter (not Pending), reads "Unsanctioned in Grip" in the status column, and
+  carries a red "Grip: Unsanctioned" badge. It is derived from Grip's tag
+  rather than stored, so it follows Grip if the tag changes; a dismissed app
+  stays dismissed. These rows get an "Unsanction here" button that marks the
+  app unsanctioned in FairTPRM and, when Zscaler is configured, adds the domain
+  to the URL Category, plus Allow to onboard instead.
 - **Breach alerts are now checked against their own evidence before anyone is
   told about them.** AI breach research was producing mis-attributed alerts, and
   the old guard - "at least two credible source URLs" - counted URLs without

@@ -579,8 +579,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
 
     } elseif (isset($_POST['action']) && $_POST['action'] === 'deny_zscaler' && !empty($_POST['deny_id'])) {
         // Deny: always flips the shadow_saas row to status='unsanctioned' (the
-        // local equivalent of Grip's Unsanctioned sanctionTag — Grip has no
-        // write endpoint to push this back, so we just keep our own copy).
+        // local equivalent of Grip's Unsanctioned sanctionTag). Also offered on
+        // rows Grip already tags unsanctioned, so the block can be enforced here.
         // When Zscaler is configured, also push the domain into the URL Category
         // and stamp is_zscaler_blocked = 1 so the Allow button renders.
         $denyId = intval($_POST['deny_id']);
@@ -961,15 +961,22 @@ $csrfToken = $security->generateCSRFToken();
 // Stats
 $stats = ['pending' => 0, 'dismissed' => 0, 'unsanctioned' => 0, 'total' => 0, 'grip_sanctioned' => 0];
 $gripEnabled = (function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1');
+// An app Grip has tagged unsanctioned counts as Unsanctioned here too, unless an
+// admin has dismissed it (an explicit local decision). Derived, not stored, so it
+// always follows Grip: the row's own status stays 'pending' and flips back on its
+// own if Grip later changes the tag. A local Deny still sets status='unsanctioned'.
+$gripUnsanctionedSql = $gripEnabled
+    ? "(s.status = 'pending' AND COALESCE(s.grip_sanction_tag, '') = 'unsanctioned')"
+    : '0';
 if ($tableExists) {
     try {
         $statsRow = $db->fetchOne("
             SELECT
                 COUNT(*) AS total,
-                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
-                SUM(CASE WHEN status = 'dismissed' THEN 1 ELSE 0 END) AS dismissed,
-                SUM(CASE WHEN status = 'unsanctioned' THEN 1 ELSE 0 END) AS unsanctioned
-            FROM shadow_saas
+                SUM(CASE WHEN s.status = 'pending' AND NOT {$gripUnsanctionedSql} THEN 1 ELSE 0 END) AS pending,
+                SUM(CASE WHEN s.status = 'dismissed' THEN 1 ELSE 0 END) AS dismissed,
+                SUM(CASE WHEN s.status = 'unsanctioned' OR {$gripUnsanctionedSql} THEN 1 ELSE 0 END) AS unsanctioned
+            FROM shadow_saas s
         ");
         $stats = [
             'total' => (int)($statsRow['total'] ?? 0),
@@ -1057,9 +1064,12 @@ $currentPageNum = $pgParams['page'];
 // Build query
 $whereConditions = [];
 $params = [];
-if (!empty($statusFilter) && in_array($statusFilter, ['pending', 'dismissed', 'unsanctioned'])) {
-    $whereConditions[] = "s.status = :status";
-    $params[':status'] = $statusFilter;
+if ($statusFilter === 'pending') {
+    $whereConditions[] = "s.status = 'pending' AND NOT {$gripUnsanctionedSql}";
+} elseif ($statusFilter === 'unsanctioned') {
+    $whereConditions[] = "(s.status = 'unsanctioned' OR {$gripUnsanctionedSql})";
+} elseif ($statusFilter === 'dismissed') {
+    $whereConditions[] = "s.status = 'dismissed'";
 }
 if (!empty($searchQuery)) {
     $whereConditions[] = "(s.vendor_name LIKE :search OR s.vendor_domain LIKE :search2 OR s.relationship_manager LIKE :search3)";
@@ -1300,6 +1310,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         .status-pending { background: #fef3c7; color: #92400e; }
         .status-dismissed { background: #f3f4f6; color: #6b7280; }
         .status-unsanctioned { background: #fee2e2; color: #991b1b; }
+        .grip-unsanctioned-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #fee2e2; color: #991b1b; vertical-align: middle; white-space: nowrap; }
         .grip-sanctioned-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #dcfce7; color: #166534; vertical-align: middle; white-space: nowrap; }
         .score-grade { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; font-size: 11px; margin-left: 3px; }
         .grade-a { background: #dcfce7; color: #166534; }
@@ -1635,6 +1646,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             $avgScore = computeAvgScore($entry, $shodanColumnsExist, $upguardMaxScore);
                             $avgGrade = calculateAvgGrade($avgScore, $shodanScoringConfig);
                             $isScoring = !empty($entry['rescore_status']) && $entry['rescore_status'] === 'rescoring';
+                            // Unsanctioned in Grip shows (and acts) as Unsanctioned here.
+                            $gripUnsanctioned = $gripEnabled && $entry['status'] === 'pending'
+                                && ($entry['grip_sanction_tag'] ?? '') === 'unsanctioned';
+                            $effStatus = $gripUnsanctioned ? 'unsanctioned' : $entry['status'];
                         ?>
                         <!-- Summary row -->
                         <tr>
@@ -1649,6 +1664,8 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <?php echo e($entry['vendor_name']); ?>
                                 <?php if ($gripEnabled && ($entry['grip_sanction_tag'] ?? '') === 'sanctioned'): ?>
                                 <span class="grip-sanctioned-badge" title="<?php echo e(t('shadow-saas.grip_sanctioned_badge_title')); ?>"><?php echo e(t('shadow-saas.grip_sanctioned_badge')); ?></span>
+                                <?php elseif ($gripEnabled && ($entry['grip_sanction_tag'] ?? '') === 'unsanctioned'): ?>
+                                <span class="grip-unsanctioned-badge" title="<?php echo e(t('shadow-saas.grip_unsanctioned_title')); ?>"><?php echo e(t('shadow-saas.grip_unsanctioned_badge')); ?></span>
                                 <?php endif; ?>
                             </td>
                             <td style="font-size: 12px; color: #6b7280;">
@@ -1716,8 +1733,8 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <span class="status-badge status-<?php echo e($entry['status']); ?>">
-                                    <?php echo e(ucfirst($entry['status'])); ?>
+                                <span class="status-badge status-<?php echo e($effStatus); ?>"<?php if ($gripUnsanctioned): ?> title="<?php echo e(t('shadow-saas.grip_unsanctioned_title')); ?>"<?php endif; ?>>
+                                    <?php echo e($gripUnsanctioned ? t('shadow-saas.status_grip_unsanctioned') : ucfirst($effStatus)); ?>
                                 </span>
                             </td>
                             <td style="white-space: nowrap;">
@@ -1743,7 +1760,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <?php if (!empty($entry['is_zscaler_blocked'])): ?>
                                 <button type="button" class="btn-sm allow-btn" style="padding: 4px 8px; font-size: 11px; background: #15803d; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="<?php echo e(t('shadow-saas.allow_title_blocked')); ?>"><?php echo e(t('shadow-saas.allow')); ?></button>
                                 <?php else: ?>
-                                <button type="button" class="btn-sm deny-btn" style="padding: 4px 8px; font-size: 11px; background: #b91c1c; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="<?php echo e(t('shadow-saas.deny_title')); ?>"><?php echo e(t('shadow-saas.deny')); ?></button>
+                                <?php if ($gripUnsanctioned): ?>
+                                <button type="button" class="btn-sm allow-btn" style="padding: 4px 8px; font-size: 11px; background: #15803d; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="<?php echo e(t('shadow-saas.allow_title_unsanctioned')); ?>"><?php echo e(t('shadow-saas.allow')); ?></button>
+                                <?php endif; ?>
+                                <button type="button" class="btn-sm deny-btn" style="padding: 4px 8px; font-size: 11px; background: #b91c1c; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="<?php echo e(t($gripUnsanctioned ? 'shadow-saas.unsanction_here_title' : 'shadow-saas.deny_title')); ?>"><?php echo e(t($gripUnsanctioned ? 'shadow-saas.unsanction_here' : 'shadow-saas.deny')); ?></button>
                                 <?php endif; ?>
                                 <button type="button" class="btn-sm btn-danger dismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>"><?php echo e(t('shadow-saas.dismiss')); ?></button>
                                 <?php elseif ($entry['status'] === 'unsanctioned'): ?>
