@@ -5817,6 +5817,34 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_threats` (
   KEY `idx_created_at_grip` (`created_at_grip`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Grip AI agents (GET /public/ai-agents), mirrored on every sync for Shadow
+-- SaaS > AI Security > AI Agents. The owner email, the knowledge-file names and
+-- the identity permissions (recipient emails) are encrypted at rest.
+CREATE TABLE IF NOT EXISTS `shadow_saas_grip_ai_agents` (
+  `grip_id` varchar(64) NOT NULL,
+  `api_id` varchar(255) DEFAULT NULL,
+  `name` varchar(500) DEFAULT NULL,
+  `site_url` varchar(2048) DEFAULT NULL,
+  `owner_email` text DEFAULT NULL COMMENT 'Encrypted',
+  `owner_id` varchar(64) DEFAULT NULL,
+  `creation_date` datetime DEFAULT NULL,
+  `last_seen` datetime DEFAULT NULL,
+  `last_usage` datetime DEFAULT NULL,
+  `score` int(11) DEFAULT NULL,
+  `sanction_state` varchar(50) DEFAULT NULL,
+  `sharing_attributes` varchar(255) DEFAULT NULL,
+  `connected_to_internet` tinyint(1) DEFAULT NULL,
+  `knowledge_files_count` int(10) unsigned DEFAULT NULL,
+  `knowledge_files` longtext DEFAULT NULL COMMENT 'Encrypted JSON',
+  `identities_permissions` longtext DEFAULT NULL COMMENT 'Encrypted JSON',
+  `saas_scopes` longtext DEFAULT NULL COMMENT 'JSON',
+  `first_seen_at` timestamp NULL DEFAULT current_timestamp(),
+  `last_synced_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`grip_id`),
+  KEY `idx_sanction_state` (`sanction_state`),
+  KEY `idx_score` (`score`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `shadow_saas_grip_sync_log` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `started_at` datetime NOT NULL DEFAULT current_timestamp(),

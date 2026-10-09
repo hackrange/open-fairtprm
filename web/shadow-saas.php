@@ -1390,12 +1390,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
 
             <main class="main-content">
         <?php if ($gripEnabled): ?>
-        <nav class="ss-tabs" aria-label="<?php echo e(t('shadow-saas.heading')); ?>">
-            <a href="shadow-saas.php" class="active"><?php echo e(t('shadow-saas-posture.tab_applications')); ?></a>
-            <a href="shadow-saas-new.php"><?php echo e(t('shadow-saas-new.tab_new')); ?></a>
-            <a href="shadow-saas-posture.php"><?php echo e(t('shadow-saas-posture.tab_posture')); ?></a>
-            <a href="shadow-saas-itdr.php"><?php echo e(t('shadow-saas-itdr.tab_itdr')); ?></a>
-        </nav>
+        <?php $ssTab = 'applications'; include __DIR__ . '/includes/partials/shadow-saas-tabs.php'; ?>
         <?php endif; ?>
         <?php if (!$tableExists): ?>
         <div class="alert alert-warning">

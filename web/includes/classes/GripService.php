@@ -69,6 +69,8 @@ class GripService
         'shadow_saas_grip_posture_checks' => ['report_details'],
         // ITDR threats: who, and the IPs / countries / events that tripped it.
         'shadow_saas_grip_threats' => ['related_entity_name', 'related_identity_mail', 'unique_fields_data', 'event_logs'],
+        // AI agents: the owner, the file names it was given, and who it is shared with.
+        'shadow_saas_grip_ai_agents' => ['owner_email', 'knowledge_files', 'identities_permissions'],
     ];
 
     /** Shared Encryption instance (key comes from config.php, same as everywhere else). */
@@ -426,6 +428,8 @@ class GripService
             try { $this->syncPostureChecks(); } catch (Throwable $e) { error_log('Grip posture-checks sync failed: ' . $e->getMessage()); }
             // Identity threats for the Shadow SaaS > ITDR page. One request.
             try { $this->syncThreats(); } catch (Throwable $e) { error_log('Grip threats sync failed: ' . $e->getMessage()); }
+            // AI agents for Shadow SaaS > AI Security. One request.
+            try { $this->syncAiAgents(); } catch (Throwable $e) { error_log('Grip AI agents sync failed: ' . $e->getMessage()); }
 
             // Tombstone cleanup: any row in a mirror table whose last_synced_at
             // pre-dates this run is no longer present in Grip. Skip cleanup
@@ -875,6 +879,64 @@ class GripService
             } else {
                 // A successful, empty response means Grip has no threats now.
                 $this->db->query('DELETE FROM shadow_saas_grip_threats');
+            }
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+        return count($rows);
+    }
+
+    /**
+     * Mirror Grip's AI agents (GET /public/ai-agents; served by tenants although
+     * absent from Grip's published spec) into shadow_saas_grip_ai_agents.
+     * Replaced as a whole inside a transaction; a failed fetch throws and keeps
+     * the existing rows. Owner, knowledge files and permissions are encrypted.
+     * @return int agents stored
+     */
+    public function syncAiAgents(): int
+    {
+        $agents = $this->fetchAll('/public/ai-agents', 'Grip AI agents fetch');
+        $txt = fn($v) => ($v === null || $v === '') ? null : html_entity_decode((string)$v, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $rows = [];
+        foreach ($agents as $a) {
+            $id = (string)($a['id'] ?? '');
+            if ($id === '' || strlen($id) > 64) continue;
+            $files = is_array($a['knowledgeFiles'] ?? null) ? $a['knowledgeFiles'] : [];
+            $site = (string)($a['siteUrl'] ?? '');
+            $rows[$id] = [
+                'grip_id'                => $id,
+                'api_id'                 => $this->clip((string)($a['aiAgentApiId'] ?? ''), 255) ?: null,
+                'name'                   => $this->clip((string)$txt($a['name'] ?? ''), 500) ?: null,
+                'site_url'               => preg_match('#^https?://#i', $site) ? $this->clip($site, 2048) : null,
+                'owner_email'            => $a['ownerEmail'] ?? null,
+                'owner_id'               => $this->clip((string)($a['ownerId'] ?? ''), 64) ?: null,
+                'creation_date'          => $this->parseDate($a['creationDate'] ?? null),
+                'last_seen'              => $this->parseDate($a['lastSeen'] ?? null),
+                'last_usage'             => $this->parseDate($a['lastUsage'] ?? null),
+                'score'                  => isset($a['score']) && is_numeric($a['score']) ? (int)$a['score'] : null,
+                'sanction_state'         => $this->clip((string)($a['sanctionState'] ?? ''), 50) ?: null,
+                'sharing_attributes'     => $this->clip((string)$txt($a['sharingAttributes'] ?? ''), 255) ?: null,
+                'connected_to_internet'  => isset($a['isConnectedToInternet']) ? (int)(bool)$a['isConnectedToInternet'] : null,
+                'knowledge_files_count'  => count($files),
+                'knowledge_files'        => $files ? json_encode($files) : null,
+                'identities_permissions' => !empty($a['identitiesPermissions']) ? json_encode($a['identitiesPermissions']) : null,
+                'saas_scopes'            => json_encode(is_array($a['saasScopes'] ?? null) ? $a['saasScopes'] : []),
+            ];
+        }
+        $this->db->beginTransaction();
+        try {
+            foreach ($rows as $row) {
+                $this->upsert('shadow_saas_grip_ai_agents', $this->encryptRow('shadow_saas_grip_ai_agents', $row), 'grip_id');
+            }
+            if ($rows) {
+                $ph = [];
+                $params = [];
+                foreach (array_keys($rows) as $i => $u) { $ph[] = ":g{$i}"; $params[":g{$i}"] = $u; }
+                $this->db->query('DELETE FROM shadow_saas_grip_ai_agents WHERE grip_id NOT IN (' . implode(',', $ph) . ')', $params);
+            } else {
+                $this->db->query('DELETE FROM shadow_saas_grip_ai_agents');
             }
             $this->db->commit();
         } catch (Throwable $e) {

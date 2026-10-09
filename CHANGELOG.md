@@ -29,6 +29,25 @@ project adheres to [Semantic Versioning](https://semver.org/).
   and onboarded. Grip's sanction tag is stored on `shadow_saas.grip_sanction_tag`
   during every sync, backfilled from the Grip mirror on upgrade, and included
   in the CSV export.
+- **Shadow SaaS > AI Security: AI Applications and AI Agents.** A new AI
+  Security group in the Shadow SaaS navigation. AI Applications lists every
+  Grip app with AI capability (AI-Native, AI Copilot Experience, AI
+  Features/Add-on) with its AI privacy profile from Grip's terms analysis:
+  trains on customer data, data retention, third-party sharing, storage
+  location and encryption, plus users, Grip sanction and FairTPRM state.
+  Headline tiles count apps by AI depth, apps that train on customer data, and
+  AI apps not onboarded; filters cover AI depth, training, sanction and
+  FairTPRM state, with paging and sortable columns. Expanding an app shows the
+  full privacy Q&A, policy links (https only) and certifications. AI Agents
+  lists the agents Grip discovered with owner, risk score, sanction state,
+  internet access, sharing, knowledge files, who they are shared with and the
+  SaaS scopes they hold. Agents are mirrored from `GET /public/ai-agents` (served
+  by tenants though absent from Grip's published spec) into the new
+  `shadow_saas_grip_ai_agents` table on every sync or with "Refresh from
+  Grip"; owner emails, file names and recipients are encrypted at rest.
+- **Shared Shadow SaaS tab strip.** The section tabs (Applications, New, AI
+  Apps, AI Agents, Posture, ITDR) now come from one partial,
+  `includes/partials/shadow-saas-tabs.php`, instead of a copy in each page.
 - **Shadow SaaS > Identity Threat Detection & Response (ITDR).** A new page
   mirrors Grip's ITDR view: active threats by severity and by status, the top
   exposed identities (threat count, worst severity, and total SaaS accounts

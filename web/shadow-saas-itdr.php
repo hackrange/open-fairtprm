@@ -310,12 +310,7 @@ function tdQuery(array $over = []): string
             <?php $currentPage = 'shadow_saas_itdr'; include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
             <main class="main-content">
-                <nav class="ss-tabs" aria-label="<?php echo e(t('shadow-saas.heading')); ?>">
-                    <a href="shadow-saas.php"><?php echo e(t('shadow-saas-posture.tab_applications')); ?></a>
-                    <a href="shadow-saas-new.php"><?php echo e(t('shadow-saas-new.tab_new')); ?></a>
-                    <a href="shadow-saas-posture.php"><?php echo e(t('shadow-saas-posture.tab_posture')); ?></a>
-                    <a href="shadow-saas-itdr.php" class="active"><?php echo e(t('shadow-saas-itdr.tab_itdr')); ?></a>
-                </nav>
+                <?php $ssTab = 'itdr'; include __DIR__ . '/includes/partials/shadow-saas-tabs.php'; ?>
                 <?php if ($error): ?><div class="alert alert-danger"><?php echo e($error); ?></div><?php endif; ?>
                 <?php if ($success): ?><div class="alert alert-success"><?php echo e($success); ?></div><?php endif; ?>
 
