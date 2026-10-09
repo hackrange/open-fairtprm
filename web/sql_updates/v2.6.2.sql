@@ -5942,6 +5942,23 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
+-- shadow_saas.grip_sanction_tag - Grip's sanction tag for the app (sanctioned,
+-- unsanctioned, tolerated, under review, new, untagged). Drives the "Sanctioned
+-- in Grip, not in TPRM" view on shadow-saas.php: an app the business already
+-- sanctioned in Grip but that was never onboarded is a TPRM visibility gap.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_sanction_tag') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `grip_sanction_tag` VARCHAR(20) DEFAULT NULL COMMENT ''Grip sanction tag (sanctioned/unsanctioned/tolerated/under review/new/untagged)''',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+-- Backfill from the Grip mirror so the view works before the next sync.
+UPDATE `shadow_saas` s
+  JOIN `shadow_saas_grip_apps` a ON a.`grip_id` = s.`grip_id`
+   SET s.`grip_sanction_tag` = LEFT(LOWER(a.`sanction_tag`), 20)
+ WHERE s.`grip_sanction_tag` IS NULL AND a.`sanction_tag` IS NOT NULL AND a.`sanction_tag` != '';
+
 -- vendor_onboarding_requests.security_scorecard_rating - same Grip SSC letter
 -- grade for ONBOARDED vendors (matched by domain during sync), shown as the
 -- sortable "SSC" column on vendor-srs-list.php.

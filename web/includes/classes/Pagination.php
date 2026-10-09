@@ -178,7 +178,7 @@ class Pagination
                      'year', 'type', 'severity', 'risk_level',
                      'api_tab', 'edit_token', 'new',
                      'manage_scopes', 'detail_uri', 'detail_method', 'ip',
-                     'tier', 'grade', 'needs_rescore', 'show_shadow_saas'];
+                     'tier', 'grade', 'needs_rescore', 'show_shadow_saas', 'grip_sanction'];
         return array_intersect_key($_GET, array_flip($allowed));
     }
 

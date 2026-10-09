@@ -146,8 +146,10 @@ class GripService
      * Call a Grip endpoint. $path is appended to base URL - pass '' for the
      * SaaS list endpoint, or '/users', '/alerts', '/{id}' as relative paths
      * (rooted at /public for /public/users and /public/alerts).
+     * $method is GET or POST; Grip's write endpoints take their arguments as
+     * query parameters with an empty body.
      */
-    private function request(string $relativeUrl, array $query = []): array
+    private function request(string $relativeUrl, array $query = [], string $method = 'GET'): array
     {
         if (!$this->isConfigured()) {
             return ['success' => false, 'http_code' => 0, 'error' => 'Grip is not configured', 'data' => null];
@@ -180,6 +182,10 @@ class GripService
                     return strlen($header);
                 },
             ]);
+            if ($method === 'POST') {
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, '');
+            }
             $body  = curl_exec($ch);
             $errno = curl_errno($ch);
             $err   = curl_error($ch);
@@ -213,8 +219,9 @@ class GripService
                     'timed_out' => $timedOut, 'attempts' => $attempt + 1,
                 ];
             }
-            $decoded = json_decode($body, true);
-            $jsonOk = (json_last_error() === JSON_ERROR_NONE);
+            // A write endpoint can answer 200 with an empty body.
+            $decoded = trim((string)$body) === '' ? null : json_decode($body, true);
+            $jsonOk = trim((string)$body) === '' || (json_last_error() === JSON_ERROR_NONE);
 
             return [
                 'success'   => ($code >= 200 && $code < 300 && $jsonOk),
@@ -808,6 +815,10 @@ class GripService
                 // numeric SSC score, only this grade.
                 'security_scorecard_rating' => (isset($g['securityScorecardRating']) && is_string($g['securityScorecardRating']) && $g['securityScorecardRating'] !== '')
                     ? strtoupper(substr(trim($g['securityScorecardRating']), 0, 1)) : null,
+                // Grip's own sanction decision, kept as a column (not only inside
+                // risk_type) so "sanctioned in Grip, not in TPRM" can be filtered.
+                'grip_sanction_tag'    => (isset($g['sanctionTag']) && is_string($g['sanctionTag']) && trim($g['sanctionTag']) !== '')
+                    ? $this->clip(strtolower(trim($g['sanctionTag'])), 20) : null,
                 'grip_id'              => $gripId,
                 'source'               => 'grip',
             ];
@@ -1246,6 +1257,52 @@ class GripService
      * resolve an app's display name/domain when it's absent from local tables
      * (e.g. an onboarded vendor's app, excluded from the Shadow SaaS mirror).
      */
+    /** Grip SanctionState (write) => SanctionTag (as read back on gripData.sanctionTag). */
+    private const SANCTION_STATES = [
+        'Sanctioned'    => 'sanctioned',
+        'NotSanctioned' => 'unsanctioned',
+        'Tolerated'     => 'tolerated',
+        'UnderReview'   => 'under review',
+        'New'           => 'new',
+    ];
+
+    /**
+     * Set an app's sanction state in Grip
+     * (POST /public/saas/{id}/sanction_status?new_sanction_state=...).
+     * On success the local mirror row is updated to match, so the change shows
+     * before the next sync. Returns ['success' => bool, 'error' => string].
+     */
+    public function setSanctionState(string $gripId, string $state, string $comment = ''): array
+    {
+        $gripId = trim($gripId);
+        if (!$this->isEnabled()) {
+            return ['success' => false, 'error' => 'Grip integration is not enabled'];
+        }
+        if (!isset(self::SANCTION_STATES[$state])) {
+            return ['success' => false, 'error' => 'Unknown sanction state'];
+        }
+        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $gripId)) {
+            return ['success' => false, 'error' => 'Invalid Grip app id'];
+        }
+        $query = ['new_sanction_state' => $state];
+        $comment = trim($comment);
+        if ($comment !== '') $query['comment'] = $this->clip($comment, 500);
+
+        $res = $this->request('/' . rawurlencode($gripId) . '/sanction_status', $query, 'POST');
+        if (empty($res['success'])) {
+            $why = $res['error'] ?: ('HTTP ' . $res['http_code']);
+            error_log("Grip sanction update failed for {$gripId}: {$why}");
+            return ['success' => false, 'error' => $why];
+        }
+        try {
+            $this->db->update('shadow_saas_grip_apps', ['sanction_tag' => self::SANCTION_STATES[$state]], 'grip_id = :gid', [':gid' => $gripId]);
+            $this->db->update('shadow_saas', ['grip_sanction_tag' => self::SANCTION_STATES[$state]], 'grip_id = :gid', [':gid' => $gripId]);
+        } catch (Throwable $e) {
+            error_log('Grip sanction mirror update failed for ' . $gripId . ': ' . $e->getMessage());
+        }
+        return ['success' => true, 'error' => ''];
+    }
+
     public function getAppDetail(string $gripId): ?array
     {
         $gripId = trim($gripId);

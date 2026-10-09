@@ -90,7 +90,7 @@ RUN set -e; \
            $pp/VendorAssessmentService.php $pp/AssessmentTranslationService.php \
            $pp/CyberTodoService.php \
            $pp/GripService.php $pp/HeroService.php \
-           $pp/ZscalerService.php $pp/SAMLHandler.php \
+           $pp/ZscalerService.php $pp/SAMLHandler.php $pp/Pagination.php \
            $pp/FaviconService.php $pp/ContinuousMonitor.php $pp/VirusScanService.php \
            $pp/BackupService.php $pp/APIService.php $pp/PolicyService.php \
            /var/www/html/includes/classes/; \
@@ -244,6 +244,7 @@ RUN set -e; \
         /var/www/html/includes/classes/GripService.php \
         /var/www/html/includes/classes/HeroService.php \
         /var/www/html/includes/classes/ZscalerService.php \
+        /var/www/html/includes/classes/Pagination.php \
         /var/www/html/includes/classes/SAMLHandler.php \
         /var/www/html/includes/classes/FaviconService.php \
         /var/www/html/includes/classes/ContinuousMonitor.php \

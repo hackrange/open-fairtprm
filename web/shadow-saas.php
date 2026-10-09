@@ -192,6 +192,41 @@ function onboardShadowSaasRow($db, array $entry, int $userId): int
     return (int)$vendorId;
 }
 
+/**
+ * After a Grip-sourced row is onboarded, mark the app Sanctioned in Grip so the
+ * two systems agree. Best effort: the vendor is already onboarded, so a Grip
+ * failure is reported and audited, never rolled back. Returns null when there
+ * is nothing to do (not a Grip row, Grip off, already sanctioned), true on
+ * success, or the error string.
+ */
+function sanctionOnboardedInGrip(array $entry, int $vendorId, array $user, $auth)
+{
+    static $grip = null;
+    if (($entry['source'] ?? '') !== 'grip' || empty($entry['grip_id'])) return null;
+    if (($entry['grip_sanction_tag'] ?? '') === 'sanctioned') return null;
+    if ($grip === null) {
+        require_once __DIR__ . '/includes/classes/GripService.php';
+        $grip = new GripService();
+    }
+    if (!$grip->isEnabled()) return null;
+
+    $who = trim((string)($user['full_name'] ?? '')) ?: (string)($user['username'] ?? ('user #' . (int)$user['id']));
+    $res = $grip->setSanctionState(
+        (string)$entry['grip_id'],
+        'Sanctioned',
+        'Onboarded to FairTPRM as vendor #' . $vendorId . ' by ' . $who
+    );
+    $auth->audit($user['id'], 'shadow_saas_grip_sanction', 'vendor_onboarding_requests', $vendorId, [
+        'new' => [
+            'grip_id' => (string)$entry['grip_id'],
+            'state'   => 'Sanctioned',
+            'success' => $res['success'],
+            'error'   => $res['error'],
+        ],
+    ]);
+    return $res['success'] ? true : $res['error'];
+}
+
 // Ensure shadow_saas table exists (auto-create if missing)
 $tableExists = true;
 try {
@@ -483,6 +518,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
         $selectedIds = array_map('intval', (array)$_POST['selected']);
         $onboarded = 0;
         $failedOnboard = 0;
+        $gripSanctioned = 0;
+        $gripFailed = [];
 
         foreach ($selectedIds as $sid) {
             $entry = $db->fetchOne(
@@ -497,6 +534,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
                     'new' => ['vendor_onboarding_id' => $vendorId, 'vendor_name' => $entry['vendor_name']]
                 ]);
                 $onboarded++;
+                $gs = sanctionOnboardedInGrip($entry, $vendorId, $user, $auth);
+                if ($gs === true) {
+                    $gripSanctioned++;
+                } elseif (is_string($gs)) {
+                    $gripFailed[] = $entry['vendor_name'];
+                }
             } catch (Exception $e) {
                 error_log("Shadow SaaS onboard #{$sid}: " . $e->getMessage());
                 $failedOnboard++;
@@ -505,9 +548,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
 
         if ($onboarded > 0) {
             $success = "{$onboarded} vendor(s) onboarded successfully. Background scoring will begin shortly.";
+            if ($gripSanctioned > 0) {
+                $success .= ' ' . t('shadow-saas.grip_sanctioned_count', $gripSanctioned);
+            }
         }
+        $errors = [];
         if ($failedOnboard > 0) {
-            $error = "{$failedOnboard} vendor(s) failed to onboard.";
+            $errors[] = "{$failedOnboard} vendor(s) failed to onboard.";
+        }
+        if ($gripFailed) {
+            $errors[] = t('shadow-saas.grip_sanction_failed', implode(', ', $gripFailed));
+        }
+        if ($errors) {
+            $error = implode(' ', $errors);
         }
 
     } elseif (isset($_POST['action']) && $_POST['action'] === 'dismiss' && !empty($_POST['dismiss_id'])) {
@@ -628,6 +681,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
                     'via' => 'allow',
                 ]);
                 $success = t('shadow-saas.vendor_onboarded');
+                $gs = sanctionOnboardedInGrip($entry, $vendorId, $user, $auth);
+                if ($gs === true) {
+                    $success .= ' ' . t('shadow-saas.grip_sanctioned_count', 1);
+                } elseif (is_string($gs)) {
+                    $error = t('shadow-saas.grip_sanction_failed', $entry['vendor_name']);
+                }
 
                 if ($wasBlocked && $vendorDomain !== '') {
                     require_once __DIR__ . '/includes/classes/ZscalerService.php';
@@ -900,7 +959,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
 $csrfToken = $security->generateCSRFToken();
 
 // Stats
-$stats = ['pending' => 0, 'dismissed' => 0, 'unsanctioned' => 0, 'total' => 0];
+$stats = ['pending' => 0, 'dismissed' => 0, 'unsanctioned' => 0, 'total' => 0, 'grip_sanctioned' => 0];
+$gripEnabled = (function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1');
 if ($tableExists) {
     try {
         $statsRow = $db->fetchOne("
@@ -916,8 +976,26 @@ if ($tableExists) {
             'pending' => (int)($statsRow['pending'] ?? 0),
             'dismissed' => (int)($statsRow['dismissed'] ?? 0),
             'unsanctioned' => (int)($statsRow['unsanctioned'] ?? 0),
+            'grip_sanctioned' => 0,
         ];
     } catch (Exception $e) {}
+    // Sanctioned in Grip but never onboarded: a TPRM visibility gap. Same
+    // "not an active vendor" rule as the list below so the tile matches it.
+    if ($gripEnabled) {
+        try {
+            $gsRow = $db->fetchOne("
+                SELECT COUNT(*) AS cnt FROM shadow_saas s
+                WHERE s.grip_sanction_tag = 'sanctioned'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM vendor_onboarding_requests v
+                    WHERE v.vendor_domain = s.vendor_domain
+                      AND v.vendor_domain IS NOT NULL AND v.vendor_domain != ''
+                      AND v.status != 'inactive'
+                  )
+            ");
+            $stats['grip_sanctioned'] = (int)($gsRow['cnt'] ?? 0);
+        } catch (Exception $e) {}
+    }
 }
 
 // Filter
@@ -945,6 +1023,10 @@ if ($tableExists) {
 }
 if ($riskTypeFilter !== '' && !in_array($riskTypeFilter, $allRiskTypes)) $riskTypeFilter = '';
 $mfaFilter = isset($_GET['mfa']) ? trim($_GET['mfa']) : '';
+// Grip sanction tag filter (values are Grip's SanctionTag enum).
+$gripSanctionOptions = ['sanctioned', 'unsanctioned', 'tolerated', 'under review', 'new', 'untagged'];
+$gripSanctionFilter = isset($_GET['grip_sanction']) ? trim((string)$_GET['grip_sanction']) : '';
+if (!$gripEnabled || !in_array($gripSanctionFilter, $gripSanctionOptions, true)) $gripSanctionFilter = '';
 
 // Fetch distinct MFA values
 $allMfaValues = [];
@@ -1004,6 +1086,10 @@ if ($riskTypeFilter !== '') {
 if ($mfaFilter !== '') {
     $whereConditions[] = "s.mfasupport = :mfa";
     $params[':mfa'] = $mfaFilter;
+}
+if ($gripSanctionFilter !== '') {
+    $whereConditions[] = "s.grip_sanction_tag = :grip_sanction";
+    $params[':grip_sanction'] = $gripSanctionFilter;
 }
 // Hide rows whose domain matches an active onboarded vendor — by definition
 // an onboarded vendor is not Shadow SaaS. Match the "active" rule used
@@ -1108,6 +1194,9 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv' && $tableExists) {
         $csvHeaders[] = 'current_srs_score';
         $csvHeaders[] = 'current_shodan_score';
     }
+    if ($gripEnabled) {
+        $csvHeaders[] = 'grip_sanction_tag';
+    }
 
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="shadow-saas-export-' . date('Y-m-d') . '.csv"');
@@ -1211,6 +1300,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         .status-pending { background: #fef3c7; color: #92400e; }
         .status-dismissed { background: #f3f4f6; color: #6b7280; }
         .status-unsanctioned { background: #fee2e2; color: #991b1b; }
+        .grip-sanctioned-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #dcfce7; color: #166534; vertical-align: middle; white-space: nowrap; }
         .score-grade { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; font-size: 11px; margin-left: 3px; }
         .grade-a { background: #dcfce7; color: #166534; }
         .grade-b { background: #d1fae5; color: #065f46; }
@@ -1310,7 +1400,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 <button type="button" id="zscalerToggleBtn" class="btn-sm btn-secondary" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.zscaler')); ?></button>
                 <button type="button" id="addEntryBtn" class="btn-sm btn-success" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.add')); ?></button>
                 <?php endif; ?>
-                <a href="?export=csv<?php echo $statusFilter !== '' ? '&status=' . urlencode($statusFilter) : '&status=all'; ?><?php echo $searchQuery !== '' ? '&search=' . urlencode($searchQuery) : ''; ?><?php echo $riskFilter !== '' ? '&risk=' . urlencode($riskFilter) : ''; ?><?php echo $riskTypeFilter !== '' ? '&risk_type=' . urlencode($riskTypeFilter) : ''; ?><?php echo $mfaFilter !== '' ? '&mfa=' . urlencode($mfaFilter) : ''; ?>" class="btn-sm btn-secondary" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.export_csv')); ?></a>
+                <a href="?export=csv<?php echo $statusFilter !== '' ? '&status=' . urlencode($statusFilter) : '&status=all'; ?><?php echo $searchQuery !== '' ? '&search=' . urlencode($searchQuery) : ''; ?><?php echo $riskFilter !== '' ? '&risk=' . urlencode($riskFilter) : ''; ?><?php echo $riskTypeFilter !== '' ? '&risk_type=' . urlencode($riskTypeFilter) : ''; ?><?php echo $mfaFilter !== '' ? '&mfa=' . urlencode($mfaFilter) : ''; ?><?php echo $gripSanctionFilter !== '' ? '&grip_sanction=' . urlencode($gripSanctionFilter) : ''; ?>" class="btn-sm btn-secondary" style="padding: 8px 16px;"><?php echo e(t('shadow-saas.export_csv')); ?></a>
             </div>
         </div>
 
@@ -1369,6 +1459,12 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 <div class="value"><?php echo $stats['dismissed']; ?></div>
                 <div class="label"><?php echo e(t('shadow-saas.stat_dismissed')); ?></div>
             </a>
+            <?php if ($gripEnabled): ?>
+            <a href="shadow-saas.php?status=all&amp;grip_sanction=sanctioned" class="stat-card<?php echo $stats['grip_sanctioned'] > 0 ? ' warning' : ''; ?><?php echo $gripSanctionFilter === 'sanctioned' ? ' stat-active' : ''; ?>" title="<?php echo e(t('shadow-saas.stat_grip_sanctioned_title')); ?>">
+                <div class="value"><?php echo $stats['grip_sanctioned']; ?></div>
+                <div class="label"><?php echo e(t('shadow-saas.stat_grip_sanctioned')); ?></div>
+            </a>
+            <?php endif; ?>
         </div>
 
         <!-- Filters -->
@@ -1420,6 +1516,17 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 </select>
             </div>
             <?php endif; ?>
+            <?php if ($gripEnabled): ?>
+            <div class="filter-group">
+                <label for="grip_sanction"><?php echo e(t('shadow-saas.filter_grip_sanction')); ?></label>
+                <select name="grip_sanction" id="grip_sanction">
+                    <option value=""><?php echo e(t('shadow-saas.opt_all')); ?></option>
+                    <?php foreach ($gripSanctionOptions as $gso): ?>
+                    <option value="<?php echo e($gso); ?>" <?php echo $gripSanctionFilter === $gso ? 'selected' : ''; ?>><?php echo e(ucwords($gso)); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php endif; ?>
             <button type="submit" class="btn btn-primary"><?php echo e(t('shadow-saas.filter')); ?></button>
             <a href="shadow-saas.php" class="btn btn-secondary"><?php echo e(t('shadow-saas.reset')); ?></a>
         </form>
@@ -1457,7 +1564,6 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 <?php
                     // SecurityScorecard "SSC" column shows only when Grip is connected
                     // (Grip is the rating's data source). Letter grade A/B/C/D/F badge.
-                    $gripEnabled = (function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1');
                     if (!function_exists('sscBadge')) {
                         function sscBadge($rating): string {
                             $r = strtoupper(trim((string)$rating));
@@ -1541,6 +1647,9 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             <?php endif; ?>
                             <td style="font-weight: 500; color: #333;">
                                 <?php echo e($entry['vendor_name']); ?>
+                                <?php if ($gripEnabled && ($entry['grip_sanction_tag'] ?? '') === 'sanctioned'): ?>
+                                <span class="grip-sanctioned-badge" title="<?php echo e(t('shadow-saas.grip_sanctioned_badge_title')); ?>"><?php echo e(t('shadow-saas.grip_sanctioned_badge')); ?></span>
+                                <?php endif; ?>
                             </td>
                             <td style="font-size: 12px; color: #6b7280;">
                                 <?php if (!empty($entry['vendor_domain'])): ?>
@@ -2018,7 +2127,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 alert(<?php echo json_encode(t('shadow-saas.js_select_one')); ?>);
                 return;
             }
-            if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_onboard_prefix')); ?> + checked.length + <?php echo json_encode(t('shadow-saas.js_confirm_onboard_suffix')); ?>)) {
+            if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_onboard_prefix')); ?> + checked.length + <?php echo json_encode(t('shadow-saas.js_confirm_onboard_suffix') . ($gripEnabled ? ' ' . t('shadow-saas.js_confirm_onboard_grip_note') : '')); ?>)) {
                 document.getElementById('bulkAction').value = 'onboard_selected';
                 form.submit();
             }

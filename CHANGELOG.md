@@ -12,6 +12,23 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Onboarding a Grip app from Shadow SaaS now marks it Sanctioned in Grip.**
+  Onboard Selected and the Allow button call Grip's
+  `POST /saas/{id}/sanction_status` with `new_sanction_state=Sanctioned` for
+  every onboarded row that came from Grip, with a comment naming the FairTPRM
+  vendor and the user. The vendor is already onboarded by then, so a Grip
+  failure (for example a read-only API token) shows as a warning and never
+  undoes the onboarding. Every attempt is written to the audit log
+  (`shadow_saas_grip_sanction`), and the onboard confirmation mentions the Grip
+  update when Grip is connected.
+- **"Sanctioned in Grip, not in TPRM" view on Shadow SaaS.** Apps the business
+  has already sanctioned in Grip but never onboarded as vendors are a TPRM
+  visibility gap. The page now has a stat tile counting them (excluding apps
+  that match an active vendor), a "Grip sanction" filter for any Grip sanction
+  tag, and a "Grip: Sanctioned" badge on those rows so they can be selected
+  and onboarded. Grip's sanction tag is stored on `shadow_saas.grip_sanction_tag`
+  during every sync, backfilled from the Grip mirror on upgrade, and included
+  in the CSV export.
 - **Breach alerts are now checked against their own evidence before anyone is
   told about them.** AI breach research was producing mis-attributed alerts, and
   the old guard - "at least two credible source URLs" - counted URLs without
