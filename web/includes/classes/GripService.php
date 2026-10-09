@@ -23,6 +23,9 @@ class GripService
 {
     private const DEFAULT_BASE_URL = 'https://tenant.dep.grip.security/public/saas';
     private const PAGE_SIZE = 200;
+    // Hard stop for list pagination (200k rows) so an endpoint that ignores
+    // offset can never loop forever.
+    private const MAX_PAGES = 1000;
     private const REQUEST_TIMEOUT = 30;
     private const CONNECT_TIMEOUT = 10;
     // Transient-failure handling: how many times to retry a timed-out / 429 / 5xx
@@ -265,21 +268,36 @@ class GripService
     // ------------------------------------------------------------------
 
     /** @return array<int,array> All items across pages. */
-    private function fetchAll(string $relativeUrl): array
+    /**
+     * Page through a Grip list endpoint (offset/limit).
+     *
+     * Grip sometimes returns FEWER rows than the limit in the middle of a list
+     * (e.g. 199 of 200), so a short page is NOT the end of the data. Stopping
+     * there silently truncated every sync to a fraction of the tenant's apps.
+     * We advance the offset by the page size we asked for and stop only on an
+     * empty page; a repeated page or the MAX_PAGES cap also ends the loop.
+     */
+    private function fetchAll(string $relativeUrl, ?string $what = null): array
     {
-        $offset = 0;
+        $what = $what ?? "Grip fetch {$relativeUrl}";
         $all = [];
-        while (true) {
+        $prevHash = null;
+        for ($page = 0, $offset = 0; $page < self::MAX_PAGES; $page++, $offset += self::PAGE_SIZE) {
             $res = $this->request($relativeUrl, ['offset' => $offset, 'limit' => self::PAGE_SIZE]);
             if (!$res['success']) {
-                throw new RuntimeException("Grip fetch {$relativeUrl} failed at offset {$offset}: " . ($res['error'] ?: 'HTTP ' . $res['http_code']));
+                throw new RuntimeException("{$what} failed at offset {$offset}: " . ($res['error'] ?: 'HTTP ' . $res['http_code']));
             }
-            $page = is_array($res['data']) ? $res['data'] : [];
-            if (empty($page)) break;
-            foreach ($page as $row) $all[] = $row;
-            if (count($page) < self::PAGE_SIZE) break;
-            $offset += self::PAGE_SIZE;
+            $rows = is_array($res['data']) ? $res['data'] : [];
+            if (empty($rows)) return $all;
+            $hash = md5(json_encode($rows));
+            if ($hash === $prevHash) {
+                error_log("{$what}: offset {$offset} repeated the previous page; stopping");
+                return $all;
+            }
+            $prevHash = $hash;
+            foreach ($rows as $row) $all[] = $row;
         }
+        error_log("{$what}: hit the " . self::MAX_PAGES . "-page cap; list may be incomplete");
         return $all;
     }
 
@@ -1255,25 +1273,10 @@ class GripService
     {
         $gripId = trim($gripId);
         if ($gripId === '') return [];
-        // Paginate - large apps can have many users (offset/limit, like the other
-        // Grip list endpoints). Iterate until a short page.
-        $all = [];
-        $offset = 0;
-        $base = '/' . rawurlencode($gripId) . '/users';
-        while (true) {
-            $res = $this->request($base, ['offset' => $offset, 'limit' => self::PAGE_SIZE]);
-            if (!$res['success']) {
-                $why = $res['error'] ?: ('HTTP ' . $res['http_code']);
-                throw new RuntimeException("Grip roster fetch failed for {$gripId} at offset {$offset}: {$why}");
-            }
-            if (!is_array($res['data'])) break;
-            $page = $res['data'];
-            if (empty($page)) break;
-            foreach ($page as $row) $all[] = $row;
-            if (count($page) < self::PAGE_SIZE) break;
-            $offset += self::PAGE_SIZE;
-        }
-        return $all;
+        // Paginate - large apps can have many users. fetchAll() pages until an
+        // empty page (Grip can return a short page mid-roster) and throws on a
+        // hard failure.
+        return $this->fetchAll('/' . rawurlencode($gripId) . '/users', "Grip roster fetch for {$gripId}");
     }
 
     /**
@@ -1407,18 +1410,21 @@ class GripService
         $base   = '/' . rawurlencode($gripId) . '/users';
         $rows   = [];
         $cursor = $offset;
-        // Grip caps a page at PAGE_SIZE, so gather in chunks until we have $limit.
-        while (count($rows) < $limit) {
-            $chunk = min(self::PAGE_SIZE, $limit - count($rows));
+        // Grip caps a page at PAGE_SIZE, so gather the window [offset, offset+limit)
+        // in chunks. Bound by the cursor, not the row count: a short page leaves
+        // fewer rows than asked for, and topping up would spill past the window.
+        $end = $offset + $limit;
+        while ($cursor < $end) {
+            $chunk = min(self::PAGE_SIZE, $end - $cursor);
             $res = $this->request($base, ['offset' => $cursor, 'limit' => $chunk]);
             if (empty($res['success']) || !is_array($res['data']) || empty($res['data'])) break;
             foreach ($res['data'] as $entry) {
                 $row = $this->mapGripAppUser($entry, $gripId);
                 if ($row !== null) $rows[] = $row;
             }
-            $got = count($res['data']);
-            $cursor += $got;
-            if ($got < $chunk) break;
+            // Advance by what we ASKED for: Grip can return a short page mid-list,
+            // so neither the row count nor a short page marks the end.
+            $cursor += $chunk;
         }
         return $rows;
     }

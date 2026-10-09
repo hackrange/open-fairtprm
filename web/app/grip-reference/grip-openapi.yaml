@@ -1,5 +1,6 @@
-# Grip Security Public API — bundled reference for the FairTPRM Shadow SaaS
-# integration. Generated from the tenant's live /public/openapi.json.
+# Grip Security Public API - bundled reference for the FairTPRM Shadow SaaS
+# integration. Generated from Grip's public OpenAPI export:
+# https://stoplight.io/api/v1/projects/gripsecurity/api-docs/nodes/reference/Grip.json?fromExportButton=true&snapshotType=http_service
 # Auth: access-token header. Served admin-only via reference-doc.php.
 openapi: 3.1.0
 info:
@@ -7,13 +8,11 @@ info:
   version: '1.0'
   description: 'Reference for the Grip Security public API consumed by the FairTPRM
 
-    Shadow SaaS integration. This document is a faithful mirror of the
+    Shadow SaaS integration. This document is a faithful mirror of Grip''s
 
-    tenant''s own auto-generated specification, fetched live from
+    published specification, exported from the official documentation
 
-    https://<tenant>.dep.grip.security/public/openapi.json (FastAPI/OpenAPI
-
-    3.1.0). The official documentation portal is at apidocs.grip.security.
+    portal (https://apidocs.grip.security/docs/api-docs/16b5e21308a0e-grip).
 
 
     Authentication: send the tenant administrator API key in the
@@ -40,7 +39,7 @@ servers:
   variables:
     tenant:
       default: tenant
-      description: Grip tenant prefix — the first part of your Grip Portal URL (replace with your tenant).
+      description: Grip tenant prefix, the first part of your Grip Portal URL (replace with your tenant).
 security:
 - APIKeyHeader: []
 tags:
@@ -58,6 +57,13 @@ tags:
   description: Grip Audit logs Public API
 - name: Alerts V2
   description: Grip Alerts Public API
+- name: Threats
+  description: 'Threat Detection (ITDR/TDR) alerts. Returns the same payload as the Threat webhook: Threat
+    Type (`alertType`), Threat Category (`category`), Threat Description (`description`), `uniqueFieldsData`,
+    `eventLogs`, `relatedEntity`, and `alertUrl`.'
+- name: ITDR Actions
+  description: ITDR remediation actions. Discover which actions exist, which connected SaaS tenants they
+    apply to, and trigger them without an ITDR alert.
 - name: AI Agents
   description: Grip AI Agents Public API
 paths:
@@ -108,13 +114,13 @@ paths:
             next:
               description: If there are more pages of results, will hold the link for the next page. If
                 not set, it means there are no more pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/users?offset=400&limit=200
+              example: https://tenant.dep.grip.security/public/users?offset=400&limit=200
               schema:
                 type: integer
             prev:
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/users?offset=200&limit=200
+              example: https://tenant.dep.grip.security/public/users?offset=200&limit=200
               schema:
                 type: integer
         '422':
@@ -234,13 +240,13 @@ paths:
             next:
               description: If there are more pages of results, will hold the link for the next page. If
                 not set, it means there are no more pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/users/{user_id}/saas?offset=400&limit=200
+              example: https://tenant.dep.grip.security/public/users/{user_id}/saas?offset=400&limit=200
               schema:
                 type: integer
             prev:
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/users/{user_id}/saas?offset=200&limit=200
+              example: https://tenant.dep.grip.security/public/users/{user_id}/saas?offset=200&limit=200
               schema:
                 type: integer
         '422':
@@ -371,13 +377,13 @@ paths:
             next:
               description: If there are more pages of results, will hold the link for the next page. If
                 not set, it means there are no more pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/saas?offset=400&limit=200
+              example: https://tenant.dep.grip.security/public/saas?offset=400&limit=200
               schema:
                 type: integer
             prev:
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/saas?offset=200&limit=200
+              example: https://tenant.dep.grip.security/public/saas?offset=200&limit=200
               schema:
                 type: integer
         '422':
@@ -551,13 +557,13 @@ paths:
             next:
               description: If there are more pages of results, will hold the link for the next page. If
                 not set, it means there are no more pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/saas/{saasId}/users?offset=400&limit=200
+              example: https://tenant.dep.grip.security/public/saas/{saasId}/users?offset=400&limit=200
               schema:
                 type: string
             prev:
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/saas/{saasId}/users?offset=200&limit=200
+              example: https://tenant.dep.grip.security/public/saas/{saasId}/users?offset=200&limit=200
               schema:
                 type: string
         '422':
@@ -702,6 +708,138 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /workflows:
+    get:
+      tags:
+      - Workflows
+      summary: List Workflows
+      description: Retrieve the workflow runs of the organization, optionally filtered by workflow type.
+      operationId: _workflows_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/WorkflowApiType'
+          - type: 'null'
+          description: Return only workflows of this type. If omitted, workflows of all types are returned.
+          title: Type
+        description: Return only workflows of this type. If omitted, workflows of all types are returned.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          description: For pagination purposes. Will set the maximum amount of workflows which will return
+            from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of workflows which will return
+          from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: For pagination purposes. Will get only workflows after this offset. If there are
+            200 workflows in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only workflows after this offset. If there are
+          200 workflows in a page, the offset for page 2 will be 200.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkflowListItem'
+                title: Response List Workflows Endpoint Workflows Get
+          headers:
+            next:
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+              example: https://tenant.dep.grip.security/public/workflows?offset=400&limit=200
+              type: string
+            prev:
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+              example: https://tenant.dep.grip.security/public/workflows?offset=200&limit=200
+              type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workflows/cyberark/passwordReset/{workflowId}/status:
+    get:
+      tags:
+      - Workflows
+      summary: Status of a CyberArk Password Reset
+      description: Retrieve the status and per-account results of a CyberArk password reset run, identified
+        by the `workflowId` returned when it was started.
+      operationId: _workflows_cyberark_passwordReset_workflowId_status_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Workflowid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CyberArkPasswordResetResults'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workflows/cyberark/passwordReset/{passwordResetId}/details:
+    get:
+      tags:
+      - Workflows
+      summary: Details of a CyberArk Password Reset (per account)
+      description: Retrieve the per-account details of a single CyberArk password reset, identified by
+        the `passwordResetId` delivered as `alertId` in the PasswordResetCompleted webhook.
+      operationId: _workflows_cyberark_passwordReset_passwordResetId_details_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: passwordResetId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Passwordresetid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CyberArkPasswordResetDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /workflows/{workflow_id}/status:
     get:
       tags:
@@ -812,37 +950,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-sunset: '2048-09-12'
-  /workflows/accessRemoval/saas/{workflow_id}/status:
-    get:
-      tags:
-      - Workflows
-      summary: Status SaaS Access Removal
-      description: Retrieve the result of a specific SaaS access removal workflow.
-      operationId: _workflows_accessRemoval_saas_workflow_id_status_get
-      security:
-      - APIKeyHeader: []
-      parameters:
-      - name: workflow_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-          title: Workflow Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SaasAccessRemovalWorkflowStatus'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-      x-internal: true
   /workflows/accessRemoval/employee:
     get:
       tags:
@@ -895,12 +1002,12 @@ paths:
             next:
               description: If there are more pages of results, will hold the link for the next page. If
                 not set, it means there are no more pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/accessRemoval/employee?offset=400&limit=200
+              example: https://tenant.dep.grip.security/public/workflows/accessRemoval/employee?offset=400&limit=200
               type: string
             prev:
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/accessRemoval/employee?offset=200&limit=200
+              example: https://tenant.dep.grip.security/public/workflows/accessRemoval/employee?offset=200&limit=200
               type: string
         '422':
           description: Validation Error
@@ -960,12 +1067,12 @@ paths:
             next:
               description: If there are more pages of results, will hold the link for the next page. If
                 not set, it means there are no more pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/justification?offset=400&limit=200
+              example: https://tenant.dep.grip.security/public/workflows/justification?offset=400&limit=200
               type: integer
             prev:
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/justification?offset=200&limit=200
+              example: https://tenant.dep.grip.security/public/workflows/justification?offset=200&limit=200
               type: integer
         '422':
           description: Validation Error
@@ -1090,12 +1197,12 @@ paths:
             next:
               description: If there are more pages of results, will hold the link for the next page. If
                 not set, it means there are no more pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/offboarding?offset=400&limit=200
+              example: https://tenant.dep.grip.security/public/workflows/offboarding?offset=400&limit=200
               type: string
             prev:
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
-              example: https://CLIENT-PREFIX.dep.grip.security/public/workflows/offboarding?offset=200&limit=200
+              example: https://tenant.dep.grip.security/public/workflows/offboarding?offset=200&limit=200
               type: string
         '422':
           description: Validation Error
@@ -1208,6 +1315,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /workflows/cyberark/passwordReset/run:
+    post:
+      tags:
+      - Workflows
+      summary: Run CyberArk Password Reset
+      description: Trigger a password reset run for a CyberArk-managed carrier. Provide `carrier` to select
+        the carrier and `tickets` to scope the run to specific accounts by office/location, each with
+        an optional ticket id. Omit `tickets` to reset all accounts of the carrier. All CyberArk tiles
+        sharing a matched username are reset once and updated together.
+      operationId: _workflows_cyberark_passwordReset_run_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CyberArkPasswordResetStartInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CyberArkPasswordResetStartOutput'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
   /workflows/{workflow_run_id}/cancel:
     post:
       tags:
@@ -1269,35 +1407,6 @@ paths:
       security:
       - APIKeyHeader: []
       x-sunset: '2048-09-12'
-  /workflows/accessRemoval/saas/start:
-    post:
-      tags:
-      - Workflows
-      summary: Start SaaS Access Removal Workflow
-      description: Start an SaaS access removal workflow on specific SaaS application for selected employee.
-      operationId: _workflows_accessRemoval_saas_start_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StartSaasAccessRemovalInput'
-        required: true
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StartedWorkflowId'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - APIKeyHeader: []
-      x-internal: true
   /workflows/accessRemoval/employee/stop:
     post:
       tags:
@@ -1328,31 +1437,6 @@ paths:
       security:
       - APIKeyHeader: []
       x-sunset: '2048-09-12'
-  /workflows/accessRemoval/saas/stop:
-    post:
-      tags:
-      - Workflows
-      summary: Stop SaaS Access Removal
-      description: Stop the process of SaaS access removal.
-      operationId: _workflows_accessRemoval_saas_stop_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StopAccessRemovalWorkflowInput'
-        required: true
-      responses:
-        '200':
-          description: Successful Response
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - APIKeyHeader: []
-      x-internal: true
   /workflows/justification/start:
     post:
       tags:
@@ -1390,34 +1474,6 @@ paths:
       security:
       - APIKeyHeader: []
       x-sunset: '2048-09-12'
-  /workflows/justification/start-non-communication:
-    post:
-      tags:
-      - Workflows
-      summary: Start non-communication justification
-      operationId: _workflows_justification_start-non-communication_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StartJustificationWorkflowInput'
-        required: true
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JustificationWorkflowLink'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - APIKeyHeader: []
-      x-internal: true
   /workflows/justification/stop:
     post:
       tags:
@@ -1807,6 +1863,7 @@ paths:
           - identity
           - ai_agent
           - extension
+          - posture_check
           type: string
           description: If set, returns only alert with the given entity. Must be set with `related_entity_id`
           title: Related Entity Type
@@ -1854,6 +1911,207 @@ paths:
                 type: integer
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /threats/{alert_readable_id}:
+    get:
+      tags:
+      - Threats
+      summary: Get Threat
+      description: Retrieve a Threat Detection (ITDR/TDR) alert by readable ID (for example GRIT-123).
+      operationId: _threats_alert_readable_id_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: alert_readable_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Alert Readable Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyAlertPayload'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /threats:
+    get:
+      tags:
+      - Threats
+      summary: List Threats
+      description: Retrieve Threat Detection (ITDR/TDR) alerts. The list is paginated using Query Parameters.
+      operationId: _threats_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: alert_severity
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: If set, returns only threats with the given severity
+          title: Alert Severity
+        description: If set, returns only threats with the given severity
+      - name: alert_type
+        in: query
+        required: false
+        schema:
+          type: string
+          description: If set, returns only threats with the given Threat Type
+          title: Alert Type
+        description: If set, returns only threats with the given Threat Type
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+          description: If set, returns only threats with the given Threat Category
+          title: Category
+        description: If set, returns only threats with the given Threat Category
+      - name: related_entity_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+          description: If set, returns only threats with the given entity. Must be set with `related_entity_type`
+          title: Related Entity Id
+        description: If set, returns only threats with the given entity. Must be set with `related_entity_type`
+      - name: related_entity_type
+        in: query
+        required: false
+        schema:
+          enum:
+          - saas
+          - identity
+          - ai_agent
+          type: string
+          description: If set, returns only threats with the given entity. Must be set with `related_entity_id`
+          title: Related Entity Type
+        description: If set, returns only threats with the given entity. Must be set with `related_entity_id`
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          description: If set, returns only threats with the given status
+          title: Status
+        description: If set, returns only threats with the given status
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will set the maximum amount of threat alerts which will
+            return from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of threat alerts which will
+          return from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: For pagination purposes. Will get only threat alerts after this offset. If there
+            are 200 threat alerts in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only threat alerts after this offset. If there
+          are 200 threat alerts in a page, the offset for page 2 will be 200.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyAlertPayload'
+                title: Response List Threats Threats Get
+          headers:
+            next:
+              schema:
+                type: integer
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+            prev:
+              schema:
+                type: integer
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /itdr-actions:
+    get:
+      tags:
+      - ITDR Actions
+      summary: List ITDR Actions
+      description: Discover ITDR remediation actions, the SaaS apps and connected tenants they apply to,
+        and the target fields required to trigger each one.
+      operationId: _itdr-actions_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/PublicItdrAction'
+                type: array
+                title: Response List Itdr Actions Endpoint Itdr Actions Get
+      security:
+      - APIKeyHeader: []
+  /itdr-actions/{action}:
+    post:
+      tags:
+      - ITDR Actions
+      summary: Trigger ITDR Action
+      description: Trigger an ITDR remediation action on a connected SaaS integration without an ITDR
+        alert. Every call writes a Grip activity log entry. For GitHub, username-wide revocation is supported
+        for classic PATs, fine-grained PATs, OAuth app tokens, and SSH keys. Exact revocation is supported
+        for classic PATs, OAuth app tokens, GitHub App tokens, and SSH keys. Exact fine-grained PAT revocation
+        requires GitHub App authentication and is not supported by the connected integration. Supply identityId
+        or a resolvable email on GitHub credential actions to populate Related Identity in the activity
+        log.
+      operationId: _itdr-actions_action_post
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: action
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PublicItdrActionKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerItdrActionInput'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerItdrActionResponse'
         '422':
           description: Validation Error
           content:
@@ -2311,69 +2569,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ai-agents:
-    get:
-      tags:
-      - AI Agents
-      summary: List AI Agents
-      description: Retrieve a list of all AI agents in the organization with their related data.
-      operationId: _ai-agents_get
-      security:
-      - APIKeyHeader: []
-      parameters:
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          maximum: 500
-          minimum: 1
-          description: For pagination purposes. Will set the maximum amount of AI agents which will return
-            from a single query.
-          default: 200
-          title: Limit
-        description: For pagination purposes. Will set the maximum amount of AI agents which will return
-          from a single query.
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          description: For pagination purposes. Will get only AI agents after this offset. If there are
-            200 AI agents in a page, the offset for page 2 will be 200.
-          default: 0
-          title: Offset
-        description: For pagination purposes. Will get only AI agents after this offset. If there are
-          200 AI agents in a page, the offset for page 2 will be 200.
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AIAgent'
-                title: Response List Ai Agents Ai Agents Get
-          headers:
-            next:
-              schema:
-                type: integer
-              description: If there are more pages of results, will hold the link for the next page. If
-                not set, it means there are no more pages for the query.
-            prev:
-              schema:
-                type: integer
-              description: If there are previous pages of results, will hold the link for the previous
-                page. If not set, it means there are no previous pages for the query.
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-      x-internal: true
 components:
   schemas:
     AIAgent:
@@ -2600,6 +2795,24 @@ components:
       - id
       - name
       title: AlertAIAgent
+    AlertAiSessionFinding:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        entityType:
+          type: string
+          const: ai_session_finding
+          title: Entitytype
+          default: ai_session_finding
+      type: object
+      required:
+      - id
+      - name
+      title: AlertAiSessionFinding
     AlertExtension:
       properties:
         id:
@@ -2639,6 +2852,24 @@ components:
       - id
       - name
       title: AlertIdentity
+    AlertNhi:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        entityType:
+          type: string
+          const: non_human_identity
+          title: Entitytype
+          default: non_human_identity
+      type: object
+      required:
+      - id
+      - name
+      title: AlertNhi
     AlertPayload:
       properties:
         alertId:
@@ -2647,6 +2878,8 @@ components:
         alertType:
           type: string
           title: Alerttype
+          description: For Threat alerts, the Threat Type (for example impossible-travel). For other alerts,
+            the alert title.
         alertSeverity:
           type: string
           title: Alertseverity
@@ -2659,12 +2892,30 @@ components:
         category:
           type: string
           title: Category
+          description: For Threat alerts, the Threat Category (for example Account Takeover).
         uniqueFieldsData:
           type: object
           title: Uniquefieldsdata
+          description: Threat details specific to the alert type (for example IP address, MITRE technique,
+            OAuth scopes, failure counts). Event records that triggered the alert are reported separately
+            in 'eventLogs'.
+        eventLogs:
+          items:
+            type: object
+          type: array
+          title: Eventlogs
+          description: The event records that triggered the alert. Each entry describes a single audit
+            event (for example event_type, event_type_label, ip, country_iso, event_time). event_type_label
+            is the localized display name from Grip i18n.
+        source:
+          type: string
+          title: Source
+          description: The Grip detection source of the alert (for example the integration or product
+            that produced it).
         description:
           type: string
           title: Description
+          description: For Threat alerts, the Threat Description of the detection.
         mitigationSteps:
           $ref: '#/components/schemas/MitigationSteps'
         potentialImpacts:
@@ -2678,6 +2929,9 @@ components:
           - $ref: '#/components/schemas/AlertSaasApplication'
           - $ref: '#/components/schemas/AlertAIAgent'
           - $ref: '#/components/schemas/AlertExtension'
+          - $ref: '#/components/schemas/AlertNhi'
+          - $ref: '#/components/schemas/AlertAiSessionFinding'
+          - $ref: '#/components/schemas/AlertPostureCheck'
           - type: 'null'
           title: Relatedentity
         alertUrl:
@@ -2701,6 +2955,24 @@ components:
       - alertUrl
       - status
       title: AlertPayload
+    AlertPostureCheck:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        entityType:
+          type: string
+          const: posture_check
+          title: Entitytype
+          default: posture_check
+      type: object
+      required:
+      - id
+      - name
+      title: AlertPostureCheck
     AlertSaasApplication:
       properties:
         id:
@@ -2719,6 +2991,12 @@ components:
       - id
       - name
       title: AlertSaasApplication
+    AppClassification:
+      type: string
+      enum:
+      - workspace
+      - mixed_use
+      title: AppClassification
     AuditLog:
       properties:
         id:
@@ -2754,6 +3032,90 @@ components:
       required:
       - message
       title: BaseError
+    BrowserExtension:
+      properties:
+        extensionId:
+          type: string
+          title: Extensionid
+          description: The extension ID in its browser store
+        platform:
+          type: string
+          title: Platform
+          description: The browser the extension belongs to
+        name:
+          type: string
+          title: Name
+          description: The name of the extension
+        riskScore:
+          type: integer
+          title: Riskscore
+          description: Risk of the extension between 10 and 90, matching the score shown in the Grip dashboard.
+            `null` when Grip has not scored the extension.
+          examples:
+          - 70
+        riskLevel:
+          $ref: '#/components/schemas/ExtensionRiskLevel'
+          title: Risklevel
+          description: '`riskScore` bucketed the way the dashboard colours it: `Low` up to 33, `Medium`
+            below 67, `High` from 67 up. `High` is the set of extensions the dashboard shows in red. `null`
+            when Grip has not scored the extension - an unscored extension is not a low risk one.'
+        isMalicious:
+          type: boolean
+          title: Ismalicious
+          description: True when Grip identified the extension as malicious
+        maliciousReason:
+          type: string
+          title: Maliciousreason
+          description: Why Grip identified the extension as malicious
+        category:
+          type: string
+          title: Category
+          description: The category of the extension
+        permissions:
+          items:
+            type: string
+          type: array
+          title: Permissions
+          description: The permissions the extension requests
+        storeUrl:
+          type: string
+          title: Storeurl
+          description: Link to the extension in its browser store
+        installedVersion:
+          type: string
+          title: Installedversion
+          description: The version installed by this identity
+        status:
+          type: string
+          title: Status
+          description: Whether the extension is currently `enabled` or `disabled`
+        installType:
+          type: string
+          title: Installtype
+          description: How the extension was installed
+        firstDetectionTime:
+          type: string
+          format: date-time
+          title: Firstdetectiontime
+          description: When Grip first saw the extension for this identity
+        lastDetectionTime:
+          type: string
+          format: date-time
+          title: Lastdetectiontime
+          description: When Grip last saw the extension for this identity
+        lastInstallTime:
+          type: string
+          format: date-time
+          title: Lastinstalltime
+          description: When the extension last became enabled for this identity
+      type: object
+      required:
+      - extensionId
+      - platform
+      - name
+      - isMalicious
+      - permissions
+      title: BrowserExtension
     CancelUserCommunicationInput:
       properties:
         requestId:
@@ -2846,6 +3208,183 @@ components:
           description: The ID of the request.
       type: object
       title: CreateUserCommunicationOutput
+    CyberArkPasswordResetAccountResult:
+      properties:
+        saasName:
+          type: string
+          title: Saasname
+          description: Name of the SaaS application.
+        email:
+          type: string
+          title: Email
+          description: Email of the reset account.
+        status:
+          $ref: '#/components/schemas/CyberArkPasswordResetAccountStatus'
+          description: Per-account outcome of the password reset.
+        failureReason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Failurereason
+          description: Reason the reset did not succeed, when available.
+      type: object
+      required:
+      - saasName
+      - email
+      - status
+      title: CyberArkPasswordResetAccountResult
+    CyberArkPasswordResetAccountStatus:
+      type: string
+      enum:
+      - in_progress
+      - success
+      - failed
+      - skipped
+      - aborted
+      title: CyberArkPasswordResetAccountStatus
+    CyberArkPasswordResetDetails:
+      properties:
+        ticketId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ticketid
+          description: External ticket id supplied when the reset was started, when available.
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/CyberArkPasswordResetAccountStatus'
+          - type: 'null'
+          description: Outcome of the reset for this account. Close the ticket only when this is `success`.
+        failureReason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Failurereason
+          description: Reason the reset did not succeed, when the status is not `success`; null on success.
+      type: object
+      title: CyberArkPasswordResetDetails
+    CyberArkPasswordResetResultCounts:
+      properties:
+        total:
+          type: integer
+          title: Total
+          description: Total number of accounts in the run.
+        inProgress:
+          type: integer
+          title: Inprogress
+          description: Number of accounts still in progress.
+        succeeded:
+          type: integer
+          title: Succeeded
+          description: Number of accounts reset successfully.
+        failed:
+          type: integer
+          title: Failed
+          description: Number of accounts that failed.
+        skipped:
+          type: integer
+          title: Skipped
+          description: Number of accounts that were skipped.
+        aborted:
+          type: integer
+          title: Aborted
+          description: Number of accounts that were aborted.
+      type: object
+      required:
+      - total
+      - inProgress
+      - succeeded
+      - failed
+      - skipped
+      - aborted
+      title: CyberArkPasswordResetResultCounts
+    CyberArkPasswordResetResults:
+      properties:
+        workflowId:
+          type: string
+          title: Workflowid
+          description: The Temporal workflow id of the password reset run.
+        status:
+          $ref: '#/components/schemas/CyberArkPasswordResetRunStatus'
+          description: Overall status of the password reset run.
+        counts:
+          $ref: '#/components/schemas/CyberArkPasswordResetResultCounts'
+          description: Summary counts across all accounts in the run.
+        accounts:
+          items:
+            $ref: '#/components/schemas/CyberArkPasswordResetAccountResult'
+          type: array
+          title: Accounts
+          description: Per-account results of the password reset run.
+      type: object
+      required:
+      - workflowId
+      - status
+      - counts
+      title: CyberArkPasswordResetResults
+    CyberArkPasswordResetRunStatus:
+      type: string
+      enum:
+      - running
+      - completed
+      - failed
+      - canceled
+      title: CyberArkPasswordResetRunStatus
+    CyberArkPasswordResetStartInput:
+      properties:
+        carrier:
+          type: string
+          minLength: 1
+          title: Carrier
+          description: Name of the carrier to run the password reset on.
+        tickets:
+          items:
+            $ref: '#/components/schemas/CyberArkPasswordResetTicket'
+          type: array
+          minItems: 1
+          title: Tickets
+          description: Tickets to handle, one per office/location, each with an optional ticketId. At
+            least one is required.
+      type: object
+      required:
+      - carrier
+      - tickets
+      title: CyberArkPasswordResetStartInput
+    CyberArkPasswordResetStartOutput:
+      properties:
+        workflowId:
+          type: string
+          title: Workflowid
+          description: The Temporal workflow id of the started password reset run.
+        unresolvedLocations:
+          items:
+            type: string
+          type: array
+          title: Unresolvedlocations
+          description: Locations from the request that matched no account and were skipped; the run proceeds
+            for the locations that did resolve.
+      type: object
+      required:
+      - workflowId
+      title: CyberArkPasswordResetStartOutput
+    CyberArkPasswordResetTicket:
+      properties:
+        location:
+          type: string
+          minLength: 1
+          title: Location
+          description: Office/location number of the account to reset on the carrier.
+        ticketId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ticketid
+          description: ServiceNow ticket id to correlate this account's reset; returned by the details
+            endpoint on completion.
+      type: object
+      required:
+      - location
+      title: CyberArkPasswordResetTicket
     DeleteLabelMessage:
       properties:
         message:
@@ -3118,6 +3657,20 @@ components:
       - message
       - error_code
       title: ErrorWithErrorCode
+    ExtensionRiskLevel:
+      type: string
+      enum:
+      - Low
+      - Medium
+      - High
+      title: ExtensionRiskLevel
+    GithubApiKeyType:
+      type: string
+      enum:
+      - classic_pat
+      - fine_grained_pat
+      - github_app_token
+      title: GithubApiKeyType
     HTTPValidationError:
       properties:
         detail:
@@ -3276,6 +3829,64 @@ components:
       required:
       - label
       title: Label
+    MfaStatus:
+      type: string
+      enum:
+      - Enabled
+      - Not Enabled
+      - Unknown
+      - Partial
+      title: MfaStatus
+    MfaStatusByApp:
+      properties:
+        enabledApps:
+          type: integer
+          title: Enabledapps
+          description: Applications that enforce MFA for their users
+          examples:
+          - 12
+        notEnabledApps:
+          type: integer
+          title: Notenabledapps
+          description: Applications that do not enforce MFA
+          examples:
+          - 3
+        partialApps:
+          type: integer
+          title: Partialapps
+          description: Applications where some users have MFA and others do not. Grip cannot tell which
+            side this identity falls on
+          examples:
+          - 2
+        unknownApps:
+          type: integer
+          title: Unknownapps
+          description: Applications where Grip has no MFA signal. Absence of a signal is not evidence
+            that MFA is missing
+          examples:
+          - 20
+        appsWithKnownStatus:
+          type: integer
+          title: Appswithknownstatus
+          description: '`enabledApps` + `notEnabledApps` + `partialApps` - the denominator of `coveragePercentage`'
+          examples:
+          - 17
+        coveragePercentage:
+          type: integer
+          title: Coveragepercentage
+          description: '`enabledApps` as a percentage of `appsWithKnownStatus`, so applications Grip has
+            no MFA signal for do not count against the identity. `null` when the status of every application
+            is unknown.'
+          examples:
+          - 70
+      type: object
+      required:
+      - enabledApps
+      - notEnabledApps
+      - partialApps
+      - unknownApps
+      - appsWithKnownStatus
+      title: MfaStatusByApp
     MitigationSteps:
       properties:
         header:
@@ -3539,6 +4150,52 @@ components:
       - Offboarded
       - Deleted
       title: OnboardedStatus
+    PasswordPosture:
+      properties:
+        weakPasswordAccounts:
+          type: integer
+          title: Weakpasswordaccounts
+          description: Number of accounts using a password Grip scored as weak
+          examples:
+          - 3
+        leakedPasswordAccounts:
+          type: integer
+          title: Leakedpasswordaccounts
+          description: Number of accounts whose password was found in a known breach dataset
+          examples:
+          - 1
+        reusedPasswordAccounts:
+          type: integer
+          title: Reusedpasswordaccounts
+          description: Number of accounts whose password is reused on another account
+          examples:
+          - 4
+        sharedAccounts:
+          type: integer
+          title: Sharedaccounts
+          description: Number of accounts Grip identified as shared between multiple people
+          examples:
+          - 2
+        nonCorporateAccounts:
+          type: integer
+          title: Noncorporateaccounts
+          description: Number of accounts registered with a non-corporate (personal) identity
+          examples:
+          - 5
+        vulnerableAccounts:
+          type: integer
+          title: Vulnerableaccounts
+          description: Number of accounts with at least one password weakness (weak, leaked or reused)
+          examples:
+          - 6
+      type: object
+      required:
+      - weakPasswordAccounts
+      - leakedPasswordAccounts
+      - reusedPasswordAccounts
+      - sharedAccounts
+      - vulnerableAccounts
+      title: PasswordPosture
     Platform:
       type: string
       enum:
@@ -3566,6 +4223,9 @@ components:
       - slack
       - snowflake
       - claude
+      - microsoft_foundry
+      - netskope
+      - jamf
       title: Platform
     PolicyAlertPayload:
       properties:
@@ -3575,6 +4235,8 @@ components:
         alertType:
           type: string
           title: Alerttype
+          description: For Threat alerts, the Threat Type (for example impossible-travel). For other alerts,
+            the alert title.
         alertSeverity:
           type: string
           title: Alertseverity
@@ -3587,12 +4249,30 @@ components:
         category:
           type: string
           title: Category
+          description: For Threat alerts, the Threat Category (for example Account Takeover).
         uniqueFieldsData:
           type: object
           title: Uniquefieldsdata
+          description: Threat details specific to the alert type (for example IP address, MITRE technique,
+            OAuth scopes, failure counts). Event records that triggered the alert are reported separately
+            in 'eventLogs'.
+        eventLogs:
+          items:
+            type: object
+          type: array
+          title: Eventlogs
+          description: The event records that triggered the alert. Each entry describes a single audit
+            event (for example event_type, event_type_label, ip, country_iso, event_time). event_type_label
+            is the localized display name from Grip i18n.
+        source:
+          type: string
+          title: Source
+          description: The Grip detection source of the alert (for example the integration or product
+            that produced it).
         description:
           type: string
           title: Description
+          description: For Threat alerts, the Threat Description of the detection.
         mitigationSteps:
           $ref: '#/components/schemas/MitigationSteps'
         potentialImpacts:
@@ -3606,6 +4286,9 @@ components:
           - $ref: '#/components/schemas/AlertSaasApplication'
           - $ref: '#/components/schemas/AlertAIAgent'
           - $ref: '#/components/schemas/AlertExtension'
+          - $ref: '#/components/schemas/AlertNhi'
+          - $ref: '#/components/schemas/AlertAiSessionFinding'
+          - $ref: '#/components/schemas/AlertPostureCheck'
           - type: 'null'
           title: Relatedentity
         alertUrl:
@@ -3617,9 +4300,11 @@ components:
         alertName:
           type: string
           title: Alertname
+          description: The display name of the alert
         policyReadableId:
           type: integer
           title: Policyreadableid
+          description: Readable ID of the Policy Center policy that produced the alert
         mitigationDescription:
           type: string
           title: Mitigationdescription
@@ -3783,7 +4468,7 @@ components:
         entityCategory:
           type: string
           title: Entitycategory
-          description: 'Category of the violating entity: identity or resource'
+          description: 'Category of the violating entity: identity, resource, or ai_agent'
         entityType:
           type: string
           title: Entitytype
@@ -3858,6 +4543,164 @@ components:
       - email
       - userId
       title: PrimaryContact
+    PublicItdrAction:
+      properties:
+        action:
+          $ref: '#/components/schemas/PublicItdrActionKey'
+          description: ITDR action key
+        availability:
+          $ref: '#/components/schemas/PublicItdrAvailability'
+        unavailableReason:
+          $ref: '#/components/schemas/PublicItdrUnavailableReason'
+          title: Unavailablereason
+        unavailableDetails:
+          type: string
+          title: Unavailabledetails
+          description: What the caller can do about it, safe to show a user
+        apps:
+          items:
+            $ref: '#/components/schemas/PublicItdrAppCapability'
+          type: array
+          title: Apps
+      type: object
+      required:
+      - action
+      - availability
+      - apps
+      title: PublicItdrAction
+    PublicItdrActionKey:
+      type: string
+      enum:
+      - suspend-user
+      - revoke-active-sessions
+      - revoke-oauth-tokens
+      - revoke-api-key
+      - revoke-ssh-key
+      - quarantine-user
+      - expire-password
+      title: PublicItdrActionKey
+    PublicItdrActionReason:
+      type: string
+      enum:
+      - TargetNotFound
+      - MissingWriteScope
+      - MissingTokenScope
+      - InvalidCredentials
+      - RateLimited
+      - MissingTarget
+      - NoAffectedUsers
+      - NoActiveGrant
+      - MissingCustomizeApplication
+      - InvalidToken
+      - UnsupportedTokenType
+      - TransientError
+      - ConnectionNotConfigured
+      - InvalidUserState
+      - NoPasswordCredential
+      - MissingManageUsers
+      - UserInactive
+      - Unknown
+      title: PublicItdrActionReason
+    PublicItdrActionStatus:
+      type: string
+      enum:
+      - Succeeded
+      - PartiallySucceeded
+      - Failed
+      title: PublicItdrActionStatus
+    PublicItdrApp:
+      type: string
+      enum:
+      - gw
+      - o365
+      - salesforce
+      - github
+      - okta
+      title: PublicItdrApp
+    PublicItdrAppCapability:
+      properties:
+        app:
+          $ref: '#/components/schemas/PublicItdrApp'
+          description: Target SaaS platform
+        availability:
+          $ref: '#/components/schemas/PublicItdrAvailability'
+        unavailableReason:
+          $ref: '#/components/schemas/PublicItdrUnavailableReason'
+          title: Unavailablereason
+        unavailableDetails:
+          type: string
+          title: Unavailabledetails
+          description: What the caller can do about it, safe to show a user
+        requiredTargetFields:
+          items:
+            $ref: '#/components/schemas/PublicItdrTargetField'
+          type: array
+          title: Requiredtargetfields
+        tenants:
+          items:
+            $ref: '#/components/schemas/PublicItdrTenant'
+          type: array
+          title: Tenants
+      type: object
+      required:
+      - app
+      - availability
+      - requiredTargetFields
+      - tenants
+      title: PublicItdrAppCapability
+    PublicItdrAvailability:
+      type: string
+      enum:
+      - available
+      - unavailable
+      title: PublicItdrAvailability
+    PublicItdrTargetField:
+      properties:
+        name:
+          type: string
+          title: Name
+          description: Public request field name
+        alternatives:
+          items:
+            type: string
+          type: array
+          title: Alternatives
+          description: Other fields that satisfy the same requirement
+        description:
+          type: string
+          title: Description
+          description: What the caller should supply
+      type: object
+      required:
+      - name
+      - description
+      title: PublicItdrTargetField
+    PublicItdrTenant:
+      properties:
+        tenantId:
+          type: string
+          title: Tenantid
+          description: Connected tenant identifier to send as tenantId
+        displayName:
+          type: string
+          title: Displayname
+          description: Human-readable tenant name when known
+        status:
+          type: string
+          title: Status
+          description: Connection status, typically `connected`
+      type: object
+      required:
+      - status
+      title: PublicItdrTenant
+    PublicItdrUnavailableReason:
+      type: string
+      enum:
+      - NotEnabledForTenant
+      - NotEnabledForApp
+      - NoConnectedTenant
+      - ConnectionNotConfigured
+      title: PublicItdrUnavailableReason
     RunWorkflowInput:
       properties:
         identityEmail:
@@ -4029,6 +4872,32 @@ components:
       - businessOwner
       - employeeResults
       title: SaasAccessRemovalWorkflowStatus
+    SaasBreach:
+      properties:
+        breachTypes:
+          items:
+            type: string
+          type: array
+          title: Breachtypes
+          description: The kinds of data involved in the breach
+          examples:
+          - - credentials
+            - pii
+        date:
+          type: string
+          format: date-time
+          title: Date
+          description: When Grip recorded the breach
+        url:
+          type: string
+          title: Url
+          description: Link to the breach report
+      type: object
+      required:
+      - breachTypes
+      - date
+      - url
+      title: SaasBreach
     SaasGripData:
       properties:
         numberOfUsers:
@@ -4067,6 +4936,13 @@ components:
           type: string
           title: Buisnessowner
           description: ID of the buisness owner
+        appClassification:
+          $ref: '#/components/schemas/AppClassification'
+          title: Appclassification
+          description: How the application is used in the organization. Possible values are `workspace`
+            and `mixed_use`. For applications that were reclassified by the customer environment, the
+            customer classification takes precedence over Grip's classification. Sensitive applications
+            are not returned by the List SaaS endpoint.
         category:
           type: string
           title: Category
@@ -4139,6 +5015,35 @@ components:
           type: string
           title: Securityscorecardrating
           description: The SecurityScorecard cybersecurity rating (A/B/C/D/F), or null if unavailable.
+        passwordPosture:
+          $ref: '#/components/schemas/PasswordPosture'
+          title: Passwordposture
+          description: 'Credential weaknesses across this application''s user base, as counts of accounts.
+            Requires the Grip browser extension: `null` means no data was collected for this application,
+            which is not the same as no weaknesses found.'
+        threatDetections:
+          $ref: '#/components/schemas/ThreatDetections'
+          title: Threatdetections
+          description: 'Open and in-progress threat alerts Grip raised for this application, most recent
+            first. At most 20 alerts are returned; `total` tells you how many exist. Closed alerts are
+            excluded. Only the Get SaaS endpoint populates this: it is `null` on List SaaS. Use the alerts
+            endpoints for the full history.'
+        mfaStatus:
+          $ref: '#/components/schemas/MfaStatus'
+          title: Mfastatus
+          description: Whether the application enforces MFA for its users. `Partial` means some users
+            have MFA and others do not. `Unknown` means Grip has no MFA signal for the application, which
+            is not evidence that MFA is missing. A status set by your environment takes precedence over
+            the one Grip derives from observed users.
+        breachHistory:
+          items:
+            $ref: '#/components/schemas/SaasBreach'
+          type: array
+          title: Breachhistory
+          description: Every breach Grip recorded for this application, newest first - the same history
+            the Grip dashboard shows on the application page. An empty list means Grip recorded no breach
+            for it. `null` means breach data was not available for this response - the List SaaS and Get
+            SaaS endpoints populate it, the SaaS objects nested in Get SaaS applications for user do not.
       type: object
       required:
       - numberOfUsers
@@ -4304,6 +5209,38 @@ components:
       - Oracle Cloud Identity
       - SentinelOne
       - Linear
+      - Datadog
+      - PostHog
+      - Netskope
+      - Figma
+      - SendGrid
+      - DocuSign
+      - Productboard
+      - Sentry
+      - JetBrains
+      - CrowdStrike
+      - Grafana
+      - Databricks
+      - Document360
+      - Umbrella Cloud Cost
+      - Microsoft Copilot
+      - Simplelocalize
+      - Abnormal AI
+      - MongoDB Atlas
+      - Tines
+      - Egnyte
+      - Shortcut
+      - Google Gemini
+      - Jamf
+      - Tanium
+      - Base44
+      - Wealthbox
+      - Mulesoft
+      - Microsoft Intune
+      - Rubrik
+      - Cyberhaven
+      - Dynatrace
+      - Tenable
       title: SspmIntegrationType
     SspmPolicySeverity:
       type: string
@@ -4530,6 +5467,248 @@ components:
       - title
       - url
       title: TermsAndConditionsReference
+    ThreatDetection:
+      properties:
+        alertId:
+          type: string
+          title: Alertid
+          description: The readable ID of the threat alert
+          examples:
+          - ITDR-1042
+        alertName:
+          type: string
+          title: Alertname
+          description: The name of the threat alert
+        alertType:
+          type: string
+          title: Alerttype
+          description: The kind of threat detected
+          examples:
+          - impossible-travel
+        alertSeverity:
+          type: string
+          title: Alertseverity
+          description: The severity of the threat alert
+          examples:
+          - Critical
+        category:
+          type: string
+          title: Category
+          description: The threat category
+          examples:
+          - Account Takeover
+        status:
+          type: string
+          title: Status
+          description: The status of the threat alert - `open` or `in-progress`
+        eventTime:
+          type: string
+          format: date-time
+          title: Eventtime
+          description: When the detected activity took place
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+          description: When Grip raised the alert
+        ipAddress:
+          type: string
+          title: Ipaddress
+          description: The IP address involved in the detected activity
+        mitreAttack:
+          type: string
+          title: Mitreattack
+          description: The related MITRE ATT&CK technique
+        potentialImpacts:
+          items:
+            type: string
+          type: array
+          title: Potentialimpacts
+          description: What this threat could lead to
+        sources:
+          items:
+            type: string
+          type: array
+          title: Sources
+          description: The integrations that contributed to the detection
+        threatDetails:
+          type: object
+          title: Threatdetails
+          description: Details specific to this kind of threat, for example the OAuth scopes granted or
+            the number of failed sign-ins
+        alertUrl:
+          type: string
+          title: Alerturl
+          description: Link to the threat alert in the Grip dashboard
+      type: object
+      required:
+      - alertId
+      - alertName
+      - alertType
+      - alertSeverity
+      - status
+      - eventTime
+      - createdAt
+      - potentialImpacts
+      - sources
+      - alertUrl
+      title: ThreatDetection
+    ThreatDetections:
+      properties:
+        total:
+          type: integer
+          title: Total
+          description: How many active threat alerts exist for this entity. Larger than the number of
+            items returned when the cap truncated the list.
+          examples:
+          - 3
+        items:
+          items:
+            $ref: '#/components/schemas/ThreatDetection'
+          type: array
+          title: Items
+          description: The alerts themselves, most recent first, at most 20
+      type: object
+      required:
+      - total
+      - items
+      title: ThreatDetections
+    TriggerItdrActionInput:
+      properties:
+        app:
+          $ref: '#/components/schemas/PublicItdrApp'
+          description: 'Target SaaS platform from GET /itdr-actions: `gw`, `o365`, `salesforce`, `github`,
+            or `okta`'
+        tenantId:
+          type: string
+          title: Tenantid
+          description: 'Connected tenant identifier from GET /itdr-actions. Google Workspace: `acme.com`.
+            Salesforce: `acme.my.salesforce.com`. GitHub: the org login, e.g. `Grip-Security`. Okta: `dev-123456`'
+          examples:
+          - acme.com
+          - acme.my.salesforce.com
+          - Grip-Security
+          - dev-123456
+        identityId:
+          type: string
+          format: uuid
+          title: Identityid
+          description: Grip identity UUID for audit linkage and Microsoft 365 email lookup, e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`
+          examples:
+          - 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        email:
+          type: string
+          title: Email
+          description: User primary email. Required for Microsoft 365 (`ada@acme.com`). Also accepted
+            for Google Workspace revoke-active-sessions and for GitHub audit-log identity linkage. Ignored
+            for Salesforce and Okta
+          examples:
+          - ada@acme.com
+        externalUserId:
+          type: string
+          title: Externaluserid
+          description: Vendor user id. Salesforce User Id starts with `005`, e.g. `005Ph00000Lw7N5IAJ`.
+            Google Workspace Directory user id is a numeric string, e.g. `104928374615093827461`. Okta
+            user id starts with `00u`, e.g. `00u1cpqbctUgyyImV5d7`. Not used for GitHub
+          examples:
+          - 005Ph00000Lw7N5IAJ
+          - '104928374615093827461'
+          - 00u1cpqbctUgyyImV5d7
+        externalUserName:
+          type: string
+          title: Externalusername
+          description: Vendor username. GitHub login, e.g. `octocat`. Google Workspace primary email as
+            an alternative to externalUserId, e.g. `ada@acme.com`
+          examples:
+          - octocat
+          - ada@acme.com
+        externalClientId:
+          type: string
+          title: Externalclientid
+          description: Vendor OAuth client id for revoke-oauth-tokens, e.g. `412998341234-b7k9dq3.apps.googleusercontent.com`.
+            Not accepted for Salesforce; use externalClientName (OauthToken AppName) to scope one connected
+            app
+          examples:
+          - 412998341234-b7k9dq3.apps.googleusercontent.com
+        externalClientName:
+          type: string
+          title: Externalclientname
+          description: Vendor OAuth client API display name as an alternative to externalClientId, e.g.
+            `Google Drive`. For Salesforce revoke-oauth-tokens, the connected app's OauthToken AppName,
+            e.g. `Workbench`. Omit it to revoke every grant for externalUserId
+          examples:
+          - Google Drive
+          - Workbench
+        credentialId:
+          type: integer
+          minimum: 1
+          title: Credentialid
+          description: GitHub credential authorization id from the GitHub API key inventory. Supply this
+            to revoke one exact credential
+          examples:
+          - 12345678
+        credentialType:
+          $ref: '#/components/schemas/GithubApiKeyType'
+          title: Credentialtype
+          description: GitHub API key type for revoke-api-key. `classic_pat` supports an exact credentialId
+            or username-wide revocation. `fine_grained_pat` supports username-wide revocation only because
+            exact revocation requires GitHub App authentication. `github_app_token` supports exact credentialId
+            revocation only because GitHub does not support username-wide revocation for it.
+          examples:
+          - classic_pat
+          - fine_grained_pat
+          - github_app_token
+      type: object
+      required:
+      - app
+      title: TriggerItdrActionInput
+    TriggerItdrActionResponse:
+      properties:
+        actionKey:
+          $ref: '#/components/schemas/PublicItdrActionKey'
+        app:
+          type: string
+          title: App
+        tenantId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tenantid
+        target:
+          additionalProperties:
+            type: string
+          type: object
+          title: Target
+        status:
+          $ref: '#/components/schemas/PublicItdrActionStatus'
+        reason:
+          anyOf:
+          - $ref: '#/components/schemas/PublicItdrActionReason'
+          - type: 'null'
+        statusDetails:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Statusdetails
+        retryable:
+          type: boolean
+          title: Retryable
+        triggeredAt:
+          type: string
+          format: date-time
+          title: Triggeredat
+      type: object
+      required:
+      - actionKey
+      - app
+      - tenantId
+      - target
+      - status
+      - reason
+      - statusDetails
+      - retryable
+      - triggeredAt
+      title: TriggerItdrActionResponse
     UnsupportedForAccessRemoval:
       properties:
         saasId:
@@ -4798,6 +5977,35 @@ components:
           type: array
           title: Roles
           description: List of the roles assigned for the user by saas
+        passwordPosture:
+          $ref: '#/components/schemas/PasswordPosture'
+          title: Passwordposture
+          description: 'Credential weaknesses across this identity''s accounts, as counts of accounts.
+            Requires the Grip browser extension: `null` means no data was collected for this identity,
+            which is not the same as no weaknesses found.'
+        mfaStatusByApp:
+          $ref: '#/components/schemas/MfaStatusByApp'
+          title: Mfastatusbyapp
+          description: How many of this identity's applications enforce MFA, counted by application status.
+            MFA status is a property of the application rather than of this identity's account on it,
+            so this reports the MFA posture of the applications the identity uses - it does not establish
+            whether this identity personally has MFA on them.
+        browserExtensions:
+          items:
+            $ref: '#/components/schemas/BrowserExtension'
+          type: array
+          title: Browserextensions
+          description: 'Every browser extension installed by this identity, riskiest first. Uninstalled
+            extensions are excluded. Only the Get User endpoint populates this: it is `null` on List Users.
+            Requires the Grip browser extension, so `null` also means no data was collected - an empty
+            list means none were found.'
+        threatDetections:
+          $ref: '#/components/schemas/ThreatDetections'
+          title: Threatdetections
+          description: 'Open and in-progress threat alerts Grip raised for this identity, most recent
+            first. At most 20 alerts are returned; `total` tells you how many exist. Closed alerts are
+            excluded. Only the Get User endpoint populates this: it is `null` on List Users. Use the alerts
+            endpoints for the full history.'
       type: object
       required:
       - numberOfSaas
@@ -4843,6 +6051,19 @@ components:
           type: string
           format: date-time
           title: Lastusage
+        passwordPosture:
+          $ref: '#/components/schemas/PasswordPosture'
+          title: Passwordposture
+          description: 'Credential weaknesses across this identity''s accounts, as counts of accounts.
+            Requires the Grip browser extension: `null` means no data was collected for this identity,
+            which is not the same as no weaknesses found.'
+        mfaStatusByApp:
+          $ref: '#/components/schemas/MfaStatusByApp'
+          title: Mfastatusbyapp
+          description: How many of this identity's applications enforce MFA, counted by application status.
+            MFA status is a property of the application rather than of this identity's account on it,
+            so this reports the MFA posture of the applications the identity uses - it does not establish
+            whether this identity personally has MFA on them.
       type: object
       required:
       - numberOfSaas
@@ -5031,6 +6252,74 @@ components:
       - In Progress
       - Skipped
       title: WorkflowApiStatus
+    WorkflowApiType:
+      type: string
+      enum:
+      - onboarding
+      - offboarding
+      - password-reset
+      title: WorkflowApiType
+    WorkflowListItem:
+      properties:
+        status:
+          $ref: '#/components/schemas/WorkflowApiStatus'
+        statusDetails:
+          type: string
+          title: Statusdetails
+          description: Details about the status of the workflow run
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+          description: Timestamp when the workflow was started
+        completedAt:
+          type: string
+          format: date-time
+          title: Completedat
+          description: Timestamp when the workflow was completed
+        actions:
+          items:
+            $ref: '#/components/schemas/WorkflowActionListItem'
+          type: array
+          title: Actions
+          description: The list of actions in the workflow
+        entityType:
+          $ref: '#/components/schemas/EntityType'
+          description: The type of the entity in the workflow
+        entityId:
+          type: string
+          title: Entityid
+          description: The ID of the entity in the workflow
+        createdBy:
+          type: string
+          title: Createdby
+          description: The initiator of the workflow run
+        workflowId:
+          type: string
+          format: uuid
+          title: Workflowid
+          description: The ID of the workflow run in Grip
+        workflowName:
+          type: string
+          title: Workflowname
+          description: The name of the workflow that was run
+        type:
+          $ref: '#/components/schemas/WorkflowApiType'
+          title: Type
+          description: The type of the workflow that was run
+      type: object
+      required:
+      - status
+      - statusDetails
+      - createdAt
+      - completedAt
+      - actions
+      - entityType
+      - entityId
+      - createdBy
+      - workflowId
+      - workflowName
+      title: WorkflowListItem
     WorkflowRunIds:
       properties:
         workflowRunIds:

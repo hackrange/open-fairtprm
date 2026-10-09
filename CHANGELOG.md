@@ -260,6 +260,11 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Bundled Grip API reference refreshed from Grip's public spec.** The admin-only
+  OpenAPI and Postman files under `app/grip-reference/` are now generated from
+  the export published on Grip's documentation portal instead of a customer
+  tenant, and pick up the Threats, ITDR Actions and CyberArk password-reset
+  endpoints.
 - **`init-db/` is now built from the repository rather than inherited from the
   base image.** The three seed-schema files were previously outside the image
   overlay, so edits to them in the repository never reached a build and the two
@@ -324,6 +329,18 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Grip sync was quietly pulling only part of the tenant's SaaS apps, so many
+  vendors never got Grip telemetry.** Grip's list endpoints sometimes return one
+  row fewer than the requested page size (199 of 200) in the middle of a list.
+  The client took any short page as the last one, so a sync could stop after
+  599 of roughly 2,700 apps and still be logged as successful. Which apps made
+  the cut changed with Grip's ordering, so vendors gained and lost their SaaS
+  Data tab, SecurityScorecard grade and breach user counts from one night to
+  the next. App, user and per-app roster pagination now advance by the page size
+  requested and stop only on an empty page, with a repeated-page check and a
+  page cap as backstops. The live roster view on `grip-saas-users.php` also no
+  longer drifts past the requested window after a short page. The next sync
+  after upgrading fills in the missing vendors.
 - **Creating or editing a user on Admin -> Users silently did nothing.** The
   Create User and Edit User modals are the only two forms carrying
   `data-disable-on-submit`, the double-post guard added with the CSP hardening.

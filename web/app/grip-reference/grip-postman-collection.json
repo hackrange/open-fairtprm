@@ -1,2201 +1,2340 @@
 {
-  "info": {
-    "name": "Grip Security Public API (v1.0)",
-    "description": "Auto-generated from the Grip tenant's live OpenAPI. Set the collection variables `baseUrl` (your tenant's /public base) and `accessToken` (tenant admin API key) before sending. The accessToken is sent as the `access-token` header on every request.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "auth": {
-    "type": "apikey",
-    "apikey": [
-      {
-        "key": "key",
-        "value": "access-token",
-        "type": "string"
-      },
-      {
-        "key": "value",
-        "value": "{{accessToken}}",
-        "type": "string"
-      },
-      {
-        "key": "in",
-        "value": "header",
-        "type": "string"
-      }
-    ]
-  },
-  "variable": [
-    {
-      "key": "baseUrl",
-      "value": "https://tenant.dep.grip.security/public",
-      "type": "string"
-    },
-    {
-      "key": "accessToken",
-      "value": "REPLACE_ME",
-      "type": "string"
-    }
-  ],
-  "item": [
-    {
-      "name": "Users",
-      "item": [
-        {
-          "name": "List Users",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/users",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "users"
-              ],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of users which will return from a single query. <br>`>= 1` `<= 500`"
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only users after this offset. If there are 200 users in a page, the offset for page 2 will be 200. <br>`>= 0`"
-                }
-              ]
-            },
-            "description": "List Users"
-          },
-          "response": []
-        },
-        {
-          "name": "Get User ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/users/:user_mail/id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "users",
-                ":user_mail",
-                "id"
-              ],
-              "variable": [
-                {
-                  "key": "user_mail",
-                  "value": "",
-                  "description": "User Mail"
-                }
-              ]
-            },
-            "description": "Get User ID"
-          },
-          "response": []
-        },
-        {
-          "name": "Get User",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/users/:user_id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "users",
-                ":user_id"
-              ],
-              "variable": [
-                {
-                  "key": "user_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "User Id"
-                }
-              ]
-            },
-            "description": "Get User"
-          },
-          "response": []
-        },
-        {
-          "name": "Get SaaS applications for user",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/users/:user_id/saas",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "users",
-                ":user_id",
-                "saas"
-              ],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of saas apps which will return from a single query. <br>`>= 1` `<= 500`"
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only saas apps after this offset. If there are 200 saas apps in a page, the offset for page 2 will be 200. <br>`>= 0`"
-                }
-              ],
-              "variable": [
-                {
-                  "key": "user_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "User Id"
-                }
-              ]
-            },
-            "description": "Get SaaS applications for user"
-          },
-          "response": []
-        },
-        {
-          "name": "User Label",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/users/:user_id/label",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "users",
-                ":user_id",
-                "label"
-              ],
-              "variable": [
-                {
-                  "key": "user_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "User Id"
-                }
-              ]
-            },
-            "description": "User Label",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"label\": \"string\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Delete a User Label",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/users/:user_id/label",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "users",
-                ":user_id",
-                "label"
-              ],
-              "variable": [
-                {
-                  "key": "user_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "User Id"
-                }
-              ]
-            },
-            "description": "Delete a User Label",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"label\": \"string\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "SaaS Application",
-      "item": [
-        {
-          "name": "List SaaS",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/saas",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "saas"
-              ],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of saas apps which will return from a single query. <br>`>= 1` `<= 500`"
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only saas apps after this offset. If there are 200 saas apps in a page, the offset for page 2 will be 200. <br>`>= 0`"
-                }
-              ]
-            },
-            "description": "List SaaS"
-          },
-          "response": []
-        },
-        {
-          "name": "Get SaaS",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/saas/:saas_id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "saas",
-                ":saas_id"
-              ],
-              "variable": [
-                {
-                  "key": "saas_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Saas Id"
-                }
-              ]
-            },
-            "description": "Get SaaS"
-          },
-          "response": []
-        },
-        {
-          "name": "Get Saas ID by SaaS Name",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/saas/:saas_name/id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "saas",
-                ":saas_name",
-                "id"
-              ],
-              "variable": [
-                {
-                  "key": "saas_name",
-                  "value": "",
-                  "description": "Saas Name"
-                }
-              ]
-            },
-            "description": "Get Saas ID by SaaS Name"
-          },
-          "response": []
-        },
-        {
-          "name": "Get Saas Details by SaaS Name",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/saas/name/:saas_name",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "saas",
-                "name",
-                ":saas_name"
-              ],
-              "variable": [
-                {
-                  "key": "saas_name",
-                  "value": "",
-                  "description": "The name of the SaaS application to get the data for"
-                }
-              ]
-            },
-            "description": "Get Saas Details by SaaS Name"
-          },
-          "response": []
-        },
-        {
-          "name": "Get Users For SaaS Application",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/saas/:saas_id/users",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "saas",
-                ":saas_id",
-                "users"
-              ],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of users which will return from a single query. <br>`>= 1` `<= 500`"
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only users after this offset. If there are 200 users in a page, the offset for page 2 will be 200.  <br>`>= 0`"
-                },
-                {
-                  "key": "filter_access_removed",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If true, will filter out users who have had access removed."
-                }
-              ],
-              "variable": [
-                {
-                  "key": "saas_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Saas Id"
-                }
-              ]
-            },
-            "description": "Get Users For SaaS Application"
-          },
-          "response": []
-        },
-        {
-          "name": "Create Label",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/saas/:saas_id/label",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "saas",
-                ":saas_id",
-                "label"
-              ],
-              "variable": [
-                {
-                  "key": "saas_id",
-                  "value": "",
-                  "description": "Saas Id"
-                }
-              ]
-            },
-            "description": "Create Label",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"label\": \"string\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Label",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/saas/:saas_id/label",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "saas",
-                ":saas_id",
-                "label"
-              ],
-              "variable": [
-                {
-                  "key": "saas_id",
-                  "value": "",
-                  "description": "Saas Id"
-                }
-              ]
-            },
-            "description": "Delete Label",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"label\": \"string\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Update primary contact",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/saas/:saas_id/update-primary-contact?user_id=",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "saas",
-                ":saas_id",
-                "update-primary-contact"
-              ],
-              "query": [
-                {
-                  "key": "user_id",
-                  "value": "",
-                  "disabled": false,
-                  "description": ""
-                }
-              ],
-              "variable": [
-                {
-                  "key": "saas_id",
-                  "value": "",
-                  "description": "Saas Id"
-                }
-              ]
-            },
-            "description": "Update primary contact"
-          },
-          "response": []
-        },
-        {
-          "name": "Update sanction status",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/saas/:saas_id/sanction_status?new_sanction_state=",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "saas",
-                ":saas_id",
-                "sanction_status"
-              ],
-              "query": [
-                {
-                  "key": "new_sanction_state",
-                  "value": "",
-                  "disabled": false,
-                  "description": ""
-                },
-                {
-                  "key": "comment",
-                  "value": "",
-                  "disabled": true,
-                  "description": ""
-                },
-                {
-                  "key": "user_email",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If not received it will be the token name"
-                }
-              ],
-              "variable": [
-                {
-                  "key": "saas_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Saas Id"
-                }
-              ]
-            },
-            "description": "Update sanction status"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Workflows",
-      "item": [
-        {
-          "name": "Status of a workflow",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/:workflow_id/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                ":workflow_id",
-                "status"
-              ],
-              "variable": [
-                {
-                  "key": "workflow_id",
-                  "value": "",
-                  "description": "Workflow Id"
-                }
-              ]
-            },
-            "description": "Status of a workflow"
-          },
-          "response": []
-        },
-        {
-          "name": "Status of a workflow action",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/:workflow_id/actions/:action_id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                ":workflow_id",
-                "actions",
-                ":action_id"
-              ],
-              "variable": [
-                {
-                  "key": "workflow_id",
-                  "value": "",
-                  "description": "Workflow Id"
-                },
-                {
-                  "key": "action_id",
-                  "value": "",
-                  "description": "Action Id"
-                }
-              ]
-            },
-            "description": "Status of a workflow action"
-          },
-          "response": []
-        },
-        {
-          "name": "Status employee access removal",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/accessRemoval/employee/:workflow_id/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "accessRemoval",
-                "employee",
-                ":workflow_id",
-                "status"
-              ],
-              "variable": [
-                {
-                  "key": "workflow_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Workflow Id"
-                }
-              ]
-            },
-            "description": "Status employee access removal"
-          },
-          "response": []
-        },
-        {
-          "name": "Status SaaS Access Removal",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/accessRemoval/saas/:workflow_id/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "accessRemoval",
-                "saas",
-                ":workflow_id",
-                "status"
-              ],
-              "variable": [
-                {
-                  "key": "workflow_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Workflow Id"
-                }
-              ]
-            },
-            "description": "Status SaaS Access Removal"
-          },
-          "response": []
-        },
-        {
-          "name": "List employees access removal workflows",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/accessRemoval/employee",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "accessRemoval",
-                "employee"
-              ],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of workflows which will return from a single query."
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only workflows after this offset. If there are 200 workflows in a page, the offset for page 2 will be 200."
-                }
-              ]
-            },
-            "description": "List employees access removal workflows"
-          },
-          "response": []
-        },
-        {
-          "name": "List justification workflows",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/justification",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "justification"
-              ],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of workflows which will return from a single query."
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only workflows after this offset. If there are 200 workflows in a page, the offset for page 2 will be 200."
-                }
-              ]
-            },
-            "description": "List justification workflows"
-          },
-          "response": []
-        },
-        {
-          "name": "Get justification link",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/justification/:workflow_id/justificationLink",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "justification",
-                ":workflow_id",
-                "justificationLink"
-              ],
-              "variable": [
-                {
-                  "key": "workflow_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Workflow Id"
-                }
-              ]
-            },
-            "description": "Get justification link"
-          },
-          "response": []
-        },
-        {
-          "name": "Status justification",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/justification/:workflow_id/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "justification",
-                ":workflow_id",
-                "status"
-              ],
-              "variable": [
-                {
-                  "key": "workflow_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Workflow Id"
-                }
-              ]
-            },
-            "description": "Status justification"
-          },
-          "response": []
-        },
-        {
-          "name": "List offboarding workflows",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/offboarding",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "offboarding"
-              ],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of workflows which will return from a single query."
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only workflows after this offset. If there are 200 workflows in a page, the offset for page 2 will be 200."
-                }
-              ]
-            },
-            "description": "List offboarding workflows"
-          },
-          "response": []
-        },
-        {
-          "name": "Status offboarding",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/offboarding/:workflow_id/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "offboarding",
-                ":workflow_id",
-                "status"
-              ],
-              "variable": [
-                {
-                  "key": "workflow_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Workflow Id"
-                }
-              ]
-            },
-            "description": "Status offboarding"
-          },
-          "response": []
-        },
-        {
-          "name": "Status offboarded user",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/offboarding/:workflow_id/userstatus",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "offboarding",
-                ":workflow_id",
-                "userstatus"
-              ],
-              "variable": [
-                {
-                  "key": "workflow_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Workflow Id"
-                }
-              ]
-            },
-            "description": "Status offboarded user"
-          },
-          "response": []
-        },
-        {
-          "name": "Run Workflow By ID",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/:workflow_id/run",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                ":workflow_id",
-                "run"
-              ],
-              "variable": [
-                {
-                  "key": "workflow_id",
-                  "value": "",
-                  "description": "Workflow Id"
-                }
-              ]
-            },
-            "description": "Run Workflow By ID",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"identityEmail\": [\n    \"string\"\n  ],\n  \"identityId\": [\n    \"string\"\n  ],\n  \"appName\": [\n    \"string\"\n  ],\n  \"appId\": [\n    \"string\"\n  ],\n  \"inheritorEmail\": \"string\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Cancel Workflow by Workflow Run ID",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/:workflow_run_id/cancel",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                ":workflow_run_id",
-                "cancel"
-              ],
-              "variable": [
-                {
-                  "key": "workflow_run_id",
-                  "value": "",
-                  "description": "Workflow Run Id"
-                }
-              ]
-            },
-            "description": "Cancel Workflow by Workflow Run ID"
-          },
-          "response": []
-        },
-        {
-          "name": "Start employee access removal",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/accessRemoval/employee/start",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "accessRemoval",
-                "employee",
-                "start"
-              ]
-            },
-            "description": "Start employee access removal",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"saasIds\": [\n    \"00000000-0000-0000-0000-000000000000\"\n  ],\n  \"workflowName\": \"string\",\n  \"inheritorMailbox\": \"string\",\n  \"managerApprovalEmail\": \"string\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Start SaaS Access Removal Workflow",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/accessRemoval/saas/start",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "accessRemoval",
-                "saas",
-                "start"
-              ]
-            },
-            "description": "Start SaaS Access Removal Workflow",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"saasId\": \"00000000-0000-0000-0000-000000000000\",\n  \"userIds\": [\n    \"00000000-0000-0000-0000-000000000000\"\n  ],\n  \"workflowName\": \"string\",\n  \"managerApprovalEmail\": \"string\",\n  \"inheritorMailbox\": \"string\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Stop Employee Access Removal",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/accessRemoval/employee/stop",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "accessRemoval",
-                "employee",
-                "stop"
-              ]
-            },
-            "description": "Stop Employee Access Removal",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"workflowId\": \"00000000-0000-0000-0000-000000000000\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Stop SaaS Access Removal",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/accessRemoval/saas/stop",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "accessRemoval",
-                "saas",
-                "stop"
-              ]
-            },
-            "description": "Stop SaaS Access Removal",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"workflowId\": \"00000000-0000-0000-0000-000000000000\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Start justification",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/justification/start",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "justification",
-                "start"
-              ]
-            },
-            "description": "Start justification",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"saasApplicationId\": \"00000000-0000-0000-0000-000000000000\",\n  \"workflowName\": \"string\",\n  \"userEmail\": \"string\",\n  \"templateId\": \"00000000-0000-0000-0000-000000000000\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Start non-communication justification",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/justification/start-non-communication",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "justification",
-                "start-non-communication"
-              ]
-            },
-            "description": "Start non-communication justification",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"saasApplicationId\": \"00000000-0000-0000-0000-000000000000\",\n  \"workflowName\": \"string\",\n  \"userEmail\": \"string\",\n  \"templateId\": \"00000000-0000-0000-0000-000000000000\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Stop Justification Workflow",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/justification/stop",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "justification",
-                "stop"
-              ]
-            },
-            "description": "Stop Justification Workflow",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"workflowId\": \"00000000-0000-0000-0000-000000000000\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Start offboarding",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/offboarding/start",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "offboarding",
-                "start"
-              ]
-            },
-            "description": "Start offboarding",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"usersToOffboard\": [\n    {\n      \"userId\": \"00000000-0000-0000-0000-000000000000\",\n      \"inheritorMailbox\": \"string\",\n      \"userEmail\": \"string\"\n    }\n  ],\n  \"enableEnhancedMode\": false,\n  \"workflowName\": \"string\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Stop offboarding",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/workflows/offboarding/stop",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "workflows",
-                "offboarding",
-                "stop"
-              ]
-            },
-            "description": "Stop offboarding",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"workflowId\": \"00000000-0000-0000-0000-000000000000\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "SaaS User",
-      "item": [
-        {
-          "name": "Get Saas User",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/saasUser/:saas_app_user_id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "saasUser",
-                ":saas_app_user_id"
-              ],
-              "variable": [
-                {
-                  "key": "saas_app_user_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Saas App User Id"
-                }
-              ]
-            },
-            "description": "Get Saas User"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "AuditLogs",
-      "item": [
-        {
-          "name": "List Audit Logs",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/audit-trail",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "audit-trail"
-              ],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of audit logs which will return from a single query."
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only audit logs after this offset. If there are 200 audit logs in a page, the offset for page 2 will be 200."
-                }
-              ]
-            },
-            "description": "List Audit Logs"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Alerts",
-      "item": [
-        {
-          "name": "Get Alert",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/alerts/:alert_readable_id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "alerts",
-                ":alert_readable_id"
-              ],
-              "variable": [
-                {
-                  "key": "alert_readable_id",
-                  "value": "",
-                  "description": "Alert Readable Id"
-                }
-              ]
-            },
-            "description": "Get Alert"
-          },
-          "response": []
-        },
-        {
-          "name": "List Alerts",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/alerts",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "alerts"
-              ],
-              "query": [
-                {
-                  "key": "alert_severity",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If set, returns only alert with the given severity"
-                },
-                {
-                  "key": "alert_type",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If set, returns only alert with the given type"
-                },
-                {
-                  "key": "category",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If set, returns only alert with the given category"
-                },
-                {
-                  "key": "related_entity_id",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If set, returns only alert with the given entity. Must be set with `related_entity_type`"
-                },
-                {
-                  "key": "related_entity_type",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If set, returns only alert with the given entity. Must be set with `related_entity_id`"
-                },
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of audit logs which will return from a single query."
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only audit logs after this offset. If there are 200 audit logs in a page, the offset for page 2 will be 200."
-                }
-              ]
-            },
-            "description": "List Alerts"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Alerts V2",
-      "item": [
-        {
-          "name": "Get Alert",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/v2/alerts/:alert_readable_id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v2",
-                "alerts",
-                ":alert_readable_id"
-              ],
-              "variable": [
-                {
-                  "key": "alert_readable_id",
-                  "value": "",
-                  "description": "Alert Readable Id"
-                }
-              ]
-            },
-            "description": "Get Alert"
-          },
-          "response": []
-        },
-        {
-          "name": "List Alerts",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/v2/alerts",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v2",
-                "alerts"
-              ],
-              "query": [
-                {
-                  "key": "alert_severity",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If set, returns only alert with the given severity"
-                },
-                {
-                  "key": "alert_type",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If set, returns only alert with the given type"
-                },
-                {
-                  "key": "category",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If set, returns only alert with the given category"
-                },
-                {
-                  "key": "related_entity_id",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If set, returns only alert with the given entity. Must be set with `related_entity_type`"
-                },
-                {
-                  "key": "related_entity_type",
-                  "value": "",
-                  "disabled": true,
-                  "description": "If set, returns only alert with the given entity. Must be set with `related_entity_id`"
-                },
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of audit logs which will return from a single query."
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only audit logs after this offset. If there are 200 audit logs in a page, the offset for page 2 will be 200."
-                }
-              ]
-            },
-            "description": "List Alerts"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Actions",
-      "item": [
-        {
-          "name": "Get justification request status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/actions/justification/:request_id/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "actions",
-                "justification",
-                ":request_id",
-                "status"
-              ],
-              "variable": [
-                {
-                  "key": "request_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "The ID of the request."
-                }
-              ]
-            },
-            "description": "Get justification request status"
-          },
-          "response": []
-        },
-        {
-          "name": "Get justification request link",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/actions/justification/:request_id/link",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "actions",
-                "justification",
-                ":request_id",
-                "link"
-              ],
-              "variable": [
-                {
-                  "key": "request_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "The ID of the request."
-                }
-              ]
-            },
-            "description": "Get justification request link"
-          },
-          "response": []
-        },
-        {
-          "name": "Get Access Revocation Status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/actions/accessRevocation/employee/:action_id/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "actions",
-                "accessRevocation",
-                "employee",
-                ":action_id",
-                "status"
-              ],
-              "variable": [
-                {
-                  "key": "action_id",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Action Id"
-                }
-              ]
-            },
-            "description": "Get Access Revocation Status"
-          },
-          "response": []
-        },
-        {
-          "name": "Send Justification Request",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/actions/justification/send",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "actions",
-                "justification",
-                "send"
-              ]
-            },
-            "description": "Send Justification Request",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"userEmail\": \"string\",\n  \"saasApplicationId\": \"00000000-0000-0000-0000-000000000000\",\n  \"communicationPlatform\": \"Email\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Cancel Justification Request",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/actions/justification/cancel",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "actions",
-                "justification",
-                "cancel"
-              ]
-            },
-            "description": "Cancel Justification Request",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"requestId\": \"00000000-0000-0000-0000-000000000000\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Start Access Revocation",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/actions/accessRevocation/employee/start",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "actions",
-                "accessRevocation",
-                "employee",
-                "start"
-              ]
-            },
-            "description": "Start Access Revocation",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"saasIds\": [\n    \"00000000-0000-0000-0000-000000000000\"\n  ],\n  \"inheritorMailbox\": \"string\",\n  \"managerApprovalEmail\": \"string\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Cancel Access Revocation",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/actions/accessRevocation/employee/stop",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "actions",
-                "accessRevocation",
-                "employee",
-                "stop"
-              ]
-            },
-            "description": "Cancel Access Revocation",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"actionID\": \"00000000-0000-0000-0000-000000000000\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Posture Management",
-      "item": [
-        {
-          "name": "List Posture Checks",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/posture-checks",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "posture-checks"
-              ],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of posture checks which will return from a single query."
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only posture checks after this offset. If there are 200 posture checks in a page, the offset for page 2 will be 200."
-                },
-                {
-                  "key": "posture_check_id",
-                  "value": "",
-                  "disabled": true,
-                  "description": "Filter by posture check ID (e.g. Salesforce 1.1)"
-                },
-                {
-                  "key": "security_domain",
-                  "value": "",
-                  "disabled": true,
-                  "description": "Filter by security domain name"
-                },
-                {
-                  "key": "severity",
-                  "value": "",
-                  "disabled": true,
-                  "description": "Filter by severity"
-                },
-                {
-                  "key": "status",
-                  "value": "",
-                  "disabled": true,
-                  "description": "Filter by status"
-                },
-                {
-                  "key": "module",
-                  "value": "",
-                  "disabled": true,
-                  "description": "Filter by module name"
-                },
-                {
-                  "key": "tenant_name",
-                  "value": "",
-                  "disabled": true,
-                  "description": "Filter by tenant display name"
-                },
-                {
-                  "key": "integration_type",
-                  "value": "",
-                  "disabled": true,
-                  "description": "Filter by integration type"
-                },
-                {
-                  "key": "tenant_id",
-                  "value": "",
-                  "disabled": true,
-                  "description": "Filter by tenant ID"
-                },
-                {
-                  "key": "has_findings",
-                  "value": "",
-                  "disabled": true,
-                  "description": "Filter by whether the posture check has currently violating findings"
-                }
-              ]
-            },
-            "description": "List Posture Checks"
-          },
-          "response": []
-        },
-        {
-          "name": "List Findings for Posture Check",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/posture-checks/:posture_check_uuid/findings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "posture-checks",
-                ":posture_check_uuid",
-                "findings"
-              ],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of findings which will return from a single query."
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only findings after this offset. If there are 200 findings in a page, the offset for page 2 will be 200."
-                },
-                {
-                  "key": "status",
-                  "value": "",
-                  "disabled": true,
-                  "description": "Filter by finding status"
-                }
-              ],
-              "variable": [
-                {
-                  "key": "posture_check_uuid",
-                  "value": "00000000-0000-0000-0000-000000000000",
-                  "description": "Posture Check Uuid"
-                }
-              ]
-            },
-            "description": "List Findings for Posture Check"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "AI Agents",
-      "item": [
-        {
-          "name": "List AI Agents",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/ai-agents",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "ai-agents"
-              ],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will set the maximum amount of AI agents which will return from a single query."
-                },
-                {
-                  "key": "offset",
-                  "value": "",
-                  "disabled": true,
-                  "description": "For pagination purposes. Will get only AI agents after this offset. If there are 200 AI agents in a page, the offset for page 2 will be 200."
-                }
-              ]
-            },
-            "description": "List AI Agents"
-          },
-          "response": []
-        }
-      ]
-    }
+ "info": {
+  "name": "Grip Security Public API (v1.0)",
+  "description": "Generated from Grip's public OpenAPI export (https://apidocs.grip.security/docs/api-docs/16b5e21308a0e-grip). Set the collection variables `baseUrl` (your tenant's /public base) and `accessToken` (tenant admin API key) before sending. The accessToken is sent as the `access-token` header on every request.",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "auth": {
+  "type": "apikey",
+  "apikey": [
+   {
+    "key": "key",
+    "value": "access-token",
+    "type": "string"
+   },
+   {
+    "key": "value",
+    "value": "{{accessToken}}",
+    "type": "string"
+   },
+   {
+    "key": "in",
+    "value": "header",
+    "type": "string"
+   }
   ]
+ },
+ "variable": [
+  {
+   "key": "baseUrl",
+   "value": "https://tenant.dep.grip.security/public",
+   "type": "string"
+  },
+  {
+   "key": "accessToken",
+   "value": "REPLACE_ME",
+   "type": "string"
+  }
+ ],
+ "item": [
+  {
+   "name": "Users",
+   "item": [
+    {
+     "name": "List Users",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/users",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "users"
+       ],
+       "query": [
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of users which will return from a single query. <br>`>= 1` `<= 500`"
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only users after this offset. If there are 200 users in a page, the offset for page 2 will be 200. <br>`>= 0`"
+        }
+       ]
+      },
+      "description": "Retrieve a list of all the users in the organization, including organizational data and grip data. The list is paginated using Query Parameters."
+     },
+     "response": []
+    },
+    {
+     "name": "Get User ID",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/users/:user_mail/id",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "users",
+        ":user_mail",
+        "id"
+       ],
+       "variable": [
+        {
+         "key": "user_mail",
+         "value": "",
+         "description": "User Mail"
+        }
+       ]
+      },
+      "description": "Retrieve the userID out of the user email address."
+     },
+     "response": []
+    },
+    {
+     "name": "Get User",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/users/:user_id",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "users",
+        ":user_id"
+       ],
+       "variable": [
+        {
+         "key": "user_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "User Id"
+        }
+       ]
+      },
+      "description": "Retrieve the information of the user with the matching user mail."
+     },
+     "response": []
+    },
+    {
+     "name": "Get SaaS applications for user",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/users/:user_id/saas",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "users",
+        ":user_id",
+        "saas"
+       ],
+       "query": [
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of saas apps which will return from a single query. <br>`>= 1` `<= 500`"
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only saas apps after this offset. If there are 200 saas apps in a page, the offset for page 2 will be 200. <br>`>= 0`"
+        }
+       ],
+       "variable": [
+        {
+         "key": "user_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "User Id"
+        }
+       ]
+      },
+      "description": "Get SaaS applications for user"
+     },
+     "response": []
+    },
+    {
+     "name": "User Label",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/users/:user_id/label",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "users",
+        ":user_id",
+        "label"
+       ],
+       "variable": [
+        {
+         "key": "user_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "User Id"
+        }
+       ]
+      },
+      "description": "Add a label for a specific user id. If the specific label already exists in the env, it will add it to the user. If it doesn't it will create it and add it to the user.",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"label\": \"string\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Delete a User Label",
+     "request": {
+      "method": "DELETE",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/users/:user_id/label",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "users",
+        ":user_id",
+        "label"
+       ],
+       "variable": [
+        {
+         "key": "user_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "User Id"
+        }
+       ]
+      },
+      "description": "Delete a specific label from the user.",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"label\": \"string\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "SaaS Application",
+   "item": [
+    {
+     "name": "List SaaS",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/saas",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "saas"
+       ],
+       "query": [
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of saas apps which will return from a single query. <br>`>= 1` `<= 500`"
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only saas apps after this offset. If there are 200 saas apps in a page, the offset for page 2 will be 200. <br>`>= 0`"
+        }
+       ]
+      },
+      "description": "Retrieve a list of all the SaaS in the organization, including organizational data and grip data. The list is paginated using Query Parameters. Use limit and offsets to paginate the data."
+     },
+     "response": []
+    },
+    {
+     "name": "Get SaaS",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/saas/:saas_id",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "saas",
+        ":saas_id"
+       ],
+       "variable": [
+        {
+         "key": "saas_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "Saas Id"
+        }
+       ]
+      },
+      "description": "Retrieve the information of the SaaS with the matching SaaS ID."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Saas ID by SaaS Name",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/saas/:saas_name/id",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "saas",
+        ":saas_name",
+        "id"
+       ],
+       "variable": [
+        {
+         "key": "saas_name",
+         "value": "",
+         "description": "Saas Name"
+        }
+       ]
+      },
+      "description": "Retrieve the saas application id of a SaaS by it's name. The result will be in array, in case there is more than one SaaS with the same name.\nDo not call this endpoint if you need to get the data of a SaaS application. Use the `get_saas_by_name` endpoint instead."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Saas Details by SaaS Name",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/saas/name/:saas_name",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "saas",
+        "name",
+        ":saas_name"
+       ],
+       "variable": [
+        {
+         "key": "saas_name",
+         "value": "",
+         "description": "The name of the SaaS application to get the data for"
+        }
+       ]
+      },
+      "description": "Retrieve the information of the SaaS by it's name. This is the optimal way to get the data of SaaS applications based on name only. Use it when you need to get the data without having Grip's SaaS ID."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Users For SaaS Application",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/saas/:saas_id/users",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "saas",
+        ":saas_id",
+        "users"
+       ],
+       "query": [
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of users which will return from a single query. <br>`>= 1` `<= 500`"
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only users after this offset. If there are 200 users in a page, the offset for page 2 will be 200.  <br>`>= 0`"
+        },
+        {
+         "key": "filter_access_removed",
+         "value": "",
+         "disabled": true,
+         "description": "If true, will filter out users who have had access removed."
+        }
+       ],
+       "variable": [
+        {
+         "key": "saas_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "Saas Id"
+        }
+       ]
+      },
+      "description": "Retrieve a list of all the users in a specific saas."
+     },
+     "response": []
+    },
+    {
+     "name": "Create Label",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/saas/:saas_id/label",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "saas",
+        ":saas_id",
+        "label"
+       ],
+       "variable": [
+        {
+         "key": "saas_id",
+         "value": "",
+         "description": "Saas Id"
+        }
+       ]
+      },
+      "description": "Create Label",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"label\": \"string\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Delete Label",
+     "request": {
+      "method": "DELETE",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/saas/:saas_id/label",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "saas",
+        ":saas_id",
+        "label"
+       ],
+       "variable": [
+        {
+         "key": "saas_id",
+         "value": "",
+         "description": "Saas Id"
+        }
+       ]
+      },
+      "description": "Delete Label",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"label\": \"string\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Update primary contact",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/saas/:saas_id/update-primary-contact",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "saas",
+        ":saas_id",
+        "update-primary-contact"
+       ],
+       "query": [
+        {
+         "key": "user_id",
+         "value": "",
+         "disabled": true,
+         "description": "User Id"
+        }
+       ],
+       "variable": [
+        {
+         "key": "saas_id",
+         "value": "",
+         "description": "Saas Id"
+        }
+       ]
+      },
+      "description": "Update primary contact of a specific saas"
+     },
+     "response": []
+    },
+    {
+     "name": "Update sanction status",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/saas/:saas_id/sanction_status",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "saas",
+        ":saas_id",
+        "sanction_status"
+       ],
+       "query": [
+        {
+         "key": "new_sanction_state",
+         "value": "",
+         "disabled": true,
+         "description": "The sanction new status <br>Allowed: `Sanctioned`, `NotSanctioned`, `Tolerated`, `UnderReview`, `New`"
+        },
+        {
+         "key": "comment",
+         "value": "",
+         "disabled": true,
+         "description": "Optional comment"
+        },
+        {
+         "key": "user_email",
+         "value": "",
+         "disabled": true,
+         "description": "If not received it will be the token name"
+        }
+       ],
+       "variable": [
+        {
+         "key": "saas_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "Saas Id"
+        }
+       ]
+      },
+      "description": "Updates the sanction state of a specified SaaS application based on the provided input."
+     },
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "Workflows",
+   "item": [
+    {
+     "name": "List Workflows",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows"
+       ],
+       "query": [
+        {
+         "key": "type",
+         "value": "",
+         "disabled": true,
+         "description": "Return only workflows of this type. If omitted, workflows of all types are returned."
+        },
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of workflows which will return from a single query. <br>`>= 1` `<= 500`"
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only workflows after this offset. If there are 200 workflows in a page, the offset for page 2 will be 200. <br>`>= 0`"
+        }
+       ]
+      },
+      "description": "Retrieve the workflow runs of the organization, optionally filtered by workflow type."
+     },
+     "response": []
+    },
+    {
+     "name": "Status of a CyberArk Password Reset",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/cyberark/passwordReset/:workflowId/status",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "cyberark",
+        "passwordReset",
+        ":workflowId",
+        "status"
+       ],
+       "variable": [
+        {
+         "key": "workflowId",
+         "value": "",
+         "description": "Workflowid"
+        }
+       ]
+      },
+      "description": "Retrieve the status and per-account results of a CyberArk password reset run, identified by the `workflowId` returned when it was started."
+     },
+     "response": []
+    },
+    {
+     "name": "Details of a CyberArk Password Reset (per account)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/cyberark/passwordReset/:passwordResetId/details",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "cyberark",
+        "passwordReset",
+        ":passwordResetId",
+        "details"
+       ],
+       "variable": [
+        {
+         "key": "passwordResetId",
+         "value": "",
+         "description": "Passwordresetid"
+        }
+       ]
+      },
+      "description": "Retrieve the per-account details of a single CyberArk password reset, identified by the `passwordResetId` delivered as `alertId` in the PasswordResetCompleted webhook."
+     },
+     "response": []
+    },
+    {
+     "name": "Status of a workflow",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/:workflow_id/status",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        ":workflow_id",
+        "status"
+       ],
+       "variable": [
+        {
+         "key": "workflow_id",
+         "value": "",
+         "description": "Workflow Id"
+        }
+       ]
+      },
+      "description": "Retrieve the status of a workflow"
+     },
+     "response": []
+    },
+    {
+     "name": "Status of a workflow action",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/:workflow_id/actions/:action_id",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        ":workflow_id",
+        "actions",
+        ":action_id"
+       ],
+       "variable": [
+        {
+         "key": "workflow_id",
+         "value": "",
+         "description": "Workflow Id"
+        },
+        {
+         "key": "action_id",
+         "value": "",
+         "description": "Action Id"
+        }
+       ]
+      },
+      "description": "Retrieve the status of a workflow action"
+     },
+     "response": []
+    },
+    {
+     "name": "Status employee access removal",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/accessRemoval/employee/:workflow_id/status",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "accessRemoval",
+        "employee",
+        ":workflow_id",
+        "status"
+       ],
+       "variable": [
+        {
+         "key": "workflow_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "Workflow Id"
+        }
+       ]
+      },
+      "description": "Please note: this endpoint will be deprecated as of September 21, 2025. 'actionID' represents the request ID going forward. Refer to the new [endpoint](4116f308ba4bb-get-access-revocation-status).\n\n Retrieve the result of a specific employee access revocation."
+     },
+     "response": []
+    },
+    {
+     "name": "List employees access removal workflows",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/accessRemoval/employee",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "accessRemoval",
+        "employee"
+       ],
+       "query": [
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of workflows which will return from a single query. <br>`>= 1` `<= 500`"
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only workflows after this offset. If there are 200 workflows in a page, the offset for page 2 will be 200. <br>`>= 0`"
+        }
+       ]
+      },
+      "description": "Retrieve the results of all employees access removal workflows. \n Please note: this endpoint will be deprecated as of September 21, 2025."
+     },
+     "response": []
+    },
+    {
+     "name": "List justification workflows",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/justification",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "justification"
+       ],
+       "query": [
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of workflows which will return from a single query. <br>`>= 1` `<= 500`"
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only workflows after this offset. If there are 200 workflows in a page, the offset for page 2 will be 200. <br>`>= 0`"
+        }
+       ]
+      },
+      "description": "Retrieve the results of all justification workflows. \n Please note: this endpoint will be deprecated as of September 21, 2025."
+     },
+     "response": []
+    },
+    {
+     "name": "Get justification link",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/justification/:workflow_id/justificationLink",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "justification",
+        ":workflow_id",
+        "justificationLink"
+       ],
+       "variable": [
+        {
+         "key": "workflow_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "Workflow Id"
+        }
+       ]
+      },
+      "description": "Retrieve the link to the form sent to the user, by the workflow ID. \n Please note: this endpoint will be deprecated as of September 21, 2025."
+     },
+     "response": []
+    },
+    {
+     "name": "Status justification",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/justification/:workflow_id/status",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "justification",
+        ":workflow_id",
+        "status"
+       ],
+       "variable": [
+        {
+         "key": "workflow_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "Workflow Id"
+        }
+       ]
+      },
+      "description": "Retrieve the status of the justification workflow. \n Please note: this endpoint will be deprecated as of September 21, 2025."
+     },
+     "response": []
+    },
+    {
+     "name": "List offboarding workflows",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/offboarding",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "offboarding"
+       ],
+       "query": [
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of workflows which will return from a single query. <br>`>= 1` `<= 500`"
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only workflows after this offset. If there are 200 workflows in a page, the offset for page 2 will be 200. <br>`>= 0`"
+        }
+       ]
+      },
+      "description": "Please note: this endpoint will be deprecated as of September 21, 2025.\n\n Retrieve the results of all offboarding workflows."
+     },
+     "response": []
+    },
+    {
+     "name": "Status offboarding",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/offboarding/:workflow_id/status",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "offboarding",
+        ":workflow_id",
+        "status"
+       ],
+       "variable": [
+        {
+         "key": "workflow_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "Workflow Id"
+        }
+       ]
+      },
+      "description": "Please note: this endpoint will be deprecated as of September 21, 2025.\n    Retrieves the status of an offboarding workflow.\n    This API endpoint will return the results as they are displayed in the Grip portal."
+     },
+     "response": []
+    },
+    {
+     "name": "Status offboarded user",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/offboarding/:workflow_id/userstatus",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "offboarding",
+        ":workflow_id",
+        "userstatus"
+       ],
+       "variable": [
+        {
+         "key": "workflow_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "Workflow Id"
+        }
+       ]
+      },
+      "description": "Please note: this endpoint will be deprecated as of September 21, 2025.\n\nRetrieve the status of an offboarding workflow, with results for supported applications. \n\nThis endpoint is intended for automation. \n\nIt doesn't reflect the status of the workflow the same way the Grip portal would. \n\nWith this endpoint, any access revocation tasks that are still under manual review will be reported as finished. \n\nThis is unlike the Grip portal where workflows are considered in progress while being reviewed.\n\nThis endpoint will only work on offboarding workflows executed on a single employee."
+     },
+     "response": []
+    },
+    {
+     "name": "Run Workflow By ID",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/:workflow_id/run",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        ":workflow_id",
+        "run"
+       ],
+       "variable": [
+        {
+         "key": "workflow_id",
+         "value": "",
+         "description": "Workflow Id"
+        }
+       ]
+      },
+      "description": "Run a workflow for the workflow ID.\nEvery workflow should contain at least one of the following:\n    \n* app_name / app_id in case of Application-based workflow\n    \n* identity_email / identity_id in case of Identity-based workflow",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"identityEmail\": \"a@b.com\",\n  \"identityId\": \"7b91f95a-d088-4740-bf5a-f2d8b7e54e07\",\n  \"appName\": \"Zapier\",\n  \"appId\": \"8d96942a-ff58-4c40-8cf5-aee5db4fe67\",\n  \"inheritorEmail\": \"a@b.com\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Run CyberArk Password Reset",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/cyberark/passwordReset/run",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "cyberark",
+        "passwordReset",
+        "run"
+       ]
+      },
+      "description": "Trigger a password reset run for a CyberArk-managed carrier. Provide `carrier` to select the carrier and `tickets` to scope the run to specific accounts by office/location, each with an optional ticket id. Omit `tickets` to reset all accounts of the carrier. All CyberArk tiles sharing a matched username are reset once and updated together.",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"carrier\": \"string\",\n  \"tickets\": [\n    {\n      \"location\": \"string\",\n      \"ticketId\": \"string\"\n    }\n  ]\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Cancel Workflow by Workflow Run ID",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/:workflow_run_id/cancel",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        ":workflow_run_id",
+        "cancel"
+       ],
+       "variable": [
+        {
+         "key": "workflow_run_id",
+         "value": "",
+         "description": "Workflow Run Id"
+        }
+       ]
+      },
+      "description": "Cancel a workflow run by the workflow run ID."
+     },
+     "response": []
+    },
+    {
+     "name": "Start employee access removal",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/accessRemoval/employee/start",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "accessRemoval",
+        "employee",
+        "start"
+       ]
+      },
+      "description": "Please note: this endpoint will be deprecated as of September 21, 2025. 'actionID' represents the request ID going forward. Refer to the new [endpoint](a40d967e3147c-start-access-revocation).\n\n Start an employee access revocation task on specific employee for selected SaaS.",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"saasIds\": [\n    \"00000000-0000-0000-0000-000000000000\"\n  ],\n  \"workflowName\": \"22-11-10 15-52\",\n  \"inheritorMailbox\": \"inheritor@grip.security\",\n  \"managerApprovalEmail\": \"string\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Stop Employee Access Removal",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/accessRemoval/employee/stop",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "accessRemoval",
+        "employee",
+        "stop"
+       ]
+      },
+      "description": "Please note: this endpoint will be deprecated as of September 21, 2025. 'actionID' represents the request ID going forward. Refer to the new [endpoint](7a10116c1a37d-cancel-access-revocation).\n\nStop the process of employee access revocation.",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"workflowId\": \"00000000-0000-0000-0000-000000000000\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Start justification",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/justification/start",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "justification",
+        "start"
+       ]
+      },
+      "description": "Start the process of justification. \n Please note: this endpoint will be deprecated as of September 21, 2025. Refer to the new [endpoint](dc6b0f9306561-send-justification-request).",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"saasApplicationId\": \"00000000-0000-0000-0000-000000000000\",\n  \"workflowName\": \"string\",\n  \"userEmail\": \"string\",\n  \"templateId\": \"00000000-0000-0000-0000-000000000000\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Stop Justification Workflow",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/justification/stop",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "justification",
+        "stop"
+       ]
+      },
+      "description": "Stop the process of justification. \n Please note: this endpoint will be deprecated as of September 21, 2025. Refer to the new [endpoint](0d815514796ab-cancel-justification-request).",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"workflowId\": \"00000000-0000-0000-0000-000000000000\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Start offboarding",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/offboarding/start",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "offboarding",
+        "start"
+       ]
+      },
+      "description": "Please note: this endpoint will be deprecated as of September 21, 2025.\n    \nStart an offboarding workflow for the specific users.\nEvery workflow should contains:\n    \n* Name\n    \n* List of users ids, specified with their inheritor mailbox in case they are deactivated in the mail platform.\n    \n* Turn on enhanced mode if needed",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"usersToOffboard\": [\n    {\n      \"userId\": \"8e6afaf9-ce27-419e-bf33-4b02fc2e90ca\",\n      \"inheritorMailbox\": \"inheritor@grip.security\",\n      \"userEmail\": \"user1@org.com\"\n    }\n  ],\n  \"enableEnhancedMode\": false,\n  \"workflowName\": \"22-11-10 15-52\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Stop offboarding",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/workflows/offboarding/stop",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "workflows",
+        "offboarding",
+        "stop"
+       ]
+      },
+      "description": "Please note: this endpoint will be deprecated as of September 21, 2025.\n\nStop the process of offboarding.",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"workflowId\": \"00000000-0000-0000-0000-000000000000\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "SaaS User",
+   "item": [
+    {
+     "name": "Get Saas User",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/saasUser/:saas_app_user_id",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "saasUser",
+        ":saas_app_user_id"
+       ],
+       "variable": [
+        {
+         "key": "saas_app_user_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "Saas App User Id"
+        }
+       ]
+      },
+      "description": "Retrieve all the data on a specific saas application user."
+     },
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "AuditLogs",
+   "item": [
+    {
+     "name": "List Audit Logs",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/audit-trail",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "audit-trail"
+       ],
+       "query": [
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of audit logs which will return from a single query."
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only audit logs after this offset. If there are 200 audit logs in a page, the offset for page 2 will be 200."
+        }
+       ]
+      },
+      "description": "Retrieve a list of audit logs from the Grip system. The list is paginated using Query Parameters."
+     },
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "Alerts",
+   "item": [
+    {
+     "name": "Get Alert",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/alerts/:alert_readable_id",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "alerts",
+        ":alert_readable_id"
+       ],
+       "variable": [
+        {
+         "key": "alert_readable_id",
+         "value": "",
+         "description": "Alert Readable Id"
+        }
+       ]
+      },
+      "description": "Retrieve the information of the alert with the matching alert ID."
+     },
+     "response": []
+    },
+    {
+     "name": "List Alerts",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/alerts",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "alerts"
+       ],
+       "query": [
+        {
+         "key": "alert_severity",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only alert with the given severity"
+        },
+        {
+         "key": "alert_type",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only alert with the given type"
+        },
+        {
+         "key": "category",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only alert with the given category"
+        },
+        {
+         "key": "related_entity_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "disabled": true,
+         "description": "If set, returns only alert with the given entity. Must be set with `related_entity_type`"
+        },
+        {
+         "key": "related_entity_type",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only alert with the given entity. Must be set with `related_entity_id` <br>Allowed: `saas`, `identity`, `ai_agent`"
+        },
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of audit logs which will return from a single query."
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only audit logs after this offset. If there are 200 audit logs in a page, the offset for page 2 will be 200."
+        }
+       ]
+      },
+      "description": "Retrieve a list of alerts from the Grip system. The list is paginated using Query Parameters."
+     },
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "Alerts V2",
+   "item": [
+    {
+     "name": "Get Alert",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/v2/alerts/:alert_readable_id",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "v2",
+        "alerts",
+        ":alert_readable_id"
+       ],
+       "variable": [
+        {
+         "key": "alert_readable_id",
+         "value": "",
+         "description": "Alert Readable Id"
+        }
+       ]
+      },
+      "description": "Retrieve the information of the alert with the matching alert ID."
+     },
+     "response": []
+    },
+    {
+     "name": "List Alerts",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/v2/alerts",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "v2",
+        "alerts"
+       ],
+       "query": [
+        {
+         "key": "alert_severity",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only alert with the given severity"
+        },
+        {
+         "key": "alert_type",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only alert with the given type"
+        },
+        {
+         "key": "category",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only alert with the given category"
+        },
+        {
+         "key": "related_entity_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "disabled": true,
+         "description": "If set, returns only alert with the given entity. Must be set with `related_entity_type`"
+        },
+        {
+         "key": "related_entity_type",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only alert with the given entity. Must be set with `related_entity_id` <br>Allowed: `saas`, `identity`, `ai_agent`, `extension`, `posture_check`"
+        },
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of audit logs which will return from a single query."
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only audit logs after this offset. If there are 200 audit logs in a page, the offset for page 2 will be 200."
+        }
+       ]
+      },
+      "description": "Retrieve a list of alerts from the Grip system. The list is paginated using Query Parameters."
+     },
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "Threats",
+   "item": [
+    {
+     "name": "Get Threat",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/threats/:alert_readable_id",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "threats",
+        ":alert_readable_id"
+       ],
+       "variable": [
+        {
+         "key": "alert_readable_id",
+         "value": "",
+         "description": "Alert Readable Id"
+        }
+       ]
+      },
+      "description": "Retrieve a Threat Detection (ITDR/TDR) alert by readable ID (for example GRIT-123)."
+     },
+     "response": []
+    },
+    {
+     "name": "List Threats",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/threats",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "threats"
+       ],
+       "query": [
+        {
+         "key": "alert_severity",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only threats with the given severity"
+        },
+        {
+         "key": "alert_type",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only threats with the given Threat Type"
+        },
+        {
+         "key": "category",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only threats with the given Threat Category"
+        },
+        {
+         "key": "related_entity_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "disabled": true,
+         "description": "If set, returns only threats with the given entity. Must be set with `related_entity_type`"
+        },
+        {
+         "key": "related_entity_type",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only threats with the given entity. Must be set with `related_entity_id` <br>Allowed: `saas`, `identity`, `ai_agent`"
+        },
+        {
+         "key": "status",
+         "value": "",
+         "disabled": true,
+         "description": "If set, returns only threats with the given status"
+        },
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of threat alerts which will return from a single query."
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only threat alerts after this offset. If there are 200 threat alerts in a page, the offset for page 2 will be 200."
+        }
+       ]
+      },
+      "description": "Retrieve Threat Detection (ITDR/TDR) alerts. The list is paginated using Query Parameters."
+     },
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "ITDR Actions",
+   "item": [
+    {
+     "name": "List ITDR Actions",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/itdr-actions",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "itdr-actions"
+       ]
+      },
+      "description": "Discover ITDR remediation actions, the SaaS apps and connected tenants they apply to, and the target fields required to trigger each one."
+     },
+     "response": []
+    },
+    {
+     "name": "Trigger ITDR Action",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/itdr-actions/:action",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "itdr-actions",
+        ":action"
+       ],
+       "variable": [
+        {
+         "key": "action",
+         "value": "",
+         "description": "Allowed: `suspend-user`, `revoke-active-sessions`, `revoke-oauth-tokens`, `revoke-api-key`, `revoke-ssh-key`, `quarantine-user`, `expire-password`"
+        }
+       ]
+      },
+      "description": "Trigger an ITDR remediation action on a connected SaaS integration without an ITDR alert. Every call writes a Grip activity log entry. For GitHub, username-wide revocation is supported for classic PATs, fine-grained PATs, OAuth app tokens, and SSH keys. Exact revocation is supported for classic PATs, OAuth app tokens, GitHub App tokens, and SSH keys. Exact fine-grained PAT revocation requires GitHub App authentication and is not supported by the connected integration. Supply identityId or a resolvable email on GitHub credential actions to populate Related Identity in the activity log.",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"app\": \"gw\",\n  \"tenantId\": \"acme.com\",\n  \"identityId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"email\": \"ada@acme.com\",\n  \"externalUserId\": \"005Ph00000Lw7N5IAJ\",\n  \"externalUserName\": \"octocat\",\n  \"externalClientId\": \"412998341234-b7k9dq3.apps.googleusercontent.com\",\n  \"externalClientName\": \"Google Drive\",\n  \"credentialId\": 12345678,\n  \"credentialType\": \"classic_pat\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "Actions",
+   "item": [
+    {
+     "name": "Get justification request status",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/actions/justification/:request_id/status",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "actions",
+        "justification",
+        ":request_id",
+        "status"
+       ],
+       "variable": [
+        {
+         "key": "request_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "The ID of the request."
+        }
+       ]
+      },
+      "description": "Retrieve the status of the justification request."
+     },
+     "response": []
+    },
+    {
+     "name": "Get justification request link",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/actions/justification/:request_id/link",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "actions",
+        "justification",
+        ":request_id",
+        "link"
+       ],
+       "variable": [
+        {
+         "key": "request_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "The ID of the request."
+        }
+       ]
+      },
+      "description": "Retrieve the link of the justification request."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Access Revocation Status",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/actions/accessRevocation/employee/:action_id/status",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "actions",
+        "accessRevocation",
+        "employee",
+        ":action_id",
+        "status"
+       ],
+       "variable": [
+        {
+         "key": "action_id",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "Action Id"
+        }
+       ]
+      },
+      "description": "Retrieve the result of a specific employee access revocation."
+     },
+     "response": []
+    },
+    {
+     "name": "Send Justification Request",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/actions/justification/send",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "actions",
+        "justification",
+        "send"
+       ]
+      },
+      "description": "Initiates a request for a user to justify their use of an application. The request can be sent to users identified by either user ID or email",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"userEmail\": \"string\",\n  \"saasApplicationId\": \"00000000-0000-0000-0000-000000000000\",\n  \"communicationPlatform\": \"Email\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Cancel Justification Request",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/actions/justification/cancel",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "actions",
+        "justification",
+        "cancel"
+       ]
+      },
+      "description": "Cancels an open justification request. The request can be canceled using its unique request ID.",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"requestId\": \"00000000-0000-0000-0000-000000000000\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Start Access Revocation",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/actions/accessRevocation/employee/start",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "actions",
+        "accessRevocation",
+        "employee",
+        "start"
+       ]
+      },
+      "description": "Start an employee access revocation task on specific employee for selected SaaS.",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"saasIds\": [\n    \"00000000-0000-0000-0000-000000000000\"\n  ],\n  \"inheritorMailbox\": \"inheritor@grip.security\",\n  \"managerApprovalEmail\": \"string\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    },
+    {
+     "name": "Cancel Access Revocation",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/actions/accessRevocation/employee/stop",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "actions",
+        "accessRevocation",
+        "employee",
+        "stop"
+       ]
+      },
+      "description": "Stop the process of employee access revocation.",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"actionID\": \"00000000-0000-0000-0000-000000000000\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "Posture Management",
+   "item": [
+    {
+     "name": "List Posture Checks",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/posture-checks",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "posture-checks"
+       ],
+       "query": [
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of posture checks which will return from a single query. <br>`>= 1` `<= 500`"
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only posture checks after this offset. If there are 200 posture checks in a page, the offset for page 2 will be 200. <br>`>= 0`"
+        },
+        {
+         "key": "posture_check_id",
+         "value": "",
+         "disabled": true,
+         "description": "Filter by posture check ID (e.g. Salesforce 1.1)"
+        },
+        {
+         "key": "security_domain",
+         "value": "",
+         "disabled": true,
+         "description": "Filter by security domain name"
+        },
+        {
+         "key": "severity",
+         "value": "",
+         "disabled": true,
+         "description": "Filter by severity"
+        },
+        {
+         "key": "status",
+         "value": "",
+         "disabled": true,
+         "description": "Filter by status"
+        },
+        {
+         "key": "module",
+         "value": "",
+         "disabled": true,
+         "description": "Filter by module name"
+        },
+        {
+         "key": "tenant_name",
+         "value": "",
+         "disabled": true,
+         "description": "Filter by tenant display name"
+        },
+        {
+         "key": "integration_type",
+         "value": "",
+         "disabled": true,
+         "description": "Filter by integration type"
+        },
+        {
+         "key": "tenant_id",
+         "value": "",
+         "disabled": true,
+         "description": "Filter by tenant ID"
+        },
+        {
+         "key": "has_findings",
+         "value": "",
+         "disabled": true,
+         "description": "Filter by whether the posture check has currently violating findings"
+        }
+       ]
+      },
+      "description": "For pagination purposes. Will set the maximum amount of posture checks which will return from a single query."
+     },
+     "response": []
+    },
+    {
+     "name": "List Findings for Posture Check",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{baseUrl}}/posture-checks/:posture_check_uuid/findings",
+       "host": [
+        "{{baseUrl}}"
+       ],
+       "path": [
+        "posture-checks",
+        ":posture_check_uuid",
+        "findings"
+       ],
+       "query": [
+        {
+         "key": "limit",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will set the maximum amount of findings which will return from a single query. <br>`>= 1` `<= 500`"
+        },
+        {
+         "key": "offset",
+         "value": "",
+         "disabled": true,
+         "description": "For pagination purposes. Will get only findings after this offset. If there are 200 findings in a page, the offset for page 2 will be 200. <br>`>= 0`"
+        },
+        {
+         "key": "status",
+         "value": "",
+         "disabled": true,
+         "description": "Filter by finding status"
+        }
+       ],
+       "variable": [
+        {
+         "key": "posture_check_uuid",
+         "value": "00000000-0000-0000-0000-000000000000",
+         "description": "Posture Check Uuid"
+        }
+       ]
+      },
+      "description": "Retrieve the findings details within each posture check by using the corresponding posture check ID."
+     },
+     "response": []
+    }
+   ]
+  }
+ ]
 }
