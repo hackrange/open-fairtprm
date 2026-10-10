@@ -12,6 +12,9 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Shadow SaaS sorts by Avg Score.** The Avg Score column header now sorts
+  the whole list (across pages) by the same score the column shows, with
+  unscored apps last in either direction.
 - **Waive Grip posture findings and ITDR threats, with a required
   justification.** Administrators and Cyber TPRM can waive selected findings
   of a posture check, or an ITDR threat, by writing why it is accepted (at
@@ -536,6 +539,9 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Sorting Shadow SaaS by SSC did nothing.** The SSC (SecurityScorecard)
+  header linked to a sort the query did not recognize, so the list stayed in
+  date order. It now sorts A to F, unrated apps last.
 - **Tolerating rows that were already dismissed now updates Grip.** Dismiss
   and Tolerate Selected only wrote to Grip when a row's status changed, so
   apps dismissed before the Grip sync existed (shown under Tolerated) stayed

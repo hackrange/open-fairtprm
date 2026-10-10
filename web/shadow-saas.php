@@ -100,6 +100,22 @@ function computeAvgScore($entry, $shodanColumnsExist, $upguardMaxScore): ?int
 }
 
 /**
+ * SQL for the Avg Score column, the same arithmetic as computeAvgScore(): the
+ * UpGuard score normalized to 0-100 and the Shodan score, averaged when both
+ * are present, else whichever exists, else NULL. $upguardMaxScore is an int
+ * from config, cast here, so nothing user-supplied reaches the SQL.
+ */
+function shadowSaasAvgScoreSql(bool $shodanColumnsExist, int $upguardMaxScore): string
+{
+    $max = max(1, (int)$upguardMaxScore);
+    $srs = "(CASE WHEN COALESCE(s.current_srs_score, 0) > 0 THEN FLOOR(s.current_srs_score / {$max} * 100) ELSE 0 END)";
+    if (!$shodanColumnsExist) return "(CASE WHEN {$srs} > 0 THEN {$srs} ELSE NULL END)";
+    $sho = "COALESCE(s.current_shodan_score, 0)";
+    return "(CASE WHEN {$srs} > 0 AND {$sho} > 0 THEN ROUND(({$srs} + {$sho}) / 2)"
+         . " WHEN {$srs} > 0 THEN {$srs} WHEN {$sho} > 0 THEN {$sho} ELSE NULL END)";
+}
+
+/**
  * Onboard a shadow_saas row into vendor_onboarding_requests, deleting the
  * shadow_saas row on success. Mirrors the long-form logic from the
  * onboard_selected POST handler so the Allow button and bulk Onboard share
@@ -1221,7 +1237,7 @@ $pgParams = Pagination::getParams([
     'per_page_options' => [100, 500, 1000],
     'sort_column' => 'created_at',
     'sort_dir' => 'DESC',
-    'valid_sort_columns' => ['vendor_name', 'vendor_domain', 'description', 'risk_score', 'risk_type', 'relationship_manager', 'number_of_users', 'application_category', 'breaches_in_three_years', 'downloadbytes', 'uploadbytes', 'filesharing', 'mfasupport', 'security_scorecard_rating', 'current_srs_score', 'current_shodan_score', 'status', 'created_at'],
+    'valid_sort_columns' => ['vendor_name', 'vendor_domain', 'description', 'risk_score', 'risk_type', 'relationship_manager', 'number_of_users', 'application_category', 'breaches_in_three_years', 'downloadbytes', 'uploadbytes', 'filesharing', 'mfasupport', 'security_scorecard_rating', 'current_srs_score', 'current_shodan_score', 'avg_score', 'status', 'created_at'],
 ]);
 $sortColumn = $pgParams['sort_column'];
 $sortOrder = $pgParams['sort_dir'];
@@ -1321,10 +1337,14 @@ if ($tableExists) {
         'mfasupport' => 's.mfasupport',
         'current_srs_score' => 's.current_srs_score',
         'current_shodan_score' => 's.current_shodan_score',
+        'security_scorecard_rating' => 's.security_scorecard_rating',
+        'avg_score' => shadowSaasAvgScoreSql($shodanColumnsExist, $upguardMaxScore),
         'status' => 's.status',
         'created_at' => 's.created_at',
     ];
     $sqlOrderCol = $orderMap[$sortColumn] ?? 's.created_at';
+    // Unscored / unrated rows sort last in either direction.
+    if (in_array($sortColumn, ['avg_score', 'security_scorecard_rating'], true)) $sqlOrderCol = "({$sqlOrderCol}) IS NULL, ({$sqlOrderCol})";
 
     try {
         $entries = $db->fetchAll("
@@ -1363,6 +1383,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv' && $tableExists) {
         'created_at' => 's.created_at',
     ];
     $sqlExportOrderCol = $orderMap[$sortColumn] ?? 's.created_at';
+    if (in_array($sortColumn, ['avg_score', 'security_scorecard_rating'], true)) $sqlExportOrderCol = "({$sqlExportOrderCol}) IS NULL, ({$sqlExportOrderCol})";
     try {
         $exportRows = $db->fetchAll("
             SELECT s.*
@@ -1847,7 +1868,11 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 </a>
                             </th>
                             <?php endif; ?>
-                            <th><?php echo e(t('shadow-saas.col_avg_score')); ?></th>
+                            <th class="sortable <?php echo $sortColumn === 'avg_score' ? 'active' : ''; ?>">
+                                <a href="<?php echo buildSortUrl('avg_score', $sortColumn, $sortOrder); ?>">
+                                    <?php echo e(t('shadow-saas.col_avg_score')); ?><span class="sort-icon"><?php echo getSortIndicator('avg_score', $sortColumn, $sortOrder); ?></span>
+                                </a>
+                            </th>
                             <th class="sortable <?php echo $sortColumn === 'status' ? 'active' : ''; ?>">
                                 <a href="<?php echo buildSortUrl('status', $sortColumn, $sortOrder); ?>">
                                     <?php echo e(t('shadow-saas.col_status')); ?><span class="sort-icon"><?php echo getSortIndicator('status', $sortColumn, $sortOrder); ?></span>
@@ -1950,7 +1975,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             <?php if ($gripEnabled): ?>
                             <td style="text-align: center;"><?php echo sscBadge($entry['security_scorecard_rating'] ?? null); ?></td>
                             <?php endif; ?>
-                            <td style="text-align: center;">
+                            <td style="text-align: center;" class="avg-cell" data-avg="<?php echo $avgScore !== null ? (int)$avgScore : ''; ?>">
                                 <?php if ($avgScore !== null): ?>
                                 <span style="font-weight: 600; font-size: 13px; color: #374151;"><?php echo $avgScore; ?>%</span>
                                 <span class="score-grade grade-<?php echo strtolower($avgGrade); ?>"><?php echo $avgGrade; ?></span>
