@@ -10,7 +10,10 @@
  * mode the page serves EXCLUSIVELY from the database and shows nothing when the
  * snapshot is empty (it waits for the next sync - no per-view API calls).
  *
- * Read-only. Same access as breach alerts (admin / cyber_tprm / auditor).
+ * Same view access as breach alerts (admin / cyber_tprm / auditor). Admins and
+ * Cyber TPRM can also send Grip justification requests ("why do you use this
+ * app?") to selected users by Email, Slack or Microsoft Teams; the latest request
+ * per user is shown in the Justification column. Auditors stay read-only.
  * Param: ?id=<grip SaaS application id>. Large lists are paginated (100/500/1000).
  *
  * Author: Tim Rice
@@ -161,6 +164,72 @@ if (($appName === '' || $appDomain === '') && $useLive) {
     }
 }
 if ($appName === '') $appName = $gripId;
+
+// ---- Justification requests -------------------------------------------------
+// A write into the customer's Grip tenant that messages real people, so: admin or
+// Cyber TPRM only (never auditors), CSRF-checked, Grip enabled, and every user id
+// re-checked server-side against this app's roster (the checkboxes are only a UI
+// hint). At most 50 users per request.
+$canJustify = ($isAdmin || $isCyberTPRM) && $grip->isEnabled() && GripService::isGripUuid($gripId);
+$security   = Security::getInstance();
+$justifyMsg = null;
+$justifyErr = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_justification') {
+    if (!$canJustify) {
+        http_response_code(403);
+        die(t('breach-alerts.access_denied'));
+    }
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $justifyErr = t('grip-saas-users.justify_invalid_request');
+    } else {
+        $platform = (string)($_POST['platform'] ?? '');
+        $picked = array_values(array_unique(array_filter(array_map('strval', (array)($_POST['justify_users'] ?? [])), [GripService::class, 'isGripUuid'])));
+        if (!in_array($platform, GripService::JUSTIFICATION_PLATFORMS, true)) {
+            $justifyErr = t('grip-saas-users.justify_bad_platform');
+        } elseif (!$picked) {
+            $justifyErr = t('grip-saas-users.justify_none_selected');
+        } elseif (count($picked) > 50) {
+            $justifyErr = t('grip-saas-users.justify_too_many', 50);
+        } else {
+            // Roster lookup: the hydrated snapshot first, then (Live mode) Grip.
+            $roster = [];
+            foreach ($db->fetchAll("SELECT user_grip_id, mail FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g", [':g' => $gripId]) as $r) {
+                $r = $grip->decryptGripRow('shadow_saas_grip_app_users', $r);
+                $roster[strtolower((string)$r['user_grip_id'])] = (string)($r['mail'] ?? '');
+            }
+            if (array_diff(array_map('strtolower', $picked), array_keys($roster)) && $useLive) {
+                foreach ($grip->getUsersForApp($gripId) as $entry) {
+                    $uid = strtolower((string)($entry['user']['id'] ?? ($entry['saasUser']['userId'] ?? '')));
+                    if ($uid !== '' && !isset($roster[$uid])) $roster[$uid] = (string)($entry['user']['mail'] ?? '');
+                }
+            }
+            $sent = 0; $failed = 0; $skipped = 0;
+            foreach ($picked as $uid) {
+                if (!array_key_exists(strtolower($uid), $roster)) { $skipped++; continue; }
+                $r = $grip->sendJustification($gripId, $uid, $roster[strtolower($uid)], $platform, (int)$user['id']);
+                if ($r['success']) $sent++; else $failed++;
+                usleep(100000);
+            }
+            $auth->audit($user['id'], 'grip_justification_send', 'shadow_saas_grip_apps', null, [
+                'new' => ['grip_saas_id' => $gripId, 'platform' => $platform, 'sent' => $sent, 'failed' => $failed, 'not_in_roster' => $skipped],
+            ]);
+            if ($sent > 0) $justifyMsg = t('grip-saas-users.justify_sent', $sent, $platform);
+            if ($failed > 0 || $skipped > 0) $justifyErr = t('grip-saas-users.justify_failed', $failed + $skipped);
+        }
+    }
+}
+$justifications = [];
+if ($canJustify || $isAuditor || $isAdmin || $isCyberTPRM) {
+    // Live mode: refresh this app's open requests before showing them.
+    if ($useLive && $grip->isEnabled()) {
+        try { $grip->refreshJustificationStatuses($gripId, 50); } catch (Throwable $e) { error_log('justification status refresh failed: ' . $e->getMessage()); }
+    }
+    foreach ($grip->getJustifications($gripId) as $j) {
+        $k = strtolower((string)$j['user_grip_id']);
+        if (!isset($justifications[$k])) $justifications[$k] = $j; // newest first
+    }
+}
+$csrfToken = $security->generateCSRFToken();
 
 $snapCount = (int)($db->fetchOne(
     "SELECT COUNT(*) AS c FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g",
@@ -383,6 +452,17 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
         .per-page-group label { font-size: 12px; color: #666; }
         .per-page-group select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
 
+        .gsu-justify-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; color: #374151; }
+        .gsu-justify-bar select { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+        .gsu-justify-bar button { background: var(--theme-button-color); color: #fff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+        .gsu-flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+        .gsu-flash-ok { background: #dcfce7; color: #166534; }
+        .gsu-flash-err { background: #fee2e2; color: #991b1b; }
+        .gsu-j-sent, .gsu-j-reminded { background: #dbeafe; color: #1e40af; }
+        .gsu-j-recieved, .gsu-j-received { background: #e0e7ff; color: #3730a3; }
+        .gsu-j-responded { background: #dcfce7; color: #166534; }
+        .gsu-j-canceled { background: #f3f4f6; color: #6b7280; }
+        .gsu-j-failed { background: #fee2e2; color: #991b1b; }
         .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; }
         .empty-state h3 { color: #374151; margin-bottom: 8px; }
 
@@ -461,6 +541,9 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                     </form>
                 </div>
 
+                <?php if ($justifyMsg): ?><div class="gsu-flash gsu-flash-ok"><?php echo e($justifyMsg); ?></div><?php endif; ?>
+                <?php if ($justifyErr): ?><div class="gsu-flash gsu-flash-err"><?php echo e($justifyErr); ?></div><?php endif; ?>
+
                 <?php if (empty($users) && ($search !== '' || $authFilter !== '')): ?>
                     <div class="empty-state">
                         <h3><?php echo e(t('grip-saas-users.no_matching_users')); ?></h3>
@@ -477,10 +560,27 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                     </div>
                 <?php else: ?>
                     <?php Pagination::renderControls($pg, 'users', [100, 500, 1000]); ?>
+                    <?php if ($canJustify): ?>
+                    <form method="post" id="justifyForm">
+                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                    <input type="hidden" name="action" value="send_justification">
+                    <div class="gsu-justify-bar">
+                        <span><?php echo e(t('grip-saas-users.justify_intro')); ?></span>
+                        <label for="justifyPlatform"><?php echo e(t('grip-saas-users.justify_via')); ?></label>
+                        <select name="platform" id="justifyPlatform">
+                            <?php foreach (GripService::JUSTIFICATION_PLATFORMS as $jp): ?>
+                            <option value="<?php echo e($jp); ?>"><?php echo e($jp); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="submit" id="justifyBtn" data-confirm="<?php echo e(t('grip-saas-users.justify_confirm')); ?>"><?php echo e(t('grip-saas-users.justify_button')); ?></button>
+                        <span class="gsu-sub"><?php echo e(t('grip-saas-users.justify_channel_help')); ?></span>
+                    </div>
+                    <?php endif; ?>
                     <div style="overflow-x:auto;">
                     <table class="data-table">
                         <thead>
                             <tr>
+                                <?php if ($canJustify): ?><th style="width:36px;"><input type="checkbox" id="justifyAll" aria-label="<?php echo e(t('grip-saas-users.justify_select_all')); ?>"></th><?php endif; ?>
                                 <?php
                                     $pp = (int)$params['per_page'];
                                     echo gsuSortHeader(t('grip-saas-users.col_user'), 'full_name', $gripId, $sortCol, $sortDir, $pp, $authFilter, $search);
@@ -496,6 +596,7 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                                 ?>
                                 <th><?php echo e(t('grip-saas-users.col_platforms')); ?></th>
                                 <th># SaaS</th>
+                                <th><?php echo e(t('grip-saas-users.col_justification')); ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -516,6 +617,9 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                                 $sso = $u['sso'];
                             ?>
                             <tr>
+                                <?php if ($canJustify): ?>
+                                <td><?php if (GripService::isGripUuid((string)($u['user_grip_id'] ?? ''))): ?><input type="checkbox" class="justify-box" name="justify_users[]" value="<?php echo e($u['user_grip_id']); ?>" aria-label="<?php echo e(t('grip-saas-users.justify_select_user')); ?>"><?php endif; ?></td>
+                                <?php endif; ?>
                                 <td>
                                     <div class="gsu-user">
                                         <div class="gsu-avatar" style="background:<?php echo $color; ?>;"><?php echo e($initials); ?></div>
@@ -540,11 +644,18 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                                 <td><?php echo gsuDate($u['last_usage'] ?? null); ?></td>
                                 <td><?php echo $platforms ? e(implode(', ', $platforms)) : '<span style="color:#9ca3af;">—</span>'; ?></td>
                                 <td><?php echo isset($u['number_of_saas']) && $u['number_of_saas'] !== null ? (int)$u['number_of_saas'] : '<span style="color:#9ca3af;">—</span>'; ?></td>
+                                <td>
+                                    <?php $jr = $justifications[strtolower((string)($u['user_grip_id'] ?? ''))] ?? null; if ($jr): ?>
+                                    <span class="gsu-pill gsu-j-<?php echo e(strtolower(preg_replace('/[^a-z]/i', '', (string)$jr['status']))); ?>" title="<?php echo e(trim(($jr['sent_by_name'] ?? '') . ' ' . ($jr['last_error'] ?? ''))); ?>"><?php echo e(t('grip-saas-users.justify_status_' . strtolower(preg_replace('/[^a-z]/i', '', (string)$jr['status'])))); ?></span>
+                                    <div class="gsu-sub"><?php echo e($jr['platform']); ?> &middot; <?php echo gsuDate($jr['created_at'] ?? null); ?></div>
+                                    <?php else: ?><span style="color:#9ca3af;">—</span><?php endif; ?>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                     </div>
+                    <?php if ($canJustify): ?></form><?php endif; ?>
                     <?php Pagination::renderControls($pg, 'users', [100, 500, 1000]); ?>
                 <?php endif; ?>
             </main>
@@ -571,6 +682,21 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
     </div>
 
     <script nonce="<?php echo cspNonce(); ?>">
+        // Justification: header checkbox selects every user on this page, and the
+        // send button refuses to submit with nobody selected.
+        document.addEventListener('change', function (e) {
+            if (e.target.id !== 'justifyAll') return;
+            document.querySelectorAll('.justify-box').forEach(function (b) { b.checked = e.target.checked; });
+        });
+        // Capture phase, so this runs before the shared data-confirm handler.
+        document.addEventListener('click', function (e) {
+            if (!e.target || e.target.id !== 'justifyBtn') return;
+            if (!document.querySelector('.justify-box:checked')) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                alert(<?php echo json_encode(t('grip-saas-users.justify_none_selected')); ?>);
+            }
+        }, true);
         // Per-page selector - preserves all current query params (incl. ?id=).
         document.addEventListener('change', function (e) {
             var el = e.target.closest('[data-action="changePerPage"]');

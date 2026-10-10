@@ -72,6 +72,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
                 // system on each hydration. Also requires Grip enabled (above) and the
                 // Breach/Cyber Alert master switch (admin.php?section=email).
                 $settings['grip_breach_sync_enabled'] = isset($_POST['grip_breach_sync_enabled']) ? '1' : '0';
+                // Write TPRM status back into Grip: FairTPRM labels and the vendor
+                // relationship manager as the app's primary contact.
+                $settings['grip_writeback_enabled'] = isset($_POST['grip_writeback_enabled']) ? '1' : '0';
 
                 $newToken = trim($_POST['grip_api_token'] ?? '');
                 if ($newToken !== '') {
@@ -93,6 +96,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
                 }
                 $settings['cron_shadow_saas_rehydrate_enabled']  = isset($_POST['rehydrate_enabled']) ? '1' : '0';
                 $settings['cron_shadow_saas_rehydrate_schedule'] = $schedule;
+                // Grip new-app discovery (hidden grip_discovery job), saved with
+                // the same form so both Grip schedules live in one place.
+                $discSchedule = trim($_POST['discovery_schedule'] ?? '*/15 * * * *');
+                if (!isValidCronExpression($discSchedule)) {
+                    throw new Exception(t('admin_shadow-saas-grip.invalid_cron'));
+                }
+                $settings['cron_grip_discovery_enabled']  = isset($_POST['discovery_enabled']) ? '1' : '0';
+                $settings['cron_grip_discovery_schedule'] = $discSchedule;
             }
 
             foreach ($settings as $key => $value) {
@@ -541,6 +552,18 @@ $rrEn = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'c
 if ($rrEn && isset($rrEn['config_value'])) { $rehydrateEnabled = (string)$rrEn['config_value']; }
 $rrSc = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'cron_shadow_saas_rehydrate_schedule'");
 if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc['config_value']; }
+// Grip new-app discovery job. Unset means enabled on the default schedule, the
+// same rule regenerateCrontab() applies.
+$discoveryEnabled  = '1';
+$discoverySchedule = '*/15 * * * *';
+$dEn = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'cron_grip_discovery_enabled'");
+if ($dEn && isset($dEn['config_value'])) { $discoveryEnabled = (string)$dEn['config_value']; }
+$dSc = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'cron_grip_discovery_schedule'");
+if ($dSc && !empty($dSc['config_value'])) { $discoverySchedule = (string)$dSc['config_value']; }
+$discoveryLast = null;
+try {
+    $discoveryLast = $db->fetchOne("SELECT started_at, status, success_count FROM cron_execution_history WHERE job_name = 'grip-discovery' ORDER BY id DESC LIMIT 1") ?: null;
+} catch (Throwable $e) {}
 ?>
 <div class="page-header-bar">
     <h1 class="page-title">Shadow SaaS</h1>
@@ -588,6 +611,13 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
                 <span><?php echo t('admin_shadow-saas-grip.flow_grip_breach_label'); ?></span>
             </label>
             <div class="form-help"><?php echo t('admin_shadow-saas-grip.grip_breach_help'); ?></div>
+        </div>
+        <div class="form-group" style="margin-top: 4px;">
+            <label class="checkbox-label">
+                <input type="checkbox" name="grip_writeback_enabled" value="1" <?php echo ($gripCfg['writeback_enabled'] ?? '0') === '1' ? 'checked' : ''; ?>>
+                <span><?php echo e(t('admin_shadow-saas-grip.writeback_label')); ?></span>
+            </label>
+            <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.writeback_help')); ?></div>
         </div>
         <div class="form-group" style="margin-top: 4px;">
             <label for="grip_data_source"><?php echo e(t('admin_shadow-saas-grip.data_source_label')); ?></label>
@@ -704,6 +734,46 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
         </tbody>
     </table>
 </div>
+
+<?php
+// Write-back status: what FairTPRM last wrote into Grip, and primary contacts it
+// could not set (the relationship manager is not an email/FairTPRM user, or is
+// not a Grip user). Table may not exist before the v2.6.2 update has run.
+$wbStats = null; $wbProblems = [];
+try {
+    $wbStats = $db->fetchOne("SELECT COUNT(*) AS apps,
+            SUM(labels IS NOT NULL AND labels != '[]') AS labeled,
+            SUM(contact_status = 'set') AS contact_set,
+            SUM(contact_status IN ('not_grip_user', 'no_email')) AS contact_unresolved,
+            SUM(last_error IS NOT NULL) AS errored,
+            MAX(updated_at) AS last_at
+        FROM shadow_saas_grip_writeback");
+    $wbProblems = $db->fetchAll("SELECT w.contact_status, w.contact_source, w.last_error, v.id AS vendor_id, v.vendor_name
+        FROM shadow_saas_grip_writeback w LEFT JOIN vendor_onboarding_requests v ON v.id = w.vendor_id
+        WHERE w.contact_status IN ('not_grip_user', 'no_email', 'error') OR w.last_error IS NOT NULL
+        ORDER BY w.updated_at DESC LIMIT 25");
+} catch (Throwable $e) { $wbStats = null; }
+?>
+<?php if ($wbStats !== null && ($gripCfg['writeback_enabled'] ?? '0') === '1'): ?>
+<div class="card">
+    <h3><?php echo e(t('admin_shadow-saas-grip.writeback_heading')); ?></h3>
+    <p style="color: #666; line-height: 1.6;"><?php echo e(t('admin_shadow-saas-grip.writeback_summary', (int)$wbStats['labeled'], (int)$wbStats['contact_set'], (int)$wbStats['contact_unresolved'], (int)$wbStats['errored'])); ?></p>
+    <?php if ($wbProblems): ?>
+    <table>
+        <thead><tr><th><?php echo e(t('admin_shadow-saas-grip.writeback_th_vendor')); ?></th><th><?php echo e(t('admin_shadow-saas-grip.writeback_th_rm')); ?></th><th><?php echo e(t('admin_shadow-saas-grip.writeback_th_problem')); ?></th></tr></thead>
+        <tbody>
+        <?php foreach ($wbProblems as $wp): ?>
+            <tr>
+                <td><?php if (!empty($wp['vendor_id'])): ?><a href="vendor-onboarding.php?id=<?php echo (int)$wp['vendor_id']; ?>"><?php echo e($wp['vendor_name'] ?? ''); ?></a><?php else: ?>—<?php endif; ?></td>
+                <td><?php echo e($wp['contact_source'] ?? '—'); ?></td>
+                <td><?php echo e(in_array($wp['contact_status'], ['not_grip_user', 'no_email'], true) ? t('admin_shadow-saas-grip.writeback_' . $wp['contact_status']) : ($wp['last_error'] ?? '')); ?></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 
 <div class="card">
     <h3><?php echo e(t('admin_shadow-saas-grip.api_reference_heading')); ?></h3>
@@ -904,6 +974,18 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
             <label for="rehydrate_schedule"><?php echo e(t('admin_shadow-saas-grip.schedule_cron_label')); ?></label>
             <input type="text" id="rehydrate_schedule" name="rehydrate_schedule" class="form-control" style="font-family: monospace;" value="<?php echo e($rehydrateSchedule); ?>" placeholder="0 2 * * *">
             <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.schedule_help_prefix')); ?><strong><?php echo e(describeCron($rehydrateSchedule)); ?></strong><?php echo t('admin_shadow-saas-grip.schedule_help_suffix'); ?></div>
+        </div>
+        <div class="form-group" style="margin-top: 18px;">
+            <label class="checkbox-label">
+                <input type="checkbox" name="discovery_enabled" value="1" <?php echo $discoveryEnabled === '1' ? 'checked' : ''; ?>>
+                <span><?php echo e(t('admin_shadow-saas-grip.enable_discovery')); ?></span>
+            </label>
+            <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.discovery_help')); ?></div>
+        </div>
+        <div class="form-group" style="max-width: 400px;">
+            <label for="discovery_schedule"><?php echo e(t('admin_shadow-saas-grip.discovery_cron_label')); ?></label>
+            <input type="text" id="discovery_schedule" name="discovery_schedule" class="form-control" style="font-family: monospace;" value="<?php echo e($discoverySchedule); ?>" placeholder="*/15 * * * *">
+            <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.schedule_help_prefix')); ?><strong><?php echo e(describeCron($discoverySchedule)); ?></strong><?php if ($discoveryLast): ?> &middot; <?php echo e(t('admin_shadow-saas-grip.discovery_last_run', date('M j, Y H:i', strtotime($discoveryLast['started_at'])), (string)$discoveryLast['status'], (int)$discoveryLast['success_count'])); ?><?php endif; ?></div>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 14px; align-items: center; flex-wrap: wrap;">
             <button type="submit" name="update_grip" class="btn btn-primary"><?php echo e(t('admin_shadow-saas-grip.save_schedule_button')); ?></button>

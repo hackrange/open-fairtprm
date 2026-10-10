@@ -6626,5 +6626,123 @@ INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`, `
   ('breach_verify_fp_similarity', '0.6', 0, 'Headline similarity (0-1) at which a dismissed narrative is suppressed');
 
 -- =============================================================================
+-- Grip telemetry and write-back (v2.6.2): per-app breach history, how the app is
+-- used (workspace vs mixed personal/work), actual MFA enforcement, v2 alert
+-- fields, TPRM -> Grip labels / primary contact, and justification requests.
+-- Placed after every CREATE above so a fresh seed has the tables first.
+-- =============================================================================
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas_grip_apps' AND column_name = 'breach_history') = 0,
+  'ALTER TABLE `shadow_saas_grip_apps` ADD COLUMN `breach_history` LONGTEXT DEFAULT NULL COMMENT ''JSON array of {date, breachTypes, url}, newest first''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas_grip_apps' AND column_name = 'app_classification') = 0,
+  'ALTER TABLE `shadow_saas_grip_apps` ADD COLUMN `app_classification` VARCHAR(20) DEFAULT NULL COMMENT ''workspace | mixed_use''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas_grip_apps' AND column_name = 'mfa_status') = 0,
+  'ALTER TABLE `shadow_saas_grip_apps` ADD COLUMN `mfa_status` VARCHAR(20) DEFAULT NULL COMMENT ''Enabled | Not Enabled | Partial | Unknown''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_breach_history') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `grip_breach_history` LONGTEXT DEFAULT NULL COMMENT ''Grip breach history JSON, newest first''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_app_classification') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `grip_app_classification` VARCHAR(20) DEFAULT NULL COMMENT ''Grip appClassification: workspace | mixed_use''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_mfa_status') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `grip_mfa_status` VARCHAR(20) DEFAULT NULL COMMENT ''Grip mfaStatus: Enabled | Not Enabled | Partial | Unknown''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas_grip_alerts' AND column_name = 'alert_name') = 0,
+  'ALTER TABLE `shadow_saas_grip_alerts` ADD COLUMN `alert_name` VARCHAR(500) DEFAULT NULL COMMENT ''v2 alertName''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas_grip_alerts' AND column_name = 'policy_readable_id') = 0,
+  'ALTER TABLE `shadow_saas_grip_alerts` ADD COLUMN `policy_readable_id` INT(10) UNSIGNED DEFAULT NULL COMMENT ''v2 Policy Center policy that raised the alert''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas_grip_alerts' AND column_name = 'mitigation_description') = 0,
+  'ALTER TABLE `shadow_saas_grip_alerts` ADD COLUMN `mitigation_description` LONGTEXT DEFAULT NULL COMMENT ''v2 plain-text mitigation''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas_grip_alerts' AND column_name = 'related_identity_mail') = 0,
+  'ALTER TABLE `shadow_saas_grip_alerts` ADD COLUMN `related_identity_mail` TEXT DEFAULT NULL COMMENT ''v2 identity involved; PII: AES-encrypted at rest''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas_grip_alerts' AND column_name = 'last_used') = 0,
+  'ALTER TABLE `shadow_saas_grip_alerts` ADD COLUMN `last_used` DATETIME DEFAULT NULL COMMENT ''v2 lastUsed of the related entity''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_ai_depth_level') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `grip_ai_depth_level` VARCHAR(255) DEFAULT NULL COMMENT ''Grip aiDepth.level (AI-Native App, AI Copilot Experience, AI Features/Add-on, No AI)''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_ai_depth_description') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `grip_ai_depth_description` TEXT DEFAULT NULL COMMENT ''Grip aiDepth.description''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Backfill AI depth for existing Grip rows from the apps mirror (re-runs are harmless).
+UPDATE `shadow_saas` s JOIN `shadow_saas_grip_apps` a ON a.`grip_id` = s.`grip_id`
+   SET s.`grip_ai_depth_level` = a.`ai_depth_level`, s.`grip_ai_depth_description` = a.`ai_depth_description`
+ WHERE s.`grip_ai_depth_level` IS NULL AND a.`ai_depth_level` IS NOT NULL AND a.`ai_depth_level` != '';
+
+-- TPRM -> Grip write-back state, one row per Grip app FairTPRM manages. Holds the
+-- labels FairTPRM last wrote (only "FairTPRM: ..." labels are ever touched) and
+-- the primary-contact outcome, so the sync only writes what changed and the
+-- admin page can say why a contact could not be set.
+CREATE TABLE IF NOT EXISTS `shadow_saas_grip_writeback` (
+  `grip_id`          varchar(64)  NOT NULL,
+  `vendor_id`        int(10) unsigned DEFAULT NULL COMMENT 'vendor_onboarding_requests.id when the app is an onboarded vendor',
+  `labels`           text DEFAULT NULL COMMENT 'JSON array of FairTPRM labels last written',
+  `contact_source`   varchar(255) DEFAULT NULL COMMENT 'Relationship manager value the contact was resolved from',
+  `contact_user_id`  varchar(64)  DEFAULT NULL COMMENT 'Grip userId last set as primary contact',
+  `contact_status`   varchar(32)  DEFAULT NULL COMMENT 'set | not_grip_user | no_email | error',
+  `last_error`       varchar(500) DEFAULT NULL,
+  `updated_at`       timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`grip_id`),
+  KEY `idx_vendor_id` (`vendor_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Justification requests sent through Grip ("why do you use this app?"). One row
+-- per user asked. user_mail is encrypted at rest like the other Grip PII.
+CREATE TABLE IF NOT EXISTS `shadow_saas_grip_justifications` (
+  `id`             int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `grip_saas_id`   varchar(64)  NOT NULL,
+  `user_grip_id`   varchar(64)  NOT NULL,
+  `user_mail`      text DEFAULT NULL COMMENT 'PII: AES-encrypted at rest',
+  `platform`       varchar(32)  NOT NULL COMMENT 'Email | Slack | Microsoft Teams',
+  `request_id`     varchar(64)  DEFAULT NULL COMMENT 'Grip requestId',
+  `status`         varchar(32)  DEFAULT NULL COMMENT 'Sent | Recieved | Responded | Canceled | Reminded | failed',
+  `last_error`     varchar(500) DEFAULT NULL,
+  `sent_by`        int(10) unsigned DEFAULT NULL,
+  `created_at`     timestamp NULL DEFAULT current_timestamp(),
+  `updated_at`     timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_app_user` (`grip_saas_id`, `user_grip_id`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Write-back is opt-in per install: labels and primary contact are written into
+-- the customer's Grip tenant only once an admin turns this on.
+INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`, `description`) VALUES
+  ('grip_writeback_enabled', '0', 0, 'Write TPRM status (labels) and relationship manager (primary contact) back to Grip');
+
+-- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

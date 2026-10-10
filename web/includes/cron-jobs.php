@@ -16,7 +16,8 @@
  *   - includes/admin/scheduler.php  (renders/saves all NON-hidden jobs)
  *   - cron/sync-crontab.php         (entrypoint: regenerates /etc/cron.d/open-tprm)
  *   - includes/admin/shadow-saas.php(shadow-saas-grip.php; manages the hidden
- *                                    shadow_saas_rehydrate job on its own page)
+ *                                    shadow_saas_rehydrate and grip_discovery
+ *                                    jobs on its own page)
  *
  * A job flagged 'hidden' => true is still installed into the crontab, but is NOT
  * rendered or saved by the central Scheduler page — it is managed elsewhere (the
@@ -156,6 +157,23 @@ function cronJobDefinitions(): array
             'default_schedule' => '0 7 * * *',
             'timeout'         => 600,
             'history_key'     => 'onboarding-scheduled-actions',
+        ],
+        // Picks up apps Grip has just detected (from its "New Unmanaged App"
+        // alerts) between full rehydrations, so a new AI tool shows in Shadow
+        // SaaS within minutes instead of at the next nightly sync. Hidden from
+        // the Scheduler page; edited on Admin > Shadow SaaS > Grip. A couple of
+        // API calls per run; exits at once when Grip is not enabled, and skips
+        // while a full Shadow SaaS sync holds the shared lock.
+        'grip_discovery' => [
+            'name'            => 'Grip New-App Discovery',
+            'description'     => 'Adds apps Grip has just detected to Shadow SaaS between full syncs',
+            'script'          => 'grip-discovery.php',
+            'log'             => '/var/log/php/cron-grip-discovery.log',
+            'default_schedule' => '*/15 * * * *',
+            'timeout'         => 600,
+            'history_key'     => 'grip-discovery',
+            // Managed next to the rehydration schedule on Admin > Shadow SaaS > Grip.
+            'hidden'          => true,
         ],
         // Shared Shadow SaaS rehydration. Runs whichever single provider (Grip or
         // Hero) is enabled — they are mutually exclusive. Managed on the Shadow

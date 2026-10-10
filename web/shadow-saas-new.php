@@ -21,6 +21,9 @@
 require_once 'includes/init.php';
 requireAuth();
 require_once __DIR__ . '/includes/classes/GripService.php';
+require_once __DIR__ . '/includes/classes/SRSService.php';
+require_once __DIR__ . '/includes/classes/ShodanService.php';
+require_once __DIR__ . '/includes/partials/shadow-saas-helpers.php';
 header('Cache-Control: no-cache, no-store, must-revalidate');
 
 $auth     = Auth::getInstance();
@@ -127,7 +130,8 @@ if ($ids) {
     }
     try {
         foreach ($db->fetchAll(
-            "SELECT related_entity_id, alert_type, created_at_grip, alert_url
+            "SELECT related_entity_id, COALESCE(NULLIF(alert_name, ''), alert_type) AS alert_type,
+                    created_at_grip, alert_url, mitigation_description, policy_readable_id
                FROM shadow_saas_grip_alerts
               WHERE related_entity_id IN ({$in}) AND alert_type LIKE 'New Unmanaged%'
               ORDER BY created_at_grip ASC",
@@ -139,6 +143,30 @@ if ($ids) {
         error_log('Shadow SaaS New alert load failed: ' . $e->getMessage());
     }
 }
+// Full Shadow SaaS rows, so clicking an app opens the same details panel as the
+// Applications list (includes/partials/shadow-saas-detail.php).
+$snRows = [];
+if ($ids) {
+    try {
+        foreach ($db->fetchAll("SELECT * FROM shadow_saas WHERE grip_id IN ({$in})", $params) as $r) {
+            $snRows[(string)$r['grip_id']] = $r;
+        }
+    } catch (Throwable $e) {
+        error_log('Shadow SaaS New detail load failed: ' . $e->getMessage());
+    }
+}
+// Score context the details panel needs (same sources as shadow-saas.php).
+$srsService = new SRSService();
+$shodanService = new ShodanService();
+$scoringConfig = $srsService->getScoringConfig();
+$upguardDisplayMode = $scoringConfig['display_mode'] ?? 'raw';
+$upguardMaxScore = (int)($scoringConfig['max_score'] ?? 950);
+$upguardName = $scoringConfig['display_name'] ?? 'UpGuard';
+$shodanName = $shodanService->getScoringConfig()['display_name'] ?? 'Shodan';
+$shodanColumnsExist = false;
+try { $db->fetchOne("SELECT current_shodan_score FROM shadow_saas LIMIT 1"); $shodanColumnsExist = true; } catch (Exception $e) {}
+$snColspan = $canManage ? 8 : 7;
+
 $snMissingZero = count(array_filter($snApps, fn($r) => (int)$r['number_of_users'] > 0 && !isset($snZero[(string)$r['grip_id']])));
 $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') === 'pending' && empty($r['vendor_id'])));
 ?><!DOCTYPE html>
@@ -153,6 +181,8 @@ $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') 
     <link rel="stylesheet" href="app/css/mobile-responsive.css">
     <link rel="stylesheet" href="app/css/interactive.css?v=2">
     <style nonce="<?php echo cspNonce(); ?>">
+        <?php echo shadowSaasDetailCss(); ?>
+        #sn-table tbody tr[data-grip-id] { cursor: pointer; }
         :root {
             --theme-header-color: <?php echo e($theme['header_color'] ?? '#1e3a5f'); ?>;
             --theme-footer-color: <?php echo e($theme['footer_color'] ?? '#1e293b'); ?>;
@@ -342,7 +372,7 @@ $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') 
                             <?php endif; ?>
                             <td>
                                 <div class="sn-name"><?php echo e($a['name']); ?>
-                                    <?php if (!empty($a['ai_depth_level'])): ?><span class="pp-pill tag-ai" title="<?php echo e(t('shadow-saas-new.ai_depth')); ?>">AI: <?php echo e($a['ai_depth_level']); ?></span><?php endif; ?>
+                                    <?php $snAi = shadowSaasAiLevel(['grip_ai_depth_level' => $a['ai_depth_level'] ?? '']); if ($snAi !== null): ?><span class="ai-badge" title="<?php echo e(t('shadow-saas.ai_badge_title', $snAi)); ?>"><?php echo e(t('shadow-saas.ai_badge')); ?></span><span class="pp-pill tag-ai" title="<?php echo e(t('shadow-saas-new.ai_depth')); ?>"><?php echo e($snAi); ?></span><?php endif; ?>
                                 </div>
                                 <div class="sn-sub">
                                     <?php if (!empty($a['domain'])): ?><a href="https://<?php echo e($a['domain']); ?>" target="_blank" rel="noopener noreferrer"><?php echo e($a['domain']); ?></a><?php endif; ?>
@@ -364,7 +394,7 @@ $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') 
                                 <?php else: ?><span class="pp-muted">&mdash;</span><?php endif; ?>
                             </td>
                             <td><?php echo $platforms ? e(implode(', ', $platforms)) : '<span class="pp-muted">&mdash;</span>'; ?>
-                                <?php if ($al): ?><div class="sn-sub"><?php if (!empty($al['alert_url']) && preg_match('#^https://#i', $al['alert_url'])): ?><a href="<?php echo e($al['alert_url']); ?>" target="_blank" rel="noopener noreferrer"><?php echo e(trim($al['alert_type'])); ?></a><?php else: ?><?php echo e(trim($al['alert_type'])); ?><?php endif; ?> &middot; <?php echo snDate($al['created_at_grip']); ?></div><?php endif; ?>
+                                <?php if ($al): ?><div class="sn-sub"<?php $alTip = trim((string)($al['mitigation_description'] ?? '') . (!empty($al['policy_readable_id']) ? ' (Grip policy #' . (int)$al['policy_readable_id'] . ')' : '')); if ($alTip !== ''): ?> title="<?php echo e($alTip); ?>"<?php endif; ?>><?php if (!empty($al['alert_url']) && preg_match('#^https://#i', $al['alert_url'])): ?><a href="<?php echo e($al['alert_url']); ?>" target="_blank" rel="noopener noreferrer"><?php echo e(trim($al['alert_type'])); ?></a><?php else: ?><?php echo e(trim($al['alert_type'])); ?><?php endif; ?> &middot; <?php echo snDate($al['created_at_grip']); ?></div><?php endif; ?>
                             </td>
                             <td><?php if ($tag !== ''): ?><span class="pp-pill <?php echo $tag === 'sanctioned' ? 'tag-sanctioned' : ($tag === 'unsanctioned' ? 'tag-unsanctioned' : 'tag-other'); ?>"><?php echo e(ucwords($tag)); ?></span><?php endif; ?>
                                 <?php $rb = GripService::bucketScore($a['risk_score']); if ($rb): ?><div class="sn-sub"><?php echo e(t('shadow-saas-new.grip_risk', $rb)); ?></div><?php endif; ?>
@@ -375,6 +405,17 @@ $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') 
                                 <?php elseif ($state !== ''): ?>
                                     <span class="pp-pill st-<?php echo e($state); ?>"><?php echo e($state === 'unsanctioned' && ($a['ss_status'] ?? '') === 'pending' ? t('shadow-saas.status_grip_unsanctioned') : t('shadow-saas-new.state_' . $state)); ?></span>
                                 <?php else: ?><span class="pp-muted">&mdash;</span><?php endif; ?>
+                            </td>
+                        </tr>
+                        <tr class="detail-row">
+                            <td colspan="<?php echo (int)$snColspan; ?>">
+                                <?php if (isset($snRows[$gid])): $entry = $snRows[$gid]; ?>
+                                <?php include __DIR__ . '/includes/partials/shadow-saas-detail.php'; ?>
+                                <?php elseif (!empty($a['vendor_id'])): ?>
+                                <div class="detail-grid"><div class="detail-item"><span class="detail-value"><?php echo e(t('shadow-saas-new.detail_onboarded')); ?> <a href="vendor-onboarding.php?id=<?php echo (int)$a['vendor_id']; ?>"><?php echo e(t('shadow-saas-new.open_vendor')); ?></a></span></div></div>
+                                <?php else: ?>
+                                <div class="detail-grid"><div class="detail-item"><span class="detail-value"><?php echo e(t('shadow-saas-new.detail_not_listed')); ?></span></div></div>
+                                <?php endif; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -407,6 +448,15 @@ $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') 
         </footer>
     </div>
     <script nonce="<?php echo cspNonce(); ?>">
+        // Click a row (outside its links and checkbox) to open the same details
+        // panel as the Applications list.
+        document.getElementById('sn-table')?.addEventListener('click', function (e) {
+            if (e.target.closest('a, button, input, select, textarea, label')) return;
+            var row = e.target.closest('tr');
+            if (!row || row.classList.contains('detail-row') || !row.hasAttribute('data-grip-id')) return;
+            var detail = row.nextElementSibling;
+            if (detail && detail.classList.contains('detail-row')) detail.classList.toggle('open');
+        });
         // Onboard selected: require a selection and a confirmation. The dispatch
         // key rides on a hidden input, so the submission never depends on the button.
         (function () {

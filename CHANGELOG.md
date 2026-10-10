@@ -12,6 +12,59 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Newly detected Grip apps reach Shadow SaaS within minutes.** A new
+  "Grip New-App Discovery" job (every 15 minutes by default) reads Grip's
+  "New Unmanaged App / AI App Detected" alerts and adds any app the mirror
+  does not hold yet, so a new AI tool no longer waits for the nightly
+  rehydration. It costs a couple of API calls per run, never overlaps a full
+  sync, and is enabled and scheduled under Admin > Shadow SaaS > Grip, next to
+  the rehydration schedule.
+- **AI apps are flagged across Shadow SaaS.** An "AI" badge marks every app
+  whose Grip AI depth (or the "AI: ..." part of its risk type) is anything
+  other than "No AI", on the Applications list and the New tab, and a new AI
+  filter shows apps that use AI or those that do not. Grip's AI depth level
+  and description are stored on each Shadow SaaS row (backfilled from the
+  Grip mirror on upgrade) and shown in the row details.
+- **Shadow SaaS New tab rows open the full details.** Clicking an app on the
+  New tab opens the same details panel as the Applications list (scores,
+  breach history, MFA, usage, AI, users link); onboarded vendors link to the
+  vendor record.
+- **Grip breach history, MFA enforcement and personal/work usage on Shadow
+  SaaS.** The Grip sync now stores each app's breach history, whether the app
+  actually enforces MFA for your users (Enabled, Not Enabled, Partial,
+  Unknown) and how it is used (work, or mixed personal and work). Shadow SaaS
+  shows "Personal + work" and "No MFA" / "MFA partial" badges, adds MFA
+  (Grip) and Usage (Grip) filters, and lists the breach history (date, types,
+  source link) in the row details. "Breaches in 3 years" is now filled from
+  Grip, so the onboarding PII/PHI justification uses Grip's record.
+- **Grip justification requests.** Admins and Cyber TPRM can select users on
+  an app's Grip users page and ask them, by Email, Slack or Microsoft Teams,
+  why they use the app. Each request and its status (Sent, Received,
+  Responded, Canceled, Reminded) is shown per user and refreshed on every
+  sync. User ids are re-checked against the app's roster on the server, at
+  most 50 users go per request, auditors stay read-only, the user email is
+  encrypted at rest, and a send is never retried after a timeout so nobody is
+  messaged twice.
+- **TPRM status written back to Grip (opt-in).** With "Write TPRM status back
+  to Grip" turned on under Admin > Shadow SaaS > Grip, FairTPRM labels Grip
+  apps "FairTPRM: Onboarded" plus "FairTPRM: Tier N" for onboarded vendors,
+  and "FairTPRM: Tolerated", "FairTPRM: Denied" or "FairTPRM: Under Review"
+  for Shadow SaaS decisions, and sets each onboarded vendor's relationship
+  manager as the app's Grip primary contact. Changes push immediately on
+  Shadow SaaS actions and are reconciled on every sync (only differences are
+  written, at most 300 writes per run), so tier and relationship manager edits
+  made anywhere reach Grip. Only labels starting with "FairTPRM: " are ever
+  touched. The admin tab lists vendors whose relationship manager could not be
+  set and why (not an email or FairTPRM user, or not a Grip user).
+- **Deny marks the app Unsanctioned in Grip.** Deny now updates Grip like
+  Dismiss and Restore do, and the sync brings a denied app back to Pending
+  when someone in Grip moves it to Sanctioned, Under Review or New.
+- **Grip alerts use the v2 API.** The sync reads `/v2/alerts` (falling back to
+  v1 when a tenant lacks it) and stores the alert name, the Policy Center
+  policy that raised it, the plain-text mitigation, the identity involved
+  (encrypted at rest) and last-used time. Grip breach alerts now include the
+  recommended action and policy number, and the Shadow SaaS New tab shows the
+  mitigation on hover.
 - **Grip API reference refreshed, with a standards-compliant OpenAPI 3.0 JSON
   and links to your tenant's own docs.** Admin > Shadow SaaS > Grip now offers
   an OpenAPI 3.0.3 JSON (view and download) alongside the OpenAPI 3.1 YAML and

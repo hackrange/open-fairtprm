@@ -46,6 +46,10 @@ class GripService
     private string $apiToken = '';
     private bool $enabled = false;
     private bool $breachSyncEnabled = false;
+    /** TPRM -> Grip write-back (labels, primary contact); opt-in via grip_writeback_enabled. */
+    private bool $writebackEnabled = false;
+    /** Per-run cache of lower-cased email => Grip userId (or '' when not a Grip user). */
+    private array $userIdCache = [];
     /** Data source mode: 'live' (query API per view) or 'local' (serve hydrated DB snapshot). */
     private string $dataSource = 'live';
     /** Per-run cache of grip_id => resolved registrable domain. */
@@ -64,7 +68,7 @@ class GripService
         'shadow_saas_grip_users'     => ['mail', 'full_name', 'display_name', 'organizational_unit', 'manager_email', 'aliases', 'custom_fields', 'raw_payload'],
         'shadow_saas_grip_app_users' => ['mail', 'full_name', 'display_name', 'organizational_unit', 'manager_email'],
         'shadow_saas_grip_apps'      => ['primary_contact_name', 'primary_contact_email', 'primary_contact_user_id', 'business_owner', 'raw_payload'],
-        'shadow_saas_grip_alerts'    => ['raw_payload'],
+        'shadow_saas_grip_alerts'    => ['raw_payload', 'related_identity_mail'],
         // Free-text scan output; can quote user and resource names.
         'shadow_saas_grip_posture_checks' => ['report_details'],
         // ITDR threats: who, and the IPs / countries / events that tripped it.
@@ -132,6 +136,7 @@ class GripService
                 case 'grip_base_url':           $this->baseUrl = is_string($val) ? trim($val) : ''; break;
                 case 'grip_api_token':          $this->apiToken = is_string($val) ? trim($val) : ''; break;
                 case 'grip_breach_sync_enabled':$this->breachSyncEnabled = ($val === '1'); break;
+                case 'grip_writeback_enabled':  $this->writebackEnabled = ($val === '1'); break;
                 case 'grip_data_source':        $this->dataSource = ($val === 'local') ? 'local' : 'live'; break;
             }
         }
@@ -156,10 +161,14 @@ class GripService
      * Call a Grip endpoint. $path is appended to base URL - pass '' for the
      * SaaS list endpoint, or '/users', '/alerts', '/{id}' as relative paths
      * (rooted at /public for /public/users and /public/alerts).
-     * $method is GET or POST; Grip's write endpoints take their arguments as
-     * query parameters with an empty body.
+     * $method is GET, POST or DELETE. Most Grip write endpoints take their
+     * arguments as query parameters with an empty body; label and action
+     * endpoints take a JSON body ($jsonBody). A write that is not idempotent
+     * (sending a justification request) passes $idempotent = false so a timeout
+     * or 5xx is not retried into a duplicate - only a 429, which Grip rejected
+     * before acting, is retried.
      */
-    private function request(string $relativeUrl, array $query = [], string $method = 'GET'): array
+    private function request(string $relativeUrl, array $query = [], string $method = 'GET', ?array $jsonBody = null, bool $idempotent = true): array
     {
         if (!$this->isConfigured()) {
             return ['success' => false, 'http_code' => 0, 'error' => 'Grip is not configured', 'data' => null];
@@ -174,11 +183,11 @@ class GripService
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => self::REQUEST_TIMEOUT,
                 CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT,
-                CURLOPT_HTTPHEADER     => [
+                CURLOPT_HTTPHEADER     => array_merge([
                     'Accept: application/json',
                     'access-token: ' . $this->apiToken,
                     'User-Agent: FairTPRM-Grip-Integration/1.0',
-                ],
+                ], $jsonBody !== null ? ['Content-Type: application/json'] : []),
                 CURLOPT_FOLLOWLOCATION => false,
                 CURLOPT_HEADERFUNCTION => function ($ch, $header) use (&$retryAfter) {
                     if (stripos($header, 'Retry-After:') === 0) {
@@ -194,7 +203,10 @@ class GripService
             ]);
             if ($method === 'POST') {
                 curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, '');
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonBody !== null ? json_encode($jsonBody) : '');
+            } elseif ($method === 'DELETE') {
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
+                if ($jsonBody !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($jsonBody));
             }
             $body  = curl_exec($ch);
             $errno = curl_errno($ch);
@@ -208,7 +220,9 @@ class GripService
             // Numeric libcurl error codes: 28 operation timed out, 7 couldn't connect,
             // 52 got nothing, 56 recv error, 55 send error, 35 SSL connect error.
             $timedOut  = in_array($errno, [28, 7, 52, 56, 55, 35], true);
-            $transient = $timedOut || $code === 429 || ($code >= 500 && $code < 600);
+            $transient = $idempotent
+                ? ($timedOut || $code === 429 || ($code >= 500 && $code < 600))
+                : ($code === 429);
 
             if ($transient && $attempt < self::MAX_RETRIES) {
                 $attempt++;
@@ -423,7 +437,7 @@ class GripService
 
             $usersData = $alertsData = [];
             try { $usersData  = $this->fetchAll('/public/users');   $usersCount  = $this->upsertUsers($usersData); }   catch (Throwable $e) { error_log('Grip users fetch failed: ' . $e->getMessage()); }
-            try { $alertsData = $this->fetchAll('/public/alerts');  $alertsCount = $this->upsertAlerts($alertsData); } catch (Throwable $e) { error_log('Grip alerts fetch failed: ' . $e->getMessage()); }
+            try { $alertsData = $this->fetchAlerts();               $alertsCount = $this->upsertAlerts($alertsData); } catch (Throwable $e) { error_log('Grip alerts fetch failed: ' . $e->getMessage()); }
             // SSPM posture checks for the Shadow SaaS > Posture tab. One request.
             try { $this->syncPostureChecks(); } catch (Throwable $e) { error_log('Grip posture-checks sync failed: ' . $e->getMessage()); }
             // Identity threats for the Shadow SaaS > ITDR page. One request.
@@ -574,6 +588,14 @@ class GripService
                 }
             }
 
+            // TPRM -> Grip write-back (labels, primary contact) and justification
+            // status refresh. Both are best effort and never fail the sync.
+            $writeback = ['apps' => 0, 'writes' => 0, 'errors' => 0];
+            try { $writeback = $this->reconcileWriteback(); }
+            catch (Throwable $e) { error_log('Grip write-back reconcile failed: ' . $e->getMessage()); }
+            try { $this->refreshJustificationStatuses(); }
+            catch (Throwable $e) { error_log('Grip justification status refresh failed: ' . $e->getMessage()); }
+
             $this->closeSyncLog($logId, 'success', $appsCount, $usersCount, $alertsCount, $shadowUpserts, null);
             return [
                 'success'              => true,
@@ -589,6 +611,8 @@ class GripService
                 'rosters_fetched'      => $rosterFetched,
                 'rosters_unchanged'    => $rosterSkipped,
                 'rosters_failed'       => $rosterFailed,
+                'writeback_writes'     => $writeback['writes'],
+                'writeback_errors'     => $writeback['errors'],
                 'log_id'               => $logId,
             ];
         } catch (Throwable $e) {
@@ -684,6 +708,9 @@ class GripService
                 'primary_contact_email'        => $pc['email'] ?? null,
                 'primary_contact_user_id'      => $pc['userId'] ?? null,
                 'labels'                       => json_encode($g['labels'] ?? []),
+                'breach_history'               => ($bh = self::normalizeBreachHistory($g['breachHistory'] ?? null)) !== null ? json_encode($bh) : null,
+                'app_classification'           => self::normalizeEnum($g['appClassification'] ?? null, self::APP_CLASSIFICATIONS),
+                'mfa_status'                   => self::normalizeEnum($g['mfaStatus'] ?? null, self::MFA_STATUSES),
                 'source_platforms'             => json_encode($g['sourcePlatforms'] ?? []),
                 'assets'                       => json_encode($g['assets'] ?? []),
                 'compliances'                  => json_encode($g['compliances'] ?? []),
@@ -739,11 +766,41 @@ class GripService
         return $count;
     }
 
+    /**
+     * Alerts from Grip's v2 list (PolicyAlertPayload): every v1 field plus
+     * alertName, policyReadableId, mitigationDescription, flat relatedEntity*
+     * fields, relatedIdentityMail and lastUsed. Same alert ids as v1. Falls back
+     * to the v1 list if a tenant does not serve v2.
+     */
+    private function fetchAlerts(): array
+    {
+        try {
+            return $this->fetchAll('/public/v2/alerts', 'Grip v2 alerts fetch');
+        } catch (Throwable $e) {
+            error_log('Grip v2 alerts unavailable, falling back to v1: ' . $e->getMessage());
+            return $this->fetchAll('/public/alerts', 'Grip alerts fetch');
+        }
+    }
+
+    /** True when an alert's related entity is a SaaS application (v1 or v2 shape). */
+    private static function alertIsOnApp(array $a): bool
+    {
+        $rel = is_array($a['relatedEntity'] ?? null) ? $a['relatedEntity'] : [];
+        return ($rel['entityType'] ?? '') === 'saas_application'
+            || ($a['relatedEntityType'] ?? '') === 'Application';
+    }
+
     private function upsertAlerts(array $alerts): int
     {
         $count = 0;
         foreach ($alerts as $a) {
             $rel = is_array($a['relatedEntity'] ?? null) ? $a['relatedEntity'] : [];
+            // v2 also carries the entity flat; prefer the nested object, fill gaps.
+            $rel += array_filter([
+                'id'         => $a['relatedEntityId'] ?? null,
+                'name'       => $a['relatedEntityName'] ?? null,
+                'entityType' => $a['relatedEntityType'] ?? null,
+            ], fn($v) => $v !== null && $v !== '');
             $row = [
                 'alert_id'             => (string)($a['alertId'] ?? ''),
                 'alert_type'           => $a['alertType'] ?? null,
@@ -758,6 +815,11 @@ class GripService
                 'related_entity_name'  => $rel['name'] ?? null,
                 'related_entity_type'  => $rel['entityType'] ?? null,
                 'alert_url'            => $a['alertUrl'] ?? null,
+                'alert_name'           => isset($a['alertName']) && is_string($a['alertName']) ? $this->clip(trim($a['alertName']), 500) : null,
+                'policy_readable_id'   => isset($a['policyReadableId']) && is_numeric($a['policyReadableId']) ? (int)$a['policyReadableId'] : null,
+                'mitigation_description' => isset($a['mitigationDescription']) && is_string($a['mitigationDescription']) ? $a['mitigationDescription'] : null,
+                'related_identity_mail' => isset($a['relatedIdentityMail']) && is_string($a['relatedIdentityMail']) && $a['relatedIdentityMail'] !== '' ? $a['relatedIdentityMail'] : null,
+                'last_used'            => $this->parseDate($a['lastUsed'] ?? null),
                 'created_at_grip'      => $this->parseDate($a['createdAt'] ?? null),
                 'updated_at_grip'      => $this->parseDate($a['updatedAt'] ?? null),
                 'raw_payload'          => json_encode($a),
@@ -1039,7 +1101,21 @@ class GripService
                     ? $this->clip(strtolower(trim($g['sanctionTag'])), 20) : null,
                 'grip_id'              => $gripId,
                 'source'               => 'grip',
+                'grip_app_classification' => self::normalizeEnum($g['appClassification'] ?? null, self::APP_CLASSIFICATIONS),
+                'grip_mfa_status'      => self::normalizeEnum($g['mfaStatus'] ?? null, self::MFA_STATUSES),
+                // Grip's AI depth, kept as its own columns so the AI badge and the
+                // row details never depend on parsing risk_type.
+                'grip_ai_depth_level'  => (is_string($g['aiDepth']['level'] ?? null) && trim($g['aiDepth']['level']) !== '') ? $this->clip(trim($g['aiDepth']['level']), 255) : null,
+                'grip_ai_depth_description' => (is_string($g['aiDepth']['description'] ?? null) && trim($g['aiDepth']['description']) !== '') ? trim($g['aiDepth']['description']) : null,
             ];
+            // Grip's per-app breach history. breaches_in_three_years feeds the
+            // onboarding PII/PHI justification, so it is filled from Grip when
+            // Grip reports a history (an empty list means "none recorded" -> 0).
+            $breaches = self::normalizeBreachHistory($g['breachHistory'] ?? null);
+            if ($breaches !== null) {
+                $update['grip_breach_history'] = $breaches ? json_encode($breaches) : null;
+                $update['breaches_in_three_years'] = self::countRecentBreaches($breaches, 3);
+            }
 
             $existing = null;
             if (!empty($update['grip_id'])) {
@@ -1066,6 +1142,14 @@ class GripService
                 // have one - manual edits in the UI win over Grip's value.
                 if (empty($existing['relationship_manager']) && $relationshipManager !== '') {
                     $update['relationship_manager'] = $relationshipManager;
+                }
+                // A locally Denied row (status 'unsanctioned', Grip Unsanctioned)
+                // follows Grip when someone there moves it on: Sanctioned, Under
+                // Review or New bring it back to Pending.
+                if (($existing['status'] ?? '') === 'unsanctioned'
+                    && $update['grip_sanction_tag'] !== ($existing['grip_sanction_tag'] ?? null)
+                    && !in_array($update['grip_sanction_tag'], ['unsanctioned', 'tolerated', null], true)) {
+                    $update['status'] = 'pending';
                 }
                 // Tolerated in Grip is the counterpart of Dismissed here
                 // (shadow-saas.php marks dismissed Grip apps Tolerated).
@@ -1134,10 +1218,10 @@ class GripService
             // Grip's breach/incident alerts are exactly this alertType; everything
             // else (unmanaged app, OAuth grant, etc.) is posture noise, not a breach.
             if (($a['alertType'] ?? '') !== 'Security Incident Detected') continue;
+            if (!self::alertIsOnApp($a)) continue;
             $rel = is_array($a['relatedEntity'] ?? null) ? $a['relatedEntity'] : [];
-            if (($rel['entityType'] ?? '') !== 'saas_application') continue;
 
-            $gripId  = (string)($rel['id'] ?? '');
+            $gripId  = (string)($rel['id'] ?? ($a['relatedEntityId'] ?? ''));
             $appRow  = $gripId !== ''
                 ? $this->db->fetchOne("SELECT name, domain, number_of_users FROM shadow_saas_grip_apps WHERE grip_id = :g", [':g' => $gripId])
                 : null;
@@ -1175,7 +1259,10 @@ class GripService
             if (!empty($uf['incident_type']) && is_array($uf['incident_type'])) {
                 $meta[] = 'Incident type: ' . implode(', ', array_map('strval', $uf['incident_type']));
             }
-            $meta[]  = 'Source: Grip Security' . (!empty($a['alertId']) ? ' (alert ' . $a['alertId'] . ')' : '') . '.';
+            $mitigation = trim((string)($a['mitigationDescription'] ?? ''));
+            if ($mitigation !== '') $meta[] = 'Recommended action: ' . $mitigation;
+            $meta[]  = 'Source: Grip Security' . (!empty($a['alertId']) ? ' (alert ' . $a['alertId'] . ')' : '')
+                     . (!empty($a['policyReadableId']) ? ', policy #' . (int)$a['policyReadableId'] : '') . '.';
             $summary = trim($descr . ($meta ? "\n\n" . implode("\n", $meta) : ''));
 
             $sources = [];
@@ -1534,6 +1621,389 @@ class GripService
         return ['success' => true, 'error' => ''];
     }
 
+    // ------------------------------------------------------------------
+    // Fast discovery of newly detected apps
+    // ------------------------------------------------------------------
+
+    /** Most unknown apps one discovery run fetches individually. */
+    private const DISCOVERY_CAP = 50;
+
+    /**
+     * Pick up apps Grip has just detected without waiting for the full sync.
+     * Reads the alert list (a couple of requests), and for every "New
+     * Unmanaged App/AI App Detected" alert on an app the mirror does not hold
+     * yet, fetches that one app (GET /saas/{id}), mirrors it, projects it into
+     * Shadow SaaS and snapshots its roster. Apps Grip discovers without an alert
+     * are still picked up by the next full sync. Never deletes anything.
+     * @return array{alerts:int, new_apps:int, failed:int}
+     */
+    public function discoverNewApps(): array
+    {
+        $out = ['alerts' => 0, 'new_apps' => 0, 'failed' => 0];
+        if (!$this->isEnabled()) return $out;
+        $alerts = $this->fetchAlerts();
+        $out['alerts'] = $this->upsertAlerts($alerts);
+
+        $known = [];
+        foreach ($this->db->fetchAll("SELECT grip_id FROM shadow_saas_grip_apps") as $r) $known[strtolower((string)$r['grip_id'])] = true;
+        $want = [];
+        foreach ($alerts as $a) {
+            if (!self::alertIsOnApp($a)) continue;
+            if (stripos((string)($a['alertType'] ?? ''), 'New Unmanaged') !== 0) continue;
+            $gid = (string)($a['relatedEntityId'] ?? ($a['relatedEntity']['id'] ?? ''));
+            if (!self::isGripUuid($gid) || isset($known[strtolower($gid)])) continue;
+            $want[$gid] = true;
+        }
+        $apps = [];
+        foreach (array_slice(array_keys($want), 0, self::DISCOVERY_CAP) as $gid) {
+            $app = $this->getAppDetail($gid);
+            if (is_array($app) && !empty($app['id'])) $apps[] = $app;
+            else $out['failed']++;
+        }
+        if (!$apps) return $out;
+        $this->upsertApps($apps);
+        $this->projectAppsToShadowSaas($apps, null);
+        foreach ($apps as $app) {
+            try { $this->syncAppUsers((string)$app['id']); }
+            catch (Throwable $e) { error_log('Grip discovery roster fetch failed for ' . $app['id'] . ': ' . $e->getMessage()); }
+            try { $this->applyWriteback((string)$app['id']); }
+            catch (Throwable $e) { error_log('Grip discovery write-back failed for ' . $app['id'] . ': ' . $e->getMessage()); }
+        }
+        $out['new_apps'] = count($apps);
+        return $out;
+    }
+
+    // ------------------------------------------------------------------
+    // TPRM -> Grip write-back: labels and primary contact
+    // ------------------------------------------------------------------
+
+    /** Every label FairTPRM writes starts with this; no other label is ever touched. */
+    public const LABEL_PREFIX = 'FairTPRM: ';
+    /** Most Grip writes one sync's reconcile step may make (the rest wait for the next run). */
+    private const WRITEBACK_CAP = 300;
+    private const WRITEBACK_THROTTLE_MS = 100;
+
+    public function writebackEnabled(): bool { return $this->writebackEnabled && $this->isEnabled(); }
+
+    /** POST /public/saas/{id}/label with {"label": ...}. */
+    public function addLabel(string $gripId, string $label): array
+    {
+        if (!self::isGripUuid($gripId)) return ['success' => false, 'error' => 'Invalid Grip app id'];
+        $res = $this->request('/' . rawurlencode($gripId) . '/label', [], 'POST', ['label' => $label]);
+        return ['success' => !empty($res['success']), 'error' => !empty($res['success']) ? '' : ($res['error'] ?: 'HTTP ' . $res['http_code'])];
+    }
+
+    /** DELETE /public/saas/{id}/label with {"label": ...}. A 404 (already gone) counts as success. */
+    public function removeLabel(string $gripId, string $label): array
+    {
+        if (!self::isGripUuid($gripId)) return ['success' => false, 'error' => 'Invalid Grip app id'];
+        $res = $this->request('/' . rawurlencode($gripId) . '/label', [], 'DELETE', ['label' => $label]);
+        $ok = !empty($res['success']) || (int)($res['http_code'] ?? 0) === 404;
+        return ['success' => $ok, 'error' => $ok ? '' : ($res['error'] ?: 'HTTP ' . $res['http_code'])];
+    }
+
+    /** GET /public/users/{mail}/id. Returns the Grip userId, or null when the email is not a Grip user. */
+    public function getUserIdByEmail(string $email): ?string
+    {
+        $key = strtolower(trim($email));
+        if ($key === '' || !filter_var($key, FILTER_VALIDATE_EMAIL)) return null;
+        if (array_key_exists($key, $this->userIdCache)) return $this->userIdCache[$key] ?: null;
+        $res = $this->request('/public/users/' . rawurlencode($key) . '/id');
+        $id = (!empty($res['success']) && is_array($res['data'] ?? null)) ? (string)($res['data']['userId'] ?? '') : '';
+        if ($id !== '' && !self::isGripUuid($id)) $id = '';
+        // Only cache a definite answer; a transient failure is retried next time.
+        if ($id !== '' || in_array((int)($res['http_code'] ?? 0), [404, 422], true)) $this->userIdCache[$key] = $id;
+        return $id !== '' ? $id : null;
+    }
+
+    /** POST /public/saas/{id}/update-primary-contact?user_id=... */
+    public function setPrimaryContact(string $gripId, string $userId): array
+    {
+        if (!self::isGripUuid($gripId) || !self::isGripUuid($userId)) return ['success' => false, 'error' => 'Invalid Grip id'];
+        $res = $this->request('/' . rawurlencode($gripId) . '/update-primary-contact', ['user_id' => $userId], 'POST');
+        return ['success' => !empty($res['success']), 'error' => !empty($res['success']) ? '' : ($res['error'] ?: 'HTTP ' . $res['http_code'])];
+    }
+
+    public static function isGripUuid(string $id): bool
+    {
+        return (bool)preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', trim($id));
+    }
+
+    /**
+     * The TPRM picture of one Grip app: the onboarded vendor it maps to (by
+     * registrable domain, any status but inactive) and/or its Shadow SaaS row.
+     */
+    private function tprmStateForApp(string $gripId): array
+    {
+        $app = $this->db->fetchOne("SELECT grip_id, domain, labels, primary_contact_user_id FROM shadow_saas_grip_apps WHERE grip_id = :g", [':g' => $gripId]);
+        $vendor = null;
+        $domain = trim((string)($app['domain'] ?? ''));
+        if ($domain !== '') {
+            $vendor = $this->db->fetchOne(
+                "SELECT id, vendor_tier, relationship_manager FROM vendor_onboarding_requests
+                  WHERE vendor_domain = :d AND status NOT IN ('inactive', 'rejected') ORDER BY id LIMIT 1",
+                [':d' => $domain]
+            ) ?: null;
+        }
+        $row = $this->db->fetchOne("SELECT status, grip_sanction_tag FROM shadow_saas WHERE grip_id = :g LIMIT 1", [':g' => $gripId]) ?: null;
+        return ['app' => $app ?: null, 'vendor' => $vendor, 'row' => $row];
+    }
+
+    /**
+     * Labels FairTPRM wants on a Grip app:
+     *   onboarded vendor (not inactive/rejected) -> Onboarded + Tier N
+     *   Shadow SaaS dismissed     -> Tolerated
+     *   Shadow SaaS denied        -> Denied
+     *   pending, Under Review     -> Under Review
+     */
+    public static function desiredLabels(?array $vendor, ?array $row): array
+    {
+        $p = self::LABEL_PREFIX;
+        if ($vendor) {
+            $out = [$p . 'Onboarded'];
+            if (in_array((string)($vendor['vendor_tier'] ?? ''), ['1', '2', '3'], true)) $out[] = $p . 'Tier ' . $vendor['vendor_tier'];
+            return $out;
+        }
+        if (!$row) return [];
+        switch ($row['status'] ?? '') {
+            case 'dismissed':    return [$p . 'Tolerated'];
+            case 'unsanctioned': return [$p . 'Denied'];
+            case 'pending':      return ($row['grip_sanction_tag'] ?? '') === 'under review' ? [$p . 'Under Review'] : [];
+        }
+        return [];
+    }
+
+    /**
+     * Resolve a relationship manager value to an email: an email as-is, else the
+     * one active FairTPRM user whose full name or username matches exactly.
+     */
+    private function resolveContactEmail(string $rm): ?string
+    {
+        $rm = trim($rm);
+        if ($rm === '') return null;
+        if (filter_var($rm, FILTER_VALIDATE_EMAIL)) return strtolower($rm);
+        $rows = $this->db->fetchAll(
+            "SELECT email FROM users WHERE is_active = 1 AND (full_name = :n OR username = :u) LIMIT 2",
+            [':n' => $rm, ':u' => $rm]
+        );
+        if (count($rows) !== 1) return null;
+        $email = strtolower(trim((string)$rows[0]['email']));
+        return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
+    }
+
+    /**
+     * Bring one Grip app's FairTPRM labels and primary contact in line with
+     * TPRM. Writes only differences. Returns ['writes' => n, 'errors' => [..]].
+     * No-op unless write-back is enabled.
+     */
+    public function applyWriteback(string $gripId): array
+    {
+        $out = ['writes' => 0, 'errors' => []];
+        if (!$this->writebackEnabled() || !self::isGripUuid($gripId)) return $out;
+        $st = $this->tprmStateForApp($gripId);
+        if (!$st['app']) return $out; // not in the mirror yet; the next sync picks it up
+        $wb = $this->db->fetchOne("SELECT * FROM shadow_saas_grip_writeback WHERE grip_id = :g", [':g' => $gripId]) ?: [];
+
+        // ---- labels ----
+        $mirrorLabels = json_decode((string)($st['app']['labels'] ?? '[]'), true);
+        $mirrorLabels = is_array($mirrorLabels) ? array_values(array_filter($mirrorLabels, 'is_string')) : [];
+        $written = json_decode((string)($wb['labels'] ?? '[]'), true);
+        $written = is_array($written) ? $written : [];
+        $ours = fn(array $l) => array_values(array_filter($l, fn($x) => strpos($x, self::LABEL_PREFIX) === 0));
+        $current = array_values(array_unique(array_merge($ours($mirrorLabels), $ours($written))));
+        $desired = self::desiredLabels($st['vendor'], $st['row']);
+        $final = $current;
+        foreach (array_diff($current, $desired) as $label) {
+            $r = $this->removeLabel($gripId, $label);
+            $out['writes']++;
+            if ($r['success']) $final = array_values(array_diff($final, [$label]));
+            else $out['errors'][] = "remove label {$label}: {$r['error']}";
+        }
+        foreach (array_diff($desired, $current) as $label) {
+            $r = $this->addLabel($gripId, $label);
+            $out['writes']++;
+            if ($r['success']) $final[] = $label;
+            else $out['errors'][] = "add label {$label}: {$r['error']}";
+        }
+        $final = array_values(array_unique($final));
+        $nonOurs = array_values(array_filter($mirrorLabels, fn($x) => strpos($x, self::LABEL_PREFIX) !== 0));
+
+        // ---- primary contact (onboarded vendors only) ----
+        $contact = [
+            'contact_source'  => $wb['contact_source'] ?? null,
+            'contact_user_id' => $wb['contact_user_id'] ?? null,
+            'contact_status'  => $wb['contact_status'] ?? null,
+        ];
+        $mirrorContact = $this->decryptGripRow('shadow_saas_grip_apps', ['primary_contact_user_id' => $st['app']['primary_contact_user_id'] ?? null])['primary_contact_user_id'];
+        $rm = trim((string)($st['vendor']['relationship_manager'] ?? ''));
+        if ($rm !== '') {
+            $unchanged = ($contact['contact_source'] === $rm)
+                && (in_array($contact['contact_status'], ['not_grip_user', 'no_email'], true)
+                    || ($contact['contact_status'] === 'set' && (string)$contact['contact_user_id'] === (string)$mirrorContact));
+            if (!$unchanged) {
+                $contact['contact_source'] = $rm;
+                $email = $this->resolveContactEmail($rm);
+                if ($email === null) {
+                    $contact['contact_status'] = 'no_email';
+                    $contact['contact_user_id'] = null;
+                } elseif (($uid = $this->getUserIdByEmail($email)) === null) {
+                    $contact['contact_status'] = 'not_grip_user';
+                    $contact['contact_user_id'] = null;
+                } elseif (strcasecmp($uid, (string)$mirrorContact) === 0) {
+                    $contact['contact_status'] = 'set';
+                    $contact['contact_user_id'] = $uid;
+                } else {
+                    $r = $this->setPrimaryContact($gripId, $uid);
+                    $out['writes']++;
+                    if ($r['success']) {
+                        $contact['contact_status'] = 'set';
+                        $contact['contact_user_id'] = $uid;
+                        $mirrorContact = $uid;
+                        $this->db->update('shadow_saas_grip_apps',
+                            $this->encryptRow('shadow_saas_grip_apps', ['primary_contact_user_id' => $uid, 'primary_contact_email' => $email]),
+                            'grip_id = :g', [':g' => $gripId]);
+                    } else {
+                        $contact['contact_status'] = 'error';
+                        $out['errors'][] = "primary contact: {$r['error']}";
+                    }
+                }
+            }
+        }
+
+        try {
+            $this->db->update('shadow_saas_grip_apps', ['labels' => json_encode(array_merge($nonOurs, $final))], 'grip_id = :g', [':g' => $gripId]);
+            $this->upsert('shadow_saas_grip_writeback', [
+                'grip_id'         => $gripId,
+                'vendor_id'       => isset($st['vendor']['id']) ? (int)$st['vendor']['id'] : null,
+                'labels'          => json_encode($final),
+                'contact_source'  => $contact['contact_source'] !== null ? $this->clip((string)$contact['contact_source'], 255) : null,
+                'contact_user_id' => $contact['contact_user_id'],
+                'contact_status'  => $contact['contact_status'],
+                'last_error'      => $out['errors'] ? $this->clip(implode('; ', $out['errors']), 500) : null,
+            ], 'grip_id');
+        } catch (Throwable $e) {
+            error_log('Grip write-back state save failed for ' . $gripId . ': ' . $e->getMessage());
+        }
+        return $out;
+    }
+
+    /**
+     * Sync step: walk every Grip app TPRM has an opinion on (onboarded vendors
+     * matched by domain, Shadow SaaS rows, and apps FairTPRM labeled before) and
+     * apply write-back, up to WRITEBACK_CAP writes per run.
+     */
+    public function reconcileWriteback(): array
+    {
+        $sum = ['apps' => 0, 'writes' => 0, 'errors' => 0];
+        if (!$this->writebackEnabled()) return $sum;
+        $ids = [];
+        foreach ($this->db->fetchAll(
+            "SELECT DISTINCT a.grip_id FROM shadow_saas_grip_apps a
+               JOIN vendor_onboarding_requests v ON v.vendor_domain = a.domain AND v.status NOT IN ('inactive', 'rejected')
+              WHERE a.domain IS NOT NULL AND a.domain != ''") as $r) $ids[$r['grip_id']] = true;
+        foreach ($this->db->fetchAll(
+            "SELECT grip_id FROM shadow_saas WHERE source = 'grip' AND grip_id IS NOT NULL
+               AND (status IN ('dismissed', 'unsanctioned') OR (status = 'pending' AND grip_sanction_tag = 'under review'))") as $r) $ids[$r['grip_id']] = true;
+        foreach ($this->db->fetchAll("SELECT grip_id FROM shadow_saas_grip_writeback WHERE labels IS NOT NULL AND labels != '[]'") as $r) $ids[$r['grip_id']] = true;
+        foreach (array_keys($ids) as $gid) {
+            if ($sum['writes'] >= self::WRITEBACK_CAP) {
+                error_log('Grip write-back: reached the per-run cap of ' . self::WRITEBACK_CAP . ' writes; the rest continue next sync');
+                break;
+            }
+            try {
+                $r = $this->applyWriteback((string)$gid);
+            } catch (Throwable $e) {
+                $r = ['writes' => 0, 'errors' => [$e->getMessage()]];
+                error_log('Grip write-back failed for ' . $gid . ': ' . $e->getMessage());
+            }
+            $sum['apps']++;
+            $sum['writes'] += $r['writes'];
+            $sum['errors'] += count($r['errors']);
+            if ($r['writes'] > 0 && self::WRITEBACK_THROTTLE_MS > 0) usleep(self::WRITEBACK_THROTTLE_MS * 1000);
+        }
+        return $sum;
+    }
+
+    // ------------------------------------------------------------------
+    // Justification requests ("why do you use this app?")
+    // ------------------------------------------------------------------
+
+    public const JUSTIFICATION_PLATFORMS = ['Email', 'Slack', 'Microsoft Teams'];
+    /** Grip statuses after which a request no longer changes. */
+    private const JUSTIFICATION_FINAL = ['Responded', 'Canceled'];
+
+    /**
+     * POST /public/actions/justification/send for one user of one app. Never
+     * retried on timeout (a retry could message the user twice). Records the
+     * request in shadow_saas_grip_justifications either way.
+     */
+    public function sendJustification(string $gripSaasId, string $userGripId, string $userMail, string $platform, int $sentBy): array
+    {
+        if (!$this->isEnabled()) return ['success' => false, 'error' => 'Grip integration is not enabled'];
+        if (!self::isGripUuid($gripSaasId) || !self::isGripUuid($userGripId)) return ['success' => false, 'error' => 'Invalid Grip id'];
+        if (!in_array($platform, self::JUSTIFICATION_PLATFORMS, true)) return ['success' => false, 'error' => 'Unknown platform'];
+        $res = $this->request('/public/actions/justification/send', [], 'POST', [
+            'userId'                => $userGripId,
+            'saasApplicationId'     => $gripSaasId,
+            'communicationPlatform' => $platform,
+        ], false);
+        $reqId = (!empty($res['success']) && is_array($res['data'] ?? null)) ? (string)($res['data']['requestId'] ?? '') : '';
+        $ok = !empty($res['success']);
+        $err = $ok ? '' : ($res['error'] ?: 'HTTP ' . $res['http_code']);
+        $this->db->insert('shadow_saas_grip_justifications', [
+            'grip_saas_id' => $gripSaasId,
+            'user_grip_id' => $userGripId,
+            'user_mail'    => $userMail !== '' ? $this->enc()->encrypt($userMail) : null,
+            'platform'     => $platform,
+            'request_id'   => $reqId !== '' ? $this->clip($reqId, 64) : null,
+            'status'       => $ok ? 'Sent' : 'failed',
+            'last_error'   => $ok ? null : $this->clip($err, 500),
+            'sent_by'      => $sentBy ?: null,
+        ]);
+        return ['success' => $ok, 'error' => $err, 'request_id' => $reqId];
+    }
+
+    /** Refresh the status of open justification requests (newest first, capped). */
+    public function refreshJustificationStatuses(?string $gripSaasId = null, int $cap = 100): int
+    {
+        if (!$this->isEnabled()) return 0;
+        $final = "'" . implode("','", self::JUSTIFICATION_FINAL) . "'";
+        $sql = "SELECT id, request_id FROM shadow_saas_grip_justifications
+                 WHERE request_id IS NOT NULL AND status NOT IN ({$final}, 'failed')
+                   AND created_at > (NOW() - INTERVAL 60 DAY)";
+        $params = [];
+        if ($gripSaasId !== null) { $sql .= ' AND grip_saas_id = :g'; $params[':g'] = $gripSaasId; }
+        $sql .= ' ORDER BY id DESC LIMIT ' . max(1, min(500, $cap));
+        $n = 0;
+        foreach ($this->db->fetchAll($sql, $params) as $j) {
+            if (!self::isGripUuid((string)$j['request_id'])) continue;
+            $res = $this->request('/public/actions/justification/' . rawurlencode($j['request_id']) . '/status');
+            $status = (!empty($res['success']) && is_array($res['data'] ?? null)) ? (string)($res['data']['status'] ?? '') : '';
+            if ($status !== '') {
+                $this->db->update('shadow_saas_grip_justifications', ['status' => $this->clip($status, 32)], 'id = :id', [':id' => (int)$j['id']]);
+                $n++;
+            }
+        }
+        return $n;
+    }
+
+    /** Justification requests for one app, PII decrypted, newest first. */
+    public function getJustifications(string $gripSaasId): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT j.*, u.full_name AS sent_by_name FROM shadow_saas_grip_justifications j
+               LEFT JOIN users u ON u.id = j.sent_by
+              WHERE j.grip_saas_id = :g ORDER BY j.id DESC",
+            [':g' => $gripSaasId]
+        );
+        foreach ($rows as &$r) {
+            if (!empty($r['user_mail'])) {
+                try { $r['user_mail'] = $this->enc()->decrypt((string)$r['user_mail']); } catch (Throwable $e) {}
+            }
+        }
+        return $rows;
+    }
+
     public function getAppDetail(string $gripId): ?array
     {
         $gripId = trim($gripId);
@@ -1829,6 +2299,52 @@ class GripService
         if (str_starts_with($a, 'no')) return 'no';
         if (str_starts_with($a, 'optional')) return 'optional';
         return 'unknown';
+    }
+
+    /** Grip appClassification values (how the app is used in the organization). */
+    public const APP_CLASSIFICATIONS = ['workspace', 'mixed_use'];
+    /** Grip mfaStatus values (whether the app actually enforces MFA for its users). */
+    public const MFA_STATUSES = ['Enabled', 'Not Enabled', 'Partial', 'Unknown'];
+
+    /** Return $val if it is one of $allowed (case-insensitive), in canonical case; else null. */
+    public static function normalizeEnum($val, array $allowed): ?string
+    {
+        if (!is_string($val)) return null;
+        foreach ($allowed as $a) {
+            if (strcasecmp(trim($val), $a) === 0) return $a;
+        }
+        return null;
+    }
+
+    /**
+     * Normalize Grip's gripData.breachHistory into [{date: Y-m-d|null, types: [..],
+     * url: http(s) url|null}], newest first. Returns null when Grip sent no
+     * history field at all (so callers can leave existing values alone), [] for
+     * an empty history.
+     */
+    public static function normalizeBreachHistory($raw): ?array
+    {
+        if (!is_array($raw)) return null;
+        $out = [];
+        foreach ($raw as $b) {
+            if (!is_array($b)) continue;
+            $ts = isset($b['date']) && is_string($b['date']) ? strtotime($b['date']) : false;
+            $types = [];
+            foreach ((array)($b['breachTypes'] ?? []) as $t) {
+                if (is_string($t) && trim($t) !== '') $types[] = mb_substr(trim($t), 0, 100);
+            }
+            $url = isset($b['url']) && is_string($b['url']) && preg_match('#^https?://#i', trim($b['url'])) ? mb_substr(trim($b['url']), 0, 2048) : null;
+            $out[] = ['date' => $ts ? date('Y-m-d', $ts) : null, 'types' => array_slice($types, 0, 20), 'url' => $url];
+        }
+        usort($out, fn($a, $b) => strcmp((string)$b['date'], (string)$a['date']));
+        return array_slice($out, 0, 100);
+    }
+
+    /** Number of breaches dated within the last $years years. */
+    public static function countRecentBreaches(array $breaches, int $years): int
+    {
+        $cut = date('Y-m-d', strtotime("-{$years} years"));
+        return count(array_filter($breaches, fn($b) => !empty($b['date']) && $b['date'] >= $cut));
     }
 
     public static function bucketScore($raw): ?int
