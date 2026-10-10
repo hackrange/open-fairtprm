@@ -22,6 +22,7 @@ requireAdmin();
 // Strict allow-list: logical name => [absolute path, content type]. No user
 // input ever reaches the filesystem path.
 $allowed = [
+    'grip-openapi.json'            => [__DIR__ . '/app/grip-reference/grip-openapi.json',            'application/json'],
     'grip-openapi.yaml'            => [__DIR__ . '/app/grip-reference/grip-openapi.yaml',            'application/yaml'],
     'grip-postman-collection.json' => [__DIR__ . '/app/grip-reference/grip-postman-collection.json', 'application/json'],
     'hero-openapi.yaml'            => [__DIR__ . '/app/hero-reference/hero-openapi.yaml',            'application/yaml'],

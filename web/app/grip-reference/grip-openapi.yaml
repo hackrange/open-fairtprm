@@ -1,35 +1,37 @@
 # Grip Security Public API - bundled reference for the FairTPRM Shadow SaaS
-# integration. Generated from Grip's public OpenAPI export:
-# https://stoplight.io/api/v1/projects/gripsecurity/api-docs/nodes/reference/Grip.json?fromExportButton=true&snapshotType=http_service
+# integration. OpenAPI 3.1.0, regenerated from a tenant's live openapi.json.
 # Auth: access-token header. Served admin-only via reference-doc.php.
 openapi: 3.1.0
 info:
   title: Grip Security Public API
   version: '1.0'
-  description: 'Reference for the Grip Security public API consumed by the FairTPRM
+  description: 'Reference for the Grip Security public API used by the FairTPRM Shadow SaaS
 
-    Shadow SaaS integration. This document is a faithful mirror of Grip''s
+    integration. Regenerated from a Grip tenant''s live specification
 
-    published specification, exported from the official documentation
+    (`https://<tenant>.dep.grip.security/public/openapi.json`); every tenant also
 
-    portal (https://apidocs.grip.security/docs/api-docs/16b5e21308a0e-grip).
+    serves interactive Swagger UI at `https://<tenant>.dep.grip.security/public/docs`.
 
-
-    Authentication: send the tenant administrator API key in the
-
-    `access-token` HTTP header on every request (security scheme
-
-    `APIKeyHeader`). Bearer / X-API-Key / Basic are all rejected with 401.
+    Official documentation portal: https://apidocs.grip.security/docs/api-docs/16b5e21308a0e-grip
 
 
-    Pagination: list endpoints accept `offset` (zero-based) and `limit`.
+    Authentication: send the tenant administrator API key in the `access-token`
 
-    Iterate with offset until a page returns fewer rows than the limit.
+    HTTP header on every request (security scheme `APIKeyHeader`). Bearer,
+
+    X-API-Key and Basic are rejected with 401.
 
 
-    The FairTPRM integration normalizes each SaaS `url` to its registrable
+    Pagination: list endpoints accept `offset` (zero-based) and `limit` (max 200
 
-    domain (e.g. https://www.united.com -> united.com) for vendor matching.'
+    for most lists) and also return a `next` response header. Grip can return a
+
+    short page (for example 199 of 200) in the middle of a list, so advance
+
+    `offset` by the requested page size and stop only on an empty page; a short
+
+    page is not the end of the list.'
   contact:
     name: Grip Security
     url: https://apidocs.grip.security/docs/api-docs/16b5e21308a0e-grip
@@ -40,32 +42,6 @@ servers:
     tenant:
       default: tenant
       description: Grip tenant prefix, the first part of your Grip Portal URL (replace with your tenant).
-security:
-- APIKeyHeader: []
-tags:
-- name: Users
-  description: Grip Users Public API
-- name: SaaS Application
-  description: Grip SaaS Public API
-- name: Workflows
-  description: Grip Workflows Public API
-- name: SaaS User
-  description: Grip SaaS users Public API
-- name: Posture Management
-  description: Grip Posture Management Public API
-- name: AuditLogs
-  description: Grip Audit logs Public API
-- name: Alerts V2
-  description: Grip Alerts Public API
-- name: Threats
-  description: 'Threat Detection (ITDR/TDR) alerts. Returns the same payload as the Threat webhook: Threat
-    Type (`alertType`), Threat Category (`category`), Threat Description (`description`), `uniqueFieldsData`,
-    `eventLogs`, `relatedEntity`, and `alertUrl`.'
-- name: ITDR Actions
-  description: ITDR remediation actions. Discover which actions exist, which connected SaaS tenants they
-    apply to, and trigger them without an ITDR alert.
-- name: AI Agents
-  description: Grip AI Agents Public API
 paths:
   /users:
     get:
@@ -768,12 +744,14 @@ paths:
               description: If there are more pages of results, will hold the link for the next page. If
                 not set, it means there are no more pages for the query.
               example: https://tenant.dep.grip.security/public/workflows?offset=400&limit=200
-              type: string
+              schema:
+                type: string
             prev:
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
               example: https://tenant.dep.grip.security/public/workflows?offset=200&limit=200
-              type: string
+              schema:
+                type: string
         '422':
           description: Validation Error
           content:
@@ -950,6 +928,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
       x-sunset: '2048-09-12'
+  /workflows/accessRemoval/saas/{workflow_id}/status:
+    get:
+      tags:
+      - Workflows
+      summary: Status SaaS Access Removal
+      description: Retrieve the result of a specific SaaS access removal workflow.
+      operationId: _workflows_accessRemoval_saas_workflow_id_status_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workflow Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaasAccessRemovalWorkflowStatus'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-internal: true
   /workflows/accessRemoval/employee:
     get:
       tags:
@@ -1003,12 +1012,14 @@ paths:
               description: If there are more pages of results, will hold the link for the next page. If
                 not set, it means there are no more pages for the query.
               example: https://tenant.dep.grip.security/public/workflows/accessRemoval/employee?offset=400&limit=200
-              type: string
+              schema:
+                type: string
             prev:
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
               example: https://tenant.dep.grip.security/public/workflows/accessRemoval/employee?offset=200&limit=200
-              type: string
+              schema:
+                type: string
         '422':
           description: Validation Error
           content:
@@ -1068,12 +1079,14 @@ paths:
               description: If there are more pages of results, will hold the link for the next page. If
                 not set, it means there are no more pages for the query.
               example: https://tenant.dep.grip.security/public/workflows/justification?offset=400&limit=200
-              type: integer
+              schema:
+                type: integer
             prev:
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
               example: https://tenant.dep.grip.security/public/workflows/justification?offset=200&limit=200
-              type: integer
+              schema:
+                type: integer
         '422':
           description: Validation Error
           content:
@@ -1198,12 +1211,14 @@ paths:
               description: If there are more pages of results, will hold the link for the next page. If
                 not set, it means there are no more pages for the query.
               example: https://tenant.dep.grip.security/public/workflows/offboarding?offset=400&limit=200
-              type: string
+              schema:
+                type: string
             prev:
               description: If there are previous pages of results, will hold the link for the previous
                 page. If not set, it means there are no previous pages for the query.
               example: https://tenant.dep.grip.security/public/workflows/offboarding?offset=200&limit=200
-              type: string
+              schema:
+                type: string
         '422':
           description: Validation Error
           content:
@@ -1407,6 +1422,35 @@ paths:
       security:
       - APIKeyHeader: []
       x-sunset: '2048-09-12'
+  /workflows/accessRemoval/saas/start:
+    post:
+      tags:
+      - Workflows
+      summary: Start SaaS Access Removal Workflow
+      description: Start an SaaS access removal workflow on specific SaaS application for selected employee.
+      operationId: _workflows_accessRemoval_saas_start_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartSaasAccessRemovalInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartedWorkflowId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      x-internal: true
   /workflows/accessRemoval/employee/stop:
     post:
       tags:
@@ -1437,6 +1481,31 @@ paths:
       security:
       - APIKeyHeader: []
       x-sunset: '2048-09-12'
+  /workflows/accessRemoval/saas/stop:
+    post:
+      tags:
+      - Workflows
+      summary: Stop SaaS Access Removal
+      description: Stop the process of SaaS access removal.
+      operationId: _workflows_accessRemoval_saas_stop_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StopAccessRemovalWorkflowInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      x-internal: true
   /workflows/justification/start:
     post:
       tags:
@@ -1474,6 +1543,34 @@ paths:
       security:
       - APIKeyHeader: []
       x-sunset: '2048-09-12'
+  /workflows/justification/start-non-communication:
+    post:
+      tags:
+      - Workflows
+      summary: Start non-communication justification
+      operationId: _workflows_justification_start-non-communication_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartJustificationWorkflowInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JustificationWorkflowLink'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - APIKeyHeader: []
+      x-internal: true
   /workflows/justification/stop:
     post:
       tags:
@@ -2569,6 +2666,69 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ai-agents:
+    get:
+      tags:
+      - AI Agents
+      summary: List AI Agents
+      description: Retrieve a list of all AI agents in the organization with their related data.
+      operationId: _ai-agents_get
+      security:
+      - APIKeyHeader: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          description: For pagination purposes. Will set the maximum amount of AI agents which will return
+            from a single query.
+          default: 200
+          title: Limit
+        description: For pagination purposes. Will set the maximum amount of AI agents which will return
+          from a single query.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: For pagination purposes. Will get only AI agents after this offset. If there are
+            200 AI agents in a page, the offset for page 2 will be 200.
+          default: 0
+          title: Offset
+        description: For pagination purposes. Will get only AI agents after this offset. If there are
+          200 AI agents in a page, the offset for page 2 will be 200.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AIAgent'
+                title: Response List Ai Agents Ai Agents Get
+          headers:
+            next:
+              schema:
+                type: integer
+              description: If there are more pages of results, will hold the link for the next page. If
+                not set, it means there are no more pages for the query.
+            prev:
+              schema:
+                type: integer
+              description: If there are previous pages of results, will hold the link for the previous
+                page. If not set, it means there are no previous pages for the query.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      x-internal: true
 components:
   schemas:
     AIAgent:
@@ -4589,16 +4749,10 @@ components:
       - RateLimited
       - MissingTarget
       - NoAffectedUsers
-      - NoActiveGrant
-      - MissingCustomizeApplication
-      - InvalidToken
-      - UnsupportedTokenType
       - TransientError
       - ConnectionNotConfigured
       - InvalidUserState
       - NoPasswordCredential
-      - MissingManageUsers
-      - UserInactive
       - Unknown
       title: PublicItdrActionReason
     PublicItdrActionStatus:
@@ -5239,8 +5393,6 @@ components:
       - Microsoft Intune
       - Rubrik
       - Cyberhaven
-      - Dynatrace
-      - Tenable
       title: SspmIntegrationType
     SspmPolicySeverity:
       type: string
@@ -5625,23 +5777,19 @@ components:
         externalClientId:
           type: string
           title: Externalclientid
-          description: Vendor OAuth client id for revoke-oauth-tokens, e.g. `412998341234-b7k9dq3.apps.googleusercontent.com`.
-            Not accepted for Salesforce; use externalClientName (OauthToken AppName) to scope one connected
-            app
+          description: Vendor OAuth client id for revoke-oauth-tokens, e.g. `412998341234-b7k9dq3.apps.googleusercontent.com`
           examples:
           - 412998341234-b7k9dq3.apps.googleusercontent.com
         externalClientName:
           type: string
           title: Externalclientname
           description: Vendor OAuth client API display name as an alternative to externalClientId, e.g.
-            `Google Drive`. For Salesforce revoke-oauth-tokens, the connected app's OauthToken AppName,
-            e.g. `Workbench`. Omit it to revoke every grant for externalUserId
+            `Google Drive`
           examples:
           - Google Drive
-          - Workbench
         credentialId:
           type: integer
-          minimum: 1
+          minimum: 1.0
           title: Credentialid
           description: GitHub credential authorization id from the GitHub API key inventory. Supply this
             to revoke one exact credential
@@ -6385,3 +6533,33 @@ components:
       type: apiKey
       in: header
       name: access-token
+      description: Tenant administrator API key from the Grip portal.
+tags:
+- name: Users
+  description: Grip Users Public API
+- name: SaaS Application
+  description: Grip SaaS Public API
+- name: Workflows
+  description: Grip Workflows Public API
+- name: SaaS User
+  description: Grip SaaS users Public API
+- name: Posture Management
+  description: Grip Posture Management Public API
+- name: AuditLogs
+  description: Grip Audit logs Public API
+- name: Alerts V2
+  description: Grip Alerts Public API
+- name: Threats
+  description: 'Threat Detection (ITDR/TDR) alerts. Returns the same payload as the Threat webhook: Threat
+    Type (`alertType`), Threat Category (`category`), Threat Description (`description`), `uniqueFieldsData`,
+    `eventLogs`, `relatedEntity`, and `alertUrl`.'
+- name: ITDR Actions
+  description: ITDR remediation actions. Discover which actions exist, which connected SaaS tenants they
+    apply to, and trigger them without an ITDR alert.
+- name: AI Agents
+  description: Grip AI Agents Public API
+externalDocs:
+  description: Grip API documentation
+  url: https://apidocs.grip.security/docs/api-docs/16b5e21308a0e-grip
+security:
+- APIKeyHeader: []

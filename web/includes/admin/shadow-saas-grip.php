@@ -724,13 +724,30 @@ if ($rrSc && !empty($rrSc['config_value'])) { $rehydrateSchedule = (string)$rrSc
             <tr><td><span class="badge badge-blue">GET</span></td><td><code>/public/alerts</code></td><td><?php echo t('admin_shadow-saas-grip.grip_ep_alerts_list'); ?></td></tr>
         </tbody>
     </table>
+    <?php
+    // The tenant serves its own Swagger UI and live spec under /public. Derive
+    // them from the configured base URL; skip the unconfigured placeholder.
+    $gripDocsHost = '';
+    $gripBaseParts = parse_url((string)($gripCfg['base_url'] ?? ''));
+    if (($gripBaseParts['scheme'] ?? '') === 'https' && !empty($gripBaseParts['host'])
+        && strcasecmp($gripBaseParts['host'], 'tenant.dep.grip.security') !== 0) {
+        $gripDocsHost = 'https://' . $gripBaseParts['host'] . (isset($gripBaseParts['port']) ? ':' . (int)$gripBaseParts['port'] : '');
+    }
+    ?>
     <div style="display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap;">
+        <a href="reference-doc.php?file=grip-openapi.json" target="_blank" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.view_openapi_json')); ?></a>
+        <a href="reference-doc.php?file=grip-openapi.json&amp;download=1" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.download_openapi_json')); ?></a>
         <a href="reference-doc.php?file=grip-openapi.yaml" target="_blank" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.view_openapi')); ?></a>
         <a href="reference-doc.php?file=grip-openapi.yaml&amp;download=1" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.download_swagger_yaml')); ?></a>
         <a href="reference-doc.php?file=grip-postman-collection.json" target="_blank" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.view_postman')); ?></a>
         <a href="reference-doc.php?file=grip-postman-collection.json&amp;download=1" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.download_postman_json')); ?></a>
         <a href="https://apidocs.grip.security/docs/api-docs/16b5e21308a0e-grip" target="_blank" rel="noopener" class="btn btn-secondary"><?php echo t('admin_shadow-saas-grip.official_grip_docs'); ?></a>
+        <?php if ($gripDocsHost !== ''): ?>
+        <a href="<?php echo e($gripDocsHost . '/public/docs'); ?>" target="_blank" rel="noopener noreferrer" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.tenant_api_docs')); ?></a>
+        <a href="<?php echo e($gripDocsHost . '/public/openapi.json'); ?>" target="_blank" rel="noopener noreferrer" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.tenant_openapi_spec')); ?></a>
+        <?php endif; ?>
     </div>
+    <div class="form-help" style="margin-top: 10px;"><?php echo e(t('admin_shadow-saas-grip.reference_formats_help')); ?></div>
     <div class="form-help" style="margin-top: 10px;"><?php echo t('admin_shadow-saas-grip.grip_auth_help'); ?></div>
 </div>
 

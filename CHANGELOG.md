@@ -5,13 +5,26 @@ All notable changes to the Fair TPRM & GRC Platform will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 project adheres to [Semantic Versioning](https://semver.org/).
 
-## [2.6.2] - 2026-06-28
+## [2.6.2] - 2026-06-28 - Current
 
 > **Stable.** `2.6.2` is the current stable release, superseding `2.6.1`. It
 > ships to the `v2.6.2` image tag and to both the `master` and `2.6.2` branches.
 
 ### Added
 
+- **Grip API reference refreshed, with a standards-compliant OpenAPI 3.0 JSON
+  and links to your tenant's own docs.** Admin > Shadow SaaS > Grip now offers
+  an OpenAPI 3.0.3 JSON (view and download) alongside the OpenAPI 3.1 YAML and
+  the Postman v2.1 collection, all regenerated from a Grip tenant's live
+  specification (59 paths, adding SaaS access removal, non-communication
+  justification and AI Agents). Grip's live spec fails OpenAPI validation
+  because its pagination response headers omit `schema`; the bundled files
+  correct that and pass `openapi-spec-validator` and Postman's v2.1 schema.
+  The bundled description now documents the short-page pagination behavior
+  correctly. When a tenant is configured, the page also links that tenant's
+  Swagger UI (`/public/docs`) and live spec (`/public/openapi.json`). The
+  bundled files stay admin-only through `reference-doc.php` and contain only
+  the `tenant` placeholder host.
 - **Shadow SaaS status and Grip sanction state stay in sync.** With Grip
   connected, Dismiss and Dismiss Selected mark Grip apps Tolerated in Grip,
   and Restore marks them Under Review so they return to Pending to be denied
@@ -167,8 +180,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
   "Unverified" badge and the reason, and left out of the digest email. The
   headline check is what catches name-collision mis-attribution, where genuine
   coverage of one company is filed against a similarly-named monitored vendor -
-  a SonicWall advisory attributed to "Sonic Boom Wellness", an "Unlimited
-  Technology Systems" breach attributed to "United Data Technologies". Alerts
+  for example, a security advisory about one company attributed to a vendor
+  whose name merely starts the same way. Alerts
   refused outright are written to a new `cyber_breach_alert_rejections` table
   with the reason, so a filter that is too tight is visible rather than looking
   like a quiet scanner. Tunable through `breach_verify_enabled`,
@@ -182,7 +195,7 @@ project adheres to [Semantic Versioning](https://semver.org/).
   Deduplication keyed on affected entity plus `alert_type`, and the
   entity-level check deliberately ignored resolved and false-positive rows, so
   the same story returned a week later under a different `alert_type` - which is
-  how "Computershare Unauthorized Access via Exposed GitHub Credentials" was
+  how a vendor's "Unauthorized Access via Exposed GitHub Credentials" alert was
   raised twice, dismissed both times. A dismissed entity/headline pair is now
   remembered: a new alert for the same entity telling the same story is refused,
   with the narrative compared on meaning rather than wording, so "Data Breach
