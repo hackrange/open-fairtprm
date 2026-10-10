@@ -192,6 +192,13 @@ function onboardShadowSaasRow($db, array $entry, int $userId): int
     return (int)$vendorId;
 }
 
+/**
+ * Bulk actions write at most this many sanction changes to Grip inside the
+ * request (each is a round trip); the rest are queued on the row and written by
+ * the Grip discovery job (every 15 minutes) or the next full sync.
+ */
+const SHADOW_SAAS_GRIP_INLINE_WRITES = 25;
+
 /** One GripService per request, loaded on first use. */
 function shadowSaasGrip(): GripService
 {
@@ -635,7 +642,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
             )->rowCount();
             $auth->audit($user['id'], 'shadow_saas_dismiss', 'shadow_saas', $dismissId, []);
             $success = t('shadow-saas.entry_' . $dkd);
-            if ($changed > 0 && $entry) {
+            // Also re-asserts Tolerated for a row that was already dismissed
+            // (for example before Grip sync existed) but is not Tolerated in Grip.
+            if ($entry && ($changed > 0 || ($entry['status'] ?? '') === 'dismissed')) {
                 $gt = setGripSanctionForRow($entry, 'Tolerated', 'Dismissed in FairTPRM Shadow SaaS', $user, $auth);
                 gripWritebackForRow($entry);
                 if ($gt === true) {
@@ -863,19 +872,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
         $selectedIds = array_map('intval', (array)$_POST['selected']);
         $dismissed = 0;
         $gripTolerated = 0;
+        $gripQueued = 0;
         $gripFailed = [];
+        $inlineLeft = SHADOW_SAAS_GRIP_INLINE_WRITES;
         foreach ($selectedIds as $sid) {
             try {
                 $entry = $db->fetchOne("SELECT * FROM shadow_saas WHERE id = :id", [':id' => $sid]);
+                if (!$entry) continue;
                 $changed = $db->query("UPDATE shadow_saas SET status = 'dismissed' WHERE id = ? AND status IN ('pending', 'unsanctioned')", [$sid])->rowCount();
-                $dismissed++;
-                if ($changed > 0 && $entry) {
-                    $gt = setGripSanctionForRow($entry, 'Tolerated', 'Dismissed in FairTPRM Shadow SaaS', $user, $auth);
-                    gripWritebackForRow($entry);
-                    if ($gt === true) {
-                        $gripTolerated++;
-                    } elseif (is_string($gt)) {
-                        $gripFailed[] = $entry['vendor_name'];
+                // Rows already dismissed are re-asserted in Grip too.
+                if ($changed > 0 || ($entry['status'] ?? '') === 'dismissed') {
+                    $dismissed++;
+                    if ($inlineLeft > 0) {
+                        $gt = setGripSanctionForRow($entry, 'Tolerated', 'Dismissed in FairTPRM Shadow SaaS', $user, $auth);
+                        gripWritebackForRow($entry);
+                        if ($gt !== null) $inlineLeft--;
+                        if ($gt === true) {
+                            $gripTolerated++;
+                        } elseif (is_string($gt)) {
+                            $gripFailed[] = $entry['vendor_name'];
+                        }
+                    } elseif (shadowSaasGrip()->isEnabled() && shadowSaasGrip()->queueSanction($entry, 'Tolerated', (int)$user['id'])) {
+                        $gripQueued++;
                     }
                 }
             } catch (Exception $e) {
@@ -890,6 +908,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
             if ($gripTolerated > 0) {
                 $success .= ' ' . t('shadow-saas.grip_tolerated_count', $gripTolerated);
             }
+            if ($gripQueued > 0) {
+                $success .= ' ' . t('shadow-saas.grip_queued', $gripQueued);
+            }
         }
         if ($gripFailed) {
             $error = t('shadow-saas.grip_tolerate_failed', implode(', ', $gripFailed));
@@ -900,19 +921,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
         $selectedIds = array_map('intval', (array)$_POST['selected']);
         $restored = 0;
         $gripReviewed = 0;
+        $gripQueued = 0;
         $gripFailed = [];
+        $inlineLeft = SHADOW_SAAS_GRIP_INLINE_WRITES;
         foreach ($selectedIds as $sid) {
             try {
                 $entry = $db->fetchOne("SELECT * FROM shadow_saas WHERE id = :id", [':id' => $sid]);
+                if (!$entry) continue;
                 $changed = $db->query("UPDATE shadow_saas SET status = 'pending' WHERE id = ? AND status = 'dismissed'", [$sid])->rowCount();
-                $restored++;
-                if ($changed > 0 && $entry) {
-                    $gt = setGripSanctionForRow($entry, 'UnderReview', 'Restored for review in FairTPRM Shadow SaaS', $user, $auth);
-                    gripWritebackForRow($entry);
-                    if ($gt === true) {
-                        $gripReviewed++;
-                    } elseif (is_string($gt)) {
-                        $gripFailed[] = $entry['vendor_name'];
+                if ($changed > 0) {
+                    $restored++;
+                    if ($inlineLeft > 0) {
+                        $gt = setGripSanctionForRow($entry, 'UnderReview', 'Restored for review in FairTPRM Shadow SaaS', $user, $auth);
+                        gripWritebackForRow($entry);
+                        if ($gt !== null) $inlineLeft--;
+                        if ($gt === true) {
+                            $gripReviewed++;
+                        } elseif (is_string($gt)) {
+                            $gripFailed[] = $entry['vendor_name'];
+                        }
+                    } elseif (shadowSaasGrip()->isEnabled() && shadowSaasGrip()->queueSanction($entry, 'UnderReview', (int)$user['id'])) {
+                        $gripQueued++;
                     }
                 }
             } catch (Exception $e) {
@@ -926,6 +955,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
             $success = "{$restored} entry(ies) restored to pending.";
             if ($gripReviewed > 0) {
                 $success .= ' ' . t('shadow-saas.grip_review_count', $gripReviewed);
+            }
+            if ($gripQueued > 0) {
+                $success .= ' ' . t('shadow-saas.grip_queued', $gripQueued);
             }
         }
         if ($gripFailed) {

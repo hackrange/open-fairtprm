@@ -12,6 +12,20 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Waive Grip posture findings and ITDR threats, with a required
+  justification.** Administrators and Cyber TPRM can waive selected findings
+  of a posture check, or an ITDR threat, by writing why it is accepted (at
+  least 10 characters) and optionally setting an expiry (default one year, at
+  most three). Waived findings show the justification, who waived them and
+  when, and can be revoked. A failing check whose current findings are all
+  waived shows as Waived: it leaves the Fail list and the posture score (like
+  Grip's own Excluded) and no longer fails its Compliance Posture controls.
+  Coverage is re-checked against Grip's live findings after every change and
+  on every sync, so a new finding on a waived check makes it fail again, and
+  an expired waiver stops applying on its own. Waived threats show as waived
+  and leave the exposed-identity counts. Every waive and revoke is audited;
+  auditors see waivers but cannot change them. Waivers are kept in FairTPRM
+  because Grip's public API has no exclusion write.
 - **Newly detected Grip apps reach Shadow SaaS within minutes.** A new
   "Grip New-App Discovery" job (every 15 minutes by default) reads Grip's
   "New Unmanaged App / AI App Detected" alerts and adds any app the mirror
@@ -521,6 +535,15 @@ project adheres to [Semantic Versioning](https://semver.org/).
   retired ones. Localized in all eight locales.
 
 ### Fixed
+
+- **Tolerating rows that were already dismissed now updates Grip.** Dismiss
+  and Tolerate Selected only wrote to Grip when a row's status changed, so
+  apps dismissed before the Grip sync existed (shown under Tolerated) stayed
+  New or Sanctioned in Grip even when re-tolerated. They are now written as
+  Tolerated whenever Grip shows anything else. Bulk Dismiss and Restore write
+  the first 25 to Grip in the request and queue the rest, which the Grip
+  New-App Discovery job (every 15 minutes) or the next full sync writes,
+  retrying failures.
 
 - **Grip sync was quietly pulling only part of the tenant's SaaS apps, so many
   vendors never got Grip telemetry.** Grip's list endpoints sometimes return one

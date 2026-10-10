@@ -11,6 +11,10 @@
  * demand ("Refresh from Grip"). Identity names, emails, event logs and threat
  * details are personal data: encrypted at rest and decrypted only for display.
  *
+ * Waivers: admin / cyber_tprm can waive a threat with a written justification
+ * and an optional expiry (shadow_saas_grip_waivers), and revoke it. A waived
+ * threat shows as "waived" and is left out of the exposed-identity counts.
+ *
  * Access: administrator / cyber_tprm / auditor (auditors are read-only).
  *
  * Author: Tim Rice
@@ -58,6 +62,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log('ITDR refresh failed: ' . $e->getMessage());
             $error = t('shadow-saas-itdr.refresh_failed');
         }
+    } elseif (($_POST['action'] ?? '') === 'waive_threat' && $gripEnabled) {
+        $aid = (string)($_POST['alert_id'] ?? '');
+        $in = GripService::validateWaiverInput((string)($_POST['justification'] ?? ''), (string)($_POST['expires_at'] ?? ''));
+        $thr = $aid !== '' ? $db->fetchOne("SELECT alert_id, alert_name FROM shadow_saas_grip_threats WHERE alert_id = :a", [':a' => $aid]) : null;
+        if (!$thr) {
+            $error = t('shadow-saas-itdr.not_found');
+        } elseif (isset($in['error'])) {
+            $error = t('shadow-saas-waiver.' . $in['error'], GripService::WAIVER_JUSTIFICATION_MIN);
+        } else {
+            $added = $grip->addWaivers('threat', (string)$thr['alert_id'], [['key' => '', 'label' => (string)($thr['alert_name'] ?? '')]], $in['justification'], $in['expires'], (int)$user['id']);
+            $auth->audit($user['id'], 'shadow_saas_itdr_waive', 'shadow_saas_grip_threats', null, ['new' => [
+                'alert_id' => $thr['alert_id'], 'waived' => $added, 'expires_at' => $in['expires'], 'justification' => $in['justification'],
+            ]]);
+            $success = $added ? t('shadow-saas-waiver.threat_waived', (string)$thr['alert_id']) : t('shadow-saas-waiver.already_waived');
+        }
+    } elseif (($_POST['action'] ?? '') === 'revoke_waiver' && $gripEnabled) {
+        $row = $grip->revokeWaiver((int)($_POST['waiver_id'] ?? 0), (int)$user['id'], (string)($_POST['revoke_reason'] ?? ''));
+        if (!$row || $row['kind'] !== 'threat') {
+            $error = t('shadow-saas-waiver.not_found');
+        } else {
+            $auth->audit($user['id'], 'shadow_saas_itdr_waiver_revoke', 'shadow_saas_grip_threats', null, ['new' => ['waiver_id' => (int)$row['id'], 'alert_id' => $row['subject_id']]]);
+            $success = t('shadow-saas-waiver.revoked');
+        }
     }
 }
 $csrfToken = $security->generateCSRFToken();
@@ -88,9 +115,14 @@ $tdThreats = [];
 $tdSynced = null;
 if ($gripEnabled) {
     try {
+        $tdWaivers = $grip->activeWaivers('threat');
         foreach ($db->fetchAll('SELECT * FROM shadow_saas_grip_threats') as $r) {
             $r = $grip->decryptGripRow('shadow_saas_grip_threats', $r);
             $r['sev'] = tdSev($r['severity'] ?? '');
+            // FairTPRM status: a waived threat shows as 'waived' (Grip's own status kept).
+            $r['grip_status'] = $r['status'];
+            $r['waiver'] = $tdWaivers[(string)$r['alert_id']][''] ?? null;
+            if ($r['waiver']) $r['status'] = 'waived';
             $tdThreats[] = $r;
         }
         $tdSynced = $db->fetchOne('SELECT MAX(last_synced_at) AS t FROM shadow_saas_grip_threats')['t'] ?? null;
@@ -109,7 +141,7 @@ foreach ($tdThreats as $t) {
     $st = strtolower((string)($t['status'] ?? '')) ?: 'unknown';
     $tdByStatus[$st] = ($tdByStatus[$st] ?? 0) + 1;
     if (!empty($t['category'])) $tdCats[$t['category']] = true;
-    if (($t['related_entity_type'] ?? '') === 'identity' && !empty($t['related_entity_id'])) {
+    if (($t['related_entity_type'] ?? '') === 'identity' && !empty($t['related_entity_id']) && empty($t['waiver'])) {
         $k = (string)$t['related_entity_id'];
         $tdIdent[$k] ??= ['id' => $k, 'name' => $t['related_entity_name'] ?? '', 'mail' => $t['related_identity_mail'] ?? '', 'count' => 0, 'worst' => 'Info', 'last' => null];
         $tdIdent[$k]['count']++;
@@ -260,6 +292,14 @@ function tdQuery(array $over = []): string
         .sev-Info, .sev-Unknown { background: #f3f4f6; color: #4b5563; }
         .td-status { background: #f3f4f6; color: #374151; }
         .td-status.open { background: #fef3c7; color: #92400e; }
+        .td-status.waived { background: #ede9fe; color: #5b21b6; }
+        .pp-waive { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; max-width: 720px; }
+        .pp-waive textarea { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
+        .pp-waive-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .pp-waive-row input[type=date] { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; }
+        .pp-waiver-note { font-size: 13px; color: #374151; margin-top: 4px; white-space: pre-wrap; }
+        .td-inline { margin-top: 8px; }
+        .td-revoke { cursor: pointer; border: 1px solid #ddd6fe; background: #fff; }
         .pp-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
         .pp-filters select, .pp-filters input[type=search] { padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; background: #fff; max-width: 100%; }
         .pp-list { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
@@ -453,6 +493,35 @@ function tdQuery(array $over = []): string
                             <h4><?php echo e(t('shadow-saas-itdr.source')); ?></h4>
                             <div><?php echo e($t['source'] ?: ($t['alert_type'] ?? '')); ?><?php if (!empty($t['updated_at_grip'])): ?> <span class="pp-muted">&middot; <?php echo e(t('shadow-saas-itdr.updated', date('M j, Y H:i', strtotime($t['updated_at_grip'])))); ?></span><?php endif; ?></div>
                             <?php if (!empty($t['alert_url'])): ?><p style="margin:14px 0 0;"><a class="pp-btn" href="<?php echo e($t['alert_url']); ?>" target="_blank" rel="noopener noreferrer"><?php echo e(t('shadow-saas-itdr.open_in_grip')); ?></a></p><?php endif; ?>
+                            <h4><?php echo e(t('shadow-saas-waiver.col_waiver')); ?></h4>
+                            <?php if ($t['waiver']): $tw = $t['waiver']; ?>
+                                <div class="td-waiver">
+                                    <span class="pp-pill td-status waived"><?php echo e(t('shadow-saas-posture.status_waived')); ?></span>
+                                    <span class="pp-muted"><?php echo e(t('shadow-saas-waiver.grip_status', (string)($t['grip_status'] ?? ''))); ?></span>
+                                    <div class="pp-waiver-note"><?php echo e($tw['justification']); ?></div>
+                                    <div class="td-sub"><?php echo e(t('shadow-saas-waiver.by', (string)($tw['waived_by_name'] ?? '-'), date('M j, Y', strtotime((string)$tw['waived_at'])))); ?><?php if (!empty($tw['expires_at'])): ?> &middot; <?php echo e(t('shadow-saas-waiver.until', date('M j, Y', strtotime((string)$tw['expires_at'])))); ?><?php endif; ?></div>
+                                    <?php if ($canManage): ?>
+                                    <form method="POST" class="td-inline">
+                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                        <input type="hidden" name="action" value="revoke_waiver">
+                                        <input type="hidden" name="waiver_id" value="<?php echo (int)$tw['id']; ?>">
+                                        <button type="submit" class="pp-chip td-revoke" data-confirm="<?php echo e(t('shadow-saas-waiver.revoke_confirm')); ?>"><?php echo e(t('shadow-saas-waiver.revoke')); ?></button>
+                                    </form>
+                                    <?php endif; ?>
+                                </div>
+                            <?php elseif ($canManage): ?>
+                                <form method="POST" class="pp-waive td-waive-form">
+                                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                    <input type="hidden" name="action" value="waive_threat">
+                                    <input type="hidden" name="alert_id" value="<?php echo e($t['alert_id']); ?>">
+                                    <label for="tdJ<?php echo e(md5($t['alert_id'])); ?>"><?php echo e(t('shadow-saas-waiver.justification_label')); ?></label>
+                                    <textarea id="tdJ<?php echo e(md5($t['alert_id'])); ?>" name="justification" rows="2" minlength="<?php echo (int)GripService::WAIVER_JUSTIFICATION_MIN; ?>" maxlength="<?php echo (int)GripService::WAIVER_JUSTIFICATION_MAX; ?>" required placeholder="<?php echo e(t('shadow-saas-waiver.justification_placeholder')); ?>"></textarea>
+                                    <div class="pp-waive-row">
+                                        <label><?php echo e(t('shadow-saas-waiver.expires_label')); ?> <input type="date" name="expires_at" value="<?php echo e(date('Y-m-d', strtotime('+1 year'))); ?>" min="<?php echo e(date('Y-m-d')); ?>" max="<?php echo e(date('Y-m-d', strtotime('+3 years'))); ?>"></label>
+                                        <button type="submit" class="pp-btn" data-confirm="<?php echo e(t('shadow-saas-waiver.confirm_threat')); ?>"><?php echo e(t('shadow-saas-waiver.waive_threat')); ?></button>
+                                    </div>
+                                </form>
+                            <?php else: ?><div class="pp-muted"><?php echo e(t('shadow-saas-waiver.not_waived')); ?></div><?php endif; ?>
                         </div>
                     </details>
                     <?php endforeach; ?>

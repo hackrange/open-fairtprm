@@ -440,6 +440,8 @@ class GripService
             try { $alertsData = $this->fetchAlerts();               $alertsCount = $this->upsertAlerts($alertsData); } catch (Throwable $e) { error_log('Grip alerts fetch failed: ' . $e->getMessage()); }
             // SSPM posture checks for the Shadow SaaS > Posture tab. One request.
             try { $this->syncPostureChecks(); } catch (Throwable $e) { error_log('Grip posture-checks sync failed: ' . $e->getMessage()); }
+            // Waived posture findings: re-check coverage against Grip's current findings.
+            try { $this->refreshPostureWaiverCoverage(); } catch (Throwable $e) { error_log('Grip waiver coverage refresh failed: ' . $e->getMessage()); }
             // Identity threats for the Shadow SaaS > ITDR page. One request.
             try { $this->syncThreats(); } catch (Throwable $e) { error_log('Grip threats sync failed: ' . $e->getMessage()); }
             // AI agents for Shadow SaaS > AI Security. One request.
@@ -587,6 +589,10 @@ class GripService
                     error_log('Grip vendor-breach telemetry enrich failed: ' . $e->getMessage());
                 }
             }
+
+            // Queued sanction writes from bulk Shadow SaaS actions.
+            try { $this->drainPendingSanctions(1000, 900); }
+            catch (Throwable $e) { error_log('Grip queued sanction drain failed: ' . $e->getMessage()); }
 
             // TPRM -> Grip write-back (labels, primary contact) and justification
             // status refresh. Both are best effort and never fail the sync.
@@ -1025,6 +1031,178 @@ class GripService
             return ['success' => false, 'rows' => [], 'error' => $res['error'] ?: ('HTTP ' . $res['http_code'])];
         }
         return ['success' => true, 'rows' => is_array($res['data']) ? array_values($res['data']) : [], 'error' => ''];
+    }
+
+    // ------------------------------------------------------------------
+    // Waivers: posture findings and ITDR threats
+    // ------------------------------------------------------------------
+
+    public const WAIVER_KINDS = ['posture', 'threat'];
+    public const WAIVER_JUSTIFICATION_MIN = 10;
+    public const WAIVER_JUSTIFICATION_MAX = 2000;
+    /** Most findings one check is paged through when checking waiver coverage. */
+    private const WAIVER_FINDINGS_CAP = 5000;
+
+    /** Stable key for a posture finding: Grip's entity type + identifier (the finding id is not guaranteed stable). */
+    public static function findingKey(array $finding): string
+    {
+        return hash('sha256', strtolower(trim((string)($finding['entityType'] ?? ''))) . '|' . trim((string)($finding['entityIdentifier'] ?? '')));
+    }
+
+    /** SQL fragment: waiver row w is active. */
+    private const WAIVER_ACTIVE_SQL = "w.revoked_at IS NULL AND (w.expires_at IS NULL OR w.expires_at >= CURDATE())";
+
+    /**
+     * Active waivers, keyed by subject_id then entity_key ('' for threats), with
+     * the waiving user's name and the decrypted entity label.
+     */
+    public function activeWaivers(string $kind, ?string $subjectId = null): array
+    {
+        if (!in_array($kind, self::WAIVER_KINDS, true)) return [];
+        $sql = "SELECT w.*, u.full_name AS waived_by_name FROM shadow_saas_grip_waivers w
+                  LEFT JOIN users u ON u.id = w.waived_by
+                 WHERE w.kind = :k AND " . self::WAIVER_ACTIVE_SQL;
+        $params = [':k' => $kind];
+        if ($subjectId !== null) { $sql .= ' AND w.subject_id = :s'; $params[':s'] = $subjectId; }
+        $out = [];
+        try {
+            foreach ($this->db->fetchAll($sql . ' ORDER BY w.id', $params) as $r) {
+                if (!empty($r['entity_label'])) {
+                    try { $r['entity_label'] = $this->enc()->decrypt((string)$r['entity_label']); } catch (Throwable $e) {}
+                }
+                $out[(string)$r['subject_id']][(string)$r['entity_key']] = $r;
+            }
+        } catch (Throwable $e) {
+            error_log('Grip waivers load failed: ' . $e->getMessage());
+        }
+        return $out;
+    }
+
+    /**
+     * Validate a waiver's justification and optional expiry (Y-m-d, today to
+     * three years out). Returns [justification, expires|null] or an error key.
+     */
+    public static function validateWaiverInput(string $justification, string $expires): array
+    {
+        $j = trim(preg_replace('/\s+/u', ' ', $justification));
+        $len = mb_strlen($j);
+        if ($len < self::WAIVER_JUSTIFICATION_MIN) return ['error' => 'justification_short'];
+        if ($len > self::WAIVER_JUSTIFICATION_MAX) return ['error' => 'justification_long'];
+        $exp = trim($expires);
+        if ($exp !== '') {
+            $d = DateTime::createFromFormat('!Y-m-d', $exp);
+            if (!$d || $d->format('Y-m-d') !== $exp) return ['error' => 'expiry_invalid'];
+            if ($exp < date('Y-m-d') || $exp > date('Y-m-d', strtotime('+3 years'))) return ['error' => 'expiry_range'];
+        }
+        return ['justification' => $j, 'expires' => $exp !== '' ? $exp : null];
+    }
+
+    /**
+     * Record waivers. $entities is a list of ['key' => entity_key, 'label' =>
+     * display name]; for a threat pass one entity with key ''. An entity that
+     * already has an active waiver is left as is. Returns the number added.
+     */
+    public function addWaivers(string $kind, string $subjectId, array $entities, string $justification, ?string $expires, int $userId): int
+    {
+        if (!in_array($kind, self::WAIVER_KINDS, true)) return 0;
+        $active = $this->activeWaivers($kind, $subjectId)[$subjectId] ?? [];
+        $n = 0;
+        foreach ($entities as $en) {
+            $key = (string)($en['key'] ?? '');
+            if ($kind === 'posture' && !preg_match('/^[0-9a-f]{64}$/', $key)) continue;
+            if ($kind === 'threat') $key = '';
+            if (isset($active[$key])) continue;
+            $label = trim((string)($en['label'] ?? ''));
+            $this->db->insert('shadow_saas_grip_waivers', [
+                'kind'          => $kind,
+                'subject_id'    => $this->clip($subjectId, 64),
+                'entity_key'    => $key,
+                'entity_label'  => $label !== '' ? $this->enc()->encrypt($this->clip($label, 500)) : null,
+                'justification' => $justification,
+                'expires_at'    => $expires,
+                'waived_by'     => $userId ?: null,
+            ]);
+            $active[$key] = true;
+            $n++;
+        }
+        return $n;
+    }
+
+    /** Revoke one active waiver. Returns the revoked row (kind, subject_id) or null. */
+    public function revokeWaiver(int $id, int $userId, string $reason): ?array
+    {
+        $row = $this->db->fetchOne("SELECT * FROM shadow_saas_grip_waivers w WHERE w.id = :id AND " . self::WAIVER_ACTIVE_SQL, [':id' => $id]);
+        if (!$row) return null;
+        $this->db->update('shadow_saas_grip_waivers', [
+            'revoked_by'    => $userId ?: null,
+            'revoked_at'    => date('Y-m-d H:i:s'),
+            'revoke_reason' => trim($reason) !== '' ? $this->clip(trim($reason), 2000) : null,
+        ], 'id = :id', [':id' => $id]);
+        return $row;
+    }
+
+    /** Every current finding of a posture check (paged, capped), or null when Grip could not be read. */
+    public function getAllPostureFindings(string $uuid): ?array
+    {
+        $all = [];
+        for ($off = 0; $off < self::WAIVER_FINDINGS_CAP; $off += self::PAGE_SIZE) {
+            $res = $this->getPostureFindingsPage($uuid, $off, self::PAGE_SIZE);
+            if (!$res['success']) return null;
+            if (!$res['rows']) break;
+            foreach ($res['rows'] as $f) if (is_array($f)) $all[] = $f;
+        }
+        return $all;
+    }
+
+    /**
+     * Re-check how many of a posture check's current findings are covered by an
+     * active waiver, against Grip's live findings, and store the counts on the
+     * check. Without $uuid: every failing check that has (or had) waivers.
+     * A check is fully waived when it has waived findings and no unwaived ones.
+     * @return int checks updated
+     */
+    public function refreshPostureWaiverCoverage(?string $uuid = null): int
+    {
+        if (!$this->isEnabled()) return 0;
+        $waivers = $this->activeWaivers('posture', $uuid);
+        if ($uuid !== null) {
+            $targets = [$uuid];
+        } else {
+            $targets = array_keys($waivers);
+            foreach ($this->db->fetchAll("SELECT uuid FROM shadow_saas_grip_posture_checks WHERE waived_findings IS NOT NULL") as $r) $targets[] = (string)$r['uuid'];
+            $targets = array_values(array_unique($targets));
+        }
+        $n = 0;
+        foreach ($targets as $u) {
+            $check = $this->db->fetchOne("SELECT uuid, status FROM shadow_saas_grip_posture_checks WHERE uuid = :u", [':u' => $u]);
+            if (!$check) continue;
+            $mine = $waivers[$u] ?? [];
+            if (!$mine) {
+                $this->db->update('shadow_saas_grip_posture_checks', ['waived_findings' => null, 'unwaived_findings' => null, 'waivers_checked_at' => date('Y-m-d H:i:s')], 'uuid = :u', [':u' => $u]);
+                $n++;
+                continue;
+            }
+            $findings = $this->getAllPostureFindings($u);
+            if ($findings === null) continue; // Grip unreachable: keep the last known coverage
+            $waived = $unwaived = 0;
+            foreach ($findings as $f) {
+                if (array_key_exists('isCurrentlyViolating', $f) && $f['isCurrentlyViolating'] === false) continue;
+                if (isset($mine[self::findingKey($f)])) $waived++; else $unwaived++;
+            }
+            $this->db->update('shadow_saas_grip_posture_checks', ['waived_findings' => $waived, 'unwaived_findings' => $unwaived, 'waivers_checked_at' => date('Y-m-d H:i:s')], 'uuid = :u', [':u' => $u]);
+            $n++;
+        }
+        return $n;
+    }
+
+    /** FairTPRM's view of a posture check's status: a failing check whose current findings are all waived is 'Waived'. */
+    public static function effectivePostureStatus(array $check): string
+    {
+        $st = (string)($check['status'] ?? '');
+        if ($st === 'Fail' && (int)($check['waived_findings'] ?? 0) > 0 && ($check['unwaived_findings'] ?? null) !== null && (int)$check['unwaived_findings'] === 0) {
+            return 'Waived';
+        }
+        return $st;
     }
 
     /**
@@ -1619,6 +1797,77 @@ class GripService
             error_log('Grip sanction mirror update failed for ' . $gripId . ': ' . $e->getMessage());
         }
         return ['success' => true, 'error' => ''];
+    }
+
+    // ------------------------------------------------------------------
+    // Queued sanction writes (bulk Shadow SaaS actions)
+    // ------------------------------------------------------------------
+
+    /** Grip tag each queueable sanction state leaves on the app. */
+    private const QUEUEABLE_STATES = ['Tolerated' => 'tolerated', 'UnderReview' => 'under review', 'NotSanctioned' => 'unsanctioned'];
+
+    /**
+     * Queue a Grip sanction write for a Shadow SaaS row. Rows that are not from
+     * Grip, or that Grip already shows in that state, are not queued. Returns
+     * true when queued.
+     */
+    public function queueSanction(array $entry, string $state, int $userId): bool
+    {
+        if (!isset(self::QUEUEABLE_STATES[$state])) return false;
+        if (($entry['source'] ?? '') !== 'grip' || !self::isGripUuid((string)($entry['grip_id'] ?? ''))) return false;
+        if (($entry['grip_sanction_tag'] ?? '') === self::QUEUEABLE_STATES[$state]) return false;
+        $this->db->update('shadow_saas', [
+            'grip_pending_state' => $state,
+            'grip_pending_by'    => $userId ?: null,
+            'grip_pending_at'    => date('Y-m-d H:i:s'),
+            'grip_pending_error' => null,
+        ], 'id = :id', [':id' => (int)$entry['id']]);
+        return true;
+    }
+
+    /**
+     * Write queued sanction states to Grip, oldest first, until $cap rows or
+     * $seconds have been spent. A failure stays queued (error recorded) and is
+     * retried on the next drain. Each write is audited like an inline one.
+     * @return array{sent:int, failed:int, remaining:int}
+     */
+    public function drainPendingSanctions(int $cap = 200, int $seconds = 240): array
+    {
+        $out = ['sent' => 0, 'failed' => 0, 'remaining' => 0];
+        if (!$this->isEnabled()) return $out;
+        $deadline = microtime(true) + max(1, $seconds);
+        $rows = $this->db->fetchAll(
+            "SELECT s.id, s.grip_id, s.grip_pending_state, s.grip_pending_by, u.full_name, u.username
+               FROM shadow_saas s LEFT JOIN users u ON u.id = s.grip_pending_by
+              WHERE s.grip_pending_state IS NOT NULL AND s.source = 'grip' AND s.grip_id IS NOT NULL
+              ORDER BY s.grip_pending_at, s.id LIMIT " . max(1, min(1000, $cap))
+        );
+        $labels = ['Tolerated' => 'Dismissed', 'UnderReview' => 'Restored for review', 'NotSanctioned' => 'Denied'];
+        foreach ($rows as $r) {
+            if (microtime(true) > $deadline) break;
+            $state = (string)$r['grip_pending_state'];
+            if (!isset(self::QUEUEABLE_STATES[$state])) {
+                $this->db->update('shadow_saas', ['grip_pending_state' => null], 'id = :id', [':id' => (int)$r['id']]);
+                continue;
+            }
+            $who = trim((string)($r['full_name'] ?? '')) ?: (string)($r['username'] ?? ('user #' . (int)$r['grip_pending_by']));
+            $res = $this->setSanctionState((string)$r['grip_id'], $state, ($labels[$state] ?? $state) . ' in FairTPRM Shadow SaaS by ' . $who);
+            try {
+                Auth::getInstance()->audit($r['grip_pending_by'] ? (int)$r['grip_pending_by'] : null, 'shadow_saas_grip_sanction', 'shadow_saas', (int)$r['id'], [
+                    'new' => ['grip_id' => (string)$r['grip_id'], 'state' => $state, 'success' => $res['success'], 'error' => $res['error'], 'queued' => true],
+                ]);
+            } catch (Throwable $e) {}
+            if ($res['success']) {
+                $this->db->update('shadow_saas', ['grip_pending_state' => null, 'grip_pending_error' => null], 'id = :id', [':id' => (int)$r['id']]);
+                $out['sent']++;
+                try { $this->applyWriteback((string)$r['grip_id']); } catch (Throwable $e) {}
+            } else {
+                $this->db->update('shadow_saas', ['grip_pending_error' => $this->clip((string)$res['error'], 500)], 'id = :id', [':id' => (int)$r['id']]);
+                $out['failed']++;
+            }
+        }
+        $out['remaining'] = (int)($this->db->fetchOne("SELECT COUNT(*) AS c FROM shadow_saas WHERE grip_pending_state IS NOT NULL AND source = 'grip'")['c'] ?? 0);
+        return $out;
     }
 
     // ------------------------------------------------------------------

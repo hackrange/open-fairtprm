@@ -6743,6 +6743,72 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_grip_justifications` (
 INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `is_encrypted`, `description`) VALUES
   ('grip_writeback_enabled', '0', 0, 'Write TPRM status (labels) and relationship manager (primary contact) back to Grip');
 
+-- Queued Grip sanction writes. Bulk Shadow SaaS actions (Dismiss / Restore
+-- Selected) can touch hundreds of rows; the first few are written to Grip in the
+-- request and the rest are queued here and drained by the Grip discovery job.
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_pending_state') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `grip_pending_state` VARCHAR(20) DEFAULT NULL COMMENT ''Grip sanction state queued for this row (Tolerated, UnderReview, ...)''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_pending_by') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `grip_pending_by` INT(10) UNSIGNED DEFAULT NULL COMMENT ''User who queued the Grip sanction write''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_pending_at') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `grip_pending_at` DATETIME DEFAULT NULL COMMENT ''When the Grip sanction write was queued''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'grip_pending_error') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `grip_pending_error` VARCHAR(500) DEFAULT NULL COMMENT ''Last error writing the queued state to Grip''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =============================================================================
+-- Shadow SaaS waivers (v2.6.2): an admin or Cyber TPRM user can waive a Grip
+-- posture finding or an ITDR threat with a written justification and an
+-- optional expiry. Grip's public API has no exclusion write, so waivers live
+-- here. One row per waiver; revoking keeps the row (revoked_at/by/reason) as
+-- the audit trail. A waiver is active while revoked_at IS NULL and it has not
+-- expired.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `shadow_saas_grip_waivers` (
+  `id`             int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `kind`           varchar(16)  NOT NULL COMMENT 'posture | threat',
+  `subject_id`     varchar(64)  NOT NULL COMMENT 'posture check uuid, or threat alert id',
+  `entity_key`     char(64)     NOT NULL DEFAULT '' COMMENT 'posture: sha256(entityType|entityIdentifier); threat: empty',
+  `entity_label`   text DEFAULT NULL COMMENT 'Finding display name for the waiver list; PII: AES-encrypted at rest',
+  `justification`  text NOT NULL,
+  `expires_at`     date DEFAULT NULL,
+  `waived_by`      int(10) unsigned DEFAULT NULL,
+  `waived_at`      timestamp NULL DEFAULT current_timestamp(),
+  `revoked_by`     int(10) unsigned DEFAULT NULL,
+  `revoked_at`     datetime DEFAULT NULL,
+  `revoke_reason`  text DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_subject` (`kind`, `subject_id`, `entity_key`),
+  KEY `idx_active` (`kind`, `revoked_at`, `expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas_grip_posture_checks' AND column_name = 'waived_findings') = 0,
+  'ALTER TABLE `shadow_saas_grip_posture_checks` ADD COLUMN `waived_findings` INT(10) UNSIGNED DEFAULT NULL COMMENT ''Current findings covered by an active waiver (checked against Grip)''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas_grip_posture_checks' AND column_name = 'unwaived_findings') = 0,
+  'ALTER TABLE `shadow_saas_grip_posture_checks` ADD COLUMN `unwaived_findings` INT(10) UNSIGNED DEFAULT NULL COMMENT ''Current findings with no active waiver''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas_grip_posture_checks' AND column_name = 'waivers_checked_at') = 0,
+  'ALTER TABLE `shadow_saas_grip_posture_checks` ADD COLUMN `waivers_checked_at` DATETIME DEFAULT NULL COMMENT ''When waiver coverage was last checked against Grip''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

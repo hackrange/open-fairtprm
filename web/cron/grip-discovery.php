@@ -11,7 +11,8 @@
  * until that night. This job reads Grip's alert list and, for each "New
  * Unmanaged App / AI App Detected" alert on an app the mirror does not hold
  * yet, fetches just that app and adds it to Shadow SaaS. See
- * GripService::discoverNewApps(). Exits immediately when Grip is not enabled,
+ * GripService::discoverNewApps(). It also writes queued Grip sanction states
+ * from bulk Shadow SaaS actions (GripService::drainPendingSanctions()). Exits immediately when Grip is not enabled,
  * and skips the run while a full Shadow SaaS sync holds the shared lock.
  *
  * Usage: php grip-discovery.php [--verbose]
@@ -57,9 +58,12 @@ $db = Database::getInstance();
 $cron = new CronHelper('grip-discovery');
 $cron->logExecutionStart($db);
 try {
+    // Queued sanction writes from bulk Shadow SaaS actions go first.
+    $q = $grip->drainPendingSanctions(500, 300);
     $r = $grip->discoverNewApps();
-    $cron->logExecutionComplete($db, $r['new_apps'] + $r['failed'], $r['new_apps'], $r['failed'], []);
-    fwrite(STDOUT, sprintf("[grip-discovery] alerts=%d new_apps=%d failed=%d\n", $r['alerts'], $r['new_apps'], $r['failed']));
+    $cron->logExecutionComplete($db, $r['new_apps'] + $r['failed'] + $q['sent'] + $q['failed'], $r['new_apps'] + $q['sent'], $r['failed'] + $q['failed'], []);
+    fwrite(STDOUT, sprintf("[grip-discovery] queued_sent=%d queued_failed=%d queued_left=%d alerts=%d new_apps=%d failed=%d\n",
+        $q['sent'], $q['failed'], $q['remaining'], $r['alerts'], $r['new_apps'], $r['failed']));
     exit(0);
 } catch (Throwable $e) {
     $cron->logExecutionFailed($db, $e->getMessage());
