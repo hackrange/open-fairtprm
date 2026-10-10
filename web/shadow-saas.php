@@ -1519,6 +1519,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         .grip-mixed-badge, .grip-mfa-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; vertical-align: middle; white-space: nowrap; }
         .grip-mixed-badge { background: #ede9fe; color: #5b21b6; }
         .ai-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; vertical-align: middle; white-space: nowrap; background: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; }
+        .subproc-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; vertical-align: middle; white-space: nowrap; background: #f5f3ff; color: #6d28d9; border: 1px solid #c4b5fd; }
         .grip-mfa-badge { background: #fef3c7; color: #92400e; }
         .grip-breach-list { margin: 4px 0 0; padding-left: 16px; font-size: 12px; }
         .grip-breach-list li { margin: 2px 0; }
@@ -1910,6 +1911,9 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <span class="grip-sanctioned-badge" title="<?php echo e(t('shadow-saas.grip_sanctioned_badge_title')); ?>"><?php echo e(t('shadow-saas.grip_sanctioned_badge')); ?></span>
                                 <?php elseif ($gripEnabled && ($entry['grip_sanction_tag'] ?? '') === 'unsanctioned'): ?>
                                 <span class="grip-unsanctioned-badge" title="<?php echo e(t('shadow-saas.grip_unsanctioned_title')); ?>"><?php echo e(t('shadow-saas.grip_unsanctioned_badge')); ?></span>
+                                <?php endif; ?>
+                                <?php if (($rowSubOf = shadowSaasSubprocessorOf($entry))): ?>
+                                <span class="subproc-badge" title="<?php echo e(t('shadow-saas.subprocessor_badge_title', implode(', ', array_column($rowSubOf, 'name')))); ?>"><?php echo e(t('shadow-saas.subprocessor_badge')); ?></span>
                                 <?php endif; ?>
                                 <?php if (($rowAi = shadowSaasAiLevel($entry)) !== null): ?>
                                 <span class="ai-badge" title="<?php echo e(t('shadow-saas.ai_badge_title', $rowAi)); ?>"><?php echo e(t('shadow-saas.ai_badge')); ?></span>

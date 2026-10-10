@@ -77,7 +77,71 @@ if (!function_exists('shadowSaasDetailCss')) {
         .grip-breach-list { margin: 4px 0 0; padding-left: 16px; font-size: 12px; }
         .grip-breach-list li { margin: 2px 0; }
         .ai-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; vertical-align: middle; white-space: nowrap; background: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; }
+        .subproc-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; vertical-align: middle; white-space: nowrap; background: #f5f3ff; color: #6d28d9; border: 1px solid #c4b5fd; }
         @media (max-width: 768px) { .detail-grid { grid-template-columns: 1fr; } }
 CSS;
+    }
+}
+
+if (!function_exists('shadowSaasNormDomain')) {
+    /** Lowercase host with scheme, "www.", port and path removed ("https://www.Example.com/x" -> "example.com"). */
+    function shadowSaasNormDomain($domain): string
+    {
+        $d = strtolower(trim((string)$domain));
+        $d = preg_replace('#^[a-z][a-z0-9+.-]*://#', '', $d);
+        $d = preg_replace('#[/?\#:].*$#', '', $d);
+        $d = preg_replace('#^www\.#', '', $d);
+        return trim($d, '.');
+    }
+}
+
+if (!function_exists('shadowSaasStatusLabel')) {
+    /** Display label for a Shadow SaaS status, in Grip's wording when Grip is on. */
+    function shadowSaasStatusLabel(string $status, bool $gripEnabled): string
+    {
+        switch ($status) {
+            case 'dismissed':    return t($gripEnabled ? 'shadow-saas.stat_tolerated' : 'shadow-saas.stat_dismissed');
+            case 'unsanctioned': return t('shadow-saas.stat_unsanctioned');
+            case 'pending':      return t('shadow-saas.stat_pending');
+        }
+        return ucfirst($status);
+    }
+}
+
+if (!function_exists('shadowSaasSubprocessorOf')) {
+    /**
+     * The vendors that list this Shadow SaaS app as a subprocessor, as
+     * [['id' => vendor id, 'name' => vendor name], ...]. A subprocessor matches
+     * by domain; one recorded without a domain matches by exact name. The
+     * mapping table is read once per request.
+     */
+    function shadowSaasSubprocessorOf(array $entry): array
+    {
+        static $map = null;
+        if ($map === null) {
+            $map = [];
+            try {
+                $rows = Database::getInstance()->fetchAll(
+                    "SELECT s.subprocessor_name, s.subprocessor_domain, v.id AS vendor_id, v.vendor_name
+                       FROM vendor_subprocessor_mappings m
+                       JOIN vendor_subprocessors s ON s.id = m.subprocessor_id
+                       JOIN vendor_onboarding_requests v ON v.id = m.vendor_onboarding_id
+                      ORDER BY v.vendor_name");
+            } catch (Throwable $e) {
+                error_log('Shadow SaaS subprocessor lookup failed: ' . $e->getMessage());
+                $rows = [];
+            }
+            foreach ($rows as $r) {
+                $d = shadowSaasNormDomain($r['subprocessor_domain'] ?? '');
+                $key = $d !== '' ? 'd:' . $d : 'n:' . strtolower(trim((string)$r['subprocessor_name']));
+                $map[$key][(int)$r['vendor_id']] = ['id' => (int)$r['vendor_id'], 'name' => (string)$r['vendor_name']];
+            }
+        }
+        $out = [];
+        $d = shadowSaasNormDomain($entry['vendor_domain'] ?? '');
+        if ($d !== '' && isset($map['d:' . $d])) $out += $map['d:' . $d];
+        $n = strtolower(trim((string)($entry['vendor_name'] ?? '')));
+        if ($n !== '' && isset($map['n:' . $n])) $out += $map['n:' . $n];
+        return array_values($out);
     }
 }

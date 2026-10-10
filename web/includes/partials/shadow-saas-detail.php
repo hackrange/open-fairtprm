@@ -77,6 +77,14 @@ $sdAiLevel      = shadowSaasAiLevel($entry);
                                         <span class="detail-label"><?php echo e(t('shadow-saas.detail_date_added')); ?></span>
                                         <span class="detail-value"><?php echo date('M j, Y', strtotime($entry['created_at'])); ?></span>
                                     </div>
+                                    <?php $sdSubOf = shadowSaasSubprocessorOf($entry); if ($sdSubOf): ?>
+                                    <div class="detail-item" style="grid-column: 1 / -1;">
+                                        <span class="detail-label"><?php echo e(t('shadow-saas.detail_subprocessor_of')); ?></span>
+                                        <span class="detail-value">
+                                            <?php foreach ($sdSubOf as $sdI => $sdV): ?><?php echo $sdI ? ', ' : ''; ?><a href="vendor-onboarding.php?id=<?php echo (int)$sdV['id']; ?>&amp;tab=subprocessors"><?php echo e($sdV['name']); ?></a><?php endforeach; ?>
+                                        </span>
+                                    </div>
+                                    <?php endif; ?>
                                     <?php if ($gripEnabled && ($entry['source'] ?? '') === 'grip'): ?>
                                     <div class="detail-item">
                                         <span class="detail-label"><?php echo e(t('shadow-saas.detail_grip_mfa')); ?></span>

@@ -703,6 +703,44 @@ if ($showVendorTabs) {
         $vendorSubprocessors = [];
     }
 
+    // Subprocessors that are also Shadow SaaS apps (e.g. tolerated because only
+    // this vendor uses them) carry that app's status, for users who can see
+    // Shadow SaaS. Matched by domain, or by exact name when there is no domain.
+    if ($vendorSubprocessors && ($isAdmin || $isCyberTPRM || $acl->hasGroup('auditor'))) {
+        try {
+            require_once __DIR__ . '/includes/partials/shadow-saas-helpers.php';
+            $voSsDomains = $voSsNames = [];
+            foreach ($vendorSubprocessors as $sp) {
+                if (($d = shadowSaasNormDomain($sp['subprocessor_domain'] ?? '')) !== '') $voSsDomains[$d] = true;
+                $voSsNames[strtolower(trim((string)$sp['subprocessor_name']))] = true;
+            }
+            $voSsParams = array_merge(array_keys($voSsDomains), array_keys($voSsNames));
+            $voSsWhere = [];
+            if ($voSsDomains) $voSsWhere[] = 'LOWER(vendor_domain) IN (' . implode(',', array_fill(0, count($voSsDomains), '?')) . ')';
+            $voSsWhere[] = 'LOWER(vendor_name) IN (' . implode(',', array_fill(0, count($voSsNames), '?')) . ')';
+            $voSsByKey = [];
+            foreach ($db->fetchAll(
+                "SELECT vendor_name, vendor_domain, status FROM shadow_saas
+                  WHERE status <> 'onboarded' AND (" . implode(' OR ', $voSsWhere) . ")", $voSsParams) as $r) {
+                if (($d = shadowSaasNormDomain($r['vendor_domain'] ?? '')) !== '') $voSsByKey['d:' . $d] = $r;
+                $voSsByKey['n:' . strtolower(trim((string)$r['vendor_name']))] = $voSsByKey['n:' . strtolower(trim((string)$r['vendor_name']))] ?? $r;
+            }
+            $voGripOn = getAppConfig('grip_enabled', '0') === '1';
+            foreach ($vendorSubprocessors as &$sp) {
+                $d = shadowSaasNormDomain($sp['subprocessor_domain'] ?? '');
+                $hit = $d !== '' ? ($voSsByKey['d:' . $d] ?? null) : ($voSsByKey['n:' . strtolower(trim((string)$sp['subprocessor_name']))] ?? null);
+                if ($hit) {
+                    $sp['shadow_status'] = (string)$hit['status'];
+                    $sp['shadow_label'] = shadowSaasStatusLabel((string)$hit['status'], $voGripOn);
+                    $sp['shadow_search'] = $d !== '' ? $d : (string)$hit['vendor_name'];
+                }
+            }
+            unset($sp);
+        } catch (Exception $e) {
+            error_log('Subprocessor Shadow SaaS lookup failed: ' . $e->getMessage());
+        }
+    }
+
     // Check if vendor has score data (for SRS details link in header)
     try {
         $vendorLatestSrsScore = $srsService->getLatestScore($requestId);
@@ -6260,6 +6298,9 @@ function getFieldValue($request, $field, $default = '') {
                                         <?php if ($sp['linked_vendor_id']): ?>
                                         <a href="vendor-onboarding.php?id=<?php echo (int)$sp['linked_vendor_id']; ?>" style="background: #dbeafe; color: #1d4ed8; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; text-decoration: none;"><?php echo e(t('vendor-onboarding.badge_direct_vendor')); ?></a>
                                         <?php endif; ?>
+                                        <?php if (!empty($sp['shadow_status'])): ?>
+                                        <a href="shadow-saas.php?status=<?php echo e(urlencode($sp['shadow_status'])); ?>&amp;search=<?php echo e(urlencode($sp['shadow_search'])); ?>" title="<?php echo e(t('vendor-onboarding.badge_shadow_saas_title')); ?>" style="background: #f5f3ff; color: #6d28d9; border: 1px solid #c4b5fd; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; text-decoration: none;"><?php echo e(t('vendor-onboarding.badge_shadow_saas', $sp['shadow_label'])); ?></a>
+                                        <?php endif; ?>
                                     </div>
                                     <?php if ($sp['subprocessor_domain']): ?>
                                     <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;"><?php echo e(t('vendor-onboarding.label_domain')); ?> <?php echo e($sp['subprocessor_domain']); ?></div>
@@ -7650,6 +7691,23 @@ function getFieldValue($request, $field, $default = '') {
                                     }).join('');
                                 }
 
+                                // Shadow SaaS apps not yet onboarded (e.g. a tolerated app that is
+                                // really another vendor's subprocessor)
+                                if (resp.success && resp.shadow_saas && resp.shadow_saas.length > 0) {
+                                    hasResults = true;
+                                    var spEsc = function(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); };
+                                    html += '<div style="padding: 6px 14px; font-size: 11px; font-weight: 700; color: #6d28d9; background: #f5f3ff; text-transform: uppercase; letter-spacing: 0.5px;">' + spEsc(<?php echo json_encode(t('vendor-onboarding.js_shadow_saas_apps')); ?>) + '</div>';
+                                    html += resp.shadow_saas.map(function(a) {
+                                        return '<div style="padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f3f4f6;" ' +
+                                            'data-shadow-id="' + spEsc(a.id) + '" data-shadow-name="' + spEsc(a.vendor_name) + '" ' +
+                                            'data-shadow-domain="' + spEsc(a.vendor_domain) + '">' +
+                                            '<span style="background:#ede9fe; color:#6d28d9; font-size:10px; padding:1px 6px; border-radius:8px; font-weight:600; margin-right:6px;">' + spEsc(a.status_label) + '</span>' +
+                                            '<strong>' + spEsc(a.vendor_name) + '</strong>' +
+                                            (a.vendor_domain ? ' <span style="color:#6b7280;">(' + spEsc(a.vendor_domain) + ')</span>' : '') +
+                                            '</div>';
+                                    }).join('');
+                                }
+
                                 if (hasResults) {
                                     spNameDropdown.innerHTML = html;
                                     spNameDropdown.style.display = '';
@@ -7671,6 +7729,18 @@ function getFieldValue($request, $field, $default = '') {
                         spNameInput.value = spItem.getAttribute('data-sp-name');
                         document.getElementById('addSpDomain').value = spItem.getAttribute('data-sp-domain') || '';
                         document.getElementById('addSpCountry').value = spItem.getAttribute('data-sp-country') || '';
+                        spNameDropdown.style.display = 'none';
+                        return;
+                    }
+                    // Shadow SaaS app selected: fill name and domain; it is not a
+                    // vendor, so nothing is linked
+                    var ssItem = e.target.closest('[data-shadow-id]');
+                    if (ssItem) {
+                        spIdHidden.value = '';
+                        spNameInput.value = ssItem.getAttribute('data-shadow-name') || '';
+                        document.getElementById('addSpDomain').value = ssItem.getAttribute('data-shadow-domain') || '';
+                        document.getElementById('addSpLinkedVendorId').value = '';
+                        document.getElementById('addSpLinkedVendorSelected').style.display = 'none';
                         spNameDropdown.style.display = 'none';
                         return;
                     }

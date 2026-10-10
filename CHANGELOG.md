@@ -12,6 +12,17 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Pick a vendor's subprocessor from Shadow SaaS.** In a vendor's
+  Subprocessors tab, the Add Subprocessor search now also lists Shadow SaaS
+  apps that are not onboarded (for example one you tolerate because only a
+  vendor uses it), each with its status (Pending, Tolerated or Dismissed,
+  Unsanctioned). Picking one fills the name and domain. Shown to
+  administrators and Cyber TPRM. The link then shows on both sides: the
+  subprocessor card carries a "Shadow SaaS: <status>" badge that opens the
+  entry, and the Shadow SaaS row (Applications and New) carries a
+  Subprocessor badge and lists, in its details, the vendors it is a
+  subprocessor of. Matching is by domain, or by exact name when the
+  subprocessor has no domain.
 - **Shadow SaaS sorts by Avg Score.** The Avg Score column header now sorts
   the whole list (across pages) by the same score the column shows, with
   unscored apps last in either direction.

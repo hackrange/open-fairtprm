@@ -2,8 +2,11 @@
 /**
  * Search Subprocessors API (GET autocomplete)
  *
- * Returns matching subprocessors by name/domain with vendor_count.
- * Limit 10 results.
+ * Returns matching subprocessors by name/domain with vendor_count, matching
+ * monitored vendors, and (for users who can see Shadow SaaS) matching Shadow
+ * SaaS apps not yet onboarded, so a vendor's subprocessor can be picked from an
+ * app the organization only sees through Shadow SaaS (e.g. one it tolerates).
+ * Limit 10 results per group.
  */
 
 header('Content-Type: application/json');
@@ -65,10 +68,50 @@ try {
         [$like, $like]
     );
 
+    // Shadow SaaS apps not yet onboarded (onboarded ones are listed as vendors
+    // above). Same audience as the Shadow SaaS page, minus read-only auditors.
+    $shadow = [];
+    if ($isAdmin || $isCyberTPRM) {
+        require_once __DIR__ . '/../includes/partials/shadow-saas-helpers.php';
+        $gripEnabled = (function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1');
+        $known = [];
+        foreach ($results as $r) {
+            if (($d = shadowSaasNormDomain($r['subprocessor_domain'] ?? '')) !== '') $known['d:' . $d] = true;
+            $known['n:' . strtolower(trim((string)$r['subprocessor_name']))] = true;
+        }
+        try {
+            $rows = $db->fetchAll(
+                "SELECT id, vendor_name, vendor_domain, status
+                 FROM shadow_saas
+                 WHERE status <> 'onboarded' AND (vendor_name LIKE ? OR vendor_domain LIKE ?)
+                 ORDER BY vendor_name ASC
+                 LIMIT 10",
+                [$like, $like]
+            );
+        } catch (Exception $e) {
+            // A Shadow SaaS problem must not break subprocessor search.
+            error_log('Search subprocessors: Shadow SaaS lookup failed: ' . $e->getMessage());
+            $rows = [];
+        }
+        foreach ($rows as $r) {
+            $d = shadowSaasNormDomain($r['vendor_domain'] ?? '');
+            // Already a subprocessor: picking that entry links the same thing.
+            if (($d !== '' && isset($known['d:' . $d])) || isset($known['n:' . strtolower(trim((string)$r['vendor_name']))])) continue;
+            $shadow[] = [
+                'id'           => (int)$r['id'],
+                'vendor_name'  => (string)$r['vendor_name'],
+                'vendor_domain'=> $d,
+                'status'       => (string)$r['status'],
+                'status_label' => shadowSaasStatusLabel((string)$r['status'], $gripEnabled),
+            ];
+        }
+    }
+
     echo json_encode([
         'success' => true,
         'results' => $results,
-        'vendors' => $vendors
+        'vendors' => $vendors,
+        'shadow_saas' => $shadow
     ]);
 } catch (Exception $e) {
     error_log('Search subprocessors error: ' . $e->getMessage());
