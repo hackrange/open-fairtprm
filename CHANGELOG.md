@@ -12,6 +12,21 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Shadow SaaS status and Grip sanction state stay in sync.** With Grip
+  connected, Dismiss and Dismiss Selected mark Grip apps Tolerated in Grip,
+  and Restore marks them Under Review so they return to Pending to be denied
+  or onboarded. Each Grip write happens only when the local status actually
+  changed; a Grip failure shows as a warning, never undoes the local change,
+  and is audited (`shadow_saas_grip_sanction`). In the other direction, the
+  Grip sync files apps Grip tags Tolerated under Dismissed, and a dismissed
+  app whose Grip state moves off Tolerated (Sanctioned, Unsanctioned, Under
+  Review) comes back out of Dismissed. Dismissed apps whose Grip state has not
+  changed are left alone.
+- **Shadow SaaS uses Grip's wording when Grip is connected.** The Dismissed
+  card, status filter and badge read "Tolerated", and the row and bulk buttons
+  and their confirmations read "Tolerate", in all eight languages. The stored
+  status and the `?status=dismissed` link are unchanged, and nothing changes
+  when Grip is not connected.
 - **Onboarding a Grip app from Shadow SaaS now marks it Sanctioned in Grip.**
   Onboard Selected and the Allow button call Grip's
   `POST /saas/{id}/sanction_status` with `new_sanction_state=Sanctioned` for

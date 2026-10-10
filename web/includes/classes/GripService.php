@@ -1043,26 +1043,39 @@ class GripService
 
             $existing = null;
             if (!empty($update['grip_id'])) {
-                $existing = $this->db->fetchOne("SELECT id, relationship_manager, status FROM shadow_saas WHERE grip_id = :gid LIMIT 1", [':gid' => $update['grip_id']]);
+                $existing = $this->db->fetchOne("SELECT id, relationship_manager, status, grip_sanction_tag FROM shadow_saas WHERE grip_id = :gid LIMIT 1", [':gid' => $update['grip_id']]);
             }
             if (!$existing && $domain !== '') {
-                $existing = $this->db->fetchOne("SELECT id, relationship_manager, status FROM shadow_saas WHERE vendor_domain = :d LIMIT 1", [':d' => $domain]);
+                $existing = $this->db->fetchOne("SELECT id, relationship_manager, status, grip_sanction_tag FROM shadow_saas WHERE vendor_domain = :d LIMIT 1", [':d' => $domain]);
             }
             if ($existing) {
                 // Dismissed rows are an explicit admin decision - leave them
-                // fully intact (no field updates from Grip).
+                // fully intact (no field updates from Grip) until Grip's own
+                // sanction state changes. Moving off Tolerated in Grip
+                // (Sanctioned, Unsanctioned, Under Review, ...) brings the row
+                // back to Pending so the two systems agree.
                 if (($existing['status'] ?? '') === 'dismissed') {
-                    continue;
+                    if ($update['grip_sanction_tag'] === ($existing['grip_sanction_tag'] ?? null)) {
+                        continue;
+                    }
+                    if ($update['grip_sanction_tag'] !== 'tolerated') {
+                        $update['status'] = 'pending';
+                    }
                 }
                 // Only stamp the relationship manager if the row doesn't already
                 // have one - manual edits in the UI win over Grip's value.
                 if (empty($existing['relationship_manager']) && $relationshipManager !== '') {
                     $update['relationship_manager'] = $relationshipManager;
                 }
+                // Tolerated in Grip is the counterpart of Dismissed here
+                // (shadow-saas.php marks dismissed Grip apps Tolerated).
+                if ($update['grip_sanction_tag'] === 'tolerated') {
+                    $update['status'] = 'dismissed';
+                }
                 $this->db->update('shadow_saas', $update, 'id = :id', [':id' => $existing['id']]);
             } else {
                 $update['created_by'] = $createdBy;
-                $update['status'] = 'pending';
+                $update['status'] = $update['grip_sanction_tag'] === 'tolerated' ? 'dismissed' : 'pending';
                 if ($relationshipManager !== '') {
                     $update['relationship_manager'] = $relationshipManager;
                 }

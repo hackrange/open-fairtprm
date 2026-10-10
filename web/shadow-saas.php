@@ -227,6 +227,38 @@ function sanctionOnboardedInGrip(array $entry, int $vendorId, array $user, $auth
     return $res['success'] ? true : $res['error'];
 }
 
+/**
+ * Keep Grip's sanction state in step with a local Shadow SaaS decision:
+ * Dismiss -> Tolerated, Restore -> UnderReview (lands back in Pending). Best
+ * effort like sanctionOnboardedInGrip(): the local change stands even if Grip
+ * refuses. Returns null when there is nothing to do (not a Grip row, Grip off,
+ * already in that state), true on success, or the error string.
+ */
+function setGripSanctionForRow(array $entry, string $state, string $comment, array $user, $auth)
+{
+    static $grip = null;
+    static $tags = ['Tolerated' => 'tolerated', 'UnderReview' => 'under review'];
+    if (($entry['source'] ?? '') !== 'grip' || empty($entry['grip_id'])) return null;
+    if (($entry['grip_sanction_tag'] ?? '') === ($tags[$state] ?? '')) return null;
+    if ($grip === null) {
+        require_once __DIR__ . '/includes/classes/GripService.php';
+        $grip = new GripService();
+    }
+    if (!$grip->isEnabled()) return null;
+
+    $who = trim((string)($user['full_name'] ?? '')) ?: (string)($user['username'] ?? ('user #' . (int)$user['id']));
+    $res = $grip->setSanctionState((string)$entry['grip_id'], $state, $comment . ' by ' . $who);
+    $auth->audit($user['id'], 'shadow_saas_grip_sanction', 'shadow_saas', (int)$entry['id'], [
+        'new' => [
+            'grip_id' => (string)$entry['grip_id'],
+            'state'   => $state,
+            'success' => $res['success'],
+            'error'   => $res['error'],
+        ],
+    ]);
+    return $res['success'] ? true : $res['error'];
+}
+
 // Ensure shadow_saas table exists (auto-create if missing)
 $tableExists = true;
 try {
@@ -307,6 +339,12 @@ if ($tableExists) {
 }
 
 // Handle POST requests (write actions require manage privilege; auditors are read-only)
+$gripEnabled = (function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1');
+// With Grip on, Dismissed is labeled Tolerated (its Grip counterpart) so the
+// two systems use the same word. The stored status stays 'dismissed'.
+$dk = $gripEnabled ? 'tolerate' : 'dismiss';
+$dkd = $gripEnabled ? 'tolerated' : 'dismissed';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
     http_response_code(403);
     $error = t('shadow-saas.access_denied');
@@ -567,14 +605,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
         // Dismiss a single entry
         $dismissId = intval($_POST['dismiss_id']);
         try {
-            $db->query(
+            $entry = $db->fetchOne("SELECT * FROM shadow_saas WHERE id = :id", [':id' => $dismissId]);
+            $changed = $db->query(
                 "UPDATE shadow_saas SET status = 'dismissed' WHERE id = ? AND status IN ('pending', 'unsanctioned')",
                 [$dismissId]
-            );
+            )->rowCount();
             $auth->audit($user['id'], 'shadow_saas_dismiss', 'shadow_saas', $dismissId, []);
-            $success = t('shadow-saas.entry_dismissed');
+            $success = t('shadow-saas.entry_' . $dkd);
+            if ($changed > 0 && $entry) {
+                $gt = setGripSanctionForRow($entry, 'Tolerated', 'Dismissed in FairTPRM Shadow SaaS', $user, $auth);
+                if ($gt === true) {
+                    $success .= ' ' . t('shadow-saas.grip_tolerated_count', 1);
+                } elseif (is_string($gt)) {
+                    $error = t('shadow-saas.grip_tolerate_failed', $entry['vendor_name']);
+                }
+            }
         } catch (Exception $e) {
-            $error = t('shadow-saas.dismiss_failed');
+            $error = t('shadow-saas.' . $dk . '_failed');
         }
 
     } elseif (isset($_POST['action']) && $_POST['action'] === 'deny_zscaler' && !empty($_POST['deny_id'])) {
@@ -716,11 +763,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
         // Restore a dismissed entry
         $undismissId = intval($_POST['undismiss_id']);
         try {
-            $db->query(
+            $entry = $db->fetchOne("SELECT * FROM shadow_saas WHERE id = :id", [':id' => $undismissId]);
+            $changed = $db->query(
                 "UPDATE shadow_saas SET status = 'pending' WHERE id = ? AND status = 'dismissed'",
                 [$undismissId]
-            );
+            )->rowCount();
             $success = t('shadow-saas.entry_restored');
+            if ($changed > 0 && $entry) {
+                $gt = setGripSanctionForRow($entry, 'UnderReview', 'Restored for review in FairTPRM Shadow SaaS', $user, $auth);
+                if ($gt === true) {
+                    $success .= ' ' . t('shadow-saas.grip_review_count', 1);
+                } elseif (is_string($gt)) {
+                    $error = t('shadow-saas.grip_review_failed', $entry['vendor_name']);
+                }
+            }
         } catch (Exception $e) {
             $error = t('shadow-saas.restore_failed');
         }
@@ -772,10 +828,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
         // Dismiss selected entries
         $selectedIds = array_map('intval', (array)$_POST['selected']);
         $dismissed = 0;
+        $gripTolerated = 0;
+        $gripFailed = [];
         foreach ($selectedIds as $sid) {
             try {
-                $db->query("UPDATE shadow_saas SET status = 'dismissed' WHERE id = ? AND status IN ('pending', 'unsanctioned')", [$sid]);
+                $entry = $db->fetchOne("SELECT * FROM shadow_saas WHERE id = :id", [':id' => $sid]);
+                $changed = $db->query("UPDATE shadow_saas SET status = 'dismissed' WHERE id = ? AND status IN ('pending', 'unsanctioned')", [$sid])->rowCount();
                 $dismissed++;
+                if ($changed > 0 && $entry) {
+                    $gt = setGripSanctionForRow($entry, 'Tolerated', 'Dismissed in FairTPRM Shadow SaaS', $user, $auth);
+                    if ($gt === true) {
+                        $gripTolerated++;
+                    } elseif (is_string($gt)) {
+                        $gripFailed[] = $entry['vendor_name'];
+                    }
+                }
             } catch (Exception $e) {
                 error_log("Shadow SaaS dismiss #{$sid}: " . $e->getMessage());
             }
@@ -784,17 +851,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
             $auth->audit($user['id'], 'shadow_saas_dismiss_selected', 'shadow_saas', null, [
                 'new' => ['dismissed_count' => $dismissed, 'ids' => $selectedIds]
             ]);
-            $success = "{$dismissed} entry(ies) dismissed.";
+            $success = t('shadow-saas.bulk_' . $dkd, $dismissed);
+            if ($gripTolerated > 0) {
+                $success .= ' ' . t('shadow-saas.grip_tolerated_count', $gripTolerated);
+            }
+        }
+        if ($gripFailed) {
+            $error = t('shadow-saas.grip_tolerate_failed', implode(', ', $gripFailed));
         }
 
     } elseif (isset($_POST['action']) && $_POST['action'] === 'restore_selected' && !empty($_POST['selected'])) {
         // Restore selected dismissed entries
         $selectedIds = array_map('intval', (array)$_POST['selected']);
         $restored = 0;
+        $gripReviewed = 0;
+        $gripFailed = [];
         foreach ($selectedIds as $sid) {
             try {
-                $db->query("UPDATE shadow_saas SET status = 'pending' WHERE id = ? AND status = 'dismissed'", [$sid]);
+                $entry = $db->fetchOne("SELECT * FROM shadow_saas WHERE id = :id", [':id' => $sid]);
+                $changed = $db->query("UPDATE shadow_saas SET status = 'pending' WHERE id = ? AND status = 'dismissed'", [$sid])->rowCount();
                 $restored++;
+                if ($changed > 0 && $entry) {
+                    $gt = setGripSanctionForRow($entry, 'UnderReview', 'Restored for review in FairTPRM Shadow SaaS', $user, $auth);
+                    if ($gt === true) {
+                        $gripReviewed++;
+                    } elseif (is_string($gt)) {
+                        $gripFailed[] = $entry['vendor_name'];
+                    }
+                }
             } catch (Exception $e) {
                 error_log("Shadow SaaS restore #{$sid}: " . $e->getMessage());
             }
@@ -804,6 +888,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
                 'new' => ['restored_count' => $restored, 'ids' => $selectedIds]
             ]);
             $success = "{$restored} entry(ies) restored to pending.";
+            if ($gripReviewed > 0) {
+                $success .= ' ' . t('shadow-saas.grip_review_count', $gripReviewed);
+            }
+        }
+        if ($gripFailed) {
+            $error = t('shadow-saas.grip_review_failed', implode(', ', $gripFailed));
         }
 
     } elseif (isset($_POST['action']) && $_POST['action'] === 'delete_selected' && !empty($_POST['selected'])) {
@@ -960,7 +1050,6 @@ $csrfToken = $security->generateCSRFToken();
 
 // Stats
 $stats = ['pending' => 0, 'dismissed' => 0, 'unsanctioned' => 0, 'total' => 0, 'grip_sanctioned' => 0];
-$gripEnabled = (function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1');
 // An app Grip has tagged unsanctioned counts as Unsanctioned here too, unless an
 // admin has dismissed it (an explicit local decision). Derived, not stored, so it
 // always follows Grip: the row's own status stays 'pending' and flips back on its
@@ -1475,7 +1564,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             </a>
             <a href="shadow-saas.php?status=dismissed" class="stat-card<?php echo $statusFilter === 'dismissed' ? ' stat-active' : ''; ?>">
                 <div class="value"><?php echo $stats['dismissed']; ?></div>
-                <div class="label"><?php echo e(t('shadow-saas.stat_dismissed')); ?></div>
+                <div class="label"><?php echo e(t('shadow-saas.stat_' . $dkd)); ?></div>
             </a>
             <?php if ($gripEnabled): ?>
             <a href="shadow-saas.php?status=all&amp;grip_sanction=sanctioned" class="stat-card<?php echo $stats['grip_sanctioned'] > 0 ? ' warning' : ''; ?><?php echo $gripSanctionFilter === 'sanctioned' ? ' stat-active' : ''; ?>" title="<?php echo e(t('shadow-saas.stat_grip_sanctioned_title')); ?>">
@@ -1497,7 +1586,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     <option value="all" <?php echo empty($statusFilter) ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.opt_all')); ?></option>
                     <option value="pending" <?php echo $statusFilter === 'pending' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.opt_pending')); ?></option>
                     <option value="unsanctioned" <?php echo $statusFilter === 'unsanctioned' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.opt_unsanctioned')); ?></option>
-                    <option value="dismissed" <?php echo $statusFilter === 'dismissed' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.opt_dismissed')); ?></option>
+                    <option value="dismissed" <?php echo $statusFilter === 'dismissed' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.opt_' . $dkd)); ?></option>
                 </select>
             </div>
             <div class="filter-group">
@@ -1563,7 +1652,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         <?php if ($statusFilter === 'dismissed' || $statusFilter === ''): ?>
                         <button type="button" class="btn-sm" style="padding: 8px 16px; background: #2563eb; color: white;" id="restoreSelectedBtn"><?php echo e(t('shadow-saas.restore_selected')); ?></button>
                         <?php endif; ?>
-                        <button type="button" class="btn-sm" style="padding: 8px 16px; background: #6b7280; color: white;" id="dismissSelectedBtn"><?php echo e(t('shadow-saas.dismiss_selected')); ?></button>
+                        <button type="button" class="btn-sm" style="padding: 8px 16px; background: #6b7280; color: white;" id="dismissSelectedBtn"><?php echo e(t('shadow-saas.' . $dk . '_selected')); ?></button>
                         <button type="button" class="btn-sm btn-secondary" style="padding: 8px 16px;" id="deleteBtn"><?php echo e(t('shadow-saas.delete_selected')); ?></button>
                         <button type="button" class="btn-sm btn-success" style="padding: 8px 16px;" id="onboardBtn"><?php echo e(t('shadow-saas.onboard_selected')); ?></button>
                     </div>
@@ -1741,7 +1830,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             </td>
                             <td>
                                 <span class="status-badge status-<?php echo e($effStatus); ?>"<?php if ($gripUnsanctioned): ?> title="<?php echo e(t('shadow-saas.grip_unsanctioned_title')); ?>"<?php endif; ?>>
-                                    <?php echo e($gripUnsanctioned ? t('shadow-saas.status_grip_unsanctioned') : ucfirst($effStatus)); ?>
+                                    <?php echo e($gripUnsanctioned ? t('shadow-saas.status_grip_unsanctioned') : ($effStatus === 'dismissed' ? t('shadow-saas.status_' . $dkd) : ucfirst($effStatus))); ?>
                                 </span>
                             </td>
                             <td style="white-space: nowrap;">
@@ -1772,10 +1861,10 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <?php endif; ?>
                                 <button type="button" class="btn-sm deny-btn" style="padding: 4px 8px; font-size: 11px; background: #b91c1c; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="<?php echo e(t($gripUnsanctioned ? 'shadow-saas.unsanction_here_title' : 'shadow-saas.deny_title')); ?>"><?php echo e(t($gripUnsanctioned ? 'shadow-saas.unsanction_here' : 'shadow-saas.deny')); ?></button>
                                 <?php endif; ?>
-                                <button type="button" class="btn-sm btn-danger dismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>"><?php echo e(t('shadow-saas.dismiss')); ?></button>
+                                <button type="button" class="btn-sm btn-danger dismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>"><?php echo e(t('shadow-saas.' . $dk)); ?></button>
                                 <?php elseif ($entry['status'] === 'unsanctioned'): ?>
                                 <button type="button" class="btn-sm allow-btn" style="padding: 4px 8px; font-size: 11px; background: #15803d; color: white;" data-id="<?php echo (int)$entry['id']; ?>" title="<?php echo e(t('shadow-saas.allow_title_unsanctioned')); ?>"><?php echo e(t('shadow-saas.allow')); ?></button>
-                                <button type="button" class="btn-sm btn-danger dismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>"><?php echo e(t('shadow-saas.dismiss')); ?></button>
+                                <button type="button" class="btn-sm btn-danger dismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>"><?php echo e(t('shadow-saas.' . $dk)); ?></button>
                                 <?php elseif ($entry['status'] === 'dismissed'): ?>
                                 <button type="button" class="btn-sm btn-secondary undismiss-btn" style="padding: 4px 8px; font-size: 11px;" data-id="<?php echo (int)$entry['id']; ?>"><?php echo e(t('shadow-saas.restore')); ?></button>
                                 <?php endif; ?>
@@ -2196,7 +2285,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                 alert(<?php echo json_encode(t('shadow-saas.js_select_one')); ?>);
                 return;
             }
-            if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_dismiss_prefix')); ?> + checked.length + <?php echo json_encode(t('shadow-saas.js_confirm_dismiss_suffix')); ?>)) {
+            if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_' . $dk . '_prefix')); ?> + checked.length + <?php echo json_encode(t('shadow-saas.js_confirm_' . $dk . '_suffix')); ?>)) {
                 document.getElementById('bulkAction').value = 'dismiss_selected';
                 form.submit();
             }
@@ -2220,7 +2309,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         document.querySelectorAll('.dismiss-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var entryId = this.dataset.id;
-                if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_dismiss_one')); ?>)) {
+                if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_' . $dk . '_one')); ?>)) {
                     var form = document.getElementById('rowActionForm');
                     document.getElementById('rowAction').value = 'dismiss';
                     document.getElementById('rowDismissId').value = entryId;
