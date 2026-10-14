@@ -12,6 +12,22 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Privacy risk increase alerts, by email.** Admin > Email has a new
+  Shadow SaaS tab: enable the alert, enter recipients as a comma-separated
+  list, and choose to alert on any rise or only on rises to High. After each
+  review run, one digest email lists every vendor whose privacy or file-sharing
+  rating went up, with the quoted evidence and a link to Shadow SaaS. A first
+  rating never alerts, so the first full pass does not flood inboxes. The
+  email's subject and look are an editable template like the other tabs, with
+  reset to default and a test send.
+- **AI privacy ratings as Grip labels.** With Grip write-back on, apps are
+  labeled "FairTPRM: Privacy High / Medium / Low" and "FairTPRM: File Sharing
+  High / Medium / Low" from the review. Labels change when a rating changes,
+  Unknown ratings get none, and other labels are never touched. A switch on the
+  Grip settings turns just these labels off.
+- **Opened Shadow SaaS rows stay in place.** Opening a row (Applications and
+  New) scrolls it so the row and its details are on screen, and after an
+  action reloads the page the row you had open opens again where it was.
 - **Review privacy now, for the vendors you pick.** Shadow SaaS (Applications
   and New) has a Review Privacy Now action for selected rows, and a vendor's
   SaaS Data tab has a Review privacy now button, including for vendors never

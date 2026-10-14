@@ -219,3 +219,58 @@ if (!function_exists('vendorPrivacyQueuedPill')) {
         return ' <span class="vp-badge vp-Unknown" data-vp="queued" title="' . e(t('vendor-privacy.queued_title')) . '">' . e(t('vendor-privacy.queued_pill')) . '</span>';
     }
 }
+
+if (!function_exists('shadowSaasRowToggleJs')) {
+    /**
+     * JS for clickable Shadow SaaS rows with a details row after each. Opening a
+     * row keeps it and its details on screen (scrolls when they do not fit), and
+     * the open row is remembered for 10 minutes so that after an action reloads
+     * the page it opens again where it was. $tableSel / $idAttr are fixed
+     * strings from our own code (no user data); output goes in a nonce script.
+     */
+    function shadowSaasRowToggleJs(string $tableSel, string $idAttr): string
+    {
+        $t = json_encode($tableSel);
+        $a = json_encode($idAttr);
+        return <<<JS
+(function () {
+    var table = document.querySelector($t);
+    if (!table) return;
+    var attr = $a, key = 'ssOpenRow:' + location.pathname;
+    function remember(id) {
+        try { if (id) sessionStorage.setItem(key, JSON.stringify({ id: id, t: Date.now() })); else sessionStorage.removeItem(key); } catch (e) {}
+    }
+    // Keep the row and its open details in view: scroll only when they do not fit.
+    function anchor(row, smooth) {
+        var detail = row.nextElementSibling, top = row.getBoundingClientRect().top;
+        var bottom = (detail && detail.classList.contains('open')) ? detail.getBoundingClientRect().bottom : row.getBoundingClientRect().bottom;
+        if (top < 8 || bottom > window.innerHeight - 8) {
+            window.scrollTo({ top: Math.max(0, window.scrollY + top - 80), behavior: smooth ? 'smooth' : 'auto' });
+        }
+    }
+    table.addEventListener('click', function (e) {
+        if (e.target.closest('a, button, input, select, textarea, label')) return;
+        var row = e.target.closest('tr');
+        if (!row || row.classList.contains('detail-row') || !row.hasAttribute(attr)) return;
+        var detail = row.nextElementSibling;
+        if (!detail || !detail.classList.contains('detail-row')) return;
+        var open = detail.classList.toggle('open');
+        remember(open ? row.getAttribute(attr) : null);
+        if (open) anchor(row, true);
+    });
+    // After a reload (an action on the row), reopen the row the user had open.
+    var saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(key) || 'null'); } catch (e) {}
+    if (saved && saved.id && Date.now() - saved.t < 600000) {
+        var rows = table.querySelectorAll('tr[' + attr + ']');
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].getAttribute(attr) !== String(saved.id)) continue;
+            var d = rows[i].nextElementSibling;
+            if (d && d.classList.contains('detail-row')) { d.classList.add('open'); anchor(rows[i], false); }
+            break;
+        }
+    }
+})();
+JS;
+    }
+}

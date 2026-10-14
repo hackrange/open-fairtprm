@@ -76,6 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
                 // Write TPRM status back into Grip: FairTPRM labels and the vendor
                 // relationship manager as the app's primary contact.
                 $settings['grip_writeback_enabled'] = isset($_POST['grip_writeback_enabled']) ? '1' : '0';
+                // With write-back on, also label apps with their AI privacy ratings.
+                $settings['grip_writeback_privacy_labels'] = isset($_POST['grip_writeback_privacy_labels']) ? '1' : '0';
 
                 $newToken = trim($_POST['grip_api_token'] ?? '');
                 if ($newToken !== '') {
@@ -680,6 +682,11 @@ try {
                 <span><?php echo e(t('admin_shadow-saas-grip.writeback_label')); ?></span>
             </label>
             <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.writeback_help')); ?></div>
+            <label class="checkbox-label" style="margin: 8px 0 0 24px;">
+                <input type="checkbox" name="grip_writeback_privacy_labels" value="1" <?php echo ($gripCfg['writeback_privacy_labels'] ?? '1') !== '0' ? 'checked' : ''; ?>>
+                <span><?php echo e(t('admin_shadow-saas-grip.writeback_privacy_label')); ?></span>
+            </label>
+            <div class="form-help" style="margin-left: 24px;"><?php echo e(t('admin_shadow-saas-grip.writeback_privacy_help')); ?></div>
         </div>
         <div class="form-group" style="margin-top: 4px;">
             <label for="grip_data_source"><?php echo e(t('admin_shadow-saas-grip.data_source_label')); ?></label>

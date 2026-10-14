@@ -41,6 +41,7 @@
 
 require_once __DIR__ . '/BreachEvidenceValidator.php';
 require_once __DIR__ . '/AIPlatformService.php';
+require_once __DIR__ . '/GripService.php';
 
 class VendorPrivacyService
 {
@@ -75,6 +76,19 @@ class VendorPrivacyService
 
     /** Set for person-requested reviews: they are interactive, not background jobs (budget pause). */
     public bool $interactive = false;
+
+    /** Rating increases seen in this process (for the Shadow SaaS alert email). */
+    public array $increases = [];
+
+    /**
+     * Called with a domain whenever its rating is set or changes, to bring the
+     * Grip labels in line. Default: GripService write-back (a no-op unless the
+     * admin enabled write-back). Tests replace it.
+     * @var callable(string $domain): void|null
+     */
+    public $onRatingChange = null;
+
+    private const RISK_RANK = ['Low' => 1, 'Medium' => 2, 'High' => 3];
 
     private Database $db;
     /** @var callable(array $messages, array $options): array */
@@ -479,19 +493,89 @@ class VendorPrivacyService
             'last_error'    => null,
             'last_cost_usd' => $cost,
         ];
+        $changed = !$prev || $prev['privacy_risk'] !== $privacy || $prev['sharing_risk'] !== $sharing;
         if ($prev) {
             // A rating change is kept so the UI can show what moved.
-            if ($prev['privacy_risk'] !== $privacy || $prev['sharing_risk'] !== $sharing) {
+            if ($changed) {
                 $row['previous_privacy_risk'] = $prev['privacy_risk'];
                 $row['previous_sharing_risk'] = $prev['sharing_risk'];
                 $row['risk_changed_at'] = $now;
+                $inc = self::increase($prev, $privacy, $sharing);
+                if ($inc) $this->increases[$domain] = $inc + ['domain' => $domain, 'vendor_name' => $name, 'evidence' => $evidence, 'summary' => $summary];
             }
             $this->db->update('vendor_privacy_reviews', $row, 'domain = :d', [':d' => $domain]);
         } else {
             $this->db->insert('vendor_privacy_reviews', $row);
         }
+        if ($changed) {
+            try {
+                if ($this->onRatingChange) {
+                    ($this->onRatingChange)($domain);
+                } else {
+                    $grip = new GripService();
+                    if ($grip->writebackEnabled()) foreach ($grip->gripIdsForDomain($domain) as $gid) $grip->applyWriteback((string)$gid);
+                }
+            } catch (Throwable $e) {
+                error_log('Privacy review Grip label update failed for ' . $domain . ': ' . $e->getMessage());
+            }
+        }
         $this->applyFileSharing($domain, $facts['file_upload']);
         return ['outcome' => $outcome, 'privacy_risk' => $privacy, 'sharing_risk' => $sharing, 'ai_called' => $aiCalled, 'cost' => $cost];
+    }
+
+    /**
+     * How a re-review moved the ratings up, or null. Only a rise from a KNOWN
+     * level counts (Low -> Medium/High, Medium -> High): a first rating, or one
+     * out of Unknown, is not an increase, so the first pass never floods mail.
+     */
+    public static function increase(array $prev, string $privacy, string $sharing): ?array
+    {
+        $up = function ($old, $new) {
+            return isset(self::RISK_RANK[$old], self::RISK_RANK[$new]) && self::RISK_RANK[$new] > self::RISK_RANK[$old];
+        };
+        $p = $up($prev['privacy_risk'] ?? '', $privacy);
+        $s = $up($prev['sharing_risk'] ?? '', $sharing);
+        if (!$p && !$s) return null;
+        return ['privacy_from' => $prev['privacy_risk'], 'privacy_to' => $privacy, 'privacy_up' => $p,
+                'sharing_from' => $prev['sharing_risk'], 'sharing_to' => $sharing, 'sharing_up' => $s];
+    }
+
+    /**
+     * Email the rating increases to the Shadow SaaS alert recipients (Admin >
+     * Email > Shadow SaaS). $trigger 'high' keeps only rises to High. Returns
+     * ['sent' => n, 'changes' => n, 'error' => ?string].
+     */
+    public static function sendIncreaseAlerts(Database $db, array $increases): array
+    {
+        $out = ['sent' => 0, 'changes' => 0, 'error' => null];
+        $cfg = [];
+        foreach ($db->fetchAll("SELECT config_key, config_value FROM app_config WHERE config_key LIKE 'shadow_saas_alert_%'") as $r) $cfg[$r['config_key']] = (string)$r['config_value'];
+        if (($cfg['shadow_saas_alert_enabled'] ?? '0') !== '1') return $out;
+        if (($cfg['shadow_saas_alert_trigger'] ?? 'any') === 'high') {
+            $increases = array_filter($increases, fn($c) => ($c['privacy_up'] && $c['privacy_to'] === 'High') || ($c['sharing_up'] && $c['sharing_to'] === 'High'));
+        }
+        $out['changes'] = count($increases);
+        if (!$increases) return $out;
+        $to = self::parseRecipients($cfg['shadow_saas_alert_recipients'] ?? '');
+        if (!$to) { $out['error'] = 'no recipients'; return $out; }
+        require_once __DIR__ . '/EmailService.php';
+        $mail = new EmailService($db, new Encryption());
+        foreach ($to as $addr) {
+            $r = $mail->sendPrivacyRiskIncrease(array_values($increases), $addr);
+            if (!empty($r['success'])) $out['sent']++; else $out['error'] = $r['error'] ?? 'send failed';
+        }
+        return $out;
+    }
+
+    /** Comma/semicolon/newline separated list -> unique valid email addresses. */
+    public static function parseRecipients(string $list): array
+    {
+        $out = [];
+        foreach (preg_split('/[\s,;]+/', $list) as $a) {
+            $a = strtolower(trim($a));
+            if ($a !== '' && filter_var($a, FILTER_VALIDATE_EMAIL)) $out[$a] = true;
+        }
+        return array_keys($out);
     }
 
     /** Fixed rating rules over the verified facts: [privacy, sharing]. */

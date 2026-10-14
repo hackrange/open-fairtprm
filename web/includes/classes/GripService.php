@@ -48,6 +48,8 @@ class GripService
     private bool $breachSyncEnabled = false;
     /** TPRM -> Grip write-back (labels, primary contact); opt-in via grip_writeback_enabled. */
     private bool $writebackEnabled = false;
+    /** Also write the AI privacy review ratings as labels (grip_writeback_privacy_labels, default on). */
+    private bool $privacyLabelsEnabled = true;
     /** Per-run cache of lower-cased email => Grip userId (or '' when not a Grip user). */
     private array $userIdCache = [];
     /** Data source mode: 'live' (query API per view) or 'local' (serve hydrated DB snapshot). */
@@ -137,6 +139,7 @@ class GripService
                 case 'grip_api_token':          $this->apiToken = is_string($val) ? trim($val) : ''; break;
                 case 'grip_breach_sync_enabled':$this->breachSyncEnabled = ($val === '1'); break;
                 case 'grip_writeback_enabled':  $this->writebackEnabled = ($val === '1'); break;
+                case 'grip_writeback_privacy_labels': $this->privacyLabelsEnabled = ($val !== '0'); break;
                 case 'grip_data_source':        $this->dataSource = ($val === 'local') ? 'local' : 'live'; break;
             }
         }
@@ -2018,22 +2021,50 @@ class GripService
      *   Shadow SaaS dismissed     -> Tolerated
      *   Shadow SaaS denied        -> Denied
      *   pending, Under Review     -> Under Review
+     * plus, from the AI privacy review ($privacy, a vendor_privacy_reviews row):
+     *   Privacy High|Medium|Low and File Sharing High|Medium|Low (Unknown: none)
      */
-    public static function desiredLabels(?array $vendor, ?array $row): array
+    public static function desiredLabels(?array $vendor, ?array $row, ?array $privacy = null): array
     {
         $p = self::LABEL_PREFIX;
+        $out = [];
         if ($vendor) {
-            $out = [$p . 'Onboarded'];
+            $out[] = $p . 'Onboarded';
             if (in_array((string)($vendor['vendor_tier'] ?? ''), ['1', '2', '3'], true)) $out[] = $p . 'Tier ' . $vendor['vendor_tier'];
-            return $out;
+        } elseif ($row) {
+            switch ($row['status'] ?? '') {
+                case 'dismissed':    $out[] = $p . 'Tolerated'; break;
+                case 'unsanctioned': $out[] = $p . 'Denied'; break;
+                case 'pending':      if (($row['grip_sanction_tag'] ?? '') === 'under review') $out[] = $p . 'Under Review'; break;
+            }
         }
-        if (!$row) return [];
-        switch ($row['status'] ?? '') {
-            case 'dismissed':    return [$p . 'Tolerated'];
-            case 'unsanctioned': return [$p . 'Denied'];
-            case 'pending':      return ($row['grip_sanction_tag'] ?? '') === 'under review' ? [$p . 'Under Review'] : [];
+        if ($privacy && ($privacy['status'] ?? '') !== 'error') {
+            if (in_array($privacy['privacy_risk'] ?? '', ['High', 'Medium', 'Low'], true)) $out[] = $p . 'Privacy ' . $privacy['privacy_risk'];
+            if (in_array($privacy['sharing_risk'] ?? '', ['High', 'Medium', 'Low'], true)) $out[] = $p . 'File Sharing ' . $privacy['sharing_risk'];
         }
-        return [];
+        return $out;
+    }
+
+    /** The AI privacy review for a Grip app's domain, or null (none, or privacy labels off). */
+    private function privacyReviewForDomain(?string $domain): ?array
+    {
+        if (!$this->privacyLabelsEnabled) return null;
+        $d = strtolower(trim((string)$domain));
+        if (str_starts_with($d, 'www.')) $d = substr($d, 4);
+        if ($d === '') return null;
+        try {
+            return $this->db->fetchOne("SELECT privacy_risk, sharing_risk, status FROM vendor_privacy_reviews WHERE domain = :d", [':d' => $d]) ?: null;
+        } catch (Throwable $e) {
+            return null;   // table not there yet
+        }
+    }
+
+    /** Grip apps (grip_id list) whose domain is $domain or www.$domain. */
+    public function gripIdsForDomain(string $domain): array
+    {
+        $d = strtolower(trim($domain));
+        if ($d === '') return [];
+        return array_column($this->db->fetchAll("SELECT grip_id FROM shadow_saas_grip_apps WHERE LOWER(domain) IN (:d, :w)", [':d' => $d, ':w' => 'www.' . $d]), 'grip_id');
     }
 
     /**
@@ -2074,7 +2105,7 @@ class GripService
         $written = is_array($written) ? $written : [];
         $ours = fn(array $l) => array_values(array_filter($l, fn($x) => strpos($x, self::LABEL_PREFIX) === 0));
         $current = array_values(array_unique(array_merge($ours($mirrorLabels), $ours($written))));
-        $desired = self::desiredLabels($st['vendor'], $st['row']);
+        $desired = self::desiredLabels($st['vendor'], $st['row'], $this->privacyReviewForDomain($st['app']['domain'] ?? null));
         $final = $current;
         foreach (array_diff($current, $desired) as $label) {
             $r = $this->removeLabel($gripId, $label);
@@ -2168,6 +2199,15 @@ class GripService
             "SELECT grip_id FROM shadow_saas WHERE source = 'grip' AND grip_id IS NOT NULL
                AND (status IN ('dismissed', 'unsanctioned') OR (status = 'pending' AND grip_sanction_tag = 'under review'))") as $r) $ids[$r['grip_id']] = true;
         foreach ($this->db->fetchAll("SELECT grip_id FROM shadow_saas_grip_writeback WHERE labels IS NOT NULL AND labels != '[]'") as $r) $ids[$r['grip_id']] = true;
+        // Apps with a settled AI privacy rating get Privacy / File Sharing labels.
+        if ($this->privacyLabelsEnabled) {
+            try {
+                foreach ($this->db->fetchAll(
+                    "SELECT a.grip_id FROM shadow_saas_grip_apps a
+                       JOIN vendor_privacy_reviews r ON r.domain = IF(LOWER(a.domain) LIKE 'www.%', SUBSTRING(LOWER(a.domain), 5), LOWER(a.domain))
+                      WHERE r.status <> 'error' AND (r.privacy_risk <> 'Unknown' OR r.sharing_risk <> 'Unknown')") as $r) $ids[$r['grip_id']] = true;
+            } catch (Throwable $e) {}
+        }
         foreach (array_keys($ids) as $gid) {
             if ($sum['writes'] >= self::WRITEBACK_CAP) {
                 error_log('Grip write-back: reached the per-run cap of ' . self::WRITEBACK_CAP . ' writes; the rest continue next sync');

@@ -456,13 +456,7 @@ $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') 
     <script nonce="<?php echo cspNonce(); ?>">
         // Click a row (outside its links and checkbox) to open the same details
         // panel as the Applications list.
-        document.getElementById('sn-table')?.addEventListener('click', function (e) {
-            if (e.target.closest('a, button, input, select, textarea, label')) return;
-            var row = e.target.closest('tr');
-            if (!row || row.classList.contains('detail-row') || !row.hasAttribute('data-grip-id')) return;
-            var detail = row.nextElementSibling;
-            if (detail && detail.classList.contains('detail-row')) detail.classList.toggle('open');
-        });
+        <?php echo shadowSaasRowToggleJs('#sn-table', 'data-grip-id'); ?>
         // Onboard selected: require a selection and a confirmation. The dispatch
         // key rides on a hidden input, so the submission never depends on the button.
         (function () {

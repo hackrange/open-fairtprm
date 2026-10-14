@@ -816,6 +816,44 @@ View case: {{case_url}}
 This is an automated notification from {{system_title}}. Please do not reply to this email.',
                 ],
             ],
+            'shadow_saas' => [
+                'privacy_risk_increase' => [
+                    'subject' => 'Shadow SaaS privacy risk increased: {{change_count}} vendor(s)',
+                    'html' => '<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4; padding: 20px;">
+        <tr><td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <tr><td style="background-color: {{header_color}}; padding: 30px; text-align: center;">{{logo_img}}<h1 style="margin: 10px 0 0 0; color: #ffffff; font-size: 20px;">{{system_title}}</h1></td></tr>
+                <tr><td style="background-color: #FEF3C7; border-left: 4px solid #D97706; padding: 15px 30px;"><p style="margin: 0; color: #92400E; font-size: 16px; font-weight: bold;">Shadow SaaS Privacy Risk Increased: {{change_count}} Vendor(s)</p></td></tr>
+                <tr><td style="padding: 30px;">
+                    <p style="margin: 0 0 10px 0; color: #333; font-size: 15px; line-height: 1.6;">The AI privacy review on <strong>{{run_date}}</strong> found a higher privacy or file-sharing risk for <strong>{{change_count}}</strong> vendor(s). Each finding is quoted from the vendor\'s own published policy unless marked otherwise.</p>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; margin: 20px 0;">
+                        <tr><td style="background:#f9fafb;padding:10px 15px;font-weight:bold;color:#374151;font-size:14px;border-bottom:1px solid #e5e7eb;">Changes</td></tr>
+                        {{change_rows_html}}
+                    </table>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0;"><tr><td align="center"><a href="{{shadow_saas_url}}" style="display: inline-block; padding: 15px 40px; background-color: {{button_color}}; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">Open Shadow SaaS</a></td></tr></table>
+                </td></tr>
+                <tr><td style="background-color: {{footer_color}}; padding: 20px 30px;"><p style="margin: 0; color: #ffffff; font-size: 12px;">This is an automated notification from {{system_title}}. Please do not reply to this email.</p></td></tr>
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>',
+                    'text' => 'SHADOW SAAS PRIVACY RISK INCREASED
+==========================================
+
+The AI privacy review on {{run_date}} found a higher privacy or file-sharing risk for {{change_count}} vendor(s).
+
+{{change_rows_text}}
+Open Shadow SaaS: {{shadow_saas_url}}
+
+==========================================
+This is an automated notification from {{system_title}}. Please do not reply to this email.',
+                ],
+            ],
             'grc' => [
                 'task_digest' => [
                     'subject' => 'GRC Task Summary: {{task_count}} task(s) assigned to you',
@@ -893,6 +931,7 @@ View your tasks: {{assessment_url}}',
                 ['procurement', 'contract_expiring', 'Contract Expiring Soon', '["contract_name","vendor_name","expiration_date","days_until_expiry","contract_type","contract_url","header_color","button_color","footer_color","system_title","logo_img"]'],
                 ['procurement', 'contract_expired', 'Contract Expired', '["contract_name","vendor_name","expiration_date","days_overdue","contract_type","contract_url","header_color","button_color","footer_color","system_title","logo_img"]'],
                 ['procurement', 'case_assigned', 'Contract Case Assigned', '["case_title","vendor_name","assigned_by","case_url","header_color","button_color","footer_color","system_title","logo_img"]'],
+                ['shadow_saas', 'privacy_risk_increase', 'Privacy Risk Increased (digest)', '["change_count","change_rows_html","change_rows_text","run_date","shadow_saas_url","header_color","button_color","footer_color","system_title","logo_img"]'],
             ];
 
             // Check if table has any rows
@@ -1123,6 +1162,14 @@ HTML;
                 'expiration_date' => date('F j, Y', strtotime('+14 days')),
                 'case_title' => 'Contract Renewal - Acme Corporation',
                 'assigned_by' => 'TPRM Admin',
+                // Shadow SaaS privacy risk increase digest
+                'change_count' => '1',
+                'run_date' => date('M j, Y g:i A'),
+                'shadow_saas_url' => $baseUrl . '/shadow-saas.php',
+                'change_rows_html' => '<tr><td style="padding:12px 15px;border-bottom:1px solid #e5e7eb;"><div style="margin-bottom:6px;"><strong style="color:#111827;font-size:14px;">Acme Corporation</strong> <span style="color:#6b7280;font-size:12px;">acme.example</span></div>'
+                    . '<div style="font-size:13px;color:#374151;margin:2px 0;">Privacy: <span style="color:#6b7280;">Medium</span> &rarr; <span style="display:inline-block;background:#DC2626;color:#fff;font-size:11px;padding:1px 7px;border-radius:3px;font-weight:600;">High</span></div>'
+                    . '<div style="margin:4px 0 4px 10px;padding:6px 10px;border-left:3px solid #d1d5db;color:#4b5563;font-size:12px;">&ldquo;We may use Customer Content to train and improve our machine learning models.&rdquo;<div style="color:#9ca3af;font-size:11px;margin-top:2px;">https://acme.example/privacy</div></div></td></tr>',
+                'change_rows_text' => "1. Acme Corporation (acme.example)\n   Privacy: Medium -> High\n      \"We may use Customer Content to train and improve our machine learning models.\" (https://acme.example/privacy)\n",
             ];
 
             $branding = self::getEmailBrandingVars();
@@ -2186,5 +2233,86 @@ TEXT;
             error_log('Procurement digest email error: ' . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Digest of vendors whose AI privacy / file-sharing rating went up
+     * (VendorPrivacyService::sendIncreaseAlerts). Template shadow_saas /
+     * privacy_risk_increase, editable on Admin > Email > Shadow SaaS. Every
+     * value from a vendor website is HTML-escaped before it reaches the email.
+     *
+     * Each $changes element: domain, vendor_name, privacy_from/to/up,
+     * sharing_from/to/up, evidence (list of {field, quote, url, source}), summary.
+     */
+    public function sendPrivacyRiskIncrease(array $changes, string $recipientEmail): array
+    {
+        if (!$this->isEnabled()) {
+            return ['success' => false, 'error' => 'Email is disabled.'];
+        }
+        if (empty($changes)) {
+            return ['success' => false, 'error' => 'No changes to send.'];
+        }
+        try {
+            [$subject, $html, $text] = $this->buildPrivacyRiskIncrease($changes);
+            $mail = $this->createMailer();
+            $mail->addAddress($recipientEmail);
+            $mail->Subject = $subject;
+            $mail->Body    = $html;
+            $mail->AltBody = $text;
+            $this->sendEmail($mail);
+            return ['success' => true];
+        } catch (Exception $e) {
+            error_log('Privacy risk increase email error: ' . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /** [subject, html, text] of the privacy risk increase digest (separate from sending, for tests). */
+    public function buildPrivacyRiskIncrease(array $changes): array
+    {
+            $h = fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+            $badge = ['High' => '#DC2626', 'Medium' => '#D97706', 'Low' => '#16A34A', 'Unknown' => '#6B7280'];
+            $rowsHtml = ''; $rowsText = '';
+            foreach (array_values($changes) as $i => $c) {
+                $lines = [];
+                if (!empty($c['privacy_up'])) $lines[] = ['Privacy', $c['privacy_from'], $c['privacy_to'], ['trains_on_customer_data', 'customer_content_license', 'sells_or_shares_for_advertising', 'shares_with_third_parties', 'retention']];
+                if (!empty($c['sharing_up'])) $lines[] = ['File Sharing', $c['sharing_from'], $c['sharing_to'], ['file_upload', 'ai_processes_files', 'external_file_sharing']];
+                $url = baseUrl('shadow-saas.php?status=all&search=' . rawurlencode((string)$c['domain']));
+                $rowsHtml .= '<tr><td style="padding:12px 15px;border-bottom:1px solid #e5e7eb;">'
+                    . '<div style="margin-bottom:6px;"><a href="' . $h($url) . '" style="color:#111827;font-size:14px;font-weight:bold;text-decoration:none;">' . $h($c['vendor_name'] ?: $c['domain']) . '</a> <span style="color:#6b7280;font-size:12px;">' . $h($c['domain']) . '</span></div>';
+                $rowsText .= ($i + 1) . '. ' . ($c['vendor_name'] ?: $c['domain']) . ' (' . $c['domain'] . ")\n";
+                foreach ($lines as [$label, $from, $to, $fields]) {
+                    $rowsHtml .= '<div style="font-size:13px;color:#374151;margin:2px 0;">' . $h($label) . ': '
+                        . '<span style="color:#6b7280;">' . $h($from) . '</span> &rarr; '
+                        . '<span style="display:inline-block;background:' . ($badge[$to] ?? '#6B7280') . ';color:#fff;font-size:11px;padding:1px 7px;border-radius:3px;font-weight:600;">' . $h($to) . '</span></div>';
+                    $rowsText .= "   {$label}: {$from} -> {$to}\n";
+                    foreach ((array)($c['evidence'] ?? []) as $ev) {
+                        if (!is_array($ev) || !in_array($ev['field'] ?? '', $fields, true)) continue;
+                        $src = ($ev['source'] ?? '') === 'ai_knowledge' ? 'AI product knowledge' : (($ev['source'] ?? '') === 'grip' ? 'Grip privacy data' : (string)($ev['url'] ?? ''));
+                        $rowsHtml .= '<div style="margin:4px 0 4px 10px;padding:6px 10px;border-left:3px solid #d1d5db;color:#4b5563;font-size:12px;">&ldquo;' . $h(mb_substr((string)($ev['quote'] ?? ''), 0, 300)) . '&rdquo;'
+                            . ($src !== '' ? '<div style="color:#9ca3af;font-size:11px;margin-top:2px;">' . $h($src) . '</div>' : '') . '</div>';
+                        $rowsText .= '      "' . mb_substr((string)($ev['quote'] ?? ''), 0, 300) . '"' . ($src !== '' ? " ({$src})" : '') . "\n";
+                        break;   // one quote per change keeps the digest short
+                    }
+                }
+                $rowsHtml .= '</td></tr>';
+                $rowsText .= "\n";
+            }
+            $vars = [
+                'change_count'     => (string)count($changes),
+                'change_rows_html' => $rowsHtml,
+                'change_rows_text' => $rowsText,
+                'run_date'         => date('M j, Y g:i A'),
+                'shadow_saas_url'  => baseUrl('shadow-saas.php'),
+            ];
+            $tpl = $this->getTemplateFromDb('shadow_saas', 'privacy_risk_increase') ?: (function () {
+                $d = self::getDefaultTemplateContent('shadow_saas', 'privacy_risk_increase');
+                return $d ? ['email_subject' => $d['subject'], 'email_body_html' => $d['html'], 'email_body_text' => $d['text']] : null;
+            })();
+            return [
+                $this->renderWithBranding($tpl['email_subject'], $vars),
+                $this->renderWithBranding($tpl['email_body_html'], $vars),
+                $this->renderWithBranding($tpl['email_body_text'], $vars),
+            ];
     }
 }

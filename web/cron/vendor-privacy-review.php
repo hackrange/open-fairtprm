@@ -74,12 +74,15 @@ $log = function (string $line) use ($verbose) { if ($verbose) fwrite(STDOUT, '[v
 try {
     if (isset($opt['queue'])) {
         $q = $svc->runQueue(3300, $log);
+        $a = VendorPrivacyService::sendIncreaseAlerts($db, $svc->increases);
+        if ($a['changes']) $log(sprintf('rating increases: %d, alert emails sent: %d%s', $a['changes'], $a['sent'], $a['error'] ? ' (' . $a['error'] . ')' : ''));
         $cron->logExecutionComplete($db, $q['reviewed'] + $q['failed'], $q['reviewed'], $q['failed'], []);
         fwrite(STDOUT, sprintf("[vendor-privacy] queue: reviewed=%d failed=%d cost=$%.4f%s\n", $q['reviewed'], $q['failed'], $q['cost'], $q['budget_stopped'] ? ' (stopped: monthly AI limit)' : ''));
         exit(0);
     }
     if (!empty($opt['domain'])) {
         $r = $svc->reviewDomain((string)$opt['domain'], '', true);
+        VendorPrivacyService::sendIncreaseAlerts($db, $svc->increases);
         $cron->logExecutionComplete($db, 1, 1, 0, []);
         fwrite(STDOUT, sprintf("[vendor-privacy] %s: %s privacy=%s sharing=%s cost=$%.4f\n", $opt['domain'], $r['outcome'], $r['privacy_risk'], $r['sharing_risk'], $r['cost']));
         exit(0);
@@ -89,6 +92,9 @@ try {
     $limit = isset($opt['limit']) ? max(1, (int)$opt['limit']) : $svc->dailyCap();
     // Leave a minute of the job's 3600 s timeout for bookkeeping.
     $r = $svc->runBatch($limit, 3300, $log);
+    // One digest email per run for every rating that went up (Admin > Email > Shadow SaaS).
+    $a = VendorPrivacyService::sendIncreaseAlerts($db, $svc->increases);
+    if ($a['changes']) $log(sprintf('rating increases: %d, alert emails sent: %d%s', $a['changes'], $a['sent'], $a['error'] ? ' (' . $a['error'] . ')' : ''));
     $cron->logExecutionComplete($db, $r['reviewed'] + $r['failed'], $r['reviewed'], $r['failed'], []);
     fwrite(STDOUT, sprintf("[vendor-privacy] reviewed=%d ai_calls=%d unchanged=%d unknown=%d failed=%d remaining=%d cost=$%.4f%s\n",
         $r['reviewed'], $r['ai_calls'], $r['unchanged'], $r['unknown'], $r['failed'], $r['remaining'], $r['cost'],

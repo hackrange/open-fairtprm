@@ -219,6 +219,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_breach_alert_set
 }
 
 // ============================================================================
+// POST Handler: save_shadow_saas_alert_settings
+// Who gets the "privacy risk increased" digest (VendorPrivacyService), and when.
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_shadow_saas_alert_settings'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_email.invalid_request');
+    } else {
+        require_once __DIR__ . '/../classes/VendorPrivacyService.php';
+        $ssRaw = trim((string)($_POST['shadow_saas_alert_recipients'] ?? ''));
+        $ssBad = [];
+        foreach (preg_split('/[\s,;]+/', $ssRaw) as $a) {
+            $a = trim($a);
+            if ($a !== '' && !filter_var($a, FILTER_VALIDATE_EMAIL)) $ssBad[] = $a;
+        }
+        $ssEnabled = isset($_POST['shadow_saas_alert_enabled']) ? '1' : '0';
+        $ssList = VendorPrivacyService::parseRecipients($ssRaw);
+        if ($ssBad) {
+            $error = t('admin_email.ss_invalid_recipients', implode(', ', array_slice($ssBad, 0, 5)));
+        } elseif ($ssEnabled === '1' && !$ssList) {
+            $error = t('admin_email.ss_recipients_required');
+        } else {
+            $ssVals = [
+                'shadow_saas_alert_enabled'    => $ssEnabled,
+                'shadow_saas_alert_recipients' => implode(', ', $ssList),
+                'shadow_saas_alert_trigger'    => (($_POST['shadow_saas_alert_trigger'] ?? 'any') === 'high') ? 'high' : 'any',
+            ];
+            foreach ($ssVals as $k => $v) {
+                if ($db->fetchOne('SELECT id FROM app_config WHERE config_key = :k', [':k' => $k])) {
+                    $db->update('app_config', ['config_value' => $v], 'config_key = :k', [':k' => $k]);
+                } else {
+                    $db->insert('app_config', ['config_key' => $k, 'config_value' => $v, 'is_encrypted' => 0]);
+                }
+            }
+            $auth->audit($user['id'], 'config_update_shadow_saas_alerts', 'app_config', null, ['new' => $ssVals]);
+            $success = t('admin_email.ss_saved');
+        }
+    }
+}
+
+// ============================================================================
+// POST Handler: send_shadow_saas_alert_test (sample digest to the saved recipients)
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_shadow_saas_alert_test'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_email.invalid_request');
+    } else {
+        require_once __DIR__ . '/../classes/VendorPrivacyService.php';
+        EmailService::seedDefaultTemplates($db);
+        $ssTo = VendorPrivacyService::parseRecipients(getAppConfig('shadow_saas_alert_recipients', ''));
+        $ssTpl = $db->fetchOne("SELECT * FROM email_templates WHERE template_category = 'shadow_saas' AND template_key = 'privacy_risk_increase' AND assessment_template_id IS NULL");
+        $ssSvc = new EmailService($db, new Encryption());
+        if (!$ssTo) {
+            $error = t('admin_email.ss_recipients_required');
+        } elseif (!$ssSvc->isEnabled()) {
+            $error = t('admin_email.disabled_enable_settings');
+        } elseif (!$ssTpl) {
+            $error = t('admin_email.template_not_found');
+        } else {
+            $ssSent = 0; $ssErr = '';
+            foreach ($ssTo as $addr) {
+                $r = $ssSvc->sendTemplateTest($ssTpl, $addr);
+                if (!empty($r['success'])) $ssSent++; else $ssErr = (string)($r['message'] ?? '');
+            }
+            $auth->audit($user['id'], 'shadow_saas_alert_test_sent', 'email_templates', (int)$ssTpl['id'], ['new' => ['recipients' => $ssTo, 'sent' => $ssSent]]);
+            if ($ssSent > 0) $success = t('admin_email.ss_test_sent', $ssSent);
+            if ($ssErr !== '') $error = $ssErr;
+        }
+    }
+}
+
+// ============================================================================
 // POST Handler: save_procurement_digest_settings
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_procurement_digest_settings'])) {
@@ -535,6 +606,8 @@ if (isset($_POST['save_breach_alert_settings'])) {
     $activeTab = 'breach_alert';
 } elseif (isset($_POST['update_procurement_settings']) || isset($_POST['save_procurement_digest_settings']) || isset($_POST['send_procurement_digest_now'])) {
     $activeTab = 'procurement';
+} elseif (isset($_POST['save_shadow_saas_alert_settings']) || isset($_POST['send_shadow_saas_alert_test'])) {
+    $activeTab = 'shadow_saas';
 } elseif (isset($_POST['update_email_template']) || isset($_POST['reset_email_template'])) {
     // Figure out which tab the template belongs to
     $postTemplateId = intval($_POST['template_id'] ?? 0);
@@ -546,7 +619,7 @@ if (isset($_POST['save_breach_alert_settings'])) {
     }
 } elseif (isset($_POST['waf_action']) && isset($_POST['email_tab'])) {
     // Stay on the template tab the admin toggled the WAF from.
-    $wafTabs = ['vendor', 'stakeholder', 'procurement', 'grc', 'breach_alert'];
+    $wafTabs = ['vendor', 'stakeholder', 'procurement', 'grc', 'breach_alert', 'shadow_saas'];
     if (in_array($_POST['email_tab'], $wafTabs, true)) {
         $activeTab = $_POST['email_tab'];
     }
@@ -634,6 +707,8 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
         style="padding: 8px 16px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'grc' ? 'var(--theme-header-color, #2563eb)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'grc' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'grc' ? 'var(--theme-header-color, #2563eb)' : '#6b7280'; ?>; margin-bottom: -2px;"><?php echo e(t('admin_email.tab_grc')); ?></button>
     <button type="button" data-action="showEmailSection" data-arg="breach_alert" id="emailTab_breach_alert" class="email-section-tab"
         style="padding: 8px 16px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'breach_alert' ? 'var(--theme-header-color, #2563eb)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'breach_alert' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'breach_alert' ? 'var(--theme-header-color, #2563eb)' : '#6b7280'; ?>; margin-bottom: -2px;"><?php echo e(t('admin_email.tab_breach_alerts')); ?></button>
+    <button type="button" data-action="showEmailSection" data-arg="shadow_saas" id="emailTab_shadow_saas" class="email-section-tab"
+        style="padding: 8px 16px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'shadow_saas' ? 'var(--theme-header-color, #2563eb)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'shadow_saas' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'shadow_saas' ? 'var(--theme-header-color, #2563eb)' : '#6b7280'; ?>; margin-bottom: -2px;"><?php echo e(t('admin_email.tab_shadow_saas')); ?></button>
 </div>
 
 <!-- ================================================================== -->
@@ -1192,6 +1267,131 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
 </div><!-- end emailSection_procurement -->
 
 <!-- ================================================================== -->
+<!-- SHADOW SAAS TAB: privacy risk increase alerts -->
+<!-- ================================================================== -->
+<div id="emailSection_shadow_saas" <?php echo $activeTab !== 'shadow_saas' ? 'style="display: none;"' : ''; ?>>
+<?php echo $renderWafNotice('shadow_saas'); ?>
+<?php
+$ssEnabled  = getAppConfig('shadow_saas_alert_enabled', '0');
+$ssRecip    = getAppConfig('shadow_saas_alert_recipients', '');
+$ssTrigger  = getAppConfig('shadow_saas_alert_trigger', 'any') === 'high' ? 'high' : 'any';
+?>
+<div class="card" style="margin-bottom: 20px;" id="ss-alert-card">
+    <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.ss_heading')); ?></h3>
+    <p style="color: #666; font-size: 13px; margin: 0 0 20px;"><?php echo e(t('admin_email.ss_desc')); ?></p>
+    <form method="POST" action="admin.php?section=email">
+        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="shadow_saas_alert_enabled" value="1" <?php echo $ssEnabled === '1' ? 'checked' : ''; ?>>
+                <span><?php echo e(t('admin_email.ss_enable')); ?></span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label for="shadow_saas_alert_recipients"><?php echo e(t('admin_email.ss_recipients')); ?></label>
+            <textarea id="shadow_saas_alert_recipients" name="shadow_saas_alert_recipients" class="form-control" rows="3" placeholder="security@example.com, privacy@example.com" style="font-family: monospace;"><?php echo e($ssRecip); ?></textarea>
+            <div class="form-help"><?php echo e(t('admin_email.ss_recipients_help')); ?></div>
+        </div>
+        <div class="form-group" style="max-width: 420px;">
+            <label for="shadow_saas_alert_trigger"><?php echo e(t('admin_email.ss_trigger')); ?></label>
+            <select id="shadow_saas_alert_trigger" name="shadow_saas_alert_trigger" class="form-control">
+                <option value="any" <?php echo $ssTrigger === 'any' ? 'selected' : ''; ?>><?php echo e(t('admin_email.ss_trigger_any')); ?></option>
+                <option value="high" <?php echo $ssTrigger === 'high' ? 'selected' : ''; ?>><?php echo e(t('admin_email.ss_trigger_high')); ?></option>
+            </select>
+            <div class="form-help"><?php echo e(t('admin_email.ss_trigger_help')); ?></div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button type="submit" name="save_shadow_saas_alert_settings" class="btn btn-primary"><?php echo e(t('admin_email.btn_save_settings_generic')); ?></button>
+            <button type="submit" name="send_shadow_saas_alert_test" class="btn btn-secondary"><?php echo e(t('admin_email.ss_send_test')); ?></button>
+        </div>
+    </form>
+</div>
+
+<!-- Email Templates Card -->
+<div class="card">
+    <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.ss_templates_heading')); ?></h3>
+    <p style="color: #666; font-size: 13px; margin: 0 0 20px;">
+        <?php echo e(t('admin_email.ss_templates_desc')); ?>
+    </p>
+
+    <?php if (empty($emailTemplates['shadow_saas'])): ?>
+    <div style="text-align: center; padding: 40px 20px; color: #666;">
+        <p style="font-size: 14px;"><?php echo e(t('admin_email.ss_no_templates')); ?></p>
+        <p style="font-size: 13px; color: #999;"><?php echo e(t('admin_email.run_migration')); ?></p>
+    </div>
+    <?php else: ?>
+        <?php foreach ($emailTemplates['shadow_saas'] as $tpl): ?>
+        <?php
+            $tplId = (int)$tpl['id'];
+            $vars = json_decode($tpl['available_variables'] ?? '[]', true) ?: [];
+        ?>
+        <div style="margin-bottom: 15px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+            <div data-action="toggleEmailTemplate" data-arg="emailTpl_<?php echo $tplId; ?>"
+                 style="cursor: pointer; padding: 12px 16px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; color: #374151;"><?php echo e($tpl['display_name']); ?></span>
+                <span id="arrow_emailTpl_<?php echo $tplId; ?>" style="color: #9ca3af; font-size: 12px;">&#9660;</span>
+            </div>
+            <div id="emailTpl_<?php echo $tplId; ?>" style="display: none; padding: 16px;">
+                <?php if (!empty($vars)): ?>
+                <div style="background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px; font-size: 12px;">
+                    <strong style="color: #3730a3;"><?php echo e(t('admin_email.available_variables')); ?></strong>
+                    <?php foreach ($vars as $v): ?>
+                    <code style="background: #e0e7ff; padding: 1px 5px; border-radius: 3px; margin-left: 4px;">{{<?php echo e($v); ?>}}</code>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+
+                <form method="POST" action="admin.php?section=email">
+                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                    <input type="hidden" name="template_id" value="<?php echo $tplId; ?>">
+
+                    <div class="form-group">
+                        <label><?php echo e(t('admin_email.label_subject_line')); ?></label>
+                        <input type="text" name="email_subject" class="form-control" value="<?php echo e($tpl['email_subject']); ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><?php echo e(t('admin_email.label_html_body')); ?></label>
+                        <div style="margin-bottom: 6px;">
+                            <button type="button" class="btn btn-sm btn-secondary email-editor-toggle" data-target="htmlEditor_ss_<?php echo $tplId; ?>" data-source="htmlSource_ss_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px;"><?php echo e(t('admin_email.btn_switch_source')); ?></button>
+                            <button type="button" class="btn btn-sm btn-secondary email-preview-btn" data-source="htmlSource_ss_<?php echo $tplId; ?>" style="font-size: 11px; padding: 3px 10px; margin-left: 4px;"><?php echo e(t('admin_email.btn_preview')); ?></button>
+                        </div>
+                        <div id="htmlEditor_ss_<?php echo $tplId; ?>">
+                            <textarea name="email_body_html" class="form-control tinymce-email" id="htmlSource_ss_<?php echo $tplId; ?>" rows="14"><?php echo e($tpl['email_body_html']); ?></textarea>
+                        </div>
+                        <div class="form-help"><?php echo e(t('admin_email.help_html_editor')); ?></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label><?php echo e(t('admin_email.label_plain_text_body')); ?></label>
+                        <textarea name="email_body_text" class="form-control" rows="8" style="font-family: 'Courier New', Courier, monospace; font-size: 12px; line-height: 1.4;"><?php echo e($tpl['email_body_text']); ?></textarea>
+                        <div class="form-help"><?php echo e(t('admin_email.help_plain_text')); ?></div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button type="submit" name="update_email_template" class="btn btn-primary"><?php echo e(t('admin_email.btn_save_template')); ?></button>
+                        <button type="submit" name="reset_email_template" class="btn btn-secondary" data-confirm="<?php echo e(t('admin_email.confirm_reset')); ?>"><?php echo e(t('admin_email.btn_reset_default')); ?></button>
+                    </div>
+                </form>
+                <form method="POST" action="admin.php?section=email" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                    <input type="hidden" name="template_id" value="<?php echo $tplId; ?>">
+                    <div style="display: flex; gap: 10px; align-items: flex-end;">
+                        <div style="flex: 1; max-width: 300px;">
+                            <label style="font-size: 12px; color: #666; margin-bottom: 4px; display: block;"><?php echo e(t('admin_email.label_send_test_to')); ?></label>
+                            <input type="email" name="test_recipient" class="form-control" placeholder="you@example.com" value="<?php echo e($user['email'] ?? ''); ?>" required style="padding: 7px 10px; font-size: 13px;">
+                        </div>
+                        <button type="submit" name="send_template_test" class="btn btn-sm" style="background: #0ea5e9; color: white; padding: 8px 16px; white-space: nowrap;"><?php echo e(t('admin_email.btn_send_test')); ?></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
+</div><!-- end emailSection_shadow_saas -->
+
+<!-- ================================================================== -->
 <!-- GRC TAB -->
 <!-- ================================================================== -->
 <div id="emailSection_grc" <?php echo $activeTab !== 'grc' ? 'style="display: none;"' : ''; ?>>
@@ -1604,7 +1804,7 @@ document.addEventListener('submit', function(e) {
 
 // Tab switching (same pattern as Shodan SRS)
 function showEmailSection(section) {
-    var sections = ['settings', 'vendor', 'stakeholder', 'procurement', 'grc', 'breach_alert'];
+    var sections = ['settings', 'vendor', 'stakeholder', 'procurement', 'grc', 'breach_alert', 'shadow_saas'];
     sections.forEach(function(s) {
         var el = document.getElementById('emailSection_' + s);
         var tab = document.getElementById('emailTab_' + s);

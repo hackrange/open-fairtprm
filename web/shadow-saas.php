@@ -1990,7 +1990,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                             $effStatus = $gripUnsanctioned ? 'unsanctioned' : $entry['status'];
                         ?>
                         <!-- Summary row -->
-                        <tr>
+                        <tr data-row-id="<?php echo (int)$entry['id']; ?>">
                             <?php if (!$isAuditor): ?>
                             <td>
                                 <?php if ($entry['status'] === 'pending' || $entry['status'] === 'dismissed'): ?>
@@ -2579,16 +2579,9 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             });
         });
 
-        // Expand/collapse detail rows (event delegation) — click anywhere on the row
-        document.querySelector('table')?.addEventListener('click', function(e) {
-            // Skip if clicking an interactive element
-            if (e.target.closest('a, button, input, select, textarea, label')) return;
-            var summaryRow = e.target.closest('tr');
-            if (!summaryRow || summaryRow.classList.contains('detail-row')) return;
-            var detailRow = summaryRow.nextElementSibling;
-            if (!detailRow || !detailRow.classList.contains('detail-row')) return;
-            detailRow.classList.toggle('open');
-        });
+        // Expand/collapse detail rows - click anywhere on the row. Keeps the
+        // opened row in view and reopens it after an action reloads the page.
+        <?php echo shadowSaasRowToggleJs('table', 'data-row-id'); ?>
 
         // Edit modal
         var editModal = document.getElementById('editModal');
