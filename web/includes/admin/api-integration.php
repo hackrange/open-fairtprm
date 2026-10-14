@@ -229,6 +229,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_fair_analysis'])
 }
 
 // ============================================================================
+// POST Handler: AI pricing and monthly budget (feeds ai_usage_log costs)
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_ai_costs'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_api-integration.invalid_request_retry');
+    } else {
+        require_once __DIR__ . '/../classes/AIPlatformService.php';
+        $plat = (string)($_POST['price_platform'] ?? '');
+        if (!in_array($plat, AIPlatformService::PLATFORMS, true)) {
+            $error = t('admin_api-integration.invalid_request_retry');
+        } else {
+            // Blank = use the model's list price. Otherwise a non-negative number.
+            $num = function ($v, float $max) {
+                $v = trim((string)$v);
+                if ($v === '') return '';
+                if (!is_numeric($v) || (float)$v < 0 || (float)$v > $max) return null;
+                return rtrim(rtrim(number_format((float)$v, 6, '.', ''), '0'), '.') ?: '0';
+            };
+            $vals = [
+                'ai_platform_price_' . $plat . '_input'  => $num($_POST['price_input'] ?? '', 10000),
+                'ai_platform_price_' . $plat . '_output' => $num($_POST['price_output'] ?? '', 10000),
+                'ai_platform_price_' . $plat . '_search' => $num($_POST['price_search'] ?? '', 10000),
+                'ai_platform_budget_limit'               => $num($_POST['budget_limit'] ?? '', 1e12),
+                'ai_platform_budget_unit'                => (($_POST['budget_unit'] ?? 'usd') === 'tokens') ? 'tokens' : 'usd',
+                'ai_platform_budget_warn_pct'            => (string)max(1, min(100, (int)($_POST['budget_warn_pct'] ?? 80) ?: 80)),
+                'ai_platform_budget_pause_background'    => isset($_POST['budget_pause_background']) ? '1' : '0',
+            ];
+            if ($plat === 'custom') {
+                $label = trim((string)($_POST['custom_model_label'] ?? ''));
+                $vals['custom_model_label'] = preg_match('~^[A-Za-z0-9._:/@-]{0,100}$~', $label) ? $label : null;
+            }
+            if (in_array(null, $vals, true)) {
+                $error = t('admin_api-integration.costs_invalid');
+            } else {
+                foreach ($vals as $k => $v) {
+                    if ($db->fetchOne('SELECT id FROM app_config WHERE config_key = :k', [':k' => $k])) {
+                        $db->update('app_config', ['config_value' => $v], 'config_key = :k', [':k' => $k]);
+                    } else {
+                        $db->insert('app_config', ['config_key' => $k, 'config_value' => $v, 'is_encrypted' => 0]);
+                    }
+                }
+                $auth->audit($user['id'], 'config_update_ai_costs', 'app_config', null, ['new' => $vals]);
+                $success = t('admin_api-integration.costs_saved');
+            }
+        }
+    }
+}
+
+// ============================================================================
 // Data Loading
 // ============================================================================
 $encryption = new Encryption();
@@ -534,7 +583,122 @@ CURL;
     <button type="submit" name="update_ai_settings" class="btn btn-primary"><?php echo e(t('admin_api-integration.save_configuration')); ?></button>
 </form>
 
-<?php if (!in_array($activePlatform, ['disabled'], true)): ?>
+<?php if (!in_array($activePlatform, ['disabled'], true)):
+    require_once __DIR__ . '/../classes/AIPlatformService.php';
+    $aiSvc = AIPlatformService::getInstance();
+    $pk = 'ai_platform_price_' . $activePlatform . '_';
+    [$pIn, $pOut, $pSearch, $pSrc] = $aiSvc->prices();
+    [$bLimit, $bUnit, $bWarn, $bPauseBg] = $aiSvc->budget();
+    $bUsed = $aiSvc->budgetUsedFraction();
+    $bFmt = fn($v) => $bUnit === 'usd' ? '$' . number_format((float)$v, 2) : number_format((float)$v) . ' ' . t('admin_api-integration.budget_unit_tokens');
+    $bMonth = $aiSvc->monthUsage();
+    $billModel = $aiSvc->billingModel([]);
+    $listP = AIPlatformService::listPrice($billModel);
+    // Usage trending from ai_usage_log (all AI features).
+    $usage = ['month' => null, 'months' => [], 'features' => [], 'days' => []];
+    try {
+        $mStart = date('Y-m-01 00:00:00');
+        $usage['month'] = $db->fetchOne("SELECT COUNT(*) calls, COALESCE(SUM(cost_usd),0) cost, COALESCE(SUM(input_tokens),0) tin, COALESCE(SUM(output_tokens),0) tout, SUM(outcome='budget_blocked') blocked FROM ai_usage_log WHERE ran_at >= :m", [':m' => $mStart]);
+        $usage['months'] = $db->fetchAll("SELECT DATE_FORMAT(ran_at, '%Y-%m') ym, COUNT(*) calls, SUM(input_tokens) tin, SUM(output_tokens) tout, SUM(web_searches) srch, SUM(cost_usd) cost FROM ai_usage_log WHERE ran_at >= :s GROUP BY ym ORDER BY ym DESC", [':s' => date('Y-m-01 00:00:00', strtotime('-5 months', strtotime(date('Y-m-01'))))]);
+        $usage['features'] = $db->fetchAll("SELECT feature, COUNT(*) calls, SUM(input_tokens) tin, SUM(output_tokens) tout, SUM(cost_usd) cost, MAX(estimated) est FROM ai_usage_log WHERE ran_at >= :m GROUP BY feature ORDER BY cost DESC, calls DESC LIMIT 25", [':m' => $mStart]);
+        $usage['days'] = $db->fetchAll("SELECT DATE(ran_at) d, COUNT(*) calls, SUM(cost_usd) cost FROM ai_usage_log WHERE ran_at >= :s GROUP BY d ORDER BY d DESC", [':s' => date('Y-m-d 00:00:00', strtotime('-13 days'))]);
+    } catch (Throwable $e) { error_log('AI usage load: ' . $e->getMessage()); }
+    $mCost = (float)($usage['month']['cost'] ?? 0);
+    $dayOfMonth = (int)date('j'); $daysInMonth = (int)date('t');
+    $projected = $dayOfMonth > 0 ? $mCost / $dayOfMonth * $daysInMonth : $mCost;
+?>
+<div class="card" id="ai-costs-card" style="margin-top:20px;">
+    <h3 style="margin:0 0 6px;font-size:15px;font-weight:600;"><?php echo e(t('admin_api-integration.costs_heading')); ?></h3>
+    <p style="color:#6b7280;font-size:13px;margin:0 0 14px;"><?php echo e(t('admin_api-integration.costs_intro')); ?></p>
+    <?php if ($bLimit > 0 && $bUsed * 100 >= $bWarn): ?>
+        <div class="alert <?php echo $bUsed >= 1 ? 'alert-danger' : 'alert-warning'; ?>" id="ai-budget-alert"><?php echo e(t($bUsed >= 1 ? 'admin_api-integration.budget_reached' : 'admin_api-integration.budget_warning', $bFmt($bMonth[$bUnit]), $bFmt($bLimit), AIPlatformService::budgetResetAt())); ?></div>
+    <?php endif; ?>
+    <form method="POST" action="admin.php?section=<?php echo e($section); ?>">
+        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+        <input type="hidden" name="price_platform" value="<?php echo e($activePlatform); ?>">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
+            <?php if ($activePlatform === 'custom'): ?>
+            <div class="form-group">
+                <label for="custom_model_label"><?php echo e(t('admin_api-integration.custom_model_label')); ?></label>
+                <input type="text" id="custom_model_label" name="custom_model_label" class="form-control" value="<?php echo e($aiConfig['custom_model_label'] ?? ''); ?>" placeholder="anthropic.claude-haiku-5-5">
+                <div class="form-help"><?php echo e(t('admin_api-integration.custom_model_label_help')); ?></div>
+            </div>
+            <?php endif; ?>
+            <div class="form-group">
+                <label for="price_input"><?php echo e(t('admin_api-integration.price_input_label')); ?></label>
+                <input type="text" inputmode="decimal" id="price_input" name="price_input" class="form-control" value="<?php echo e($aiConfig[$pk . 'input'] ?? ''); ?>" placeholder="<?php echo $listP ? e(number_format($listP[0], 2)) : ''; ?>">
+            </div>
+            <div class="form-group">
+                <label for="price_output"><?php echo e(t('admin_api-integration.price_output_label')); ?></label>
+                <input type="text" inputmode="decimal" id="price_output" name="price_output" class="form-control" value="<?php echo e($aiConfig[$pk . 'output'] ?? ''); ?>" placeholder="<?php echo $listP ? e(number_format($listP[1], 2)) : ''; ?>">
+            </div>
+            <div class="form-group">
+                <label for="price_search"><?php echo e(t('admin_api-integration.price_search_label')); ?></label>
+                <input type="text" inputmode="decimal" id="price_search" name="price_search" class="form-control" value="<?php echo e($aiConfig[$pk . 'search'] ?? ''); ?>" placeholder="<?php echo $activePlatform === 'anthropic' ? e(number_format(AIPlatformService::ANTHROPIC_SEARCH_PER_1K, 2)) : '0'; ?>">
+            </div>
+        </div>
+        <div class="form-help" style="margin:-4px 0 12px;"><?php echo e(t('admin_api-integration.price_help', $billModel, number_format($pIn, 2), number_format($pOut, 2), number_format($pSearch, 2), t('admin_api-integration.price_source_' . $pSrc))); ?></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
+            <div class="form-group">
+                <label for="budget_limit"><?php echo e(t('admin_api-integration.budget_label')); ?></label>
+                <input type="text" inputmode="decimal" id="budget_limit" name="budget_limit" class="form-control" value="<?php echo e($aiConfig['ai_platform_budget_limit'] ?? ''); ?>" placeholder="<?php echo e(t('admin_api-integration.budget_none')); ?>">
+            </div>
+            <div class="form-group">
+                <label for="budget_unit"><?php echo e(t('admin_api-integration.budget_unit_label')); ?></label>
+                <select id="budget_unit" name="budget_unit" class="form-control">
+                    <option value="usd" <?php echo $bUnit === 'usd' ? 'selected' : ''; ?>><?php echo e(t('admin_api-integration.budget_unit_usd')); ?></option>
+                    <option value="tokens" <?php echo $bUnit === 'tokens' ? 'selected' : ''; ?>><?php echo e(t('admin_api-integration.budget_unit_tokens')); ?></option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="budget_warn_pct"><?php echo e(t('admin_api-integration.budget_warn_label')); ?></label>
+                <input type="number" min="1" max="100" id="budget_warn_pct" name="budget_warn_pct" class="form-control" value="<?php echo (int)$bWarn; ?>">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label"><input type="checkbox" name="budget_pause_background" value="1" <?php echo $bPauseBg ? 'checked' : ''; ?>> <span><?php echo e(t('admin_api-integration.budget_pause_background')); ?></span></label>
+            <div class="form-help"><?php echo e(t('admin_api-integration.budget_help', AIPlatformService::budgetResetAt())); ?></div>
+        </div>
+        <button type="submit" name="update_ai_costs" class="btn btn-primary"><?php echo e(t('admin_api-integration.costs_save')); ?></button>
+    </form>
+
+    <h4 style="margin:22px 0 8px;font-size:14px;"><?php echo e(t('admin_api-integration.usage_heading')); ?></h4>
+    <p id="ai-usage-summary" style="font-size:13px;margin:0 0 10px;"><?php echo e(t('admin_api-integration.usage_summary', '$' . number_format($mCost, 2), (int)($usage['month']['calls'] ?? 0), '$' . number_format($projected, 2))); ?><?php if ($bLimit > 0): ?> <?php echo e(t('admin_api-integration.usage_vs_budget', $bFmt($bMonth[$bUnit]), $bFmt($bLimit), (int)round(100 * $bUsed), AIPlatformService::budgetResetAt())); ?><?php endif; ?><?php if ((int)($usage['month']['blocked'] ?? 0) > 0): ?> <?php echo e(t('admin_api-integration.usage_blocked', (int)$usage['month']['blocked'])); ?><?php endif; ?></p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;">
+        <div style="overflow-x:auto;">
+            <table class="data-table" id="ai-usage-features" style="width:100%;font-size:12px;">
+                <thead><tr><th><?php echo e(t('admin_api-integration.usage_col_feature')); ?></th><th style="text-align:right;"><?php echo e(t('admin_api-integration.usage_col_calls')); ?></th><th style="text-align:right;"><?php echo e(t('admin_api-integration.usage_col_tokens')); ?></th><th style="text-align:right;"><?php echo e(t('admin_api-integration.usage_col_cost')); ?></th></tr></thead>
+                <tbody>
+                <?php foreach ($usage['features'] as $f): ?>
+                    <tr><td><code><?php echo e($f['feature']); ?></code><?php if ((int)$f['est']): ?> <span title="<?php echo e(t('admin_api-integration.usage_estimated')); ?>">*</span><?php endif; ?></td><td style="text-align:right;"><?php echo number_format((int)$f['calls']); ?></td><td style="text-align:right;"><?php echo number_format((int)$f['tin'] + (int)$f['tout']); ?></td><td style="text-align:right;">$<?php echo number_format((float)$f['cost'], 4); ?></td></tr>
+                <?php endforeach; ?>
+                <?php if (!$usage['features']): ?><tr><td colspan="4" style="color:#9ca3af;"><?php echo e(t('admin_api-integration.usage_none')); ?></td></tr><?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="data-table" id="ai-usage-months" style="width:100%;font-size:12px;">
+                <thead><tr><th><?php echo e(t('admin_api-integration.usage_col_month')); ?></th><th style="text-align:right;"><?php echo e(t('admin_api-integration.usage_col_calls')); ?></th><th style="text-align:right;"><?php echo e(t('admin_api-integration.usage_col_in')); ?></th><th style="text-align:right;"><?php echo e(t('admin_api-integration.usage_col_out')); ?></th><th style="text-align:right;"><?php echo e(t('admin_api-integration.usage_col_cost')); ?></th></tr></thead>
+                <tbody>
+                <?php foreach ($usage['months'] as $m): ?>
+                    <tr><td><?php echo e($m['ym']); ?></td><td style="text-align:right;"><?php echo number_format((int)$m['calls']); ?></td><td style="text-align:right;"><?php echo number_format((int)$m['tin']); ?></td><td style="text-align:right;"><?php echo number_format((int)$m['tout']); ?></td><td style="text-align:right;">$<?php echo number_format((float)$m['cost'], 2); ?></td></tr>
+                <?php endforeach; ?>
+                <?php if (!$usage['months']): ?><tr><td colspan="5" style="color:#9ca3af;"><?php echo e(t('admin_api-integration.usage_none')); ?></td></tr><?php endif; ?>
+                </tbody>
+            </table>
+            <table class="data-table" id="ai-usage-days" style="width:100%;font-size:12px;margin-top:12px;">
+                <thead><tr><th><?php echo e(t('admin_api-integration.usage_col_day')); ?></th><th style="text-align:right;"><?php echo e(t('admin_api-integration.usage_col_calls')); ?></th><th style="text-align:right;"><?php echo e(t('admin_api-integration.usage_col_cost')); ?></th></tr></thead>
+                <tbody>
+                <?php foreach ($usage['days'] as $d): ?>
+                    <tr><td><?php echo e($d['d']); ?></td><td style="text-align:right;"><?php echo number_format((int)$d['calls']); ?></td><td style="text-align:right;">$<?php echo number_format((float)$d['cost'], 4); ?></td></tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <p style="color:#6b7280;font-size:12px;margin-top:8px;"><?php echo e(t('admin_api-integration.usage_footnote')); ?></p>
+</div>
+
 <div class="card" style="margin-top:20px;">
     <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;"><?php echo e(t('admin_ai-platform.test_connection')); ?></h3>
     <p style="color:#6b7280;font-size:13px;margin-bottom:12px;"><?php echo e(t('admin_ai-platform.test_connection_desc')); ?></p>

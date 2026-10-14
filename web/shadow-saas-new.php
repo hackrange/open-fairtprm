@@ -374,6 +374,7 @@ $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') 
                                 <div class="sn-name"><?php echo e($a['name']); ?>
                                     <?php if (($snSubOf = shadowSaasSubprocessorOf(['vendor_name' => $a['name'] ?? '', 'vendor_domain' => $a['domain'] ?? '']))): ?><span class="subproc-badge" title="<?php echo e(t('shadow-saas.subprocessor_badge_title', implode(', ', array_column($snSubOf, 'name')))); ?>"><?php echo e(t('shadow-saas.subprocessor_badge')); ?></span><?php endif; ?>
                                     <?php $snAi = shadowSaasAiLevel(['grip_ai_depth_level' => $a['ai_depth_level'] ?? '']); if ($snAi !== null): ?><span class="ai-badge" title="<?php echo e(t('shadow-saas.ai_badge_title', $snAi)); ?>"><?php echo e(t('shadow-saas.ai_badge')); ?></span><span class="pp-pill tag-ai" title="<?php echo e(t('shadow-saas-new.ai_depth')); ?>"><?php echo e($snAi); ?></span><?php endif; ?>
+                                    <?php echo vendorPrivacyBadges(vendorPrivacyReviewFor($a['domain'] ?? '')); ?>
                                 </div>
                                 <div class="sn-sub">
                                     <?php if (!empty($a['domain'])): ?><a href="https://<?php echo e($a['domain']); ?>" target="_blank" rel="noopener noreferrer"><?php echo e($a['domain']); ?></a><?php endif; ?>

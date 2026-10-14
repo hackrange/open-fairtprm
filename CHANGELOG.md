@@ -12,6 +12,35 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **AI vendor privacy and file-sharing review.** A new "Use AI" setting on
+  Admin > Shadow SaaS > Grip (available when an AI platform is enabled) reads
+  each vendor's own privacy policy and terms and rates two risks. Privacy risk
+  covers whether the vendor trains AI on customer data, claims a broad license
+  to it, sells or shares it for advertising, or keeps it indefinitely. Sharing
+  risk covers whether employees can upload files and whether those files are
+  processed by AI or can be shared outside the company. Every Shadow SaaS app
+  is reviewed, including Tolerated and Unsanctioned ones, and so is every
+  onboarded vendor. Findings only count when the quoted sentence is found on
+  the vendor's own page; Grip's privacy answers fill gaps, and file-feature
+  answers from the AI's product knowledge are labeled as such. Ratings come
+  from fixed rules, not from the AI. Results show as Privacy and Sharing badges
+  on Shadow SaaS rows, with the quotes and links in the row details and on the
+  vendor's SaaS Data tab. Vendors are re-checked every 30 days (configurable);
+  when the policy text has not changed the AI step is skipped, so ongoing cost
+  follows policy changes rather than vendor count. Policies are found from
+  Grip's links and the vendor's own site, so it works on Amazon Bedrock, which
+  has no web search; AI web search is an optional extra on platforms that
+  support it. The Shadow SaaS File Sharing field is filled from the review
+  unless a person set it.
+- **AI usage, cost and monthly limit.** Every AI call in the platform is now
+  logged with its feature, model, tokens and cost. Admin > API Integration
+  takes your provider's rates (per 1M input and output tokens and per 1,000
+  web searches; blank uses the model's list price) and shows usage by feature,
+  by month and by day, with a month-end projection. A monthly limit can be set
+  in US dollars or tokens: when it is reached, all AI stops until the month
+  resets. Background AI jobs can also pause at the warning level (default 80%)
+  to keep the rest for people using AI.
+
 - **Pick a vendor's subprocessor from Shadow SaaS.** In a vendor's
   Subprocessors tab, the Add Subprocessor search now also lists Shadow SaaS
   apps that are not onboarded (for example one you tolerate because only a
@@ -481,6 +510,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Compliance Posture shows only what Grip can observe.** Checks Grip
+  reports as Excluded, Pending or Undetectable are left out, and so is any
+  control, or framework, with nothing passing or failing. The framework score
+  is now the share of observed checks that pass, instead of controls with no
+  failing check, so one failing check no longer zeroes out a broad control.
+  A framework's page notes how many mapped controls were hidden.
+
 - **Bundled Grip API reference refreshed from Grip's public spec.** The admin-only
   OpenAPI and Postman files under `app/grip-reference/` are now generated from
   the export published on Grip's documentation portal instead of a customer
@@ -549,6 +585,9 @@ project adheres to [Semantic Versioning](https://semver.org/).
   retired ones. Localized in all eight locales.
 
 ### Fixed
+
+- **AI token usage from Anthropic web searches was under-counted.** Only the
+  last round of a multi-round search reported usage; rounds are now summed.
 
 - **Sorting Shadow SaaS by SSC did nothing.** The SSC (SecurityScorecard)
   header linked to a sort the query did not recognize, so the list stayed in

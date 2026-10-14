@@ -251,6 +251,203 @@ class AIPlatformService {
         if (!$this->isEnabled()) {
             return ['success' => false, 'content' => null, 'error' => 'AI integration is not enabled'];
         }
+        // Feature tag for the usage log: the caller's own tag, else the calling
+        // script's name (generate-srs-summary, BreachAlertService, ...).
+        $feature = (string)($options['feature'] ?? '');
+        if ($feature === '') {
+            $bt = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
+            $feature = basename((string)($bt[0]['file'] ?? 'unknown'), '.php');
+        }
+        $blocked = $this->budgetBlocks(!empty($options['background']));
+        if ($blocked !== null) {
+            $this->logUsage($feature, $options, $messages, ['success' => false, 'error' => $blocked], 0, true);
+            return ['success' => false, 'content' => null, 'error' => $blocked, 'budget_blocked' => true];
+        }
+        $t0 = microtime(true);
+        $res = $this->dispatchChatCompletion($messages, $options);
+        $res['cost_usd'] = $this->logUsage($feature, $options, $messages, $res, (int)round((microtime(true) - $t0) * 1000), false);
+        return $res;
+    }
+
+    // =========================================================================
+    // Usage, cost and budget
+    // =========================================================================
+
+    /** List prices (USD per 1M input / output tokens) by model id prefix. Admin rates override. */
+    public const MODEL_PRICES = [
+        'claude-haiku-5-5'  => [0.10, 0.50],
+        'claude-haiku-4-5'  => [1.00, 5.00],
+        'claude-sonnet-5-5' => [2.00, 10.00],
+        'claude-sonnet-5'   => [2.00, 10.00],
+        'claude-sonnet-4-6' => [3.00, 15.00],
+        'claude-opus-5-5'   => [4.00, 20.00],
+        'claude-opus-5'     => [5.00, 25.00],
+        'claude-opus-4-8'   => [5.00, 25.00],
+        'claude-opus-4-7'   => [5.00, 25.00],
+        'claude-opus-4-6'   => [5.00, 25.00],
+        'claude-fable-5'    => [10.00, 50.00],
+        'gpt-4o-mini'       => [0.15, 0.60],
+        'gpt-4o'            => [2.50, 10.00],
+    ];
+    /** Anthropic web search list price, USD per 1,000 searches. */
+    public const ANTHROPIC_SEARCH_PER_1K = 10.00;
+    public const PLATFORMS = ['openwebui', 'librechat', 'custom', 'anthropic', 'openai'];
+
+    /** List price for a model id; tolerates Bedrock-style "anthropic." / "us.anthropic." prefixes and version suffixes. */
+    public static function listPrice(string $model): ?array {
+        $m = preg_replace('~^(?:[a-z]{2}\.)?anthropic\.~', '', strtolower(trim($model)));
+        $best = null; $bestLen = 0;
+        foreach (self::MODEL_PRICES as $prefix => $p) {
+            if (str_starts_with($m, $prefix) && strlen($prefix) > $bestLen) { $best = $p; $bestLen = strlen($prefix); }
+        }
+        return $best;
+    }
+
+    /**
+     * Rates for a platform: [input $/1M, output $/1M, search $/1K, source].
+     * source = 'admin' when the admin entered them on API Integration, 'list'
+     * when taken from the model's list price, 'none' when unknown (cost 0).
+     */
+    public function prices(?string $platform = null, ?string $model = null): array {
+        $platform = $platform ?? $this->getActivePlatform();
+        $model = $model ?? $this->billingModel([]);
+        $k = 'ai_platform_price_' . $platform . '_';
+        $in = $this->config[$k . 'input'] ?? ''; $out = $this->config[$k . 'output'] ?? ''; $srch = $this->config[$k . 'search'] ?? '';
+        $list = self::listPrice($model);
+        $defSearch = $platform === 'anthropic' ? self::ANTHROPIC_SEARCH_PER_1K : 0.0;
+        if ($in !== '' || $out !== '') {
+            return [max(0.0, (float)$in), max(0.0, (float)$out), $srch !== '' ? max(0.0, (float)$srch) : $defSearch, 'admin'];
+        }
+        if ($list) return [$list[0], $list[1], $srch !== '' ? max(0.0, (float)$srch) : $defSearch, 'list'];
+        return [0.0, 0.0, $srch !== '' ? max(0.0, (float)$srch) : $defSearch, 'none'];
+    }
+
+    public static function costOf(int $in, int $out, int $searches, array $prices): float {
+        return round($in * $prices[0] / 1e6 + $out * $prices[1] / 1e6 + $searches * $prices[2] / 1000, 6);
+    }
+
+    /**
+     * Monthly AI limit: [limit (0 = none), unit 'usd'|'tokens', warn %, pause
+     * background jobs at the warning threshold]. Reaching the limit stops every
+     * AI call until the calendar month resets (the 1st, server time).
+     */
+    public function budget(): array {
+        $unit = ($this->config['ai_platform_budget_unit'] ?? 'usd') === 'tokens' ? 'tokens' : 'usd';
+        return [
+            max(0.0, (float)($this->config['ai_platform_budget_limit'] ?? 0)),
+            $unit,
+            max(1, min(100, (int)($this->config['ai_platform_budget_warn_pct'] ?? 80) ?: 80)),
+            ($this->config['ai_platform_budget_pause_background'] ?? '1') === '1',
+        ];
+    }
+
+    private ?array $monthUsageCache = null;
+
+    /** This calendar month so far: ['usd' => float, 'tokens' => int], from ai_usage_log. */
+    public function monthUsage(bool $fresh = false): array {
+        if ($this->monthUsageCache !== null && !$fresh) return $this->monthUsageCache;
+        try {
+            $r = Database::getInstance()->fetchOne("SELECT COALESCE(SUM(cost_usd), 0) c, COALESCE(SUM(input_tokens + output_tokens), 0) t FROM ai_usage_log WHERE ran_at >= :m", [':m' => date('Y-m-01 00:00:00')]);
+            $this->monthUsageCache = ['usd' => (float)($r['c'] ?? 0), 'tokens' => (int)($r['t'] ?? 0)];
+        } catch (Throwable $e) {
+            $this->monthUsageCache = ['usd' => 0.0, 'tokens' => 0];
+        }
+        return $this->monthUsageCache;
+    }
+
+    /** Fraction of the monthly limit used (0 when no limit is set). */
+    public function budgetUsedFraction(bool $fresh = false): float {
+        [$limit, $unit] = $this->budget();
+        if ($limit <= 0) return 0.0;
+        return $this->monthUsage($fresh)[$unit] / $limit;
+    }
+
+    /** First moment of next month: when a reached limit resets. */
+    public static function budgetResetAt(): string {
+        return date('Y-m-d', strtotime('first day of next month'));
+    }
+
+    /** Null when the call may proceed, else why the monthly limit blocks it. */
+    public function budgetBlocks(bool $background): ?string {
+        [$limit, $unit, $warn, $pauseBg] = $this->budget();
+        if ($limit <= 0) return null;
+        $used = $this->budgetUsedFraction(true);
+        $amount = $unit === 'usd' ? '$' . number_format($limit, 2) : number_format($limit) . ' tokens';
+        if ($used >= 1.0) {
+            return sprintf('Monthly AI limit of %s reached; AI is paused until %s', $amount, self::budgetResetAt());
+        }
+        if ($background && $pauseBg && $used * 100 >= $warn) {
+            return sprintf('Background AI jobs paused at %d%% of the monthly AI limit of %s (resets %s)', $warn, $amount, self::budgetResetAt());
+        }
+        return null;
+    }
+
+    /**
+     * Record one call in ai_usage_log and return its cost. Token counts come
+     * from the provider's usage block (Anthropic or OpenAI shape); when the
+     * platform returns none (some Custom gateways), they are estimated from text
+     * length (about 4 characters per token) and the row is flagged estimated.
+     * Never throws: logging must not break an AI feature.
+     */
+    /**
+     * The model a call is billed under. The Custom platform sends the admin's
+     * own body template, so its model is whatever the admin labels it on API
+     * Integration (e.g. a Bedrock id such as anthropic.claude-haiku-5-5).
+     */
+    public function billingModel(array $options): string {
+        $platform = $this->getActivePlatform();
+        if ($platform === 'custom') return trim($this->config['custom_model_label'] ?? '') ?: 'custom';
+        if ($platform === 'openai' && !empty($options['search_queries'])) {
+            return ($this->config['openai_search_model'] ?? '') ?: 'gpt-4o-search-preview';
+        }
+        return (string)($options['model'] ?? $this->getModel($options['purpose'] ?? null));
+    }
+
+    private function logUsage(string $feature, array $options, array $messages, array $res, int $ms, bool $blocked): float {
+        $platform = $this->getActivePlatform();
+        $model = $this->billingModel($options);
+        $u = is_array($res['usage'] ?? null) ? $res['usage'] : null;
+        $in = 0; $out = 0; $searches = 0; $estimated = 0;
+        if ($u) {
+            $in  = (int)($u['input_tokens'] ?? $u['prompt_tokens'] ?? 0) + (int)($u['cache_creation_input_tokens'] ?? 0) + (int)($u['cache_read_input_tokens'] ?? 0);
+            $out = (int)($u['output_tokens'] ?? $u['completion_tokens'] ?? 0);
+            $searches = (int)($u['server_tool_use']['web_search_requests'] ?? 0);
+        } elseif (!$blocked && !empty($res['success'])) {
+            $chars = 0;
+            foreach ($messages as $m) $chars += strlen(is_string($m['content'] ?? null) ? $m['content'] : json_encode($m['content'] ?? ''));
+            $in = (int)ceil($chars / 4);
+            $out = (int)ceil(strlen((string)($res['content'] ?? '')) / 4);
+            $estimated = 1;
+        }
+        if ($searches === 0 && !$blocked && !empty($options['search_queries']) && !empty($res['success']) && in_array($platform, ['openai', 'custom'], true)) {
+            $searches = 1;   // these platforms bill (or run) one search pass per call
+        }
+        $cost = self::costOf($in, $out, $searches, $this->prices($platform, $model));
+        try {
+            Database::getInstance()->insert('ai_usage_log', [
+                'ran_at'        => date('Y-m-d H:i:s'),
+                'platform'      => substr($platform, 0, 20),
+                'model'         => substr($model, 0, 100),
+                'feature'       => substr($feature, 0, 64),
+                'subject'       => isset($options['subject']) ? substr((string)$options['subject'], 0, 255) : null,
+                'background'    => !empty($options['background']) ? 1 : 0,
+                'input_tokens'  => $in,
+                'output_tokens' => $out,
+                'web_searches'  => $searches,
+                'cost_usd'      => $cost,
+                'estimated'     => $estimated,
+                'outcome'       => $blocked ? 'budget_blocked' : (!empty($res['success']) ? 'ok' : 'error'),
+                'duration_ms'   => $ms,
+            ]);
+            if ($this->monthUsageCache !== null) { $this->monthUsageCache['usd'] += $cost; $this->monthUsageCache['tokens'] += $in + $out; }
+        } catch (Throwable $e) {
+            error_log('AI usage log write failed: ' . $e->getMessage());
+        }
+        return $cost;
+    }
+
+    /** Provider dispatch (no logging or budget checks; see chatCompletion()). */
+    private function dispatchChatCompletion(array $messages, array $options): array {
 
         // Custom platform uses an admin-supplied curl-style template; dispatch separately.
         if ($this->getActivePlatform() === 'custom') {
@@ -906,10 +1103,10 @@ class AIPlatformService {
         // cite live sources. Triggered by the same search_queries signal the
         // Custom platform uses, so Breach/OSINT scans light it up automatically.
         if (!empty($options['search_queries'])) {
-            $payload['tools'] = [[
-                'type' => 'web_search_20260209',
-                'name' => 'web_search',
-            ]];
+            $tool = ['type' => 'web_search_20260209', 'name' => 'web_search'];
+            // Optional cap on searches per call (each is billed).
+            if (!empty($options['search_max_uses'])) $tool['max_uses'] = max(1, (int)$options['search_max_uses']);
+            $payload['tools'] = [$tool];
         }
 
         $headers = [
@@ -921,6 +1118,7 @@ class AIPlatformService {
         $timeout   = (int)($options['timeout'] ?? 120);
         $maxRounds = 6;
         $carry     = null; // accumulated assistant content blocks for pause_turn resume
+        $usage     = null; // summed across pause_turn rounds so callers can cost the whole call
 
         for ($round = 0; $round < $maxRounds; $round++) {
             $payload['messages'] = ($carry === null)
@@ -964,6 +1162,7 @@ class AIPlatformService {
 
             $stopReason    = $data['stop_reason'] ?? null;
             $contentBlocks = (array)($data['content'] ?? []);
+            $usage         = self::sumAnthropicUsage($usage, $data['usage'] ?? null);
 
             if ($stopReason === 'refusal') {
                 return ['success' => false, 'content' => null, 'error' => 'Anthropic declined the request (refusal).'];
@@ -994,11 +1193,27 @@ class AIPlatformService {
                 'success' => true,
                 'content' => $text,
                 'error'   => null,
-                'usage'   => $data['usage'] ?? null,
+                'usage'   => $usage,
             ];
         }
 
         return ['success' => false, 'content' => null, 'error' => 'Anthropic: exceeded web-search continuation rounds'];
+    }
+
+    /** Add one Anthropic usage block into a running total (numeric fields, incl. server_tool_use counts). */
+    private static function sumAnthropicUsage(?array $total, $round): ?array {
+        if (!is_array($round)) return $total;
+        if ($total === null) return $round;
+        foreach ($round as $k => $v) {
+            if (is_int($v) || is_float($v)) {
+                $total[$k] = ($total[$k] ?? 0) + $v;
+            } elseif (is_array($v)) {
+                foreach ($v as $k2 => $v2) {
+                    if (is_int($v2) || is_float($v2)) $total[$k][$k2] = ($total[$k][$k2] ?? 0) + $v2;
+                }
+            }
+        }
+        return $total;
     }
 
     /**

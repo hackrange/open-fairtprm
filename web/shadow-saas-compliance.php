@@ -4,10 +4,13 @@
  *
  * Grip's SSPM posture checks rolled up by the compliance frameworks they map to
  * (NIST CSF, NIST 800-53, ISO 27001, SOC 2, CIS, HIPAA, PCI, ...). A control is
- * failing when any mapped check fails, passing when its evaluated checks all
- * pass, and not evaluated when none of its checks could be evaluated. The
- * framework score is passing controls / (passing + failing). Opening a
- * framework lists its controls, failing first, with the checks behind each.
+ * failing when any mapped check fails and passing when all of them pass. Only
+ * what Grip can observe is shown: checks Grip reports as Excluded, Pending or
+ * Undetectable are left out, and so is any control left with no observable
+ * check. A framework with no passing or failing check (none observable, or all
+ * waived) gets no card. The framework score is the share of its observed checks
+ * that pass, so one failing check no longer zeroes out a broad control. Opening
+ * a framework lists its controls, failing first, with the checks behind each.
  *
  * Read-only, from shadow_saas_grip_posture_checks (refreshed by the Grip sync).
  * Access: administrator / cyber_tprm / auditor.
@@ -60,11 +63,16 @@ if ($gripEnabled) {
     }
 }
 
-// framework => control => ['checks' => [uuid...], 'status' => Fail|Pass|Waived|NA]
-// Fail if any mapped check fails; else Pass if any passes; else Waived if a
-// waived check is mapped; else NA. Waived controls stay out of the score.
+// framework => control => ['checks' => [uuid...], 'status' => Fail|Pass|Waived]
+// Fail if any mapped check fails; else Pass if any passes; else Waived. Only
+// checks Grip actually observed (Pass/Fail, or a Fail we waived) count;
+// Excluded/Pending/Undetectable checks are not applicable here. Waived checks
+// and controls stay out of the score.
+$cpObservable = ['Pass', 'Fail', 'Waived'];
 $cpFw = [];
+$cpHidden = [];   // framework => controls mapped only to unobservable checks
 foreach ($cpChecks as $uuid => $c) {
+    $observed = in_array($c['status'], $cpObservable, true);
     $comp = json_decode((string)($c['compliance'] ?? '[]'), true);
     if (!is_array($comp)) continue;
     foreach ($comp as $m) {
@@ -72,32 +80,40 @@ foreach ($cpChecks as $uuid => $c) {
         $fw = (string)$m['framework'];
         $cp = (string)($m['controlPath'] ?? '');
         $ctl = str_starts_with($cp, $fw . '|') ? substr($cp, strlen($fw) + 1) : ($cp !== '' ? $cp : '?');
-        $cpFw[$fw][$ctl]['checks'][$uuid] = true;
+        if ($observed) $cpFw[$fw][$ctl]['checks'][$uuid] = true;
+        else $cpHidden[$fw][$ctl] = true;
     }
 }
 $cpSummary = [];
 foreach ($cpFw as $fw => &$controls) {
-    $s = ['controls' => 0, 'fail' => 0, 'pass' => 0, 'na' => 0, 'waived' => 0, 'checks' => []];
+    $s = ['controls' => 0, 'fail' => 0, 'pass' => 0, 'waived' => 0, 'checks' => [], 'checks_pass' => 0, 'checks_fail' => 0];
     foreach ($controls as $ctl => &$info) {
-        $st = 'NA';
+        $st = 'Waived';
         foreach (array_keys($info['checks']) as $u) {
-            $cs = $cpChecks[$u]['status'] ?? '';
+            $cs = $cpChecks[$u]['status'];
             if ($cs === 'Fail') { $st = 'Fail'; break; }
             if ($cs === 'Pass') $st = 'Pass';
-            if ($cs === 'Waived' && $st === 'NA') $st = 'Waived';
         }
         $info['status'] = $st;
         $s['controls']++;
-        $s[$st === 'Fail' ? 'fail' : ($st === 'Pass' ? 'pass' : ($st === 'Waived' ? 'waived' : 'na'))]++;
-        foreach (array_keys($info['checks']) as $u) $s['checks'][$u] = true;
+        $s[strtolower($st)]++;
+        foreach (array_keys($info['checks']) as $u) $s['checks'][$u] = $cpChecks[$u]['status'];
     }
     unset($info);
-    $s['score'] = ($s['pass'] + $s['fail']) > 0 ? (int)round(100 * $s['pass'] / ($s['pass'] + $s['fail'])) : null;
+    // Score by checks, each counted once even when it maps to several controls.
+    $cnt = array_count_values($s['checks']);
+    $s['checks_pass'] = $cnt['Pass'] ?? 0;
+    $s['checks_fail'] = $cnt['Fail'] ?? 0;
+    $ev = $s['checks_pass'] + $s['checks_fail'];
+    // Nothing passing or failing (e.g. every observed check waived): no card.
+    if ($ev === 0) continue;
+    $s['score'] = (int)round(100 * $s['checks_pass'] / $ev);
     $s['checks'] = count($s['checks']);
+    $s['hidden'] = count(array_diff_key($cpHidden[$fw] ?? [], $controls));
     $cpSummary[$fw] = $s;
 }
 unset($controls);
-uasort($cpSummary, fn($a, $b) => [$b['fail'], $a['score'] ?? 101] <=> [$a['fail'], $b['score'] ?? 101]);
+uasort($cpSummary, fn($a, $b) => [$a['score'], $b['fail']] <=> [$b['score'], $a['fail']]);
 
 // ---------------------------------------------------------------------------
 // Add a failing control to the GRC risk register.
@@ -215,10 +231,10 @@ try {
 }
 
 $cpSel = (string)($_GET['framework'] ?? '');
-if ($cpSel !== '' && !isset($cpFw[$cpSel])) $cpSel = '';
+if ($cpSel !== '' && !isset($cpSummary[$cpSel])) $cpSel = '';
 $cpRows = [];
 if ($cpSel !== '') {
-    $order = ['Fail' => 0, 'Pass' => 1, 'Waived' => 2, 'NA' => 3];
+    $order = ['Fail' => 0, 'Pass' => 1, 'Waived' => 2];
     foreach ($cpFw[$cpSel] as $ctl => $info) $cpRows[] = ['control' => $ctl] + $info;
     usort($cpRows, fn($a, $b) => $order[$a['status']] <=> $order[$b['status']] ?: strnatcasecmp($a['control'], $b['control']));
 }
@@ -392,12 +408,12 @@ if ($cpSel !== '') {
                     <div class="pp-empty"><?php echo e(t('shadow-saas-cp.no_data')); ?></div>
                 <?php else: ?>
                 <div class="cp-cards" id="cp-cards">
-                    <?php foreach ($cpSummary as $fw => $s): $ev = max(1, $s['pass'] + $s['fail']); ?>
+                    <?php foreach ($cpSummary as $fw => $s): $ev = max(1, $s['checks_pass'] + $s['checks_fail']); ?>
                     <a class="cp-card" href="?<?php echo e(http_build_query(['framework' => $fw])); ?>" data-framework="<?php echo e($fw); ?>">
                         <h3><?php echo e(cpLabel($fw)); ?></h3>
-                        <div class="cp-score"><?php echo $s['score'] !== null ? (int)$s['score'] . '%' : '&mdash;'; ?><small><?php echo e(t('shadow-saas-cp.controls_passing', $s['pass'], $s['pass'] + $s['fail'])); ?></small></div>
-                        <div class="cp-bar"><span class="p" style="width:<?php echo round(100 * $s['pass'] / $ev, 2); ?>%"></span><span class="f" style="width:<?php echo round(100 * $s['fail'] / $ev, 2); ?>%"></span></div>
-                        <div class="cp-meta"><span><b><?php echo (int)$s['fail']; ?></b> <?php echo e(t('shadow-saas-cp.failing')); ?></span><span><b><?php echo (int)$s['pass']; ?></b> <?php echo e(t('shadow-saas-cp.passing')); ?></span><span><b><?php echo (int)$s['na']; ?></b> <?php echo e(t('shadow-saas-posture.not_evaluated')); ?></span><?php if ($s['waived'] > 0): ?><span><b><?php echo (int)$s['waived']; ?></b> <?php echo e(t('shadow-saas-cp.waived')); ?></span><?php endif; ?><span><b><?php echo (int)$s['checks']; ?></b> <?php echo e(t('shadow-saas-cp.checks')); ?></span></div>
+                        <div class="cp-score"><?php echo (int)$s['score'] . '%'; ?><small><?php echo e(t('shadow-saas-cp.checks_passing', $s['checks_pass'], $s['checks_pass'] + $s['checks_fail'])); ?></small></div>
+                        <div class="cp-bar"><span class="p" style="width:<?php echo round(100 * $s['checks_pass'] / $ev, 2); ?>%"></span><span class="f" style="width:<?php echo round(100 * $s['checks_fail'] / $ev, 2); ?>%"></span></div>
+                        <div class="cp-meta"><span><b><?php echo (int)$s['fail']; ?></b> <?php echo e(t('shadow-saas-cp.controls_failing')); ?></span><span><b><?php echo (int)$s['pass']; ?></b> <?php echo e(t('shadow-saas-cp.controls_passing_short')); ?></span><?php if ($s['waived'] > 0): ?><span><b><?php echo (int)$s['waived']; ?></b> <?php echo e(t('shadow-saas-cp.waived')); ?></span><?php endif; ?><span><b><?php echo (int)$s['checks']; ?></b> <?php echo e(t('shadow-saas-cp.checks')); ?></span></div>
                     </a>
                     <?php endforeach; ?>
                 </div>
@@ -407,7 +423,7 @@ if ($cpSel !== '') {
                 <div class="pp-head">
                     <div>
                         <h1 class="page-title" style="margin:0;"><?php echo e(cpLabel($cpSel)); ?></h1>
-                        <p><?php echo e(t('shadow-saas-cp.framework_summary', $s['score'] !== null ? $s['score'] . '%' : '-', $s['fail'], $s['pass'], $s['na'])); ?></p>
+                        <p><?php echo e(t('shadow-saas-cp.framework_summary', $s['score'] . '%', $s['checks_pass'], $s['checks_pass'] + $s['checks_fail'], $s['fail'], $s['pass'])); ?><?php if ($s['hidden'] > 0): ?> <?php echo e(t('shadow-saas-cp.hidden_controls', $s['hidden'])); ?><?php endif; ?></p>
                     </div>
                     <a class="pp-btn" style="background:#6b7280;" href="shadow-saas-compliance.php">&larr; <?php echo e(t('shadow-saas-cp.all_frameworks')); ?></a>
                 </div>
@@ -418,12 +434,12 @@ if ($cpSel !== '') {
                     <?php foreach ($cpRows as $row): ?>
                         <tr data-control="<?php echo e($row['control']); ?>">
                             <td style="white-space:nowrap;font-weight:600;"><?php echo e(str_replace('|', ' ', $row['control'])); ?></td>
-                            <td><span class="pp-pill st-<?php echo e($row['status']); ?>"><?php echo e($row['status'] === 'NA' ? t('shadow-saas-posture.not_evaluated') : t('shadow-saas-posture.status_' . strtolower($row['status']))); ?></span></td>
+                            <td><span class="pp-pill st-<?php echo e($row['status']); ?>"><?php echo e(t('shadow-saas-posture.status_' . strtolower($row['status']))); ?></span></td>
                             <td>
                             <?php foreach (array_keys($row['checks']) as $u): $c = $cpChecks[$u]; ?>
                                 <div class="cp-check">
                                     <a href="shadow-saas-posture.php?<?php echo e(http_build_query(['status' => 'all', 'q' => (string)$c['posture_check_id']])); ?>"><?php echo e($c['posture_check_id']); ?></a>
-                                    <span class="pp-pill st-<?php echo e(in_array($c['status'], ['Fail', 'Pass', 'Waived'], true) ? $c['status'] : 'NA'); ?>"><?php echo e($c['status']); ?></span>
+                                    <span class="pp-pill st-<?php echo e($c['status']); ?>"><?php echo e($c['status']); ?></span>
                                     <?php if (!empty($c['severity'])): ?><span class="pp-pill sev-<?php echo e($c['severity']); ?>"><?php echo e($c['severity']); ?></span><?php endif; ?>
                                     <span class="ai-sub"><?php echo e($c['description']); ?></span>
                                 </div>

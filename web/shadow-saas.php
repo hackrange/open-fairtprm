@@ -362,6 +362,7 @@ if ($tableExists) {
         'uploadbytes'              => "ALTER TABLE shadow_saas ADD COLUMN uploadbytes BIGINT UNSIGNED DEFAULT NULL AFTER downloadbytes",
         'filesharing'              => "ALTER TABLE shadow_saas ADD COLUMN filesharing VARCHAR(10) DEFAULT NULL AFTER uploadbytes",
         'mfasupport'               => "ALTER TABLE shadow_saas ADD COLUMN mfasupport VARCHAR(10) DEFAULT NULL AFTER filesharing",
+        'filesharing_source'       => "ALTER TABLE shadow_saas ADD COLUMN filesharing_source VARCHAR(10) DEFAULT NULL AFTER filesharing",
         'current_srs_score'        => "ALTER TABLE shadow_saas ADD COLUMN current_srs_score INT DEFAULT NULL AFTER mfasupport",
         'last_srs_score_at'        => "ALTER TABLE shadow_saas ADD COLUMN last_srs_score_at DATETIME DEFAULT NULL AFTER current_srs_score",
         'current_shodan_score'     => "ALTER TABLE shadow_saas ADD COLUMN current_shodan_score INT DEFAULT NULL AFTER last_srs_score_at",
@@ -511,6 +512,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
                                     }
                                     if ($csvFs !== '' && $csvFs !== ($existing['filesharing'] ?? '')) {
                                         $updateData['filesharing'] = $csvFs;
+                                        // A person supplied it: the AI privacy review won't overwrite it.
+                                        $updateData['filesharing_source'] = 'manual';
                                     }
                                     if ($csvMfa !== '' && $csvMfa !== ($existing['mfasupport'] ?? '')) {
                                         $updateData['mfasupport'] = $csvMfa;
@@ -564,6 +567,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
                                     'downloadbytes' => ($csvDl !== '' && is_numeric($csvDl)) ? (int)$csvDl : null,
                                     'uploadbytes' => ($csvUl !== '' && is_numeric($csvUl)) ? (int)$csvUl : null,
                                     'filesharing' => $csvFs ?: null,
+                                    'filesharing_source' => $csvFs !== '' ? 'manual' : null,
                                     'mfasupport' => $csvMfa ?: null,
                                     'status' => 'pending',
                                     'created_by' => $user['id'],
@@ -1026,6 +1030,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
                 $editDomain = strtolower(trim($editDomain));
             }
             try {
+                $prevFs = $db->fetchOne("SELECT filesharing FROM shadow_saas WHERE id = ?", [$editId]);
                 $db->query(
                     "UPDATE shadow_saas SET vendor_name = ?, vendor_domain = ?, description = ?, risk_score = ?, risk_type = ?, relationship_manager = ?, number_of_users = ?, application_category = ?, breaches_in_three_years = ?, downloadbytes = ?, uploadbytes = ?, filesharing = ?, mfasupport = ? WHERE id = ?",
                     [
@@ -1045,6 +1050,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
                         $editId
                     ]
                 );
+                // File Sharing changed by hand: it is now the person's value and
+                // the AI privacy review leaves it alone. Cleared: AI may fill it.
+                if ($prevFs && $editFs !== (string)($prevFs['filesharing'] ?? '')) {
+                    $db->query("UPDATE shadow_saas SET filesharing_source = ? WHERE id = ?", [$editFs !== '' ? 'manual' : null, $editId]);
+                }
                 $success = t('shadow-saas.entry_updated');
             } catch (Exception $e) {
                 $error = t('shadow-saas.update_failed');
@@ -1112,6 +1122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
                         'downloadbytes' => ($addDl !== '' && is_numeric($addDl)) ? (int)$addDl : null,
                         'uploadbytes' => ($addUl !== '' && is_numeric($addUl)) ? (int)$addUl : null,
                         'filesharing' => $addFs ?: null,
+                        'filesharing_source' => $addFs !== '' ? 'manual' : null,
                         'mfasupport' => $addMfa ?: null,
                         'status' => 'pending',
                         'created_by' => $user['id'],
@@ -1520,6 +1531,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
         .grip-mixed-badge { background: #ede9fe; color: #5b21b6; }
         .ai-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; vertical-align: middle; white-space: nowrap; background: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; }
         .subproc-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; vertical-align: middle; white-space: nowrap; background: #f5f3ff; color: #6d28d9; border: 1px solid #c4b5fd; }
+        <?php echo vendorPrivacyCss(); ?>
         .grip-mfa-badge { background: #fef3c7; color: #92400e; }
         .grip-breach-list { margin: 4px 0 0; padding-left: 16px; font-size: 12px; }
         .grip-breach-list li { margin: 2px 0; }
@@ -1918,6 +1930,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <?php if (($rowAi = shadowSaasAiLevel($entry)) !== null): ?>
                                 <span class="ai-badge" title="<?php echo e(t('shadow-saas.ai_badge_title', $rowAi)); ?>"><?php echo e(t('shadow-saas.ai_badge')); ?></span>
                                 <?php endif; ?>
+                                <?php echo vendorPrivacyBadges(vendorPrivacyReviewFor($entry['vendor_domain'] ?? '')); ?>
                                 <?php if ($gripEnabled && ($entry['grip_app_classification'] ?? '') === 'mixed_use'): ?>
                                 <span class="grip-mixed-badge" title="<?php echo e(t('shadow-saas.grip_mixed_badge_title')); ?>"><?php echo e(t('shadow-saas.grip_usage_mixed_use')); ?></span>
                                 <?php endif; ?>

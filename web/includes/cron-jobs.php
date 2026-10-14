@@ -175,6 +175,21 @@ function cronJobDefinitions(): array
             // Managed next to the rehydration schedule on Admin > Shadow SaaS > Grip.
             'hidden'          => true,
         ],
+        // Vendor privacy and file-sharing review (VendorPrivacyService). Reads
+        // each vendor's privacy policy and terms with AI and re-checks every 30
+        // days by default. Hidden from the Scheduler page; managed on Admin >
+        // Shadow SaaS > Grip. Exits at once unless Grip, an AI platform and the
+        // "Use AI" setting are all on; pauses when the monthly AI budget is hit.
+        'vendor_privacy_review' => [
+            'name'            => 'Vendor Privacy Review',
+            'description'     => 'AI review of vendor privacy policies and terms: privacy risk and file-sharing risk',
+            'script'          => 'vendor-privacy-review.php',
+            'log'             => '/var/log/php/cron-vendor-privacy-review.log',
+            'default_schedule' => '30 3 * * *',
+            'timeout'         => 3600,
+            'history_key'     => 'vendor-privacy-review',
+            'hidden'          => true,
+        ],
         // Shared Shadow SaaS rehydration. Runs whichever single provider (Grip or
         // Hero) is enabled — they are mutually exclusive. Managed on the Shadow
         // SaaS admin page (admin.php?section=shadow-saas), NOT the Scheduler page,

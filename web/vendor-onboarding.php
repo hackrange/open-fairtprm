@@ -763,7 +763,13 @@ if ($showVendorTabs) {
             $gripSaasData = $decoded;
         }
     }
-    $showGripSaasTab = ($gripEnabled && !empty($gripSaasData));
+    // Vendor privacy and file-sharing review (VendorPrivacyService), matched by domain.
+    $vendorPrivacyReview = null;
+    if ($gripEnabled && !empty($request['vendor_domain'])) {
+        require_once __DIR__ . '/includes/partials/shadow-saas-helpers.php';
+        $vendorPrivacyReview = vendorPrivacyReviewFor($request['vendor_domain']);
+    }
+    $showGripSaasTab = ($gripEnabled && (!empty($gripSaasData) || $vendorPrivacyReview));
 
     // ============================================================
     // PROCUREMENT DETAILED SUMMARY — Additional Data Collection
@@ -3796,6 +3802,14 @@ function getFieldValue($request, $field, $default = '') {
                     $cardStyle = 'flex:1 1 320px; min-width:280px; background:white; border:1px solid #e5e7eb; border-radius:8px; padding:25px;';
                     $hdrStyle  = 'margin:0 0 16px; font-size:15px; font-weight:600; color:var(--theme-header-color); display:flex; align-items:center; gap:8px;';
                     ?>
+                    <?php if ($vendorPrivacyReview): $vpReview = $vendorPrivacyReview; ?>
+                    <style nonce="<?php echo cspNonce(); ?>"><?php echo vendorPrivacyCss(); ?></style>
+                    <div id="vendor-privacy-card" style="<?php echo $cardStyle; ?> margin-bottom:20px;">
+                        <h3 style="<?php echo $hdrStyle; ?>"><?php echo e(t('vendor-privacy.heading')); ?></h3>
+                        <?php include __DIR__ . '/includes/partials/vendor-privacy-review.php'; ?>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($gripSaasData)): ?>
                     <div style="display:flex; flex-wrap:wrap; gap:20px;">
                         <!-- App Info -->
                         <div style="<?php echo $cardStyle; ?>">
@@ -3860,6 +3874,7 @@ function getFieldValue($request, $field, $default = '') {
                             </div>
                         </div>
                     </div>
+                    <?php endif; ?>
                 </div><!-- /vendorTabContent_saas_data -->
                 <?php endif; ?>
 

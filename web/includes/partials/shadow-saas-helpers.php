@@ -78,6 +78,7 @@ if (!function_exists('shadowSaasDetailCss')) {
         .grip-breach-list li { margin: 2px 0; }
         .ai-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; vertical-align: middle; white-space: nowrap; background: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; }
         .subproc-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; vertical-align: middle; white-space: nowrap; background: #f5f3ff; color: #6d28d9; border: 1px solid #c4b5fd; }
+CSS . vendorPrivacyCss() . <<<CSS
         @media (max-width: 768px) { .detail-grid { grid-template-columns: 1fr; } }
 CSS;
     }
@@ -143,5 +144,61 @@ if (!function_exists('shadowSaasSubprocessorOf')) {
         $n = strtolower(trim((string)($entry['vendor_name'] ?? '')));
         if ($n !== '' && isset($map['n:' . $n])) $out += $map['n:' . $n];
         return array_values($out);
+    }
+}
+
+if (!function_exists('vendorPrivacyCss')) {
+    /** Badges and panel styles for the vendor privacy review (Shadow SaaS rows and vendor pages). */
+    function vendorPrivacyCss(): string
+    {
+        return <<<CSS
+
+        .vp-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; vertical-align: middle; white-space: nowrap; border: 1px solid transparent; }
+        .vp-High { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+        .vp-Medium { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+        .vp-Low { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .vp-Unknown { background: #f3f4f6; color: #4b5563; border-color: #d1d5db; }
+        .vp-panel { font-size: 13px; color: #374151; }
+        .vp-panel .vp-facts { margin: 6px 0 0; padding-left: 16px; }
+        .vp-panel .vp-quote { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid #d1d5db; background: #fff; font-size: 12px; color: #374151; }
+        .vp-panel .vp-meta { color: #6b7280; font-size: 11px; margin-top: 6px; }
+        .vp-panel .vp-knowledge { border-left-style: dashed; font-style: italic; }
+CSS;
+    }
+}
+
+if (!function_exists('vendorPrivacyReviewFor')) {
+    /**
+     * The privacy review row for a domain, or null (table missing, not yet
+     * reviewed). One indexed lookup per domain, memoized for the request.
+     */
+    function vendorPrivacyReviewFor($domain): ?array
+    {
+        static $cache = [];
+        $d = shadowSaasNormDomain($domain);
+        if ($d === '') return null;
+        if (!array_key_exists($d, $cache)) {
+            try {
+                $cache[$d] = Database::getInstance()->fetchOne("SELECT * FROM vendor_privacy_reviews WHERE domain = :d", [':d' => $d]) ?: null;
+            } catch (Throwable $e) {
+                $cache[$d] = null;
+            }
+        }
+        return $cache[$d];
+    }
+}
+
+if (!function_exists('vendorPrivacyBadges')) {
+    /** Row badges for a reviewed vendor: Privacy / Sharing, only when High or Medium. HTML-escaped. */
+    function vendorPrivacyBadges(?array $review): string
+    {
+        if (!$review || $review['status'] === 'error') return '';
+        $out = '';
+        foreach (['privacy' => $review['privacy_risk'], 'sharing' => $review['sharing_risk']] as $kind => $lvl) {
+            if (!in_array($lvl, ['High', 'Medium'], true)) continue;
+            $out .= ' <span class="vp-badge vp-' . $lvl . '" data-vp="' . $kind . '" title="' . e(t('vendor-privacy.badge_title_' . $kind, t('vendor-privacy.level_' . strtolower($lvl)))) . '">'
+                . e(t('vendor-privacy.badge_' . $kind, t('vendor-privacy.level_' . strtolower($lvl)))) . '</span>';
+        }
+        return $out;
     }
 }

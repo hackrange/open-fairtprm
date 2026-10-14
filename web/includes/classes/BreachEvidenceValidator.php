@@ -59,6 +59,15 @@ class BreachEvidenceValidator {
     /** Per-process memo of fetched page text, keyed by URL. */
     private array $fetchCache = [];
 
+    /** User-Agent for fetches; callers reading vendor sites may set their own. */
+    public string $userAgent = 'FairTPRM-BreachEvidenceValidator/1.0';
+
+    /**
+     * Force HTTP/1.1. Some CDNs reset HTTP/2 streams from non-browser clients
+     * ("stream was not closed cleanly"), so readers of vendor sites turn this on.
+     */
+    public bool $forceHttp11 = false;
+
     public function __construct(?Database $db = null) {
         $this->db = $db ?: Database::getInstance();
     }
@@ -444,8 +453,41 @@ class BreachEvidenceValidator {
             return $this->fetchCache[$url];
         }
 
+        $body = $this->fetchPageBody($url, $maxRedirects);
+        if ($body === null || trim($body) === '') {
+            $this->fetchCache[$url] = null;
+            return null;
+        }
+        $text = self::htmlToText($body);
+
+        // A near-empty body means a JS-rendered page or a bot wall: treat it as
+        // "could not check", never as "entity absent".
+        $this->fetchCache[$url] = (strlen($text) < 400) ? null : $text;
+        return $this->fetchCache[$url];
+    }
+
+    /** Visible text of an HTML body: script/style dropped, tags stripped, entities decoded, whitespace collapsed. */
+    public static function htmlToText(string $body): string {
+        // Drop script/style bodies before stripping tags so JS string literals
+        // can't supply a bogus entity match.
+        $text = preg_replace('~<(script|style|noscript)\b[^>]*>.*?</\1>~is', ' ', $body);
+        $text = strip_tags((string)$text);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\s+/', ' ', $text);
+        return trim((string)$text);
+    }
+
+    /**
+     * Raw body of a page (HTML as served), or null. Same SSRF guards as
+     * fetchPageText(): public addresses only, pinned IP, every redirect hop
+     * re-validated, http/https only, 1 MB cap. $finalUrl receives the URL the
+     * body was actually served from (after redirects) so relative links can be
+     * resolved against it.
+     */
+    public function fetchPageBody(string $url, int $maxRedirects = 3, ?string &$finalUrl = null): ?string {
         $current = $url;
         $body    = null;
+        $finalUrl = null;
 
         for ($hop = 0; $hop <= $maxRedirects; $hop++) {
             $parts = parse_url($current);
@@ -471,8 +513,10 @@ class BreachEvidenceValidator {
                 CURLOPT_CONNECTTIMEOUT => 7,
                 CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
                 CURLOPT_RESOLVE        => [$host . ':' . $port . ':' . $ip],
-                CURLOPT_USERAGENT      => 'FairTPRM-BreachEvidenceValidator/1.0',
-                CURLOPT_HTTPHEADER     => ['Accept: text/html,application/xhtml+xml'],
+                CURLOPT_USERAGENT      => $this->userAgent,
+                CURLOPT_HTTP_VERSION   => $this->forceHttp11 ? CURL_HTTP_VERSION_1_1 : CURL_HTTP_VERSION_NONE,
+                CURLOPT_ENCODING       => '',
+                CURLOPT_HTTPHEADER     => ['Accept: text/html,application/xhtml+xml', 'Accept-Language: en-US,en;q=0.8'],
                 // Cap the download so a huge or hostile response can't exhaust memory.
                 CURLOPT_BUFFERSIZE     => 16384,
                 CURLOPT_NOPROGRESS     => false,
@@ -517,26 +561,11 @@ class BreachEvidenceValidator {
             }
 
             $body = $payload;
+            $finalUrl = $current;
             break;
         }
 
-        if ($body === null || trim($body) === '') {
-            $this->fetchCache[$url] = null;
-            return null;
-        }
-
-        // Drop script/style bodies before stripping tags so JS string literals
-        // can't supply a bogus entity match.
-        $text = preg_replace('~<(script|style|noscript)\b[^>]*>.*?</\1>~is', ' ', $body);
-        $text = strip_tags((string)$text);
-        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $text = preg_replace('/\s+/', ' ', $text);
-        $text = trim((string)$text);
-
-        // A near-empty body means a JS-rendered page or a bot wall: treat it as
-        // "could not check", never as "entity absent".
-        $this->fetchCache[$url] = (strlen($text) < 400) ? null : $text;
-        return $this->fetchCache[$url];
+        return $body;
     }
 
     // =========================================================================

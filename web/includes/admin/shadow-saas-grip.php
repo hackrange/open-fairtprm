@@ -17,6 +17,7 @@ if (!defined('ADMIN_DISPATCH')) { http_response_code(403); exit('Forbidden'); }
 require_once __DIR__ . '/../classes/GripService.php';
 require_once __DIR__ . '/../classes/HeroService.php';
 require_once __DIR__ . '/../classes/ZscalerService.php';
+require_once __DIR__ . '/../classes/VendorPrivacyService.php';
 // Shared cron-job definitions + regenerateCrontab()/isValidCronExpression()/
 // describeCron(). The "Scheduled Rehydration" card manages the hidden
 // shadow_saas_rehydrate job (registered here) directly from this page.
@@ -43,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
         try {
             $db->beginTransaction();
             $encryption = new Encryption();
-            $formId = ($_POST['grip_form'] ?? 'connection') === 'schedule' ? 'schedule' : 'connection';
+            $formId = in_array($_POST['grip_form'] ?? '', ['schedule', 'privacy'], true) ? $_POST['grip_form'] : 'connection';
             $settings = [];
 
             if ($formId === 'connection') {
@@ -85,6 +86,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
                 if ($settings['grip_enabled'] === '1') {
                     $settings['hero_enabled'] = '0';
                 }
+            } elseif ($formId === 'privacy') {
+                // AI vendor privacy review (VendorPrivacyService). "Use AI" can only
+                // be switched on while an AI platform is enabled.
+                $wantAi = isset($_POST['grip_ai_privacy_enabled']);
+                if ($wantAi && !AIPlatformService::getInstance()->isEnabled()) {
+                    throw new Exception(t('admin_shadow-saas-grip.privacy_needs_ai'));
+                }
+                $settings['grip_ai_privacy_enabled']       = $wantAi ? '1' : '0';
+                $settings['grip_ai_privacy_interval_days'] = (string)max(7, min(365, (int)($_POST['grip_ai_privacy_interval_days'] ?? 30) ?: 30));
+                $settings['grip_ai_privacy_daily_cap']     = (string)max(1, min(5000, (int)($_POST['grip_ai_privacy_daily_cap'] ?? 150) ?: 150));
+                $settings['grip_ai_privacy_web_search']    = isset($_POST['grip_ai_privacy_web_search']) ? '1' : '0';
+                $model = trim((string)($_POST['grip_ai_privacy_model'] ?? ''));
+                if ($model !== '' && !preg_match('~^[A-Za-z0-9._:/@-]{1,100}$~', $model)) {
+                    throw new Exception(t('admin_shadow-saas-grip.privacy_model_invalid'));
+                }
+                $settings['grip_ai_privacy_model'] = $model;
+                $pSchedule = trim($_POST['privacy_schedule'] ?? '30 3 * * *');
+                if (!isValidCronExpression($pSchedule)) {
+                    throw new Exception(t('admin_shadow-saas-grip.invalid_cron'));
+                }
+                $settings['cron_vendor_privacy_review_enabled']  = $wantAi ? '1' : '0';
+                $settings['cron_vendor_privacy_review_schedule'] = $pSchedule;
             } else { // 'schedule'
                 // Shared rehydration schedule. Stored under the cron_* convention
                 // (cron_<key>_enabled / cron_<key>_schedule) so regenerateCrontab()
@@ -120,7 +143,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_grip'])) {
 
             $db->commit();
             $auth->audit($user['id'], 'config_update_grip', 'app_config', null, ['form' => $formId, 'new' => $settings]);
-            if ($formId === 'schedule') {
+            if ($formId === 'privacy') {
+                $success = regenerateCrontab($db, cronJobDefinitions()) ? t('admin_shadow-saas-grip.privacy_saved') : t('admin_shadow-saas-grip.schedule_save_crontab_failed');
+            } elseif ($formId === 'schedule') {
                 // Install/refresh the crontab so the schedule change takes effect
                 // immediately (same mechanism the Scheduler page uses).
                 if (regenerateCrontab($db, cronJobDefinitions())) {
@@ -280,6 +305,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_grip_now'])) {
             }
             $auth->audit($user['id'], 'shadow_saas_run_now', 'shadow_saas_grip_sync_log', null, ['log_file' => $logFile]);
             $success = t('admin_shadow-saas-grip.rehydration_started');
+        }
+    }
+}
+
+// ============================================================================
+// POST: Run the vendor privacy review now (background, up to the daily cap)
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_privacy_now'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_shadow-saas-grip.invalid_request');
+    } elseif (!VendorPrivacyService::isEnabled($db)) {
+        $error = t('admin_shadow-saas-grip.privacy_not_enabled');
+    } else {
+        $script = realpath(__DIR__ . '/../../cron/vendor-privacy-review.php');
+        if (!$script || !is_file($script)) {
+            $error = t('admin_shadow-saas-grip.sync_script_not_found');
+        } else {
+            $logFile = '/var/log/php/cron-vendor-privacy-review.log';
+            $cmd = sprintf('nohup /usr/bin/php %s --manual --verbose >> %s 2>&1 &', escapeshellarg($script), escapeshellarg($logFile));
+            $_vpProc = @proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $_vpPipes);
+            if (is_resource($_vpProc)) {
+                if (isset($_vpPipes[1])) { fclose($_vpPipes[1]); }
+                if (isset($_vpPipes[2])) { fclose($_vpPipes[2]); }
+                proc_close($_vpProc);
+            }
+            $auth->audit($user['id'], 'vendor_privacy_run_now', 'vendor_privacy_reviews', null, ['log_file' => $logFile]);
+            $success = t('admin_shadow-saas-grip.privacy_started');
         }
     }
 }
@@ -560,6 +612,18 @@ $dEn = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'cr
 if ($dEn && isset($dEn['config_value'])) { $discoveryEnabled = (string)$dEn['config_value']; }
 $dSc = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'cron_grip_discovery_schedule'");
 if ($dSc && !empty($dSc['config_value'])) { $discoverySchedule = (string)$dSc['config_value']; }
+// Vendor privacy review card
+$aiOn = AIPlatformService::getInstance()->isEnabled();
+$privacyStats = null;
+try { $privacyStats = (new VendorPrivacyService($db))->stats(); } catch (Throwable $e) { error_log('Privacy stats: ' . $e->getMessage()); }
+$privacySchedule = '30 3 * * *';
+$pSc = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'cron_vendor_privacy_review_schedule'");
+if ($pSc && !empty($pSc['config_value'])) { $privacySchedule = (string)$pSc['config_value']; }
+$privacyLast = null;
+try { $privacyLast = $db->fetchOne("SELECT started_at, status, success_count FROM cron_execution_history WHERE job_name = 'vendor-privacy-review' ORDER BY id DESC LIMIT 1") ?: null; } catch (Throwable $e) {}
+[$aiBudgetLimit, , $aiBudgetWarn, $aiBudgetPauseBg] = AIPlatformService::getInstance()->budget();
+$aiBudgetUsed = AIPlatformService::getInstance()->budgetUsedFraction();
+
 $discoveryLast = null;
 try {
     $discoveryLast = $db->fetchOne("SELECT started_at, status, success_count FROM cron_execution_history WHERE job_name = 'grip-discovery' ORDER BY id DESC LIMIT 1") ?: null;
@@ -631,6 +695,71 @@ try {
         <div style="display: flex; gap: 10px; margin-top: 8px;">
             <button type="submit" name="update_grip" class="btn btn-primary"><?php echo e(t('admin_shadow-saas-grip.save_configuration')); ?></button>
             <button type="submit" name="test_grip_connection" class="btn btn-secondary"><?php echo e(t('admin_shadow-saas-grip.test_connection')); ?></button>
+        </div>
+    </form>
+</div>
+
+<div class="card" id="vendor-privacy-card">
+    <h3><?php echo e(t('admin_shadow-saas-grip.privacy_heading')); ?></h3>
+    <p style="color: #666; line-height: 1.6; margin-top: -4px;"><?php echo e(t('admin_shadow-saas-grip.privacy_intro')); ?></p>
+    <?php if ($aiBudgetLimit > 0 && ($aiBudgetUsed >= 1 || ($aiBudgetPauseBg && $aiBudgetUsed * 100 >= $aiBudgetWarn))): ?>
+        <div class="alert alert-warning" id="vendor-privacy-budget" style="margin-bottom: 12px;"><?php echo e(t('admin_shadow-saas-grip.privacy_budget_paused', (int)round(100 * $aiBudgetUsed), AIPlatformService::budgetResetAt())); ?> <a href="admin.php?section=api"><?php echo e(t('admin_shadow-saas-grip.privacy_budget_link')); ?></a></div>
+    <?php endif; ?>
+    <form method="POST" action="admin.php?section=shadow-saas">
+        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+        <input type="hidden" name="grip_form" value="privacy">
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="grip_ai_privacy_enabled" value="1" <?php echo ($gripCfg['ai_privacy_enabled'] ?? '0') === '1' ? 'checked' : ''; ?> <?php echo $aiOn ? '' : 'disabled'; ?>>
+                <span><?php echo e(t('admin_shadow-saas-grip.privacy_enable_label')); ?></span>
+            </label>
+            <div class="form-help"><?php if ($aiOn): ?><?php echo e(t('admin_shadow-saas-grip.privacy_enable_help')); ?><?php else: ?><?php echo e(t('admin_shadow-saas-grip.privacy_needs_ai')); ?> <a href="admin.php?section=api"><?php echo e(t('admin_shadow-saas-grip.privacy_ai_settings_link')); ?></a><?php endif; ?></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+            <div class="form-group">
+                <label for="grip_ai_privacy_interval_days"><?php echo e(t('admin_shadow-saas-grip.privacy_interval_label')); ?></label>
+                <input type="number" min="7" max="365" id="grip_ai_privacy_interval_days" name="grip_ai_privacy_interval_days" class="form-control" value="<?php echo (int)($gripCfg['ai_privacy_interval_days'] ?? 30) ?: 30; ?>">
+            </div>
+            <div class="form-group">
+                <label for="grip_ai_privacy_daily_cap"><?php echo e(t('admin_shadow-saas-grip.privacy_cap_label')); ?></label>
+                <input type="number" min="1" max="5000" id="grip_ai_privacy_daily_cap" name="grip_ai_privacy_daily_cap" class="form-control" value="<?php echo (int)($gripCfg['ai_privacy_daily_cap'] ?? 150) ?: 150; ?>">
+            </div>
+            <div class="form-group">
+                <label for="privacy_schedule"><?php echo e(t('admin_shadow-saas-grip.schedule_cron_label')); ?></label>
+                <input type="text" id="privacy_schedule" name="privacy_schedule" class="form-control" style="font-family: monospace;" value="<?php echo e($privacySchedule); ?>" placeholder="30 3 * * *">
+                <div class="form-help"><strong><?php echo e(describeCron($privacySchedule)); ?></strong></div>
+            </div>
+            <div class="form-group">
+                <label for="grip_ai_privacy_model"><?php echo e(t('admin_shadow-saas-grip.privacy_model_label')); ?></label>
+                <input type="text" id="grip_ai_privacy_model" name="grip_ai_privacy_model" class="form-control" value="<?php echo e($gripCfg['ai_privacy_model'] ?? ''); ?>" placeholder="<?php echo e(AIPlatformService::getInstance()->billingModel([])); ?>">
+                <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.privacy_model_help')); ?></div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="grip_ai_privacy_web_search" value="1" <?php echo ($gripCfg['ai_privacy_web_search'] ?? '1') === '1' ? 'checked' : ''; ?>>
+                <span><?php echo e(t('admin_shadow-saas-grip.privacy_search_label')); ?></span>
+            </label>
+            <div class="form-help"><?php echo e(t('admin_shadow-saas-grip.privacy_search_help')); ?></div>
+        </div>
+        <?php if ($privacyStats): $ps = $privacyStats; ?>
+        <div id="vendor-privacy-stats" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 14px; margin: 6px 0 12px; font-size: 13px; line-height: 1.7;">
+            <div><?php echo e(t('admin_shadow-saas-grip.privacy_stats_coverage', $ps['reviewed'], $ps['scope'], $ps['due'], $ps['privacy_high'], $ps['sharing_high'])); ?></div>
+            <div>
+                <?php if ($ps['measured']): ?>
+                    <?php echo e(t('admin_shadow-saas-grip.privacy_cost_measured', '$' . number_format($ps['cost_per_vendor'], 4), $ps['measured_n'], number_format($ps['avg_in']), number_format($ps['avg_out']))); ?><?php if ($ps['estimated_tokens']): ?> <?php echo e(t('admin_shadow-saas-grip.privacy_cost_estimated_tokens')); ?><?php endif; ?>
+                <?php else: ?>
+                    <?php echo e(t('admin_shadow-saas-grip.privacy_cost_planning', '$' . number_format($ps['cost_per_vendor'], 4), number_format(VendorPrivacyService::EST_INPUT_TOKENS), number_format(VendorPrivacyService::EST_OUTPUT_TOKENS))); ?>
+                <?php endif; ?>
+            </div>
+            <div><?php echo e(t('admin_shadow-saas-grip.privacy_cost_projection', '$' . number_format($ps['first_pass'], 2), $ps['scope'], '$' . number_format($ps['spend_30d'], 2))); ?></div>
+            <div style="color: #6b7280;"><?php echo e(t('admin_shadow-saas-grip.privacy_rates', $ps['model'] !== '' ? $ps['model'] : '-', number_format($ps['prices'][0], 2), number_format($ps['prices'][1], 2), number_format($ps['prices'][2], 2))); ?><?php if (($ps['prices'][3] ?? '') === 'none'): ?> <strong><?php echo e(t('admin_shadow-saas-grip.privacy_rates_missing')); ?></strong><?php endif; ?> <a href="admin.php?section=api"><?php echo e(t('admin_shadow-saas-grip.privacy_rates_link')); ?></a></div>
+            <?php if ($privacyLast): ?><div style="color: #6b7280;"><?php echo e(t('admin_shadow-saas-grip.discovery_last_run', date('M j, Y H:i', strtotime($privacyLast['started_at'])), (string)$privacyLast['status'], (int)$privacyLast['success_count'])); ?></div><?php endif; ?>
+        </div>
+        <?php endif; ?>
+        <div style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap;">
+            <button type="submit" name="update_grip" class="btn btn-primary"><?php echo e(t('admin_shadow-saas-grip.save_configuration')); ?></button>
+            <button type="submit" name="run_privacy_now" class="btn btn-secondary" data-confirm="<?php echo e(t('admin_shadow-saas-grip.privacy_run_confirm')); ?>" <?php echo ($gripCfg['ai_privacy_enabled'] ?? '0') === '1' && $aiOn ? '' : 'disabled'; ?>><?php echo e(t('admin_shadow-saas-grip.privacy_run_button')); ?></button>
         </div>
     </form>
 </div>

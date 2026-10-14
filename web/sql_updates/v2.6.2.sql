@@ -6809,6 +6809,69 @@ SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
   'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- -----------------------------------------------------------------------------
+-- AI usage and cost log: one row per AIPlatformService::chatCompletion() call
+-- (every AI feature). Priced with the rates on Admin > API Integration; drives
+-- usage trending and the monthly AI budget.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `ai_usage_log` (
+  `id`            bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `ran_at`        datetime NOT NULL,
+  `platform`      varchar(20) NOT NULL,
+  `model`         varchar(100) DEFAULT NULL,
+  `feature`       varchar(64) NOT NULL COMMENT 'Caller tag, or the calling script name',
+  `subject`       varchar(255) DEFAULT NULL COMMENT 'What the call was about, e.g. a vendor domain',
+  `background`    tinyint(1) NOT NULL DEFAULT 0,
+  `input_tokens`  int(10) unsigned NOT NULL DEFAULT 0,
+  `output_tokens` int(10) unsigned NOT NULL DEFAULT 0,
+  `web_searches`  int(10) unsigned NOT NULL DEFAULT 0,
+  `cost_usd`      decimal(12,6) NOT NULL DEFAULT 0,
+  `estimated`     tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = platform returned no usage; tokens estimated from text length',
+  `outcome`       varchar(20) NOT NULL DEFAULT 'ok' COMMENT 'ok | error | budget_blocked',
+  `duration_ms`   int(10) unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_ran_at` (`ran_at`),
+  KEY `idx_feature_ran` (`feature`, `ran_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- Vendor privacy and file-sharing review (VendorPrivacyService), one row per
+-- vendor domain: Shadow SaaS rows of every status plus onboarded vendors.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `vendor_privacy_reviews` (
+  `id`                    int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `domain`                varchar(255) NOT NULL,
+  `vendor_name`           varchar(255) DEFAULT NULL,
+  `status`                varchar(10) NOT NULL DEFAULT 'ok' COMMENT 'ok | unknown | error',
+  `privacy_risk`          varchar(10) NOT NULL DEFAULT 'Unknown' COMMENT 'High | Medium | Low | Unknown',
+  `sharing_risk`          varchar(10) NOT NULL DEFAULT 'Unknown' COMMENT 'High | Medium | Low | Unknown',
+  `previous_privacy_risk` varchar(10) DEFAULT NULL,
+  `previous_sharing_risk` varchar(10) DEFAULT NULL,
+  `risk_changed_at`       datetime DEFAULT NULL,
+  `facts`                 text DEFAULT NULL COMMENT 'JSON: verified facts (trains_on_customer_data, file_upload, ...)',
+  `evidence`              mediumtext DEFAULT NULL COMMENT 'JSON: verified quotes with source URL, or Grip answers',
+  `sources`               text DEFAULT NULL COMMENT 'JSON: documents read',
+  `summary`               text DEFAULT NULL,
+  `method`                varchar(10) DEFAULT NULL COMMENT 'fetch | search | grip | none',
+  `model`                 varchar(100) DEFAULT NULL,
+  `policy_hash`           char(64) DEFAULT NULL COMMENT 'Fingerprint of the policy text; unchanged text skips the AI read',
+  `last_cost_usd`         decimal(12,6) DEFAULT NULL,
+  `evaluated_at`          datetime DEFAULT NULL COMMENT 'Last AI read',
+  `checked_at`            datetime DEFAULT NULL COMMENT 'Last fetch',
+  `next_due_at`           datetime DEFAULT NULL,
+  `attempts`              int(10) unsigned NOT NULL DEFAULT 0,
+  `last_error`            varchar(500) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_domain` (`domain`),
+  KEY `idx_due` (`next_due_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'filesharing_source') = 0,
+  'ALTER TABLE `shadow_saas` ADD COLUMN `filesharing_source` VARCHAR(10) DEFAULT NULL COMMENT ''manual | ai; NULL = CSV/legacy. AI never overwrites manual'' AFTER `filesharing`',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

@@ -85,6 +85,12 @@ $sdAiLevel      = shadowSaasAiLevel($entry);
                                         </span>
                                     </div>
                                     <?php endif; ?>
+                                    <?php $vpReview = vendorPrivacyReviewFor($entry['vendor_domain'] ?? ''); if ($vpReview): ?>
+                                    <div class="detail-item" style="grid-column: 1 / -1;">
+                                        <span class="detail-label"><?php echo e(t('vendor-privacy.heading')); ?></span>
+                                        <span class="detail-value"><?php include __DIR__ . '/vendor-privacy-review.php'; ?></span>
+                                    </div>
+                                    <?php endif; ?>
                                     <?php if ($gripEnabled && ($entry['source'] ?? '') === 'grip'): ?>
                                     <div class="detail-item">
                                         <span class="detail-label"><?php echo e(t('shadow-saas.detail_grip_mfa')); ?></span>
