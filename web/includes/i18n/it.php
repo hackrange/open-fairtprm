@@ -6659,4 +6659,5 @@ Team di gestione del rischio dei terzi',
     'vendor-onboarding.qr_invalid_email' => 'Inserisci un indirizzo email valido per il referente del questionario.',
     'vendor-onboarding.qr_save' => 'Salva',
     'vendor-onboarding.qr_saved' => 'Referente del questionario salvato.',
+    'vendor-onboarding.qr_name_label' => 'Nome del referente',
 ];

@@ -400,15 +400,15 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
 // the AI-usage review stage -- it's a sibling of in_review (a vendor actively
 // under review), so assessments must be linkable to it just like in_review.
 $vendors = $db->fetchAll(
-    "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE status IN ('submitted', 'in_review', 'ai_review', 'approved') ORDER BY vendor_name"
+    "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_name, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE status IN ('submitted', 'in_review', 'ai_review', 'approved') ORDER BY vendor_name"
 );
 // The assessment goes to the vendor's questionnaire respondent when that is set
 // as the default, else the primary contact (VendorAssessmentService::assessmentRecipientFor).
 $applyRecipient = function (array $v) use ($db): array {
     $r = VendorAssessmentService::assessmentRecipientFor($db, $v);
     $v['vendor_contact_email'] = $r['email'];
-    if ($r['source'] === 'respondent') $v['vendor_contact'] = '';
-    unset($v['primary_contact_email'], $v['primary_contact_details'], $v['questionnaire_respondent_email'], $v['questionnaire_respondent_default']);
+    if ($r['source'] === 'respondent') $v['vendor_contact'] = (string)($r['name'] ?? '');
+    unset($v['primary_contact_email'], $v['primary_contact_details'], $v['questionnaire_respondent_email'], $v['questionnaire_respondent_name'], $v['questionnaire_respondent_default']);
     return $v;
 };
 $vendors = array_map($applyRecipient, $vendors);
@@ -424,7 +424,7 @@ if ($linkVendorId) {
     // filter, link_vendor=<any id> would disclose name/contact/email of draft or
     // inactive vendor records the user is not meant to see in this form.
     $preselectedVendor = $db->fetchOne(
-        "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'ai_review', 'approved')",
+        "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_name, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'ai_review', 'approved')",
         [':id' => $linkVendorId]
     );
     if ($preselectedVendor) $preselectedVendor = $applyRecipient($preselectedVendor);

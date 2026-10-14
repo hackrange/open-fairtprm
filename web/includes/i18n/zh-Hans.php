@@ -6659,4 +6659,5 @@ return [
     'vendor-onboarding.qr_invalid_email' => '请输入问卷填写人的有效邮箱地址。',
     'vendor-onboarding.qr_save' => '保存',
     'vendor-onboarding.qr_saved' => '问卷填写人已保存。',
+    'vendor-onboarding.qr_name_label' => '填写人姓名',
 ];

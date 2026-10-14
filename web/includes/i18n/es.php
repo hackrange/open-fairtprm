@@ -6715,4 +6715,5 @@ Equipo de gestión de riesgos de terceros',
     'vendor-onboarding.qr_invalid_email' => 'Introduzca un correo válido para el encargado del cuestionario.',
     'vendor-onboarding.qr_save' => 'Guardar',
     'vendor-onboarding.qr_saved' => 'Encargado del cuestionario guardado.',
+    'vendor-onboarding.qr_name_label' => 'Nombre del encargado',
 ];

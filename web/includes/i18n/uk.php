@@ -6659,4 +6659,5 @@ return [
     'vendor-onboarding.qr_invalid_email' => 'Введіть дійсну адресу email відповідального за анкету.',
     'vendor-onboarding.qr_save' => 'Зберегти',
     'vendor-onboarding.qr_saved' => 'Відповідального за анкету збережено.',
+    'vendor-onboarding.qr_name_label' => 'Ім\'я відповідального',
 ];

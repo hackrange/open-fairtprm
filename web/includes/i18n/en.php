@@ -6734,4 +6734,5 @@ You will be logged in as this user and see the application from their perspectiv
     'vendor-onboarding.qr_invalid_email' => 'Enter a valid email address for the questionnaire respondent.',
     'vendor-onboarding.qr_save' => 'Save',
     'vendor-onboarding.qr_saved' => 'Questionnaire respondent saved.',
+    'vendor-onboarding.qr_name_label' => 'Respondent name',
 ];

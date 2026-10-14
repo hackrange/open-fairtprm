@@ -6659,4 +6659,5 @@ Third Party Risk Management Team',
     'vendor-onboarding.qr_invalid_email' => 'प्रश्नावली उत्तरदाता के लिए मान्य ईमेल पता दर्ज करें।',
     'vendor-onboarding.qr_save' => 'सहेजें',
     'vendor-onboarding.qr_saved' => 'प्रश्नावली उत्तरदाता सहेजा गया।',
+    'vendor-onboarding.qr_name_label' => 'उत्तरदाता का नाम',
 ];

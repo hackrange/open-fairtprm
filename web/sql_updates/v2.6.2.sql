@@ -6894,6 +6894,11 @@ SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
   'ALTER TABLE `vendor_onboarding_requests` ADD COLUMN `questionnaire_respondent_default` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''1 = send assessments to the questionnaire respondent by default''',
   'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND column_name = 'questionnaire_respondent_name') = 0,
+  'ALTER TABLE `vendor_onboarding_requests` ADD COLUMN `questionnaire_respondent_name` VARCHAR(255) DEFAULT NULL COMMENT ''Name of the questionnaire respondent'' AFTER `questionnaire_respondent_email`',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete

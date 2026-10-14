@@ -2466,7 +2466,7 @@ class VendorAssessmentService {
     {
         if (!array_key_exists('questionnaire_respondent_default', $vendor) && !empty($vendor['id'])) {
             try {
-                $r = $db->fetchOne("SELECT questionnaire_respondent_email, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE id = :id", [':id' => (int)$vendor['id']]);
+                $r = $db->fetchOne("SELECT questionnaire_respondent_email, questionnaire_respondent_name, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE id = :id", [':id' => (int)$vendor['id']]);
                 if ($r) $vendor += $r;
             } catch (Throwable $e) {
                 // Columns not there yet: fall back to the primary contact.
@@ -2474,8 +2474,9 @@ class VendorAssessmentService {
         }
         $resp = strtolower(trim((string)($vendor['questionnaire_respondent_email'] ?? '')));
         if ((int)($vendor['questionnaire_respondent_default'] ?? 0) === 1 && filter_var($resp, FILTER_VALIDATE_EMAIL)) {
-            // The respondent may be a different person than the primary contact, so no name.
-            return ['email' => $resp, 'name' => null, 'source' => 'respondent'];
+            // Their own name when given; never the primary contact's (a different person).
+            $rName = trim((string)($vendor['questionnaire_respondent_name'] ?? ''));
+            return ['email' => $resp, 'name' => $rName !== '' ? $rName : null, 'source' => 'respondent'];
         }
         $primary = trim((string)($vendor['primary_contact_email'] ?? ''));
         $name = trim((string)($vendor['primary_contact_details'] ?? ''));

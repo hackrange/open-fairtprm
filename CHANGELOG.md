@@ -13,8 +13,9 @@ project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - **Questionnaire respondent for a vendor.** A vendor's Custom Data tab has a
-  Questionnaire Respondent email with a "use as the default recipient for this
-  vendor's assessments" checkbox. When ticked, new assessments for the vendor
+  Questionnaire Respondent name and email with a "use as the default recipient
+  for this vendor's assessments" checkbox. Assessments sent to the respondent
+  greet them by their own name. When ticked, new assessments for the vendor
   go to that address instead of the primary contact: the New Assessment form,
   assessments sent from Action Plans, and follow-up assessments triggered by
   another assessment. The Custom Data tab now shows for every vendor so the

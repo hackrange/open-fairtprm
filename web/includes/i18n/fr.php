@@ -6659,4 +6659,5 @@ L\'équipe de gestion des risques liés aux tiers',
     'vendor-onboarding.qr_invalid_email' => 'Saisissez une adresse e-mail valide pour le répondant au questionnaire.',
     'vendor-onboarding.qr_save' => 'Enregistrer',
     'vendor-onboarding.qr_saved' => 'Répondant au questionnaire enregistré.',
+    'vendor-onboarding.qr_name_label' => 'Nom du répondant',
 ];

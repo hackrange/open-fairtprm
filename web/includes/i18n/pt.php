@@ -6659,4 +6659,5 @@ Equipa de Gestão de Risco de Terceiros',
     'vendor-onboarding.qr_invalid_email' => 'Informe um e-mail válido para o responsável pelo questionário.',
     'vendor-onboarding.qr_save' => 'Salvar',
     'vendor-onboarding.qr_saved' => 'Responsável pelo questionário salvo.',
+    'vendor-onboarding.qr_name_label' => 'Nome do responsável',
 ];

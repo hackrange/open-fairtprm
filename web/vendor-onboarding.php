@@ -2375,6 +2375,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
         if ($action === 'update_questionnaire_respondent' && $canEdit && $editMode && $requestId > 0) {
             $qrEmail = strtolower(trim((string)($_POST['questionnaire_respondent_email'] ?? '')));
             $qrDefault = isset($_POST['questionnaire_respondent_default']) ? 1 : 0;
+            $qrName = trim(preg_replace('/\s+/u', ' ', (string)($_POST['questionnaire_respondent_name'] ?? '')));
+            if (mb_strlen($qrName) > 255) $qrName = mb_substr($qrName, 0, 255);
             if ($qrEmail !== '' && (!filter_var($qrEmail, FILTER_VALIDATE_EMAIL) || strlen($qrEmail) > 255)) {
                 $error = t('vendor-onboarding.qr_invalid_email');
             } elseif ($qrDefault === 1 && $qrEmail === '') {
@@ -2382,11 +2384,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
             } else {
                 $db->update('vendor_onboarding_requests', [
                     'questionnaire_respondent_email'   => $qrEmail !== '' ? $qrEmail : null,
+                    'questionnaire_respondent_name'    => $qrName !== '' ? $qrName : null,
                     'questionnaire_respondent_default' => $qrDefault,
                 ], 'id = :id', [':id' => $requestId]);
                 $auth->audit($user['id'], 'vendor_questionnaire_respondent_update', 'vendor_onboarding_requests', $requestId, [
-                    'old' => ['email' => $request['questionnaire_respondent_email'] ?? null, 'default' => (int)($request['questionnaire_respondent_default'] ?? 0)],
-                    'new' => ['email' => $qrEmail !== '' ? $qrEmail : null, 'default' => $qrDefault],
+                    'old' => ['email' => $request['questionnaire_respondent_email'] ?? null, 'name' => $request['questionnaire_respondent_name'] ?? null, 'default' => (int)($request['questionnaire_respondent_default'] ?? 0)],
+                    'new' => ['email' => $qrEmail !== '' ? $qrEmail : null, 'name' => $qrName !== '' ? $qrName : null, 'default' => $qrDefault],
                 ]);
                 redirect('vendor-onboarding.php?id=' . $requestId . '&tab=custom_data&qr_saved=1');
             }
@@ -3958,11 +3961,15 @@ function getFieldValue($request, $field, $default = '') {
                         <div id="questionnaire-respondent" style="margin-bottom: 22px; padding: 14px 16px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb;">
                             <div style="font-weight: 600; font-size: 13px; color: #444; margin-bottom: 4px;"><?php echo e(t('vendor-onboarding.qr_heading')); ?></div>
                             <div style="font-size: 12px; color: #6b7280; margin-bottom: 10px;"><?php echo e(t('vendor-onboarding.qr_intro')); ?></div>
-                            <?php $qrEmailNow = (string)($request['questionnaire_respondent_email'] ?? ''); $qrDefaultNow = (int)($request['questionnaire_respondent_default'] ?? 0) === 1; ?>
+                            <?php $qrNameNow = (string)($request['questionnaire_respondent_name'] ?? ''); $qrEmailNow = (string)($request['questionnaire_respondent_email'] ?? ''); $qrDefaultNow = (int)($request['questionnaire_respondent_default'] ?? 0) === 1; ?>
                             <?php if (!empty($canEdit) && $editMode): ?>
                             <form method="POST" action="vendor-onboarding.php?id=<?php echo (int)$requestId; ?>&amp;tab=custom_data" id="questionnaireRespondentForm" style="display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end;">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                 <input type="hidden" name="action" value="update_questionnaire_respondent">
+                                <div style="flex: 1 1 220px; max-width: 300px;">
+                                    <label for="questionnaire_respondent_name" style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('vendor-onboarding.qr_name_label')); ?></label>
+                                    <input type="text" id="questionnaire_respondent_name" name="questionnaire_respondent_name" class="form-control" maxlength="255" value="<?php echo e($qrNameNow); ?>" style="width: 100%; font-size: 13px;">
+                                </div>
                                 <div style="flex: 1 1 260px; max-width: 360px;">
                                     <label for="questionnaire_respondent_email" style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('vendor-onboarding.qr_email_label')); ?></label>
                                     <input type="email" id="questionnaire_respondent_email" name="questionnaire_respondent_email" class="form-control" maxlength="255" value="<?php echo e($qrEmailNow); ?>" placeholder="name@vendor.com" style="width: 100%; font-size: 13px;">
@@ -3976,6 +3983,7 @@ function getFieldValue($request, $field, $default = '') {
                             <div style="font-size: 12px; color: #6b7280; margin-top: 6px;"><?php echo e(t('vendor-onboarding.qr_default_help')); ?></div>
                             <?php else: ?>
                             <div style="font-size: 13px;">
+                                <?php if ($qrNameNow !== ''): ?><strong><?php echo e($qrNameNow); ?></strong> <?php endif; ?>
                                 <?php if ($qrEmailNow !== ''): ?><a href="mailto:<?php echo e($qrEmailNow); ?>"><?php echo e($qrEmailNow); ?></a><?php else: ?><span style="color: #9ca3af;">&mdash;</span><?php endif; ?>
                                 <span style="color: #6b7280; margin-left: 10px;"><?php echo e($qrDefaultNow ? t('vendor-onboarding.qr_default_yes') : t('vendor-onboarding.qr_default_no')); ?></span>
                             </div>
