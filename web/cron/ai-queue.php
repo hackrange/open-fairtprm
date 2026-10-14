@@ -164,6 +164,8 @@ try {
         try {
             // Call AI
             $aiOptions = $payload['ai_options'] ?? [];
+            // Usage log: name the feature (fair_analysis, ...) rather than the worker script.
+            $aiOptions['feature'] = $aiOptions['feature'] ?? $jobType;
             $result = $ai->chatCompletion($payload['messages'], $aiOptions);
 
             if (!$result['success']) {

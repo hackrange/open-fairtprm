@@ -156,8 +156,16 @@ class AIPlatformService {
             return $m !== '' ? $m : 'gpt-4o';
         }
 
+        // The Custom platform sends the admin's own request template, so the model
+        // is whatever that template calls; report the admin's label for it rather
+        // than a leftover OpenWebUI model name.
+        if ($platform === 'custom') {
+            $m = trim($this->config['custom_model_label'] ?? '');
+            return $m !== '' ? $m : 'custom (set in the request template)';
+        }
+
         // fair_ai_model override only works for OpenWebUI (raw model names)
-        if ($platform !== 'librechat' && ($purpose === 'fair' || $purpose === 'structured')) {
+        if ($platform === 'openwebui' && ($purpose === 'fair' || $purpose === 'structured')) {
             $model = $this->config['fair_ai_model'] ?? '';
             if (!empty($model)) return $model;
         }
@@ -396,7 +404,7 @@ class AIPlatformService {
      */
     public function billingModel(array $options): string {
         $platform = $this->getActivePlatform();
-        if ($platform === 'custom') return trim($this->config['custom_model_label'] ?? '') ?: 'custom';
+        if ($platform === 'custom') return trim($this->config['custom_model_label'] ?? '') ?: 'custom';  // see getModel()
         if ($platform === 'openai' && !empty($options['search_queries'])) {
             return ($this->config['openai_search_model'] ?? '') ?: 'gpt-4o-search-preview';
         }

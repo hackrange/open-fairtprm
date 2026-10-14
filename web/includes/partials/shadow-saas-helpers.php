@@ -202,3 +202,20 @@ if (!function_exists('vendorPrivacyBadges')) {
         return $out;
     }
 }
+
+if (!function_exists('vendorPrivacyQueuedPill')) {
+    /** "Review queued" pill while a manual privacy review is waiting or running. HTML-escaped. */
+    function vendorPrivacyQueuedPill($domain): string
+    {
+        static $queued = null;
+        if ($queued === null) {
+            $queued = [];
+            try {
+                foreach (Database::getInstance()->fetchAll("SELECT domain FROM vendor_privacy_queue") as $r) $queued[$r['domain']] = true;
+            } catch (Throwable $e) {}
+        }
+        $d = shadowSaasNormDomain($domain);
+        if ($d === '' || empty($queued[$d])) return '';
+        return ' <span class="vp-badge vp-Unknown" data-vp="queued" title="' . e(t('vendor-privacy.queued_title')) . '">' . e(t('vendor-privacy.queued_pill')) . '</span>';
+    }
+}

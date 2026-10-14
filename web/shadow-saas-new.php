@@ -24,6 +24,7 @@ require_once __DIR__ . '/includes/classes/GripService.php';
 require_once __DIR__ . '/includes/classes/SRSService.php';
 require_once __DIR__ . '/includes/classes/ShodanService.php';
 require_once __DIR__ . '/includes/partials/shadow-saas-helpers.php';
+require_once __DIR__ . '/includes/classes/VendorPrivacyService.php';
 header('Cache-Control: no-cache, no-store, must-revalidate');
 
 $auth     = Auth::getInstance();
@@ -333,9 +334,12 @@ $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') 
                 <?php else: ?>
                 <form method="POST" action="shadow-saas.php" id="sn-onboard">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                    <input type="hidden" name="action" value="onboard_selected">
+                    <input type="hidden" name="action" id="sn-action" value="onboard_selected">
                     <?php if ($canManage): ?>
-                    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;">
+                        <?php if (getAppConfig('grip_ai_privacy_enabled', '0') === '1'): ?>
+                        <button type="button" class="pp-btn" style="background:#7c3aed;" id="sn-privacy-btn"><?php echo e(t('vendor-privacy.review_selected')); ?></button>
+                        <?php endif; ?>
                         <button type="submit" class="pp-btn" id="sn-onboard-btn" <?php echo $snPendingCount ? '' : 'disabled'; ?>><?php echo e(t('shadow-saas.onboard_selected')); ?></button>
                     </div>
                     <?php endif; ?>
@@ -374,7 +378,7 @@ $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') 
                                 <div class="sn-name"><?php echo e($a['name']); ?>
                                     <?php if (($snSubOf = shadowSaasSubprocessorOf(['vendor_name' => $a['name'] ?? '', 'vendor_domain' => $a['domain'] ?? '']))): ?><span class="subproc-badge" title="<?php echo e(t('shadow-saas.subprocessor_badge_title', implode(', ', array_column($snSubOf, 'name')))); ?>"><?php echo e(t('shadow-saas.subprocessor_badge')); ?></span><?php endif; ?>
                                     <?php $snAi = shadowSaasAiLevel(['grip_ai_depth_level' => $a['ai_depth_level'] ?? '']); if ($snAi !== null): ?><span class="ai-badge" title="<?php echo e(t('shadow-saas.ai_badge_title', $snAi)); ?>"><?php echo e(t('shadow-saas.ai_badge')); ?></span><span class="pp-pill tag-ai" title="<?php echo e(t('shadow-saas-new.ai_depth')); ?>"><?php echo e($snAi); ?></span><?php endif; ?>
-                                    <?php echo vendorPrivacyBadges(vendorPrivacyReviewFor($a['domain'] ?? '')); ?>
+                                    <?php echo vendorPrivacyBadges(vendorPrivacyReviewFor($a['domain'] ?? '')); ?><?php echo vendorPrivacyQueuedPill($a['domain'] ?? ''); ?>
                                 </div>
                                 <div class="sn-sub">
                                     <?php if (!empty($a['domain'])): ?><a href="https://<?php echo e($a['domain']); ?>" target="_blank" rel="noopener noreferrer"><?php echo e($a['domain']); ?></a><?php endif; ?>
@@ -464,7 +468,17 @@ $snPendingCount = count(array_filter($snApps, fn($r) => ($r['ss_status'] ?? '') 
         (function () {
             var form = document.getElementById('sn-onboard');
             if (!form) return;
+            // Review privacy now rides the same form with its own action value;
+            // form.submit() skips the onboard confirmation below.
+            document.getElementById('sn-privacy-btn')?.addEventListener('click', function () {
+                var n = form.querySelectorAll('input.sn-check:checked').length;
+                if (n === 0) { alert(<?php echo json_encode(t('shadow-saas.js_select_one')); ?>); return; }
+                if (!confirm(<?php echo json_encode(t('vendor-privacy.confirm_prefix')); ?> + n + <?php echo json_encode(t('vendor-privacy.confirm_suffix', VendorPrivacyService::MANUAL_MAX)); ?>)) return;
+                document.getElementById('sn-action').value = 'privacy_review_selected';
+                form.submit();
+            });
             form.addEventListener('submit', function (e) {
+                document.getElementById('sn-action').value = 'onboard_selected';
                 var n = form.querySelectorAll('input.sn-check:checked').length;
                 if (n === 0) { e.preventDefault(); alert(<?php echo json_encode(t('shadow-saas.js_select_one')); ?>); return; }
                 var msg = <?php echo json_encode(t('shadow-saas.js_confirm_onboard_prefix')); ?> + n + <?php echo json_encode(t('shadow-saas.js_confirm_onboard_suffix') . ' ' . t('shadow-saas.js_confirm_onboard_grip_note')); ?>;

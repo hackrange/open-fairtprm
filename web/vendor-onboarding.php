@@ -763,13 +763,44 @@ if ($showVendorTabs) {
             $gripSaasData = $decoded;
         }
     }
+    // "Review privacy now" on this vendor (administrators and Cyber TPRM only).
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review_privacy_now']) && $requestId > 0 && $request) {
+        require_once __DIR__ . '/includes/classes/VendorPrivacyService.php';
+        if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+            $error = t('vendor-onboarding.err_csrf');
+        } elseif (!($isAdmin || $isCyberTPRM)) {
+            $error = t('vendor-privacy.not_allowed');
+        } elseif (VendorPrivacyService::normDomain($request['vendor_domain'] ?? '') === '') {
+            $error = t('vendor-privacy.queued_no_domain', 1);
+        } else {
+            [$vpN, $vpWhy] = VendorPrivacyService::requestReview($db, [VendorPrivacyService::normDomain($request['vendor_domain']) => (string)$request['vendor_name']], (int)$user['id']);
+            if ($vpN > 0) $auth->audit($user['id'], 'vendor_privacy_review_requested', 'vendor_onboarding_requests', $requestId, ['new' => ['domain' => $request['vendor_domain']]]);
+            // Post/Redirect/Get like the other handlers, so the request never falls
+            // through to the main form handler below.
+            redirect('vendor-onboarding.php?id=' . $requestId . '&tab=saas_data&' . ($vpWhy !== null ? 'vp_error=' . rawurlencode($vpWhy) : 'vp_queued=' . (int)$vpN));
+        }
+    }
+    if (isset($_GET['vp_queued'])) {
+        $success = t('vendor-privacy.queued', (int)$_GET['vp_queued']);
+    } elseif (isset($_GET['vp_error']) && preg_match('/^(not_ready_(grip_off|ai_off|use_ai_off|budget)|start_(failed|script_missing)|none_selected)$/', (string)$_GET['vp_error'])) {
+        // Whitelisted key: the message is ours, never echoed request text.
+        $error = t('vendor-privacy.' . $_GET['vp_error']);
+    }
+
     // Vendor privacy and file-sharing review (VendorPrivacyService), matched by domain.
+    // With the review switched on, the tab shows for every vendor with a domain so
+    // administrators and Cyber TPRM can request a review of one never reviewed.
     $vendorPrivacyReview = null;
+    $vendorPrivacyOn = $gripEnabled && getAppConfig('grip_ai_privacy_enabled', '0') === '1';
+    $canRequestPrivacyReview = $vendorPrivacyOn && ($isAdmin || $isCyberTPRM) && !empty($request['vendor_domain']);
+    $vendorPrivacyQueued = false;
     if ($gripEnabled && !empty($request['vendor_domain'])) {
         require_once __DIR__ . '/includes/partials/shadow-saas-helpers.php';
+        require_once __DIR__ . '/includes/classes/VendorPrivacyService.php';
         $vendorPrivacyReview = vendorPrivacyReviewFor($request['vendor_domain']);
+        $vendorPrivacyQueued = vendorPrivacyQueuedPill($request['vendor_domain']) !== '';
     }
-    $showGripSaasTab = ($gripEnabled && (!empty($gripSaasData) || $vendorPrivacyReview));
+    $showGripSaasTab = ($gripEnabled && (!empty($gripSaasData) || $vendorPrivacyReview || $canRequestPrivacyReview));
 
     // ============================================================
     // PROCUREMENT DETAILED SUMMARY — Additional Data Collection
@@ -3196,7 +3227,8 @@ function getFieldValue($request, $field, $default = '') {
                 <?php
                 // Determine which tab to show (from URL param after note redirect, etc.)
                 $activeTab = isset($_GET['tab']) ? $_GET['tab'] : 'vendor';
-                if (!in_array($activeTab, ['vendor', 'custom_data', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors', 'action_plan'])) {
+                // saas_data is valid only when that tab is shown (Grip data or the privacy review).
+                if (!in_array($activeTab, array_merge(['vendor', 'custom_data', 'notes', 'assessments', 'fair', 'risks', 'documents', 'subprocessors', 'action_plan'], !empty($showGripSaasTab) ? ['saas_data'] : []))) {
                     $activeTab = 'vendor';
                 }
                 // Action Plan is admin/cyber_tprm only
@@ -3802,11 +3834,23 @@ function getFieldValue($request, $field, $default = '') {
                     $cardStyle = 'flex:1 1 320px; min-width:280px; background:white; border:1px solid #e5e7eb; border-radius:8px; padding:25px;';
                     $hdrStyle  = 'margin:0 0 16px; font-size:15px; font-weight:600; color:var(--theme-header-color); display:flex; align-items:center; gap:8px;';
                     ?>
-                    <?php if ($vendorPrivacyReview): $vpReview = $vendorPrivacyReview; ?>
+                    <?php if ($vendorPrivacyReview || $canRequestPrivacyReview): $vpReview = $vendorPrivacyReview; ?>
                     <style nonce="<?php echo cspNonce(); ?>"><?php echo vendorPrivacyCss(); ?></style>
                     <div id="vendor-privacy-card" style="<?php echo $cardStyle; ?> margin-bottom:20px;">
                         <h3 style="<?php echo $hdrStyle; ?>"><?php echo e(t('vendor-privacy.heading')); ?></h3>
-                        <?php include __DIR__ . '/includes/partials/vendor-privacy-review.php'; ?>
+                        <?php if ($vendorPrivacyReview): ?>
+                            <?php include __DIR__ . '/includes/partials/vendor-privacy-review.php'; ?>
+                        <?php else: ?>
+                            <div class="vp-panel"><div class="vp-meta"><?php echo e(t('vendor-privacy.not_reviewed')); ?></div></div>
+                        <?php endif; ?>
+                        <?php if ($canRequestPrivacyReview): ?>
+                        <form method="POST" action="vendor-onboarding.php?id=<?php echo (int)$requestId; ?>&amp;tab=saas_data" style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                            <input type="hidden" name="review_privacy_now" value="1">
+                            <button type="submit" class="btn btn-secondary" id="vendor-privacy-review-btn" style="padding:7px 16px;font-size:13px;" data-confirm="<?php echo e(t('vendor-privacy.confirm_one')); ?>" <?php echo $vendorPrivacyQueued ? 'disabled' : ''; ?>><?php echo e(t('vendor-privacy.review_now')); ?></button>
+                            <?php if ($vendorPrivacyQueued): ?><span class="vp-badge vp-Unknown" data-vp="queued"><?php echo e(t('vendor-privacy.queued_pill')); ?></span><?php endif; ?>
+                        </form>
+                        <?php endif; ?>
                     </div>
                     <?php endif; ?>
                     <?php if (!empty($gripSaasData)): ?>

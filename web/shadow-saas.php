@@ -385,7 +385,10 @@ if ($tableExists) {
 // Handle POST requests (write actions require manage privilege; auditors are read-only)
 require_once __DIR__ . '/includes/classes/GripService.php';
 require_once __DIR__ . '/includes/partials/shadow-saas-helpers.php';
+require_once __DIR__ . '/includes/classes/VendorPrivacyService.php';
 $gripEnabled = (function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1');
+// "Review privacy now" is offered when the AI privacy review is switched on.
+$privacyReviewOn = $gripEnabled && getAppConfig('grip_ai_privacy_enabled', '0') === '1';
 // With Grip on, Dismissed is labeled Tolerated (its Grip counterpart) so the
 // two systems use the same word. The stored status stays 'dismissed'.
 $dk = $gripEnabled ? 'tolerate' : 'dismiss';
@@ -887,6 +890,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableExists && !$canManage) {
             $success .= " {$skippedAlready} already scanning.";
         }
 
+    } elseif (isset($_POST['action']) && $_POST['action'] === 'privacy_review_selected' && !empty($_POST['selected'])) {
+        // Force an AI privacy review of the selected rows (background, capped).
+        $selectedIds = array_slice(array_values(array_unique(array_map('intval', (array)$_POST['selected']))), 0, 500);
+        $items = [];
+        $noDomain = 0;
+        foreach ($selectedIds as $sid) {
+            $r = $db->fetchOne("SELECT vendor_name, vendor_domain FROM shadow_saas WHERE id = :id", [':id' => $sid]);
+            if (!$r) continue;
+            $d = VendorPrivacyService::normDomain($r['vendor_domain'] ?? '');
+            if ($d === '') { $noDomain++; continue; }
+            $items[$d] = (string)$r['vendor_name'];
+        }
+        $over = max(0, count($items) - VendorPrivacyService::MANUAL_MAX);
+        [$queued, $why] = VendorPrivacyService::requestReview($db, $items, (int)$user['id']);
+        if ($queued > 0) {
+            $auth->audit($user['id'], 'vendor_privacy_review_requested', 'shadow_saas', null, ['new' => ['domains' => array_slice(array_keys($items), 0, VendorPrivacyService::MANUAL_MAX)]]);
+        }
+        if ($why !== null && $queued === 0) {
+            $error = t('vendor-privacy.' . $why);
+        } else {
+            $success = t('vendor-privacy.queued', $queued);
+            if ($over > 0) $success .= ' ' . t('vendor-privacy.queued_over', VendorPrivacyService::MANUAL_MAX, $over);
+            if ($noDomain > 0) $success .= ' ' . t('vendor-privacy.queued_no_domain', $noDomain);
+            if ($why !== null) $error = t('vendor-privacy.' . $why);
+        }
+
     } elseif (isset($_POST['action']) && $_POST['action'] === 'dismiss_selected' && !empty($_POST['selected'])) {
         // Dismiss selected entries
         $selectedIds = array_map('intval', (array)$_POST['selected']);
@@ -1212,7 +1241,25 @@ if ($tableExists) {
         sort($allRiskTypes, SORT_STRING | SORT_FLAG_CASE);
     } catch (Exception $e) {}
 }
-if ($riskTypeFilter !== '' && !in_array($riskTypeFilter, $allRiskTypes)) $riskTypeFilter = '';
+// The AI privacy review adds virtual Risk Types ("Privacy: High", "File Sharing:
+// Medium", ...) computed from vendor_privacy_reviews, never written to risk_type
+// (the Grip sync rewrites that column). Option value is a language-neutral token.
+$privacyRiskTypes = [];   // token => label
+$vpLevels = ['High', 'Medium', 'Low', 'Unknown'];
+if ($tableExists) {
+    try {
+        $vpRows = $db->fetchAll("SELECT 'privacy' k, privacy_risk lvl FROM vendor_privacy_reviews WHERE status <> 'error' GROUP BY privacy_risk
+                                 UNION SELECT 'sharing' k, sharing_risk lvl FROM vendor_privacy_reviews WHERE status <> 'error' GROUP BY sharing_risk");
+        $vpHave = [];
+        foreach ($vpRows as $r) $vpHave[$r['k'] . ':' . $r['lvl']] = true;
+        foreach (['privacy', 'sharing'] as $k) foreach ($vpLevels as $lvl) {
+            if (!empty($vpHave["$k:$lvl"])) $privacyRiskTypes["vp:$k:$lvl"] = t('vendor-privacy.badge_' . $k, t('vendor-privacy.level_' . strtolower($lvl)));
+        }
+    } catch (Throwable $e) {}
+}
+if ($riskTypeFilter !== '' && !in_array($riskTypeFilter, $allRiskTypes) && !isset($privacyRiskTypes[$riskTypeFilter])) $riskTypeFilter = '';
+/** SQL: the shadow_saas row's domain as stored in vendor_privacy_reviews (lowercase, no "www."). */
+$vpDomainSql = "IF(LOWER(s.vendor_domain) LIKE 'www.%', SUBSTRING(LOWER(s.vendor_domain), 5), LOWER(s.vendor_domain))";
 $mfaFilter = isset($_GET['mfa']) ? trim($_GET['mfa']) : '';
 // Grip sanction tag filter (values are Grip's SanctionTag enum).
 $gripSanctionOptions = ['sanctioned', 'unsanctioned', 'tolerated', 'under review', 'new', 'untagged'];
@@ -1266,7 +1313,27 @@ if ($statusFilter === 'pending') {
     $whereConditions[] = "s.status = 'dismissed'";
 }
 if (!empty($searchQuery)) {
-    $whereConditions[] = "(s.vendor_name LIKE :search OR s.vendor_domain LIKE :search2 OR s.relationship_manager LIKE :search3)";
+    // Search also matches the privacy Risk Types: "Privacy: High", "file sharing",
+    // in English or the user's language (Unknown only when typed).
+    $vpSearch = [];
+    $needle = mb_strtolower(trim($searchQuery));
+    foreach (['privacy', 'sharing'] as $k) foreach ($vpLevels as $lvl) {
+        $labels = [mb_strtolower(t('vendor-privacy.badge_' . $k, t('vendor-privacy.level_' . strtolower($lvl)))),
+                   strtolower(($k === 'privacy' ? 'Privacy: ' : 'File Sharing: ') . $lvl)];
+        foreach ($labels as $lab) {
+            if (mb_strlen($needle) >= 4 && str_contains($lab, $needle) && ($lvl !== 'Unknown' || str_contains($needle, mb_strtolower(t('vendor-privacy.level_unknown'))) || str_contains($needle, 'unknown'))) {
+                $vpSearch[$k][$lvl] = true;
+            }
+        }
+    }
+    $vpSql = '';
+    foreach ($vpSearch as $k => $lvls) {
+        $col = $k === 'privacy' ? 'r.privacy_risk' : 'r.sharing_risk';
+        $in = [];
+        foreach (array_keys($lvls) as $i => $lvl) { $in[] = ":vps_{$k}_{$i}"; $params[":vps_{$k}_{$i}"] = $lvl; }
+        $vpSql .= " OR EXISTS (SELECT 1 FROM vendor_privacy_reviews r WHERE r.domain = $vpDomainSql AND r.status <> 'error' AND $col IN (" . implode(',', $in) . "))";
+    }
+    $whereConditions[] = "(s.vendor_name LIKE :search OR s.vendor_domain LIKE :search2 OR s.relationship_manager LIKE :search3$vpSql)";
     $params[':search'] = '%' . $searchQuery . '%';
     $params[':search2'] = '%' . $searchQuery . '%';
     $params[':search3'] = '%' . $searchQuery . '%';
@@ -1277,7 +1344,11 @@ if ($riskFilter === 'unscored') {
     $whereConditions[] = "s.risk_score = :risk";
     $params[':risk'] = (int)$riskFilter;
 }
-if ($riskTypeFilter !== '') {
+if ($riskTypeFilter !== '' && isset($privacyRiskTypes[$riskTypeFilter])) {
+    [, $vpK, $vpLvl] = explode(':', $riskTypeFilter, 3);
+    $whereConditions[] = "EXISTS (SELECT 1 FROM vendor_privacy_reviews r WHERE r.domain = $vpDomainSql AND r.status <> 'error' AND " . ($vpK === 'privacy' ? 'r.privacy_risk' : 'r.sharing_risk') . " = :vp_rt)";
+    $params[':vp_rt'] = $vpLvl;
+} elseif ($riskTypeFilter !== '') {
     // risk_type holds a "; "-separated list (GripService writes implode('; '),
     // as does the CSV import). Normalize the separators to a bare ';' and wrap
     // the whole value in ';' so the first and last elements are bounded, then
@@ -1732,11 +1803,18 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                     <option value="unscored" <?php echo $riskFilter === 'unscored' ? 'selected' : ''; ?>><?php echo e(t('shadow-saas.risk_unscored')); ?></option>
                 </select>
             </div>
-            <?php if (!empty($allRiskTypes)): ?>
+            <?php if (!empty($allRiskTypes) || $privacyRiskTypes): ?>
             <div class="filter-group">
                 <label><?php echo e(t('shadow-saas.risk_type_label')); ?></label>
                 <select name="risk_type">
                     <option value=""><?php echo e(t('shadow-saas.opt_all')); ?></option>
+                    <?php if ($privacyRiskTypes): ?>
+                    <optgroup label="<?php echo e(t('vendor-privacy.heading')); ?>">
+                    <?php foreach ($privacyRiskTypes as $tok => $lab): ?>
+                    <option value="<?php echo e($tok); ?>" <?php echo $riskTypeFilter === $tok ? 'selected' : ''; ?>><?php echo e($lab); ?></option>
+                    <?php endforeach; ?>
+                    </optgroup>
+                    <?php endif; ?>
                     <?php foreach ($allRiskTypes as $rt): ?>
                     <option value="<?php echo e($rt); ?>" <?php echo $riskTypeFilter === $rt ? 'selected' : ''; ?>><?php echo e($rt); ?></option>
                     <?php endforeach; ?>
@@ -1810,6 +1888,9 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                         <button type="button" class="btn-sm" style="padding: 8px 16px; background: #2563eb; color: white;" id="restoreSelectedBtn"><?php echo e(t('shadow-saas.restore_selected')); ?></button>
                         <?php endif; ?>
                         <button type="button" class="btn-sm" style="padding: 8px 16px; background: #6b7280; color: white;" id="dismissSelectedBtn"><?php echo e(t('shadow-saas.' . $dk . '_selected')); ?></button>
+                        <?php if ($privacyReviewOn): ?>
+                        <button type="button" class="btn-sm" style="padding: 8px 16px; background: #7c3aed; color: white;" id="privacyReviewBtn"><?php echo e(t('vendor-privacy.review_selected')); ?></button>
+                        <?php endif; ?>
                         <button type="button" class="btn-sm btn-secondary" style="padding: 8px 16px;" id="deleteBtn"><?php echo e(t('shadow-saas.delete_selected')); ?></button>
                         <button type="button" class="btn-sm btn-success" style="padding: 8px 16px;" id="onboardBtn"><?php echo e(t('shadow-saas.onboard_selected')); ?></button>
                     </div>
@@ -1930,7 +2011,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 <?php if (($rowAi = shadowSaasAiLevel($entry)) !== null): ?>
                                 <span class="ai-badge" title="<?php echo e(t('shadow-saas.ai_badge_title', $rowAi)); ?>"><?php echo e(t('shadow-saas.ai_badge')); ?></span>
                                 <?php endif; ?>
-                                <?php echo vendorPrivacyBadges(vendorPrivacyReviewFor($entry['vendor_domain'] ?? '')); ?>
+                                <?php echo vendorPrivacyBadges(vendorPrivacyReviewFor($entry['vendor_domain'] ?? '')); ?><?php echo vendorPrivacyQueuedPill($entry['vendor_domain'] ?? ''); ?>
                                 <?php if ($gripEnabled && ($entry['grip_app_classification'] ?? '') === 'mixed_use'): ?>
                                 <span class="grip-mixed-badge" title="<?php echo e(t('shadow-saas.grip_mixed_badge_title')); ?>"><?php echo e(t('shadow-saas.grip_usage_mixed_use')); ?></span>
                                 <?php endif; ?>
@@ -1971,6 +2052,14 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
                                 // Strip the "Sanction:" label from the displayed Risk Type (data is unchanged).
                                 $rtRaw = $entry['risk_type'] ?? '';
                                 $rtClean = trim(preg_replace('/\bSanction:\s*/i', '', $rtRaw));
+                                // Privacy review results read as Risk Types too.
+                                $rtVp = vendorPrivacyReviewFor($entry['vendor_domain'] ?? '');
+                                if ($rtVp && $rtVp['status'] !== 'error') {
+                                    $rtAdd = [];
+                                    if ($rtVp['privacy_risk'] !== 'Unknown') $rtAdd[] = t('vendor-privacy.badge_privacy', t('vendor-privacy.level_' . strtolower($rtVp['privacy_risk'])));
+                                    if ($rtVp['sharing_risk'] !== 'Unknown') $rtAdd[] = t('vendor-privacy.badge_sharing', t('vendor-privacy.level_' . strtolower($rtVp['sharing_risk'])));
+                                    if ($rtAdd) $rtClean = implode('; ', array_filter(array_merge([$rtClean], $rtAdd)));
+                                }
                                 if ($rtClean === '') { $rtClean = '—'; }
                             ?>
                             <td style="font-size: 12px; color: #374151; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?php echo e($rtClean); ?>"><?php echo e($rtClean); ?></td>
@@ -2404,6 +2493,20 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             }
             if (confirm(<?php echo json_encode(t('shadow-saas.js_confirm_' . $dk . '_prefix')); ?> + checked.length + <?php echo json_encode(t('shadow-saas.js_confirm_' . $dk . '_suffix')); ?>)) {
                 document.getElementById('bulkAction').value = 'dismiss_selected';
+                form.submit();
+            }
+        });
+
+        // Review privacy now: queue the selected rows for an AI privacy review.
+        document.getElementById('privacyReviewBtn')?.addEventListener('click', function() {
+            var form = document.getElementById('onboardForm');
+            var checked = form.querySelectorAll('input[name="selected[]"]:checked');
+            if (checked.length === 0) {
+                alert(<?php echo json_encode(t('shadow-saas.js_select_one')); ?>);
+                return;
+            }
+            if (confirm(<?php echo json_encode(t('vendor-privacy.confirm_prefix')); ?> + checked.length + <?php echo json_encode(t('vendor-privacy.confirm_suffix', VendorPrivacyService::MANUAL_MAX)); ?>)) {
+                document.getElementById('bulkAction').value = 'privacy_review_selected';
                 form.submit();
             }
         });

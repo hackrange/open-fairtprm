@@ -30,11 +30,18 @@ if (!defined('APP_ROOT')) {
     define('CONFIG_PATH', $_appRoot . '/config');
 }
 chdir(APP_ROOT);
-$opt = getopt('', ['limit:', 'domain:', 'verbose', 'manual']);
+$opt = getopt('', ['limit:', 'domain:', 'verbose', 'manual', 'queue', 'token:']);
 $verbose = isset($opt['verbose']);
 
-$lockFile = sys_get_temp_dir() . '/fairtprm_vendor_privacy.lock';
-$lockFp = fopen($lockFile, 'c');
+// --queue (manual reviews of selected vendors) has its own lock so it can run
+// beside the scheduled batch; queue items are claimed atomically.
+$lockFile = sys_get_temp_dir() . '/' . (isset($opt['queue']) ? 'fairtprm_vendor_privacy_queue.lock' : 'fairtprm_vendor_privacy.lock');
+// Fall back to read-only: flock() works on it, so a lock file owned by the other
+// user (root cron vs www-data Run now) can never block a run.
+$lockFp = @fopen($lockFile, 'c') ?: @fopen($lockFile, 'r');
+// Root (cron) and www-data (Run now) share these files; keep them writable by both
+// so a run killed mid-way can never leave a lock the other user cannot open.
+if ($lockFp) @chmod($lockFile, 0666);
 if (!$lockFp || !flock($lockFp, LOCK_EX | LOCK_NB)) {
     fwrite(STDOUT, "[vendor-privacy] Another review run is in progress; skipping.\n");
     exit(0);
@@ -42,6 +49,13 @@ if (!$lockFp || !flock($lockFp, LOCK_EX | LOCK_NB)) {
 register_shutdown_function(function () use ($lockFp, $lockFile) {
     @flock($lockFp, LOCK_UN); @fclose($lockFp); @unlink($lockFile);
 });
+// Tell the admin page that started us that we are really running.
+if (!empty($opt['token']) && preg_match('/^[0-9a-f]{16}$/', (string)$opt['token'])) {
+    $mk = sys_get_temp_dir() . '/fairtprm_vendor_privacy.started';
+    @file_put_contents($mk, $opt['token']);
+    @chmod($mk, 0666);
+}
+if ($verbose) fwrite(STDOUT, '[vendor-privacy] ' . date('Y-m-d H:i:s') . ' started' . (isset($opt['manual']) ? ' (manual)' : '') . (isset($opt['queue']) ? ' (queue)' : '') . "\n");
 
 require_once APP_ROOT . '/includes/init.php';
 require_once CLASSES_PATH . '/GripService.php';
@@ -58,12 +72,20 @@ $cron = new CronHelper('vendor-privacy-review');
 $cron->logExecutionStart($db);
 $log = function (string $line) use ($verbose) { if ($verbose) fwrite(STDOUT, '[vendor-privacy] ' . $line . "\n"); };
 try {
+    if (isset($opt['queue'])) {
+        $q = $svc->runQueue(3300, $log);
+        $cron->logExecutionComplete($db, $q['reviewed'] + $q['failed'], $q['reviewed'], $q['failed'], []);
+        fwrite(STDOUT, sprintf("[vendor-privacy] queue: reviewed=%d failed=%d cost=$%.4f%s\n", $q['reviewed'], $q['failed'], $q['cost'], $q['budget_stopped'] ? ' (stopped: monthly AI limit)' : ''));
+        exit(0);
+    }
     if (!empty($opt['domain'])) {
         $r = $svc->reviewDomain((string)$opt['domain'], '', true);
         $cron->logExecutionComplete($db, 1, 1, 0, []);
         fwrite(STDOUT, sprintf("[vendor-privacy] %s: %s privacy=%s sharing=%s cost=$%.4f\n", $opt['domain'], $r['outcome'], $r['privacy_risk'], $r['sharing_risk'], $r['cost']));
         exit(0);
     }
+    // Requests people queued go first (their own lock keeps a queue run beside us safe).
+    if (!VendorPrivacyService::isRunning(VendorPrivacyService::QUEUE_LOCK_FILE)) $svc->runQueue(600, $log);
     $limit = isset($opt['limit']) ? max(1, (int)$opt['limit']) : $svc->dailyCap();
     // Leave a minute of the job's 3600 s timeout for bookkeeping.
     $r = $svc->runBatch($limit, 3300, $log);

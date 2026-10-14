@@ -315,24 +315,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_grip_now'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_privacy_now'])) {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = t('admin_shadow-saas-grip.invalid_request');
-    } elseif (!VendorPrivacyService::isEnabled($db)) {
-        $error = t('admin_shadow-saas-grip.privacy_not_enabled');
+    } elseif (($why = VendorPrivacyService::notReadyReason($db)) !== null) {
+        // Say exactly why, instead of a button that silently does nothing.
+        $error = t('vendor-privacy.not_ready_' . $why);
+    } elseif (($why = VendorPrivacyService::startBackground(['--manual', '--verbose'])) !== null) {
+        $error = t('vendor-privacy.start_' . $why);
     } else {
-        $script = realpath(__DIR__ . '/../../cron/vendor-privacy-review.php');
-        if (!$script || !is_file($script)) {
-            $error = t('admin_shadow-saas-grip.sync_script_not_found');
-        } else {
-            $logFile = '/var/log/php/cron-vendor-privacy-review.log';
-            $cmd = sprintf('nohup /usr/bin/php %s --manual --verbose >> %s 2>&1 &', escapeshellarg($script), escapeshellarg($logFile));
-            $_vpProc = @proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $_vpPipes);
-            if (is_resource($_vpProc)) {
-                if (isset($_vpPipes[1])) { fclose($_vpPipes[1]); }
-                if (isset($_vpPipes[2])) { fclose($_vpPipes[2]); }
-                proc_close($_vpProc);
-            }
-            $auth->audit($user['id'], 'vendor_privacy_run_now', 'vendor_privacy_reviews', null, ['log_file' => $logFile]);
-            $success = t('admin_shadow-saas-grip.privacy_started');
-        }
+        $auth->audit($user['id'], 'vendor_privacy_run_now', 'vendor_privacy_reviews', null, []);
+        $success = t('admin_shadow-saas-grip.privacy_started');
     }
 }
 
@@ -621,6 +611,14 @@ $pSc = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'cr
 if ($pSc && !empty($pSc['config_value'])) { $privacySchedule = (string)$pSc['config_value']; }
 $privacyLast = null;
 try { $privacyLast = $db->fetchOne("SELECT started_at, status, success_count FROM cron_execution_history WHERE job_name = 'vendor-privacy-review' ORDER BY id DESC LIMIT 1") ?: null; } catch (Throwable $e) {}
+$privacyNotReady = null;
+try { $privacyNotReady = VendorPrivacyService::notReadyReason($db); } catch (Throwable $e) {}
+// Live progress while a run holds the lock: vendors checked since it started.
+$privacyRunning = VendorPrivacyService::isRunning() || VendorPrivacyService::isRunning(VendorPrivacyService::QUEUE_LOCK_FILE);
+$privacyProgress = 0;
+if ($privacyRunning && $privacyLast && $privacyLast['status'] === 'running') {
+    try { $privacyProgress = (int)($db->fetchOne("SELECT COUNT(*) n FROM vendor_privacy_reviews WHERE checked_at >= :s", [':s' => $privacyLast['started_at']])['n'] ?? 0); } catch (Throwable $e) {}
+}
 [$aiBudgetLimit, , $aiBudgetWarn, $aiBudgetPauseBg] = AIPlatformService::getInstance()->budget();
 $aiBudgetUsed = AIPlatformService::getInstance()->budgetUsedFraction();
 
@@ -754,12 +752,14 @@ try {
             </div>
             <div><?php echo e(t('admin_shadow-saas-grip.privacy_cost_projection', '$' . number_format($ps['first_pass'], 2), $ps['scope'], '$' . number_format($ps['spend_30d'], 2))); ?></div>
             <div style="color: #6b7280;"><?php echo e(t('admin_shadow-saas-grip.privacy_rates', $ps['model'] !== '' ? $ps['model'] : '-', number_format($ps['prices'][0], 2), number_format($ps['prices'][1], 2), number_format($ps['prices'][2], 2))); ?><?php if (($ps['prices'][3] ?? '') === 'none'): ?> <strong><?php echo e(t('admin_shadow-saas-grip.privacy_rates_missing')); ?></strong><?php endif; ?> <a href="admin.php?section=api"><?php echo e(t('admin_shadow-saas-grip.privacy_rates_link')); ?></a></div>
+            <?php if ($privacyRunning): ?><div id="vendor-privacy-running" style="color: #92400e; font-weight: 600;"><?php echo e(t('vendor-privacy.running', $privacyProgress)); ?></div><?php endif; ?>
             <?php if ($privacyLast): ?><div style="color: #6b7280;"><?php echo e(t('admin_shadow-saas-grip.discovery_last_run', date('M j, Y H:i', strtotime($privacyLast['started_at'])), (string)$privacyLast['status'], (int)$privacyLast['success_count'])); ?></div><?php endif; ?>
         </div>
         <?php endif; ?>
         <div style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap;">
             <button type="submit" name="update_grip" class="btn btn-primary"><?php echo e(t('admin_shadow-saas-grip.save_configuration')); ?></button>
-            <button type="submit" name="run_privacy_now" class="btn btn-secondary" data-confirm="<?php echo e(t('admin_shadow-saas-grip.privacy_run_confirm')); ?>" <?php echo ($gripCfg['ai_privacy_enabled'] ?? '0') === '1' && $aiOn ? '' : 'disabled'; ?>><?php echo e(t('admin_shadow-saas-grip.privacy_run_button')); ?></button>
+            <button type="submit" name="run_privacy_now" class="btn btn-secondary" data-confirm="<?php echo e(t('admin_shadow-saas-grip.privacy_run_confirm')); ?>" ><?php echo e(t('admin_shadow-saas-grip.privacy_run_button')); ?></button>
+            <?php if ($privacyNotReady !== null): ?><span class="form-help" id="vendor-privacy-not-ready" style="align-self:center;"><?php echo e(t('vendor-privacy.not_ready_' . $privacyNotReady)); ?></span><?php endif; ?>
         </div>
     </form>
 </div>

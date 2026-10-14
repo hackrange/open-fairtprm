@@ -70,6 +70,12 @@ class VendorPrivacyService
     /** Fact fields that describe product features, which policies rarely state; see extractFacts(). */
     public const PRODUCT_FACTS = ['file_upload', 'ai_processes_files', 'external_file_sharing'];
 
+    /** Most vendors one "Review privacy now" click may queue. */
+    public const MANUAL_MAX = 25;
+
+    /** Set for person-requested reviews: they are interactive, not background jobs (budget pause). */
+    public bool $interactive = false;
+
     private Database $db;
     /** @var callable(array $messages, array $options): array */
     private $ai;
@@ -115,6 +121,77 @@ class VendorPrivacyService
         $g = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'grip_enabled'");
         if (($g['config_value'] ?? '0') !== '1') return false;
         return AIPlatformService::getInstance()->isEnabled();
+    }
+
+    /** Shared by the cron script and the admin "Run" buttons. */
+    public const LOCK_FILE = 'fairtprm_vendor_privacy.lock';
+    public const QUEUE_LOCK_FILE = 'fairtprm_vendor_privacy_queue.lock';
+    public const LOG_FILE = '/var/log/php/cron-vendor-privacy-review.log';
+
+    /**
+     * Why the review cannot run right now, as an i18n key suffix, or null when
+     * it can: 'grip_off', 'ai_off', 'use_ai_off', 'budget'.
+     */
+    public static function notReadyReason(?Database $db = null): ?string
+    {
+        $db = $db ?: Database::getInstance();
+        $g = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'grip_enabled'");
+        if (($g['config_value'] ?? '0') !== '1') return 'grip_off';
+        $ai = AIPlatformService::getInstance();
+        if (!$ai->isEnabled()) return 'ai_off';
+        $v = $db->fetchOne("SELECT config_value FROM app_config WHERE config_key = 'grip_ai_privacy_enabled'");
+        if (($v['config_value'] ?? '0') !== '1') return 'use_ai_off';
+        if ($ai->budgetBlocks(false) !== null) return 'budget';
+        return null;
+    }
+
+    /** True while a review process holds $lockName (checked without waiting). */
+    public static function isRunning(string $lockName = self::LOCK_FILE): bool
+    {
+        // Read-only and never create it: a lock file created here by another user
+        // (root cron vs www-data) would block that user's runs.
+        $path = sys_get_temp_dir() . '/' . $lockName;
+        if (!is_file($path)) return false;
+        $fp = @fopen($path, 'r');
+        if (!$fp) return false;
+        $free = flock($fp, LOCK_EX | LOCK_NB);
+        if ($free) flock($fp, LOCK_UN);
+        fclose($fp);
+        return !$free;
+    }
+
+    /**
+     * Start the review script in the background with $args and confirm it
+     * really started: the script writes the token we pass once it holds its
+     * lock. Returns null on success, else an i18n key suffix explaining why not.
+     */
+    public static function startBackground(array $args, string $lockName = self::LOCK_FILE): ?string
+    {
+        $script = realpath(__DIR__ . '/../../cron/vendor-privacy-review.php');
+        if (!$script || !is_file($script)) return 'script_missing';
+        if (self::isRunning($lockName)) return 'already_running';
+        $log = self::LOG_FILE;
+        if (!(is_file($log) ? is_writable($log) : is_writable(dirname($log)))) {
+            $log = sys_get_temp_dir() . '/cron-vendor-privacy-review.log';
+        }
+        $token = bin2hex(random_bytes(8));
+        $marker = sys_get_temp_dir() . '/fairtprm_vendor_privacy.started';
+        @unlink($marker);
+        $argStr = '';
+        foreach ($args as $a) $argStr .= ' ' . escapeshellarg($a);
+        $cmd = sprintf('nohup %s %s%s --token=%s >> %s 2>&1 &',
+            escapeshellarg(PHP_BINDIR . '/php'), escapeshellarg($script), $argStr, $token, escapeshellarg($log));
+        // exec() is disabled by the web hardening; proc_open is permitted.
+        $proc = @proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        if (!is_resource($proc)) return 'failed';
+        foreach ($pipes as $p) fclose($p);
+        proc_close($proc);
+        for ($i = 0; $i < 40; $i++) {           // up to 8 s
+            usleep(200000);
+            clearstatcache(true, $marker);
+            if (is_file($marker) && trim((string)@file_get_contents($marker)) === $token) return null;
+        }
+        return 'failed';
     }
 
     public function intervalDays(): int { return max(7, min(365, (int)($this->cfg['interval_days'] ?? 30) ?: 30)); }
@@ -225,6 +302,96 @@ class VendorPrivacyService
             }
         }
         return $res;
+    }
+
+    // =========================================================================
+    // Manual queue ("Review privacy now")
+    // =========================================================================
+
+    /**
+     * Queue domains for a forced review. $items = [domain => vendor name].
+     * Returns how many were queued (already-queued domains count once).
+     */
+    public static function queue(Database $db, array $items, int $userId): int
+    {
+        $n = 0;
+        foreach ($items as $d => $name) {
+            $d = self::normDomain((string)$d);
+            if ($d === '') continue;
+            $db->query("INSERT INTO vendor_privacy_queue (domain, vendor_name, requested_by, requested_at) VALUES (:d, :n, :u, NOW())
+                        ON DUPLICATE KEY UPDATE requested_at = requested_at",
+                [':d' => $d, ':n' => mb_substr((string)$name, 0, 255), ':u' => $userId]);
+            $n++;
+        }
+        return $n;
+    }
+
+    /** Domains waiting in the manual queue (domain => true). */
+    public static function queuedDomains(Database $db): array
+    {
+        try {
+            return array_fill_keys(array_column($db->fetchAll("SELECT domain FROM vendor_privacy_queue"), 'domain'), true);
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Review queued domains, oldest first. Each item is claimed by deleting it,
+     * so the scheduled run and a queue run never review the same request twice.
+     * Stops (leaving the rest queued) when the monthly AI limit is reached.
+     */
+    public function runQueue(int $seconds, ?callable $log = null): array
+    {
+        $t0 = time();
+        $res = ['reviewed' => 0, 'failed' => 0, 'cost' => 0.0, 'budget_stopped' => false];
+        $prev = $this->interactive;
+        $this->interactive = true;
+        try {
+            while (time() - $t0 <= $seconds) {
+                $item = $this->db->fetchOne("SELECT domain, vendor_name FROM vendor_privacy_queue ORDER BY requested_at, domain LIMIT 1");
+                if (!$item) break;
+                $claimed = $this->db->query("DELETE FROM vendor_privacy_queue WHERE domain = :d", [':d' => $item['domain']])->rowCount();
+                if (!$claimed) continue;
+                try {
+                    $r = $this->reviewDomain($item['domain'], (string)$item['vendor_name'], true);
+                    $res['reviewed']++;
+                    $res['cost'] += $r['cost'];
+                    if ($log) $log(sprintf('%s (requested): %s privacy=%s sharing=%s cost=$%.4f', $item['domain'], $r['outcome'], $r['privacy_risk'], $r['sharing_risk'], $r['cost']));
+                } catch (VendorPrivacyBudgetReached $e) {
+                    // Put it back; it runs once the limit resets.
+                    self::queue($this->db, [$item['domain'] => $item['vendor_name']], 0);
+                    $res['budget_stopped'] = true;
+                    if ($log) $log('Stopped: ' . $e->getMessage());
+                    break;
+                } catch (Throwable $e) {
+                    $res['failed']++;
+                    $this->saveError($item['domain'], (string)$item['vendor_name'], $e->getMessage());
+                    if ($log) $log($item['domain'] . ' (requested): FAILED ' . $e->getMessage());
+                }
+            }
+        } finally {
+            $this->interactive = $prev;
+        }
+        return $res;
+    }
+
+    /**
+     * Queue the given vendors and start the queue runner. Shared by the Shadow
+     * SaaS bulk action and the vendor page. Returns [queued count, error key or null].
+     */
+    public static function requestReview(Database $db, array $items, int $userId): array
+    {
+        if (($why = self::notReadyReason($db)) !== null) return [0, 'not_ready_' . $why];
+        $items = array_slice($items, 0, self::MANUAL_MAX, true);
+        if (!$items) return [0, 'none_selected'];
+        $n = self::queue($db, $items, $userId);
+        // A queue run already going will pick these up; otherwise start one.
+        if (!self::isRunning(self::QUEUE_LOCK_FILE)) {
+            $why = self::startBackground(['--queue', '--verbose'], self::QUEUE_LOCK_FILE);
+            if ($why !== null && $why !== 'already_running') return [$n, 'start_' . $why];
+        }
+        return [$n, null];
     }
 
     // =========================================================================
@@ -462,7 +629,7 @@ class VendorPrivacyService
     private function aiOptions(string $domain, array $extra = []): array
     {
         // Room for adaptive thinking (billed as output) plus the JSON answer.
-        $o = ['max_tokens' => 6000, 'timeout' => 120, 'purpose' => 'structured', 'feature' => 'vendor_privacy', 'subject' => $domain, 'background' => true];
+        $o = ['max_tokens' => 6000, 'timeout' => 120, 'purpose' => 'structured', 'feature' => 'vendor_privacy', 'subject' => $domain, 'background' => !$this->interactive];
         if ($this->modelOverride() !== '') $o['model'] = $this->modelOverride();
         return $extra + $o;
     }
@@ -701,12 +868,12 @@ class VendorPrivacyService
     {
         $scope = count($this->scope());
         $r = $this->db->fetchOne("SELECT COUNT(*) n, SUM(status='ok') ok, SUM(status='unknown') unk, SUM(status='error') err,
-                                  SUM(privacy_risk='High') ph, SUM(sharing_risk='High') sh, SUM(next_due_at <= NOW()) due
-                                  FROM vendor_privacy_reviews");
+                                  SUM(privacy_risk='High') ph, SUM(sharing_risk='High') sh, SUM(next_due_at <= :now) due
+                                  FROM vendor_privacy_reviews", [':now' => date('Y-m-d H:i:s')]);
         // Measured cost of one full AI review (policy read, plus search when used).
         $c = $this->db->fetchOne("SELECT COUNT(*) n, AVG(last_cost_usd) avg_cost FROM vendor_privacy_reviews WHERE model IS NOT NULL AND last_cost_usd IS NOT NULL");
         $tok = $this->db->fetchOne("SELECT AVG(input_tokens) i, AVG(output_tokens) o, SUM(estimated) est, COUNT(*) n FROM ai_usage_log WHERE feature = 'vendor_privacy' AND outcome = 'ok'");
-        $m30 = $this->db->fetchOne("SELECT COALESCE(SUM(cost_usd),0) c, COUNT(*) calls FROM ai_usage_log WHERE feature = 'vendor_privacy' AND ran_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
+        $m30 = $this->db->fetchOne("SELECT COALESCE(SUM(cost_usd),0) c, COUNT(*) calls FROM ai_usage_log WHERE feature = 'vendor_privacy' AND ran_at >= :since", [':since' => date('Y-m-d H:i:s', time() - 30 * 86400)]);
         $p = $this->prices();
         $measured = (int)($c['n'] ?? 0) > 0;
         $perVendor = $measured ? (float)$c['avg_cost'] : AIPlatformService::costOf(self::EST_INPUT_TOKENS, self::EST_OUTPUT_TOKENS, 0, $p);

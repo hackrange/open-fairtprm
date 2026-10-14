@@ -6866,6 +6866,16 @@ CREATE TABLE IF NOT EXISTS `vendor_privacy_reviews` (
   KEY `idx_due` (`next_due_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Manual "Review privacy now" requests (selected Shadow SaaS rows or a vendor
+-- page); drained by cron/vendor-privacy-review.php --queue.
+CREATE TABLE IF NOT EXISTS `vendor_privacy_queue` (
+  `domain`       varchar(255) NOT NULL,
+  `vendor_name`  varchar(255) DEFAULT NULL,
+  `requested_by` int(10) unsigned DEFAULT NULL,
+  `requested_at` datetime NOT NULL,
+  PRIMARY KEY (`domain`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'shadow_saas' AND column_name = 'filesharing_source') = 0,
   'ALTER TABLE `shadow_saas` ADD COLUMN `filesharing_source` VARCHAR(10) DEFAULT NULL COMMENT ''manual | ai; NULL = CSV/legacy. AI never overwrites manual'' AFTER `filesharing`',

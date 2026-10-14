@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (count($ents) < count($keys)) $error = t('shadow-saas-waiver.stale', count($keys) - count($ents));
         }
     } elseif (($_POST['action'] ?? '') === 'revoke_waiver' && $gripEnabled) {
-        $row = $grip->revokeWaiver((int)($_POST['waiver_id'] ?? 0), (int)$user['id'], (string)($_POST['revoke_reason'] ?? ''));
+        $row = $grip->revokeWaiver((int)($_POST['waiver_id'] ?? 0), (int)$user['id'], (string)($_POST['revoke_reason'] ?? ''), 'posture');
         if (!$row || $row['kind'] !== 'posture') {
             $error = t('shadow-saas-waiver.not_found');
         } else {

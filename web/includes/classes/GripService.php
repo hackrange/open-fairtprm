@@ -1037,7 +1037,14 @@ class GripService
     // Waivers: posture findings and ITDR threats
     // ------------------------------------------------------------------
 
-    public const WAIVER_KINDS = ['posture', 'threat'];
+    /** posture = a check's findings; threat = an ITDR alert; control = a Compliance Posture control (compensating control). */
+    public const WAIVER_KINDS = ['posture', 'threat', 'control'];
+
+    /** Waiver entity key for a compliance control (the control path is free text). */
+    public static function controlKey(string $control): string
+    {
+        return hash('sha256', $control);
+    }
     public const WAIVER_JUSTIFICATION_MIN = 10;
     public const WAIVER_JUSTIFICATION_MAX = 2000;
     /** Most findings one check is paged through when checking waiver coverage. */
@@ -1109,7 +1116,7 @@ class GripService
         $n = 0;
         foreach ($entities as $en) {
             $key = (string)($en['key'] ?? '');
-            if ($kind === 'posture' && !preg_match('/^[0-9a-f]{64}$/', $key)) continue;
+            if (($kind === 'posture' || $kind === 'control') && !preg_match('/^[0-9a-f]{64}$/', $key)) continue;
             if ($kind === 'threat') $key = '';
             if (isset($active[$key])) continue;
             $label = trim((string)($en['label'] ?? ''));
@@ -1128,10 +1135,17 @@ class GripService
         return $n;
     }
 
-    /** Revoke one active waiver. Returns the revoked row (kind, subject_id) or null. */
-    public function revokeWaiver(int $id, int $userId, string $reason): ?array
+    /**
+     * Revoke one active waiver of $kind. Returns the revoked row (kind,
+     * subject_id) or null. The kind is matched BEFORE revoking, so one page's
+     * revoke form can never revoke another kind of waiver.
+     */
+    public function revokeWaiver(int $id, int $userId, string $reason, ?string $kind = null): ?array
     {
-        $row = $this->db->fetchOne("SELECT * FROM shadow_saas_grip_waivers w WHERE w.id = :id AND " . self::WAIVER_ACTIVE_SQL, [':id' => $id]);
+        $sql = "SELECT * FROM shadow_saas_grip_waivers w WHERE w.id = :id AND " . self::WAIVER_ACTIVE_SQL;
+        $params = [':id' => $id];
+        if ($kind !== null) { $sql .= ' AND w.kind = :k'; $params[':k'] = $kind; }
+        $row = $this->db->fetchOne($sql, $params);
         if (!$row) return null;
         $this->db->update('shadow_saas_grip_waivers', [
             'revoked_by'    => $userId ?: null,

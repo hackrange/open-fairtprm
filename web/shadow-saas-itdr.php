@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = $added ? t('shadow-saas-waiver.threat_waived', (string)$thr['alert_id']) : t('shadow-saas-waiver.already_waived');
         }
     } elseif (($_POST['action'] ?? '') === 'revoke_waiver' && $gripEnabled) {
-        $row = $grip->revokeWaiver((int)($_POST['waiver_id'] ?? 0), (int)$user['id'], (string)($_POST['revoke_reason'] ?? ''));
+        $row = $grip->revokeWaiver((int)($_POST['waiver_id'] ?? 0), (int)$user['id'], (string)($_POST['revoke_reason'] ?? ''), 'threat');
         if (!$row || $row['kind'] !== 'threat') {
             $error = t('shadow-saas-waiver.not_found');
         } else {

@@ -84,9 +84,15 @@ foreach ($cpChecks as $uuid => $c) {
         else $cpHidden[$fw][$ctl] = true;
     }
 }
+// Control waivers (compensating controls): a failing control a person has
+// accepted, with a justification. Keyed by sha256(framework) then sha256(control).
+$cpCtlWaivers = $gripEnabled ? $grip->activeWaivers('control') : [];
+function cpFwKey(string $fw): string { return hash('sha256', $fw); }
+
 $cpSummary = [];
 foreach ($cpFw as $fw => &$controls) {
-    $s = ['controls' => 0, 'fail' => 0, 'pass' => 0, 'waived' => 0, 'checks' => [], 'checks_pass' => 0, 'checks_fail' => 0];
+    $s = ['controls' => 0, 'fail' => 0, 'pass' => 0, 'waived' => 0, 'checks' => [], 'checks_pass' => 0, 'checks_fail' => 0, 'control_waivers' => 0];
+    $fwWaivers = $cpCtlWaivers[cpFwKey($fw)] ?? [];
     foreach ($controls as $ctl => &$info) {
         $st = 'Waived';
         foreach (array_keys($info['checks']) as $u) {
@@ -94,26 +100,45 @@ foreach ($cpFw as $fw => &$controls) {
             if ($cs === 'Fail') { $st = 'Fail'; break; }
             if ($cs === 'Pass') $st = 'Pass';
         }
+        // A failing control covered by a compensating control is Waived.
+        $info['waiver'] = null;
+        if ($st === 'Fail' && isset($fwWaivers[GripService::controlKey((string)$ctl)])) {
+            $st = 'Waived';
+            $info['waiver'] = $fwWaivers[GripService::controlKey((string)$ctl)];
+            $s['control_waivers']++;
+        }
         $info['status'] = $st;
         $s['controls']++;
         $s[strtolower($st)]++;
         foreach (array_keys($info['checks']) as $u) $s['checks'][$u] = $cpChecks[$u]['status'];
     }
     unset($info);
+    // A check whose every control in this framework is waived leaves this
+    // framework's score (the waiver applies to this framework only).
+    foreach (array_keys($s['checks']) as $u) {
+        $all = true; $any = false;
+        foreach ($controls as $info) {
+            if (!isset($info['checks'][$u])) continue;
+            $any = true;
+            if (empty($info['waiver'])) { $all = false; break; }
+        }
+        if ($any && $all) $s['checks'][$u] = 'Waived';
+    }
     // Score by checks, each counted once even when it maps to several controls.
     $cnt = array_count_values($s['checks']);
     $s['checks_pass'] = $cnt['Pass'] ?? 0;
     $s['checks_fail'] = $cnt['Fail'] ?? 0;
     $ev = $s['checks_pass'] + $s['checks_fail'];
-    // Nothing passing or failing (e.g. every observed check waived): no card.
-    if ($ev === 0) continue;
-    $s['score'] = (int)round(100 * $s['checks_pass'] / $ev);
+    // Nothing passing or failing (e.g. every observed check waived): no card,
+    // unless a person waived controls here - then it stays, scored as "-".
+    if ($ev === 0 && $s['control_waivers'] === 0) continue;
+    $s['score'] = $ev > 0 ? (int)round(100 * $s['checks_pass'] / $ev) : null;
     $s['checks'] = count($s['checks']);
     $s['hidden'] = count(array_diff_key($cpHidden[$fw] ?? [], $controls));
     $cpSummary[$fw] = $s;
 }
 unset($controls);
-uasort($cpSummary, fn($a, $b) => [$a['score'], $b['fail']] <=> [$b['score'], $a['fail']]);
+uasort($cpSummary, fn($a, $b) => [$a['score'] ?? 101, $b['fail']] <=> [$b['score'] ?? 101, $a['fail']]);
 
 // ---------------------------------------------------------------------------
 // Add a failing control to the GRC risk register.
@@ -218,6 +243,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_r
         }
     }
 }
+// ---------------------------------------------------------------------------
+// Waive a failing control (compensating control) / revoke that waiver.
+// Same write rule as Posture waivers: administrators and Cyber TPRM.
+// ---------------------------------------------------------------------------
+$canWaive = $gripEnabled && ($isAdmin || $isCyberTPRM);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['waive_control', 'revoke_control_waiver'], true)) {
+    $wfw  = (string)($_POST['framework'] ?? '');
+    $wctl = (string)($_POST['control'] ?? '');
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('shadow-saas-posture.invalid_request');
+    } elseif (!$canWaive) {
+        $error = t('shadow-saas-cp.waive_forbidden');
+    } elseif ($_POST['action'] === 'waive_control') {
+        $in = GripService::validateWaiverInput((string)($_POST['justification'] ?? ''), (string)($_POST['expires_at'] ?? ''));
+        if (!isset($cpFw[$wfw][$wctl])) {
+            $error = t('shadow-saas-cp.risk_not_failing');
+        } elseif ($cpFw[$wfw][$wctl]['status'] !== 'Fail') {
+            // Re-validated server side: only a control failing right now.
+            $error = !empty($cpFw[$wfw][$wctl]['waiver']) ? t('shadow-saas-waiver.already_waived') : t('shadow-saas-cp.waive_not_failing');
+        } elseif (isset($in['error'])) {
+            $error = t('shadow-saas-waiver.' . $in['error'], GripService::WAIVER_JUSTIFICATION_MIN);
+        } else {
+            $grip->addWaivers('control', cpFwKey($wfw), [['key' => GripService::controlKey($wctl), 'label' => cpLabel($wfw) . ' ' . str_replace('|', ' ', $wctl)]], $in['justification'], $in['expires'], (int)$user['id']);
+            $auth->audit($user['id'], 'shadow_saas_control_waive', 'shadow_saas_grip_waivers', null, ['new' => [
+                'framework' => $wfw, 'control' => $wctl, 'expires_at' => $in['expires'], 'justification' => $in['justification'],
+            ]]);
+            redirect('shadow-saas-compliance.php?' . http_build_query(['framework' => $wfw, 'cpw' => 'waived']));
+        }
+    } else {
+        $row = $grip->revokeWaiver((int)($_POST['waiver_id'] ?? 0), (int)$user['id'], (string)($_POST['revoke_reason'] ?? ''), 'control');
+        if (!$row) {
+            $error = t('shadow-saas-waiver.not_found');
+        } else {
+            $auth->audit($user['id'], 'shadow_saas_control_waiver_revoke', 'shadow_saas_grip_waivers', (int)$row['id'], ['new' => ['framework' => $wfw, 'control' => $wctl]]);
+            redirect('shadow-saas-compliance.php?' . http_build_query(['framework' => $wfw, 'cpw' => 'revoked']));
+        }
+    }
+}
+if (($_GET['cpw'] ?? '') === 'waived') $success = t('shadow-saas-cp.control_waived');
+elseif (($_GET['cpw'] ?? '') === 'revoked') $success = t('shadow-saas-waiver.revoked');
 $csrfToken = $security->generateCSRFToken();
 
 // Open risks already raised from this page, keyed by title.
@@ -365,6 +430,15 @@ if ($cpSel !== '') {
         .cp-bar .p { background: #16a34a; } .cp-bar .f { background: #dc2626; }
         .cp-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: #6b7280; }
         .cp-meta b { color: #374151; }
+        .cp-waiver { margin-top: 6px; padding: 6px 8px; background: #f5f3ff; border-left: 3px solid #a78bfa; border-radius: 4px; font-size: 12px; max-width: 320px; }
+        .cp-waiver-label { font-weight: 600; color: #5b21b6; }
+        .cp-waiver-text { margin: 2px 0; white-space: pre-wrap; word-break: break-word; }
+        .cp-revoke-form { margin-top: 4px; }
+        .cp-waive { margin-top: 6px; font-size: 12px; }
+        .cp-waive summary { cursor: pointer; color: #6d28d9; font-weight: 600; }
+        .cp-waive-form { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; max-width: 320px; }
+        .cp-waive-form label { display: flex; flex-direction: column; gap: 2px; font-weight: 500; }
+        .cp-waive-form textarea, .cp-waive-form input[type=date] { font: inherit; padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; }
         .st-Fail { background: #fee2e2; color: #991b1b; } .st-Pass { background: #dcfce7; color: #166534; } .st-NA { background: #f3f4f6; color: #4b5563; } .st-Waived { background: #ede9fe; color: #5b21b6; }
         .sev-High { background: #fee2e2; color: #991b1b; } .sev-Medium { background: #ffedd5; color: #9a3412; } .sev-Low { background: #e0f2fe; color: #075985; }
         .cp-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
@@ -411,7 +485,7 @@ if ($cpSel !== '') {
                     <?php foreach ($cpSummary as $fw => $s): $ev = max(1, $s['checks_pass'] + $s['checks_fail']); ?>
                     <a class="cp-card" href="?<?php echo e(http_build_query(['framework' => $fw])); ?>" data-framework="<?php echo e($fw); ?>">
                         <h3><?php echo e(cpLabel($fw)); ?></h3>
-                        <div class="cp-score"><?php echo (int)$s['score'] . '%'; ?><small><?php echo e(t('shadow-saas-cp.checks_passing', $s['checks_pass'], $s['checks_pass'] + $s['checks_fail'])); ?></small></div>
+                        <div class="cp-score"><?php echo $s['score'] !== null ? (int)$s['score'] . '%' : '&mdash;'; ?><small><?php echo e(t('shadow-saas-cp.checks_passing', $s['checks_pass'], $s['checks_pass'] + $s['checks_fail'])); ?></small></div>
                         <div class="cp-bar"><span class="p" style="width:<?php echo round(100 * $s['checks_pass'] / $ev, 2); ?>%"></span><span class="f" style="width:<?php echo round(100 * $s['checks_fail'] / $ev, 2); ?>%"></span></div>
                         <div class="cp-meta"><span><b><?php echo (int)$s['fail']; ?></b> <?php echo e(t('shadow-saas-cp.controls_failing')); ?></span><span><b><?php echo (int)$s['pass']; ?></b> <?php echo e(t('shadow-saas-cp.controls_passing_short')); ?></span><?php if ($s['waived'] > 0): ?><span><b><?php echo (int)$s['waived']; ?></b> <?php echo e(t('shadow-saas-cp.waived')); ?></span><?php endif; ?><span><b><?php echo (int)$s['checks']; ?></b> <?php echo e(t('shadow-saas-cp.checks')); ?></span></div>
                     </a>
@@ -423,7 +497,7 @@ if ($cpSel !== '') {
                 <div class="pp-head">
                     <div>
                         <h1 class="page-title" style="margin:0;"><?php echo e(cpLabel($cpSel)); ?></h1>
-                        <p><?php echo e(t('shadow-saas-cp.framework_summary', $s['score'] . '%', $s['checks_pass'], $s['checks_pass'] + $s['checks_fail'], $s['fail'], $s['pass'])); ?><?php if ($s['hidden'] > 0): ?> <?php echo e(t('shadow-saas-cp.hidden_controls', $s['hidden'])); ?><?php endif; ?></p>
+                        <p><?php echo e(t('shadow-saas-cp.framework_summary', $s['score'] !== null ? $s['score'] . '%' : '-', $s['checks_pass'], $s['checks_pass'] + $s['checks_fail'], $s['fail'], $s['pass'])); ?><?php if ($s['hidden'] > 0): ?> <?php echo e(t('shadow-saas-cp.hidden_controls', $s['hidden'])); ?><?php endif; ?><?php if ($s['control_waivers'] > 0): ?> <?php echo e(t('shadow-saas-cp.control_waivers_note', $s['control_waivers'])); ?><?php endif; ?></p>
                     </div>
                     <a class="pp-btn" style="background:#6b7280;" href="shadow-saas-compliance.php">&larr; <?php echo e(t('shadow-saas-cp.all_frameworks')); ?></a>
                 </div>
@@ -434,7 +508,44 @@ if ($cpSel !== '') {
                     <?php foreach ($cpRows as $row): ?>
                         <tr data-control="<?php echo e($row['control']); ?>">
                             <td style="white-space:nowrap;font-weight:600;"><?php echo e(str_replace('|', ' ', $row['control'])); ?></td>
-                            <td><span class="pp-pill st-<?php echo e($row['status']); ?>"><?php echo e(t('shadow-saas-posture.status_' . strtolower($row['status']))); ?></span></td>
+                            <td style="min-width:200px;">
+                                <span class="pp-pill st-<?php echo e($row['status']); ?>"><?php echo e(t('shadow-saas-posture.status_' . strtolower($row['status']))); ?></span>
+                                <?php if (!empty($row['waiver'])): $w = $row['waiver']; ?>
+                                <div class="cp-waiver" data-waiver-id="<?php echo (int)$w['id']; ?>">
+                                    <div class="cp-waiver-label"><?php echo e(t('shadow-saas-cp.compensating_control')); ?></div>
+                                    <div class="cp-waiver-text"><?php echo e($w['justification']); ?></div>
+                                    <div class="ai-sub"><?php echo e(t('shadow-saas-waiver.by', (string)($w['waived_by_name'] ?? '-'), date('M j, Y', strtotime((string)$w['waived_at'])))); ?><?php if (!empty($w['expires_at'])): ?>, <?php echo e(t('shadow-saas-waiver.until', date('M j, Y', strtotime((string)$w['expires_at'])))); ?><?php endif; ?></div>
+                                    <?php if ($canWaive): ?>
+                                    <form method="POST" action="?<?php echo e(http_build_query(['framework' => $cpSel])); ?>" class="cp-revoke-form" data-confirm="<?php echo e(t('shadow-saas-waiver.revoke_confirm')); ?>">
+                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                        <input type="hidden" name="action" value="revoke_control_waiver">
+                                        <input type="hidden" name="waiver_id" value="<?php echo (int)$w['id']; ?>">
+                                        <input type="hidden" name="framework" value="<?php echo e($cpSel); ?>">
+                                        <input type="hidden" name="control" value="<?php echo e($row['control']); ?>">
+                                        <button type="submit" class="pp-btn" style="padding:3px 8px;font-size:11px;background:#6b7280;"><?php echo e(t('shadow-saas-waiver.revoke')); ?></button>
+                                    </form>
+                                    <?php endif; ?>
+                                </div>
+                                <?php elseif ($row['status'] === 'Fail' && $canWaive): ?>
+                                <details class="cp-waive">
+                                    <summary><?php echo e(t('shadow-saas-cp.waive_control')); ?></summary>
+                                    <form method="POST" action="?<?php echo e(http_build_query(['framework' => $cpSel])); ?>" class="cp-waive-form" data-confirm="<?php echo e(t('shadow-saas-cp.waive_confirm')); ?>">
+                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                        <input type="hidden" name="action" value="waive_control">
+                                        <input type="hidden" name="framework" value="<?php echo e($cpSel); ?>">
+                                        <input type="hidden" name="control" value="<?php echo e($row['control']); ?>">
+                                        <label><?php echo e(t('shadow-saas-waiver.justification_label')); ?>
+                                            <textarea name="justification" rows="3" required minlength="<?php echo (int)GripService::WAIVER_JUSTIFICATION_MIN; ?>" maxlength="<?php echo (int)GripService::WAIVER_JUSTIFICATION_MAX; ?>" placeholder="<?php echo e(t('shadow-saas-cp.waive_placeholder')); ?>"></textarea>
+                                        </label>
+                                        <label><?php echo e(t('shadow-saas-waiver.expires_label')); ?>
+                                            <input type="date" name="expires_at" value="<?php echo e(date('Y-m-d', strtotime('+1 year'))); ?>" min="<?php echo e(date('Y-m-d')); ?>" max="<?php echo e(date('Y-m-d', strtotime('+3 years'))); ?>">
+                                        </label>
+                                        <div class="ai-sub"><?php echo e(t('shadow-saas-waiver.expires_help')); ?></div>
+                                        <button type="submit" class="pp-btn" style="padding:5px 10px;font-size:12px;background:#7c3aed;"><?php echo e(t('shadow-saas-cp.waive_control')); ?></button>
+                                    </form>
+                                </details>
+                                <?php endif; ?>
+                            </td>
                             <td>
                             <?php foreach (array_keys($row['checks']) as $u): $c = $cpChecks[$u]; ?>
                                 <div class="cp-check">

@@ -12,6 +12,23 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Review privacy now, for the vendors you pick.** Shadow SaaS (Applications
+  and New) has a Review Privacy Now action for selected rows, and a vendor's
+  SaaS Data tab has a Review privacy now button, including for vendors never
+  reviewed. Requests (up to 25 at a time) run in the background straight away,
+  re-read the policy even if it has not changed, and show "Review queued"
+  until the result lands. Administrators and Cyber TPRM only; audited.
+- **Privacy results as Risk Types.** The Shadow SaaS Risk Type filter offers
+  Privacy: High / Medium / Low and File Sharing: High / Medium / Low, the Risk
+  Type column lists them, and searching "Privacy: High" or "file sharing" finds
+  them. They are computed from the review, not stored in the Risk Type field.
+- **Waive a failing compliance control.** On Compliance Posture, a failing
+  control can be waived with a written compensating control (for example a
+  DLP gateway that already blocks card numbers and SSNs) and an optional
+  expiry of up to three years. A waived control shows as Waived with its
+  justification, offers no Add to Risk Register, and its checks leave that
+  framework's score. Waivers can be revoked; both are audited. Administrators
+  and Cyber TPRM.
 - **AI vendor privacy and file-sharing review.** A new "Use AI" setting on
   Admin > Shadow SaaS > Grip (available when an AI platform is enabled) reads
   each vendor's own privacy policy and terms and rates two risks. Privacy risk
@@ -585,6 +602,24 @@ project adheres to [Semantic Versioning](https://semver.org/).
   retired ones. Localized in all eight locales.
 
 ### Fixed
+
+- **Run review now could look like it did nothing.** The button was disabled
+  without explanation until Use AI was saved, and a lock file left by the
+  scheduled run could make manual runs skip silently while the page reported
+  success. The button now always works and says exactly why a review cannot
+  run, the page confirms the background job really started, a running
+  review shows live progress, and lock files no longer block across users.
+- **AI model shown for FAIR analysis on the Custom platform was wrong.** The
+  Custom platform always sends its own request template, but the test
+  messages named a leftover OpenWebUI model. They now show the gateway's model
+  label (set under AI Integration > rates). Queued AI jobs are logged under
+  their own feature name (fair_analysis) in AI usage.
+- **A vendor page link to the SaaS Data tab opened the Vendor tab instead.**
+- **A revoke request from one waiver page could revoke another kind of
+  waiver.** Revoke now matches the waiver kind before changing anything.
+- **Vendor privacy "due" counts and 30-day spend used the database clock**,
+  which can differ from the application time zone; they now use application
+  time.
 
 - **AI token usage from Anthropic web searches was under-counted.** Only the
   last round of a multi-round search reported usage; rounds are now summed.
