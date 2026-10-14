@@ -1089,8 +1089,11 @@ class CyberTodoService
         }
 
         $vendorName  = $vendor['vendor_name'] ?? '';
-        $contactName = !empty($vendor['primary_contact_details']) ? $vendor['primary_contact_details'] : null;
-        $vendorEmail = trim((string)($vendor['primary_contact_email'] ?? ''));
+        // Questionnaire respondent when set as the vendor's default, else the primary contact.
+        require_once __DIR__ . '/VendorAssessmentService.php';
+        $rcpt = VendorAssessmentService::assessmentRecipientFor($this->db, $vendor);
+        $contactName = $rcpt['name'];
+        $vendorEmail = $rcpt['email'];
         if ($vendorEmail === '' || !filter_var($vendorEmail, FILTER_VALIDATE_EMAIL)) {
             return ['error' => 'Vendor has no valid primary contact email'];
         }

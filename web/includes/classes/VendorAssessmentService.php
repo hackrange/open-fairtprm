@@ -1184,14 +1184,18 @@ class VendorAssessmentService {
                 $vendorContactName  = $assessment['vendor_contact_name'] ?? null;
                 if (!empty($assessment['vendor_request_id'])) {
                     $onboardingContact = $this->db->fetchOne(
-                        "SELECT primary_contact_email, primary_contact_details
+                        "SELECT id, primary_contact_email, primary_contact_details
                          FROM vendor_onboarding_requests WHERE id = ?",
                         [$assessment['vendor_request_id']]
                     );
-                    if (!empty($onboardingContact['primary_contact_email'])) {
-                        $vendorContactEmail = $onboardingContact['primary_contact_email'];
-                        if (!empty($onboardingContact['primary_contact_details'])) {
-                            $vendorContactName = $onboardingContact['primary_contact_details'];
+                    // The questionnaire respondent, when set as the default, wins.
+                    $rcpt = $onboardingContact ? self::assessmentRecipientFor($this->db, $onboardingContact) : ['email' => ''];
+                    if (!empty($rcpt['email'])) {
+                        $vendorContactEmail = $rcpt['email'];
+                        if (!empty($rcpt['name'])) {
+                            $vendorContactName = $rcpt['name'];
+                        } elseif ($rcpt['source'] === 'respondent') {
+                            $vendorContactName = null;
                         }
                     }
                 }
@@ -2450,5 +2454,31 @@ class VendorAssessmentService {
             'expires_at' => date('Y-m-d H:i:s', strtotime("+{$expiresInDays} days")),
             'updated_at' => date('Y-m-d H:i:s')
         ], 'id = :id', [':id' => $assessmentId]);
+    }
+
+    /**
+     * Who a vendor's assessments go to: the questionnaire respondent when the
+     * vendor has one ticked as the default, else the primary contact. $vendor is
+     * a vendor_onboarding_requests row; the respondent columns are read by id
+     * when the row does not carry them. Returns ['email', 'name', 'source'].
+     */
+    public static function assessmentRecipientFor(Database $db, array $vendor): array
+    {
+        if (!array_key_exists('questionnaire_respondent_default', $vendor) && !empty($vendor['id'])) {
+            try {
+                $r = $db->fetchOne("SELECT questionnaire_respondent_email, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE id = :id", [':id' => (int)$vendor['id']]);
+                if ($r) $vendor += $r;
+            } catch (Throwable $e) {
+                // Columns not there yet: fall back to the primary contact.
+            }
+        }
+        $resp = strtolower(trim((string)($vendor['questionnaire_respondent_email'] ?? '')));
+        if ((int)($vendor['questionnaire_respondent_default'] ?? 0) === 1 && filter_var($resp, FILTER_VALIDATE_EMAIL)) {
+            // The respondent may be a different person than the primary contact, so no name.
+            return ['email' => $resp, 'name' => null, 'source' => 'respondent'];
+        }
+        $primary = trim((string)($vendor['primary_contact_email'] ?? ''));
+        $name = trim((string)($vendor['primary_contact_details'] ?? ''));
+        return ['email' => $primary, 'name' => $name !== '' ? $name : null, 'source' => 'primary'];
     }
 }

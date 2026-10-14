@@ -12,6 +12,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Questionnaire respondent for a vendor.** A vendor's Custom Data tab has a
+  Questionnaire Respondent email with a "use as the default recipient for this
+  vendor's assessments" checkbox. When ticked, new assessments for the vendor
+  go to that address instead of the primary contact: the New Assessment form,
+  assessments sent from Action Plans, and follow-up assessments triggered by
+  another assessment. The Custom Data tab now shows for every vendor so the
+  field is always there. Changes are audited.
+
 - **Privacy risk increase alerts, by email.** Admin > Email has a new
   Shadow SaaS tab: enable the alert, enter recipients as a comma-separated
   list, and choose to alert on any rise or only on rises to High. After each

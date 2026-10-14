@@ -6882,6 +6882,19 @@ SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
   'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- Questionnaire respondent: the vendor-side person who fills in assessments,
+-- optionally used as the default assessment recipient instead of the primary contact.
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND column_name = 'questionnaire_respondent_email') = 0,
+  'ALTER TABLE `vendor_onboarding_requests` ADD COLUMN `questionnaire_respondent_email` VARCHAR(255) DEFAULT NULL COMMENT ''Vendor person who completes questionnaires''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_requests' AND column_name = 'questionnaire_respondent_default') = 0,
+  'ALTER TABLE `vendor_onboarding_requests` ADD COLUMN `questionnaire_respondent_default` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''1 = send assessments to the questionnaire respondent by default''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

@@ -2370,6 +2370,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
         // those, so a user who cannot see a role-restricted field cannot set it
         // either (no trusting the posted field list). A holder onboarding
         // assessment is created lazily on first save.
+        // Questionnaire respondent (Custom Data tab): who fills in this vendor's
+        // questionnaires, and whether assessments go to them by default.
+        if ($action === 'update_questionnaire_respondent' && $canEdit && $editMode && $requestId > 0) {
+            $qrEmail = strtolower(trim((string)($_POST['questionnaire_respondent_email'] ?? '')));
+            $qrDefault = isset($_POST['questionnaire_respondent_default']) ? 1 : 0;
+            if ($qrEmail !== '' && (!filter_var($qrEmail, FILTER_VALIDATE_EMAIL) || strlen($qrEmail) > 255)) {
+                $error = t('vendor-onboarding.qr_invalid_email');
+            } elseif ($qrDefault === 1 && $qrEmail === '') {
+                $error = t('vendor-onboarding.qr_default_needs_email');
+            } else {
+                $db->update('vendor_onboarding_requests', [
+                    'questionnaire_respondent_email'   => $qrEmail !== '' ? $qrEmail : null,
+                    'questionnaire_respondent_default' => $qrDefault,
+                ], 'id = :id', [':id' => $requestId]);
+                $auth->audit($user['id'], 'vendor_questionnaire_respondent_update', 'vendor_onboarding_requests', $requestId, [
+                    'old' => ['email' => $request['questionnaire_respondent_email'] ?? null, 'default' => (int)($request['questionnaire_respondent_default'] ?? 0)],
+                    'new' => ['email' => $qrEmail !== '' ? $qrEmail : null, 'default' => $qrDefault],
+                ]);
+                redirect('vendor-onboarding.php?id=' . $requestId . '&tab=custom_data&qr_saved=1');
+            }
+        }
+
         if ($action === 'update_custom_onboarding' && $canEdit && $editMode && $requestId > 0) {
             if (!isset($vasForExtras)) {
                 require_once __DIR__ . '/includes/classes/VendorAssessmentService.php';
@@ -3263,7 +3285,7 @@ function getFieldValue($request, $field, $default = '') {
                         <?php echo e(t('vendor-onboarding.tab_saas_data')); ?>
                     </button>
                     <?php endif; ?>
-                    <?php if (!empty($customOnboardingData)): ?>
+                    <?php if (!empty($customOnboardingData) || ($editMode && $requestId > 0)): ?>
                     <button type="button" data-action="showVendorTab" data-arg="custom_data" id="vendorTab_custom_data" class="vendor-section-tab"
                         style="padding: 10px 18px; border: none; border-bottom: 2px solid <?php echo $activeTab === 'custom_data' ? 'var(--theme-header-color)' : 'transparent'; ?>; background: none; cursor: pointer; font-size: 13px; font-weight: <?php echo $activeTab === 'custom_data' ? '600' : '500'; ?>; color: <?php echo $activeTab === 'custom_data' ? 'var(--theme-header-color)' : '#6b7280'; ?>; margin-bottom: -2px;">
                         <?php echo e(t('vendor-onboarding.tab_custom_data')); ?>
@@ -3923,13 +3945,41 @@ function getFieldValue($request, $field, $default = '') {
                 <?php endif; ?>
 
 
-                <?php if ($showVendorTabs && !empty($customOnboardingData)): ?>
+                <?php if ($showVendorTabs && (!empty($customOnboardingData) || ($editMode && $requestId > 0))): ?>
                 <!-- Tab: Custom Data -->
                 <div id="vendorTabContent_custom_data" style="<?php echo $activeTab !== 'custom_data' ? 'display: none;' : ''; ?>">
                     <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 25px;">
                         <div style="margin-bottom: 20px;">
                             <h3 style="margin: 0 0 4px; font-size: 18px; font-weight: 600; color: #333;"><?php echo e(t('vendor-onboarding.tab_custom_data')); ?><?php if (!empty($request['vendor_name'])): ?> (<?php echo e($request['vendor_name']); ?>)<?php endif; ?></h3>
                             <p style="margin: 0; color: #6b7280; font-size: 13px;"><?php echo e(t('vendor-onboarding.custom_data_intro')); ?></p>
+                        </div>
+                        <?php if (isset($_GET['qr_saved'])): ?><div class="alert alert-success"><?php echo e(t('vendor-onboarding.qr_saved')); ?></div><?php endif; ?>
+                        <!-- Questionnaire respondent: built in, always shown -->
+                        <div id="questionnaire-respondent" style="margin-bottom: 22px; padding: 14px 16px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb;">
+                            <div style="font-weight: 600; font-size: 13px; color: #444; margin-bottom: 4px;"><?php echo e(t('vendor-onboarding.qr_heading')); ?></div>
+                            <div style="font-size: 12px; color: #6b7280; margin-bottom: 10px;"><?php echo e(t('vendor-onboarding.qr_intro')); ?></div>
+                            <?php $qrEmailNow = (string)($request['questionnaire_respondent_email'] ?? ''); $qrDefaultNow = (int)($request['questionnaire_respondent_default'] ?? 0) === 1; ?>
+                            <?php if (!empty($canEdit) && $editMode): ?>
+                            <form method="POST" action="vendor-onboarding.php?id=<?php echo (int)$requestId; ?>&amp;tab=custom_data" id="questionnaireRespondentForm" style="display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end;">
+                                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                <input type="hidden" name="action" value="update_questionnaire_respondent">
+                                <div style="flex: 1 1 260px; max-width: 360px;">
+                                    <label for="questionnaire_respondent_email" style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px;"><?php echo e(t('vendor-onboarding.qr_email_label')); ?></label>
+                                    <input type="email" id="questionnaire_respondent_email" name="questionnaire_respondent_email" class="form-control" maxlength="255" value="<?php echo e($qrEmailNow); ?>" placeholder="name@vendor.com" style="width: 100%; font-size: 13px;">
+                                </div>
+                                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; padding-bottom: 8px;">
+                                    <input type="checkbox" name="questionnaire_respondent_default" value="1" <?php echo $qrDefaultNow ? 'checked' : ''; ?>>
+                                    <?php echo e(t('vendor-onboarding.qr_default_label')); ?>
+                                </label>
+                                <button type="submit" class="btn btn-primary" style="padding: 7px 18px; font-size: 13px; margin-bottom: 2px;"><?php echo e(t('vendor-onboarding.qr_save')); ?></button>
+                            </form>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 6px;"><?php echo e(t('vendor-onboarding.qr_default_help')); ?></div>
+                            <?php else: ?>
+                            <div style="font-size: 13px;">
+                                <?php if ($qrEmailNow !== ''): ?><a href="mailto:<?php echo e($qrEmailNow); ?>"><?php echo e($qrEmailNow); ?></a><?php else: ?><span style="color: #9ca3af;">&mdash;</span><?php endif; ?>
+                                <span style="color: #6b7280; margin-left: 10px;"><?php echo e($qrDefaultNow ? t('vendor-onboarding.qr_default_yes') : t('vendor-onboarding.qr_default_no')); ?></span>
+                            </div>
+                            <?php endif; ?>
                         </div>
                         <?php
                         // Group the custom fields by their template section for display.
