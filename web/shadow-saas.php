@@ -2638,7 +2638,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             if (e.target === addModal) addModal.style.display = 'none';
         });
     </script>
-    <script src="app/js/mobile-nav.js"></script>
+    <script src="app/js/mobile-nav.js?v=2"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <?php include __DIR__ . '/includes/scroll_to_top.php'; ?>
 </body>

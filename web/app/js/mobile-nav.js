@@ -87,7 +87,11 @@
             if (link) {
                 var href = link.getAttribute('href');
                 if (href && href !== '#' && href !== '' && isSafeNavigationUrl(href)) {
-                    // Navigate to the link
+                    // Navigate to the link ourselves, and cancel the browser's own
+                    // navigation: without preventDefault() every sidebar click sent
+                    // two requests for the page, the second waiting on the first's
+                    // session lock, so on a slow page a click looked like it did nothing.
+                    e.preventDefault();
                     closeMenu();
                     window.location.href = href;
                     return;

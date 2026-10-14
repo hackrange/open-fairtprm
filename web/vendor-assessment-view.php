@@ -539,7 +539,7 @@ $csrfToken = $security->generateCSRFToken();
         </div>
         <?php endforeach; ?>
     </div>
-    <script src="app/js/mobile-nav.js"></script>
+    <script src="app/js/mobile-nav.js?v=2"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <?php if ($showAiAutofill): ?>
     <script nonce="<?php echo cspNonce(); ?>">

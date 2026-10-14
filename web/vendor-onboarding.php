@@ -8904,7 +8904,7 @@ function getFieldValue($request, $field, $default = '') {
     <?php endif; ?>
 
     <script src="app/js/vendor-search.js?v=2.5.5b"></script>
-    <script src="app/js/mobile-nav.js"></script>
+    <script src="app/js/mobile-nav.js?v=2"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <script src="app/js/phone-input.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <script src="app/js/vat-input.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>

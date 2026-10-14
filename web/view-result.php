@@ -576,7 +576,7 @@ foreach ($analysis as $key => $value) {
     </div>
     <script src="app/js/core.min.js"></script>
     <script src="app/js/script.js"></script>
-    <script src="app/js/mobile-nav.js"></script>
+    <script src="app/js/mobile-nav.js?v=2"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
 </body>
 </html>

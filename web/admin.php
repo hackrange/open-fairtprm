@@ -566,7 +566,7 @@ if ($originalMethod !== 'POST' || !empty($success)) {
             </div>
         </footer>
     </div>
-    <script src="app/js/mobile-nav.js" nonce="<?php echo cspNonce(); ?>"></script>
+    <script src="app/js/mobile-nav.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
 <?php include __DIR__ . '/includes/csp_behaviors.php'; ?>
 </body>

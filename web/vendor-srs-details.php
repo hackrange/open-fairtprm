@@ -4378,7 +4378,7 @@ function openExecReport(aiSummary, w) {
 }
 </script>
 <?php endif; ?>
-<script src="app/js/mobile-nav.js"></script>
+<script src="app/js/mobile-nav.js?v=2"></script>
 <script nonce="<?php echo cspNonce(); ?>">
 function scrollToSection(sectionId) {
     var el = document.getElementById(sectionId);

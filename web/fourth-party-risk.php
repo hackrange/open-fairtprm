@@ -2238,7 +2238,7 @@ function renderCveBadges($cvesRaw): string {
         });
     })();
     </script>
-    <script src="app/js/mobile-nav.js"></script>
+    <script src="app/js/mobile-nav.js?v=2"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <?php include __DIR__ . '/includes/scroll_to_top.php'; ?>
 </body>

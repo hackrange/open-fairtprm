@@ -603,6 +603,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A sidebar click could look like it did nothing.** Every sidebar link
+  (admin and platform) sent two requests for the page: the menu script
+  navigated without cancelling the link's own navigation, and the second
+  request waited on the first one's session lock. On a slow page such as
+  Admin > Integrations > Shadow SaaS the first click seemed dead. A click now
+  loads the page once.
+
 - **Run review now could look like it did nothing.** The button was disabled
   without explanation until Use AI was saved, and a lock file left by the
   scheduled run could make manual runs skip silently while the page reported

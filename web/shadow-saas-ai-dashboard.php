@@ -337,7 +337,7 @@ function adBar(string $label, int $n, int $max, string $href, string $cls = ''):
             </div>
         </footer>
     </div>
-    <script src="app/js/mobile-nav.js"></script>
+    <script src="app/js/mobile-nav.js?v=2"></script>
     <script src="app/js/event-handlers.js?v=2" nonce="<?php echo cspNonce(); ?>"></script>
     <?php include __DIR__ . '/includes/scroll_to_top.php'; ?>
 </body>
