@@ -628,6 +628,29 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **FAIR breach costs no longer scale linearly with record count.** A flat
+  per-record rate times the record count overstated large breaches: one vendor
+  with 120,000 PII records was priced at $19.2M primary loss. Per-record
+  averages (IBM/Ponemon) fold fixed response costs into each record, and
+  published fits of real breach costs grow sublinearly with size. Records up to
+  a threshold (default 10,000) now cost the full rate; beyond it, cost grows
+  by a configurable exponent (default 0.76, the Jacobs 2014 fit; 1.0 restores
+  the linear model). The AI-assisted FAIR analysis prices records with the same
+  formula, and its primary and secondary losses are held to within 20% of the
+  server's values. Admin > FAIR Defaults adds the threshold, the exponent and
+  an optional per-incident loss ceiling (off by default). The FAIR form now
+  shows the scaled rate and asks for unique people, not raw rows. Existing
+  analyses keep their stored results until re-saved.
+- **The FAIR Defaults revenue-cap preview never updated.** Its script was
+  blocked by the Content Security Policy; it now runs as you type.
+- **Onboarding a Grip app from Shadow SaaS lost its Grip data.** The new
+  vendor's SaaS Data tab showed only the privacy and file-sharing review: the
+  Grip telemetry (active accounts, first discovered, last used, sanction tag,
+  category, compliances, SAML/MFA) and the SecurityScorecard rating were not
+  copied when the Shadow SaaS row was replaced, and only reappeared after the
+  next Grip sync matched the vendor by domain. Onboard Selected and Allow now
+  fetch the app from Grip and stamp the vendor right away; if Grip is
+  unreachable, the onboarding still succeeds and the next sync fills the data in.
 - **A sidebar click could look like it did nothing.** Every sidebar link
   (admin and platform) sent two requests for the page: the menu script
   navigated without cancelling the link's own navigation, and the second

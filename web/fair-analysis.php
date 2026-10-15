@@ -50,10 +50,12 @@ $srsAvailable = $srsService->isAvailable();
 // figures for PII breaches, SPII breaches, and SOX penalties.
 // The defaults here are industry averages; admins can tweak them in the admin panel.
 $calculationDefaultsRows = $db->fetchAll(
-    'SELECT config_key, config_value FROM app_config WHERE config_key IN (?, ?, ?)',
-    ['pii_breach_cost_per_record', 'spii_breach_cost_per_record', 'sox_breach_penalty']
+    'SELECT config_key, config_value FROM app_config WHERE config_key IN (?, ?, ?, ?, ?)',
+    ['pii_breach_cost_per_record', 'spii_breach_cost_per_record', 'sox_breach_penalty', 'fair_record_scale_threshold', 'fair_record_scale_exponent']
 );
 $calculationDefaults = [
+    'fair_record_scale_threshold' => 10000,
+    'fair_record_scale_exponent' => 0.76,
     'pii_breach_cost_per_record' => 160,    // IBM says it's actually higher now, but hey
     'spii_breach_cost_per_record' => 200,   // Sensitive PII costs extra. Of course it does.
     'sox_breach_penalty' => 5000000         // SOX violations: where the real money disappears
@@ -61,6 +63,14 @@ $calculationDefaults = [
 foreach ($calculationDefaultsRows as $row) {
     $calculationDefaults[$row['config_key']] = floatval($row['config_value']);
 }
+// Per-record rate hint under the PII/SPII counts; mentions the scaling threshold
+// when record costs scale sublinearly (FairCalculator::recordBreachCost).
+$recordRateHint = function (float $rate) use ($calculationDefaults): string {
+    $k = (int)$calculationDefaults['fair_record_scale_threshold'];
+    return ($k > 0 && $calculationDefaults['fair_record_scale_exponent'] < 1.0)
+        ? t('fair-analysis.record_rate_scaled', number_format($rate, 2), number_format($k))
+        : t('fair-analysis.record_rate_flat', number_format($rate, 2));
+};
 
 // Check if AI-assisted FAIR analysis is available (supports OpenWebUI or LibreChat)
 $fairAiAvailable = false;
@@ -1297,14 +1307,14 @@ $isProcurement = hasGroup('procurement');
                                 <input type="number" id="pii_record_count" name="pii_record_count" class="form-control" min="0"
                                        value="<?php echo e($analysis['pii_record_count'] ?? '0'); ?>"
                                        placeholder="<?php echo e(t('fair-analysis.ph_pii_count')); ?>">
-                                <small style="color: #666; font-size: 12px;">$<?php echo number_format($calculationDefaults['pii_breach_cost_per_record'], 2); ?>/record</small>
+                                <small style="color: #666; font-size: 12px;"><?php echo e($recordRateHint($calculationDefaults['pii_breach_cost_per_record'])); ?></small>
                             </div>
                             <div class="form-group">
                                 <label for="spii_record_count"><?php echo e(t('fair-analysis.lbl_spii_records')); ?></label>
                                 <input type="number" id="spii_record_count" name="spii_record_count" class="form-control" min="0"
                                        value="<?php echo e($analysis['spii_record_count'] ?? '0'); ?>"
                                        placeholder="<?php echo e(t('fair-analysis.ph_spii_count')); ?>">
-                                <small style="color: #666; font-size: 12px;">$<?php echo number_format($calculationDefaults['spii_breach_cost_per_record'], 2); ?>/record</small>
+                                <small style="color: #666; font-size: 12px;"><?php echo e($recordRateHint($calculationDefaults['spii_breach_cost_per_record'])); ?></small>
                             </div>
                             <div class="form-group">
                                 <label for="sox_record_count"><?php echo e(t('fair-analysis.lbl_sox_records')); ?></label>

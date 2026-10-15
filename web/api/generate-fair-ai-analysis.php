@@ -231,11 +231,13 @@ $promptParts[] = "- SOX breach penalty (if SOX records > 0): \${$soxPenalty}";
 
 $vendorData = implode("\n", $promptParts);
 
-// Pre-compute expected loss values so the prompt can include concrete numbers
+// Pre-compute expected loss values so the prompt can include concrete numbers.
+// Record costs use the calculator's sublinear scaling, so both paths agree.
 $businessImpact = floatval($formData['business_impact']);
-$expectedPrimary = $businessImpact
-    + ($formData['pii_record_count'] * $piiRate)
-    + ($formData['spii_record_count'] * $spiiRate);
+$piiCost  = FairCalculator::recordBreachCost((int)$formData['pii_record_count'], (float)$piiRate);
+$spiiCost = FairCalculator::recordBreachCost((int)$formData['spii_record_count'], (float)$spiiRate);
+$expectedPrimary = $businessImpact + $piiCost + $spiiCost;
+$incidentCap = FairCalculator::incidentLossCap();
 $expectedSecondary = ($formData['sox_record_count'] > 0 ? $soxPenalty : 0)
     + ($expectedPrimary * 0.10)   // insurance increase ~10% of primary
     + ($expectedPrimary * 0.05);  // reputational damage ~5% of primary
@@ -279,8 +281,10 @@ You are a FAIR (Factor Analysis of Information Risk) calculator. Compute vendor 
 === CALCULATION RULES (follow exactly) ===
 
 STEP 1 — Primary Loss Magnitude:
-  Formula: outage_cost + (PII_records × PII_rate) + (SPII_records × SPII_rate)
-  With the data above: \${$businessImpact} + ({$formData['pii_record_count']} × \${$piiRate}) + ({$formData['spii_record_count']} × \${$spiiRate}) = \$EXPECTED_PRIMARY
+  Formula: outage_cost + PII_cost + SPII_cost. Record costs are pre-computed on a sublinear
+  scale (the per-record rate applies in full only to small breaches; cost per record falls
+  as the breach grows), so do NOT multiply record counts by the rate yourself.
+  With the data above: \${$businessImpact} + PII \${$piiCost} + SPII \${$spiiCost}
   Pre-computed expected value: \$PRIMARY_EXPECTED = {$expectedPrimary}
   If PII=0 AND SPII=0 AND outage_cost=0, then primary_loss_magnitude = 0.
 
@@ -353,6 +357,9 @@ $jobPayload = json_encode([
     'context' => [
         'max_ale' => $maxALE,
         'is_low_risk_capped' => $isLowRiskCapped,
+        'expected_primary' => $expectedPrimary,
+        'expected_secondary' => $expectedSecondary,
+        'max_loss_magnitude' => $incidentCap,
         'vendor_name' => $vendorName,
     ],
 ]);

@@ -1628,9 +1628,7 @@ class GripService
             $dom = !empty($app['url']) ? (string)self::extractDomain($app['url']) : '';
             if ($dom === '') continue;
             $g = is_array($app['gripData'] ?? null) ? $app['gripData'] : [];
-            $r = (isset($g['securityScorecardRating']) && is_string($g['securityScorecardRating']) && $g['securityScorecardRating'] !== '')
-                ? strtoupper(substr(trim($g['securityScorecardRating']), 0, 1)) : '';
-            if (!in_array($r, ['A', 'B', 'C', 'D', 'F'], true)) $r = '';
+            $r = self::scorecardLetter($g);
             $data = $this->curateVendorGripAppData($g);
             // Carry the Grip app id so the "SaaS Data" tab can deep-link the
             // active-accounts count to grip-saas-users.php?id=<grip_id>.
@@ -1662,6 +1660,39 @@ class GripService
                 error_log('Vendor Grip enrich update failed for ' . $dom . ': ' . $e->getMessage());
             }
         }
+    }
+
+    /** SecurityScorecard letter (A/B/C/D/F) from a Grip app's gripData, or ''. */
+    private static function scorecardLetter(array $g): string
+    {
+        $r = (isset($g['securityScorecardRating']) && is_string($g['securityScorecardRating']) && $g['securityScorecardRating'] !== '')
+            ? strtoupper(substr(trim($g['securityScorecardRating']), 0, 1)) : '';
+        return in_array($r, ['A', 'B', 'C', 'D', 'F'], true) ? $r : '';
+    }
+
+    /**
+     * Stamp one vendor with the Grip telemetry of the app it was onboarded from
+     * (grip_app_data + SecurityScorecard rating), so the "SaaS Data" tab keeps
+     * the Grip data immediately instead of waiting for the next sync to match it
+     * by domain. Onboarding deletes the shadow_saas row, so this is the hand-off.
+     * Live single-app fetch; best effort. @return bool true when something was stamped
+     */
+    public function stampVendorFromApp(int $vendorId, string $gripId): bool
+    {
+        if ($vendorId <= 0 || !$this->isConfigured()) return false;
+        $app = $this->getAppDetail($gripId);
+        if (!$app) return false;
+        $g = is_array($app['gripData'] ?? null) ? $app['gripData'] : [];
+        $fields = [];
+        if (($r = self::scorecardLetter($g)) !== '') $fields['security_scorecard_rating'] = $r;
+        $data = $this->curateVendorGripAppData($g);
+        if ($data !== null) {
+            $data['grip_id'] = trim($gripId);
+            $fields['grip_app_data'] = json_encode($data);
+        }
+        if (!$fields) return false;
+        $this->db->update('vendor_onboarding_requests', $fields, 'id = :id', [':id' => $vendorId]);
+        return true;
     }
 
     /**

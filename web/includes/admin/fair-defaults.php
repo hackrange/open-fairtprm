@@ -32,6 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_calculation_de
                 'pii_breach_cost_per_record' => floatval($_POST['pii_breach_cost_per_record'] ?? 160),
                 'spii_breach_cost_per_record' => floatval($_POST['spii_breach_cost_per_record'] ?? 200),
                 'sox_breach_penalty' => floatval($_POST['sox_breach_penalty'] ?? 5000000),
+                'fair_record_scale_threshold' => max(0, intval($_POST['fair_record_scale_threshold'] ?? 10000)),
+                'fair_record_scale_exponent' => max(0.1, min(1.0, floatval($_POST['fair_record_scale_exponent'] ?? 0.76))),
+                'fair_incident_loss_cap' => max(0, floatval($_POST['fair_incident_loss_cap'] ?? 0)),
                 'fair_annual_revenue' => max(0, floatval($_POST['fair_annual_revenue'] ?? 0)),
                 'fair_revenue_cap_pct' => max(0, min(100, floatval($_POST['fair_revenue_cap_pct'] ?? 10))),
                 'fair_ai_enabled' => isset($_POST['fair_ai_enabled']) ? '1' : '0',
@@ -122,6 +125,23 @@ $maxLossExample = ($annualRev > 0) ? '$' . number_format($annualRev * ($capPct /
             <input type="number" id="sox_breach_penalty" name="sox_breach_penalty" class="form-control" step="0.01" min="0" value="<?php echo e($appConfig['sox_breach_penalty'] ?? '5000000'); ?>" required>
             <div class="form-help"><?php echo e(t('admin_fair-defaults.sox_penalty_help')); ?></div>
         </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="fair_record_scale_threshold"><?php echo e(t('admin_fair-defaults.record_scale_threshold_label')); ?></label>
+                <input type="number" id="fair_record_scale_threshold" name="fair_record_scale_threshold" class="form-control" step="1" min="0" value="<?php echo e($appConfig['fair_record_scale_threshold'] ?? '10000'); ?>">
+                <div class="form-help"><?php echo e(t('admin_fair-defaults.record_scale_threshold_help')); ?></div>
+            </div>
+            <div class="form-group">
+                <label for="fair_record_scale_exponent"><?php echo e(t('admin_fair-defaults.record_scale_exponent_label')); ?></label>
+                <input type="number" id="fair_record_scale_exponent" name="fair_record_scale_exponent" class="form-control" step="0.01" min="0.1" max="1" value="<?php echo e($appConfig['fair_record_scale_exponent'] ?? '0.76'); ?>">
+                <div class="form-help"><?php echo e(t('admin_fair-defaults.record_scale_exponent_help')); ?></div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="fair_incident_loss_cap"><?php echo e(t('admin_fair-defaults.incident_loss_cap_label')); ?></label>
+            <input type="number" id="fair_incident_loss_cap" name="fair_incident_loss_cap" class="form-control" step="1" min="0" value="<?php echo e($appConfig['fair_incident_loss_cap'] ?? '0'); ?>">
+            <div class="form-help"><?php echo e(t('admin_fair-defaults.incident_loss_cap_help')); ?></div>
+        </div>
     </div>
 
     <!-- Card 2: Organization Financial Profile -->
@@ -168,7 +188,7 @@ $maxLossExample = ($annualRev > 0) ? '$' . number_format($annualRev * ($capPct /
     <button type="submit" name="update_calculation_defaults" class="btn btn-primary"><?php echo e(t('admin_fair-defaults.save_button')); ?></button>
 </form>
 
-<script>
+<script nonce="<?php echo cspNonce(); ?>">
 // Live preview of revenue cap calculation
 (function() {
     var revInput = document.getElementById('fair_annual_revenue');

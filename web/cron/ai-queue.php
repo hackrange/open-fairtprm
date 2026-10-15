@@ -286,6 +286,25 @@ function postProcessFairAnalysis(string $content, array $context): array
     $aiEstimates['primary_loss_magnitude'] = max(0, floatval($aiEstimates['primary_loss_magnitude'] ?? 0));
     $aiEstimates['secondary_loss_magnitude'] = max(0, floatval($aiEstimates['secondary_loss_magnitude'] ?? 0));
 
+    // Hold the loss magnitudes to within 20% of the server's pre-computed values
+    // (record costs on the calculator's sublinear scale), as the prompt instructs,
+    // then apply the admin's per-incident ceiling, so the AI cannot re-inflate
+    // losses with a linear per-record multiplication.
+    foreach (['primary_loss_magnitude' => 'expected_primary', 'secondary_loss_magnitude' => 'expected_secondary'] as $k => $ck) {
+        if (isset($context[$ck])) {
+            $exp = max(0, floatval($context[$ck]));
+            $aiEstimates[$k] = max($exp * 0.8, min($exp * 1.2, $aiEstimates[$k]));
+        }
+    }
+    $maxLM = floatval($context['max_loss_magnitude'] ?? 0);
+    $lm = $aiEstimates['primary_loss_magnitude'] + $aiEstimates['secondary_loss_magnitude'];
+    if ($maxLM > 0 && $lm > $maxLM) {
+        $f = $maxLM / $lm;
+        $aiEstimates['primary_loss_magnitude'] *= $f;
+        $aiEstimates['secondary_loss_magnitude'] *= $f;
+        $aiEstimates['incident_cap_applied'] = true;
+    }
+
     $aiEstimates['loss_event_frequency'] = min(1.0, $aiEstimates['threat_event_frequency'] * $aiEstimates['vulnerability_score']);
     $lossMagnitude = $aiEstimates['primary_loss_magnitude'] + $aiEstimates['secondary_loss_magnitude'];
     $aiEstimates['annualized_loss_expectancy'] = $aiEstimates['loss_event_frequency'] * $lossMagnitude;

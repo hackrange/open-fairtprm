@@ -189,6 +189,16 @@ function onboardShadowSaasRow($db, array $entry, int $userId): int
     $vendorId = $db->insert('vendor_onboarding_requests', $onboardData);
     $db->query("DELETE FROM shadow_saas WHERE id = ?", [(int)$entry['id']]);
 
+    // Carry the Grip telemetry onto the vendor ("SaaS Data" tab). Without this
+    // the vendor shows only the privacy review until the next sync matches it.
+    if (($entry['source'] ?? '') === 'grip' && !empty($entry['grip_id'])) {
+        try {
+            shadowSaasGrip()->stampVendorFromApp((int)$vendorId, (string)$entry['grip_id']);
+        } catch (Throwable $e) {
+            error_log('Shadow SaaS onboard Grip data for vendor ' . $vendorId . ' failed: ' . $e->getMessage());
+        }
+    }
+
     if (!empty($entry['vendor_domain'])) {
         try {
             require_once __DIR__ . '/includes/classes/FaviconService.php';

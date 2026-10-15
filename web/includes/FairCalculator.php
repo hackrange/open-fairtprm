@@ -144,9 +144,22 @@ class FairCalculator
     // ---------------------------------------------------------------
     // DEFAULT BREACH COSTS (fallbacks if app_config is empty)
     // ---------------------------------------------------------------
-    const DEFAULT_PII_COST  = 160;      // $160/record (Ponemon Institute average)
+    const DEFAULT_PII_COST  = 160;      // $160/record (IBM Cost of a Data Breach 2025, customer PII)
     const DEFAULT_SPII_COST = 200;      // $200/record for SSNs, health data
     const DEFAULT_SOX_PENALTY = 5000000; // $5M flat -- Sarbanes-Oxley doesn't mess around
+
+    // ---------------------------------------------------------------
+    // RECORD-COUNT SCALING
+    // Per-record averages (IBM/Ponemon) come from breaches of a few thousand to
+    // ~100k records and fold fixed response costs into each record, so cost does
+    // NOT grow linearly with record count. Published fits are sublinear: total
+    // cost ~ records^0.76 (Jacobs 2014, Ponemon data) down to ~records^0.3
+    // (Romanosky 2016, Advisen data incl. large breaches). Up to the threshold the
+    // full per-record rate applies; beyond it, cost grows by the exponent.
+    // Exponent 1.0 restores the old linear model.
+    // ---------------------------------------------------------------
+    const DEFAULT_RECORD_SCALE_THRESHOLD = 10000;
+    const DEFAULT_RECORD_SCALE_EXPONENT  = 0.76;
 
     /**
      * Loads configurable defaults from the app_config table.
@@ -163,11 +176,14 @@ class FairCalculator
         try {
             $db = Database::getInstance();
             $config = $db->fetchAll(
-                'SELECT config_key, config_value FROM app_config WHERE config_key IN (?, ?, ?, ?, ?, ?)',
+                'SELECT config_key, config_value FROM app_config WHERE config_key IN (?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
                     'pii_breach_cost_per_record',
                     'spii_breach_cost_per_record',
                     'sox_breach_penalty',
+                    'fair_record_scale_threshold',
+                    'fair_record_scale_exponent',
+                    'fair_incident_loss_cap',
                     'fair_annual_revenue',
                     'fair_revenue_cap_pct',
                     'fair_ai_enabled',
@@ -178,6 +194,9 @@ class FairCalculator
                 'pii_breach_cost_per_record' => self::DEFAULT_PII_COST,
                 'spii_breach_cost_per_record' => self::DEFAULT_SPII_COST,
                 'sox_breach_penalty' => self::DEFAULT_SOX_PENALTY,
+                'fair_record_scale_threshold' => self::DEFAULT_RECORD_SCALE_THRESHOLD,
+                'fair_record_scale_exponent' => self::DEFAULT_RECORD_SCALE_EXPONENT,
+                'fair_incident_loss_cap' => 0,
                 'fair_annual_revenue' => 0,
                 'fair_revenue_cap_pct' => 10,
                 'fair_ai_enabled' => '1',
@@ -191,6 +210,9 @@ class FairCalculator
             $defaults['pii_breach_cost_per_record'] = floatval($defaults['pii_breach_cost_per_record']);
             $defaults['spii_breach_cost_per_record'] = floatval($defaults['spii_breach_cost_per_record']);
             $defaults['sox_breach_penalty'] = floatval($defaults['sox_breach_penalty']);
+            $defaults['fair_record_scale_threshold'] = max(0, intval($defaults['fair_record_scale_threshold']));
+            $defaults['fair_record_scale_exponent'] = max(0.1, min(1.0, floatval($defaults['fair_record_scale_exponent'])));
+            $defaults['fair_incident_loss_cap'] = max(0, floatval($defaults['fair_incident_loss_cap']));
             $defaults['fair_annual_revenue'] = floatval($defaults['fair_annual_revenue']);
             $defaults['fair_revenue_cap_pct'] = floatval($defaults['fair_revenue_cap_pct']);
         } catch (Exception $e) {
@@ -199,6 +221,9 @@ class FairCalculator
                 'pii_breach_cost_per_record' => self::DEFAULT_PII_COST,
                 'spii_breach_cost_per_record' => self::DEFAULT_SPII_COST,
                 'sox_breach_penalty' => self::DEFAULT_SOX_PENALTY,
+                'fair_record_scale_threshold' => self::DEFAULT_RECORD_SCALE_THRESHOLD,
+                'fair_record_scale_exponent' => self::DEFAULT_RECORD_SCALE_EXPONENT,
+                'fair_incident_loss_cap' => 0,
                 'fair_annual_revenue' => 0,
                 'fair_revenue_cap_pct' => 10,
                 'fair_ai_enabled' => '1',
@@ -413,6 +438,27 @@ class FairCalculator
      * 8. Apply risk modifiers + revenue cap
      * 9. Determine risk level and recommended insurance coverage
      */
+    /**
+     * Breach cost of $records records at $rate per record: the full rate up to the
+     * scaling threshold, then sublinear growth (see RECORD-COUNT SCALING). Shared by
+     * the calculator and the AI FAIR prompt so both price records the same way.
+     */
+    public static function recordBreachCost(int $records, float $rate): float
+    {
+        if ($records <= 0 || $rate <= 0) return 0.0;
+        $d = self::getCalculationDefaults();
+        $k = (int)$d['fair_record_scale_threshold'];
+        $e = (float)$d['fair_record_scale_exponent'];
+        if ($k <= 0 || $e >= 1.0 || $records <= $k) return $records * $rate;
+        return $rate * $k * pow($records / $k, $e);
+    }
+
+    /** Per-incident loss magnitude ceiling (primary + secondary); 0 = none. */
+    public static function incidentLossCap(): float
+    {
+        return (float)self::getCalculationDefaults()['fair_incident_loss_cap'];
+    }
+
     public static function calculate(array $data, ?int $vendorOnboardingId = null): array
     {
         $defaults = self::getCalculationDefaults();
@@ -451,6 +497,7 @@ class FairCalculator
             'upguard_available' => $upguardIntel['available'],
             'revenue_cap_applied' => false,
             'revenue_cap_max' => 0,
+            'incident_cap_applied' => false,
         ];
 
         // Step 2: Threat Event Frequency
@@ -495,6 +542,17 @@ class FairCalculator
 
         // Total loss if a breach occurs = primary + secondary
         $results['loss_magnitude'] = $results['primary_loss'] + $results['secondary_loss'];
+
+        // Step 6a: Per-incident ceiling (admin-set; off by default). Scales primary
+        // and secondary down together so their split is kept.
+        $incidentCap = self::incidentLossCap();
+        if ($incidentCap > 0 && $results['loss_magnitude'] > $incidentCap) {
+            $f = $incidentCap / $results['loss_magnitude'];
+            $results['primary_loss'] *= $f;
+            $results['secondary_loss'] *= $f;
+            $results['loss_magnitude'] = $incidentCap;
+            $results['incident_cap_applied'] = true;
+        }
 
         // Step 7: ALE = LEF x Loss Magnitude
         $results['annualized_loss_expectancy'] = $results['loss_event_frequency'] * $results['loss_magnitude'];
@@ -697,12 +755,12 @@ class FairCalculator
 
         // PII breach costs
         $piiRecords = intval($data['pii_record_count'] ?? 0);
-        $results['pii_breach_cost'] = $piiRecords * $defaults['pii_breach_cost_per_record'];
+        $results['pii_breach_cost'] = self::recordBreachCost($piiRecords, $defaults['pii_breach_cost_per_record']);
         $primaryLoss += $results['pii_breach_cost'];
 
         // SPII breach costs
         $spiiRecords = intval($data['spii_record_count'] ?? 0);
-        $results['spii_breach_cost'] = $spiiRecords * $defaults['spii_breach_cost_per_record'];
+        $results['spii_breach_cost'] = self::recordBreachCost($spiiRecords, $defaults['spii_breach_cost_per_record']);
         $primaryLoss += $results['spii_breach_cost'];
 
         // SOX records trigger compliance fine in secondary loss
