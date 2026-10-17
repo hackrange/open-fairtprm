@@ -621,11 +621,11 @@ class ShadowSaasRequestService
         $map = ['approve' => 'approved', 'deny' => 'denied', 'cancel' => 'cancelled'];
         if (!isset($map[$decision])) return false;
         if ($decision === 'cancel' && !in_array($req['status'], self::OPEN_STATUSES, true)) return false;
-        if ($decision === 'deny' && $req['status'] !== 'submitted') return false;
-        // Approve also reverses a denial; the reviewer must say why.
-        if ($decision === 'approve') {
-            if (!in_array($req['status'], ['submitted', 'denied'], true)) return false;
-            if ($req['status'] === 'denied' && trim($notes) === '') return false;
+        // Approve and deny also reverse each other; the reviewer must say why.
+        if ($decision !== 'cancel') {
+            $reverses = $decision === 'approve' ? 'denied' : 'approved';
+            if (!in_array($req['status'], ['submitted', $reverses], true)) return false;
+            if ($req['status'] === $reverses && trim($notes) === '') return false;
         }
         $this->db->update('shadow_saas_requests', [
             'status'       => $map[$decision],
@@ -641,9 +641,25 @@ class ShadowSaasRequestService
     }
 
     /**
+     * Delete a request, and its Personal Use form (answers, files and reminders
+     * cascade). A Business form and its vendor belong to onboarding and stay.
+     * Returns the deleted row (for the audit snapshot), or null if not found.
+     */
+    public function delete(int $id): ?array
+    {
+        $req = $this->get($id);
+        if (!$req) return null;
+        if ($req['assessment_id'] && $req['choice_kind'] === 'personal') {
+            $this->db->query("DELETE FROM vendor_assessments WHERE id = ? AND vendor_request_id IS NULL", [(int)$req['assessment_id']]);
+        }
+        $this->db->query("DELETE FROM shadow_saas_requests WHERE id = ?", [$id]);
+        return $req;
+    }
+
+    /**
      * awaiting_review = submitted, waiting on a reviewer (the nav bubble).
      * awaiting_response = sent and not yet submitted, unexpired.
-     * approved / denied = decided (approve also reverses a denial).
+     * approved / denied = decided (either can be reversed).
      */
     public function counts(): array
     {

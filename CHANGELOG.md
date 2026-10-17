@@ -33,8 +33,11 @@ project adheres to [Semantic Versioning](https://semver.org/).
   is stored, and the link never changes anything on GET, so mail scanners
   cannot start a form. The request list filters by Awaiting review, Waiting on
   user, Approved, Denied, Closed (cancelled or expired) and All, and a whole row
-  opens its request. A denied request can be reversed (approved) with a
-  required reason; the earlier decision stays in the audit log. A Personal Use
+  opens its request. Either decision can be reversed (a denied request
+  approved, an approved one denied) with a required reason; the earlier
+  decision stays in the audit log. Administrators can delete a request, which
+  removes its link and a Personal Use form with its attestation (a Business Use
+  vendor stays in onboarding); the audit log keeps a snapshot. A Personal Use
   review offers Approve and onboard, and an approved request without a vendor
   has an Onboard button: both create a draft vendor owned by the reviewer,
   take the app out of Shadow SaaS, and open the onboarding form.

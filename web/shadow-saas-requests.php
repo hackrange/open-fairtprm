@@ -6,7 +6,7 @@
  * they use it. Each request emails one person a one-time link with the choices
  * set on Admin > Email > Shadow SaaS (e.g. Personal Use opens a User Request
  * form, Business Use opens vendor onboarding). Submitted forms wait here for a
- * decision; a denial can later be reversed (approved) with a reason, and an
+ * decision; either decision can later be reversed with a reason, and an
  * approved request can be onboarded as a vendor from here. The attestation (name, IP address, user agent, time) and the
  * answers are shown on the request so a requester can be held to them.
  *
@@ -14,7 +14,9 @@
  * and the send form (?new=1, optionally &ss=<shadow_saas id>).
  *
  * Access: administrator / cyber_tprm / auditor. Sending, resending,
- * cancelling, deciding and onboarding are administrator / cyber_tprm only.
+ * cancelling, deciding and onboarding are administrator / cyber_tprm only;
+ * deleting is administrator only (it removes the attestation evidence, so the
+ * audit log keeps a snapshot).
  *
  * Author: Tim Rice
  * Disclaimer: Use this software at your own risk. No warranty provided.
@@ -107,6 +109,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $srForm = null;
             }
         }
+    } elseif ($srAction === 'delete') {
+        $rid = (int)($_POST['request_id'] ?? 0);
+        if (!$isAdmin) {
+            http_response_code(403);
+            die(e(t('shadow-saas.access_denied')));
+        }
+        $gone = $svc->delete($rid);
+        if (!$gone) {
+            $error = t('shadow-saas-requests.not_found');
+        } else {
+            $auth->audit($user['id'], 'shadow_saas_request_delete', 'shadow_saas_requests', $rid, [
+                'old' => array_intersect_key($gone, array_flip([
+                    'app_name', 'app_domain', 'requester_email', 'status', 'choice_label', 'choice_kind', 'assessment_id', 'vendor_request_id',
+                    'submitter_first_name', 'submitter_last_name', 'submitter_ip', 'attested_at', 'submitted_at', 'reviewed_by', 'reviewed_at', 'review_notes',
+                ])),
+            ]);
+            $success = t('shadow-saas-requests.deleted', $gone['app_name']);
+        }
     } elseif (in_array($srAction, ['resend', 'cancel', 'approve', 'deny', 'approve_onboard', 'onboard'], true)) {
         $rid = (int)($_POST['request_id'] ?? 0);
         $before = $svc->get($rid);
@@ -128,10 +148,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif (!$srOnboardedVid) {
                 $error = t('shadow-saas-requests.onboard_failed');
             }
-        } elseif ($srAction === 'approve' && $before['status'] === 'denied' && trim((string)($_POST['review_notes'] ?? '')) === '') {
-            $error = t('shadow-saas-requests.reverse_reason_required');
+        } elseif (($srReverse = ($srAction === 'approve' && $before['status'] === 'denied') || ($srAction === 'deny' && $before['status'] === 'approved'))
+                  && trim((string)($_POST['review_notes'] ?? '')) === '') {
+            $error = t('shadow-saas-requests.' . ($srAction === 'approve' ? 'reverse_reason_required' : 'reverse_approval_reason_required'));
         } elseif ($svc->decide($rid, $srAction, (string)($_POST['review_notes'] ?? ''), (int)$user['id'])) {
-            $success = t('shadow-saas-requests.decided_' . ($srAction === 'approve' && $before['status'] === 'denied' ? 'reverse' : $srAction));
+            $success = t('shadow-saas-requests.decided_' . ($srReverse ? ($srAction === 'approve' ? 'reverse' : 'reverse_deny') : $srAction));
         } else {
             $error = t('shadow-saas-requests.decide_failed');
         }
@@ -435,6 +456,19 @@ if ($view === 'detail') {
                 </div>
                 <?php endif; ?>
 
+                <?php if ($isAdmin): ?>
+                <div class="sr-card" id="sr-delete">
+                    <h3><?php echo e(t('shadow-saas-requests.delete_heading')); ?></h3>
+                    <p class="sr-help" style="margin-top:0;"><?php echo e(t('shadow-saas-requests.delete_help')); ?></p>
+                    <form method="POST" action="shadow-saas-requests.php">
+                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                        <input type="hidden" name="request_id" value="<?php echo (int)$r['id']; ?>">
+                        <input type="hidden" name="action" value="delete">
+                        <div class="sr-actions" style="margin-top:0;"><button type="submit" class="pp-btn danger" id="sr-delete-btn" data-confirm="<?php echo e(t('shadow-saas-requests.confirm_delete')); ?>"><?php echo e(t('shadow-saas-requests.delete')); ?></button></div>
+                    </form>
+                </div>
+                <?php endif; ?>
+
                 <?php if ($r['reviewed_at']): ?>
                 <div class="sr-card" id="sr-decision">
                     <h3><?php echo e(t('shadow-saas-requests.decision')); ?></h3>
@@ -443,9 +477,9 @@ if ($view === 'detail') {
                 </div>
                 <?php endif; ?>
 
-                <?php if ($canManage && (in_array($r['status'], ['submitted', 'denied'], true) || in_array($r['status'], ShadowSaasRequestService::OPEN_STATUSES, true))): ?>
+                <?php if ($canManage && (in_array($r['status'], ['submitted', 'denied', 'approved'], true) || in_array($r['status'], ShadowSaasRequestService::OPEN_STATUSES, true))): ?>
                 <div class="sr-card" id="sr-review">
-                    <h3><?php echo e(t('shadow-saas-requests.' . ($r['status'] === 'submitted' ? 'review_heading' : ($r['status'] === 'denied' ? 'reverse_heading' : 'manage_heading')))); ?></h3>
+                    <h3><?php echo e(t('shadow-saas-requests.' . ($r['status'] === 'submitted' ? 'review_heading' : ($r['status'] === 'denied' ? 'reverse_heading' : ($r['status'] === 'approved' ? 'reverse_approval_heading' : 'manage_heading'))))); ?></h3>
                     <form method="POST" action="shadow-saas-requests.php?id=<?php echo (int)$r['id']; ?>" class="sr-form" id="sr-review-form">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="request_id" value="<?php echo (int)$r['id']; ?>">
@@ -464,6 +498,13 @@ if ($view === 'detail') {
                         <textarea id="review_notes" name="review_notes" rows="3" maxlength="4000" required></textarea>
                         <div class="sr-actions">
                             <button type="submit" class="pp-btn ok" data-sr-action="approve" data-sr-confirm="<?php echo e(t('shadow-saas-requests.confirm_reverse')); ?>"><?php echo e(t('shadow-saas-requests.approve')); ?></button>
+                        </div>
+                        <?php elseif ($r['status'] === 'approved'): ?>
+                        <p class="sr-help" style="margin-top:0;"><?php echo e(t('shadow-saas-requests.reverse_approval_help')); ?><?php if ($srVendor): ?> <?php echo e(t('shadow-saas-requests.reverse_approval_vendor')); ?><?php endif; ?></p>
+                        <label for="review_notes"><?php echo e(t('shadow-saas-requests.reverse_reason')); ?></label>
+                        <textarea id="review_notes" name="review_notes" rows="3" maxlength="4000" required></textarea>
+                        <div class="sr-actions">
+                            <button type="submit" class="pp-btn danger" data-sr-action="deny" data-sr-confirm="<?php echo e(t('shadow-saas-requests.confirm_reverse_approval')); ?>"><?php echo e(t('shadow-saas-requests.deny')); ?></button>
                         </div>
                         <?php else: ?>
                         <div class="sr-actions" style="margin-top:0;">
