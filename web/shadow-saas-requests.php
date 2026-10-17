@@ -6,14 +6,15 @@
  * they use it. Each request emails one person a one-time link with the choices
  * set on Admin > Email > Shadow SaaS (e.g. Personal Use opens a User Request
  * form, Business Use opens vendor onboarding). Submitted forms wait here for a
- * decision; the attestation (name, IP address, user agent, time) and the
+ * decision; a denial can later be reversed (approved) with a reason, and an
+ * approved request can be onboarded as a vendor from here. The attestation (name, IP address, user agent, time) and the
  * answers are shown on the request so a requester can be held to them.
  *
- * Views: list (?filter=review|waiting|closed|all, ?q=), one request (?id=),
+ * Views: list (?filter=review|waiting|approved|denied|closed|all, ?q=), one request (?id=),
  * and the send form (?new=1, optionally &ss=<shadow_saas id>).
  *
  * Access: administrator / cyber_tprm / auditor. Sending, resending,
- * cancelling and deciding are administrator / cyber_tprm only.
+ * cancelling, deciding and onboarding are administrator / cyber_tprm only.
  *
  * Author: Tim Rice
  * Disclaimer: Use this software at your own risk. No warranty provided.
@@ -106,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $srForm = null;
             }
         }
-    } elseif (in_array($srAction, ['resend', 'cancel', 'approve', 'deny'], true)) {
+    } elseif (in_array($srAction, ['resend', 'cancel', 'approve', 'deny', 'approve_onboard', 'onboard'], true)) {
         $rid = (int)($_POST['request_id'] ?? 0);
         $before = $svc->get($rid);
         if (!$before) {
@@ -119,16 +120,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $error = t('shadow-saas-requests.resend_failed');
             }
+        } elseif ($srAction === 'onboard' || $srAction === 'approve_onboard') {
+            $ok = $srAction === 'onboard' || $svc->decide($rid, 'approve', (string)($_POST['review_notes'] ?? ''), (int)$user['id']);
+            $srOnboardedVid = $ok ? $svc->onboard($rid, (int)$user['id']) : null;
+            if (!$ok) {
+                $error = t('shadow-saas-requests.decide_failed');
+            } elseif (!$srOnboardedVid) {
+                $error = t('shadow-saas-requests.onboard_failed');
+            }
+        } elseif ($srAction === 'approve' && $before['status'] === 'denied' && trim((string)($_POST['review_notes'] ?? '')) === '') {
+            $error = t('shadow-saas-requests.reverse_reason_required');
         } elseif ($svc->decide($rid, $srAction, (string)($_POST['review_notes'] ?? ''), (int)$user['id'])) {
-            $success = t('shadow-saas-requests.decided_' . $srAction);
+            $success = t('shadow-saas-requests.decided_' . ($srAction === 'approve' && $before['status'] === 'denied' ? 'reverse' : $srAction));
         } else {
             $error = t('shadow-saas-requests.decide_failed');
         }
         if ($before) {
             $auth->audit($user['id'], 'shadow_saas_request_' . $srAction, 'shadow_saas_requests', $rid, [
-                'old' => ['status' => $before['status']],
-                'new' => ['ok' => $error === '', 'notes' => mb_substr((string)($_POST['review_notes'] ?? ''), 0, 500)],
+                // The prior decision is kept here since a reversal overwrites it on the row.
+                'old' => ['status' => $before['status'], 'reviewed_by' => $before['reviewed_by'], 'reviewed_at' => $before['reviewed_at'],
+                          'notes' => $before['review_notes'] !== null ? mb_substr((string)$before['review_notes'], 0, 500) : null],
+                'new' => ['ok' => $error === '', 'notes' => mb_substr((string)($_POST['review_notes'] ?? ''), 0, 500),
+                          'vendor_onboarding_id' => $srOnboardedVid ?? null],
             ]);
+        }
+        // Onboarded: continue in the vendor's onboarding form.
+        if (!empty($srOnboardedVid)) {
+            header('Location: vendor-onboarding.php?id=' . (int)$srOnboardedVid);
+            exit;
         }
         $_GET['id'] = $rid;
     }
@@ -171,7 +190,7 @@ if (!empty($_GET['id'])) {
 }
 
 $srFilter = (string)($_GET['filter'] ?? '');
-if (!in_array($srFilter, ['review', 'waiting', 'closed', 'all'], true)) {
+if (!in_array($srFilter, ['review', 'waiting', 'approved', 'denied', 'closed', 'all'], true)) {
     $srFilter = $srCounts['awaiting_review'] > 0 ? 'review' : 'all';
 }
 $srSearch = mb_substr(trim((string)($_GET['q'] ?? '')), 0, 128);
@@ -289,6 +308,7 @@ if ($view === 'detail') {
         .data-table th { background: #f9fafb; padding: 11px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
         .data-table td { padding: 11px 12px; font-size: 14px; color: #374151; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
         .data-table tr:hover td { background: #f9fafb; }
+        .data-table tr.sr-row { cursor: pointer; }
         .sr-name { font-weight: 600; color: #111827; }
         .sr-sub { font-size: 12px; color: #6b7280; }
         .sr-link { color: var(--theme-button-color); text-decoration: none; }
@@ -402,6 +422,19 @@ if ($view === 'detail') {
                 </div>
                 <?php endif; ?>
 
+                <?php if ($canManage && $r['status'] === 'approved' && !$srVendor): ?>
+                <div class="sr-card" id="sr-onboard">
+                    <h3><?php echo e(t('shadow-saas-requests.onboard_heading')); ?></h3>
+                    <p class="sr-help" style="margin-top:0;"><?php echo e(t('shadow-saas-requests.onboard_help', $r['app_name'])); ?></p>
+                    <form method="POST" action="shadow-saas-requests.php?id=<?php echo (int)$r['id']; ?>">
+                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                        <input type="hidden" name="request_id" value="<?php echo (int)$r['id']; ?>">
+                        <input type="hidden" name="action" value="onboard">
+                        <div class="sr-actions" style="margin-top:0;"><button type="submit" class="pp-btn ok" id="sr-onboard-btn"><?php echo e(t('shadow-saas-requests.onboard')); ?></button></div>
+                    </form>
+                </div>
+                <?php endif; ?>
+
                 <?php if ($r['reviewed_at']): ?>
                 <div class="sr-card" id="sr-decision">
                     <h3><?php echo e(t('shadow-saas-requests.decision')); ?></h3>
@@ -410,9 +443,9 @@ if ($view === 'detail') {
                 </div>
                 <?php endif; ?>
 
-                <?php if ($canManage && ($r['status'] === 'submitted' || in_array($r['status'], ShadowSaasRequestService::OPEN_STATUSES, true))): ?>
+                <?php if ($canManage && (in_array($r['status'], ['submitted', 'denied'], true) || in_array($r['status'], ShadowSaasRequestService::OPEN_STATUSES, true))): ?>
                 <div class="sr-card" id="sr-review">
-                    <h3><?php echo e($r['status'] === 'submitted' ? t('shadow-saas-requests.review_heading') : t('shadow-saas-requests.manage_heading')); ?></h3>
+                    <h3><?php echo e(t('shadow-saas-requests.' . ($r['status'] === 'submitted' ? 'review_heading' : ($r['status'] === 'denied' ? 'reverse_heading' : 'manage_heading')))); ?></h3>
                     <form method="POST" action="shadow-saas-requests.php?id=<?php echo (int)$r['id']; ?>" class="sr-form" id="sr-review-form">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="request_id" value="<?php echo (int)$r['id']; ?>">
@@ -422,7 +455,15 @@ if ($view === 'detail') {
                         <textarea id="review_notes" name="review_notes" rows="3" maxlength="4000"></textarea>
                         <div class="sr-actions">
                             <button type="submit" class="pp-btn ok" data-sr-action="approve"><?php echo e(t('shadow-saas-requests.approve')); ?></button>
+                            <?php if (!$srVendor): ?><button type="submit" class="pp-btn ok" data-sr-action="approve_onboard"><?php echo e(t('shadow-saas-requests.approve_onboard')); ?></button><?php endif; ?>
                             <button type="submit" class="pp-btn danger" data-sr-action="deny" data-sr-confirm="<?php echo e(t('shadow-saas-requests.confirm_deny')); ?>"><?php echo e(t('shadow-saas-requests.deny')); ?></button>
+                        </div>
+                        <?php elseif ($r['status'] === 'denied'): ?>
+                        <p class="sr-help" style="margin-top:0;"><?php echo e(t('shadow-saas-requests.reverse_help')); ?></p>
+                        <label for="review_notes"><?php echo e(t('shadow-saas-requests.reverse_reason')); ?></label>
+                        <textarea id="review_notes" name="review_notes" rows="3" maxlength="4000" required></textarea>
+                        <div class="sr-actions">
+                            <button type="submit" class="pp-btn ok" data-sr-action="approve" data-sr-confirm="<?php echo e(t('shadow-saas-requests.confirm_reverse')); ?>"><?php echo e(t('shadow-saas-requests.approve')); ?></button>
                         </div>
                         <?php else: ?>
                         <div class="sr-actions" style="margin-top:0;">
@@ -502,7 +543,7 @@ if ($view === 'detail') {
                 <?php if (!$usesFairTprm): ?><div class="sr-warn"><?php echo e(t('shadow-saas-requests.method_is_grip_list')); ?></div><?php endif; ?>
                 <div class="sr-bar">
                     <div class="sr-chips">
-                        <?php foreach (['review' => $srCounts['awaiting_review'], 'waiting' => $srCounts['awaiting_response'], 'closed' => null, 'all' => $srCounts['total']] as $fk => $fn): ?>
+                        <?php foreach (['review' => $srCounts['awaiting_review'], 'waiting' => $srCounts['awaiting_response'], 'approved' => $srCounts['approved'], 'denied' => $srCounts['denied'], 'closed' => null, 'all' => $srCounts['total']] as $fk => $fn): ?>
                         <a class="pp-chip<?php echo $srFilter === $fk ? ' on' : ''; ?>" href="?<?php echo e(http_build_query(['filter' => $fk] + ($srSearch !== '' ? ['q' => $srSearch] : []))); ?>"><?php echo e(t('shadow-saas-requests.filter_' . $fk)); ?><?php if ($fn !== null): ?><span class="n"><?php echo (int)$fn; ?></span><?php endif; ?></a>
                         <?php endforeach; ?>
                     </div>
@@ -527,7 +568,7 @@ if ($view === 'detail') {
                     </tr></thead>
                     <tbody>
                     <?php foreach ($srRows as $row): ?>
-                    <tr data-request-id="<?php echo (int)$row['id']; ?>">
+                    <tr class="sr-row" data-request-id="<?php echo (int)$row['id']; ?>" data-href="shadow-saas-requests.php?id=<?php echo (int)$row['id']; ?>">
                         <td><a class="sr-name sr-link" href="shadow-saas-requests.php?id=<?php echo (int)$row['id']; ?>"><?php echo e($row['app_name']); ?></a>
                             <?php if ($row['app_domain']): ?><div class="sr-sub"><?php echo e($row['app_domain']); ?></div><?php endif; ?></td>
                         <td><?php echo e(trim(($row['submitter_first_name'] ?? '') . ' ' . ($row['submitter_last_name'] ?? '')) ?: ($row['requester_name'] ?: '')); ?>

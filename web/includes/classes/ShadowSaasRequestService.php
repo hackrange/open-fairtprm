@@ -426,8 +426,9 @@ class ShadowSaasRequestService
     }
 
     /**
-     * Business Use: a draft vendor onboarding request owned by whoever sent the
-     * request (so it shows up in their vendor list like any onboarding draft).
+     * Business Use (or Onboard on an approved request): a draft vendor
+     * onboarding request owned by $ownerId, normally whoever sent the request
+     * (so it shows up in their vendor list like any onboarding draft).
      * Reuses the draft of an earlier Business choice on this request.
      */
     private function createBusinessDraft(array $req, int $ownerId): int
@@ -452,6 +453,27 @@ class ShadowSaasRequestService
         $this->db->insert('vendor_onboarding_stakeholders', [
             'request_id' => $vid, 'user_id' => $ownerId, 'role' => 'owner', 'assigned_by' => $ownerId,
         ]);
+        return $vid;
+    }
+
+    /**
+     * Onboard the app of an approved request (e.g. Personal Use the company now
+     * wants to own): a draft vendor owned by $by, and the app leaves Shadow SaaS
+     * the same way a Business submission does. Returns the vendor onboarding id,
+     * or null when the request is not approved or already has a vendor.
+     */
+    public function onboard(int $id, int $by): ?int
+    {
+        $req = $this->get($id);
+        if (!$req || $req['status'] !== 'approved') return null;
+        if (!empty($req['vendor_request_id'])) {
+            if ($this->db->fetchOne("SELECT id FROM vendor_onboarding_requests WHERE id = :id", [':id' => (int)$req['vendor_request_id']])) return null;
+            $req['vendor_request_id'] = null;   // the linked vendor was deleted
+        }
+        $vid = $this->createBusinessDraft($req, $by);
+        $this->db->update('shadow_saas_requests', ['vendor_request_id' => $vid], 'id = :id', [':id' => $id]);
+        $req['vendor_request_id'] = $vid;
+        $this->finishBusinessOnboard($req);
         return $vid;
     }
 
@@ -599,7 +621,12 @@ class ShadowSaasRequestService
         $map = ['approve' => 'approved', 'deny' => 'denied', 'cancel' => 'cancelled'];
         if (!isset($map[$decision])) return false;
         if ($decision === 'cancel' && !in_array($req['status'], self::OPEN_STATUSES, true)) return false;
-        if ($decision !== 'cancel' && $req['status'] !== 'submitted') return false;
+        if ($decision === 'deny' && $req['status'] !== 'submitted') return false;
+        // Approve also reverses a denial; the reviewer must say why.
+        if ($decision === 'approve') {
+            if (!in_array($req['status'], ['submitted', 'denied'], true)) return false;
+            if ($req['status'] === 'denied' && trim($notes) === '') return false;
+        }
         $this->db->update('shadow_saas_requests', [
             'status'       => $map[$decision],
             'reviewed_by'  => $by,
@@ -616,19 +643,22 @@ class ShadowSaasRequestService
     /**
      * awaiting_review = submitted, waiting on a reviewer (the nav bubble).
      * awaiting_response = sent and not yet submitted, unexpired.
+     * approved / denied = decided (approve also reverses a denial).
      */
     public function counts(): array
     {
-        $out = ['awaiting_review' => 0, 'awaiting_response' => 0, 'total' => 0];
+        $out = ['awaiting_review' => 0, 'awaiting_response' => 0, 'approved' => 0, 'denied' => 0, 'total' => 0];
         try {
             $r = $this->db->fetchOne(
                 "SELECT SUM(status = 'submitted') AS review,
                         SUM(status IN ('sent','opened','in_progress') AND expires_at > :now) AS response,
+                        SUM(status = 'approved') AS approved,
+                        SUM(status = 'denied') AS denied,
                         COUNT(*) AS total
                    FROM shadow_saas_requests",
                 [':now' => date('Y-m-d H:i:s')]
             );
-            $out = ['awaiting_review' => (int)($r['review'] ?? 0), 'awaiting_response' => (int)($r['response'] ?? 0), 'total' => (int)($r['total'] ?? 0)];
+            $out = ['awaiting_review' => (int)($r['review'] ?? 0), 'awaiting_response' => (int)($r['response'] ?? 0), 'approved' => (int)($r['approved'] ?? 0), 'denied' => (int)($r['denied'] ?? 0), 'total' => (int)($r['total'] ?? 0)];
         } catch (Throwable $e) {
             // Table not created yet (schema update pending).
         }
@@ -647,8 +677,10 @@ class ShadowSaasRequestService
             $where[] = "r.status = 'submitted'";
         } elseif ($filter === 'waiting') {
             $where[] = "r.status IN ('sent','opened','in_progress') AND r.expires_at > :now"; $params[':now'] = $now;
+        } elseif ($filter === 'approved' || $filter === 'denied') {
+            $where[] = 'r.status = :st'; $params[':st'] = $filter;
         } elseif ($filter === 'closed') {
-            $where[] = "(r.status IN ('approved','denied','cancelled') OR (r.status IN ('sent','opened','in_progress') AND r.expires_at <= :now))"; $params[':now'] = $now;
+            $where[] = "(r.status = 'cancelled' OR (r.status IN ('sent','opened','in_progress') AND r.expires_at <= :now))"; $params[':now'] = $now;
         }
         if ($search !== '') {
             $where[] = '(r.app_name LIKE :q1 OR r.app_domain LIKE :q2 OR r.requester_email LIKE :q3)';

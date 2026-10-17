@@ -31,7 +31,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
   awaiting review show as a bubble on Shadow SaaS > Requests in the navigation
   and as a SaaS Requests card on the dashboard. Only a hash of each link token
   is stored, and the link never changes anything on GET, so mail scanners
-  cannot start a form.
+  cannot start a form. The request list filters by Awaiting review, Waiting on
+  user, Approved, Denied, Closed (cancelled or expired) and All, and a whole row
+  opens its request. A denied request can be reversed (approved) with a
+  required reason; the earlier decision stays in the audit log. A Personal Use
+  review offers Approve and onboard, and an approved request without a vendor
+  has an Onboard button: both create a draft vendor owned by the reviewer,
+  take the app out of Shadow SaaS, and open the onboarding form.
 - **Questionnaire respondent for a vendor.** A vendor's Custom Data tab has a
   Questionnaire Respondent name and email with a "use as the default recipient
   for this vendor's assessments" checkbox. Assessments sent to the respondent
