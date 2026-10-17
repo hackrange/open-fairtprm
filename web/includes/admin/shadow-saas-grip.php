@@ -29,6 +29,34 @@ if (!in_array($shadowTab, ['grip', 'hero'], true)) {
 }
 
 // ============================================================================
+// POST: Shadow SaaS request method (Grip justification vs FairTPRM email + forms)
+// ============================================================================
+require_once __DIR__ . '/../classes/ShadowSaasRequestService.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_ss_request_method'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_shadow-saas-grip.invalid_request');
+    } else {
+        $ssrMethod = ($_POST['shadow_saas_request_method'] ?? '') === ShadowSaasRequestService::METHOD_FAIRTPRM
+            ? ShadowSaasRequestService::METHOD_FAIRTPRM : ShadowSaasRequestService::METHOD_GRIP;
+        if ($ssrMethod === ShadowSaasRequestService::METHOD_GRIP && getAppConfig('grip_enabled', '0') !== '1') {
+            $error = t('admin_shadow-saas-grip.ssr_grip_needs_grip');
+        } else {
+            $ssrOld = ShadowSaasRequestService::configuredMethod();
+            if ($db->fetchOne('SELECT id FROM app_config WHERE config_key = :k', [':k' => 'shadow_saas_request_method'])) {
+                $db->update('app_config', ['config_value' => $ssrMethod], 'config_key = :k', [':k' => 'shadow_saas_request_method']);
+            } else {
+                $db->insert('app_config', ['config_key' => 'shadow_saas_request_method', 'config_value' => $ssrMethod, 'is_encrypted' => 0]);
+            }
+            getAppConfig('shadow_saas_request_method', null, true);
+            $auth->audit($user['id'], 'config_update_shadow_saas_request_method', 'app_config', null, [
+                'old' => ['shadow_saas_request_method' => $ssrOld], 'new' => ['shadow_saas_request_method' => $ssrMethod],
+            ]);
+            $success = t('admin_shadow-saas-grip.ssr_saved');
+        }
+    }
+}
+
+// ============================================================================
 // POST: save Grip settings
 // ----------------------------------------------------------------------------
 // The page renders two independent <form>s (connection card + schedule card),
@@ -632,6 +660,35 @@ try {
 <div class="page-header-bar">
     <h1 class="page-title">Shadow SaaS</h1>
     <p><?php echo e(t('admin_shadow-saas-grip.page_intro')); ?></p>
+</div>
+
+<?php
+$ssrConfigured = ShadowSaasRequestService::configuredMethod();
+$ssrEffective  = ShadowSaasRequestService::method();
+$ssrGripOn     = getAppConfig('grip_enabled', '0') === '1';
+?>
+<div class="card" id="ss-request-method-card">
+    <h3><?php echo e(t('admin_shadow-saas-grip.ssr_heading')); ?></h3>
+    <p style="color: #666; line-height: 1.6; margin-top: -4px;"><?php echo e(t('admin_shadow-saas-grip.ssr_intro')); ?></p>
+    <form method="POST" action="admin.php?section=shadow-saas">
+        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+        <div class="form-group">
+            <label class="checkbox-label" style="align-items: flex-start;">
+                <input type="radio" name="shadow_saas_request_method" value="grip" <?php echo $ssrEffective === 'grip' ? 'checked' : ''; ?> <?php echo $ssrGripOn ? '' : 'disabled'; ?>>
+                <span><strong><?php echo e(t('admin_shadow-saas-grip.ssr_grip')); ?></strong><br><span class="form-help" style="margin: 0;"><?php echo e($ssrGripOn ? t('admin_shadow-saas-grip.ssr_grip_help') : t('admin_shadow-saas-grip.ssr_grip_off')); ?></span></span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label" style="align-items: flex-start;">
+                <input type="radio" name="shadow_saas_request_method" value="fairtprm" <?php echo $ssrEffective === 'fairtprm' ? 'checked' : ''; ?>>
+                <span><strong><?php echo e(t('admin_shadow-saas-grip.ssr_fairtprm')); ?></strong><br><span class="form-help" style="margin: 0;"><?php echo t('admin_shadow-saas-grip.ssr_fairtprm_help'); ?></span></span>
+            </label>
+        </div>
+        <?php if ($ssrConfigured !== $ssrEffective): ?>
+        <div class="form-help" style="color: #92400e;"><?php echo e(t('admin_shadow-saas-grip.ssr_fallback_note')); ?></div>
+        <?php endif; ?>
+        <button type="submit" name="update_ss_request_method" class="btn btn-primary"><?php echo e(t('admin_shadow-saas-grip.ssr_save')); ?></button>
+    </form>
 </div>
 
 <!-- Horizontal tab navigation: one tab per Shadow SaaS provider (Grip / Hero). -->

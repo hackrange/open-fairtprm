@@ -13,6 +13,7 @@
  * Disclaimer: Use this software at your own risk. No warranty provided.
  */
 require_once __DIR__ . '/shadow-saas-helpers.php';
+require_once dirname(__DIR__) . '/classes/ShadowSaasRequestService.php';
 $sdHasUpguard   = !empty($entry['current_srs_score']);
 $sdUpguardGrade = $sdHasUpguard ? $srsService->calculateGrade((int)$entry['current_srs_score']) : null;
 $sdHasShodan    = $shodanColumnsExist && !empty($entry['current_shodan_score']);
@@ -134,5 +135,11 @@ $sdAiLevel      = shadowSaasAiLevel($entry);
                                         </ul>
                                     </div>
                                     <?php endif; ?>
+                                    <?php endif; ?>
+                                    <?php if (!empty($canManage) && !empty($entry['id']) && ShadowSaasRequestService::usesFairTprm()): ?>
+                                    <div class="detail-item">
+                                        <span class="detail-label"><?php echo e(t('shadow-saas.detail_request')); ?></span>
+                                        <span class="detail-value"><a href="shadow-saas-requests.php?new=1&amp;ss=<?php echo (int)$entry['id']; ?>" class="ss-send-request"><?php echo e(t('shadow-saas.send_request')); ?></a></span>
+                                    </div>
                                     <?php endif; ?>
                                 </div>

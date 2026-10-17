@@ -68,6 +68,8 @@ class LockdownService
         '/cyber-todo.php',
         '/fourth-party-risk.php',
         '/shadow-saas.php',
+        '/shadow-saas-requests.php',
+        '/shadow-saas-request.php',
         '/procurement-contracts.php',
         '/procurement-cyber-status.php',
         '/reports.php',

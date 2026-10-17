@@ -166,6 +166,7 @@ $categoryLabels = [
     'vendor_assessment' => t('admin_workflows.category_vendor_assessment'),
     'procurement' => t('admin_workflows.category_procurement'),
     'onboarding' => t('admin_workflows.category_onboarding'),
+    'user_request' => t('admin_assessment-templates.cat_user_request'),
 ];
 
 // Build template→questions JSON for dynamic dropdowns

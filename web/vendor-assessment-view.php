@@ -57,6 +57,12 @@ if (!$assessment) {
     header('Location: vendor-assessments.php');
     exit;
 }
+// A Shadow SaaS "User Request" form is an employee's own statement, managed on
+// Shadow SaaS > Requests; only the Shadow SaaS roles may read it (not procurement).
+if (($assessment['template_category'] ?? '') === 'user_request' && !$isAdmin && !$isCyberTPRM && !$isAuditor) {
+    http_response_code(403);
+    die(e(t('vendor-assessment-view.access_denied')));
+}
 
 // Load sections, responses, and completion status for this assessment
 $sections = $assessmentService->getSections($assessment['template_id']);

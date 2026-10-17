@@ -171,10 +171,66 @@ if ($appName === '') $appName = $gripId;
 // re-checked server-side against this app's roster (the checkboxes are only a UI
 // hint). At most 50 users per request.
 $canJustify = ($isAdmin || $isCyberTPRM) && $grip->isEnabled() && GripService::isGripUuid($gripId);
+// With the FairTPRM request method (Admin > Shadow SaaS) the same selection
+// sends FairTPRM's own request email instead of Grip's justification, so it
+// needs the roster but not a Grip write.
+require_once CLASSES_PATH . '/ShadowSaasRequestService.php';
+$ssrFairTprm = ShadowSaasRequestService::usesFairTprm();
+if ($ssrFairTprm) $canJustify = ($isAdmin || $isCyberTPRM) && GripService::isGripUuid($gripId);
 $security   = Security::getInstance();
 $justifyMsg = null;
 $justifyErr = null;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_justification') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_fairtprm_request') {
+    if (!$canJustify || !$ssrFairTprm) {
+        http_response_code(403);
+        die(t('breach-alerts.access_denied'));
+    }
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $justifyErr = t('grip-saas-users.justify_invalid_request');
+    } else {
+        $picked = array_values(array_unique(array_filter(array_map('strval', (array)($_POST['justify_users'] ?? [])), [GripService::class, 'isGripUuid'])));
+        if (!$picked) {
+            $justifyErr = t('grip-saas-users.justify_none_selected');
+        } elseif (count($picked) > ShadowSaasRequestService::MAX_RECIPIENTS) {
+            $justifyErr = t('grip-saas-users.justify_too_many', ShadowSaasRequestService::MAX_RECIPIENTS);
+        } else {
+            // Every picked id is re-checked against this app's roster; the address
+            // and name come from the roster, never from the browser.
+            $roster = [];
+            foreach ($db->fetchAll("SELECT user_grip_id, mail, full_name, display_name FROM shadow_saas_grip_app_users WHERE grip_saas_id = :g", [':g' => $gripId]) as $r) {
+                $r = $grip->decryptGripRow('shadow_saas_grip_app_users', $r);
+                $roster[strtolower((string)$r['user_grip_id'])] = [(string)($r['mail'] ?? ''), trim((string)($r['full_name'] ?? '')) ?: trim((string)($r['display_name'] ?? ''))];
+            }
+            if (array_diff(array_map('strtolower', $picked), array_keys($roster)) && $useLive) {
+                foreach ($grip->getUsersForApp($gripId) as $entry) {
+                    $uid = strtolower((string)($entry['user']['id'] ?? ($entry['saasUser']['userId'] ?? '')));
+                    if ($uid !== '' && !isset($roster[$uid])) $roster[$uid] = [(string)($entry['user']['mail'] ?? ''), trim((string)($entry['user']['fullName'] ?? ''))];
+                }
+            }
+            $emails = []; $names = []; $skipped = 0;
+            foreach ($picked as $uid) {
+                [$mail, $name] = $roster[strtolower($uid)] ?? ['', ''];
+                if (!filter_var($mail, FILTER_VALIDATE_EMAIL)) { $skipped++; continue; }
+                $emails[] = strtolower($mail);
+                if ($name !== '') $names[strtolower($mail)] = $name;
+            }
+            $ssrSvc = new ShadowSaasRequestService($db);
+            $res = $emails ? $ssrSvc->createRequests($ssrSvc->appFromGripId($gripId, $appName, $appDomain), $emails, (string)($_POST['message'] ?? ''), (int)$user['id'], $names)
+                           : ['sent' => 0, 'failed' => 0, 'skipped' => 0, 'error' => 'no_recipients'];
+            $auth->audit($user['id'], 'shadow_saas_request_send', 'shadow_saas_requests', null, [
+                'new' => ['grip_saas_id' => $gripId, 'sent' => $res['sent'], 'failed' => $res['failed'], 'already_open' => $res['skipped'], 'no_email' => $skipped, 'error' => $res['error']],
+            ]);
+            if ($res['error'] === 'no_choices') {
+                $justifyErr = t('shadow-saas-requests.no_choices');
+            } else {
+                if ($res['sent'] > 0) $justifyMsg = t('grip-saas-users.ssr_sent', $res['sent']);
+                if ($res['skipped'] > 0) $justifyMsg = trim(($justifyMsg ?? '') . ' ' . t('shadow-saas-requests.skipped_n', $res['skipped']));
+                if ($res['failed'] > 0 || $skipped > 0) $justifyErr = t('grip-saas-users.justify_failed', $res['failed'] + $skipped);
+            }
+        }
+    }
+}
+if (!$ssrFairTprm && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_justification') {
     if (!$canJustify) {
         http_response_code(403);
         die(t('breach-alerts.access_denied'));
@@ -218,8 +274,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
         }
     }
 }
+$ssrLatest = [];
+if ($ssrFairTprm) {
+    try { $ssrLatest = (new ShadowSaasRequestService($db))->latestByEmailForGripApp($gripId); } catch (Throwable $e) {}
+}
 $justifications = [];
-if ($canJustify || $isAuditor || $isAdmin || $isCyberTPRM) {
+if (!$ssrFairTprm && ($canJustify || $isAuditor || $isAdmin || $isCyberTPRM)) {
     // Live mode: refresh this app's open requests before showing them.
     if ($useLive && $grip->isEnabled()) {
         try { $grip->refreshJustificationStatuses($gripId, 50); } catch (Throwable $e) { error_log('justification status refresh failed: ' . $e->getMessage()); }
@@ -463,6 +523,12 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
         .gsu-j-responded { background: #dcfce7; color: #166534; }
         .gsu-j-canceled { background: #f3f4f6; color: #6b7280; }
         .gsu-j-failed { background: #fee2e2; color: #991b1b; }
+        .gsu-j-opened { background: #dbeafe; color: #1e40af; }
+        .gsu-j-inprogress { background: #ede9fe; color: #5b21b6; }
+        .gsu-j-submitted { background: #fef3c7; color: #92400e; }
+        .gsu-j-approved { background: #dcfce7; color: #166534; }
+        .gsu-j-denied { background: #fee2e2; color: #991b1b; }
+        .gsu-j-cancelled, .gsu-j-expired { background: #f3f4f6; color: #6b7280; }
         .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; }
         .empty-state h3 { color: #374151; margin-bottom: 8px; }
 
@@ -563,6 +629,15 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                     <?php if ($canJustify): ?>
                     <form method="post" id="justifyForm">
                     <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                    <?php if ($ssrFairTprm): ?>
+                    <input type="hidden" name="action" value="send_fairtprm_request">
+                    <div class="gsu-justify-bar">
+                        <span><?php echo e(t('grip-saas-users.ssr_intro')); ?></span>
+                        <input type="text" name="message" maxlength="2000" placeholder="<?php echo e(t('grip-saas-users.ssr_message_placeholder')); ?>" aria-label="<?php echo e(t('shadow-saas-requests.message')); ?>" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;min-width:240px;flex:1;">
+                        <button type="submit" id="justifyBtn" data-confirm="<?php echo e(t('grip-saas-users.ssr_confirm')); ?>"><?php echo e(t('grip-saas-users.ssr_button')); ?></button>
+                        <a class="gsu-sub" href="shadow-saas-requests.php" style="color:var(--theme-button-color);"><?php echo e(t('grip-saas-users.ssr_view_requests')); ?></a>
+                    </div>
+                    <?php else: ?>
                     <input type="hidden" name="action" value="send_justification">
                     <div class="gsu-justify-bar">
                         <span><?php echo e(t('grip-saas-users.justify_intro')); ?></span>
@@ -575,6 +650,7 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                         <button type="submit" id="justifyBtn" data-confirm="<?php echo e(t('grip-saas-users.justify_confirm')); ?>"><?php echo e(t('grip-saas-users.justify_button')); ?></button>
                         <span class="gsu-sub"><?php echo e(t('grip-saas-users.justify_channel_help')); ?></span>
                     </div>
+                    <?php endif; ?>
                     <?php endif; ?>
                     <div style="overflow-x:auto;">
                     <table class="data-table">
@@ -645,7 +721,11 @@ function gsuSortHeader(string $label, string $col, string $gripId, string $curCo
                                 <td><?php echo $platforms ? e(implode(', ', $platforms)) : '<span style="color:#9ca3af;">—</span>'; ?></td>
                                 <td><?php echo isset($u['number_of_saas']) && $u['number_of_saas'] !== null ? (int)$u['number_of_saas'] : '<span style="color:#9ca3af;">—</span>'; ?></td>
                                 <td>
-                                    <?php $jr = $justifications[strtolower((string)($u['user_grip_id'] ?? ''))] ?? null; if ($jr): ?>
+                                    <?php $sr = $ssrFairTprm ? ($ssrLatest[strtolower($mail)] ?? null) : null; if ($sr): ?>
+                                    <a class="gsu-pill gsu-j-<?php echo e(preg_replace('/[^a-z]/', '', ShadowSaasRequestService::displayStatus($sr))); ?>" href="shadow-saas-requests.php?id=<?php echo (int)$sr['id']; ?>" style="text-decoration:none;"><?php echo e(t('shadow-saas-requests.status_' . ShadowSaasRequestService::displayStatus($sr))); ?></a>
+                                    <div class="gsu-sub">FairTPRM &middot; <?php echo gsuDate($sr['sent_at'] ?? null); ?></div>
+                                    <?php elseif ($ssrFairTprm): ?><span style="color:#9ca3af;">—</span>
+                                    <?php elseif (($jr = $justifications[strtolower((string)($u['user_grip_id'] ?? ''))] ?? null)): ?>
                                     <span class="gsu-pill gsu-j-<?php echo e(strtolower(preg_replace('/[^a-z]/i', '', (string)$jr['status']))); ?>" title="<?php echo e(trim(($jr['sent_by_name'] ?? '') . ' ' . ($jr['last_error'] ?? ''))); ?>"><?php echo e(t('grip-saas-users.justify_status_' . strtolower(preg_replace('/[^a-z]/i', '', (string)$jr['status'])))); ?></span>
                                     <div class="gsu-sub"><?php echo e($jr['platform']); ?> &middot; <?php echo gsuDate($jr['created_at'] ?? null); ?></div>
                                     <?php else: ?><span style="color:#9ca3af;">—</span><?php endif; ?>

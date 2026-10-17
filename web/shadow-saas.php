@@ -125,66 +125,7 @@ function shadowSaasAvgScoreSql(bool $shodanColumnsExist, int $upguardMaxScore): 
  */
 function onboardShadowSaasRow($db, array $entry, int $userId): int
 {
-    $onboardData = [
-        'status' => 'draft',
-        'created_by' => $userId,
-        'vendor_name' => $entry['vendor_name'],
-        'vendor_domain' => $entry['vendor_domain'],
-        'relationship_manager' => $entry['relationship_manager'],
-        'vendor_tier' => '3',
-        'rescore_status' => 'rescoring',
-        'rescore_started_at' => date('Y-m-d H:i:s'),
-    ];
-
-    if (!empty($entry['description'])) {
-        $onboardData['product_service_description'] = $entry['description'];
-    }
-    if (!empty($entry['number_of_users'])) {
-        $onboardData['target_user_count'] = (int)$entry['number_of_users'];
-    }
-
-    if (!empty($entry['risk_type'])) {
-        $riskTypes = array_map('trim', explode(';', $entry['risk_type']));
-        foreach ($riskTypes as $rt) {
-            $rtLower = strtolower($rt);
-            if ($rtLower === 'shadow it') {
-                $onboardData['is_saas'] = 'yes';
-            } elseif ($rtLower === 'data leakage') {
-                $onboardData['confidential_info_shared'] = 'yes';
-                $onboardData['confidential_info_justification'] = 'Shadow SaaS risk assessment identified data leakage risk.';
-            } elseif ($rtLower === 'account takeover risk') {
-                $onboardData['remote_network_access'] = 'yes';
-                $onboardData['remote_access_justification'] = 'Shadow SaaS risk assessment identified account takeover risk.';
-            } elseif ($rtLower === 'intellectual property exposure') {
-                $onboardData['source_code_access'] = 'yes';
-                $onboardData['source_code_justification'] = 'Shadow SaaS risk assessment identified intellectual property exposure risk.';
-            } elseif ($rtLower === 'third-party breach risk') {
-                $onboardData['offsite_data_hosting'] = 'yes';
-                $onboardData['offsite_data_justification'] = 'Shadow SaaS risk assessment identified third-party breach risk.';
-            }
-        }
-    }
-
-    if (!empty($entry['breaches_in_three_years']) && (int)$entry['breaches_in_three_years'] > 0) {
-        $breachCount = (int)$entry['breaches_in_three_years'];
-        $onboardData['pii_phi_exchange'] = 'yes';
-        $onboardData['pii_phi_justification'] = "Vendor has had {$breachCount} breach(es) in the past 3 years.";
-    }
-
-    if (!empty($entry['filesharing']) && strtolower($entry['filesharing']) === 'yes') {
-        if (empty($onboardData['confidential_info_shared'])) {
-            $onboardData['confidential_info_shared'] = 'yes';
-        }
-    }
-
-    if (!empty($entry['mfasupport'])) {
-        $mfaLower = strtolower($entry['mfasupport']);
-        if ($mfaLower === 'no') {
-            $onboardData['saml_sso_support'] = 'no';
-        } elseif ($mfaLower === 'yes') {
-            $onboardData['saml_sso_support'] = 'yes';
-        }
-    }
+    $onboardData = shadowSaasOnboardDraftData($entry, $userId);
 
     $vendorId = $db->insert('vendor_onboarding_requests', $onboardData);
     $db->query("DELETE FROM shadow_saas WHERE id = ?", [(int)$entry['id']]);
@@ -395,6 +336,7 @@ if ($tableExists) {
 // Handle POST requests (write actions require manage privilege; auditors are read-only)
 require_once __DIR__ . '/includes/classes/GripService.php';
 require_once __DIR__ . '/includes/partials/shadow-saas-helpers.php';
+require_once __DIR__ . '/includes/classes/ShadowSaasRequestService.php';
 require_once __DIR__ . '/includes/classes/VendorPrivacyService.php';
 $gripEnabled = (function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1');
 // "Review privacy now" is offered when the AI privacy review is switched on.
@@ -1690,7 +1632,7 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
             <?php $currentPage = 'shadow_saas'; include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
             <main class="main-content">
-        <?php if ($gripEnabled): ?>
+        <?php if ($gripEnabled || ShadowSaasRequestService::usesFairTprm()): ?>
         <?php $ssTab = 'applications'; include __DIR__ . '/includes/partials/shadow-saas-tabs.php'; ?>
         <?php endif; ?>
         <?php if (!$tableExists): ?>

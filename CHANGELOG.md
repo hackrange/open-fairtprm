@@ -12,6 +12,26 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Shadow SaaS requests handled in FairTPRM.** Admin > Shadow SaaS has a
+  Shadow SaaS Request Method: Grip (Grip's own justification, as before, only
+  while Grip is enabled) or FairTPRM. With FairTPRM, Shadow SaaS > Requests (and
+  the Grip Users page, and "Ask the users how they use it" in an app's details)
+  emails each app user a personal link offering one button per configured
+  choice, by default Personal Use and Business Use. Personal Use opens a form
+  from the new "User Request" template category (default "Shadow SaaS - Personal
+  Use": what the app is used for, what data goes into it, whether the company
+  pays and how much). It ends with an attestation (first name, last name, a
+  configurable "I attest" statement) that records the IP address, browser and
+  time; the email is the address the request was sent to and cannot be changed.
+  Business Use opens the onboarding form on a draft vendor owned by the sender,
+  and on submit the app moves from Shadow SaaS into onboarding review. Email
+  Settings > Shadow SaaS sets the reviewers notified on submission, the choices
+  and the form each opens, the link expiry and the attestation text, with two
+  new editable templates (the request, and "request submitted"). Requests
+  awaiting review show as a bubble on Shadow SaaS > Requests in the navigation
+  and as a SaaS Requests card on the dashboard. Only a hash of each link token
+  is stored, and the link never changes anything on GET, so mail scanners
+  cannot start a form.
 - **Questionnaire respondent for a vendor.** A vendor's Custom Data tab has a
   Questionnaire Respondent name and email with a "use as the default recipient
   for this vendor's assessments" checkbox. Assessments sent to the respondent

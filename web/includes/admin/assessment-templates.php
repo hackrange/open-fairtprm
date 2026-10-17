@@ -122,6 +122,7 @@ $categoryLabels = [
     'vendor_assessment' => t('admin_assessment-templates.cat_vendor_assessment'),
     'procurement' => t('admin_assessment-templates.cat_procurement'),
     'onboarding' => t('admin_assessment-templates.cat_onboarding'),
+    'user_request' => t('admin_assessment-templates.cat_user_request'),
 ];
 ?>
 
@@ -201,7 +202,7 @@ $categoryLabels = [
                         <input type="hidden" name="template_id" value="<?php echo $t['id']; ?>">
                         <button type="submit" name="duplicate_template" class="btn btn-sm" style="background:#8b5cf6;color:white;"><?php echo e(t('admin_assessment-templates.action_duplicate')); ?></button>
                     </form>
-                    <?php $builtinSlugs = ['iso-27001-2022','tier-2-vendor','vendor-onboarding','ai-usage'];
+                    <?php $builtinSlugs = ['iso-27001-2022','tier-2-vendor','vendor-onboarding','ai-usage','shadow-saas-personal-use'];
                     if (!in_array($t['slug'], $builtinSlugs) && $assessmentService->canDeleteTemplate($t['id'])): ?>
                     <form method="POST" style="display:inline;" data-confirm="<?php echo e(t('admin_assessment-templates.confirm_delete')); ?>">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -238,7 +239,9 @@ $categoryLabels = [
                     <option value="vendor_assessment"><?php echo e(t('admin_assessment-templates.cat_vendor_assessment')); ?></option>
                     <option value="procurement"><?php echo e(t('admin_assessment-templates.cat_procurement')); ?></option>
                     <option value="onboarding"><?php echo e(t('admin_assessment-templates.cat_onboarding')); ?></option>
+                    <option value="user_request"><?php echo e(t('admin_assessment-templates.cat_user_request')); ?></option>
                 </select>
+                <div class="form-help"><?php echo e(t('admin_assessment-templates.cat_user_request_help')); ?></div>
             </div>
             <div id="certUploadGroup">
                 <div class="form-group">
@@ -402,6 +405,7 @@ foreach ($editTemplate['sections'] as $sec) {
                     <option value="vendor_assessment" <?php echo ($editTemplate['category'] ?? '') === 'vendor_assessment' ? 'selected' : ''; ?>><?php echo e(t('admin_assessment-templates.cat_vendor_assessment')); ?></option>
                     <option value="procurement" <?php echo ($editTemplate['category'] ?? '') === 'procurement' ? 'selected' : ''; ?>><?php echo e(t('admin_assessment-templates.cat_procurement')); ?></option>
                     <option value="onboarding" <?php echo ($editTemplate['category'] ?? '') === 'onboarding' ? 'selected' : ''; ?>><?php echo e(t('admin_assessment-templates.cat_onboarding')); ?></option>
+                    <option value="user_request" <?php echo ($editTemplate['category'] ?? '') === 'user_request' ? 'selected' : ''; ?>><?php echo e(t('admin_assessment-templates.cat_user_request')); ?></option>
                 </select>
             </div>
         </div>

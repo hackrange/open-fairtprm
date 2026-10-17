@@ -249,6 +249,22 @@ if (!isset($_sidebarDataLoaded)) {
         }
     }
 
+    // Shadow SaaS requests: submitted forms awaiting review (the Requests bubble),
+    // and whether the Requests entry shows at all (FairTPRM method, or history).
+    if (!isset($shadowSaasRequestCount)) {
+        $shadowSaasRequestCount = 0;
+        $shadowSaasRequestsNav = false;
+        if ($isAdmin || $isCyberTPRM || $isAuditor) {
+            try {
+                require_once __DIR__ . '/classes/ShadowSaasRequestService.php';
+                $_ssrCounts = (new ShadowSaasRequestService($db))->counts();
+                $shadowSaasRequestCount = $_ssrCounts['awaiting_review'];
+                $shadowSaasRequestsNav = ShadowSaasRequestService::usesFairTprm() || $_ssrCounts['total'] > 0;
+            } catch (Throwable $e) {}
+        }
+    }
+    if (!isset($shadowSaasRequestsNav)) $shadowSaasRequestsNav = false;
+
     // Breach alert count
     if (!isset($breachAlertCount)) {
         $breachAlertCount = 0;
@@ -687,7 +703,7 @@ $_isActive = function($page) use ($currentPage) {
     <?php endif; ?>
 
     <?php if ($showFairModule || $showSRSModule): ?>
-    <details class="sidebar-section"<?php echo $_isActive(['fair', 'srs', 'vendor_domains', '4th_party', 'cve_search', 'shadow_saas', 'shadow_saas_new', 'shadow_saas_posture', 'shadow_saas_itdr', 'shadow_saas_ai_apps', 'shadow_saas_ai_agents', 'shadow_saas_ai_dashboard', 'shadow_saas_compliance']) ? ' open' : ''; ?>>
+    <details class="sidebar-section"<?php echo $_isActive(['fair', 'srs', 'vendor_domains', '4th_party', 'cve_search', 'shadow_saas', 'shadow_saas_new', 'shadow_saas_posture', 'shadow_saas_itdr', 'shadow_saas_ai_apps', 'shadow_saas_ai_agents', 'shadow_saas_ai_dashboard', 'shadow_saas_compliance', 'shadow_saas_requests']) ? ' open' : ''; ?>>
         <summary class="sidebar-section-title"><?php echo e(t('nav.section.modules')); ?></summary>
         <ul class="sidebar-nav">
             <?php if ($showFairModule): ?>
@@ -744,7 +760,7 @@ $_isActive = function($page) use ($currentPage) {
                 $_gripNav = function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1';
                 $_ssAiPages = ['shadow_saas_ai_dashboard', 'shadow_saas_ai_apps', 'shadow_saas_ai_agents'];
                 $_ssPosturePages = ['shadow_saas_compliance', 'shadow_saas_posture'];
-                $_ssPages = array_merge(['shadow_saas', 'shadow_saas_new', 'shadow_saas_itdr'], $_ssAiPages, $_ssPosturePages);
+                $_ssPages = array_merge(['shadow_saas', 'shadow_saas_new', 'shadow_saas_itdr', 'shadow_saas_requests'], $_ssAiPages, $_ssPosturePages);
             ?>
             <?php if ($_gripNav): ?>
             <li class="sb-group">
@@ -779,6 +795,25 @@ $_isActive = function($page) use ($currentPage) {
                             </details>
                         </li>
                         <li><a href="shadow-saas-itdr.php"<?php echo $_isActive('shadow_saas_itdr') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_itdr')); ?></span></a></li>
+                        <?php if ($shadowSaasRequestsNav): ?>
+                        <li><a href="shadow-saas-requests.php"<?php echo $_isActive('shadow_saas_requests') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_requests')); ?></span><?php if ($shadowSaasRequestCount > 0): ?><span class="badge"><?php echo (int)$shadowSaasRequestCount; ?></span><?php endif; ?></a></li>
+                        <?php endif; ?>
+                    </ul>
+                </details>
+            </li>
+            <?php elseif ($shadowSaasRequestsNav): ?>
+            <li class="sb-group">
+                <details<?php echo $_isActive(['shadow_saas', 'shadow_saas_requests']) ? ' open' : ''; ?>>
+                    <summary class="sb-group-head<?php echo $_isActive(['shadow_saas', 'shadow_saas_requests']) ? ' sb-group-active' : ''; ?>">
+                        <span class="icon"><img src="app/icons/alert-square.svg" alt="" width="18" height="18"></span>
+                        <span><?php echo e(t('nav.shadow_saas')); ?></span>
+                        <?php if ($shadowSaasCount + $shadowSaasRequestCount > 0): ?>
+                        <span class="badge"><?php echo $shadowSaasCount + $shadowSaasRequestCount; ?></span>
+                        <?php endif; ?>
+                    </summary>
+                    <ul class="sidebar-nav sb-sub">
+                        <li><a href="shadow-saas.php"<?php echo $_isActive('shadow_saas') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_applications')); ?></span><?php if ($shadowSaasCount > 0): ?><span class="badge"><?php echo (int)$shadowSaasCount; ?></span><?php endif; ?></a></li>
+                        <li><a href="shadow-saas-requests.php"<?php echo $_isActive('shadow_saas_requests') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_requests')); ?></span><?php if ($shadowSaasRequestCount > 0): ?><span class="badge"><?php echo (int)$shadowSaasRequestCount; ?></span><?php endif; ?></a></li>
                     </ul>
                 </details>
             </li>

@@ -74,6 +74,16 @@ if (($isCompleted || $isExpired) && !$isPrivilegedViewer) {
 // can still review or correct the responses.
 // ============================================================================
 
+// A Shadow SaaS "User Request" form (an employee explaining how they use an
+// app): the attestation asks for first and last name and the configured
+// statement; the email is the one the request was sent to and cannot be edited.
+$isUserRequest = (($assessment['template_category'] ?? '') === 'user_request');
+$userRequestAttestation = '';
+if ($isUserRequest) {
+    require_once __DIR__ . '/includes/classes/ShadowSaasRequestService.php';
+    $userRequestAttestation = ShadowSaasRequestService::attestationText();
+}
+
 // Check if they already submitted this thing. If so, show a "thanks" message.
 // The ?edit=1 parameter allows re-editing a completed assessment (used by internal Edit button)
 // without changing the assessment status -- status stays completed until re-submitted.
@@ -900,7 +910,7 @@ $csrfToken = $security->generateCSRFToken();
         </div>
         <?php endif; ?>
         <h1><?php echo htmlspecialchars($assessment['template_name']); ?></h1>
-        <p><?php echo e(t('vendor-assessment.vendor_label', $assessment['vendor_name'])); ?></p>
+        <p><?php echo e(t($isUserRequest ? 'vendor-assessment.application_label' : 'vendor-assessment.vendor_label', $assessment['vendor_name'])); ?></p>
     </header>
 
     <div class="container">
@@ -1412,6 +1422,27 @@ $csrfToken = $security->generateCSRFToken();
             <h2><?php echo e(t('vendor-assessment.submit_assessment')); ?></h2>
             <p style="color: #666; margin: 0 0 16px 0; font-size: 0.95em;"><?php echo e(t('vendor-assessment.submit_modal_desc')); ?></p>
             <div style="text-align:left; display:grid; gap:12px;">
+            <?php if ($isUserRequest): ?>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div>
+                        <label for="att_first" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;"><?php echo e(t('vendor-assessment.first_name')); ?> <span style="color:#ef4444;">*</span></label>
+                        <input type="text" id="att_first" class="form-control" style="width:100%;" autocomplete="given-name" maxlength="100">
+                    </div>
+                    <div>
+                        <label for="att_last" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;"><?php echo e(t('vendor-assessment.last_name')); ?> <span style="color:#ef4444;">*</span></label>
+                        <input type="text" id="att_last" class="form-control" style="width:100%;" autocomplete="family-name" maxlength="100">
+                    </div>
+                </div>
+                <div>
+                    <label for="att_email" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;"><?php echo e(t('vendor-assessment.email_address')); ?></label>
+                    <input type="email" id="att_email" class="form-control" style="width:100%; background:#f3f4f6;" readonly value="<?php echo e($assessment['vendor_email'] ?? ''); ?>">
+                </div>
+                <label style="display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:1.4;">
+                    <input type="checkbox" id="att_agree" style="margin-top:3px; flex-shrink:0;">
+                    <span><?php echo e($userRequestAttestation); ?></span>
+                </label>
+                <div style="font-size:12px; color:#6b7280;"><?php echo e(t('vendor-assessment.user_request_recorded')); ?></div>
+            <?php else: ?>
                 <div>
                     <label for="att_name" style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;"><?php echo e(t('vendor-assessment.full_name')); ?> <span style="color:#ef4444;">*</span></label>
                     <input type="text" id="att_name" class="form-control" style="width:100%;" autocomplete="name">
@@ -1435,6 +1466,7 @@ $csrfToken = $security->generateCSRFToken();
                     <input type="checkbox" id="att_agree" style="margin-top:3px; flex-shrink:0;">
                     <span><?php echo e(t('vendor-assessment.attestation_certify_assessment')); ?></span>
                 </label>
+            <?php endif; ?>
                 <div id="attError" style="display:none; color:#ef4444; font-size:13px;"></div>
             </div>
             <div class="modal-footer" style="margin-top:18px;">
@@ -1918,7 +1950,23 @@ $csrfToken = $security->generateCSRFToken();
     // No take-backs after this one.
     // ========================================================================
     // Validate the submitter attestation fields shown in the submit modal.
+    var isUserRequest = <?php echo $isUserRequest ? 'true' : 'false'; ?>;
     function validateAttestation() {
+        if (isUserRequest) {
+            var urErr = document.getElementById('attError');
+            if (!(document.getElementById('att_first').value || '').trim() || !(document.getElementById('att_last').value || '').trim()) {
+                urErr.textContent = <?php echo json_encode(t('vendor-assessment.user_request_name_required')); ?>;
+                urErr.style.display = 'block';
+                return false;
+            }
+            if (!document.getElementById('att_agree').checked) {
+                urErr.textContent = <?php echo json_encode(t('vendor-assessment.user_request_attest_required')); ?>;
+                urErr.style.display = 'block';
+                return false;
+            }
+            urErr.style.display = 'none';
+            return true;
+        }
         var name = (document.getElementById('att_name').value || '').trim();
         var title = (document.getElementById('att_title').value || '').trim();
         var email = (document.getElementById('att_email').value || '').trim();
@@ -1982,10 +2030,15 @@ $csrfToken = $security->generateCSRFToken();
             const formData = new FormData();
             formData.append('csrf_token', csrfToken);
             formData.append('assessment_uuid', assessmentUUID);
-            formData.append('submitter_name', (document.getElementById('att_name').value || '').trim());
-            formData.append('submitter_title', (document.getElementById('att_title').value || '').trim());
-            formData.append('submitter_email', (document.getElementById('att_email').value || '').trim());
-            formData.append('submitter_phone', (document.getElementById('att_phone').value || '').trim());
+            if (isUserRequest) {
+                formData.append('submitter_first_name', (document.getElementById('att_first').value || '').trim());
+                formData.append('submitter_last_name', (document.getElementById('att_last').value || '').trim());
+            } else {
+                formData.append('submitter_name', (document.getElementById('att_name').value || '').trim());
+                formData.append('submitter_title', (document.getElementById('att_title').value || '').trim());
+                formData.append('submitter_email', (document.getElementById('att_email').value || '').trim());
+                formData.append('submitter_phone', (document.getElementById('att_phone').value || '').trim());
+            }
             formData.append('submitter_attested', document.getElementById('att_agree').checked ? '1' : '0');
 
             const response = await fetch('/api/assessment-submit.php', {

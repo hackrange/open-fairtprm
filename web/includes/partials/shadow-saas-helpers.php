@@ -220,6 +220,80 @@ if (!function_exists('vendorPrivacyQueuedPill')) {
     }
 }
 
+if (!function_exists('shadowSaasOnboardDraftData')) {
+    /**
+     * The draft vendor_onboarding_requests row for a Shadow SaaS app: name,
+     * domain, RM, users, and the onboarding answers implied by its risk types.
+     * Shared by Onboard / Allow (shadow-saas.php) and the Business Use path of
+     * a Shadow SaaS request (ShadowSaasRequestService).
+     */
+    function shadowSaasOnboardDraftData(array $entry, int $userId): array
+    {
+        $onboardData = [
+            'status' => 'draft',
+            'created_by' => $userId,
+            'vendor_name' => $entry['vendor_name'],
+            'vendor_domain' => $entry['vendor_domain'],
+            'relationship_manager' => $entry['relationship_manager'],
+            'vendor_tier' => '3',
+            'rescore_status' => 'rescoring',
+            'rescore_started_at' => date('Y-m-d H:i:s'),
+        ];
+
+        if (!empty($entry['description'])) {
+            $onboardData['product_service_description'] = $entry['description'];
+        }
+        if (!empty($entry['number_of_users'])) {
+            $onboardData['target_user_count'] = (int)$entry['number_of_users'];
+        }
+
+        if (!empty($entry['risk_type'])) {
+            $riskTypes = array_map('trim', explode(';', $entry['risk_type']));
+            foreach ($riskTypes as $rt) {
+                $rtLower = strtolower($rt);
+                if ($rtLower === 'shadow it') {
+                    $onboardData['is_saas'] = 'yes';
+                } elseif ($rtLower === 'data leakage') {
+                    $onboardData['confidential_info_shared'] = 'yes';
+                    $onboardData['confidential_info_justification'] = 'Shadow SaaS risk assessment identified data leakage risk.';
+                } elseif ($rtLower === 'account takeover risk') {
+                    $onboardData['remote_network_access'] = 'yes';
+                    $onboardData['remote_access_justification'] = 'Shadow SaaS risk assessment identified account takeover risk.';
+                } elseif ($rtLower === 'intellectual property exposure') {
+                    $onboardData['source_code_access'] = 'yes';
+                    $onboardData['source_code_justification'] = 'Shadow SaaS risk assessment identified intellectual property exposure risk.';
+                } elseif ($rtLower === 'third-party breach risk') {
+                    $onboardData['offsite_data_hosting'] = 'yes';
+                    $onboardData['offsite_data_justification'] = 'Shadow SaaS risk assessment identified third-party breach risk.';
+                }
+            }
+        }
+
+        if (!empty($entry['breaches_in_three_years']) && (int)$entry['breaches_in_three_years'] > 0) {
+            $breachCount = (int)$entry['breaches_in_three_years'];
+            $onboardData['pii_phi_exchange'] = 'yes';
+            $onboardData['pii_phi_justification'] = "Vendor has had {$breachCount} breach(es) in the past 3 years.";
+        }
+
+        if (!empty($entry['filesharing']) && strtolower($entry['filesharing']) === 'yes') {
+            if (empty($onboardData['confidential_info_shared'])) {
+                $onboardData['confidential_info_shared'] = 'yes';
+            }
+        }
+
+        if (!empty($entry['mfasupport'])) {
+            $mfaLower = strtolower($entry['mfasupport']);
+            if ($mfaLower === 'no') {
+                $onboardData['saml_sso_support'] = 'no';
+            } elseif ($mfaLower === 'yes') {
+                $onboardData['saml_sso_support'] = 'yes';
+            }
+        }
+
+        return $onboardData;
+    }
+}
+
 if (!function_exists('shadowSaasRowToggleJs')) {
     /**
      * JS for clickable Shadow SaaS rows with a details row after each. Opening a

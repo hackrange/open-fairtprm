@@ -201,6 +201,47 @@ if (($_POST['validate_only'] ?? '') === '1') {
 // tell the vendor the good news. Party time.
 // ---------------------------------------------------------------
 try {
+    // Shadow SaaS "User Request" form: first + last name and the attestation.
+    // The email is always the address the request was sent to, never a value
+    // from the browser, so a requester cannot attest under someone else's name.
+    if (($assessment['template_category'] ?? '') === 'user_request') {
+        $first = trim(preg_replace('/\s+/u', ' ', (string)($_POST['submitter_first_name'] ?? '')));
+        $last  = trim(preg_replace('/\s+/u', ' ', (string)($_POST['submitter_last_name'] ?? '')));
+        if ($first === '' || $last === '' || mb_strlen($first) > 100 || mb_strlen($last) > 100
+            || ($_POST['submitter_attested'] ?? '') !== '1') {
+            echo json_encode([
+                'success' => false,
+                'message' => t('vendor-assessment.user_request_attest_missing'),
+                'csrf_token' => $security->getCSRFToken()
+            ]);
+            exit;
+        }
+        $assessmentService->saveSubmitterAttestation($assessment['id'], [
+            'submitter_name'       => $first . ' ' . $last,
+            'submitter_email'      => (string)$assessment['vendor_email'],
+            'submitter_ip_address' => $security->getClientIP(),
+            'submitter_attested'   => 1,
+        ]);
+        require_once __DIR__ . '/../includes/classes/ShadowSaasRequestService.php';
+        (new ShadowSaasRequestService())->recordAttestation(
+            (int)$assessment['id'], $first, $last, $security->getClientIP(), (string)($_SERVER['HTTP_USER_AGENT'] ?? '')
+        );
+        $assessmentService->updateStatus($assessment['id'], 'completed');
+        try {
+            Auth::getInstance()->audit(Auth::getInstance()->getUserId() ?: null, 'shadow_saas_request_submitted', 'vendor_assessments', (int)$assessment['id'], [
+                'new' => ['submitter' => $first . ' ' . $last, 'email' => (string)$assessment['vendor_email']],
+            ]);
+        } catch (Throwable $e) {
+            error_log('Audit log failed for user request submission: ' . $e->getMessage());
+        }
+        echo json_encode([
+            'success' => true,
+            'message' => 'Assessment submitted successfully',
+            'csrf_token' => $security->getCSRFToken()
+        ]);
+        exit;
+    }
+
     // Capture and validate the submitter attestation (required to submit).
     $submitterName  = trim($_POST['submitter_name'] ?? '');
     $submitterTitle = trim($_POST['submitter_title'] ?? '');

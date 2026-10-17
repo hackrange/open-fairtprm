@@ -6903,6 +6903,91 @@ SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
   'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- Shadow SaaS requests (request method "FairTPRM"): an app user is emailed a
+-- one-time link, picks how they use the app (e.g. Personal / Business), and
+-- fills in the matching form. Only a SHA-256 of the link token is stored.
+CREATE TABLE IF NOT EXISTS `shadow_saas_requests` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `token_hash` char(64) NOT NULL COMMENT 'sha256 of the emailed link token',
+  `shadow_saas_id` int(10) unsigned DEFAULT NULL,
+  `grip_saas_id` varchar(64) DEFAULT NULL,
+  `app_name` varchar(500) NOT NULL,
+  `app_domain` varchar(255) DEFAULT NULL,
+  `requester_email` varchar(255) NOT NULL,
+  `requester_name` varchar(255) DEFAULT NULL,
+  `message` text DEFAULT NULL COMMENT 'Optional note from the sender, shown in the email',
+  `status` varchar(20) NOT NULL DEFAULT 'sent' COMMENT 'sent | opened | in_progress | submitted | approved | denied | cancelled',
+  `choice_index` tinyint(3) unsigned DEFAULT NULL,
+  `choice_label` varchar(100) DEFAULT NULL,
+  `choice_kind` varchar(20) DEFAULT NULL COMMENT 'personal (User Request form) | business (onboarding form)',
+  `template_id` int(11) DEFAULT NULL,
+  `assessment_id` int(11) DEFAULT NULL,
+  `vendor_request_id` int(10) unsigned DEFAULT NULL,
+  `submitter_first_name` varchar(100) DEFAULT NULL,
+  `submitter_last_name` varchar(100) DEFAULT NULL,
+  `submitter_ip` varchar(45) DEFAULT NULL,
+  `submitter_user_agent` varchar(500) DEFAULT NULL,
+  `attested_at` datetime DEFAULT NULL,
+  `email_status` varchar(20) DEFAULT NULL COMMENT 'sent | failed | disabled',
+  `email_error` varchar(500) DEFAULT NULL,
+  `sent_by` int(10) unsigned DEFAULT NULL,
+  `sent_at` datetime DEFAULT NULL,
+  `opened_at` datetime DEFAULT NULL,
+  `chosen_at` datetime DEFAULT NULL,
+  `submitted_at` datetime DEFAULT NULL,
+  `notified_at` datetime DEFAULT NULL,
+  `expires_at` datetime DEFAULT NULL,
+  `reviewed_by` int(10) unsigned DEFAULT NULL,
+  `reviewed_at` datetime DEFAULT NULL,
+  `review_notes` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_token_hash` (`token_hash`),
+  KEY `idx_status` (`status`),
+  KEY `idx_shadow_saas` (`shadow_saas_id`),
+  KEY `idx_grip_saas` (`grip_saas_id`),
+  KEY `idx_assessment` (`assessment_id`),
+  KEY `idx_requester` (`requester_email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Default "Personal Use" form (category user_request). Seeded only when the
+-- template does not exist yet, so an admin's edits (deleted or reworded
+-- questions) are never undone by a later run of this file.
+SET @ss_req_new = (SELECT COUNT(*) = 0 FROM assessment_templates WHERE slug = 'shadow-saas-personal-use');
+INSERT INTO assessment_templates (name, slug, description, category, allow_certificate_upload, certificate_upload_prompt, certificate_upload_mode, is_active)
+SELECT 'Shadow SaaS - Personal Use', 'shadow-saas-personal-use', 'Sent to an employee who uses an unapproved SaaS application for personal or individual work. Records what the app is used for, whether the company pays for it, and a signed attestation.', 'user_request', 0, NULL, 'none', 1
+FROM DUAL WHERE @ss_req_new = 1;
+SET @ss_req_tpl = (SELECT id FROM assessment_templates WHERE slug = 'shadow-saas-personal-use');
+INSERT INTO assessment_sections (template_id, name, description, sort_order)
+SELECT @ss_req_tpl, 'How You Use This Application', 'Tell us how and why you use this application. Your answers are reviewed by the security team.', 1
+FROM DUAL WHERE @ss_req_new = 1 AND @ss_req_tpl IS NOT NULL;
+SET @ss_req_sec = (SELECT id FROM assessment_sections WHERE template_id = @ss_req_tpl AND sort_order = 1);
+INSERT INTO assessment_questions (section_id, question_text, question_type, options, is_required, help_text, sort_order)
+SELECT @ss_req_sec, 'What do you use this application for?', 'textarea', NULL, 1, 'Describe the tasks you use it for and how often.', 1
+FROM DUAL WHERE @ss_req_new = 1 AND @ss_req_sec IS NOT NULL;
+INSERT INTO assessment_questions (section_id, question_text, question_type, options, is_required, help_text, sort_order)
+SELECT @ss_req_sec, 'What kind of information do you put into this application?', 'checkbox', '["None / public information only","Internal company information","Customer information","Personal information (PII)","Financial information","Source code","Other"]', 1, 'Select every type that applies.', 2
+FROM DUAL WHERE @ss_req_new = 1 AND @ss_req_sec IS NOT NULL;
+INSERT INTO assessment_questions (section_id, question_text, question_type, options, is_required, help_text, sort_order)
+SELECT @ss_req_sec, 'Does the company pay for this service?', 'button_group', '["Yes","No"]', 1, 'Answer Yes if it is paid with a company card, expensed, or invoiced to the company.', 3
+FROM DUAL WHERE @ss_req_new = 1 AND @ss_req_sec IS NOT NULL;
+SET @ss_req_paid = (SELECT id FROM assessment_questions WHERE section_id = @ss_req_sec AND sort_order = 3);
+INSERT INTO assessment_questions (section_id, question_text, question_type, options, is_required, help_text, sort_order, depends_on_question_id, depends_on_value)
+SELECT @ss_req_sec, 'How much does the company pay?', 'text', NULL, 1, 'Amount and currency, for example 20 USD.', 4, @ss_req_paid, 'Yes'
+FROM DUAL WHERE @ss_req_new = 1 AND @ss_req_paid IS NOT NULL;
+INSERT INTO assessment_questions (section_id, question_text, question_type, options, is_required, help_text, sort_order, depends_on_question_id, depends_on_value)
+SELECT @ss_req_sec, 'How often is it billed?', 'button_group', '["Monthly","Annually","One time"]', 1, NULL, 5, @ss_req_paid, 'Yes'
+FROM DUAL WHERE @ss_req_new = 1 AND @ss_req_paid IS NOT NULL;
+INSERT INTO assessment_questions (section_id, question_text, question_type, options, is_required, help_text, sort_order, depends_on_question_id, depends_on_value)
+SELECT @ss_req_sec, 'How is it paid?', 'select', '["Company credit card","Expense reimbursement","Invoice to the company","Other"]', 1, NULL, 6, @ss_req_paid, 'Yes'
+FROM DUAL WHERE @ss_req_new = 1 AND @ss_req_paid IS NOT NULL;
+
+INSERT IGNORE INTO app_config (config_key, config_value, description) VALUES
+('shadow_saas_request_method', 'grip', 'Who sends Shadow SaaS requests to app users: grip (Grip justification) or fairtprm (FairTPRM email + forms). grip applies only while Grip is enabled.'),
+('shadow_saas_request_recipients', '', 'Comma-separated reviewers notified when a Shadow SaaS request form is submitted'),
+('shadow_saas_request_expiry_days', '14', 'Days a Shadow SaaS request link stays valid');
+
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

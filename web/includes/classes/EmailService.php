@@ -853,6 +853,93 @@ Open Shadow SaaS: {{shadow_saas_url}}
 ==========================================
 This is an automated notification from {{system_title}}. Please do not reply to this email.',
                 ],
+                'saas_request' => [
+                    'subject' => 'Action needed: how do you use {{app_name}}?',
+                    'html' => '<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4; padding: 20px;">
+        <tr><td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <tr><td style="background-color: {{header_color}}; padding: 30px; text-align: center;">{{logo_img}}<h1 style="margin: 10px 0 0 0; color: #ffffff; font-size: 20px;">{{system_title}}</h1></td></tr>
+                <tr><td style="background-color: #D1ECF1; border-left: 4px solid #17A2B8; padding: 15px 30px;"><p style="margin: 0; color: #0C5460; font-size: 16px; font-weight: bold;">Tell us how you use {{app_name}}</p></td></tr>
+                <tr><td style="padding: 30px;">
+                    <p style="margin: 0 0 16px 0; color: #333; font-size: 15px; line-height: 1.6;">Hello {{requester_name}},</p>
+                    <p style="margin: 0 0 16px 0; color: #333; font-size: 15px; line-height: 1.6;">Our records show that you use <strong>{{app_name}}</strong>{{#app_domain}} ({{app_domain}}){{/app_domain}}, which has not been reviewed by the security team. Please tell us how you use it so we can decide whether it can stay in use.</p>
+                    {{#message}}<div style="background: #f9fafb; border-left: 3px solid #d1d5db; padding: 10px 14px; margin: 0 0 16px 0; color: #374151; font-size: 14px; line-height: 1.5;">{{message}}<div style="color: #6b7280; font-size: 12px; margin-top: 6px;">{{sender_name}}</div></div>{{/message}}
+                    <p style="margin: 0 0 10px 0; color: #333; font-size: 15px; line-height: 1.6;">Choose the option that fits best:</p>
+                    {{choice_buttons_html}}
+                    <p style="margin: 20px 0 0 0; color: #666; font-size: 13px; line-height: 1.6;">Your answers are recorded together with your name, IP address and the time you submit. This link is personal to you and expires on {{expires_at}}.</p>
+                </td></tr>
+                <tr><td style="background-color: {{footer_color}}; padding: 20px 30px;"><p style="margin: 0; color: #ffffff; font-size: 12px;">This is an automated notification from {{system_title}}. Please do not reply to this email.</p></td></tr>
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>',
+                    'text' => 'Hello {{requester_name}},
+
+Our records show that you use {{app_name}}{{#app_domain}} ({{app_domain}}){{/app_domain}}, which has not been reviewed by the security team. Please tell us how you use it so we can decide whether it can stay in use.
+{{#message}}
+Message from {{sender_name}}:
+{{message}}
+{{/message}}
+Choose the option that fits best:
+
+{{choice_links_text}}
+Your answers are recorded together with your name, IP address and the time you submit. This link is personal to you and expires on {{expires_at}}.
+
+==========================================
+This is an automated notification from {{system_title}}. Please do not reply to this email.',
+                ],
+                'saas_request_submitted' => [
+                    'subject' => 'Shadow SaaS request submitted: {{app_name}} ({{choice_label}})',
+                    'html' => '<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4; padding: 20px;">
+        <tr><td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <tr><td style="background-color: {{header_color}}; padding: 30px; text-align: center;">{{logo_img}}<h1 style="margin: 10px 0 0 0; color: #ffffff; font-size: 20px;">{{system_title}}</h1></td></tr>
+                <tr><td style="background-color: #FEF3C7; border-left: 4px solid #D97706; padding: 15px 30px;"><p style="margin: 0; color: #92400E; font-size: 16px; font-weight: bold;">Shadow SaaS request submitted: {{app_name}}</p></td></tr>
+                <tr><td style="padding: 30px;">
+                    <table width="100%" style="margin-bottom: 20px; font-size: 14px;">
+                        <tr><td style="padding: 6px 0; color: #666; width: 150px;"><strong>Application:</strong></td><td style="padding: 6px 0; color: #333;">{{app_name}}{{#app_domain}} ({{app_domain}}){{/app_domain}}</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666;"><strong>Use:</strong></td><td style="padding: 6px 0; color: #333;">{{choice_label}}</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666;"><strong>Requester:</strong></td><td style="padding: 6px 0; color: #333;">{{submitter_name}} &lt;{{requester_email}}&gt;</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666;"><strong>Submitted:</strong></td><td style="padding: 6px 0; color: #333;">{{submitted_at}}</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666;"><strong>IP address:</strong></td><td style="padding: 6px 0; color: #333;">{{submitter_ip}}</td></tr>
+                    </table>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; margin: 0 0 20px 0;">
+                        <tr><td style="background:#f9fafb;padding:10px 15px;font-weight:bold;color:#374151;font-size:14px;border-bottom:1px solid #e5e7eb;">Answers</td></tr>
+                        {{answer_rows_html}}
+                    </table>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0;"><tr><td align="center"><a href="{{review_url}}" style="display: inline-block; padding: 15px 40px; background-color: {{button_color}}; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">Review Request</a></td></tr></table>
+                </td></tr>
+                <tr><td style="background-color: {{footer_color}}; padding: 20px 30px;"><p style="margin: 0; color: #ffffff; font-size: 12px;">This is an automated notification from {{system_title}}. Please do not reply to this email.</p></td></tr>
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>',
+                    'text' => 'SHADOW SAAS REQUEST SUBMITTED
+==========================================
+
+Application: {{app_name}}{{#app_domain}} ({{app_domain}}){{/app_domain}}
+Use: {{choice_label}}
+Requester: {{submitter_name}} <{{requester_email}}>
+Submitted: {{submitted_at}}
+IP address: {{submitter_ip}}
+
+Answers:
+{{answer_rows_text}}
+Review the request: {{review_url}}
+
+==========================================
+This is an automated notification from {{system_title}}. Please do not reply to this email.',
+                ],
             ],
             'grc' => [
                 'task_digest' => [
@@ -932,6 +1019,8 @@ View your tasks: {{assessment_url}}',
                 ['procurement', 'contract_expired', 'Contract Expired', '["contract_name","vendor_name","expiration_date","days_overdue","contract_type","contract_url","header_color","button_color","footer_color","system_title","logo_img"]'],
                 ['procurement', 'case_assigned', 'Contract Case Assigned', '["case_title","vendor_name","assigned_by","case_url","header_color","button_color","footer_color","system_title","logo_img"]'],
                 ['shadow_saas', 'privacy_risk_increase', 'Privacy Risk Increased (digest)', '["change_count","change_rows_html","change_rows_text","run_date","shadow_saas_url","header_color","button_color","footer_color","system_title","logo_img"]'],
+                ['shadow_saas', 'saas_request', 'Shadow SaaS Request (to the app user)', '["app_name","app_domain","requester_name","requester_email","message","sender_name","choice_buttons_html","choice_links_text","request_url","expires_at","company_name","header_color","button_color","footer_color","system_title","logo_img"]'],
+                ['shadow_saas', 'saas_request_submitted', 'Shadow SaaS Request Submitted (to reviewers)', '["app_name","app_domain","choice_label","requester_email","submitter_name","submitter_ip","submitted_at","answer_rows_html","answer_rows_text","review_url","header_color","button_color","footer_color","system_title","logo_img"]'],
             ];
 
             // Check if table has any rows
@@ -1170,6 +1259,23 @@ HTML;
                     . '<div style="font-size:13px;color:#374151;margin:2px 0;">Privacy: <span style="color:#6b7280;">Medium</span> &rarr; <span style="display:inline-block;background:#DC2626;color:#fff;font-size:11px;padding:1px 7px;border-radius:3px;font-weight:600;">High</span></div>'
                     . '<div style="margin:4px 0 4px 10px;padding:6px 10px;border-left:3px solid #d1d5db;color:#4b5563;font-size:12px;">&ldquo;We may use Customer Content to train and improve our machine learning models.&rdquo;<div style="color:#9ca3af;font-size:11px;margin-top:2px;">https://acme.example/privacy</div></div></td></tr>',
                 'change_rows_text' => "1. Acme Corporation (acme.example)\n   Privacy: Medium -> High\n      \"We may use Customer Content to train and improve our machine learning models.\" (https://acme.example/privacy)\n",
+                // Shadow SaaS requests
+                'app_name' => 'Acme Notes',
+                'app_domain' => 'acmenotes.example',
+                'requester_name' => 'Jane Smith',
+                'requester_email' => 'jane.smith@example.com',
+                'message' => '',
+                'sender_name' => 'TPRM Admin',
+                'choice_buttons_html' => self::choiceButtonsHtml([['label' => 'Personal Use', 'description' => 'I use it on my own, for my individual work.'], ['label' => 'Business Use', 'description' => 'My team or the business relies on it.']], fn($i) => $baseUrl . '/shadow-saas-request.php?t=sample&c=' . $i, (self::getEmailBrandingVars()['button_color'] ?? '#35a0a3')),
+                'choice_links_text' => "Personal Use: {$baseUrl}/shadow-saas-request.php?t=sample&c=0\nBusiness Use: {$baseUrl}/shadow-saas-request.php?t=sample&c=1\n",
+                'request_url' => $baseUrl . '/shadow-saas-request.php?t=sample',
+                'choice_label' => 'Personal Use',
+                'submitter_name' => 'Jane Smith',
+                'submitter_ip' => '203.0.113.10',
+                'submitted_at' => date('M j, Y g:i A'),
+                'answer_rows_html' => '<tr><td style="padding:10px 15px;border-bottom:1px solid #e5e7eb;font-size:13px;"><div style="color:#6b7280;">What do you use this application for?</div><div style="color:#111827;margin-top:2px;">Personal meeting notes.</div></td></tr>',
+                'answer_rows_text' => "- What do you use this application for?\n  Personal meeting notes.\n",
+                'review_url' => $baseUrl . '/shadow-saas-requests.php',
             ];
 
             $branding = self::getEmailBrandingVars();
@@ -1179,11 +1285,10 @@ HTML;
             $textBody = $template['email_body_text'] ?? '';
             $subject = $template['email_subject'] ?? 'Test Email';
 
-            foreach ($allVars as $key => $value) {
-                $htmlBody = str_replace('{{' . $key . '}}', (string)$value, $htmlBody);
-                $textBody = str_replace('{{' . $key . '}}', (string)$value, $textBody);
-                $subject = str_replace('{{' . $key . '}}', (string)$value, $subject);
-            }
+            // renderTemplate also resolves {{#key}}...{{/key}} blocks, as a real send does.
+            $htmlBody = $this->renderTemplate($htmlBody, $allVars);
+            $textBody = $this->renderTemplate($textBody, $allVars);
+            $subject = $this->renderTemplate($subject, $allVars);
 
             $mail = $this->createMailer();
             $mail->addAddress($recipientEmail);
@@ -2314,5 +2419,147 @@ TEXT;
                 $this->renderWithBranding($tpl['email_body_html'], $vars),
                 $this->renderWithBranding($tpl['email_body_text'], $vars),
             ];
+    }
+    /**
+     * The request choice buttons: one bulletproof (table) button per choice,
+     * with its optional description underneath. Labels and descriptions are
+     * escaped; $urlFor($index) gives each button's link.
+     */
+    public static function choiceButtonsHtml(array $choices, callable $urlFor, string $buttonColor): string
+    {
+        $h = fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+        if (!preg_match('/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/', $buttonColor)) $buttonColor = '#35a0a3';
+        $out = '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 10px 0;">';
+        foreach (array_values($choices) as $i => $c) {
+            $out .= '<tr><td align="center" style="padding: 8px 0;">'
+                . '<a href="' . $h($urlFor($i)) . '" style="display: inline-block; min-width: 220px; padding: 14px 30px; background-color: ' . $buttonColor . '; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">' . $h($c['label'] ?? '') . '</a>'
+                . (!empty($c['description']) ? '<div style="color: #6b7280; font-size: 13px; margin-top: 6px;">' . $h($c['description']) . '</div>' : '')
+                . '</td></tr>';
+        }
+        return $out . '</table>';
+    }
+
+    /** Render a shadow_saas template: HTML gets escaped values, text and subject raw ones. */
+    private function renderShadowSaasTemplate(string $key, array $plain, array $rawHtml): array
+    {
+        $tpl = $this->getTemplateFromDb('shadow_saas', $key) ?: (function () use ($key) {
+            $d = self::getDefaultTemplateContent('shadow_saas', $key);
+            return $d ? ['email_subject' => $d['subject'], 'email_body_html' => $d['html'], 'email_body_text' => $d['text']] : null;
+        })();
+        if (!$tpl) throw new Exception('Email template shadow_saas/' . $key . ' not found.');
+        $esc = [];
+        foreach ($plain as $k => $v) $esc[$k] = nl2br(htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'));
+        $subjectVars = array_map(fn($v) => preg_replace('/[\r\n]+/', ' ', (string)$v), $plain);
+        return [
+            preg_replace('/[\r\n]+/', ' ', $this->renderWithBranding((string)$tpl['email_subject'], $subjectVars)),
+            $this->renderWithBranding((string)$tpl['email_body_html'], array_merge($esc, $rawHtml)),
+            $this->renderWithBranding((string)($tpl['email_body_text'] ?? ''), $plain),
+        ];
+    }
+
+    /**
+     * [subject, html, text] of the request email to an app user (template
+     * shadow_saas / saas_request). $choices from ShadowSaasRequestService::choices().
+     */
+    public function buildShadowSaasRequest(array $req, string $linkUrl, array $choices, array $sender = []): array
+    {
+        $urlFor = fn($i) => $linkUrl . '&c=' . (int)$i;
+        $text = '';
+        foreach (array_values($choices) as $i => $c) {
+            $text .= $c['label'] . ': ' . $urlFor($i) . "\n" . (!empty($c['description']) ? '  ' . $c['description'] . "\n" : '');
+        }
+        $plain = [
+            'app_name'          => (string)$req['app_name'],
+            'app_domain'        => (string)($req['app_domain'] ?? ''),
+            'requester_name'    => trim((string)($req['requester_name'] ?? '')) ?: (string)$req['requester_email'],
+            'requester_email'   => (string)$req['requester_email'],
+            'message'           => (string)($req['message'] ?? ''),
+            'sender_name'       => trim((string)($sender['full_name'] ?? '')),
+            'expires_at'        => !empty($req['expires_at']) ? date('F j, Y', strtotime($req['expires_at'])) : '',
+            'request_url'       => $linkUrl,
+            'choice_links_text' => $text,
+        ];
+        $raw = [
+            'choice_buttons_html' => self::choiceButtonsHtml($choices, $urlFor, self::getEmailBrandingVars()['button_color']),
+            'request_url'         => htmlspecialchars($linkUrl, ENT_QUOTES, 'UTF-8'),
+        ];
+        return $this->renderShadowSaasTemplate('saas_request', $plain, $raw);
+    }
+
+    public function sendShadowSaasRequest(array $req, string $linkUrl, array $choices, array $sender = []): array
+    {
+        if (!$this->isEnabled()) return ['success' => false, 'error' => 'Email is disabled.'];
+        try {
+            [$subject, $html, $text] = $this->buildShadowSaasRequest($req, $linkUrl, $choices, $sender);
+            $mail = $this->createMailer();
+            $mail->addAddress((string)$req['requester_email']);
+            $mail->Subject = $subject;
+            $mail->Body    = $html;
+            $mail->AltBody = $text;
+            $this->sendEmail($mail);
+            return ['success' => true];
+        } catch (Exception $e) {
+            error_log('Shadow SaaS request email error: ' . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * [subject, html, text] of the "request submitted" email to the reviewers
+     * (template shadow_saas / saas_request_submitted). Every answer is escaped.
+     */
+    public function buildShadowSaasRequestSubmitted(array $req, array $answers): array
+    {
+        $h = fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+        $rowsHtml = ''; $rowsText = '';
+        foreach (array_slice($answers, 0, 40) as $a) {
+            $ans = mb_substr((string)$a['answer'], 0, 1000);
+            $rowsHtml .= '<tr><td style="padding:10px 15px;border-bottom:1px solid #e5e7eb;font-size:13px;">'
+                . '<div style="color:#6b7280;">' . $h($a['question']) . '</div>'
+                . '<div style="color:#111827;margin-top:2px;">' . nl2br($h($ans)) . '</div></td></tr>';
+            $rowsText .= '- ' . $a['question'] . "\n  " . str_replace("\n", "\n  ", $ans) . "\n";
+        }
+        if ($rowsHtml === '') {
+            $rowsHtml = '<tr><td style="padding:10px 15px;font-size:13px;color:#6b7280;">No answers recorded.</td></tr>';
+        }
+        $name = trim(($req['submitter_first_name'] ?? '') . ' ' . ($req['submitter_last_name'] ?? ''));
+        if ($name === '' && !empty($req['assessment_id'])) {
+            $a = $this->db->fetchOne("SELECT submitter_name FROM vendor_assessments WHERE id = :id", [':id' => (int)$req['assessment_id']]);
+            $name = trim((string)($a['submitter_name'] ?? ''));
+        }
+        $plain = [
+            'app_name'         => (string)$req['app_name'],
+            'app_domain'       => (string)($req['app_domain'] ?? ''),
+            'choice_label'     => (string)($req['choice_label'] ?? ''),
+            'requester_email'  => (string)$req['requester_email'],
+            'submitter_name'   => $name !== '' ? $name : (string)$req['requester_email'],
+            'submitter_ip'     => (string)($req['submitter_ip'] ?? ''),
+            'submitted_at'     => date('M j, Y g:i A', strtotime($req['submitted_at'] ?? 'now')),
+            'answer_rows_text' => $rowsText !== '' ? $rowsText : "No answers recorded.\n",
+            'review_url'       => baseUrl('shadow-saas-requests.php?id=' . (int)$req['id']),
+        ];
+        $raw = [
+            'answer_rows_html' => $rowsHtml,
+            'review_url'       => $h($plain['review_url']),
+        ];
+        return $this->renderShadowSaasTemplate('saas_request_submitted', $plain, $raw);
+    }
+
+    public function sendShadowSaasRequestSubmitted(array $req, array $answers, string $recipientEmail): array
+    {
+        if (!$this->isEnabled()) return ['success' => false, 'error' => 'Email is disabled.'];
+        try {
+            [$subject, $html, $text] = $this->buildShadowSaasRequestSubmitted($req, $answers);
+            $mail = $this->createMailer();
+            $mail->addAddress($recipientEmail);
+            $mail->Subject = $subject;
+            $mail->Body    = $html;
+            $mail->AltBody = $text;
+            $this->sendEmail($mail);
+            return ['success' => true];
+        } catch (Exception $e) {
+            error_log('Shadow SaaS request submitted email error: ' . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
     }
 }

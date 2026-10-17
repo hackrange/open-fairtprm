@@ -960,7 +960,8 @@ class VendorAssessmentService {
     public function getAssessmentByUUID($uuid) {
         $assessment = $this->db->fetchOne(
             'SELECT a.*, t.name as template_name, t.slug as template_slug,
-                    t.allow_certificate_upload, t.certificate_upload_prompt, t.certificate_upload_mode
+                    t.allow_certificate_upload, t.certificate_upload_prompt, t.certificate_upload_mode,
+                    t.category as template_category
              FROM vendor_assessments a
              JOIN assessment_templates t ON a.template_id = t.id
              WHERE a.uuid = :uuid',
@@ -977,7 +978,8 @@ class VendorAssessmentService {
     public function getAssessmentById($id) {
         return $this->db->fetchOne(
             'SELECT a.*, t.name as template_name, t.slug as template_slug,
-                    t.allow_certificate_upload, t.certificate_upload_prompt, t.certificate_upload_mode
+                    t.allow_certificate_upload, t.certificate_upload_prompt, t.certificate_upload_mode,
+                    t.category as template_category
              FROM vendor_assessments a
              JOIN assessment_templates t ON a.template_id = t.id
              WHERE a.id = :id',
@@ -1090,6 +1092,13 @@ class VendorAssessmentService {
             $this->syncAssessmentToVendor($assessmentId);
             $this->triggerFairAnalysisIfNeeded($assessmentId);
             $this->processAssessmentTriggers($assessmentId);
+            // A Shadow SaaS request form: mark the request submitted and tell the reviewers.
+            try {
+                require_once __DIR__ . '/ShadowSaasRequestService.php';
+                (new ShadowSaasRequestService($this->db))->onAssessmentCompleted((int)$assessmentId);
+            } catch (Throwable $e) {
+                error_log('Shadow SaaS request completion hook failed for assessment ' . $assessmentId . ': ' . $e->getMessage());
+            }
         }
 
         return $result;

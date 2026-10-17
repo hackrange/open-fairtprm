@@ -241,6 +241,16 @@ if ($showOnboarding) {
     $vendorTaskCount = $dashboardData->getVendorTaskCount($user['id'], $canReadAll, $canReadOwn, $canReadAssigned);
 }
 
+// Shadow SaaS requests (FairTPRM request method): the dashboard card shows
+// while any request is open (waiting on the user, or submitted for review).
+$ssRequestCounts = ['awaiting_review' => 0, 'awaiting_response' => 0, 'total' => 0];
+if ($isAdmin || $isCyberTPRM || $isAuditor) {
+    try {
+        require_once __DIR__ . '/includes/classes/ShadowSaasRequestService.php';
+        $ssRequestCounts = (new ShadowSaasRequestService())->counts();
+    } catch (Throwable $e) {}
+}
+
 // Expiring contracts count for the Procurement sidebar badge
 $expiringContractsCount = 0;
 if ($isAdmin || $isProcurement || $isCyberTPRM || $isAuditor) {
@@ -952,6 +962,19 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                         <span class="tag" style="background: #ecfdf5; color: #065f46;"><?php echo $srsStats['vendors_with_scores']; ?> Vendors Scored</span>
                         <?php else: ?>
                         <span class="tag"><?php echo e(t('index.security_ratings')); ?></span>
+                        <?php endif; ?>
+                    </a>
+                    <?php endif; ?>
+
+                    <?php if (($isAdmin || $isCyberTPRM || $isAuditor) && ($ssRequestCounts['awaiting_review'] + $ssRequestCounts['awaiting_response']) > 0): ?>
+                    <a href="shadow-saas-requests.php" class="module-card" id="ss-requests-card">
+                        <div class="icon"><img src="app/icons/alert-square.svg" alt="" width="32" height="32"></div>
+                        <h3><?php echo e(t('index.saas_requests')); ?></h3>
+                        <p><?php echo e(t('index.saas_requests_desc', (int)$ssRequestCounts['awaiting_response'])); ?></p>
+                        <?php if ($ssRequestCounts['awaiting_review'] > 0): ?>
+                        <span class="tag" style="background: #fef3c7; color: #92400e;"><?php echo e(t('index.saas_requests_review', (int)$ssRequestCounts['awaiting_review'])); ?></span>
+                        <?php else: ?>
+                        <span class="tag"><?php echo e(t('index.saas_requests_tag')); ?></span>
                         <?php endif; ?>
                     </a>
                     <?php endif; ?>

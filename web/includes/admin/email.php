@@ -259,6 +259,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_shadow_saas_aler
 }
 
 // ============================================================================
+// POST Handler: save_shadow_saas_request_settings
+// Shadow SaaS requests (FairTPRM method): who reviews submitted forms, which
+// buttons the request email offers and the form each one opens, link expiry,
+// and the attestation statement on the User Request form.
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_shadow_saas_request_settings'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_email.invalid_request');
+    } else {
+        require_once __DIR__ . '/../classes/ShadowSaasRequestService.php';
+        $ssrSvc = new ShadowSaasRequestService($db);
+        $ssrRecip = ShadowSaasRequestService::parseEmails((string)($_POST['shadow_saas_request_recipients'] ?? ''));
+        $ssrDays = (int)($_POST['shadow_saas_request_expiry_days'] ?? 14);
+        $ssrAttest = trim((string)($_POST['shadow_saas_request_attestation'] ?? ''));
+        [$ssrChoices, $ssrErrs] = $ssrSvc->validateChoices(
+            (array)($_POST['ssr_choice_label'] ?? []),
+            (array)($_POST['ssr_choice_description'] ?? []),
+            (array)($_POST['ssr_choice_template'] ?? [])
+        );
+        if ($ssrRecip['invalid']) {
+            $error = t('admin_email.ss_invalid_recipients', implode(', ', array_slice($ssrRecip['invalid'], 0, 5)));
+        } elseif ($ssrDays < 1 || $ssrDays > 365) {
+            $error = t('admin_email.ssr_expiry_invalid');
+        } elseif (mb_strlen($ssrAttest) > 1000) {
+            $error = t('admin_email.ssr_attestation_too_long');
+        } elseif ($ssrErrs) {
+            $error = t('admin_email.ssr_choice_error_' . $ssrErrs[0]);
+        } else {
+            $ssrVals = [
+                'shadow_saas_request_recipients'  => implode(', ', $ssrRecip['valid']),
+                'shadow_saas_request_expiry_days' => (string)$ssrDays,
+                'shadow_saas_request_attestation' => $ssrAttest,
+                'shadow_saas_request_choices'     => json_encode($ssrChoices),
+            ];
+            foreach ($ssrVals as $k => $v) {
+                if ($db->fetchOne('SELECT id FROM app_config WHERE config_key = :k', [':k' => $k])) {
+                    $db->update('app_config', ['config_value' => $v], 'config_key = :k', [':k' => $k]);
+                } else {
+                    $db->insert('app_config', ['config_key' => $k, 'config_value' => $v, 'is_encrypted' => 0]);
+                }
+            }
+            getAppConfig('shadow_saas_request_recipients', null, true);
+            $auth->audit($user['id'], 'config_update_shadow_saas_requests', 'app_config', null, ['new' => $ssrVals]);
+            $success = t('admin_email.ssr_saved');
+        }
+    }
+}
+
+// ============================================================================
 // POST Handler: send_shadow_saas_alert_test (sample digest to the saved recipients)
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_shadow_saas_alert_test'])) {
@@ -606,7 +655,7 @@ if (isset($_POST['save_breach_alert_settings'])) {
     $activeTab = 'breach_alert';
 } elseif (isset($_POST['update_procurement_settings']) || isset($_POST['save_procurement_digest_settings']) || isset($_POST['send_procurement_digest_now'])) {
     $activeTab = 'procurement';
-} elseif (isset($_POST['save_shadow_saas_alert_settings']) || isset($_POST['send_shadow_saas_alert_test'])) {
+} elseif (isset($_POST['save_shadow_saas_alert_settings']) || isset($_POST['send_shadow_saas_alert_test']) || isset($_POST['save_shadow_saas_request_settings'])) {
     $activeTab = 'shadow_saas';
 } elseif (isset($_POST['update_email_template']) || isset($_POST['reset_email_template'])) {
     // Figure out which tab the template belongs to
@@ -1304,6 +1353,83 @@ $ssTrigger  = getAppConfig('shadow_saas_alert_trigger', 'any') === 'high' ? 'hig
             <button type="submit" name="save_shadow_saas_alert_settings" class="btn btn-primary"><?php echo e(t('admin_email.btn_save_settings_generic')); ?></button>
             <button type="submit" name="send_shadow_saas_alert_test" class="btn btn-secondary"><?php echo e(t('admin_email.ss_send_test')); ?></button>
         </div>
+    </form>
+</div>
+
+<?php
+require_once __DIR__ . '/../classes/ShadowSaasRequestService.php';
+$ssrSvcView   = new ShadowSaasRequestService($db);
+$ssrTemplates = $ssrSvcView->choiceTemplates();
+$ssrChoiceRows = array_pad(array_map(fn($c) => ['label' => $c['label'], 'description' => $c['description'], 'template_id' => $c['template_id']], $ssrSvcView->choices()), ShadowSaasRequestService::MAX_CHOICES, ['label' => '', 'description' => '', 'template_id' => 0]);
+if (isset($_POST['save_shadow_saas_request_settings']) && $error) {
+    // Re-show what was typed so a rejected save does not lose the edits.
+    $ssrChoiceRows = [];
+    foreach (array_keys((array)($_POST['ssr_choice_label'] ?? [])) as $i) {
+        $ssrChoiceRows[] = ['label' => (string)($_POST['ssr_choice_label'][$i] ?? ''), 'description' => (string)($_POST['ssr_choice_description'][$i] ?? ''), 'template_id' => (int)($_POST['ssr_choice_template'][$i] ?? 0)];
+    }
+    $ssrChoiceRows = array_slice(array_pad($ssrChoiceRows, ShadowSaasRequestService::MAX_CHOICES, ['label' => '', 'description' => '', 'template_id' => 0]), 0, ShadowSaasRequestService::MAX_CHOICES);
+}
+$ssrRecipVal  = isset($_POST['save_shadow_saas_request_settings']) && $error ? (string)($_POST['shadow_saas_request_recipients'] ?? '') : getAppConfig('shadow_saas_request_recipients', '');
+$ssrDaysVal   = ShadowSaasRequestService::expiryDays();
+$ssrAttestVal = getAppConfig('shadow_saas_request_attestation', '');
+$ssrMethodNow = ShadowSaasRequestService::method();
+?>
+<div class="card" style="margin-bottom: 20px;" id="ss-request-card">
+    <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.ssr_heading')); ?></h3>
+    <p style="color: #666; font-size: 13px; margin: 0 0 12px;"><?php echo e(t('admin_email.ssr_desc')); ?></p>
+    <?php if ($ssrMethodNow !== 'fairtprm'): ?>
+    <div class="form-help" style="background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 8px 12px; border-radius: 6px; margin-bottom: 14px;"><?php echo t('admin_email.ssr_method_grip_note'); ?></div>
+    <?php endif; ?>
+    <form method="POST" action="admin.php?section=email">
+        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+        <div class="form-group">
+            <label for="shadow_saas_request_recipients"><?php echo e(t('admin_email.ssr_recipients')); ?></label>
+            <textarea id="shadow_saas_request_recipients" name="shadow_saas_request_recipients" class="form-control" rows="3" placeholder="security@example.com&#10;it-governance@example.com" style="font-family: monospace;"><?php echo e($ssrRecipVal); ?></textarea>
+            <div class="form-help"><?php echo e(t('admin_email.ssr_recipients_help')); ?></div>
+        </div>
+        <div class="form-group">
+            <label><?php echo e(t('admin_email.ssr_choices')); ?></label>
+            <div class="form-help" style="margin: 0 0 8px;"><?php echo t('admin_email.ssr_choices_help'); ?></div>
+            <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;" id="ssr-choices">
+                <thead><tr>
+                    <th style="text-align: left; padding: 6px; color: #6b7280; width: 22%;"><?php echo e(t('admin_email.ssr_col_label')); ?></th>
+                    <th style="text-align: left; padding: 6px; color: #6b7280;"><?php echo e(t('admin_email.ssr_col_description')); ?></th>
+                    <th style="text-align: left; padding: 6px; color: #6b7280; width: 34%;"><?php echo e(t('admin_email.ssr_col_template')); ?></th>
+                </tr></thead>
+                <tbody>
+                <?php foreach ($ssrChoiceRows as $ci => $cr): ?>
+                <tr>
+                    <td style="padding: 4px 6px;"><input type="text" name="ssr_choice_label[<?php echo (int)$ci; ?>]" class="form-control" maxlength="60" value="<?php echo e($cr['label']); ?>" aria-label="<?php echo e(t('admin_email.ssr_col_label')); ?>"></td>
+                    <td style="padding: 4px 6px;"><input type="text" name="ssr_choice_description[<?php echo (int)$ci; ?>]" class="form-control" maxlength="200" value="<?php echo e($cr['description']); ?>" aria-label="<?php echo e(t('admin_email.ssr_col_description')); ?>"></td>
+                    <td style="padding: 4px 6px;">
+                        <select name="ssr_choice_template[<?php echo (int)$ci; ?>]" class="form-control" aria-label="<?php echo e(t('admin_email.ssr_col_template')); ?>">
+                            <option value="0"><?php echo e(t('admin_email.ssr_select_template')); ?></option>
+                            <?php foreach (['user_request', 'onboarding'] as $ssrCat): ?>
+                            <optgroup label="<?php echo e(t('admin_assessment-templates.cat_' . $ssrCat)); ?>">
+                                <?php foreach ($ssrTemplates as $ssrT): if ($ssrT['category'] !== $ssrCat) continue; ?>
+                                <option value="<?php echo (int)$ssrT['id']; ?>" <?php echo (int)$cr['template_id'] === (int)$ssrT['id'] ? 'selected' : ''; ?>><?php echo e($ssrT['name']); ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            </div>
+        </div>
+        <div class="form-group" style="max-width: 260px;">
+            <label for="shadow_saas_request_expiry_days"><?php echo e(t('admin_email.ssr_expiry')); ?></label>
+            <input type="number" id="shadow_saas_request_expiry_days" name="shadow_saas_request_expiry_days" class="form-control" min="1" max="365" value="<?php echo (int)$ssrDaysVal; ?>">
+        </div>
+        <div class="form-group">
+            <label for="shadow_saas_request_attestation"><?php echo e(t('admin_email.ssr_attestation')); ?></label>
+            <textarea id="shadow_saas_request_attestation" name="shadow_saas_request_attestation" class="form-control" rows="3" maxlength="1000" placeholder="<?php echo e(ShadowSaasRequestService::defaultAttestationText()); ?>"><?php echo e($ssrAttestVal); ?></textarea>
+            <div class="form-help"><?php echo e(t('admin_email.ssr_attestation_help')); ?></div>
+        </div>
+        <button type="submit" name="save_shadow_saas_request_settings" class="btn btn-primary"><?php echo e(t('admin_email.btn_save_settings_generic')); ?></button>
     </form>
 </div>
 
