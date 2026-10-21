@@ -943,6 +943,16 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- **The GRC policy page no longer references an external TinyMCE CDN script.**
+  `grc-policies.php` loaded TinyMCE 6 from `cdn.tiny.cloud`, which the
+  Content-Security-Policy (`script-src 'self'` plus a nonce) always blocked, so
+  the rich editor never ran and policies were already edited in a plain
+  textarea and displayed escaped. The dead script tag and its never-executed
+  `tinymce.init()` block are removed; editing and display behave exactly as
+  before. This also resolves a dependency-scanner report
+  (GHSA-mh5m-5hw4-5c69, TinyMCE nested-SVG sanitizer bypass) that named this
+  page as loading the vulnerable editor. The vendored TinyMCE copy is now used
+  only by the administrator-only email template editor.
 - **The hand-vendored PHPMailer 5.2.9 is replaced with the maintained Composer
   package (6.x) and removed from the image.** The old bundled copy carried the
   CVE-2016-10033 / CVE-2016-10045 mail-transport remote-code-execution flaw

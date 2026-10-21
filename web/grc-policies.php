@@ -6,7 +6,7 @@
  * Disclaimer: Use this software at your own risk. No warranty provided.
  *
  * Full policy lifecycle management: list policies with status/owner/review date,
- * create/edit with Markdown editor (TinyMCE), version history with diff,
+ * create/edit with a plain-text Markdown editor, version history with diff,
  * approve/publish workflow, and acknowledgment tracking. Supports autosave
  * for policy content editing via AJAX to /api/grc-autosave.php.
  */
@@ -246,7 +246,6 @@ $currentPage = 'grc_policies';
     <link rel="stylesheet" href="app/css/fonts.css">
     <link rel="stylesheet" href="app/css/mobile-responsive.css">
     <link rel="stylesheet" href="app/css/interactive.css?v=3">
-    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
     <style>
         :root {
             --theme-header-color: <?php echo e($theme['header_color']); ?>;
@@ -858,23 +857,6 @@ $currentPage = 'grc_policies';
 </div>
 
 <script nonce="<?php echo cspNonce(); ?>">
-// Initialize TinyMCE for policy content editing
-if (document.getElementById('content') && typeof tinymce !== 'undefined') {
-    tinymce.init({
-        selector: '#content',
-        height: 400,
-        menubar: true,
-        plugins: 'lists link table code wordcount',
-        toolbar: 'undo redo | blocks | bold italic underline | bullist numlist | link table | code',
-        content_style: 'body { font-family: Roboto, sans-serif; font-size: 14px; }',
-        setup: function(editor) {
-            editor.on('change keyup', function() {
-                editor.save();
-            });
-        }
-    });
-}
-
 // Filter controls submit their form on change. Wired here rather than with an
 // inline onchange: the CSP is script-src 'self' plus a nonce, with no
 // unsafe-inline, so inline event-handler attributes never run at all.
