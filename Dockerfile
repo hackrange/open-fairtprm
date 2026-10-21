@@ -165,6 +165,14 @@ RUN set -e; \
     composer require onelogin/php-saml:^4.3 --no-interaction --no-progress \
         --working-dir=/var/www/html; \
     \
+    # Replace the hand-vendored PHPMailer 5.2.9 (CVE-2016-10033/10045 mail-transport
+    # RCE, GHSA-5f37-gxvh-23v6, on CISA KEV) with the Composer-managed 6.x line, and
+    # delete the old bundled copy so the vulnerable code no longer ships at all.
+    # EmailService only uses the SMTP transport, so this is a drop-in for its API.
+    composer require phpmailer/phpmailer:^6.9 --no-interaction --no-progress \
+        --working-dir=/var/www/html; \
+    rm -rf /var/www/html/app/template/site/bat/phpmailer; \
+    \
     # dompdf 3.1.5 carries six advisories (GHSA-8hg6-c449-896m, -f5gf-2cj8-52g2,
     # -7x2p-4jvh-6384, -wvh6-f5jh-8gw4, -cx96-42px-69fm, -j8qw-6jw8-r297), all
     # fixed in 3.1.6. The PDF export paths render app-generated HTML containing

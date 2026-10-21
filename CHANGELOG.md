@@ -943,6 +943,19 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- **The hand-vendored PHPMailer 5.2.9 is replaced with the maintained Composer
+  package (6.x) and removed from the image.** The old bundled copy carried the
+  CVE-2016-10033 / CVE-2016-10045 mail-transport remote-code-execution flaw
+  (GHSA-5f37-gxvh-23v6, on the CISA Known Exploited Vulnerabilities list). That
+  RCE is only reachable through the `mail()`/sendmail transport with an
+  attacker-influenced envelope sender; this application only ever uses the SMTP
+  transport and never sets the envelope sender, so it was not exploitable here.
+  Even so, the ancient library is now pulled from Composer (`phpmailer/phpmailer`
+  6.x) and the bundled `app/template/site/bat/phpmailer` directory is deleted at
+  build time, so the vulnerable code no longer ships at all. `EmailService` loads
+  the library through the Composer autoloader; its SMTP send path is unchanged
+  (verified by an end-to-end test send), and when the configured encryption is
+  "none" opportunistic STARTTLS is left off to preserve the previous behavior.
 - **A stakeholder could no longer be shown another vendor's FAIR financials by
   name.** The vendor detailed-summary report and the vendor onboarding FAIR tab
   looked up FAIR analysis results by the vendor's (user-settable) name, so a

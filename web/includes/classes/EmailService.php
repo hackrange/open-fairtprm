@@ -5,16 +5,23 @@
  * Author: Tim Rice
  * Disclaimer: Use this software at your own risk. No warranty provided.
  *
- * This bad boy wraps PHPMailer 5.2.9 (yes, the old faithful) and turns it into
- * a convenient email-slinging machine. It pulls all SMTP settings straight from
+ * This wraps the Composer-managed PHPMailer (6.x) and turns it into a
+ * convenient email-slinging machine. It pulls all SMTP settings straight from
  * the database so nobody has to hardcode credentials like a caveman. The main gig
  * is firing off annual vendor review reminder emails -- you know, the ones everyone
  * ignores until the third "OVERDUE" notice. Handles encryption for passwords too,
  * because storing plaintext SMTP creds is a fireable offense.
+ *
+ * SECURITY: PHPMailer is loaded from Composer (vendor/) instead of the old
+ * hand-vendored 5.2.9 copy, which carried the CVE-2016-10033/10045 mail-transport
+ * RCE (GHSA-5f37-gxvh-23v6). This class only ever uses the SMTP transport, but the
+ * ancient bundled library is removed outright so the vulnerable code no longer
+ * ships at all.
  */
 
-require_once dirname(__DIR__, 2) . '/app/template/site/bat/phpmailer/class.phpmailer.php';
-require_once dirname(__DIR__, 2) . '/app/template/site/bat/phpmailer/class.smtp.php';
+use PHPMailer\PHPMailer\PHPMailer;
+
+require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 class EmailService {
     private $db;
@@ -92,6 +99,12 @@ class EmailService {
             $mail->SMTPSecure = 'tls';
         } elseif ($encryption === 'ssl') {
             $mail->SMTPSecure = 'ssl';
+        } else {
+            // Preserve the behavior of the previous (5.2.9) library, which had no
+            // opportunistic TLS: when the admin selected "none", do not let 6.x
+            // silently upgrade to STARTTLS, so an internal relay keeps working
+            // exactly as before. Admins who want TLS select it explicitly above.
+            $mail->SMTPAutoTLS = false;
         }
 
         if (!empty($this->config['smtp_username'])) {
