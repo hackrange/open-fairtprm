@@ -581,6 +581,11 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The image records the runtime versions it was built with.** Each build
+  writes the installed PHP, Apache, OpenSSL, MariaDB, glibc and curl versions
+  to `/usr/local/share/fairtprm/runtime-versions` (outside the webroot, so it
+  is not served over HTTP) and prints them in the build log. Read it with
+  `docker run --rm --entrypoint cat dockerregistry.fairtprm.com/fairtprm:v2.6.2 /usr/local/share/fairtprm/runtime-versions`.
 - **Compliance Posture shows only what Grip can observe.** Checks Grip
   reports as Excluded, Pending or Undetectable are left out, and so is any
   control, or framework, with nothing passing or failing. The framework score
@@ -943,6 +948,17 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- **Runtime components updated to current security releases.** The v2.6.2
+  image build applies all pending Debian and PHP package updates on top of
+  the v2.6.1 base, so the image now runs PHP 8.5.12 (was 8.5.6), which fixes
+  the two unauthenticated remote code execution flaws CVE-2026-109618 and
+  CVE-2026-109619 ("PHP2Shell", released 2026-10-21), Apache
+  2.4.68 (was 2.4.67), OpenSSL 3.0.22 (was 3.0.19) and MariaDB 10.11.19 (was
+  10.11.14), along with current Debian security revisions of glibc, curl,
+  libxml2, Perl, sudo and the other base packages. These updates were picked
+  up by rebuilds and were not recorded here before. Containers upgraded in
+  place from the admin Version page keep their existing OS packages; pull the
+  v2.6.2 image and recreate the container to get them.
 - **The GRC policy page no longer references an external TinyMCE CDN script.**
   `grc-policies.php` loaded TinyMCE 6 from `cdn.tiny.cloud`, which the
   Content-Security-Policy (`script-src 'self'` plus a nonce) always blocked, so

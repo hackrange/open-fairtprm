@@ -52,6 +52,15 @@ COPY persistent/icons       /tmp/build/icons
 # Layer 2: place each file at its destination, set ownership, write VERSION,
 # verify the manifest, and remove the staging tree. set -e + cp's exit codes
 # cause the build to fail fast on any missing source file.
+#
+# dist-upgrade pulls the newest Debian and Sury PHP packages on every build, so
+# a rebuild can move PHP, Apache, OpenSSL or MariaDB with no code change. The
+# versions actually installed are written to
+# /usr/local/share/fairtprm/runtime-versions (outside the webroot, so it is not
+# served, and left untouched by the in-app upgrader, which only replaces
+# /var/www/html and keeps the old OS packages) and echoed in the build log.
+# Check it against the CHANGELOG before shipping:
+#     docker run --rm --entrypoint cat <image> /usr/local/share/fairtprm/runtime-versions
 RUN set -e; \
     export DEBIAN_FRONTEND=noninteractive; \
     apt-get update; \
@@ -197,6 +206,11 @@ RUN set -e; \
     cp -p  $pp/LICENSE.md /var/www/html/LICENSE.md; \
     \
     echo 'v2.6.2' > /var/www/html/VERSION; \
+    mkdir -p /usr/local/share/fairtprm; \
+    { echo "php $(php -r 'echo PHP_VERSION;')"; \
+      dpkg-query -W -f='${Package} ${Version}\n' 'php*-cli' apache2 openssl libssl3 mariadb-server libc6 curl | awk 'NF == 2'; \
+    } > /usr/local/share/fairtprm/runtime-versions; \
+    cat /usr/local/share/fairtprm/runtime-versions; \
     chown -R www-data:www-data /var/www/html/; \
     rm -rf /tmp/build; \
     \
