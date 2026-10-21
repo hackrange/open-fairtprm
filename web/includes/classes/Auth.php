@@ -112,15 +112,17 @@ class Auth {
                 $this->db->update('users', ['password_hash' => $newHash], 'id = :id', [':id' => $user['id']]);
             }
 
-            // Step 5: They got the password right, so wipe the failed attempt slate clean
-            $this->db->update('users', [
-                'failed_login_attempts' => 0,
-                'account_locked_until' => null
-            ], 'id = :id', [':id' => $user['id']]);
-
-            // Step 6: TOTP check -- if 2FA is enabled, we need that second factor before
+            // Step 5: TOTP check -- if 2FA is enabled, we need that second factor before
             // we let them fully in. Stash the user ID so the TOTP verification step knows
             // who we're dealing with.
+            //
+            // SECURITY (OPE-028): do NOT reset failed_login_attempts / account_locked_until
+            // here when a second factor is still pending. Login is not complete until TOTP
+            // passes, so clearing the counter now would let a correct password repeatedly
+            // reset the lockout that protects the TOTP step, defeating its brute-force
+            // protection. The counter is cleared only once authentication is fully
+            // complete -- in Step 7 below for non-2FA users, and in verifyTOTP() on a
+            // successful code for 2FA users.
             if ($user['totp_enabled']) {
                 $this->session->set('pending_totp_user_id', $user['id']);
                 return [
@@ -131,7 +133,14 @@ class Auth {
                 ];
             }
 
-            // Step 7: No 2FA? Great, let them in. Build the session and party on.
+            // Step 6: No 2FA? Authentication is complete -- wipe the failed attempt slate
+            // clean now that the only required factor has succeeded.
+            $this->db->update('users', [
+                'failed_login_attempts' => 0,
+                'account_locked_until' => null
+            ], 'id = :id', [':id' => $user['id']]);
+
+            // Step 7: Build the session and party on.
             $this->establishSession($user);
 
             $this->logAudit($user['id'], 'login_success', 'users', $user['id'], [

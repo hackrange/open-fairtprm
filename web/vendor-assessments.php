@@ -68,6 +68,23 @@ if (!function_exists('assessmentManageable')) {
     }
 }
 
+// BOLA fix (OPE-036): a non-reviewer (e.g. stakeholder) may create an assessment
+// ONLY against a vendor onboarding request they created or are linked to as a
+// stakeholder. Reviewers (admin/cyber_tprm) are gated separately and skip this.
+// Auditors own no vendors, so this also keeps them from creating cross-vendor.
+if (!function_exists('vendorRequestOwnedBy')) {
+    function vendorRequestOwnedBy($db, $vendorRequestId, $userId) {
+        $vrid = (int)$vendorRequestId;
+        if (!$vrid) return false;
+        return !empty($db->fetchOne(
+            'SELECT 1 AS x FROM vendor_onboarding_requests r
+             WHERE r.id = :rid AND (r.created_by = :uid
+               OR EXISTS (SELECT 1 FROM vendor_onboarding_stakeholders s
+                          WHERE s.request_id = r.id AND s.user_id = :uid2))',
+            [':rid' => $vrid, ':uid' => (int)$userId, ':uid2' => (int)$userId]));
+    }
+}
+
 $error = '';
 $success = '';
 $successHtml = '';
@@ -144,6 +161,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!$vendorRequestId) {
             $error = t('vendor-assessments.select_valid_vendor_existing');
         } elseif (!$isOnboardingTemplate && !$db->fetchOne("SELECT id FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'ai_review', 'approved')", [':id' => $vendorRequestId])) {
+            $error = t('vendor-assessments.vendor_not_valid');
+        } elseif (!$isAdmin && !$isCyberTPRM && !vendorRequestOwnedBy($db, $vendorRequestId, $user['id'])) {
+            // BOLA fix (OPE-036): block creation against a vendor the caller neither
+            // created nor is a linked stakeholder for. Applies to both onboarding and
+            // non-onboarding templates. A stakeholder creating a brand-new vendor via
+            // the is_new_vendor path already owns it (created_by + stakeholder row set
+            // above), so that legitimate flow still passes.
             $error = t('vendor-assessments.vendor_not_valid');
         } elseif (!filter_var($vendorEmail, FILTER_VALIDATE_EMAIL)) {
             $error = t('vendor-assessments.enter_valid_email');
@@ -399,8 +423,19 @@ function getSortIndicator($column, $currentSort, $currentOrder) {
 // drafts and inactive ones aren't real vendors yet (or anymore). ai_review is
 // the AI-usage review stage -- it's a sibling of in_review (a vendor actively
 // under review), so assessments must be linkable to it just like in_review.
+// SECURITY (OPE-036): reviewers (admin/cyber_tprm/procurement/auditor) may select any
+// usable vendor; a stakeholder may only see/select vendors they created or are linked
+// to, so the dropdown does not disclose other vendors' id/name/domain/contact email.
+$isReviewer = $isAdmin || $isCyberTPRM || $isProcurement || $isAuditor;
+$vendorScopeSql = '';
+$vendorScopeParams = [];
+if (!$isReviewer) {
+    $vendorScopeSql = " AND (created_by = :scope_uid OR id IN (SELECT request_id FROM vendor_onboarding_stakeholders WHERE user_id = :scope_uid2))";
+    $vendorScopeParams = [':scope_uid' => $user['id'], ':scope_uid2' => $user['id']];
+}
 $vendors = $db->fetchAll(
-    "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_name, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE status IN ('submitted', 'in_review', 'ai_review', 'approved') ORDER BY vendor_name"
+    "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_name, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE status IN ('submitted', 'in_review', 'ai_review', 'approved')" . $vendorScopeSql . " ORDER BY vendor_name",
+    $vendorScopeParams
 );
 // The assessment goes to the vendor's questionnaire respondent when that is set
 // as the default, else the primary contact (VendorAssessmentService::assessmentRecipientFor).
@@ -423,9 +458,11 @@ if ($linkVendorId) {
     // set the create-modal dropdown ($vendors) already exposes. Without the status
     // filter, link_vendor=<any id> would disclose name/contact/email of draft or
     // inactive vendor records the user is not meant to see in this form.
+    // SECURITY (OPE-036): apply the same stakeholder scope as the dropdown so a
+    // stakeholder cannot preselect (and read) a vendor outside their scope.
     $preselectedVendor = $db->fetchOne(
-        "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_name, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'ai_review', 'approved')",
-        [':id' => $linkVendorId]
+        "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_name, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'ai_review', 'approved')" . $vendorScopeSql,
+        array_merge([':id' => $linkVendorId], $vendorScopeParams)
     );
     if ($preselectedVendor) $preselectedVendor = $applyRecipient($preselectedVendor);
 }

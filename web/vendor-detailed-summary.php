@@ -121,8 +121,14 @@ try {
 } catch (Exception $e) {}
 
 // --- FAIR Analysis ---
+// SECURITY (OPE-037): the FAIR lookup matches on the (mutable, user-chosen)
+// vendor_name only, so a stakeholder who named their own onboarding request after
+// another vendor could read that vendor's confidential FAIR financials here. FAIR
+// results are not stakeholder-facing data, so suppress the panel entirely for
+// stakeholder-scoped viewers; privileged roles (admin/cyber_tprm/auditor/super
+// admin) already have authorized visibility of every vendor's FAIR analysis.
 $fairAnalysis = null;
-if (!empty($vendor['vendor_name'])) {
+if (!$isStakeholderAccess && !empty($vendor['vendor_name'])) {
     $fairRow = $db->fetchOne(
         "SELECT status, risk_output, loss_event_frequency, ale,
                 primary_loss_magnitude, secondary_loss_magnitude, recommended_liability,

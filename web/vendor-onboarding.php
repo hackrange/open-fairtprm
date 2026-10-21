@@ -614,8 +614,13 @@ if ($showVendorTabs) {
         $shodanWaivers = $shodanService->getWaiversForVendor($requestId);
     } catch (Exception $e) {}
 
-    // FAIR Analyses linked by vendor name/domain
-    try {
+    // FAIR Analyses linked by vendor name/domain.
+    // SECURITY (OPE-037): the lookup matches on the mutable vendor_name/vendor_domain,
+    // so it must not run for stakeholder-only viewers -- a stakeholder could otherwise
+    // read another vendor's confidential FAIR financials by naming their own request
+    // the same. FAIR is not stakeholder-facing data (the tab is hidden from them), so
+    // leave $vendorFairAnalyses empty for stakeholder-only users.
+    if (!$isStakeholderOnly) try {
         $fairParams = [];
         $fairConditions = [];
         if (!empty($request['vendor_name'])) {
@@ -3264,6 +3269,12 @@ function getFieldValue($request, $field, $default = '') {
                 if ($isProcurementOnly && in_array($activeTab, ['fair', 'assessments'])) {
                     $activeTab = 'vendor';
                 }
+                // SECURITY (OPE-037): stakeholder-only users cannot access the FAIR tab
+                // (confidential financials, and the lookup keys on a mutable name). The
+                // tab button is already hidden from them; this blocks a direct ?tab=fair.
+                if ($isStakeholderOnly && $activeTab === 'fair') {
+                    $activeTab = 'vendor';
+                }
                 // Custom Data tab badge counts only POPULATED fields (a non-empty
                 // scalar value or a non-empty multi-select list), not the number of
                 // fields defined on the template. When nothing is filled in, no badge.
@@ -4854,7 +4865,8 @@ function getFieldValue($request, $field, $default = '') {
                 <?php endif; ?>
 
                 <!-- Tab: FAIR Assessment -->
-                <?php if (!$isProcurementOnly): ?>
+                <?php /* SECURITY (OPE-037): never render FAIR content for stakeholder-only viewers. */ ?>
+                <?php if (!$isProcurementOnly && !$isStakeholderOnly): ?>
                 <div id="vendorTabContent_fair" style="<?php echo $activeTab !== 'fair' ? 'display: none;' : ''; ?>">
                     <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 25px;">
                         <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #333;"><?php echo e(t('vendor-onboarding.fair_analyses_heading')); ?></h3>

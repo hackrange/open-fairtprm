@@ -911,9 +911,19 @@ class VendorAssessmentService {
             if ($row) {
                 return $row['id'];
             }
+
+            // SECURITY (OPE-036): when a vendor request id was supplied, confine the
+            // prior-answer search to that request. Do NOT fall through to the global
+            // email match below -- otherwise a caller could prefill (and read) another
+            // vendor's completed answers by supplying that vendor's email alongside
+            // their own request id. A first assessment on a request legitimately has
+            // nothing to carry over, so returning null here is the correct result.
+            return null;
         }
 
-        // 2. Fall back to matching on email (contact email or general vendor email)
+        // 2. Fall back to matching on email (contact email or general vendor email).
+        //    Only reached when NO request id was supplied (a genuinely new vendor keyed
+        //    by email), e.g. the rule-triggered assessment path for an unlinked vendor.
         $emails = [];
         foreach ([$vendorContactEmail, $vendorEmail] as $email) {
             $email = strtolower(trim((string)$email));

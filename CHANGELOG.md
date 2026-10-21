@@ -943,6 +943,31 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- **A stakeholder could no longer be shown another vendor's FAIR financials by
+  name.** The vendor detailed-summary report and the vendor onboarding FAIR tab
+  looked up FAIR analysis results by the vendor's (user-settable) name, so a
+  stakeholder who named their own onboarding request after another vendor could
+  read that vendor's confidential ALE, loss magnitudes, recommended liability and
+  cyber-insurance figures. The FAIR panel is now suppressed for stakeholder-scoped
+  viewers on both `vendor-detailed-summary.php` and `vendor-onboarding.php`
+  (`?tab=fair` no longer activates and the data is not fetched); roles already
+  authorized to see every vendor's FAIR analysis are unaffected.
+- **Assessment creation is now scoped to vendors the caller owns.** The vendor
+  assessment creation handler validated only the target request's status, not
+  ownership, so a stakeholder could create an assessment against any vendor and
+  read prior responses or overwrite records. Creation now requires the caller to
+  be a reviewer (administrator or Cyber TPRM) or the creator / linked stakeholder
+  of the target request, on both the onboarding and standard template paths. The
+  vendor picker and preselect are scoped to the stakeholder's own vendors, and the
+  prior-answer prefill no longer falls back to a global email match when a request
+  is specified (which could otherwise copy another vendor's answers).
+- **TOTP second-factor lockout can no longer be reset by re-entering the
+  password.** `login()` cleared the failed-attempt counter and lockout on a
+  correct password before the TOTP step completed, so an attacker who already had
+  the password could reset the lockout between code guesses and brute-force the
+  six-digit factor. The counter is now cleared only once authentication is fully
+  complete (non-2FA login, or a correct TOTP code), so the lockout applies across
+  the whole login, password and TOTP attempts together.
 - **dompdf updated from 3.1.5 to 3.1.6, closing six advisories.**
   `GHSA-8hg6-c449-896m`, `GHSA-f5gf-2cj8-52g2`, `GHSA-7x2p-4jvh-6384` and
   `GHSA-wvh6-f5jh-8gw4` (CVSS 7.5) plus `GHSA-cx96-42px-69fm` and
