@@ -171,6 +171,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $templateId = intval($_POST['template_id'] ?? 0);
         $expiresInDays = intval($_POST['expires_in_days'] ?? 30);
         if ($expiresInDays < 1) $expiresInDays = 30;
+        // Optional stakeholder copy; {vendor_name} / {vendor_contact_email} in the
+        // note are filled per vendor. Empty note = CC only.
+        $includeStakeholder = !empty($_POST['include_stakeholder']);
+        $stakeholderNote = (string)($_POST['stakeholder_note'] ?? '');
 
         if (empty($vendorIds) || !is_array($vendorIds)) {
             $bulkAssessmentError = t('fourth-party-risk.no_vendors_selected_error');
@@ -183,6 +187,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $emailed = 0;
             $skipped = 0;
             $failed = 0;
+            $stakeholderSent = 0;
+            $stakeholderFailed = 0;
             $skippedNames = [];
             $failedNames = [];
 
@@ -246,7 +252,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 if ($emailEnabled && $emailService) {
                     try {
                         $assessmentUrl = baseUrl('vendor-assessment.php?token=' . $result['uuid']);
-                        $emailResult = $emailService->sendAssessmentEmail(
+                        $emailResult = VendorAssessmentService::sendAssessmentWithStakeholder(
+                            $emailService,
+                            $db,
+                            (int)$vendor['id'],
+                            $includeStakeholder,
+                            $stakeholderNote,
                             $contactEmail,
                             $vendor['vendor_name'],
                             $assessmentUrl,
@@ -257,6 +268,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         );
                         if (!empty($emailResult['success'])) {
                             $emailed++;
+                            $so = $emailResult['stakeholder'] ?? null;
+                            if ($so === 'copy' || $so === 'cc') $stakeholderSent++;
+                            elseif ($so === 'copy_failed') $stakeholderFailed++;
                             try {
                                 $expiresDate = !empty($result['expires_at']) ? date('Y-m-d', strtotime($result['expires_at'])) : date('Y-m-d', strtotime('+30 days'));
                                 $db->query(
@@ -284,6 +298,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $bulkAssessmentMessage = "Created {$created} assessment(s)";
             if ($emailEnabled) {
                 $bulkAssessmentMessage .= ", emailed {$emailed}";
+                if ($stakeholderSent > 0) {
+                    $bulkAssessmentMessage .= ", stakeholder copied on {$stakeholderSent}";
+                }
+                if ($stakeholderFailed > 0) {
+                    $bulkAssessmentMessage .= ", {$stakeholderFailed} stakeholder copy(ies) failed";
+                }
                 if ($failed > 0) {
                     $bulkAssessmentMessage .= ", {$failed} email(s) failed and will be retried by the reminder cron"
                         . (!empty($failedNames) ? ' (' . implode(', ', array_slice($failedNames, 0, 5)) . (count($failedNames) > 5 ? '...' : '') . ')' : '');
@@ -1628,6 +1648,17 @@ function renderCveBadges($cvesRaw): string {
                                 <option value="90"><?php echo e(t('fourth-party-risk.expires_90_days')); ?></option>
                             </select>
                         </div>
+                        <div style="margin-bottom: 4px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; background: #f9fafb;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: #374151; margin: 0;">
+                                <input type="checkbox" name="include_stakeholder" id="bulkIncludeStakeholder" value="1" checked style="width: 16px; height: 16px; cursor: pointer;">
+                                <?php echo e(t('fourth-party-risk.label_include_stakeholder')); ?>
+                            </label>
+                            <div id="bulkStakeholderNoteWrap" style="margin-top: 10px;">
+                                <label for="bulkStakeholderNote" style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;"><?php echo e(t('fourth-party-risk.label_for_the_stakeholder')); ?></label>
+                                <textarea name="stakeholder_note" id="bulkStakeholderNote" rows="5" maxlength="<?php echo (int)VendorAssessmentService::STAKEHOLDER_NOTE_MAX; ?>" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box; font-family: inherit; resize: vertical;"><?php echo e(VendorAssessmentService::defaultStakeholderNote()); ?></textarea>
+                                <div style="font-size: 12px; color: #6b7280; margin-top: 4px;"><?php echo e(t('fourth-party-risk.help_for_the_stakeholder')); ?></div>
+                            </div>
+                        </div>
                     </div>
                     <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 10px; background: #f9fafb; border-radius: 0 0 12px 12px;">
                         <button type="button" id="bulkAssessmentCancel" style="padding: 10px 20px; background: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; cursor: pointer;"><?php echo e(t('fourth-party-risk.cancel')); ?></button>
@@ -1885,6 +1916,14 @@ function renderCveBadges($cvesRaw): string {
         var selectAll = document.getElementById('blastSelectAll');
         var assignBtn = document.getElementById('blastAssignBtn');
         var countSpan = document.getElementById('blastSelectedCount');
+        var bulkInclude = document.getElementById('bulkIncludeStakeholder');
+        if (bulkInclude) {
+            var syncBulkStakeholder = function() {
+                document.getElementById('bulkStakeholderNoteWrap').style.display = bulkInclude.checked ? '' : 'none';
+            };
+            bulkInclude.addEventListener('change', syncBulkStakeholder);
+            syncBulkStakeholder();
+        }
         var modal = document.getElementById('bulkAssessmentModal');
         var closeBtn = document.getElementById('bulkAssessmentClose');
         var cancelBtn = document.getElementById('bulkAssessmentCancel');

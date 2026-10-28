@@ -2501,4 +2501,130 @@ class VendorAssessmentService {
         $name = trim((string)($vendor['primary_contact_details'] ?? ''));
         return ['email' => $primary, 'name' => $name !== '' ? $name : null, 'source' => 'primary'];
     }
+
+    /**
+     * The internal stakeholder for a vendor: the assigned stakeholder, else the
+     * user who created the vendor (the same rule the vendor page displays).
+     * Returns ['email', 'name'] or null when nobody with a valid email is found.
+     */
+    public static function stakeholderFor(Database $db, int $vendorRequestId): ?array
+    {
+        if ($vendorRequestId <= 0) return null;
+        try {
+            $u = $db->fetchOne(
+                "SELECT u.full_name, u.username, u.email
+                 FROM vendor_onboarding_stakeholders vs
+                 JOIN users u ON vs.user_id = u.id
+                 WHERE vs.request_id = :rid AND vs.role = 'stakeholder'
+                 ORDER BY vs.assigned_at DESC
+                 LIMIT 1",
+                [':rid' => $vendorRequestId]
+            );
+            if (!$u) {
+                $u = $db->fetchOne(
+                    "SELECT u.full_name, u.username, u.email
+                     FROM vendor_onboarding_requests r
+                     JOIN users u ON u.id = r.created_by
+                     WHERE r.id = :rid",
+                    [':rid' => $vendorRequestId]
+                );
+            }
+        } catch (Throwable $e) {
+            error_log('stakeholderFor lookup failed: ' . $e->getMessage());
+            return null;
+        }
+        $email = strtolower(trim((string)($u['email'] ?? '')));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return null;
+        $name = trim((string)($u['full_name'] ?? '')) ?: trim((string)($u['username'] ?? ''));
+        return ['email' => $email, 'name' => $name !== '' ? $name : null];
+    }
+
+    /** Longest "For the Stakeholder" note we accept. */
+    const STAKEHOLDER_NOTE_MAX = 5000;
+
+    /** app_config key for the admin-editable default (Admin > Email > Stakeholder). */
+    const STAKEHOLDER_NOTE_CONFIG_KEY = 'assessment_stakeholder_default_note';
+
+    /** Built-in default, used until an admin saves their own. */
+    const STAKEHOLDER_NOTE_BUILTIN = 'We have sent the below assessment / Request for Information to {vendor_name} - Email address of {vendor_contact_email} - You are receiving this should the vendor reach out directly to you or for your records';
+
+    /**
+     * The default "For the Stakeholder" text that prefills the send forms, with
+     * its {vendor_name} / {vendor_contact_email} tokens still in place. An admin
+     * may save it empty, which makes the stakeholder default to a plain CC.
+     */
+    public static function defaultStakeholderNote(): string
+    {
+        $v = getAppConfig(self::STAKEHOLDER_NOTE_CONFIG_KEY, null);
+        return $v === null ? self::STAKEHOLDER_NOTE_BUILTIN : (string)$v;
+    }
+
+    /**
+     * Fill the {vendor_name} / {vendor_contact_email} tokens in a "For the
+     * Stakeholder" note. Plain text out; the email layer escapes it.
+     */
+    public static function renderStakeholderNote(string $note, string $vendorName, string $contactEmail): string
+    {
+        $note = trim(str_replace(["\r\n", "\r"], "\n", $note));
+        if (function_exists('mb_substr')) {
+            $note = mb_substr($note, 0, self::STAKEHOLDER_NOTE_MAX);
+        } else {
+            $note = substr($note, 0, self::STAKEHOLDER_NOTE_MAX);
+        }
+        return strtr($note, ['{vendor_name}' => $vendorName, '{vendor_contact_email}' => $contactEmail]);
+    }
+
+    /**
+     * Send the assessment to the vendor contact and, when asked, to the vendor's
+     * stakeholder. With a note the stakeholder gets their own copy of the same
+     * email with the note as a banner on top (the vendor never sees it); with an
+     * empty note they are only CC'd on the vendor's email. The stakeholder copy
+     * goes out only once the vendor's email has. Returns the vendor send result
+     * plus 'stakeholder' => 'cc' | 'copy' | 'copy_failed' | null.
+     */
+    public static function sendAssessmentWithStakeholder(
+        EmailService $emailService,
+        Database $db,
+        int $vendorRequestId,
+        bool $includeStakeholder,
+        string $stakeholderNote,
+        string $contactEmail,
+        string $vendorName,
+        string $assessmentUrl,
+        ?string $contactName,
+        ?int $templateId,
+        ?string $fullName,
+        ?string $expiresAt
+    ): array {
+        $stakeholder = $includeStakeholder ? self::stakeholderFor($db, $vendorRequestId) : null;
+        // No point copying the stakeholder on mail addressed to themselves.
+        if ($stakeholder && strcasecmp($stakeholder['email'], trim($contactEmail)) === 0) {
+            $stakeholder = null;
+        }
+        $note = $stakeholder ? self::renderStakeholderNote($stakeholderNote, $vendorName, $contactEmail) : '';
+
+        $opts = ($stakeholder && $note === '') ? ['cc' => [$stakeholder]] : [];
+        $result = $emailService->sendAssessmentEmail(
+            $contactEmail, $vendorName, $assessmentUrl, $contactName, $templateId, $fullName, $expiresAt, null, $opts
+        );
+        $result['stakeholder'] = null;
+        if (empty($result['success']) || !$stakeholder) {
+            return $result;
+        }
+        if ($note === '') {
+            $result['stakeholder'] = 'cc';
+            $result['stakeholder_email'] = $stakeholder['email'];
+            return $result;
+        }
+        $copy = $emailService->sendAssessmentEmail(
+            $stakeholder['email'], $vendorName, $assessmentUrl, $contactName, $templateId, $fullName, $expiresAt, null,
+            ['stakeholder_note' => $note, 'to_name' => $stakeholder['name'] ?? '']
+        );
+        $result['stakeholder'] = !empty($copy['success']) ? 'copy' : 'copy_failed';
+        $result['stakeholder_email'] = $stakeholder['email'];
+        if (empty($copy['success'])) {
+            error_log('Stakeholder copy of assessment email failed: ' . ($copy['message'] ?? 'unknown error'));
+        }
+        return $result;
+    }
 }

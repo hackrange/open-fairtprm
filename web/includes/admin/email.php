@@ -650,8 +650,41 @@ try {
 // Note: admin.php includes this file twice (first for POST handling, second for
 // rendering) and sets $_SERVER['REQUEST_METHOD'] to GET between passes. We check
 // $_POST keys directly since $_POST persists across both includes.
+// ============================================================================
+// POST Handler: save_stakeholder_note_settings / reset_stakeholder_note
+// The default "For the Stakeholder" text that prefills the Send Assessment
+// forms (vendor-assessments.php, fourth-party-risk.php). Saving it empty is
+// allowed: the stakeholder then defaults to a plain CC of the vendor email.
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_stakeholder_note_settings']) || isset($_POST['reset_stakeholder_note']))) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_email.invalid_request');
+    } else {
+        require_once __DIR__ . '/../classes/VendorAssessmentService.php';
+        $snKey = VendorAssessmentService::STAKEHOLDER_NOTE_CONFIG_KEY;
+        if (isset($_POST['reset_stakeholder_note'])) {
+            $snVal = VendorAssessmentService::STAKEHOLDER_NOTE_BUILTIN;
+        } else {
+            $snVal = trim(str_replace(["\r\n", "\r"], "\n", (string)($_POST['stakeholder_default_note'] ?? '')));
+        }
+        if (mb_strlen($snVal) > VendorAssessmentService::STAKEHOLDER_NOTE_MAX) {
+            $error = t('admin_email.sn_too_long', VendorAssessmentService::STAKEHOLDER_NOTE_MAX);
+        } else {
+            if ($db->fetchOne('SELECT id FROM app_config WHERE config_key = :k', [':k' => $snKey])) {
+                $db->update('app_config', ['config_value' => $snVal], 'config_key = :k', [':k' => $snKey]);
+            } else {
+                $db->insert('app_config', ['config_key' => $snKey, 'config_value' => $snVal, 'is_encrypted' => 0]);
+            }
+            $auth->audit($user['id'], 'config_update_stakeholder_note', 'app_config', null, ['new' => [$snKey => $snVal]]);
+            $success = t('admin_email.sn_saved');
+        }
+    }
+}
+
 $activeTab = 'settings';
-if (isset($_POST['save_breach_alert_settings'])) {
+if (isset($_POST['save_stakeholder_note_settings']) || isset($_POST['reset_stakeholder_note'])) {
+    $activeTab = 'stakeholder';
+} elseif (isset($_POST['save_breach_alert_settings'])) {
     $activeTab = 'breach_alert';
 } elseif (isset($_POST['update_procurement_settings']) || isset($_POST['save_procurement_digest_settings']) || isset($_POST['send_procurement_digest_now'])) {
     $activeTab = 'procurement';
@@ -1038,6 +1071,32 @@ $renderWafNotice = function (string $tabKey) use ($wafAvailable, $wafActive, $wa
 <!-- ================================================================== -->
 <div id="emailSection_stakeholder" <?php echo $activeTab !== 'stakeholder' ? 'style="display: none;"' : ''; ?>>
 <?php echo $renderWafNotice('stakeholder'); ?>
+<?php
+    require_once __DIR__ . '/../classes/VendorAssessmentService.php';
+    $snRow = $db->fetchOne('SELECT config_value FROM app_config WHERE config_key = :k', [':k' => VendorAssessmentService::STAKEHOLDER_NOTE_CONFIG_KEY]);
+    $snCurrent = $snRow ? (string)$snRow['config_value'] : VendorAssessmentService::STAKEHOLDER_NOTE_BUILTIN;
+?>
+<div class="card" id="stakeholderNoteCard">
+    <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.sn_heading')); ?></h3>
+    <p style="color: #666; font-size: 13px; margin: 0 0 14px;"><?php echo e(t('admin_email.sn_desc')); ?></p>
+    <div style="background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px; font-size: 12px;">
+        <strong style="color: #3730a3;"><?php echo e(t('admin_email.available_variables')); ?></strong>
+        <code style="background: #e0e7ff; padding: 1px 5px; border-radius: 3px; margin-left: 4px;">{vendor_name}</code>
+        <code style="background: #e0e7ff; padding: 1px 5px; border-radius: 3px; margin-left: 4px;">{vendor_contact_email}</code>
+    </div>
+    <form method="POST" action="admin.php?section=email">
+        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+        <div class="form-group">
+            <label for="stakeholderDefaultNote"><?php echo e(t('admin_email.sn_label')); ?></label>
+            <textarea name="stakeholder_default_note" id="stakeholderDefaultNote" class="form-control" rows="5" maxlength="<?php echo (int)VendorAssessmentService::STAKEHOLDER_NOTE_MAX; ?>"><?php echo e($snCurrent); ?></textarea>
+            <div class="form-help"><?php echo e(t('admin_email.sn_help')); ?></div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button type="submit" name="save_stakeholder_note_settings" class="btn btn-primary"><?php echo e(t('admin_email.sn_btn_save')); ?></button>
+            <button type="submit" name="reset_stakeholder_note" class="btn btn-secondary" data-confirm="<?php echo e(t('admin_email.sn_confirm_reset')); ?>"><?php echo e(t('admin_email.btn_reset_default')); ?></button>
+        </div>
+    </form>
+</div>
 <div class="card">
     <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.stakeholder_templates_heading')); ?></h3>
     <p style="color: #666; font-size: 13px; margin: 0 0 20px;">

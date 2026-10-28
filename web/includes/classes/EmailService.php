@@ -1328,7 +1328,13 @@ HTML;
      * @param string|null $contactName Optional contact person name
      * @return array ['success' => bool, 'message' => string]
      */
-    public function sendAssessmentEmail(string $vendorEmail, string $vendorName, string $assessmentUrl, ?string $contactName = null, ?int $assessmentTemplateId = null, ?string $fullName = null, ?string $expiresAt = null, ?string $assessmentName = null): array
+    /**
+     * $options: 'cc' => [['email' => .., 'name' => ..], ...] adds CC recipients;
+     * 'stakeholder_note' => plain text shown as a "For the Stakeholder" banner
+     * above the message (used for the stakeholder's own copy only);
+     * 'to_name' => display name for the To address (defaults to $contactName).
+     */
+    public function sendAssessmentEmail(string $vendorEmail, string $vendorName, string $assessmentUrl, ?string $contactName = null, ?int $assessmentTemplateId = null, ?string $fullName = null, ?string $expiresAt = null, ?string $assessmentName = null, array $options = []): array
     {
         if (!$this->enabled) {
             return ['success' => false, 'message' => 'Email notifications are disabled.'];
@@ -1340,7 +1346,14 @@ HTML;
 
         try {
             $mail = $this->createMailer();
-            $mail->addAddress($vendorEmail, $contactName ?? '');
+            $mail->addAddress($vendorEmail, $options['to_name'] ?? $contactName ?? '');
+            foreach ((array)($options['cc'] ?? []) as $cc) {
+                $ccEmail = trim((string)($cc['email'] ?? ''));
+                if (filter_var($ccEmail, FILTER_VALIDATE_EMAIL) && strcasecmp($ccEmail, $vendorEmail) !== 0) {
+                    $mail->addCC($ccEmail, (string)($cc['name'] ?? ''));
+                }
+            }
+            $stakeholderNote = trim((string)($options['stakeholder_note'] ?? ''));
 
             $safeVendorName = htmlspecialchars($vendorName, ENT_QUOTES, 'UTF-8');
             $safeUrl = htmlspecialchars($assessmentUrl, ENT_QUOTES, 'UTF-8');
@@ -1383,6 +1396,7 @@ HTML;
                 $mail->Subject = $this->renderWithBranding($dbTemplate['email_subject'], $vars);
                 $mail->Body = $this->renderWithBranding($dbTemplate['email_body_html'], $vars);
                 $mail->AltBody = $this->renderWithBranding($dbTemplate['email_body_text'], $vars);
+                if ($stakeholderNote !== '') $this->addStakeholderBanner($mail, $stakeholderNote);
 
                 $this->sendEmail($mail);
                 return ['success' => true, 'message' => "Assessment email sent to {$vendorEmail}"];
@@ -1467,6 +1481,7 @@ This link will expire on {$formattedExpiryFallback}. If you have any questions, 
 Thank you,
 Third Party Risk Management Team
 TEXT;
+            if ($stakeholderNote !== '') $this->addStakeholderBanner($mail, $stakeholderNote);
 
             $this->sendEmail($mail);
             return ['success' => true, 'message' => "Assessment email sent to {$vendorEmail}"];
@@ -1475,6 +1490,27 @@ TEXT;
             error_log("EmailService: Assessment email failed - " . $e->getMessage());
             return ['success' => false, 'message' => 'Failed to send email: ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Put a "For the Stakeholder" banner above an already-rendered assessment
+     * email. The note is user text, so it is escaped and line breaks kept; it
+     * goes right after <body> (or in front, for a body-less fragment).
+     */
+    private function addStakeholderBanner(PHPMailer $mail, string $note): void
+    {
+        $safe = nl2br(htmlspecialchars($note, ENT_QUOTES, 'UTF-8'), false);
+        $banner = '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4; padding: 20px 20px 0 20px;"><tr><td align="center">'
+            . '<table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #FFF8E1; border: 1px solid #F5C518; border-left: 6px solid #F59E0B; border-radius: 8px;"><tr>'
+            . '<td style="padding: 16px 20px; font-family: Arial, sans-serif;">'
+            . '<p style="margin: 0 0 8px 0; color: #92400E; font-size: 13px; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase;">For the Stakeholder</p>'
+            . '<p style="margin: 0; color: #451A03; font-size: 15px; line-height: 1.6;">' . $safe . '</p>'
+            . '</td></tr></table></td></tr></table>';
+        $html = (string)$mail->Body;
+        $count = 0;
+        $html = preg_replace_callback('/<body\b[^>]*>/i', function ($m) use ($banner) { return $m[0] . $banner; }, $html, 1, $count);
+        $mail->Body = $count ? $html : $banner . $html;
+        $mail->AltBody = "FOR THE STAKEHOLDER\n" . $note . "\n\n----------------------------------------\n\n" . (string)$mail->AltBody;
     }
 
     /**

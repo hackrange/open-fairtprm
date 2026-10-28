@@ -118,6 +118,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $vendorRequestId = !empty($_POST['vendor_request_id']) ? intval($_POST['vendor_request_id']) : null;
         $isNewVendor = !empty($_POST['is_new_vendor']);
         $vendorDomain = trim($_POST['vendor_domain'] ?? '');
+        // Optional copy to the vendor's stakeholder: with a note they get their
+        // own copy with a "For the Stakeholder" banner, without one just a CC.
+        $includeStakeholder = !empty($_POST['include_stakeholder']);
+        $stakeholderNote = (string)($_POST['stakeholder_note'] ?? '');
 
         // Check if selected template is an onboarding category template
         $isOnboardingTemplate = false;
@@ -202,6 +206,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Auto-send email to the contact person if email is enabled
                 $emailSent = false;
+                $stakeholderOutcome = null;
+                $stakeholderEmail = '';
                 try {
                     require_once __DIR__ . '/includes/classes/EmailService.php';
                     $encryption = new Encryption();
@@ -215,7 +221,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         );
                         $fullName = !empty($onboardingRecord['primary_contact_details']) ? $onboardingRecord['primary_contact_details'] : null;
 
-                        $emailResult = $emailService->sendAssessmentEmail(
+                        $emailResult = VendorAssessmentService::sendAssessmentWithStakeholder(
+                            $emailService,
+                            $db,
+                            (int)$vendorRequestId,
+                            $includeStakeholder,
+                            $stakeholderNote,
                             $vendorContactEmail,
                             $vendorName,
                             $assessmentUrl,
@@ -225,6 +236,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $result['expires_at']
                         );
                         $emailSent = !empty($emailResult['success']);
+                        $stakeholderOutcome = $emailResult['stakeholder'] ?? null;
+                        $stakeholderEmail = $emailResult['stakeholder_email'] ?? '';
 
                         // Record in tracking table so cron won't re-send
                         if ($emailSent && !empty($result['id'])) {
@@ -249,6 +262,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $emailNote = $emailSent
                     ? '<br><span style="color:#166534;">' . t('vendor-assessments.email_sent_auto_prefix') . htmlspecialchars($vendorContactEmail) . '</span>'
                     : '';
+                if ($stakeholderOutcome === 'copy' || $stakeholderOutcome === 'cc') {
+                    $emailNote .= '<br><span style="color:#166534;">' . htmlspecialchars(t('vendor-assessments.stakeholder_' . $stakeholderOutcome . '_sent', $stakeholderEmail)) . '</span>';
+                } elseif ($stakeholderOutcome === 'copy_failed') {
+                    $emailNote .= '<br><span style="color:#991b1b;">' . htmlspecialchars(t('vendor-assessments.stakeholder_copy_failed', $stakeholderEmail)) . '</span>';
+                }
 
                 // Let the admin know we carried answers over from a prior assessment
                 if (!empty($result['prefilled_count'])) {
@@ -256,7 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                   t('vendor-assessments.prefilled_suffix') . '</span>';
                 }
                 $auth->audit($user['id'], 'assessment_create', 'vendor_assessments', $result['id'] ?? null, [
-                    'new' => ['vendor_name' => $vendorName, 'vendor_email' => $vendorEmail, 'template_id' => $templateId, 'vendor_request_id' => $vendorRequestId]
+                    'new' => ['vendor_name' => $vendorName, 'vendor_email' => $vendorEmail, 'template_id' => $templateId, 'vendor_request_id' => $vendorRequestId, 'stakeholder' => $stakeholderOutcome]
                 ]);
                 $successHtml = t('vendor-assessments.created_success_html') . $emailNote . t('vendor-assessments.share_link_text') .
                            '<br><br><code style="background:#f3f4f6;padding:8px 12px;border-radius:4px;word-break:break-all;">' .
@@ -433,8 +451,13 @@ if (!$isReviewer) {
     $vendorScopeSql = " AND (created_by = :scope_uid OR id IN (SELECT request_id FROM vendor_onboarding_stakeholders WHERE user_id = :scope_uid2))";
     $vendorScopeParams = [':scope_uid' => $user['id'], ':scope_uid2' => $user['id']];
 }
+// Display name of the vendor's stakeholder (assigned stakeholder, else creator),
+// the same person VendorAssessmentService::stakeholderFor() sends the copy to.
+$stakeholderNameSql = "COALESCE("
+    . "(SELECT COALESCE(NULLIF(su.full_name, ''), su.username) FROM vendor_onboarding_stakeholders svs JOIN users su ON su.id = svs.user_id WHERE svs.request_id = vendor_onboarding_requests.id AND svs.role = 'stakeholder' ORDER BY svs.assigned_at DESC LIMIT 1), "
+    . "(SELECT COALESCE(NULLIF(cu.full_name, ''), cu.username) FROM users cu WHERE cu.id = vendor_onboarding_requests.created_by))";
 $vendors = $db->fetchAll(
-    "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_name, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE status IN ('submitted', 'in_review', 'ai_review', 'approved')" . $vendorScopeSql . " ORDER BY vendor_name",
+    "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_name, questionnaire_respondent_default, " . $stakeholderNameSql . " AS stakeholder_name FROM vendor_onboarding_requests WHERE status IN ('submitted', 'in_review', 'ai_review', 'approved')" . $vendorScopeSql . " ORDER BY vendor_name",
     $vendorScopeParams
 );
 // The assessment goes to the vendor's questionnaire respondent when that is set
@@ -461,7 +484,7 @@ if ($linkVendorId) {
     // SECURITY (OPE-036): apply the same stakeholder scope as the dropdown so a
     // stakeholder cannot preselect (and read) a vendor outside their scope.
     $preselectedVendor = $db->fetchOne(
-        "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_name, questionnaire_respondent_default FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'ai_review', 'approved')" . $vendorScopeSql,
+        "SELECT id, vendor_name, vendor_domain, primary_contact_email as vendor_email, primary_contact_details as vendor_contact, primary_contact_email, primary_contact_details, questionnaire_respondent_email, questionnaire_respondent_name, questionnaire_respondent_default, " . $stakeholderNameSql . " AS stakeholder_name FROM vendor_onboarding_requests WHERE id = :id AND status IN ('submitted', 'in_review', 'ai_review', 'approved')" . $vendorScopeSql,
         array_merge([':id' => $linkVendorId], $vendorScopeParams)
     );
     if ($preselectedVendor) $preselectedVendor = $applyRecipient($preselectedVendor);
@@ -1098,6 +1121,25 @@ try {
                     </select>
                 </div>
 
+                <?php
+                    $snTemplate = VendorAssessmentService::defaultStakeholderNote();
+                    $snInitial = $preselectedVendor
+                        ? VendorAssessmentService::renderStakeholderNote($snTemplate, (string)$preselectedVendor['vendor_name'], (string)$preselectedVendor['vendor_contact_email'])
+                        : $snTemplate;
+                ?>
+                <div class="form-group" id="stakeholderSection" style="border:1px solid #e5e7eb; border-radius:6px; padding:12px 14px; background:#f9fafb;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0;">
+                        <input type="checkbox" name="include_stakeholder" id="includeStakeholder" value="1" checked>
+                        <span><?php echo e(t('vendor-assessments.label_include_stakeholder')); ?></span>
+                        <span id="stakeholderNameHint" style="color:#6b7280; font-weight:normal;"><?php echo ($preselectedVendor && !empty($preselectedVendor['stakeholder_name'])) ? e('(' . $preselectedVendor['stakeholder_name'] . ')') : ''; ?></span>
+                    </label>
+                    <div id="stakeholderNoteWrap" style="margin-top:10px;">
+                        <label for="stakeholderNote"><?php echo e(t('vendor-assessments.label_for_the_stakeholder')); ?></label>
+                        <textarea name="stakeholder_note" id="stakeholderNote" class="form-control" rows="5" maxlength="<?php echo (int)VendorAssessmentService::STAKEHOLDER_NOTE_MAX; ?>" data-template="<?php echo e($snTemplate); ?>"><?php echo e($snInitial); ?></textarea>
+                        <div class="form-help"><?php echo e(t('vendor-assessments.help_for_the_stakeholder')); ?></div>
+                    </div>
+                </div>
+
                 <div id="vendorError" style="display:none; color:#991b1b; background:#fef2f2; border:1px solid #fecaca; padding:8px 12px; border-radius:4px; margin-bottom:15px; font-size:13px;">
                     <?php echo e(t('vendor-assessments.select_valid_vendor_results')); ?>
                 </div>
@@ -1204,6 +1246,22 @@ try {
             document.getElementById('vendorContact').value = v.vendor_contact || '';
             document.getElementById('vendorContactEmail').value = v.vendor_contact_email || '';
             document.getElementById('vendorSuggestions').style.display = 'none';
+            var hint = document.getElementById('stakeholderNameHint');
+            if (hint) hint.textContent = v.stakeholder_name ? '(' + v.stakeholder_name + ')' : '';
+            refreshStakeholderNote();
+        }
+
+        // "For the Stakeholder" note: follows the vendor name / contact email
+        // until the user types in it, then it is theirs.
+        var stakeholderNoteEdited = false;
+        function refreshStakeholderNote() {
+            var note = document.getElementById('stakeholderNote');
+            if (!note || stakeholderNoteEdited) return;
+            var tpl = note.getAttribute('data-template') || '';
+            var name = (document.getElementById('vendorName') || {}).value || '';
+            var email = (document.getElementById('vendorContactEmail') || {}).value || '';
+            note.value = tpl.split('{vendor_name}').join(name || '{vendor_name}')
+                            .split('{vendor_contact_email}').join(email || '{vendor_contact_email}');
         }
 
         // Track whether current template is onboarding category
@@ -1234,6 +1292,9 @@ try {
                 vendorEmailField.readOnly = false;
                 vendorContactField.value = '';
                 vendorContactEmailField.value = '';
+                var hint = document.getElementById('stakeholderNameHint');
+                if (hint) hint.textContent = '';
+                refreshStakeholderNote();
             } else {
                 // Show existing vendor search, hide new vendor fields
                 existingSection.style.display = '';
@@ -1250,6 +1311,22 @@ try {
             if (!vendorSearch || !vendorSuggestions) {
                 console.error('Typeahead elements not found');
                 return;
+            }
+
+            var includeStakeholder = document.getElementById('includeStakeholder');
+            var stakeholderNote = document.getElementById('stakeholderNote');
+            if (includeStakeholder && stakeholderNote) {
+                var syncStakeholder = function() {
+                    document.getElementById('stakeholderNoteWrap').style.display = includeStakeholder.checked ? '' : 'none';
+                };
+                includeStakeholder.addEventListener('change', syncStakeholder);
+                syncStakeholder();
+                stakeholderNote.addEventListener('input', function() { stakeholderNoteEdited = true; });
+                ['vendorName', 'vendorContactEmail'].forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) el.addEventListener('input', refreshStakeholderNote);
+                });
+                refreshStakeholderNote();
             }
 
             // Template selection change -- toggle onboarding mode

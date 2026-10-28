@@ -12,6 +12,17 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Send Assessment to the vendor's stakeholder.** The Create Assessment form
+  (Vendor Assessments, and a vendor's Send Assessment button) and the
+  Fourth-Party Risk bulk Assign Assessment modal have an "Also send to the
+  stakeholder" option, ticked by default, with a "For the Stakeholder" text box.
+  With text, the stakeholder (the vendor's assigned stakeholder, else its
+  creator) gets the same assessment email with that text as a banner on top;
+  the vendor contact never sees it. With the box empty, the stakeholder is only
+  CC'd on the vendor's email. The default text names the vendor and the contact
+  email the assessment went to (`{vendor_name}` / `{vendor_contact_email}`,
+  filled per vendor in bulk sends) and is editable in Admin > Email >
+  Stakeholder.
 - **Shadow SaaS requests handled in FairTPRM.** Admin > Shadow SaaS has a
   Shadow SaaS Request Method: Grip (Grip's own justification, as before, only
   while Grip is enabled) or FairTPRM. With FairTPRM, Shadow SaaS > Requests (and
