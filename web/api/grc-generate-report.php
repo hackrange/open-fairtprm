@@ -278,7 +278,8 @@ You must respond with ONLY valid JSON (no markdown fences). Return an object wit
         'user_id' => $user['id'],
         'request_payload' => json_encode([
             'messages' => $messages,
-            'ai_options' => ['max_tokens' => max($ai->getMaxTokens(), 4000), 'temperature' => 0.3],
+            'ai_options' => ['max_tokens' => max($ai->getMaxTokens(), 4000), 'temperature' => 0.3,
+                'audit' => ['table' => 'grc_audits', 'record_id' => (int)($audit['id'] ?? 0), 'report' => 'GRC audit report: ' . ($audit['framework_name'] ?? '')]],
             'context' => [],
         ]),
     ]);

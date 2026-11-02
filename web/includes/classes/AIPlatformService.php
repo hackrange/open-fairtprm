@@ -294,8 +294,29 @@ class AIPlatformService {
         'claude-opus-4-7'   => [5.00, 25.00],
         'claude-opus-4-6'   => [5.00, 25.00],
         'claude-fable-5'    => [10.00, 50.00],
+        'claude-mythos-5'   => [10.00, 50.00],
+        'gpt-5-nano'        => [0.05, 0.40],
+        'gpt-5-mini'        => [0.25, 2.00],
+        'gpt-5'             => [1.25, 10.00],
+        'gpt-4.1-nano'      => [0.10, 0.40],
+        'gpt-4.1-mini'      => [0.40, 1.60],
+        'gpt-4.1'           => [2.00, 8.00],
         'gpt-4o-mini'       => [0.15, 0.60],
         'gpt-4o'            => [2.50, 10.00],
+        'o4-mini'           => [1.10, 4.40],
+        'o3'                => [2.00, 8.00],
+        'o3-mini'           => [1.10, 4.40],
+    ];
+    /**
+     * Per-platform config key naming the model a platform is billed as, for
+     * platforms whose configured model is not a priceable id: Custom sends the
+     * admin's own body template, LibreChat sends an agent id, OpenWebUI may
+     * route a local alias to a hosted model.
+     */
+    public const COST_MODEL_KEYS = [
+        'custom'    => 'custom_model_label',
+        'librechat' => 'librechat_cost_model',
+        'openwebui' => 'openwebui_cost_model',
     ];
     /** Anthropic web search list price, USD per 1,000 searches. */
     public const ANTHROPIC_SEARCH_PER_1K = 10.00;
@@ -303,7 +324,10 @@ class AIPlatformService {
 
     /** List price for a model id; tolerates Bedrock-style "anthropic." / "us.anthropic." prefixes and version suffixes. */
     public static function listPrice(string $model): ?array {
-        $m = preg_replace('~^(?:[a-z]{2}\.)?anthropic\.~', '', strtolower(trim($model)));
+        // Bedrock ("us.anthropic."), Vertex ("anthropic/"), OpenRouter-style
+        // ("openai/") and OpenWebUI connection ("openai.") prefixes all name
+        // the same model; strip them before matching.
+        $m = preg_replace('~^(?:(?:[a-z]{2}\.)?anthropic[./]|openai[./])~', '', strtolower(trim($model)));
         $best = null; $bestLen = 0;
         foreach (self::MODEL_PRICES as $prefix => $p) {
             if (str_starts_with($m, $prefix) && strlen($prefix) > $bestLen) { $best = $p; $bestLen = strlen($prefix); }
@@ -318,7 +342,7 @@ class AIPlatformService {
      */
     public function prices(?string $platform = null, ?string $model = null): array {
         $platform = $platform ?? $this->getActivePlatform();
-        $model = $model ?? $this->billingModel([]);
+        $model = $model ?? $this->platformBillingModel($platform);
         $k = 'ai_platform_price_' . $platform . '_';
         $in = $this->config[$k . 'input'] ?? ''; $out = $this->config[$k . 'output'] ?? ''; $srch = $this->config[$k . 'search'] ?? '';
         $list = self::listPrice($model);
@@ -408,7 +432,26 @@ class AIPlatformService {
         if ($platform === 'openai' && !empty($options['search_queries'])) {
             return ($this->config['openai_search_model'] ?? '') ?: 'gpt-4o-search-preview';
         }
+        $label = isset(self::COST_MODEL_KEYS[$platform]) ? trim($this->config[self::COST_MODEL_KEYS[$platform]] ?? '') : '';
+        if ($label !== '') return $label;
         return (string)($options['model'] ?? $this->getModel($options['purpose'] ?? null));
+    }
+
+    /**
+     * The model a platform's calls are billed as, whether or not it is the
+     * active one (the cost estimator prices every configured platform): its
+     * cost-model label when set, else its configured default model.
+     */
+    public function platformBillingModel(string $platform): string {
+        $label = isset(self::COST_MODEL_KEYS[$platform]) ? trim($this->config[self::COST_MODEL_KEYS[$platform]] ?? '') : '';
+        if ($label !== '') return $label;
+        switch ($platform) {
+            case 'custom':    return 'custom';
+            case 'anthropic': return ($this->config['anthropic_model'] ?? '') ?: 'claude-opus-4-8';
+            case 'openai':    return ($this->config['openai_model'] ?? '') ?: 'gpt-4o';
+            case 'librechat': return (string)($this->config['librechat_model'] ?? '');
+            default:          return (string)(($this->config['openwebui_model'] ?? '') ?: ($this->config['fair_ai_model'] ?? ''));
+        }
     }
 
     private function logUsage(string $feature, array $options, array $messages, array $res, int $ms, bool $blocked): float {
@@ -451,7 +494,38 @@ class AIPlatformService {
         } catch (Throwable $e) {
             error_log('AI usage log write failed: ' . $e->getMessage());
         }
+        $this->auditUsage($feature, $options, $platform, $model, $in, $out, $searches, $cost, $estimated, $blocked ? 'budget_blocked' : (!empty($res['success']) ? 'ok' : 'error'));
         return $cost;
+    }
+
+    /**
+     * Audit-log AI applied to a report or record, with tokens and cost. Callers
+     * describe the work with $options['audit'] = [table, record_id, vendor_name,
+     * report, user_id]; the queue worker passes the user who asked. Untagged
+     * calls are audited only when a signed-in user made them in a web request,
+     * so scheduled background jobs stay in the usage log alone.
+     */
+    private function auditUsage(string $feature, array $options, string $platform, string $model, int $in, int $out, int $searches, float $cost, int $estimated, string $outcome): void {
+        $a = is_array($options['audit'] ?? null) ? $options['audit'] : null;
+        $userId = isset($a['user_id']) ? ((int)$a['user_id'] ?: null) : null;
+        if ($a === null && (PHP_SAPI === 'cli' || session_status() !== PHP_SESSION_ACTIVE || empty($_SESSION['user_id']))) return;
+        $values = array_filter([
+            'feature'       => $feature,
+            'vendor_name'   => isset($a['vendor_name']) ? substr((string)$a['vendor_name'], 0, 255) : null,
+            'report'        => isset($a['report']) ? substr((string)$a['report'], 0, 255) : (isset($options['subject']) ? substr((string)$options['subject'], 0, 255) : null),
+            'platform'      => $platform,
+            'model'         => $model,
+            'input_tokens'  => $in,
+            'output_tokens' => $out,
+            'total_tokens'  => $in + $out,
+            'web_searches'  => $searches ?: null,
+            'cost_usd'      => round($cost, 6),
+            'tokens_estimated' => $estimated ? true : null,
+            'outcome'       => $outcome,
+        ], fn($v) => $v !== null && $v !== '');
+        $table = isset($a['table']) && preg_match('~^[a-z_]{1,64}$~', (string)$a['table']) ? (string)$a['table'] : null;
+        $recordId = isset($a['record_id']) && (int)$a['record_id'] > 0 ? (int)$a['record_id'] : null;
+        Auth::recordEvent($userId, 'ai_applied', $table, $recordId, $values);
     }
 
     /** Provider dispatch (no logging or budget checks; see chatCompletion()). */

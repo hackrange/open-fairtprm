@@ -60,6 +60,38 @@ if ($filterDateTo !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $filterDateTo)) 
 
 $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
 
+/**
+ * One-line summary of an audit entry's details for the assessment and AI
+ * events: who it concerns, where it was sent, what AI spent. Plain text;
+ * callers encode it. Empty for events without these fields.
+ */
+if (!function_exists('auditSummaryText')) {
+    function auditSummaryText(?string $json): string {
+        $d = $json ? json_decode($json, true) : null;
+        if (!is_array($d)) return '';
+        if (isset($d['new']) && is_array($d['new'])) $d = $d['new'] + $d;
+        $parts = [];
+        $add = function (string $key, $v) use (&$parts) {
+            if ($v === null || $v === '' || is_array($v)) return;
+            $parts[] = t('admin_activity-log.summary_' . $key) . ': ' . $v;
+        };
+        $add('vendor', $d['vendor_name'] ?? null);
+        $add('assessment', $d['assessment_name'] ?? null);
+        $add('sent_to', $d['recipient_email'] ?? null);
+        $add('cc', $d['stakeholder_email'] ?? null);
+        $add('answered_by', trim(($d['respondent_name'] ?? '') . (!empty($d['respondent_email']) ? ' <' . $d['respondent_email'] . '>' : '')));
+        $add('report', $d['report'] ?? null);
+        if (isset($d['total_tokens'])) {
+            $add('tokens', number_format((int)$d['total_tokens']) . ' (' . number_format((int)($d['input_tokens'] ?? 0)) . ' in / ' . number_format((int)($d['output_tokens'] ?? 0)) . ' out)' . (!empty($d['tokens_estimated']) ? ' *' : ''));
+        }
+        if (isset($d['cost_usd'])) $add('cost', '$' . number_format((float)$d['cost_usd'], 4));
+        $add('model', $d['model'] ?? null);
+        $add('trigger', $d['trigger'] ?? ($d['reminder_type'] ?? null));
+        $add('error', $d['error'] ?? null);
+        return implode(' | ', $parts);
+    }
+}
+
 // Handle CSV export — streams the file and exits before any HTML
 if ($exportCsv) {
     $exportRecords = $db->fetchAll(
@@ -74,12 +106,13 @@ if ($exportCsv) {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="activity_log_' . date('Y-m-d_His') . '.csv"');
     $output = fopen('php://output', 'w');
-    fputcsv($output, ['Date/Time', 'User', 'Action', 'Table', 'Record ID', 'IP Address', 'Old Values', 'New Values', 'User Agent']);
+    fputcsv($output, ['Date/Time', 'User', 'Action', 'Summary', 'Table', 'Record ID', 'IP Address', 'Old Values', 'New Values', 'User Agent']);
     foreach ($exportRecords as $r) {
         fputcsv($output, [
             $r['created_at'],
             $r['user_name'] ?: ($r['username'] ?: 'System'),
             $r['action'],
+            auditSummaryText($r['new_values'] ?? null),
             $r['table_name'] ?? '',
             $r['record_id'] ?? '',
             $r['ip_address'] ?? '',
@@ -227,6 +260,7 @@ $users = $db->fetchAll(
                     <th><?php echo e(t('admin_activity-log.date_time')); ?></th>
                     <th><?php echo e(t('admin_activity-log.user')); ?></th>
                     <th><?php echo e(t('admin_activity-log.action')); ?></th>
+                    <th><?php echo e(t('admin_activity-log.summary')); ?></th>
                     <th><?php echo e(t('admin_activity-log.table')); ?></th>
                     <th><?php echo e(t('admin_activity-log.record_id')); ?></th>
                     <th><?php echo e(t('admin_activity-log.ip_address')); ?></th>
@@ -250,6 +284,7 @@ $users = $db->fetchAll(
                             <?php echo e($record['action']); ?>
                         </span>
                     </td>
+                    <td class="audit-summary" style="font-size:12px;"><?php $sum = auditSummaryText($record['new_values'] ?? null); echo $sum !== '' ? e($sum) : '<span style="color:#999;">-</span>'; ?></td>
                     <td><?php echo e($record['table_name'] ?? '-'); ?></td>
                     <td><?php echo $record['record_id'] ? intval($record['record_id']) : '-'; ?></td>
                     <td style="white-space: nowrap; font-size: 12px; color: #666;"><?php echo e($record['ip_address'] ?? '-'); ?></td>

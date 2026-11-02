@@ -597,6 +597,7 @@ $jobPayload = json_encode([
     'ai_options' => [
         'purpose' => 'fair',
         'max_tokens' => max($ai->getMaxTokens(), 3000),
+        'audit' => ['table' => 'vendor_onboarding_requests', 'record_id' => $vendorId, 'vendor_name' => $vendor['vendor_name'] ?? null, 'report' => 'Detailed vendor summary'],
     ],
     'context' => [],
 ]);

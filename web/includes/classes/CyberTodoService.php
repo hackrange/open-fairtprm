@@ -1116,6 +1116,12 @@ class CyberTodoService
                 $templateId, $contactName, $expiresAt, $template['name']
             );
             $emailSuccess = !empty($sent['success']);
+            VendorAssessmentService::auditEvent($this->db, $emailSuccess ? 'assessment_sent' : 'assessment_send_failed', $assessmentId, [
+                'recipient_email' => $vendorEmail,
+                'recipient_name'  => $contactName,
+                'trigger'         => 'scheduled_action',
+                'error'           => $emailSuccess ? null : ($sent['message'] ?? null),
+            ], $actorUserId ? (int)$actorUserId : null);
             if ($emailSuccess) {
                 // Record in tracking table so the reminder cron won't re-send.
                 try {

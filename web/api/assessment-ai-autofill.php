@@ -286,6 +286,7 @@ $jobPayload = json_encode([
         'purpose' => 'fair',
         'temperature' => 0.3,
         'max_tokens' => max($ai->getMaxTokens(), 4000),
+        'audit' => ['table' => 'vendor_assessments', 'record_id' => $assessmentId, 'vendor_name' => $assessment['vendor_name'] ?? $vendorName, 'report' => 'Assessment AI autofill: ' . ($assessment['template_name'] ?? '')],
     ],
     'context' => [
         'assessment_id' => $assessmentId,

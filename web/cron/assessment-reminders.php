@@ -188,9 +188,19 @@ try {
                     ], 'id = :id', [':id' => $reminderId]);
 
                     $remindersSent++;
+                    VendorAssessmentService::auditEvent($db, 'assessment_sent', (int)$assessment['id'], [
+                        'recipient_email' => $vendorEmail,
+                        'recipient_name'  => $contactName,
+                        'trigger'         => 'scheduled_send',
+                    ]);
                     CronHelper::info("Sent initial email for assessment #{$assessment['id']} ({$assessment['vendor_name']}) to {$vendorEmail}");
                 } else {
                     $errorMsg = $result['message'] ?? 'Email service returned false';
+                    VendorAssessmentService::auditEvent($db, 'assessment_send_failed', (int)$assessment['id'], [
+                        'recipient_email' => $vendorEmail,
+                        'trigger'         => 'scheduled_send',
+                        'error'           => $errorMsg,
+                    ]);
                     $db->update('vendor_assessment_reminders', [
                         'status' => 'failed',
                         'error_message' => $errorMsg,
@@ -292,6 +302,12 @@ try {
                         ], 'id = :id', [':id' => $reminderId]);
 
                         $remindersSent++;
+                        VendorAssessmentService::auditEvent($db, 'assessment_reminder_sent', (int)$assessment['id'], [
+                            'recipient_email' => $vendorEmail,
+                            'recipient_name'  => $assessment['vendor_contact_name'] ?? null,
+                            'reminder_type'   => $reminderType,
+                            'expires_at'      => $assessment['expires_at'] ?? null,
+                        ]);
                         CronHelper::info("Sent {$reminderType} reminder for assessment #{$assessment['id']} ({$assessment['vendor_name']}) to {$vendorEmail}");
                     } else {
                         $db->update('vendor_assessment_reminders', [

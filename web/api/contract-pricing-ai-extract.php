@@ -226,6 +226,7 @@ $jobPayload = json_encode([
         'purpose' => 'fair',
         'temperature' => 0.3,
         'max_tokens' => max($ai->getMaxTokens(), 2000),
+        'audit' => ['table' => 'vendor_documents', 'record_id' => $documentId ?? null, 'report' => 'Contract pricing extraction'],
     ],
     'context' => [],
 ]);

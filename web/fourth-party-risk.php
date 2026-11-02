@@ -266,9 +266,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             $contactName,
                             $result['expires_at']
                         );
+                        $so = $emailResult['stakeholder'] ?? null;
+                        VendorAssessmentService::auditEvent($db, !empty($emailResult['success']) ? 'assessment_sent' : 'assessment_send_failed', (int)$result['id'], [
+                            'recipient_email'   => $contactEmail,
+                            'recipient_name'    => $contactName,
+                            'stakeholder_email' => in_array($so, ['cc', 'copy'], true) ? ($emailResult['stakeholder_email'] ?? null) : null,
+                            'stakeholder_delivery' => $so,
+                            'trigger'           => 'bulk',
+                            'error'             => !empty($emailResult['success']) ? null : ($emailResult['message'] ?? null),
+                        ], (int)$user['id']);
                         if (!empty($emailResult['success'])) {
                             $emailed++;
-                            $so = $emailResult['stakeholder'] ?? null;
                             if ($so === 'copy' || $so === 'cc') $stakeholderSent++;
                             elseif ($so === 'copy_failed') $stakeholderFailed++;
                             try {

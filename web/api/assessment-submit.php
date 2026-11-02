@@ -271,15 +271,24 @@ try {
 
     // Audit log -- wrapped in its own try/catch because this is a public form
     // and Auth may not have a logged-in user. Don't let audit failure block submission.
+    // auditEvent() never throws, so a failure cannot block the submission.
+    $answered = 0;
     try {
-        $auth = Auth::getInstance();
-        $userId = $auth->getUserId();
-        $auth->audit($userId, 'assessment_submit', 'vendor_assessments', $assessment['id'], [
-            'new' => ['uuid' => $uuid, 'status' => 'completed', 'vendor_request_id' => $assessment['vendor_request_id'] ?? null]
-        ]);
-    } catch (\Throwable $auditErr) {
-        error_log('Assessment audit log failed (non-fatal): ' . $auditErr->getMessage());
+        $answered = (int)(Database::getInstance()->fetchOne(
+            "SELECT COUNT(DISTINCT question_id) n FROM vendor_assessment_responses WHERE assessment_id = :id AND (COALESCE(response_value, '') <> '' OR file_path IS NOT NULL)",
+            [':id' => (int)$assessment['id']]
+        )['n'] ?? 0);
+    } catch (\Throwable $e) {
+        error_log('Assessment answered count failed (non-fatal): ' . $e->getMessage());
     }
+    VendorAssessmentService::auditEvent(Database::getInstance(), 'assessment_answered', (int)$assessment['id'], [
+        'respondent_name'  => $submitterName,
+        'respondent_title' => $submitterTitle,
+        'respondent_email' => $submitterEmail,
+        'sent_to_email'    => $assessment['vendor_contact_email'] ?? null,
+        'questions_answered' => $answered,
+        'status'           => 'completed',
+    ]);
 
     echo json_encode([
         'success' => true,

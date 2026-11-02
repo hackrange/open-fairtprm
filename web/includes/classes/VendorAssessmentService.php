@@ -1305,7 +1305,7 @@ class VendorAssessmentService {
                                 $fullName = !empty($onboardingRecord['primary_contact_details']) ? $onboardingRecord['primary_contact_details'] : null;
                             }
 
-                            $emailService->sendAssessmentEmail(
+                            $sent = $emailService->sendAssessmentEmail(
                                 $recipientEmail,
                                 $assessment['vendor_name'],
                                 $assessmentUrl,
@@ -1314,6 +1314,13 @@ class VendorAssessmentService {
                                 $fullName,
                                 $expiresAt
                             );
+                            self::auditEvent($this->db, !empty($sent['success']) ? 'assessment_sent' : 'assessment_send_failed', (int)$triggeredId, [
+                                'recipient_email' => $recipientEmail,
+                                'recipient_name'  => $recipientName,
+                                'trigger'         => 'workflow_rule',
+                                'workflow_rule_id' => (int)$ruleId,
+                                'error'           => !empty($sent['success']) ? null : ($sent['message'] ?? null),
+                            ]);
                         }
                     }
                 } catch (Exception $emailEx) {
@@ -2473,6 +2480,36 @@ class VendorAssessmentService {
             'expires_at' => date('Y-m-d H:i:s', strtotime("+{$expiresInDays} days")),
             'updated_at' => date('Y-m-d H:i:s')
         ], 'id = :id', [':id' => $assessmentId]);
+    }
+
+    /**
+     * Audit an assessment lifecycle event (assessment_sent, _reminder_sent,
+     * _send_failed, _answered) with who it concerns: the vendor, the assessment,
+     * and whatever the caller adds (recipient_email, trigger, ...). Works from
+     * web requests and cron. Never throws. The magic-link uuid is never logged:
+     * it is the respondent's credential.
+     */
+    public static function auditEvent(Database $db, string $action, int $assessmentId, array $details = [], ?int $userId = null): void
+    {
+        $row = null;
+        try {
+            $row = $db->fetchOne(
+                "SELECT a.vendor_name, a.vendor_request_id, a.vendor_contact_name, a.vendor_contact_email, a.status, t.name AS assessment_name
+                 FROM vendor_assessments a LEFT JOIN assessment_templates t ON t.id = a.template_id
+                 WHERE a.id = :id",
+                [':id' => $assessmentId]
+            );
+        } catch (Throwable $e) {
+            error_log('Assessment audit lookup failed: ' . $e->getMessage());
+        }
+        $values = [
+            'vendor_name'       => $row['vendor_name'] ?? null,
+            'assessment_name'   => $row['assessment_name'] ?? null,
+            'assessment_id'     => $assessmentId,
+            'vendor_request_id' => isset($row['vendor_request_id']) ? (int)$row['vendor_request_id'] : null,
+        ] + $details;
+        unset($values['uuid']);
+        Auth::recordEvent($userId, $action, 'vendor_assessments', $assessmentId, array_filter($values, fn($v) => $v !== null && $v !== ''));
     }
 
     /**

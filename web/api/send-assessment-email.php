@@ -106,9 +106,13 @@ try {
     if (!empty($result['success'])) {
         $user = $auth->getUser();
         $assessmentId = !empty($assessment['assessment_id']) ? (int)$assessment['assessment_id'] : null;
-        $auth->audit($user['id'], 'assessment_email_sent', 'vendor_assessments', $assessmentId, [
-            'new' => ['uuid' => $uuid, 'vendor_name' => $vendorName, 'vendor_email' => $vendorEmail]
-        ]);
+        if ($assessmentId) {
+            VendorAssessmentService::auditEvent($db, 'assessment_sent', $assessmentId, [
+                'recipient_email' => $vendorEmail,
+                'recipient_name'  => $contactName,
+                'trigger'         => 'manual',
+            ], (int)$user['id']);
+        }
 
         // Record in tracking table so cron won't re-send
         if (!empty($assessment['assessment_id'])) {

@@ -819,4 +819,32 @@ class Auth {
     public function audit($userId, $action, $tableName, $recordId = null, $data = []) {
         $this->logAudit($userId, $action, $tableName, $recordId, $data);
     }
+
+    /**
+     * Audit an event from anywhere, cron included, without the session-bound
+     * instance (cron and the public assessment form have no logged-in user).
+     * $userId null means the signed-in web user when there is one, else System.
+     * Never throws: an audit failure must not break the action it records.
+     */
+    public static function recordEvent(?int $userId, string $action, ?string $tableName, ?int $recordId, array $values): void {
+        try {
+            $web = PHP_SAPI !== 'cli';
+            if ($userId === null && $web && session_status() === PHP_SESSION_ACTIVE) {
+                $userId = (int)($_SESSION['user_id'] ?? 0) ?: null;
+            }
+            $sec = $web ? Security::getInstance() : null;
+            Database::getInstance()->insert('audit_log', [
+                'user_id'    => $userId,
+                'action'     => substr($action, 0, 100),
+                'table_name' => $tableName,
+                'record_id'  => $recordId,
+                'old_values' => null,
+                'new_values' => json_encode($values, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
+                'ip_address' => $sec ? $sec->getClientIP() : null,
+                'user_agent' => $sec ? $sec->getUserAgent() : 'cron',
+            ]);
+        } catch (Throwable $e) {
+            error_log('Failed to log audit event ' . $action . ': ' . $e->getMessage());
+        }
+    }
 }

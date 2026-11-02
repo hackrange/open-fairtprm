@@ -166,6 +166,11 @@ try {
             $aiOptions = $payload['ai_options'] ?? [];
             // Usage log: name the feature (fair_analysis, ...) rather than the worker script.
             $aiOptions['feature'] = $aiOptions['feature'] ?? $jobType;
+            // Audit log: the user who queued the job, plus whatever report the
+            // endpoint described. user_id comes from the job row, never the payload.
+            $aiOptions['audit'] = (is_array($aiOptions['audit'] ?? null) ? $aiOptions['audit'] : [])
+                + ['report' => str_replace('_', ' ', $jobType)];
+            $aiOptions['audit']['user_id'] = (int)$job['user_id'];
             $result = $ai->chatCompletion($payload['messages'], $aiOptions);
 
             if (!$result['success']) {

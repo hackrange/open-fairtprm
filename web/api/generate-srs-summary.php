@@ -266,6 +266,7 @@ $messages = [
 
 $result = $ai->chatCompletion($messages, [
     'max_tokens' => max($ai->getMaxTokens(), 2000),
+    'audit' => ['table' => 'vendor_onboarding_requests', 'record_id' => $vendorId, 'vendor_name' => $vendor['vendor_name'] ?? null, 'report' => 'SRS summary'],
 ]);
 
 if (!$result['success']) {

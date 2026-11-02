@@ -12,6 +12,30 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **AI cost estimator for every AI platform.** The AI Usage, Cost and Monthly
+  Limit card on Admin > API Integration now has a rates row for each platform
+  (OpenWebUI, LibreChat, Custom, Anthropic, OpenAI), saved together, so rates
+  can be set and compared before switching platforms. OpenWebUI and LibreChat
+  get a "model priced" field like Custom's (a LibreChat agent id or an
+  OpenWebUI alias has no list price; name the model behind it). A new Cost
+  estimator table prices this month's tokens on every platform's model and
+  rates: month to date, projected month end, and average per call. The list
+  price table adds current OpenAI models (GPT-5, GPT-4.1, o3, o4-mini families),
+  and model ids with `anthropic/`, `openai/` or `openai.` prefixes now match it.
+  The card shows even while AI is disabled.
+- **Assessment and AI events in the Activity Log.** New audit actions:
+  `assessment_sent` (every path: create, manual send, Fourth-Party Risk bulk,
+  scheduled action, workflow rule, the cron's initial send),
+  `assessment_send_failed`, `assessment_reminder_sent`, `assessment_answered`
+  (respondent name, title and email, the address it was sent to, questions
+  answered) and `ai_applied` (feature, report, vendor, platform, model, input,
+  output and total tokens, cost, outcome) for AI run by a signed-in user or
+  queued from a report (FAIR analysis, detailed summary, SRS summary,
+  assessment autofill, contract pricing, GRC audit report). Queued AI jobs are
+  attributed to the user who queued them; scheduled background AI stays in the
+  usage log only. The Activity Log has a Summary column (vendor, assessment,
+  sent to, answered by, report, tokens, cost) that is also in the CSV export.
+
 - **Send Assessment to the vendor's stakeholder.** The Create Assessment form
   (Vendor Assessments, and a vendor's Send Assessment button) and the
   Fourth-Party Risk bulk Assign Assessment modal have an "Also send to the
@@ -592,6 +616,9 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The assessment audit entries no longer record the assessment link token
+  (`assessment_submit` became `assessment_answered`, `assessment_email_sent`
+  became `assessment_sent`); the token grants access to the questionnaire.
 - **The image records the runtime versions it was built with.** Each build
   writes the installed PHP, Apache, OpenSSL, MariaDB, glibc and curl versions
   to `/usr/local/share/fairtprm/runtime-versions` (outside the webroot, so it

@@ -353,6 +353,7 @@ $jobPayload = json_encode([
         'purpose' => 'fair',
         'temperature' => max(0.1, min(0.5, $ai->getTemperature())),
         'max_tokens' => 500,
+        'audit' => ['table' => 'tprm_results', 'vendor_name' => $vendorName, 'report' => 'FAIR risk analysis'],
     ],
     'context' => [
         'max_ale' => $maxALE,

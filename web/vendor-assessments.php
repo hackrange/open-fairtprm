@@ -238,6 +238,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $emailSent = !empty($emailResult['success']);
                         $stakeholderOutcome = $emailResult['stakeholder'] ?? null;
                         $stakeholderEmail = $emailResult['stakeholder_email'] ?? '';
+                        if (!empty($result['id'])) {
+                            VendorAssessmentService::auditEvent($db, $emailSent ? 'assessment_sent' : 'assessment_send_failed', (int)$result['id'], [
+                                'recipient_email'   => $vendorContactEmail,
+                                'recipient_name'    => $vendorContact,
+                                'stakeholder_email' => in_array($stakeholderOutcome, ['cc', 'copy'], true) ? $stakeholderEmail : null,
+                                'stakeholder_delivery' => $stakeholderOutcome,
+                                'trigger'           => 'create',
+                                'error'             => $emailSent ? null : ($emailResult['message'] ?? null),
+                            ], (int)$user['id']);
+                        }
 
                         // Record in tracking table so cron won't re-send
                         if ($emailSent && !empty($result['id'])) {
@@ -308,7 +318,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($assessmentId && assessmentManageable($assessmentId, $isAdmin, $isCyberTPRM, $isProcurement, $isAuditor, $assessmentService, $user)) {
             try {
                 $assessmentService->resendAssessment($assessmentId, 30);
-                $auth->audit($user['id'], 'assessment_resend', 'vendor_assessments', $assessmentId);
+                VendorAssessmentService::auditEvent($db, 'assessment_resend', $assessmentId, ['link_extended_days' => 30], (int)$user['id']);
                 $success = t('vendor-assessments.link_reset_extended');
             } catch (Exception $e) {
                 error_log('Resend assessment error: ' . $e->getMessage());
