@@ -377,14 +377,14 @@ foreach ($editTemplate['sections'] as $sec) {
         <?php echo e($categoryLabels[$editTemplate['category'] ?? 'vendor_assessment'] ?? ''); ?> &middot;
         <?php echo $editTemplate['is_active'] ? '<span style="color:#166534;">' . t('admin_assessment-templates.status_active') . '</span>' : '<span style="color:#991b1b;">' . t('admin_assessment-templates.status_inactive') . '</span>'; ?>
         <?php if ($assessmentCount > 0): ?>
-        &middot; <span style="color:#92400e;"><?php echo $assessmentCount; ?> <?php echo e(t('admin_assessment-templates.linked_assessments_suffix')); ?></span>
+        &middot; <span style="color:#92400e;"><?php echo (int)$assessmentCount; ?> <?php echo e(t('admin_assessment-templates.linked_assessments_suffix')); ?></span>
         <?php endif; ?>
     </p>
 </div>
 
 <?php if ($assessmentCount > 0): ?>
 <div class="alert" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">
-    <?php echo e(t('admin_assessment-templates.linked_warning_prefix')); ?> <?php echo $assessmentCount; ?> <?php echo e(t('admin_assessment-templates.linked_warning_suffix')); ?>
+    <?php echo e(t('admin_assessment-templates.linked_warning_prefix')); ?> <?php echo (int)$assessmentCount; ?> <?php echo e(t('admin_assessment-templates.linked_warning_suffix')); ?>
 </div>
 <?php endif; ?>
 
@@ -393,7 +393,7 @@ foreach ($editTemplate['sections'] as $sec) {
     <h3><?php echo e(t('admin_assessment-templates.template_settings')); ?></h3>
     <form method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-        <input type="hidden" name="template_id" value="<?php echo $editTemplate['id']; ?>">
+        <input type="hidden" name="template_id" value="<?php echo (int)$editTemplate['id']; ?>">
         <div class="form-row">
             <div class="form-group">
                 <label><?php echo e(t('admin_assessment-templates.label_template_name')); ?> <span style="color:#ef4444;">*</span></label>
@@ -792,7 +792,7 @@ $visibilityRoles = [
 <script src="app/js/template-builder.js" nonce="<?php echo cspNonce(); ?>"></script>
 <script nonce="<?php echo cspNonce(); ?>">
 // Pass data to JS
-const templateId = <?php echo $editTemplate['id']; ?>;
+const templateId = <?php echo (int)$editTemplate['id']; ?>;
 let csrfToken = <?php echo json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 const allQuestions = <?php echo json_encode($allQuestionsFlat, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 // Custom (added) section/question ids — only these expose the role controls in the builder.

@@ -986,6 +986,18 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- **Assessment template builder casts numeric output to integers.** The admin
+  template editor printed the template id (in the hidden form field and the
+  builder's `templateId` script variable) and the linked-assessment count
+  without a cast. Both come from the database as integers, not from the
+  request, so nothing was exploitable; they are now cast with `(int)` so the
+  output stays numeric even if a value's source changes.
+- **ClamAV updated to 1.4.6.** The v2.6.2 image runs ClamAV 1.4.6 (was 1.4.3
+  in the v2.6.1 base), which fixes twelve file-parser memory-safety flaws
+  (CVE-2026-20213, -20214, -20215, -20216, -20217, -20243, -20244, -20339,
+  -20345, -20346, -20347, -20348) that a crafted upload could use to crash the
+  virus scanner. Containers upgraded in place from the admin Version page keep
+  their existing ClamAV; recreate them from the v2.6.2 image.
 - **Runtime components updated to current security releases.** The v2.6.2
   image build applies all pending Debian and PHP package updates on top of
   the v2.6.1 base, so the image now runs PHP 8.5.12 (was 8.5.6), which fixes
