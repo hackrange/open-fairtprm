@@ -179,6 +179,7 @@ $moduleLabels = [
     'srs'           => t('admin_groups.module_srs'),
     'annual_review' => t('admin_groups.module_annual_review'),
     'grc'           => t('admin_groups.module_grc'),
+    'posture'       => t('admin_groups.module_posture'),
     'other'         => t('admin_groups.module_other'),
 ];
 ?>

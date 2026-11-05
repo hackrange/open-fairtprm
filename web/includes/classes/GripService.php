@@ -1298,6 +1298,74 @@ class GripService
         return ['ok' => true, 'status' => 'approved', 'request' => $req];
     }
 
+    /** EmailService for waiver notices, or null when email is off / unavailable. */
+    private function waiverMailer(): ?EmailService
+    {
+        try {
+            require_once __DIR__ . '/EmailService.php';
+            $m = new EmailService($this->db, $this->enc());
+            return $m->isEnabled() ? $m : null;
+        } catch (Throwable $e) {
+            error_log('Posture waiver mailer unavailable: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Email every approver (postureWaiverApprovers, minus the requester) that
+     * $count finding(s) of $check were sent for approval. One email per
+     * approver per submission. Never throws; returns the number sent.
+     */
+    public function notifyPostureWaiverRequested(array $check, int $count, string $justification, ?string $expires, array $requester): int
+    {
+        if ($count < 1 || !($mail = $this->waiverMailer())) return 0;
+        $plain = [
+            'check_id'        => (string)($check['posture_check_id'] ?? ''),
+            'tenant_name'     => trim((string)($check['tenant_name'] ?? '') . (!empty($check['integration_type']) ? ' (' . $check['integration_type'] . ')' : '')),
+            'requester_name'  => (string)($requester['full_name'] ?? ''),
+            'requester_email' => (string)($requester['email'] ?? ''),
+            'finding_count'   => (string)$count,
+            'expires_at'      => $expires ? date('M j, Y', strtotime($expires)) : 'No expiry',
+            'justification'   => $justification,
+            'review_url'      => baseUrl('shadow-saas-posture.php?id=' . rawurlencode((string)($check['uuid'] ?? ''))),
+        ];
+        $sent = 0;
+        foreach ($this->postureWaiverApprovers() as $a) {
+            if ((int)$a['id'] === (int)($requester['id'] ?? 0)) continue;
+            if (!empty($mail->sendPostureWaiverEmail('posture_waiver_requested', $plain, (string)$a['email'])['success'])) $sent++;
+        }
+        return $sent;
+    }
+
+    /**
+     * Email the requester the outcome of their request ($status approved,
+     * rejected or obsolete; a withdrawal sends nothing). Never throws; returns
+     * the number sent (0 or 1).
+     */
+    public function notifyPostureWaiverDecided(array $req, string $status, string $decidedBy, ?string $note): int
+    {
+        if (!in_array($status, ['approved', 'rejected', 'obsolete'], true) || !($mail = $this->waiverMailer())) return 0;
+        try {
+            $u = $this->db->fetchOne("SELECT email, full_name FROM users WHERE id = :id AND is_active = 1", [':id' => (int)($req['requested_by'] ?? 0)]);
+            $check = $this->db->fetchOne("SELECT uuid, posture_check_id, tenant_name, integration_type FROM shadow_saas_grip_posture_checks WHERE uuid = :u", [':u' => (string)$req['check_uuid']]);
+        } catch (Throwable $e) {
+            return 0;
+        }
+        if (!$u || !filter_var((string)$u['email'], FILTER_VALIDATE_EMAIL)) return 0;
+        $label = ['approved' => 'Approved', 'rejected' => 'Rejected', 'obsolete' => 'Closed'][$status];
+        $plain = [
+            'check_id'       => (string)($check['posture_check_id'] ?? $req['check_uuid']),
+            'tenant_name'    => trim((string)($check['tenant_name'] ?? '') . (!empty($check['integration_type']) ? ' (' . $check['integration_type'] . ')' : '')),
+            'requester_name' => (string)$u['full_name'],
+            'decision'       => $label,
+            'decision_lower' => $status === 'obsolete' ? 'closed because Grip no longer reports the finding' : strtolower($label),
+            'decided_by'     => $decidedBy,
+            'decision_note'  => (string)($note ?? ''),
+            'check_url'      => baseUrl('shadow-saas-posture.php?id=' . rawurlencode((string)$req['check_uuid'])),
+        ];
+        return !empty($mail->sendPostureWaiverEmail('posture_waiver_decided', $plain, (string)$u['email'])['success']) ? 1 : 0;
+    }
+
     /** Every current finding of a posture check (paged, capped), or null when Grip could not be read. */
     public function getAllPostureFindings(string $uuid): ?array
     {
@@ -1371,6 +1439,80 @@ class GripService
 
     /** Groups that already see every tenant's posture (unchanged by the role). */
     public const POSTURE_FULL_GROUPS = ['administrator', 'cyber_tprm', 'auditor'];
+
+    /** ACL permissions (Admin > ACL Group Management, module 'posture'). */
+    public const PERM_POSTURE_VIEW    = 'posture.view';
+    public const PERM_WAIVER_REQUEST  = 'posture.waiver_request';
+    public const PERM_WAIVER_APPROVE  = 'posture.waiver_approve';
+
+    /**
+     * Does user $userId hold posture.view through an active TENANT-SCOPED group
+     * (i.e. needs tenant grants)? The full-view groups (administrator /
+     * cyber_tprm / auditor) carry posture.view too but see every tenant.
+     */
+    public function userHasPostureView(int $userId): bool
+    {
+        try {
+            return (bool)$this->db->fetchOne(
+                "SELECT 1 AS x FROM user_acl_groups ug
+                   JOIN acl_groups g ON g.id = ug.group_id AND g.is_active = 1
+                   JOIN acl_group_permissions gp ON gp.group_id = g.id
+                   JOIN acl_permissions p ON p.id = gp.permission_id AND p.permission_code = :c
+                  WHERE ug.user_id = :u AND g.group_name NOT IN ('administrator', 'cyber_tprm', 'auditor') LIMIT 1",
+                [':c' => self::PERM_POSTURE_VIEW, ':u' => $userId]
+            );
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    /** Ids of active tenant-scoped groups that carry posture.view (the Users modal shows the tenant picker for them). */
+    public function postureViewGroupIds(): array
+    {
+        try {
+            return array_map('intval', array_column($this->db->fetchAll(
+                "SELECT DISTINCT g.id FROM acl_groups g
+                   JOIN acl_group_permissions gp ON gp.group_id = g.id
+                   JOIN acl_permissions p ON p.id = gp.permission_id AND p.permission_code = :c
+                  WHERE g.is_active = 1 AND g.group_name NOT IN ('administrator', 'cyber_tprm', 'auditor')",
+                [':c' => self::PERM_POSTURE_VIEW]
+            ), 'id'));
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Active users who may approve posture waiver requests and see every
+     * tenant: super admins, the administrator group, and full-view users
+     * (administrator / cyber_tprm / auditor) holding posture.waiver_approve.
+     * Tenant-scoped approvers are left out of the email so a notice never names
+     * a check outside their tenants. [['id','email','full_name'], ...]
+     */
+    public function postureWaiverApprovers(): array
+    {
+        try {
+            $rows = $this->db->fetchAll(
+                "SELECT DISTINCT u.id, u.email, u.full_name FROM users u
+                  WHERE u.is_active = 1 AND u.email <> ''
+                    AND (u.is_super_admin = 1
+                         OR EXISTS (SELECT 1 FROM user_acl_groups ug JOIN acl_groups g ON g.id = ug.group_id AND g.is_active = 1
+                                     WHERE ug.user_id = u.id AND g.group_name = 'administrator')
+                         OR (EXISTS (SELECT 1 FROM user_acl_groups ug JOIN acl_groups g ON g.id = ug.group_id AND g.is_active = 1
+                                      WHERE ug.user_id = u.id AND g.group_name IN ('cyber_tprm', 'auditor'))
+                             AND EXISTS (SELECT 1 FROM user_acl_groups ug JOIN acl_groups g ON g.id = ug.group_id AND g.is_active = 1
+                                           JOIN acl_group_permissions gp ON gp.group_id = g.id
+                                           JOIN acl_permissions p ON p.id = gp.permission_id AND p.permission_code = :c
+                                          WHERE ug.user_id = u.id)))
+                  ORDER BY u.id",
+                [':c' => self::PERM_WAIVER_APPROVE]
+            );
+        } catch (Throwable $e) {
+            error_log('postureWaiverApprovers failed: ' . $e->getMessage());
+            return [];
+        }
+        return array_values(array_filter($rows, fn($r) => filter_var((string)$r['email'], FILTER_VALIDATE_EMAIL)));
+    }
 
     /** Key that identifies one connected tenant: integration type + Grip tenant id. */
     public static function postureTenantKey(?string $integrationType, ?string $tenantId): string
@@ -1536,6 +1678,51 @@ class GripService
         return $out;
     }
 
+    /**
+     * Figures for the dashboard's Posture Management card, over the checks in
+     * $scope (null = every tenant; array = granted tenant keys). Same score as
+     * the posture page: Pass / (Pass + Fail), waived checks left out.
+     * Returns ['score','pass','fail','high_fail','tenants','pending'] or null
+     * when there are no checks in scope. 'pending' = waiver requests awaiting
+     * approval on those checks.
+     */
+    public function postureDashboardSummary(?array $scope): ?array
+    {
+        try {
+            $rows = $this->db->fetchAll('SELECT uuid, status, severity, waived_findings, unwaived_findings, integration_type, tenant_id FROM shadow_saas_grip_posture_checks');
+        } catch (Throwable $e) {
+            error_log('postureDashboardSummary failed: ' . $e->getMessage());
+            return null;
+        }
+        $pass = $fail = $highFail = 0;
+        $tenants = [];
+        $uuids = [];
+        foreach ($rows as $r) {
+            $k = self::postureTenantKey($r['integration_type'] ?? '', $r['tenant_id'] ?? '');
+            if ($scope !== null && !in_array($k, $scope, true)) continue;
+            $uuids[] = (string)$r['uuid'];
+            $tenants[$k] = true;
+            $st = self::effectivePostureStatus($r);
+            if ($st === 'Pass') $pass++;
+            if ($st === 'Fail') { $fail++; if (($r['severity'] ?? '') === 'High') $highFail++; }
+        }
+        if (!$uuids) return null;
+        $pending = 0;
+        try {
+            foreach ($this->db->fetchAll("SELECT check_uuid FROM shadow_saas_posture_waiver_requests WHERE status = 'pending'") as $p) {
+                if (in_array((string)$p['check_uuid'], $uuids, true)) $pending++;
+            }
+        } catch (Throwable $e) {}
+        return [
+            'score'     => ($pass + $fail) > 0 ? (int)round(100 * $pass / ($pass + $fail)) : 0,
+            'pass'      => $pass,
+            'fail'      => $fail,
+            'high_fail' => $highFail,
+            'tenants'   => count($tenants),
+            'pending'   => $pending,
+        ];
+    }
+
     /** Drop every tenant grant of a user (they left the Posture Management group). */
     public function clearPostureTenantGrants(int $userId): int
     {
@@ -1549,9 +1736,10 @@ class GripService
 
     /**
      * Posture visibility for the signed-in user: null = every tenant (admin,
-     * cyber_tprm, auditor); an array of tenant keys = a Posture Management member
-     * limited to those tenants (possibly none). false = no posture access at all.
-     * The role only counts while Grip is enabled.
+     * cyber_tprm, auditor); an array of tenant keys = a user holding posture.view
+     * (the Posture Management group, or a custom group given it) limited to the
+     * tenants granted to them (possibly none). false = no posture access at all.
+     * posture.view only counts while Grip is enabled.
      *
      * @return array|null|false
      */
@@ -1559,7 +1747,7 @@ class GripService
     {
         $acl = ACL::getInstance();
         if (Session::getInstance()->get('is_super_admin') || $acl->hasGroup(self::POSTURE_FULL_GROUPS)) return null;
-        if (!$this->isEnabled() || !$acl->hasGroup(self::POSTURE_GROUP)) return false;
+        if (!$this->isEnabled() || !$acl->hasPermission(self::PERM_POSTURE_VIEW)) return false;
         $uid = (int)(Auth::getInstance()->getUser()['id'] ?? 0);
         return $uid > 0 ? $this->postureTenantGrants($uid) : [];
     }

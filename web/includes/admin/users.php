@@ -223,13 +223,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
 
-            // Tenant grants follow the group: set from the picker while the user is
-            // a member, cleared when they leave it. Keys are re-validated against
+            // Tenant grants follow posture.view: set from the picker while any of the
+            // user's groups carries it (Posture Management, or a custom group given
+            // the permission), cleared when none does. Keys are re-validated against
             // the connected tenants in GripService::setPostureTenantGrants().
             $__tenantChanges = 0;
-            if ($__postureGroupId && $__gripOn && $userId > 0) {
-                $__isMember = (bool)$db->fetchOne('SELECT 1 AS x FROM user_acl_groups WHERE user_id = ? AND group_id = ?', [$userId, $__postureGroupId]);
-                if ($__isMember) {
+            if ($__gripOn && $userId > 0) {
+                if ($__grip->userHasPostureView($userId)) {
                     $__keys = json_decode($_POST['posture_tenants'] ?? '[]', true);
                     $__res = $__grip->setPostureTenantGrants($userId, is_array($__keys) ? array_map('strval', $__keys) : [], (int)$user['id']);
                     $__tenantChanges = count($__res['added']) + count($__res['removed']);
@@ -400,6 +400,7 @@ $_umGrip = new GripService();
 $_umGripOn = $_umGrip->isEnabled();
 $postureTenants = $_umGripOn ? $_umGrip->connectedPostureTenants() : [];
 $postureGrants  = $_umGripOn ? $_umGrip->allPostureTenantGrants() : [];
+$postureViewGroupIds = $_umGripOn ? $_umGrip->postureViewGroupIds() : [];
 if (!$_umGripOn) {
     $allGroups = array_values(array_filter($allGroups, fn($g) => $g['group_name'] !== GripService::POSTURE_GROUP));
 }
@@ -633,14 +634,16 @@ $userGroupAssignments = $acl->getAllUserGroups();
                 <?php foreach ($allGroups as $group): ?>
                 <div class="form-group" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f0f0f0;">
                     <label class="checkbox-label" style="align-items: flex-start;">
-                        <input type="checkbox" class="group-checkbox" data-group-id="<?php echo $group['id']; ?>" data-group-name="<?php echo e($group['group_name']); ?>" style="margin-top: 3px;">
+                        <input type="checkbox" class="group-checkbox" data-group-id="<?php echo $group['id']; ?>" data-group-name="<?php echo e($group['group_name']); ?>"<?php echo in_array((int)$group['id'], $postureViewGroupIds, true) ? ' data-posture="1"' : ''; ?> style="margin-top: 3px;">
                         <div>
                             <strong><?php echo e($group['display_name']); ?></strong>
                             <div class="form-help"><?php echo e($group['description']); ?></div>
                         </div>
                     </label>
-                    <?php if ($group['group_name'] === GripService::POSTURE_GROUP): ?>
-                    <div id="postureTenantPicker" style="display: none; margin: 10px 0 0 26px; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
+                </div>
+                <?php endforeach; ?>
+                <?php if ($postureViewGroupIds): ?>
+                    <div id="postureTenantPicker" style="display: none; margin: 0; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
                         <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;"><?php echo e(t('admin_users.posture_tenants_label')); ?></div>
                         <?php if (!$postureTenants): ?>
                         <div class="form-help"><?php echo e(t('admin_users.posture_no_tenants')); ?></div>
@@ -654,9 +657,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
                         <div class="form-help"><?php echo e(t('admin_users.posture_tenants_help')); ?></div>
                         <?php endif; ?>
                     </div>
-                    <?php endif; ?>
-                </div>
-                <?php endforeach; ?>
+                <?php endif; ?>
             </div>
             <div style="display: flex; gap: 10px;">
                 <button type="button" class="btn btn-primary" data-action="saveGroupAssignments"><?php echo e(t('admin_users.save_assignments_btn')); ?></button>
@@ -781,14 +782,14 @@ $userGroupAssignments = $acl->getAllUserGroups();
     }
     function closeEditModal() { document.getElementById('editUserModal').style.display = 'none'; }
 
-    // Posture Management tenant picker: visible while that group is ticked.
+    // Connected-tenant picker: visible while any ticked group carries
+    // posture.view (Posture Management, or a custom group given it).
     function syncPostureTenantPicker() {
         const picker = document.getElementById('postureTenantPicker');
-        const box = document.querySelector('.group-checkbox[data-group-name="posture_management"]');
-        if (picker && box) picker.style.display = box.checked ? 'block' : 'none';
+        if (picker) picker.style.display = document.querySelector('.group-checkbox[data-posture="1"]:checked') ? 'block' : 'none';
     }
     document.addEventListener('change', function (e) {
-        if (e.target && e.target.matches && e.target.matches('.group-checkbox[data-group-name="posture_management"]')) syncPostureTenantPicker();
+        if (e.target && e.target.matches && e.target.matches('.group-checkbox')) syncPostureTenantPicker();
     });
 
     function openAssignGroupsModal(userId, fullName, userGroups, postureTenantKeys) {

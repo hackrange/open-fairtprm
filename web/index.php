@@ -261,6 +261,31 @@ if ($isAdmin || $isCyberTPRM || $isAuditor) {
     } catch (Throwable $e) {}
 }
 
+// Dashboard modules: the user's Profile selection (or every module they may
+// see, when they never saved one). Each card / section below shows only when
+// its key is in here; dashboardAccessibleModules() holds the access rules.
+$dashModules = dashboardSelectedModules();
+$dashShow = fn(string $k): bool => in_array($k, $dashModules, true);
+
+// Posture Management card (Grip SSPM): every tenant for admin / cyber_tprm /
+// auditor, the granted tenants for posture.view users. Hidden without Grip,
+// without posture access, or with no posture checks in scope.
+$postureCard = null;
+$postureCanApprove = false;
+if ($dashShow('posture_management')) {
+    try {
+        require_once __DIR__ . '/includes/classes/GripService.php';
+        $_pmGrip = new GripService();
+        $_pmScope = $_pmGrip->postureScopeForCurrentUser();
+        if ($_pmScope !== false) {
+            $postureCard = $_pmGrip->postureDashboardSummary($_pmScope);
+            $postureCanApprove = $isAdmin || $isCyberTPRM || hasPermission(GripService::PERM_WAIVER_APPROVE);
+        }
+    } catch (Throwable $e) {
+        error_log('Posture dashboard card failed: ' . $e->getMessage());
+    }
+}
+
 // Expiring contracts count for the Procurement sidebar badge
 $expiringContractsCount = 0;
 if ($isAdmin || $isProcurement || $isCyberTPRM || $isAuditor) {
@@ -936,7 +961,7 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                 <!-- Modules Section -->
                 <h2 class="section-title"><?php echo e(t('index.modules')); ?></h2>
                 <div class="module-grid">
-                    <?php if ($showFairModule): ?>
+                    <?php if ($dashShow('fair_analysis')): ?>
                     <a href="fair_dashboard.php" class="module-card">
                         <div class="icon"><img src="app/icons/file-07.svg" alt="" width="32" height="32"></div>
                         <h3><?php echo e(t('index.fair_risk_analysis')); ?></h3>
@@ -945,7 +970,7 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                     </a>
                     <?php endif; ?>
 
-                    <?php if ($showOnboarding): ?>
+                    <?php if ($dashShow('vendor_onboarding')): ?>
                     <a href="vendor-onboarding-list.php" class="module-card">
                         <div class="icon"><img src="app/icons/book-open-01.svg" alt="" width="32" height="32"></div>
                         <h3><?php echo e(t('index.vendor_onboarding')); ?></h3>
@@ -954,8 +979,8 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                     </a>
                     <?php endif; ?>
 
-                    <?php if ($isProcurement): ?>
-                    <a href="vendor-onboarding-list.php" class="module-card">
+                    <?php if ($dashShow('contracts')): ?>
+                    <a href="procurement-contracts.php" class="module-card">
                         <div class="icon"><img src="app/icons/file-06.svg" alt="" width="32" height="32"></div>
                         <h3><?php echo e(t('index.contracts')); ?></h3>
                         <p><?php echo e(t('index.contracts_desc')); ?></p>
@@ -963,7 +988,7 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                     </a>
                     <?php endif; ?>
 
-                    <?php if ($showSRSModule): ?>
+                    <?php if ($dashShow('srs_scoring')): ?>
                     <a href="vendor-srs-list.php" class="module-card">
                         <div class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="32" height="32"></div>
                         <h3><?php echo e(t('index.srs_scoring')); ?></h3>
@@ -989,7 +1014,22 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                     </a>
                     <?php endif; ?>
 
-                    <?php if ($isAdmin || $isCyberTPRM || $isProcurement || $isAuditor): ?>
+                    <?php if ($postureCard): ?>
+                    <a href="shadow-saas-posture.php" class="module-card" id="posture-card">
+                        <div class="icon"><img src="app/icons/alert-square.svg" alt="" width="32" height="32"></div>
+                        <h3><?php echo e(t('index.posture_management')); ?></h3>
+                        <p><?php echo e(t('index.posture_management_desc', (int)$postureCard['score'], (int)$postureCard['fail'], (int)$postureCard['tenants'])); ?></p>
+                        <?php if ($postureCard['pending'] > 0 && $postureCanApprove): ?>
+                        <span class="tag" style="background: #fef3c7; color: #92400e;"><?php echo e(t('index.posture_waivers_pending', (int)$postureCard['pending'])); ?></span>
+                        <?php elseif ($postureCard['high_fail'] > 0): ?>
+                        <span class="tag" style="background: #fee2e2; color: #991b1b;"><?php echo e(t('index.posture_high_failing', (int)$postureCard['high_fail'])); ?></span>
+                        <?php else: ?>
+                        <span class="tag"><?php echo e(t('index.posture_tag')); ?></span>
+                        <?php endif; ?>
+                    </a>
+                    <?php endif; ?>
+
+                    <?php if ($dashShow('vendor_assessments')): ?>
                     <a href="vendor-assessments.php" class="module-card">
                         <div class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="32" height="32"></div>
                         <h3><?php echo e(t('index.vendor_assessments')); ?></h3>
@@ -998,9 +1038,27 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                     </a>
                     <?php endif; ?>
 
+                    <?php if ($dashShow('annual_reviews')): ?>
+                    <a href="vendor-annual-reviews-list.php" class="module-card" id="annual-reviews-card">
+                        <div class="icon"><img src="app/icons/calendar-check-01.svg" alt="" width="32" height="32"></div>
+                        <h3><?php echo e(t('index.annual_reviews_module')); ?></h3>
+                        <p><?php echo e(t('index.annual_reviews_module_desc')); ?></p>
+                        <span class="tag"><?php echo e(t('index.annual_reviews_module_tag')); ?></span>
+                    </a>
+                    <?php endif; ?>
+
+                    <?php if ($dashShow('grc_compliance')): ?>
+                    <a href="grc-dashboard.php" class="module-card" id="grc-card">
+                        <div class="icon"><img src="app/icons/file-shield-02.svg" alt="" width="32" height="32"></div>
+                        <h3><?php echo e(t('index.grc_module')); ?></h3>
+                        <p><?php echo e(t('index.grc_module_desc')); ?></p>
+                        <span class="tag"><?php echo e(t('index.grc_module_tag')); ?></span>
+                    </a>
+                    <?php endif; ?>
+
                 </div>
 
-                <?php if (($isCyberTPRM || $isAdmin || $isAuditor) && !empty($cyberTodoItems)): ?>
+                <?php if ($dashShow('cyber_todo') && !empty($cyberTodoItems)): ?>
                 <!-- Cyber To-Do Section -->
                 <h2 class="section-title"><?php echo e(t('index.cyber_todo')); ?></h2>
                 <div class="cyber-todo-section" style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 30px;">
@@ -1054,7 +1112,7 @@ $csrfToken = Security::getInstance()->generateCSRFToken();
                 </div>
                 <?php endif; ?>
 
-                <?php if ($isAdmin): ?>
+                <?php if ($isAdmin && $dashShow('system_admin')): ?>
                 <!-- Admin Section -->
                 <h2 class="section-title"><?php echo e(t('index.administration')); ?></h2>
                 <div class="module-grid">

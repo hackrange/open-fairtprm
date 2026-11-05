@@ -295,6 +295,66 @@ function hasPermission($permissionCode) {
     return $acl->hasPermission($permissionCode);
 }
 
+/** Most dashboard modules a user can keep selected (Profile > Dashboard Modules). */
+const DASHBOARD_MODULE_MAX = 10;
+
+/**
+ * Dashboard module keys the signed-in user may show, in display order. The
+ * one definition used by both Profile (the picker) and the dashboard (the
+ * cards), so the two cannot drift.
+ */
+function dashboardAccessibleModules(): array
+{
+    $auth = Auth::getInstance();
+    if (!$auth->isAuthenticated()) return [];
+    $isAdmin = Session::getInstance()->get('is_super_admin') || $auth->isAdmin() || hasGroup('administrator');
+    $isCyberTPRM = hasGroup('cyber_tprm');
+    $isProcurement = hasGroup('procurement');
+    $isAuditor = hasGroup('auditor');
+    $isCyberGRC = hasGroup('cyber_grc');
+    $isStakeholderOnly = hasGroup('stakeholder') && !$isAdmin && !$isProcurement && !$isCyberTPRM && !$isAuditor && !$isCyberGRC;
+    $isProcurementOnly = $isProcurement && !$isAdmin && !$isCyberTPRM;
+    $showFair = (hasPermission('analysis.create') || hasPermission('analysis.read') || $isCyberTPRM || $isAdmin) && !$isStakeholderOnly && !$isProcurementOnly && !$isAuditor;
+    $showOnboard = hasPermission('onboarding.create') || hasPermission('onboarding.read') || hasPermission('onboarding.read_own') || hasPermission('onboarding.read_assigned') || hasGroup('stakeholder') || $isProcurement;
+    $showSRS = ($isCyberTPRM || $isAdmin || $isAuditor) && !$isStakeholderOnly;
+
+    $m = [];
+    if ($showFair) $m[] = 'fair_analysis';
+    if ($showOnboard) $m[] = 'vendor_onboarding';
+    if ($isProcurement || $isAdmin) $m[] = 'contracts';
+    if ($showSRS) $m[] = 'srs_scoring';
+    if ($isAdmin || $isCyberTPRM || $isProcurement || $isAuditor) $m[] = 'vendor_assessments';
+    if ($showOnboard || $isCyberTPRM || $isAdmin || $isAuditor) $m[] = 'annual_reviews';
+    if ($showSRS || $isAdmin) $m[] = 'cyber_todo';
+    if ($isCyberGRC || $isAdmin || $isAuditor) $m[] = 'grc_compliance';
+    if (getAppConfig('grip_enabled', '0') === '1') {
+        try {
+            require_once __DIR__ . '/classes/GripService.php';
+            if ((new GripService())->postureScopeForCurrentUser() !== false) $m[] = 'posture_management';
+        } catch (Throwable $e) {}
+    }
+    if ($isAdmin) $m[] = 'system_admin';
+    return $m;
+}
+
+/**
+ * The modules the signed-in user's dashboard shows: their saved Profile
+ * selection limited to what they may still see, or every accessible module
+ * when they never saved one.
+ */
+function dashboardSelectedModules(): array
+{
+    $accessible = dashboardAccessibleModules();
+    $saved = null;
+    try {
+        $uid = (int)(Session::getInstance()->get('user_id') ?? 0);
+        $row = $uid ? Database::getInstance()->fetchOne('SELECT dashboard_modules FROM users WHERE id = :id', [':id' => $uid]) : null;
+        $dec = $row && !empty($row['dashboard_modules']) ? json_decode((string)$row['dashboard_modules'], true) : null;
+        if (is_array($dec) && $dec) $saved = array_map('strval', $dec);
+    } catch (Throwable $e) {}
+    return $saved === null ? $accessible : array_values(array_intersect($accessible, $saved));
+}
+
 /**
  * Quick check: are we currently impersonating another user?
  * Returns true if a super admin is "viewing as" someone else.

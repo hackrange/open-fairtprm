@@ -7013,6 +7013,27 @@ VALUES ('posture_management', 'Posture Management',
         'Read-only Grip SSPM posture for the connected SaaS tenants granted to the user (requires Grip)', 1);
 UPDATE `acl_groups` SET `is_system` = 1 WHERE `group_name` = 'posture_management';
 
+-- Posture Management permissions, so the role shows (and can be reused) in
+-- Admin > ACL Group Management. The code checks these, not group names:
+--   posture.view            Posture Management + ITDR, limited to the user's
+--                           granted tenants (administrator / cyber_tprm /
+--                           auditor keep seeing every tenant)
+--   posture.waiver_request  request finding waivers on granted tenants
+--   posture.waiver_approve  approve / reject waiver requests
+-- INSERT IGNORE on the unique codes and group/permission pairs: re-runs are no-ops.
+INSERT IGNORE INTO `acl_permissions` (`permission_code`, `name`, `module`, `resource`, `action`, `description`) VALUES
+('posture.view', 'View Posture Management and ITDR (granted tenants)', 'posture', 'posture', 'view',
+ 'See Shadow SaaS Posture Management and ITDR for the connected SaaS tenants granted to the user in Admin > Users (requires Grip)'),
+('posture.waiver_request', 'Request posture finding waivers', 'posture', 'waiver', 'request',
+ 'Ask for findings of granted tenants to be waived; a request has no effect until approved'),
+('posture.waiver_approve', 'Approve posture waiver requests', 'posture', 'waiver', 'approve',
+ 'Approve or reject waiver requests filed by Posture Management users');
+INSERT IGNORE INTO `acl_group_permissions` (`group_id`, `permission_id`)
+SELECT g.id, p.id FROM `acl_groups` g JOIN `acl_permissions` p
+ WHERE (g.group_name IN ('administrator', 'cyber_tprm') AND p.permission_code IN ('posture.view', 'posture.waiver_request', 'posture.waiver_approve'))
+    OR (g.group_name = 'auditor' AND p.permission_code = 'posture.view')
+    OR (g.group_name = 'posture_management' AND p.permission_code IN ('posture.view', 'posture.waiver_request'));
+
 -- Which connected SaaS tenants (Grip SSPM integrations) a Posture Management
 -- member may see. A tenant is identified by Grip's integration type plus tenant
 -- id (the same tenant id can recur across integration types). Grants are

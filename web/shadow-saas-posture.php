@@ -57,11 +57,15 @@ if ($postureScope === false) {
     die(e(t('shadow-saas.access_denied')));
 }
 $postureScoped = is_array($postureScope);
-// Auditors read; only admin / cyber_tprm may refresh from Grip, waive findings
-// or approve waiver requests. Posture Management members may REQUEST waivers
-// for findings of their granted tenants.
+// Auditors read; only admin / cyber_tprm may refresh from Grip or waive
+// findings directly. Waiver requests and approvals follow the ACL permissions
+// (Admin > ACL Group Management > Posture Management): posture.waiver_request
+// lets a tenant-scoped user ask, posture.waiver_approve lets a user decide
+// (admin / cyber_tprm always can). A scoped approver only decides requests of
+// their own tenants.
 $canManage  = $isAdmin || $isCyberTPRM;
-$canRequest = $postureScoped && !$canManage;
+$canRequest = $postureScoped && !$canManage && $acl->hasPermission(GripService::PERM_WAIVER_REQUEST);
+$canApprove = $canManage || $acl->hasPermission(GripService::PERM_WAIVER_APPROVE);
 
 /** The posture check $uuid if it exists and is inside the user's tenant scope, else null. */
 $checkInScope = function (string $uuid) use ($db, $postureScoped, $postureScope): ?array {
@@ -110,9 +114,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = t('shadow-saas-posture.findings_failed');
         } else {
             $added = $ents ? $grip->addPostureWaiverRequests($wUuid, $ents, $in['justification'], $in['expires'], (int)$user['id']) : 0;
+            $mailed = $added ? $grip->notifyPostureWaiverRequested($chk, $added, $in['justification'], $in['expires'], $user) : 0;
             $auth->audit($user['id'], 'shadow_saas_posture_waiver_request', 'shadow_saas_posture_waiver_requests', null, ['new' => [
                 'check_uuid' => $wUuid, 'posture_check_id' => $chk['posture_check_id'], 'tenant' => $chk['tenant_name'], 'requested' => $added,
                 'not_current' => count($keys) - count($ents), 'expires_at' => $in['expires'], 'justification' => $in['justification'],
+                'approvers_emailed' => $mailed,
             ]]);
             $success = t('shadow-saas-waiver.requested', $added);
             if (count($ents) < count($keys)) $error = t('shadow-saas-waiver.stale', count($keys) - count($ents));
@@ -127,6 +133,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $auth->audit($user['id'], 'shadow_saas_posture_waiver_request_withdraw', 'shadow_saas_posture_waiver_requests', $rid, ['new' => ['check_uuid' => $mine['check_uuid']]]);
             $success = t('shadow-saas-waiver.request_withdrawn');
+        }
+    } elseif (in_array(($_POST['action'] ?? ''), ['approve_waiver_request', 'reject_waiver_request'], true) && $gripEnabled && $canApprove) {
+        // posture.waiver_approve (admin / cyber_tprm always). The request's check
+        // must be inside the approver's own tenant scope.
+        $rid = (int)($_POST['request_id'] ?? 0);
+        $decision = $_POST['action'] === 'approve_waiver_request' ? 'approve' : 'reject';
+        $pend = $grip->postureWaiverRequests(['id' => $rid, 'status' => 'pending'], 1)[0] ?? null;
+        $res = ($pend && $checkInScope((string)$pend['check_uuid']))
+            ? $grip->decidePostureWaiverRequest($rid, $decision, (int)$user['id'], (string)($_POST['decision_note'] ?? ''))
+            : ['ok' => false, 'error' => 'request_not_found'];
+        if (empty($res['ok'])) {
+            $ek = (string)($res['error'] ?? 'request_not_found');
+            $error = $ek === 'findings_failed' ? t('shadow-saas-posture.findings_failed') : t('shadow-saas-waiver.' . $ek, GripService::WAIVER_JUSTIFICATION_MIN);
+        } else {
+            $note = trim((string)($_POST['decision_note'] ?? ''));
+            $mailed = $grip->notifyPostureWaiverDecided($res['request'], $res['status'], (string)($user['full_name'] ?? ''), $note !== '' ? $note : null);
+            $auth->audit($user['id'], 'shadow_saas_posture_waiver_request_' . ($decision === 'approve' ? 'approve' : 'reject'), 'shadow_saas_posture_waiver_requests', $rid, ['new' => [
+                'check_uuid' => $res['request']['check_uuid'], 'status' => $res['status'],
+                'requested_by' => (int)($res['request']['requested_by'] ?? 0), 'decision_note' => $note, 'requester_emailed' => $mailed,
+            ]]);
+            $success = t('shadow-saas-waiver.request_' . $res['status']);
         }
     } elseif (!$canManage) {
         http_response_code(403);
@@ -175,21 +202,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]]);
             $success = t('shadow-saas-waiver.waived', $added);
             if (count($ents) < count($keys)) $error = t('shadow-saas-waiver.stale', count($keys) - count($ents));
-        }
-    } elseif (in_array(($_POST['action'] ?? ''), ['approve_waiver_request', 'reject_waiver_request'], true) && $gripEnabled) {
-        // administrator / cyber_tprm only (the !$canManage branch above refused everyone else).
-        $rid = (int)($_POST['request_id'] ?? 0);
-        $decision = $_POST['action'] === 'approve_waiver_request' ? 'approve' : 'reject';
-        $res = $grip->decidePostureWaiverRequest($rid, $decision, (int)$user['id'], (string)($_POST['decision_note'] ?? ''));
-        if (empty($res['ok'])) {
-            $ek = (string)($res['error'] ?? 'request_not_found');
-            $error = $ek === 'findings_failed' ? t('shadow-saas-posture.findings_failed') : t('shadow-saas-waiver.' . $ek, GripService::WAIVER_JUSTIFICATION_MIN);
-        } else {
-            $auth->audit($user['id'], 'shadow_saas_posture_waiver_request_' . ($decision === 'approve' ? 'approve' : 'reject'), 'shadow_saas_posture_waiver_requests', $rid, ['new' => [
-                'check_uuid' => $res['request']['check_uuid'], 'status' => $res['status'],
-                'requested_by' => (int)($res['request']['requested_by'] ?? 0), 'decision_note' => trim((string)($_POST['decision_note'] ?? '')),
-            ]]);
-            $success = t('shadow-saas-waiver.request_' . $res['status']);
         }
     } elseif (($_POST['action'] ?? '') === 'revoke_waiver' && $gripEnabled) {
         $row = $grip->revokeWaiver((int)($_POST['waiver_id'] ?? 0), (int)$user['id'], (string)($_POST['revoke_reason'] ?? ''), 'posture');
@@ -326,9 +338,11 @@ if ($check && $gripEnabled) {
 $queueRequests = [];
 $myRequests = [];
 if (!$check && $gripEnabled) {
-    if ($canManage) {
+    if ($canApprove) {
+        // $checks is already tenant-scoped, so a scoped approver sees only their tenants' requests.
         foreach ($grip->postureWaiverRequests(['status' => 'pending'], 500) as $rq) if (isset($checks[$rq['check_uuid']])) $queueRequests[] = $rq;
-    } elseif ($canRequest) {
+    }
+    if (!$queueRequests && $canRequest) {
         foreach ($grip->postureWaiverRequests(['requested_by' => (int)$user['id']], 50) as $rq) if (isset($checks[$rq['check_uuid']])) $myRequests[] = $rq;
     }
 }
@@ -697,13 +711,13 @@ function ppQuery(array $over = []): string
                         <?php if ($checkRequests): ?>
                         <div class="pp-card pp-requests" id="ppRequests">
                             <h3><?php echo e(t('shadow-saas-waiver.pending_requests_heading', count($checkRequests))); ?></h3>
-                            <?php if ($canManage): ?><p class="pp-muted" style="font-size:13px;margin:0 0 8px;"><?php echo e(t('shadow-saas-waiver.approve_note')); ?></p><?php endif; ?>
+                            <?php if ($canApprove): ?><p class="pp-muted" style="font-size:13px;margin:0 0 8px;"><?php echo e(t('shadow-saas-waiver.approve_note')); ?></p><?php endif; ?>
                             <?php foreach ($checkRequests as $rq): ?>
                             <div class="pp-req" id="ppReq<?php echo (int)$rq['id']; ?>">
                                 <div><strong><?php echo e((string)($rq['entity_label'] ?: '-')); ?></strong></div>
                                 <div class="pp-waiver-note"><?php echo e((string)$rq['justification']); ?></div>
                                 <div class="pp-tenant"><?php echo e(t('shadow-saas-waiver.requested_by', (string)($rq['requested_by_name'] ?? '-'), date('M j, Y', strtotime((string)$rq['requested_at'])))); ?><?php if (!empty($rq['expires_at'])): ?> &middot; <?php echo e(t('shadow-saas-waiver.until', date('M j, Y', strtotime((string)$rq['expires_at'])))); ?><?php endif; ?></div>
-                                <?php if ($canManage): ?>
+                                <?php if ($canApprove): ?>
                                 <div class="pp-req-actions">
                                     <form method="POST">
                                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">

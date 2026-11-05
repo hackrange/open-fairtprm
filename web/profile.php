@@ -162,9 +162,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!is_array($selectedModules)) $selectedModules = [];
         // Whitelist valid module keys
         $validKeys = ['fair_analysis','vendor_onboarding','contracts','srs_scoring','vendor_assessments',
-                      'annual_reviews','cyber_todo','grc_compliance','system_admin'];
+                      'annual_reviews','cyber_todo','grc_compliance','posture_management','system_admin'];
         $selectedModules = array_values(array_intersect($selectedModules, $validKeys));
-        $selectedModules = array_slice($selectedModules, 0, 9);
+        $selectedModules = array_slice($selectedModules, 0, DASHBOARD_MODULE_MAX);
         $jsonModules = !empty($selectedModules) ? json_encode($selectedModules) : null;
         try {
             $db->update('users', ['dashboard_modules' => $jsonModules], 'id = :id', [':id' => $user['id']]);
@@ -895,6 +895,12 @@ $theme = getUserTheme();
                                 'icon' => 'app/icons/file-shield-02.svg',
                                 'tag' => 'GRC Module',
                             ],
+                            'posture_management' => [
+                                'name' => 'Posture Management',
+                                'desc' => 'Grip SSPM posture score, failing checks and waiver requests for your connected SaaS tenants.',
+                                'icon' => 'app/icons/alert-square.svg',
+                                'tag' => 'Shadow SaaS',
+                            ],
                             'system_admin' => [
                                 'name' => 'System Administration',
                                 'desc' => 'Manage users, settings, and system configuration.',
@@ -903,22 +909,9 @@ $theme = getUserTheme();
                             ],
                         ];
 
-                        // Determine which modules user has access to
-                        $accessibleModules = [];
-                        $showFair = (hasPermission('analysis.create') || hasPermission('analysis.read') || $_isCyberTPRM || $_isAdmin) && !$_isStakeholderOnly && !$_isProcurementOnly && !$_isAuditor;
-                        $showOnboard = hasPermission('onboarding.create') || hasPermission('onboarding.read') || hasPermission('onboarding.read_own') || hasPermission('onboarding.read_assigned') || hasGroup('stakeholder') || hasGroup('procurement');
-                        $showSRS = ($_isCyberTPRM || $_isAdmin || $_isAuditor) && !$_isStakeholderOnly;
-                        $showGRC = $_isCyberGRC || $_isAdmin || $_isAuditor;
-
-                        if ($showFair) $accessibleModules[] = 'fair_analysis';
-                        if ($showOnboard) $accessibleModules[] = 'vendor_onboarding';
-                        if ($_isProcurement || $_isAdmin) $accessibleModules[] = 'contracts';
-                        if ($showSRS) $accessibleModules[] = 'srs_scoring';
-                        if ($_isAdmin || $_isCyberTPRM || $_isProcurement || $_isAuditor) $accessibleModules[] = 'vendor_assessments';
-                        if ($showOnboard || $_isCyberTPRM || $_isAdmin || $_isAuditor) $accessibleModules[] = 'annual_reviews';
-                        if ($showSRS || $_isAdmin) $accessibleModules[] = 'cyber_todo';
-                        if ($showGRC) $accessibleModules[] = 'grc_compliance';
-                        if ($_isAdmin) $accessibleModules[] = 'system_admin';
+                        // Which modules this user may show: one shared definition with the
+                        // dashboard (includes/init.php), so the picker matches the cards.
+                        $accessibleModules = dashboardAccessibleModules();
 
                         // Load user's current module selection
                         $savedModules = [];
@@ -1078,7 +1071,7 @@ $theme = getUserTheme();
 
         // Dashboard module toggle cards
         (function() {
-            var MAX = 9;
+            var MAX = <?php echo (int)DASHBOARD_MODULE_MAX; ?>;
             var checkSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
             var sel = document.getElementById('module-selector');
             if (!sel) return;

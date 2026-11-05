@@ -160,6 +160,25 @@ class Security {
      *
      * @return bool True if the origin is verified as same-site
      */
+    /**
+     * Does $url point at this server: same host AND same port as HTTP_HOST?
+     * HTTP_HOST carries the port when it is not the default (e.g.
+     * "10.0.0.5:8080"), while parse_url() splits it off the Origin, so the old
+     * host-only comparison refused every same-origin POST on a non-default
+     * port. Missing ports default from the URL's scheme (80 / 443) on both
+     * sides; a different port is a different origin and is still refused.
+     */
+    private function sameAuthority(string $url): bool {
+        $u = parse_url($url);
+        if (!is_array($u) || empty($u['host'])) return false;
+        $scheme = strtolower((string)($u['scheme'] ?? 'http'));
+        $default = $scheme === 'https' ? 443 : 80;
+        $h = parse_url('scheme://' . (string)($_SERVER['HTTP_HOST'] ?? ''));
+        if (!is_array($h) || empty($h['host'])) return false;
+        return strcasecmp(trim($u['host'], '[]'), trim($h['host'], '[]')) === 0
+            && (int)($u['port'] ?? $default) === (int)($h['port'] ?? $default);
+    }
+
     public function validateOrigin(): bool {
         $origin = $_SERVER['HTTP_ORIGIN'] ?? null;
         $referer = $_SERVER['HTTP_REFERER'] ?? null;
@@ -174,8 +193,7 @@ class Security {
 
         // Use Origin header first (most reliable, not stripped by proxies)
         if ($origin !== null) {
-            $originHost = parse_url($origin, PHP_URL_HOST);
-            $valid = $originHost !== null && strcasecmp($originHost, $_SERVER['HTTP_HOST']) === 0;
+            $valid = $this->sameAuthority($origin);
             if (!$valid) {
                 http_response_code(403);
             }
@@ -184,8 +202,7 @@ class Security {
 
         // Fallback to Referer header
         if ($referer !== null) {
-            $refererHost = parse_url($referer, PHP_URL_HOST);
-            $valid = $refererHost !== null && strcasecmp($refererHost, $_SERVER['HTTP_HOST']) === 0;
+            $valid = $this->sameAuthority($referer);
             if (!$valid) {
                 http_response_code(403);
             }

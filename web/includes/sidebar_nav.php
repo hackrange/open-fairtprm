@@ -703,11 +703,12 @@ $_isActive = function($page) use ($currentPage) {
     <?php endif; ?>
 
     <?php
-        // Posture Management members (tenant-scoped) get just the Posture
-        // Management and ITDR links, and only while Grip is enabled.
+        // Tenant-scoped posture users (posture.view: the Posture Management group
+        // or a custom group given it) get just the Posture Management and ITDR
+        // links, and only while Grip is enabled.
         $_ssPostureNav = !($isAdmin || $isCyberTPRM || $isAuditor)
             && function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1'
-            && hasGroup('posture_management');
+            && hasPermission('posture.view');
     ?>
     <?php if ($showFairModule || $showSRSModule || $_ssPostureNav): ?>
     <details class="sidebar-section"<?php echo $_isActive(['fair', 'srs', 'vendor_domains', '4th_party', 'cve_search', 'shadow_saas', 'shadow_saas_new', 'shadow_saas_posture', 'shadow_saas_itdr', 'shadow_saas_ai_apps', 'shadow_saas_ai_agents', 'shadow_saas_ai_dashboard', 'shadow_saas_compliance', 'shadow_saas_requests']) ? ' open' : ''; ?>>

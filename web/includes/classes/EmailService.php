@@ -906,6 +906,96 @@ Your answers are recorded together with your name, IP address and the time you s
 ==========================================
 This is an automated notification from {{system_title}}. Please do not reply to this email.',
                 ],
+                'posture_waiver_requested' => [
+                    'subject' => 'Posture waiver request: {{check_id}} ({{tenant_name}})',
+                    'html' => '<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4; padding: 20px;">
+        <tr><td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <tr><td style="background-color: {{header_color}}; padding: 30px; text-align: center;">{{logo_img}}<h1 style="margin: 10px 0 0 0; color: #ffffff; font-size: 20px;">{{system_title}}</h1></td></tr>
+                <tr><td style="background-color: #FEF3C7; border-left: 4px solid #D97706; padding: 15px 30px;"><p style="margin: 0; color: #92400E; font-size: 16px; font-weight: bold;">Posture waiver request awaiting approval</p></td></tr>
+                <tr><td style="padding: 30px;">
+                    <p style="margin: 0 0 16px 0; color: #333333; font-size: 15px; line-height: 1.6;">{{requester_name}} asked for {{finding_count}} finding(s) of a posture check to be waived. Nothing is waived until an approver approves the request.</p>
+                    <table width="100%" style="margin-bottom: 20px; font-size: 14px;">
+                        <tr><td style="padding: 6px 0; color: #666; width: 150px; vertical-align: top;"><strong>Check:</strong></td><td style="padding: 6px 0; color: #333;">{{check_id}}</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666; width: 150px; vertical-align: top;"><strong>Tenant:</strong></td><td style="padding: 6px 0; color: #333;">{{tenant_name}}</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666; width: 150px; vertical-align: top;"><strong>Requested by:</strong></td><td style="padding: 6px 0; color: #333;">{{requester_name}} &lt;{{requester_email}}&gt;</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666; width: 150px; vertical-align: top;"><strong>Findings:</strong></td><td style="padding: 6px 0; color: #333;">{{finding_count}}</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666; width: 150px; vertical-align: top;"><strong>Expires:</strong></td><td style="padding: 6px 0; color: #333;">{{expires_at}}</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666; width: 150px; vertical-align: top;"><strong>Justification:</strong></td><td style="padding: 6px 0; color: #333;">{{justification}}</td></tr>
+                    </table>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0;"><tr><td align="center"><a href="{{review_url}}" style="display: inline-block; padding: 15px 40px; background-color: {{button_color}}; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">Review Request</a></td></tr></table>
+                </td></tr>
+                <tr><td style="background-color: {{footer_color}}; padding: 20px 30px;"><p style="margin: 0; color: #ffffff; font-size: 12px;">This is an automated notification from {{system_title}}. Please do not reply to this email.</p></td></tr>
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>',
+                    'text' => 'POSTURE WAIVER REQUEST AWAITING APPROVAL
+==========================================
+
+{{requester_name}} asked for {{finding_count}} finding(s) of a posture check to be waived. Nothing is waived until an approver approves the request.
+
+Check: {{check_id}}
+Tenant: {{tenant_name}}
+Requested by: {{requester_name}} <{{requester_email}}>
+Findings: {{finding_count}}
+Expires: {{expires_at}}
+Justification: {{justification}}
+
+Review the request: {{review_url}}
+
+==========================================
+This is an automated notification from {{system_title}}. Please do not reply to this email.',
+                ],
+                'posture_waiver_decided' => [
+                    'subject' => 'Posture waiver request {{decision_lower}}: {{check_id}}',
+                    'html' => '<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f4f4; padding: 20px;">
+        <tr><td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <tr><td style="background-color: {{header_color}}; padding: 30px; text-align: center;">{{logo_img}}<h1 style="margin: 10px 0 0 0; color: #ffffff; font-size: 20px;">{{system_title}}</h1></td></tr>
+                <tr><td style="background-color: #EFF6FF; border-left: 4px solid #2563EB; padding: 15px 30px;"><p style="margin: 0; color: #1E3A8A; font-size: 16px; font-weight: bold;">Your posture waiver request: {{decision}}</p></td></tr>
+                <tr><td style="padding: 30px;">
+                    <p style="margin: 0 0 16px 0; color: #333333; font-size: 15px; line-height: 1.6;">Hello {{requester_name}}, your request to waive a finding of {{check_id}} was {{decision_lower}} by {{decided_by}}.</p>
+                    <table width="100%" style="margin-bottom: 20px; font-size: 14px;">
+                        <tr><td style="padding: 6px 0; color: #666; width: 150px; vertical-align: top;"><strong>Check:</strong></td><td style="padding: 6px 0; color: #333;">{{check_id}}</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666; width: 150px; vertical-align: top;"><strong>Tenant:</strong></td><td style="padding: 6px 0; color: #333;">{{tenant_name}}</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666; width: 150px; vertical-align: top;"><strong>Decision:</strong></td><td style="padding: 6px 0; color: #333;">{{decision}}</td></tr>
+                        <tr><td style="padding: 6px 0; color: #666; width: 150px; vertical-align: top;"><strong>Decided by:</strong></td><td style="padding: 6px 0; color: #333;">{{decided_by}}</td></tr>
+{{#decision_note}}                        <tr><td style="padding: 6px 0; color: #666; width: 150px; vertical-align: top;"><strong>Note:</strong></td><td style="padding: 6px 0; color: #333;">{{decision_note}}</td></tr>{{/decision_note}}
+                    </table>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0;"><tr><td align="center"><a href="{{check_url}}" style="display: inline-block; padding: 15px 40px; background-color: {{button_color}}; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">Open Check</a></td></tr></table>
+                </td></tr>
+                <tr><td style="background-color: {{footer_color}}; padding: 20px 30px;"><p style="margin: 0; color: #ffffff; font-size: 12px;">This is an automated notification from {{system_title}}. Please do not reply to this email.</p></td></tr>
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>',
+                    'text' => 'POSTURE WAIVER REQUEST: {{decision}}
+==========================================
+
+Hello {{requester_name}}, your request to waive a finding of {{check_id}} was {{decision_lower}} by {{decided_by}}.
+
+Check: {{check_id}}
+Tenant: {{tenant_name}}
+Decision: {{decision}}
+Decided by: {{decided_by}}
+{{#decision_note}}Note: {{decision_note}}
+{{/decision_note}}
+Open the check: {{check_url}}
+
+==========================================
+This is an automated notification from {{system_title}}. Please do not reply to this email.',
+                ],
                 'saas_request_submitted' => [
                     'subject' => 'Shadow SaaS request submitted: {{app_name}} ({{choice_label}})',
                     'html' => '<!DOCTYPE html>
@@ -1034,6 +1124,8 @@ View your tasks: {{assessment_url}}',
                 ['shadow_saas', 'privacy_risk_increase', 'Privacy Risk Increased (digest)', '["change_count","change_rows_html","change_rows_text","run_date","shadow_saas_url","header_color","button_color","footer_color","system_title","logo_img"]'],
                 ['shadow_saas', 'saas_request', 'Shadow SaaS Request (to the app user)', '["app_name","app_domain","requester_name","requester_email","message","sender_name","choice_buttons_html","choice_links_text","request_url","expires_at","company_name","header_color","button_color","footer_color","system_title","logo_img"]'],
                 ['shadow_saas', 'saas_request_submitted', 'Shadow SaaS Request Submitted (to reviewers)', '["app_name","app_domain","choice_label","requester_email","submitter_name","submitter_ip","submitted_at","answer_rows_html","answer_rows_text","review_url","header_color","button_color","footer_color","system_title","logo_img"]'],
+                ['shadow_saas', 'posture_waiver_requested', 'Posture Waiver Requested (to approvers)', '["check_id","tenant_name","requester_name","requester_email","finding_count","expires_at","justification","review_url","header_color","button_color","footer_color","system_title","logo_img"]'],
+                ['shadow_saas', 'posture_waiver_decided', 'Posture Waiver Decided (to the requester)', '["check_id","tenant_name","requester_name","decision","decision_lower","decided_by","decision_note","check_url","header_color","button_color","footer_color","system_title","logo_img"]'],
             ];
 
             // Check if table has any rows
@@ -2608,6 +2700,42 @@ TEXT;
             return ['success' => true];
         } catch (Exception $e) {
             error_log('Shadow SaaS request submitted email error: ' . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Posture waiver emails (templates shadow_saas / posture_waiver_requested
+     * and posture_waiver_decided, editable on Admin > Email > Shadow SaaS).
+     * $plain values are escaped into the HTML; finding names are deliberately
+     * not part of either email (they can identify people).
+     */
+    public function buildPostureWaiverEmail(string $key, array $plain): array
+    {
+        if (!in_array($key, ['posture_waiver_requested', 'posture_waiver_decided'], true)) {
+            throw new Exception('Unknown posture waiver template ' . $key);
+        }
+        $raw = [];
+        foreach (['review_url', 'check_url'] as $u) {
+            if (isset($plain[$u])) $raw[$u] = htmlspecialchars((string)$plain[$u], ENT_QUOTES, 'UTF-8');
+        }
+        return $this->renderShadowSaasTemplate($key, $plain, $raw);
+    }
+
+    public function sendPostureWaiverEmail(string $key, array $plain, string $recipientEmail): array
+    {
+        if (!$this->isEnabled()) return ['success' => false, 'error' => 'Email is disabled.'];
+        try {
+            [$subject, $html, $text] = $this->buildPostureWaiverEmail($key, $plain);
+            $mail = $this->createMailer();
+            $mail->addAddress($recipientEmail);
+            $mail->Subject = $subject;
+            $mail->Body    = $html;
+            $mail->AltBody = $text;
+            $this->sendEmail($mail);
+            return ['success' => true];
+        } catch (Exception $e) {
+            error_log('Posture waiver email error: ' . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }

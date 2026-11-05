@@ -44,6 +44,28 @@ project adheres to [Semantic Versioning](https://semver.org/).
   longer reports is closed. Members can withdraw their own pending requests
   and see each request's outcome and note. Schema: new
   `shadow_saas_posture_waiver_requests` table.
+  Waiver requests are emailed. Each new request goes to every approver who
+  sees all tenants (administrators, and Cyber TPRM or Auditor users holding the
+  approve permission), and each decision goes back to the requester. The
+  emails name the check and tenant and link to it, but never the finding
+  itself, since findings can identify people. Both templates (Posture Waiver
+  Requested, Posture Waiver Decided) can be edited in Admin > Email > Shadow
+  SaaS.
+
+- **Posture Management permissions in ACL Group Management.** A new Posture
+  Management (Grip) section lists three permissions: view Posture Management
+  and ITDR for granted tenants, request waivers, and approve waiver requests.
+  The pages check these permissions, not group names, so a custom group given
+  "view" gets the tenant picker in Admin > Users and the same tenant-scoped
+  access. The Posture Management group has view and request, Administrator and
+  Cyber TPRM have all three, and Auditor has view.
+
+- **Posture Management dashboard module.** With Grip enabled, the dashboard
+  shows a Posture Management card with the posture score, the number of
+  failing checks and connected tenants, and either the waiver requests waiting
+  for review (for approvers) or the failing high-severity checks. Members see
+  the figures for their own tenants only. The module can be picked in Profile
+  > Dashboard Modules.
 
 - **Alternate stakeholders.** A vendor can now have any number of alternate
   stakeholders beside its one stakeholder, as backups (for example while the
@@ -757,6 +779,17 @@ project adheres to [Semantic Versioning](https://semver.org/).
   retired ones. Localized in all eight locales.
 
 ### Fixed
+
+- **The dashboard now follows Profile > Dashboard Modules.** The selection was
+  saved but never applied: the dashboard showed a fixed set of cards based on
+  role (four for an administrator), and Annual Reviews and GRC Compliance had
+  no card at all. Every card, plus the Cyber To-Do and Administration
+  sections, now shows only when it is selected. A user who never saved a
+  selection sees every module they have access to. Profile and the dashboard
+  share one list of who may see which module, Annual Reviews and GRC
+  Compliance cards were added, and the Contracts card opens the contracts page
+  instead of the onboarding list. Up to 10 modules can be selected (was 9), so
+  every module can be shown at once.
 
 - **The vendor onboarding CSV import now promotes an alternate named in
   `stakeholder_username` to stakeholder.** Before, the existing link made the
