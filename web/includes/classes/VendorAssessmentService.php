@@ -2576,6 +2576,45 @@ class VendorAssessmentService {
         return ['email' => $email, 'name' => $name !== '' ? $name : null];
     }
 
+    /** vendor_onboarding_stakeholders.role for an alternate stakeholder (read-only access). */
+    const ROLE_ALTERNATE = 'alternate';
+
+    /**
+     * The vendor's alternate stakeholders, in name order: active users linked with
+     * role = 'alternate'. Each row is ['user_id', 'name', 'email'] with email
+     * lowercased ('' when the user has no valid address, so the UI can still list
+     * them). The send path re-reads this list server-side; it never trusts ids
+     * from the browser beyond picking from it.
+     */
+    public static function alternatesFor(Database $db, int $vendorRequestId): array
+    {
+        if ($vendorRequestId <= 0) return [];
+        try {
+            $rows = $db->fetchAll(
+                "SELECT u.id, u.full_name, u.username, u.email
+                 FROM vendor_onboarding_stakeholders vs
+                 JOIN users u ON vs.user_id = u.id
+                 WHERE vs.request_id = :rid AND vs.role = 'alternate' AND u.is_active = 1
+                 ORDER BY COALESCE(NULLIF(u.full_name, ''), u.username)",
+                [':rid' => $vendorRequestId]
+            );
+        } catch (Throwable $e) {
+            error_log('alternatesFor lookup failed: ' . $e->getMessage());
+            return [];
+        }
+        $out = [];
+        foreach ($rows as $u) {
+            $email = strtolower(trim((string)($u['email'] ?? '')));
+            $name = trim((string)($u['full_name'] ?? '')) ?: trim((string)($u['username'] ?? ''));
+            $out[] = [
+                'user_id' => (int)$u['id'],
+                'name'    => $name,
+                'email'   => filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : '',
+            ];
+        }
+        return $out;
+    }
+
     /** Longest "For the Stakeholder" note we accept. */
     const STAKEHOLDER_NOTE_MAX = 5000;
 
@@ -2613,11 +2652,17 @@ class VendorAssessmentService {
 
     /**
      * Send the assessment to the vendor contact and, when asked, to the vendor's
-     * stakeholder. With a note the stakeholder gets their own copy of the same
-     * email with the note as a banner on top (the vendor never sees it); with an
-     * empty note they are only CC'd on the vendor's email. The stakeholder copy
-     * goes out only once the vendor's email has. Returns the vendor send result
-     * plus 'stakeholder' => 'cc' | 'copy' | 'copy_failed' | null.
+     * stakeholder and any of its alternate stakeholders. With a note each of them
+     * gets their own copy of the same email with the note as a banner on top (the
+     * vendor never sees it); with an empty note they are only CC'd on the
+     * vendor's email. Copies go out only once the vendor's email has.
+     *
+     * $alternateUserIds picks alternates by user id; only ids that are alternates
+     * on THIS vendor right now are honored (a forged or stale id is dropped).
+     *
+     * Returns the vendor send result plus
+     *   'stakeholder' => 'cc' | 'copy' | 'copy_failed' | null, 'stakeholder_email',
+     *   'alternates'  => [['email' => .., 'delivery' => 'cc' | 'copy' | 'copy_failed'], ...].
      */
     public static function sendAssessmentWithStakeholder(
         EmailService $emailService,
@@ -2631,36 +2676,60 @@ class VendorAssessmentService {
         ?string $contactName,
         ?int $templateId,
         ?string $fullName,
-        ?string $expiresAt
+        ?string $expiresAt,
+        array $alternateUserIds = []
     ): array {
+        $contactLc = strtolower(trim($contactEmail));
         $stakeholder = $includeStakeholder ? self::stakeholderFor($db, $vendorRequestId) : null;
         // No point copying the stakeholder on mail addressed to themselves.
-        if ($stakeholder && strcasecmp($stakeholder['email'], trim($contactEmail)) === 0) {
+        if ($stakeholder && $stakeholder['email'] === $contactLc) {
             $stakeholder = null;
         }
-        $note = $stakeholder ? self::renderStakeholderNote($stakeholderNote, $vendorName, $contactEmail) : '';
 
-        $opts = ($stakeholder && $note === '') ? ['cc' => [$stakeholder]] : [];
+        $alternates = [];
+        $wanted = array_flip(array_filter(array_map('intval', $alternateUserIds), fn($i) => $i > 0));
+        if ($wanted) {
+            $seen = [$contactLc => true];
+            if ($stakeholder) $seen[$stakeholder['email']] = true;
+            foreach (self::alternatesFor($db, $vendorRequestId) as $alt) {
+                if (!isset($wanted[$alt['user_id']]) || $alt['email'] === '' || isset($seen[$alt['email']])) continue;
+                $seen[$alt['email']] = true;
+                $alternates[] = ['email' => $alt['email'], 'name' => $alt['name'] !== '' ? $alt['name'] : null];
+            }
+        }
+
+        $copyTo = $stakeholder ? array_merge([$stakeholder], $alternates) : $alternates;
+        $note = $copyTo ? self::renderStakeholderNote($stakeholderNote, $vendorName, $contactEmail) : '';
+
+        $opts = ($copyTo && $note === '') ? ['cc' => $copyTo] : [];
         $result = $emailService->sendAssessmentEmail(
             $contactEmail, $vendorName, $assessmentUrl, $contactName, $templateId, $fullName, $expiresAt, null, $opts
         );
         $result['stakeholder'] = null;
-        if (empty($result['success']) || !$stakeholder) {
+        $result['alternates'] = [];
+        if (empty($result['success']) || !$copyTo) {
             return $result;
         }
-        if ($note === '') {
-            $result['stakeholder'] = 'cc';
+
+        $deliver = function (array $who) use ($note, $emailService, $vendorName, $assessmentUrl, $contactName, $templateId, $fullName, $expiresAt): string {
+            if ($note === '') return 'cc';
+            $copy = $emailService->sendAssessmentEmail(
+                $who['email'], $vendorName, $assessmentUrl, $contactName, $templateId, $fullName, $expiresAt, null,
+                ['stakeholder_note' => $note, 'to_name' => $who['name'] ?? '']
+            );
+            if (empty($copy['success'])) {
+                error_log('Stakeholder copy of assessment email failed: ' . ($copy['message'] ?? 'unknown error'));
+                return 'copy_failed';
+            }
+            return 'copy';
+        };
+
+        if ($stakeholder) {
+            $result['stakeholder'] = $deliver($stakeholder);
             $result['stakeholder_email'] = $stakeholder['email'];
-            return $result;
         }
-        $copy = $emailService->sendAssessmentEmail(
-            $stakeholder['email'], $vendorName, $assessmentUrl, $contactName, $templateId, $fullName, $expiresAt, null,
-            ['stakeholder_note' => $note, 'to_name' => $stakeholder['name'] ?? '']
-        );
-        $result['stakeholder'] = !empty($copy['success']) ? 'copy' : 'copy_failed';
-        $result['stakeholder_email'] = $stakeholder['email'];
-        if (empty($copy['success'])) {
-            error_log('Stakeholder copy of assessment email failed: ' . ($copy['message'] ?? 'unknown error'));
+        foreach ($alternates as $alt) {
+            $result['alternates'][] = ['email' => $alt['email'], 'delivery' => $deliver($alt)];
         }
         return $result;
     }

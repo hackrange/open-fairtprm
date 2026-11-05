@@ -1701,7 +1701,7 @@ CREATE TABLE IF NOT EXISTS `vendor_onboarding_stakeholders` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `request_id` int(10) unsigned NOT NULL,
   `user_id` int(10) unsigned NOT NULL,
-  `role` enum('owner','stakeholder','reviewer') DEFAULT 'stakeholder',
+  `role` enum('owner','stakeholder','reviewer','alternate') DEFAULT 'stakeholder',
   `assigned_at` timestamp NULL DEFAULT current_timestamp(),
   `assigned_by` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -6987,6 +6987,21 @@ INSERT IGNORE INTO app_config (config_key, config_value, description) VALUES
 ('shadow_saas_request_method', 'grip', 'Who sends Shadow SaaS requests to app users: grip (Grip justification) or fairtprm (FairTPRM email + forms). grip applies only while Grip is enabled.'),
 ('shadow_saas_request_recipients', '', 'Comma-separated reviewers notified when a Shadow SaaS request form is submitted'),
 ('shadow_saas_request_expiry_days', '14', 'Days a Shadow SaaS request link stays valid');
+
+-- Alternate stakeholders: a vendor may have any number of alternates beside its
+-- one stakeholder. They are rows in vendor_onboarding_stakeholders with
+-- role = 'alternate' (the unique (request_id, user_id) key keeps a user from being
+-- both). Alternates get READ access to the vendor only; every write gate excludes
+-- the role. Guarded on COLUMN_TYPE so re-runs are no-ops. Portable across MySQL
+-- and MariaDB. Must stay after the CREATE TABLE above.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'vendor_onboarding_stakeholders'
+     AND column_name = 'role' AND COLUMN_TYPE LIKE '%''alternate''%') = 0,
+  'ALTER TABLE `vendor_onboarding_stakeholders` MODIFY COLUMN `role` enum(''owner'',''stakeholder'',''reviewer'',''alternate'') DEFAULT ''stakeholder''',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete

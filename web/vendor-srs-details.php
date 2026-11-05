@@ -375,13 +375,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
                         [':rid' => $vendorId]
                     );
 
-                    // Add new stakeholder
-                    $db->insert('vendor_onboarding_stakeholders', [
-                        'request_id' => $vendorId,
-                        'user_id' => $newStakeholderId,
-                        'role' => 'stakeholder',
-                        'assigned_at' => date('Y-m-d H:i:s')
-                    ]);
+                    // Add new stakeholder. Upsert: the user may already be linked
+                    // (e.g. as an alternate stakeholder or owner), and the
+                    // (request_id, user_id) key is unique -- promote that row.
+                    $db->query(
+                        "INSERT INTO vendor_onboarding_stakeholders (request_id, user_id, role, assigned_at, assigned_by)
+                         VALUES (:rid, :uid, 'stakeholder', CURRENT_TIMESTAMP, :aby)
+                         ON DUPLICATE KEY UPDATE role = 'stakeholder', assigned_by = VALUES(assigned_by), assigned_at = CURRENT_TIMESTAMP",
+                        [':rid' => $vendorId, ':uid' => $newStakeholderId, ':aby' => $user['id']]
+                    );
 
                     $auth->audit($user['id'], 'vendor_stakeholder_update', 'vendor_onboarding_stakeholders', $vendorId, [
                         'new' => ['stakeholder_user_id' => $newStakeholderId]

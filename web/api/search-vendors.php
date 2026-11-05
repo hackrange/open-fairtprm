@@ -105,7 +105,7 @@ try {
             GROUP_CONCAT(DISTINCT u.full_name ORDER BY u.full_name SEPARATOR ', ') as stakeholder_name,
             GROUP_CONCAT(DISTINCT u.username ORDER BY u.username SEPARATOR ', ') as stakeholder_username
         FROM vendor_onboarding_requests r
-        LEFT JOIN vendor_onboarding_stakeholders s ON s.request_id = r.id
+        LEFT JOIN vendor_onboarding_stakeholders s ON s.request_id = r.id AND s.role <> 'alternate'
         LEFT JOIN users u ON u.id = s.user_id
         WHERE (
             r.vendor_name LIKE :search

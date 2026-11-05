@@ -81,6 +81,16 @@ if (!$canReadAll) {
     }
 }
 
+// An alternate stakeholder reviews on the stakeholder's behalf but cannot hand
+// the stakeholder role to someone else (api/annual-review-submit.php refuses
+// it), so question 1 is answered "yes" for them and hidden.
+$viewerLink = $db->fetchOne(
+    "SELECT role FROM vendor_onboarding_stakeholders WHERE request_id = :request_id AND user_id = :user_id",
+    [':request_id' => $requestId, ':user_id' => $user['id']]
+);
+$viewerIsAlternate = $viewerLink && ($viewerLink['role'] ?? '') === 'alternate'
+    && !($acl->hasGroup('administrator') || $acl->hasGroup('cyber_tprm') || Session::getInstance()->get('is_super_admin'));
+
 // Only approved vendors get annual reviews -- if it's not approved, bail out
 if ($request['status'] !== 'approved') {
     redirect('vendor-annual-reviews-list.php?error=not_approved');
@@ -91,7 +101,7 @@ $stakeholders = $db->fetchAll(
     "SELECT s.*, u.full_name, u.email
      FROM vendor_onboarding_stakeholders s
      LEFT JOIN users u ON s.user_id = u.id
-     WHERE s.request_id = :request_id
+     WHERE s.request_id = :request_id AND s.role <> 'alternate'
      ORDER BY u.full_name",
     [':request_id' => $requestId]
 );
@@ -622,12 +632,16 @@ $csrfToken = $security->generateCSRFToken();
             <!-- Question 1: Still the stakeholder? Or passing the torch? -->
             <div class="form-section">
                 <h3><?php echo e(t('vendor-annual-review.section1_title')); ?></h3>
+                <?php if ($viewerIsAlternate): ?>
+                <p id="alternateReviewNote"><?php echo e(t('vendor-annual-review.alternate_review_note')); ?></p>
+                <div style="display: none;">
+                <?php endif; ?>
                 <p><?php echo e(t('vendor-annual-review.section1_question')); ?></p>
 
                 <div class="form-group">
                     <div class="radio-group">
                         <div class="radio-option">
-                            <input type="radio" id="stakeholder_yes" name="is_still_stakeholder" value="yes" required>
+                            <input type="radio" id="stakeholder_yes" name="is_still_stakeholder" value="yes" required<?php echo $viewerIsAlternate ? ' checked' : ''; ?>>
                             <label for="stakeholder_yes"><?php echo e(t('vendor-annual-review.still_stakeholder_yes')); ?></label>
                         </div>
                         <div class="radio-option">
@@ -652,6 +666,9 @@ $csrfToken = $security->generateCSRFToken();
                         <div class="help-text"><?php echo e(t('vendor-annual-review.search_help')); ?></div>
                     </div>
                 </div>
+                <?php if ($viewerIsAlternate): ?>
+                </div>
+                <?php endif; ?>
             </div>
 
             <!-- Question 2: Scope of services -- has anything changed? -->

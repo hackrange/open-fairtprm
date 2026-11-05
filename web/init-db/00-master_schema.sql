@@ -443,7 +443,7 @@ CREATE TABLE IF NOT EXISTS vendor_onboarding_stakeholders (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     request_id INT UNSIGNED NOT NULL,
     user_id INT UNSIGNED NOT NULL,
-    role ENUM('owner', 'stakeholder', 'reviewer') DEFAULT 'stakeholder',
+    role ENUM('owner', 'stakeholder', 'reviewer', 'alternate') DEFAULT 'stakeholder',
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     assigned_by INT UNSIGNED,
 

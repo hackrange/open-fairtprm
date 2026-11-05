@@ -175,6 +175,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // note are filled per vendor. Empty note = CC only.
         $includeStakeholder = !empty($_POST['include_stakeholder']);
         $stakeholderNote = (string)($_POST['stakeholder_note'] ?? '');
+        // Also copy each vendor's alternate stakeholders (off by default). The list
+        // is read per vendor on the server, never taken from the request.
+        $includeAlternates = !empty($_POST['include_alternates']);
 
         if (empty($vendorIds) || !is_array($vendorIds)) {
             $bulkAssessmentError = t('fourth-party-risk.no_vendors_selected_error');
@@ -189,6 +192,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $failed = 0;
             $stakeholderSent = 0;
             $stakeholderFailed = 0;
+            $alternateSent = 0;
+            $alternateFailed = 0;
             $skippedNames = [];
             $failedNames = [];
 
@@ -264,14 +269,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             $contactName,
                             $templateId,
                             $contactName,
-                            $result['expires_at']
+                            $result['expires_at'],
+                            $includeAlternates ? array_column(VendorAssessmentService::alternatesFor($db, (int)$vendor['id']), 'user_id') : []
                         );
                         $so = $emailResult['stakeholder'] ?? null;
+                        $altOut = $emailResult['alternates'] ?? [];
                         VendorAssessmentService::auditEvent($db, !empty($emailResult['success']) ? 'assessment_sent' : 'assessment_send_failed', (int)$result['id'], [
                             'recipient_email'   => $contactEmail,
                             'recipient_name'    => $contactName,
                             'stakeholder_email' => in_array($so, ['cc', 'copy'], true) ? ($emailResult['stakeholder_email'] ?? null) : null,
                             'stakeholder_delivery' => $so,
+                            'alternate_stakeholders' => $altOut ?: null,
                             'trigger'           => 'bulk',
                             'error'             => !empty($emailResult['success']) ? null : ($emailResult['message'] ?? null),
                         ], (int)$user['id']);
@@ -279,6 +287,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             $emailed++;
                             if ($so === 'copy' || $so === 'cc') $stakeholderSent++;
                             elseif ($so === 'copy_failed') $stakeholderFailed++;
+                            foreach ($altOut as $ao) {
+                                if (($ao['delivery'] ?? '') === 'copy_failed') $alternateFailed++; else $alternateSent++;
+                            }
                             try {
                                 $expiresDate = !empty($result['expires_at']) ? date('Y-m-d', strtotime($result['expires_at'])) : date('Y-m-d', strtotime('+30 days'));
                                 $db->query(
@@ -311,6 +322,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 }
                 if ($stakeholderFailed > 0) {
                     $bulkAssessmentMessage .= ", {$stakeholderFailed} stakeholder copy(ies) failed";
+                }
+                if ($alternateSent > 0) {
+                    $bulkAssessmentMessage .= ", {$alternateSent} alternate stakeholder copy(ies) sent";
+                }
+                if ($alternateFailed > 0) {
+                    $bulkAssessmentMessage .= ", {$alternateFailed} alternate stakeholder copy(ies) failed";
                 }
                 if ($failed > 0) {
                     $bulkAssessmentMessage .= ", {$failed} email(s) failed and will be retried by the reminder cron"
@@ -1661,6 +1678,10 @@ function renderCveBadges($cvesRaw): string {
                                 <input type="checkbox" name="include_stakeholder" id="bulkIncludeStakeholder" value="1" checked style="width: 16px; height: 16px; cursor: pointer;">
                                 <?php echo e(t('fourth-party-risk.label_include_stakeholder')); ?>
                             </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: #374151; margin: 8px 0 0;">
+                                <input type="checkbox" name="include_alternates" id="bulkIncludeAlternates" value="1" style="width: 16px; height: 16px; cursor: pointer;">
+                                <?php echo e(t('fourth-party-risk.label_include_alternates')); ?>
+                            </label>
                             <div id="bulkStakeholderNoteWrap" style="margin-top: 10px;">
                                 <label for="bulkStakeholderNote" style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;"><?php echo e(t('fourth-party-risk.label_for_the_stakeholder')); ?></label>
                                 <textarea name="stakeholder_note" id="bulkStakeholderNote" rows="5" maxlength="<?php echo (int)VendorAssessmentService::STAKEHOLDER_NOTE_MAX; ?>" style="width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box; font-family: inherit; resize: vertical;"><?php echo e(VendorAssessmentService::defaultStakeholderNote()); ?></textarea>
@@ -1926,10 +1947,12 @@ function renderCveBadges($cvesRaw): string {
         var countSpan = document.getElementById('blastSelectedCount');
         var bulkInclude = document.getElementById('bulkIncludeStakeholder');
         if (bulkInclude) {
+            var bulkAlt = document.getElementById('bulkIncludeAlternates');
             var syncBulkStakeholder = function() {
-                document.getElementById('bulkStakeholderNoteWrap').style.display = bulkInclude.checked ? '' : 'none';
+                document.getElementById('bulkStakeholderNoteWrap').style.display = (bulkInclude.checked || (bulkAlt && bulkAlt.checked)) ? '' : 'none';
             };
             bulkInclude.addEventListener('change', syncBulkStakeholder);
+            if (bulkAlt) bulkAlt.addEventListener('change', syncBulkStakeholder);
             syncBulkStakeholder();
         }
         var modal = document.getElementById('bulkAssessmentModal');

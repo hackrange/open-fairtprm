@@ -62,6 +62,7 @@ if (!function_exists('assessmentManageable')) {
         if ((int)($a['created_by'] ?? 0) === (int)$user['id']) return true;
         $vrid = (int)($a['vendor_request_id'] ?? 0);
         if (!$vrid) return false;
+        // Any link counts, alternate stakeholders included (they back up the stakeholder).
         return !empty(Database::getInstance()->fetchOne(
             'SELECT 1 AS x FROM vendor_onboarding_stakeholders WHERE request_id = :rid AND user_id = :uid',
             [':rid' => $vrid, ':uid' => (int)$user['id']]));
@@ -122,6 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // own copy with a "For the Stakeholder" banner, without one just a CC.
         $includeStakeholder = !empty($_POST['include_stakeholder']);
         $stakeholderNote = (string)($_POST['stakeholder_note'] ?? '');
+        // Alternate stakeholders ticked in the form (unticked by default). Only ids
+        // that are alternates on the chosen vendor are honored by the send path.
+        $alternateIds = array_values(array_filter(array_map('intval', (array)($_POST['alternate_stakeholder_ids'] ?? [])), fn($i) => $i > 0));
 
         // Check if selected template is an onboarding category template
         $isOnboardingTemplate = false;
@@ -208,6 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $emailSent = false;
                 $stakeholderOutcome = null;
                 $stakeholderEmail = '';
+                $alternateOutcomes = [];
                 try {
                     require_once __DIR__ . '/includes/classes/EmailService.php';
                     $encryption = new Encryption();
@@ -233,17 +238,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $vendorContact,
                             $templateId,
                             $fullName,
-                            $result['expires_at']
+                            $result['expires_at'],
+                            $alternateIds
                         );
                         $emailSent = !empty($emailResult['success']);
                         $stakeholderOutcome = $emailResult['stakeholder'] ?? null;
                         $stakeholderEmail = $emailResult['stakeholder_email'] ?? '';
+                        $alternateOutcomes = $emailResult['alternates'] ?? [];
                         if (!empty($result['id'])) {
                             VendorAssessmentService::auditEvent($db, $emailSent ? 'assessment_sent' : 'assessment_send_failed', (int)$result['id'], [
                                 'recipient_email'   => $vendorContactEmail,
                                 'recipient_name'    => $vendorContact,
                                 'stakeholder_email' => in_array($stakeholderOutcome, ['cc', 'copy'], true) ? $stakeholderEmail : null,
                                 'stakeholder_delivery' => $stakeholderOutcome,
+                                'alternate_stakeholders' => $alternateOutcomes ?: null,
                                 'trigger'           => 'create',
                                 'error'             => $emailSent ? null : ($emailResult['message'] ?? null),
                             ], (int)$user['id']);
@@ -277,6 +285,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } elseif ($stakeholderOutcome === 'copy_failed') {
                     $emailNote .= '<br><span style="color:#991b1b;">' . htmlspecialchars(t('vendor-assessments.stakeholder_copy_failed', $stakeholderEmail)) . '</span>';
                 }
+                foreach ($alternateOutcomes as $ao) {
+                    if (($ao['delivery'] ?? '') === 'copy_failed') {
+                        $emailNote .= '<br><span style="color:#991b1b;">' . htmlspecialchars(t('vendor-assessments.alternate_copy_failed', $ao['email'])) . '</span>';
+                    } else {
+                        $emailNote .= '<br><span style="color:#166534;">' . htmlspecialchars(t('vendor-assessments.alternate_' . (($ao['delivery'] ?? '') === 'cc' ? 'cc' : 'copy') . '_sent', $ao['email'])) . '</span>';
+                    }
+                }
 
                 // Let the admin know we carried answers over from a prior assessment
                 if (!empty($result['prefilled_count'])) {
@@ -284,7 +299,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                   t('vendor-assessments.prefilled_suffix') . '</span>';
                 }
                 $auth->audit($user['id'], 'assessment_create', 'vendor_assessments', $result['id'] ?? null, [
-                    'new' => ['vendor_name' => $vendorName, 'vendor_email' => $vendorEmail, 'template_id' => $templateId, 'vendor_request_id' => $vendorRequestId, 'stakeholder' => $stakeholderOutcome]
+                    'new' => ['vendor_name' => $vendorName, 'vendor_email' => $vendorEmail, 'template_id' => $templateId, 'vendor_request_id' => $vendorRequestId, 'stakeholder' => $stakeholderOutcome, 'alternate_stakeholders' => count($alternateOutcomes)]
                 ]);
                 $successHtml = t('vendor-assessments.created_success_html') . $emailNote . t('vendor-assessments.share_link_text') .
                            '<br><br><code style="background:#f3f4f6;padding:8px 12px;border-radius:4px;word-break:break-all;">' .
@@ -458,6 +473,8 @@ $isReviewer = $isAdmin || $isCyberTPRM || $isProcurement || $isAuditor;
 $vendorScopeSql = '';
 $vendorScopeParams = [];
 if (!$isReviewer) {
+    // Any stakeholder link counts, alternates included (vendorRequestOwnedBy()
+    // re-checks the same scope on POST).
     $vendorScopeSql = " AND (created_by = :scope_uid OR id IN (SELECT request_id FROM vendor_onboarding_stakeholders WHERE user_id = :scope_uid2))";
     $vendorScopeParams = [':scope_uid' => $user['id'], ':scope_uid2' => $user['id']];
 }
@@ -480,6 +497,35 @@ $applyRecipient = function (array $v) use ($db): array {
     return $v;
 };
 $vendors = array_map($applyRecipient, $vendors);
+// Alternate stakeholders of the vendors in the picker (and only those, so nothing
+// outside the caller's scope is disclosed). Name + whether they can be emailed;
+// the addresses themselves stay server-side.
+if ($vendors) {
+    $altByVendor = [];
+    try {
+        $vendorIdsIn = array_map('intval', array_column($vendors, 'id'));
+        $altRows = $db->fetchAll(
+            "SELECT vs.request_id, u.id, COALESCE(NULLIF(u.full_name, ''), u.username) AS name, u.email
+             FROM vendor_onboarding_stakeholders vs JOIN users u ON u.id = vs.user_id
+             WHERE vs.role = 'alternate' AND u.is_active = 1
+               AND vs.request_id IN (" . implode(',', $vendorIdsIn) . ")
+             ORDER BY name"
+        );
+        foreach ($altRows as $ar) {
+            $altByVendor[(int)$ar['request_id']][] = [
+                'id' => (int)$ar['id'],
+                'name' => (string)$ar['name'],
+                'has_email' => (bool)filter_var(trim((string)$ar['email']), FILTER_VALIDATE_EMAIL),
+            ];
+        }
+    } catch (Exception $e) {
+        error_log('Alternate stakeholder lookup failed: ' . $e->getMessage());
+    }
+    foreach ($vendors as &$vRow) {
+        $vRow['alternates'] = $altByVendor[(int)$vRow['id']] ?? [];
+    }
+    unset($vRow);
+}
 
 // If someone arrived here from a vendor's onboarding page via "New Assessment" button,
 // we pre-select that vendor in the create modal so they don't have to search for it again.
@@ -1143,6 +1189,11 @@ try {
                         <span><?php echo e(t('vendor-assessments.label_include_stakeholder')); ?></span>
                         <span id="stakeholderNameHint" style="color:#6b7280; font-weight:normal;"><?php echo ($preselectedVendor && !empty($preselectedVendor['stakeholder_name'])) ? e('(' . $preselectedVendor['stakeholder_name'] . ')') : ''; ?></span>
                     </label>
+                    <div id="alternateStakeholdersWrap" style="display:none; margin-top:10px;">
+                        <div style="font-weight:600; font-size:13px; color:#374151; margin-bottom:4px;"><?php echo e(t('vendor-assessments.label_alternate_stakeholders')); ?></div>
+                        <div id="alternateStakeholdersList" data-no-email="<?php echo e(t('vendor-assessments.alternate_no_email')); ?>"></div>
+                        <div class="form-help"><?php echo e(t('vendor-assessments.help_alternate_stakeholders')); ?></div>
+                    </div>
                     <div id="stakeholderNoteWrap" style="margin-top:10px;">
                         <label for="stakeholderNote"><?php echo e(t('vendor-assessments.label_for_the_stakeholder')); ?></label>
                         <textarea name="stakeholder_note" id="stakeholderNote" class="form-control" rows="5" maxlength="<?php echo (int)VendorAssessmentService::STAKEHOLDER_NOTE_MAX; ?>" data-template="<?php echo e($snTemplate); ?>"><?php echo e($snInitial); ?></textarea>
@@ -1220,7 +1271,7 @@ try {
     <script src="app/js/vendor-search.js?v=2.5.5b"></script>
     <script nonce="<?php echo cspNonce(); ?>">
         // Vendor data for typeahead
-        const vendors = <?php echo json_encode($vendors ?: []); ?>;
+        const vendors = <?php echo json_encode($vendors ?: [], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
         // Filter by type
         function filterByType(typeId) {
@@ -1258,7 +1309,44 @@ try {
             document.getElementById('vendorSuggestions').style.display = 'none';
             var hint = document.getElementById('stakeholderNameHint');
             if (hint) hint.textContent = v.stakeholder_name ? '(' + v.stakeholder_name + ')' : '';
+            renderAlternates(v.alternates || []);
             refreshStakeholderNote();
+        }
+
+        // Alternate stakeholders of the selected vendor: one checkbox each,
+        // UNCHECKED by default. Built with textContent (names are user data).
+        function renderAlternates(list) {
+            var wrap = document.getElementById('alternateStakeholdersWrap');
+            var box = document.getElementById('alternateStakeholdersList');
+            if (!wrap || !box) return;
+            box.textContent = '';
+            list.forEach(function(a) {
+                var label = document.createElement('label');
+                label.style.cssText = 'display:flex; align-items:center; gap:8px; cursor:pointer; margin:2px 0; font-weight:normal;';
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.name = 'alternate_stakeholder_ids[]';
+                cb.value = String(a.id);
+                cb.className = 'alternate-stakeholder-cb';
+                if (!a.has_email) cb.disabled = true;
+                var span = document.createElement('span');
+                span.textContent = a.name + (a.has_email ? '' : ' (' + (box.getAttribute('data-no-email') || '') + ')');
+                label.appendChild(cb);
+                label.appendChild(span);
+                box.appendChild(label);
+            });
+            wrap.style.display = list.length ? '' : 'none';
+            syncStakeholderNoteWrap();
+        }
+
+        // The note (banner) applies to the stakeholder and alternate copies alike,
+        // so show it while any of them is ticked.
+        function syncStakeholderNoteWrap() {
+            var wrap = document.getElementById('stakeholderNoteWrap');
+            if (!wrap) return;
+            var inc = document.getElementById('includeStakeholder');
+            var any = (inc && inc.checked) || !!document.querySelector('.alternate-stakeholder-cb:checked');
+            wrap.style.display = any ? '' : 'none';
         }
 
         // "For the Stakeholder" note: follows the vendor name / contact email
@@ -1304,6 +1392,7 @@ try {
                 vendorContactEmailField.value = '';
                 var hint = document.getElementById('stakeholderNameHint');
                 if (hint) hint.textContent = '';
+                renderAlternates([]);
                 refreshStakeholderNote();
             } else {
                 // Show existing vendor search, hide new vendor fields
@@ -1326,11 +1415,13 @@ try {
             var includeStakeholder = document.getElementById('includeStakeholder');
             var stakeholderNote = document.getElementById('stakeholderNote');
             if (includeStakeholder && stakeholderNote) {
-                var syncStakeholder = function() {
-                    document.getElementById('stakeholderNoteWrap').style.display = includeStakeholder.checked ? '' : 'none';
-                };
-                includeStakeholder.addEventListener('change', syncStakeholder);
-                syncStakeholder();
+                includeStakeholder.addEventListener('change', syncStakeholderNoteWrap);
+                var altList = document.getElementById('alternateStakeholdersList');
+                if (altList) altList.addEventListener('change', syncStakeholderNoteWrap);
+                // A vendor preselected via link_vendor: show its alternates too.
+                var preId = parseInt((document.getElementById('vendorRequestId') || {}).value || '0', 10);
+                var pre = preId ? vendors.find(function(v) { return parseInt(v.id, 10) === preId; }) : null;
+                renderAlternates(pre ? (pre.alternates || []) : []);
                 stakeholderNote.addEventListener('input', function() { stakeholderNoteEdited = true; });
                 ['vendorName', 'vendorContactEmail'].forEach(function(id) {
                     var el = document.getElementById(id);
@@ -1357,6 +1448,7 @@ try {
                 // User must reselect from dropdown to set a valid vendor
                 document.getElementById('vendorRequestId').value = '';
                 document.getElementById('vendorError').style.display = 'none';
+                renderAlternates([]);
 
                 if (query.length < 2) {
                     vendorSuggestions.style.display = 'none';

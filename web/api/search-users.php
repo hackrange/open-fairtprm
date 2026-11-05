@@ -59,8 +59,10 @@ $canAssignStakeholders = $acl->hasPermission('onboarding.assign_stakeholder') ||
 // you can search for users too (so you can reassign your role to someone else)
 $requestId = isset($_GET['request_id']) ? intval($_GET['request_id']) : 0;
 if ($requestId > 0 && !$canAssignStakeholders) {
+    // Alternate stakeholders are read-only on the vendor: they may not reassign it,
+    // so they do not get user search through this path.
     $stakeholderCheck = $db->fetchOne(
-        'SELECT id FROM vendor_onboarding_stakeholders WHERE request_id = :request_id AND user_id = :user_id',
+        "SELECT id FROM vendor_onboarding_stakeholders WHERE request_id = :request_id AND user_id = :user_id AND role <> 'alternate'",
         [':request_id' => $requestId, ':user_id' => $user['id']]
     );
     if (!empty($stakeholderCheck)) {

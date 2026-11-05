@@ -199,7 +199,7 @@ $query = "
            (SELECT GROUP_CONCAT(CONCAT(us.full_name, ' (', us.email, ')') SEPARATOR ', ')
             FROM vendor_onboarding_stakeholders s
             LEFT JOIN users us ON s.user_id = us.id
-            WHERE s.request_id = r.id) as stakeholders
+            WHERE s.request_id = r.id AND s.role <> 'alternate') as stakeholders
     FROM vendor_onboarding_requests r
     LEFT JOIN users u ON r.created_by = u.id
     {$whereClause}

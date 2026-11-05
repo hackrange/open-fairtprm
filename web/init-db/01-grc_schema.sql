@@ -809,7 +809,7 @@ CREATE TABLE IF NOT EXISTS `vendor_onboarding_stakeholders` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `request_id` int(10) unsigned NOT NULL,
   `user_id` int(10) unsigned NOT NULL,
-  `role` enum('owner','stakeholder','reviewer') DEFAULT 'stakeholder',
+  `role` enum('owner','stakeholder','reviewer','alternate') DEFAULT 'stakeholder',
   `assigned_at` timestamp NULL DEFAULT current_timestamp(),
   `assigned_by` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),

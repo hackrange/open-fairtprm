@@ -79,7 +79,7 @@ RUN set -e; \
     mkdir -p /var/www/html/app/docs; \
     cp -rp $pp/app/docs/. /var/www/html/app/docs/; \
     mkdir -p /var/www/html/app/js; \
-    cp -p  $pp/app/js/phone-input.js $pp/app/js/vat-input.js $pp/app/js/template-builder.js /var/www/html/app/js/; \
+    cp -p  $pp/app/js/phone-input.js $pp/app/js/vat-input.js $pp/app/js/template-builder.js $pp/app/js/mobile-nav.js /var/www/html/app/js/; \
     mkdir -p /var/www/html/app/flags; \
     cp -rp $pp/app/flags/. /var/www/html/app/flags/; \
     \
@@ -94,7 +94,7 @@ RUN set -e; \
     cp -p  $pp/ACL.php $pp/Auth.php \
            $pp/EmailService.php $pp/LockdownService.php $pp/BreachAlertService.php \
            $pp/AIPlatformService.php $pp/GitHubOSINTScanner.php \
-           $pp/BreachEvidenceValidator.php \
+           $pp/BreachEvidenceValidator.php $pp/VendorPrivacyService.php \
            $pp/ShodanClient.php $pp/ShodanService.php $pp/SRSService.php $pp/Security.php $pp/Session.php \
            $pp/VendorAssessmentService.php $pp/AssessmentTranslationService.php \
            $pp/CyberTodoService.php \
@@ -102,6 +102,7 @@ RUN set -e; \
            $pp/ZscalerService.php $pp/SAMLHandler.php $pp/Pagination.php \
            $pp/FaviconService.php $pp/ContinuousMonitor.php $pp/VirusScanService.php \
            $pp/BackupService.php $pp/APIService.php $pp/PolicyService.php \
+           $pp/ShadowSaasRequestService.php \
            /var/www/html/includes/classes/; \
     \
     mkdir -p /var/www/html/includes/partials; \
@@ -132,7 +133,7 @@ RUN set -e; \
            $pp/grc-framework-report.php $pp/grc-frameworks.php $pp/grc-gaps.php \
            $pp/grc-monitors.php $pp/grc-policies.php $pp/grc-risks.php \
            $pp/grc-tasks.php $pp/admin.php $pp/index.php $pp/login.php $pp/profile.php \
-           $pp/procurement-contracts.php $pp/procurement-cyber-status.php $pp/shadow-saas.php $pp/shadow-saas-new.php $pp/shadow-saas-posture.php $pp/shadow-saas-itdr.php $pp/shadow-saas-ai-apps.php $pp/shadow-saas-ai-agents.php $pp/shadow-saas-ai-dashboard.php $pp/shadow-saas-compliance.php $pp/grip-saas-users.php \
+           $pp/procurement-contracts.php $pp/procurement-cyber-status.php $pp/shadow-saas.php $pp/shadow-saas-new.php $pp/shadow-saas-posture.php $pp/shadow-saas-itdr.php $pp/shadow-saas-ai-apps.php $pp/shadow-saas-ai-agents.php $pp/shadow-saas-ai-dashboard.php $pp/shadow-saas-compliance.php $pp/shadow-saas-requests.php $pp/shadow-saas-request.php $pp/grip-saas-users.php \
            $pp/vendor-assessment.php $pp/vendor-assessments.php \
            $pp/vendor-assessment-view.php $pp/vendor-detailed-summary.php \
            $pp/vendor-domains.php $pp/vendor-onboarding-list.php \
@@ -238,6 +239,7 @@ RUN set -e; \
         /var/www/html/includes/admin/updates.php \
         /var/www/html/includes/admin/users.php \
         /var/www/html/includes/admin/workflows.php \
+        /var/www/html/includes/admin/activity-log.php \
         /var/www/html/profile.php \
         /var/www/html/includes/classes/AssessmentTranslationService.php \
         /var/www/html/includes/classes/CyberTodoService.php \
@@ -273,6 +275,8 @@ RUN set -e; \
         /var/www/html/includes/classes/VirusScanService.php \
         /var/www/html/includes/classes/APIService.php \
         /var/www/html/includes/partials/vendor-tasks-data.php \
+        /var/www/html/includes/partials/shadow-saas-detail.php \
+        /var/www/html/includes/partials/shadow-saas-helpers.php \
         /var/www/html/vendor/onelogin/php-saml/src/Saml2/Response.php \
         /var/www/html/config/config.sample.php \
         /var/www/html/api/ai-job-status.php \
@@ -288,12 +292,19 @@ RUN set -e; \
         /var/www/html/api/send-assessment-email.php \
         /var/www/html/api/generate-fair-ai-analysis.php \
         /var/www/html/api/ai-models.php \
+        /var/www/html/api/generate-detailed-summary.php \
+        /var/www/html/api/assessment-ai-autofill.php \
+        /var/www/html/api/grc-generate-report.php \
+        /var/www/html/api/generate-srs-summary.php \
+        /var/www/html/api/contract-pricing-ai-extract.php \
         /var/www/html/api/procurement-update-save.php \
         /var/www/html/api/procurement-notes-list.php \
         /var/www/html/api/procurement-note-manage.php \
         /var/www/html/cron/ai-queue.php \
+        /var/www/html/cron/assessment-reminders.php \
         /var/www/html/cron/breach-monitor.php \
         /var/www/html/cron/breach-scan-queue.php \
+        /var/www/html/cron/grip-discovery.php \
         /var/www/html/cron/grip-sync.php \
         /var/www/html/cron/osint-company.php \
         /var/www/html/cron/osint-vendors.php \
@@ -302,6 +313,8 @@ RUN set -e; \
         /var/www/html/cron/grc-task-digest.php \
         /var/www/html/cron/procurement-digest.php \
         /var/www/html/cron/onboarding-scheduled-actions.php \
+        /var/www/html/cron/annual-review-reminders.php \
+        /var/www/html/app/grip-reference/grip-openapi.json \
         /var/www/html/app/grip-reference/grip-openapi.yaml \
         /var/www/html/app/grip-reference/grip-postman-collection.json \
         /var/www/html/app/hero-reference/hero-openapi.yaml \
@@ -353,6 +366,9 @@ RUN set -e; \
         /var/www/html/shadow-saas-ai-agents.php \
         /var/www/html/shadow-saas-ai-dashboard.php \
         /var/www/html/shadow-saas-compliance.php \
+        /var/www/html/shadow-saas-requests.php \
+        /var/www/html/shadow-saas-request.php \
+        /var/www/html/includes/classes/ShadowSaasRequestService.php \
         /var/www/html/includes/partials/shadow-saas-tabs.php \
         /var/www/html/grip-saas-users.php \
         /var/www/html/vendor-assessment.php \

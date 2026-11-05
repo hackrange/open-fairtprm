@@ -165,6 +165,21 @@ try {
         }
     }
 
+    // An alternate stakeholder may submit the review (they back up the
+    // stakeholder) but may not hand the stakeholder role to anyone: that would
+    // let a backup take the vendor over. The form hides the question for them.
+    if (!$canReviewAny && $isStillStakeholder === 'no') {
+        $submitterLink = $db->fetchOne(
+            "SELECT role FROM vendor_onboarding_stakeholders WHERE request_id = :request_id AND user_id = :user_id",
+            [':request_id' => $requestId, ':user_id' => $user['id']]
+        );
+        if ($submitterLink && ($submitterLink['role'] ?? '') === 'alternate') {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'An alternate stakeholder cannot reassign the stakeholder']);
+            exit;
+        }
+    }
+
     // ---------------------------------------------------------------
     // DUE DATE CALCULATION
     // Figure out when this review was "due." We check three sources
@@ -298,11 +313,18 @@ try {
         // Add the new stakeholder, but only if they're not already on this vendor
         // (could happen if they have a different role already)
         $existingStakeholder = $db->fetchOne(
-            "SELECT id FROM vendor_onboarding_stakeholders WHERE request_id = :request_id AND user_id = :user_id",
+            "SELECT id, role FROM vendor_onboarding_stakeholders WHERE request_id = :request_id AND user_id = :user_id",
             [':request_id' => $requestId, ':user_id' => $newStakeholderId]
         );
 
-        if (!$existingStakeholder) {
+        if ($existingStakeholder && ($existingStakeholder['role'] ?? '') === 'alternate') {
+            // Handing off to an alternate promotes them; left as an alternate the
+            // vendor would end up with no stakeholder at all.
+            $db->update('vendor_onboarding_stakeholders', [
+                'role' => 'stakeholder',
+                'assigned_by' => $user['id'],
+            ], 'id = :sid', [':sid' => $existingStakeholder['id']]);
+        } elseif (!$existingStakeholder) {
             $db->insert('vendor_onboarding_stakeholders', [
                 'request_id' => $requestId,
                 'user_id' => $newStakeholderId,

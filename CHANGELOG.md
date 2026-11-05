@@ -12,6 +12,25 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Alternate stakeholders.** A vendor can now have any number of alternate
+  stakeholders beside its one stakeholder, as backups (for example while the
+  stakeholder is on vacation). They are managed from the vendor page
+  (Alternates button, type-ahead user search) by the same people who can
+  reassign the stakeholder. On the vendors they are linked to, an alternate can
+  see and do what the stakeholder can: the vendor page and its edits, notes and
+  cases, SRS details, assessments and their links, the annual review and its
+  reminders, and the REST API. An alternate cannot take the vendor over: they
+  cannot reassign the stakeholder, hand the role off in the annual review, or
+  add or remove alternates. New Assessment lists the vendor's alternates as
+  checkboxes, unchecked by default; each one ticked gets their own copy of the
+  assessment email with the same For the Stakeholder banner the stakeholder
+  gets (or is CC'd when the note is empty). The stakeholder copy works as
+  before. The Fourth-Party Risk bulk send has the same option, also off by
+  default. The server only sends to users who are alternates of that vendor at
+  send time, whatever ids the form posts. Every send records the alternate
+  deliveries in the audit log. Schema: `vendor_onboarding_stakeholders.role`
+  gains `alternate`.
+
 - **AI cost estimator for every AI platform.** The AI Usage, Cost and Monthly
   Limit card on Admin > API Integration now has a rates row for each platform
   (OpenWebUI, LibreChat, Custom, Anthropic, OpenAI), saved together, so rates
@@ -699,6 +718,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
   retired ones. Localized in all eight locales.
 
 ### Fixed
+
+- **Changing a vendor's stakeholder on the SRS details page no longer fails
+  when the new stakeholder is already linked to the vendor** (for example as
+  its owner or an alternate). The (vendor, user) link is unique, so the plain
+  insert errored and the vendor was left with no stakeholder. It now promotes
+  the existing link. Handing a vendor off at annual review to a user who is
+  already an alternate likewise makes them the stakeholder.
 
 - **FAIR breach costs no longer scale linearly with record count.** A flat
   per-record rate times the record count overstated large breaches: one vendor

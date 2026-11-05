@@ -111,6 +111,10 @@ $requestId = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $request = null;
 $canEdit = false;
 $isStakeholder = false;
+// Alternate stakeholder: a backup for the stakeholder. Counts as a stakeholder
+// ($isStakeholder) for viewing and working the vendor, but may NOT reassign the
+// stakeholder or manage the alternates ($canAssignStakeholders below).
+$isAlternate = false;
 $isOwner = false;
 // Page is always read-only for existing vendors (data entry happens via vendor-assessment.php)
 $showTemplateSelection = false;
@@ -140,9 +144,10 @@ if ($requestId > 0) {
 
     // Check if the current user is an assigned stakeholder on this request
     $stakeholderCheck = $db->fetchOne(
-        'SELECT id FROM vendor_onboarding_stakeholders WHERE request_id = :request_id AND user_id = :user_id',
+        'SELECT id, role FROM vendor_onboarding_stakeholders WHERE request_id = :request_id AND user_id = :user_id',
         [':request_id' => $requestId, ':user_id' => $user['id']]
     );
+    $isAlternate = !empty($stakeholderCheck) && ($stakeholderCheck['role'] ?? '') === 'alternate';
     $isStakeholder = !empty($stakeholderCheck);
 
     // Grab who created this request (for display purposes)
@@ -228,9 +233,10 @@ if ($requestId > 0) {
 
 // Stakeholder assignment permissions -- who can assign or reassign the responsible party?
 // Admins and procurement are always in control. If you're the current stakeholder,
-// you can also hand it off to someone else (hot potato style).
+// you can also hand it off to someone else (hot potato style). An alternate
+// stakeholder cannot: a backup must not be able to take the vendor over.
 $canAssignStakeholders = $isAdmin || $isProcurement || $canAssignStakeholder;
-if (!$canAssignStakeholders && $editMode && $isStakeholder) {
+if (!$canAssignStakeholders && $editMode && $isStakeholder && !$isAlternate) {
     $canAssignStakeholders = true;
 }
 
@@ -246,6 +252,101 @@ if ($editMode && $assignedStakeholder) {
         ? $user['full_name'] . ' (' . $user['username'] . ')'
         : $user['username'];
     $stakeholderUserId = $user['id'];
+}
+
+// ============================================================
+// ALTERNATE STAKEHOLDERS
+// Any number of users who can SEE this vendor (read-only) and may be copied on
+// assessments. Managed by the same people who may reassign the stakeholder
+// ($canAssignStakeholders: admin / procurement / assign permission / the current
+// stakeholder -- never an alternate, see above).
+// ============================================================
+$canManageAlternates = $editMode && $requestId > 0 && $canAssignStakeholders;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManageAlternates
+    && in_array($_POST['alternate_action'] ?? '', ['add', 'remove'], true)) {
+    $altStatus = 'failed';
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $altStatus = 'csrf';
+    } else {
+        $altUserId = intval($_POST['alternate_user_id'] ?? 0);
+        $altUser = $altUserId > 0 ? $db->fetchOne(
+            'SELECT id, full_name, username FROM users WHERE id = :id AND is_active = 1',
+            [':id' => $altUserId]
+        ) : null;
+        if (!$altUser) {
+            $altStatus = 'invalid';
+        } elseif ($_POST['alternate_action'] === 'add') {
+            // The (request_id, user_id) key is unique: a user already linked in any
+            // role (stakeholder, owner, reviewer, alternate) is not added again.
+            $existingLink = $db->fetchOne(
+                'SELECT role FROM vendor_onboarding_stakeholders WHERE request_id = :rid AND user_id = :uid',
+                [':rid' => $requestId, ':uid' => $altUserId]
+            );
+            if ($existingLink) {
+                $altStatus = ($existingLink['role'] ?? '') === 'alternate' ? 'exists' : 'linked';
+            } else {
+                try {
+                    $db->insert('vendor_onboarding_stakeholders', [
+                        'request_id' => $requestId,
+                        'user_id' => $altUserId,
+                        'role' => 'alternate',
+                        'assigned_by' => $user['id'],
+                    ]);
+                    $auth->audit($user['id'], 'vendor_alternate_stakeholder_add', 'vendor_onboarding_requests', $requestId, [
+                        'new' => ['alternate_user_id' => $altUserId, 'vendor_name' => $request['vendor_name'] ?? '']
+                    ]);
+                    $altStatus = 'added';
+                } catch (Exception $e) {
+                    error_log('Add alternate stakeholder error: ' . $e->getMessage());
+                    $altStatus = 'failed';
+                }
+            }
+        } else {
+            try {
+                // Only ever removes an ALTERNATE link; the stakeholder/owner rows are
+                // untouchable from here whatever id is posted.
+                $db->delete(
+                    'vendor_onboarding_stakeholders',
+                    "request_id = :rid AND user_id = :uid AND role = 'alternate'",
+                    [':rid' => $requestId, ':uid' => $altUserId]
+                );
+                $auth->audit($user['id'], 'vendor_alternate_stakeholder_remove', 'vendor_onboarding_requests', $requestId, [
+                    'old' => ['alternate_user_id' => $altUserId, 'vendor_name' => $request['vendor_name'] ?? '']
+                ]);
+                $altStatus = 'removed';
+            } catch (Exception $e) {
+                error_log('Remove alternate stakeholder error: ' . $e->getMessage());
+                $altStatus = 'failed';
+            }
+        }
+    }
+    // PRG: the CSRF token is single-use, so later handlers on this page must not
+    // see this POST; a refresh must not repeat it either.
+    redirect('vendor-onboarding.php?id=' . $requestId . '&alt=' . $altStatus);
+}
+// Result of an alternate add/remove (PRG target). Fixed codes only -> fixed strings.
+$altMessages = [
+    'added'   => ['ok',  'vendor-onboarding.ok_alternate_added'],
+    'removed' => ['ok',  'vendor-onboarding.ok_alternate_removed'],
+    'exists'  => ['err', 'vendor-onboarding.err_alternate_exists'],
+    'linked'  => ['err', 'vendor-onboarding.err_alternate_already_linked'],
+    'invalid' => ['err', 'vendor-onboarding.err_select_valid_stakeholder'],
+    'csrf'    => ['err', 'vendor-onboarding.err_csrf'],
+    'failed'  => ['err', 'vendor-onboarding.err_alternate_save_failed'],
+];
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($altMessages[$_GET['alt'] ?? ''])) {
+    [$altKind, $altKey] = $altMessages[$_GET['alt']];
+    if ($altKind === 'ok') { $success = t($altKey); } else { $error = t($altKey); }
+}
+$alternateStakeholders = [];
+if ($editMode && $requestId > 0) {
+    $alternateStakeholders = $db->fetchAll(
+        "SELECT u.id, u.full_name, u.username, u.email
+         FROM vendor_onboarding_stakeholders vs JOIN users u ON u.id = vs.user_id
+         WHERE vs.request_id = :rid AND vs.role = 'alternate'
+         ORDER BY COALESCE(NULLIF(u.full_name, ''), u.username)",
+        [':rid' => $requestId]
+    );
 }
 
 // Grab any security assessments that have been linked to this vendor.
@@ -3400,12 +3501,19 @@ function getFieldValue($request, $field, $default = '') {
                     <span style="color: #6b7280;"><?php echo e(t('vendor-onboarding.stakeholder_label')); ?></span>
                     <strong><?php echo e($stakeholderDisplayName); ?></strong>
                     <?php endif; ?>
+                    <?php if (!empty($alternateStakeholders)): ?>
+                    <span style="color: #6b7280; margin-left: 12px;"><?php echo e(t('vendor-onboarding.alternates_label')); ?></span>
+                    <span id="alternateStakeholderNames"><?php echo e(implode(', ', array_map(function ($a) { return (string)($a['full_name'] ?: $a['username']); }, $alternateStakeholders))); ?></span>
+                    <?php endif; ?>
                     <div style="margin-left: auto; display: flex; gap: 8px;">
                         <?php if ($canEdit || $canEditProcurementFields): ?>
                             <button type="button" id="toggleEditBtn" class="btn" style="padding: 4px 12px; font-size: 12px; background: var(--theme-header-color); color: white;"><?php echo e(t('vendor-onboarding.btn_edit')); ?></button>
                         <?php endif; ?>
                         <?php if ($canAssignStakeholders): ?>
                             <button type="button" data-action="openReassignModal" class="btn" style="padding: 4px 12px; font-size: 12px; background: #6b7280; color: white;"><?php echo e(t('vendor-onboarding.btn_reassign')); ?></button>
+                        <?php endif; ?>
+                        <?php if ($canManageAlternates): ?>
+                            <button type="button" data-action="openAlternatesModal" class="btn" style="padding: 4px 12px; font-size: 12px; background: #6b7280; color: white;"><?php echo e(t('vendor-onboarding.btn_alternates')); ?></button>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -8497,6 +8605,140 @@ function getFieldValue($request, $field, $default = '') {
                 document.getElementById('tier_justification').focus();
             }
         });
+    </script>
+    <?php endif; ?>
+
+    <?php if ($canManageAlternates): ?>
+    <!-- Alternate Stakeholders Modal -->
+    <div id="alternatesModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 30px; border-radius: 8px; max-width: 520px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <h3 style="margin: 0 0 8px 0; color: #333; font-size: 20px;"><?php echo e(t('vendor-onboarding.modal_alternates')); ?></h3>
+            <p style="margin: 0 0 16px 0; color: #6b7280; font-size: 13px;"><?php echo e(t('vendor-onboarding.help_alternates')); ?></p>
+
+            <div id="alternatesCurrent" style="margin-bottom: 18px;">
+                <?php if (empty($alternateStakeholders)): ?>
+                    <div style="color: #9ca3af; font-size: 13px;"><?php echo e(t('vendor-onboarding.no_alternates')); ?></div>
+                <?php else: foreach ($alternateStakeholders as $alt): ?>
+                    <form method="POST" action="vendor-onboarding.php?id=<?php echo (int)$requestId; ?>" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f3f4f6;">
+                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                        <input type="hidden" name="alternate_action" value="remove">
+                        <input type="hidden" name="alternate_user_id" value="<?php echo (int)$alt['id']; ?>">
+                        <span>
+                            <strong><?php echo e($alt['full_name'] ?: $alt['username']); ?></strong>
+                            <span style="color: #6b7280; font-size: 12px;"><?php echo e($alt['email'] ?? ''); ?></span>
+                        </span>
+                        <button type="submit" class="btn" style="padding: 3px 10px; font-size: 12px; background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;"><?php echo e(t('vendor-onboarding.btn_remove')); ?></button>
+                    </form>
+                <?php endforeach; endif; ?>
+            </div>
+
+            <form method="POST" action="vendor-onboarding.php?id=<?php echo (int)$requestId; ?>" id="alternateAddForm">
+                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                <input type="hidden" name="alternate_action" value="add">
+                <input type="hidden" name="alternate_user_id" id="alternateUserId" value="">
+                <label for="alternateSearch" style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;"><?php echo e(t('vendor-onboarding.label_add_alternate')); ?></label>
+                <div style="position: relative; margin-bottom: 20px;">
+                    <input type="text" id="alternateSearch" placeholder="<?php echo e(t('vendor-onboarding.placeholder_type_name_username')); ?>" autocomplete="off"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: inherit; box-sizing: border-box;">
+                    <div id="alternateSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" data-action="closeAlternatesModal" style="padding: 10px 20px; border: 1px solid #ddd; background: white; color: #666; border-radius: 4px; cursor: pointer; font-size: 14px;"><?php echo e(t('vendor-onboarding.btn_close')); ?></button>
+                    <button type="submit" id="alternateAddBtn" style="padding: 10px 20px; border: none; background: #6b7280; color: white; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; opacity: 0.5;"><?php echo e(t('vendor-onboarding.btn_add_alternate')); ?></button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script nonce="<?php echo cspNonce(); ?>">
+        // Alternate stakeholders modal: type-ahead over api/search-users.php (the
+        // same endpoint and request_id scope as the Reassign modal). The server
+        // re-validates the picked user; the client only fills a hidden id.
+        (function() {
+            var modal = document.getElementById('alternatesModal');
+            if (!modal) return;
+            var input = document.getElementById('alternateSearch');
+            var hidden = document.getElementById('alternateUserId');
+            var box = document.getElementById('alternateSuggestions');
+            var addBtn = document.getElementById('alternateAddBtn');
+            var form = document.getElementById('alternateAddForm');
+            var timer = null, hl = -1;
+            var msgs = {
+                searching: <?php echo json_encode(t('vendor-onboarding.js_searching_html'), JSON_HEX_TAG | JSON_HEX_AMP); ?>,
+                none: <?php echo json_encode(t('vendor-onboarding.js_no_users_html'), JSON_HEX_TAG | JSON_HEX_AMP); ?>,
+                error: <?php echo json_encode(t('vendor-onboarding.js_search_error_html'), JSON_HEX_TAG | JSON_HEX_AMP); ?>
+            };
+
+            function setReady(ready) {
+                addBtn.style.opacity = ready ? '1' : '0.5';
+                addBtn.style.background = ready ? 'var(--theme-header-color)' : '#6b7280';
+            }
+            function open() { input.value = ''; hidden.value = ''; setReady(false); box.style.display = 'none'; modal.style.display = 'flex'; input.focus(); }
+            function close() { modal.style.display = 'none'; }
+
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('[data-action="openAlternatesModal"]')) open();
+                if (e.target.closest('[data-action="closeAlternatesModal"]')) close();
+                if (e.target === modal) close();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modal.style.display === 'flex') close();
+            });
+
+            function pick(item) {
+                hidden.value = item.getAttribute('data-user-id');
+                input.value = item.getAttribute('data-display');
+                box.style.display = 'none';
+                setReady(true);
+            }
+            function render(users) {
+                box.textContent = '';
+                users.forEach(function(u) {
+                    var item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.setAttribute('data-user-id', String(u.id));
+                    item.setAttribute('data-display', u.display || '');
+                    var n = document.createElement('div'); n.className = 'user-name'; n.textContent = u.display || '';
+                    item.appendChild(n);
+                    if (u.email) { var m = document.createElement('div'); m.className = 'user-email'; m.textContent = u.email; item.appendChild(m); }
+                    item.addEventListener('click', function() { pick(item); });
+                    box.appendChild(item);
+                });
+            }
+            function search(q) {
+                if (q.length < 2) { box.style.display = 'none'; return; }
+                box.innerHTML = msgs.searching; box.style.display = 'block';
+                fetch('api/search-users.php?q=' + encodeURIComponent(q) + '&request_id=<?php echo (int)$requestId; ?>', { credentials: 'same-origin' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(d) {
+                        if (input.value.trim() !== q) return; // a newer keystroke owns the box
+                        hl = -1;
+                        if (d.success && d.users && d.users.length) render(d.users); else box.innerHTML = msgs.none;
+                    })
+                    .catch(function() { box.innerHTML = msgs.error; });
+            }
+            input.addEventListener('input', function() {
+                hidden.value = ''; setReady(false);
+                clearTimeout(timer);
+                var q = input.value.trim();
+                timer = setTimeout(function() { search(q); }, 300);
+            });
+            input.addEventListener('keydown', function(e) {
+                var items = box.querySelectorAll('.autocomplete-item');
+                if (box.style.display === 'none' || !items.length) return;
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    hl = e.key === 'ArrowDown' ? Math.min(hl + 1, items.length - 1) : Math.max(hl - 1, 0);
+                    items.forEach(function(it, i) { it.classList.toggle('highlighted', i === hl); });
+                } else if (e.key === 'Enter' && hl >= 0) {
+                    e.preventDefault(); pick(items[hl]);
+                }
+            });
+            // Never post without a picked user. The button stays enabled (a disabled
+            // control drops out of the submission); the guard lives here instead.
+            form.addEventListener('submit', function(e) {
+                if (!hidden.value) { e.preventDefault(); input.focus(); }
+            });
+        })();
     </script>
     <?php endif; ?>
 

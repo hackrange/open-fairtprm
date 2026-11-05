@@ -314,6 +314,7 @@ $requests = $db->fetchAll($query, $params);
 // ============================================================================
 $userStakeholderRequestIds = [];
 if ($acl->hasPermission('onboarding.update_assigned')) {
+    // Drives the per-row EDIT permission; alternate stakeholders count too.
     $stakeholderRows = $db->fetchAll(
         'SELECT request_id FROM vendor_onboarding_stakeholders WHERE user_id = :uid',
         [':uid' => $user['id']]
