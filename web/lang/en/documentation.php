@@ -113,6 +113,7 @@
         <tr><td><strong>Auditor</strong></td><td><strong>Read-only access</strong> to both TPRM and GRC modules &mdash; can view everything, download evidence, and generate reports, but cannot create, edit, or delete</td></tr>
         <tr><td><strong>Procurement</strong></td><td>Create and manage vendor onboarding requests, upload vendor documents</td></tr>
         <tr><td><strong>Stakeholder</strong></td><td>View their own vendor requests and respond to tasks assigned to them</td></tr>
+        <tr><td><strong>Posture Management</strong> <span class="new-badge">New in 2.6.2</span></td><td>Only while Grip is connected: see Shadow SaaS <strong>Posture Management</strong> and <strong>ITDR</strong> for the connected SaaS tenants an administrator grants, and <strong>request</strong> waivers for their findings. See <a href="#posture-management-role">Posture Management Role</a>.</td></tr>
     </table>
 
     <div class="callout callout-info">
@@ -149,6 +150,7 @@
         <tr><td><strong><a href="#ai-review">AI Review for vendors</a></strong></td><td>A dedicated review status for vendors whose services use AI, plus a "Force AI Review" action.</td><td>Cyber TPRM, Admins</td></tr>
         <tr><td><strong><a href="#procurement-cyber-status">Procurement Cyber Status</a></strong></td><td>A live page showing vendors in review, with a running history of updates the cyber team shares with procurement, plus a weekly email digest.</td><td>Procurement, Cyber TPRM</td></tr>
         <tr><td><strong><a href="#shadow-saas-grip">Grip Shadow SaaS integration</a></strong></td><td>Automatically discover SaaS apps used across your organization and pull them into the Shadow SaaS list.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#posture-management-role">Posture Management Role (Grip)</a></strong></td><td>Give a user Shadow SaaS Posture Management and ITDR for chosen connected SaaS tenants only, with waiver requests that an administrator approves.</td></tr>
         <tr><td><strong><a href="#shadow-saas-hero">Hero Shadow SaaS integration</a></strong></td><td>An alternative Shadow SaaS provider: discover vendors and security issues from HERO Security and feed them into the same Shadow SaaS list. Grip and Hero are mutually exclusive &mdash; use one or the other.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#zscaler">Zscaler blocking</a></strong></td><td>Block an unsanctioned app's web domain directly in Zscaler with one click.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#admin-updates">In-app upgrades</a></strong></td><td>Check your registry for a newer version and upgrade from inside the Admin Portal.</td><td>Admins</td></tr>
@@ -1191,6 +1193,55 @@
     </div>
 </div>
 
+<div class="doc-section" id="posture-management-role">
+    <h2>Posture Management Role (Grip) <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Grip checks the security settings of your connected SaaS tenants, for example an Okta tenant or a Microsoft 365 tenant, and the results appear under <span class="menu-label">Shadow SaaS</span> &rarr; <span class="menu-label">Posture Management</span>. The <strong>Posture Management</strong> group lets you give someone access to the posture of <em>chosen</em> tenants only. An Okta administrator, for example, can see the Okta tenant's posture without seeing anything else in the platform. The group is offered only while the <a href="#shadow-saas-grip">Grip integration</a> is enabled.</p>
+
+    <h3>What a Posture Management user sees</h3>
+    <ul>
+        <li><strong>Posture Management</strong> for their tenants only: the posture score, the tenant and security-domain cards, the list of checks, and each check's findings. A check of any other tenant cannot be opened.</li>
+        <li><strong>ITDR</strong> (identity threats) for their tenants only. Grip does not say which tenant a threat came from, so a threat is shown only when exactly one connected tenant comes from the same product (for example an Azure AD threat and the one Microsoft 365 tenant). A threat that could belong to more than one tenant is hidden from them.</li>
+        <li>No other Shadow SaaS page. A user whose only group is Posture Management goes straight to Posture Management after signing in.</li>
+        <li>They cannot refresh data from Grip or waive findings themselves; they can <strong>request</strong> a waiver (see below).</li>
+    </ul>
+    <p>Administrators, Cyber TPRM, and Auditor users keep seeing every tenant, exactly as before.</p>
+
+    <h3>Granting tenant access (step by step)</h3>
+    <ol class="steps">
+        <li>Go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Users</span> and click the <span class="btn-label">Groups</span> button on the user's row.</li>
+        <li>Tick <span class="field-label">Posture Management</span>. A list of the <strong>connected SaaS tenants</strong> appears below the groups. These are the tenants Grip reports posture checks for, with each tenant's product and number of checks.</li>
+        <li>Tick the tenants this user may see, for example <em>Okta SSPM</em> and <em>O365</em>.</li>
+        <li>Click <span class="btn-label">Save Assignments</span>. The change is recorded in the activity log.</li>
+    </ol>
+    <p>To change the tenants later, open the same dialog and tick or untick them. Removing the user from the group also removes their tenant access. If no tenants appear, run a Grip sync first: tenants are listed once Grip has returned posture checks.</p>
+
+    <h3>Requesting and approving waivers</h3>
+    <p>A waiver says a finding is an accepted risk, so it no longer counts against the posture score. Posture Management users can ask for one; only an approver can grant it.</p>
+    <ol class="steps">
+        <li>The user opens a check, ticks the findings, writes a <span class="field-label">Justification</span>, optionally sets an expiry date, and clicks <span class="btn-label">Request waiver for selected</span>.</li>
+        <li>The findings show <strong>Awaiting approval</strong>. A request changes nothing yet: the check keeps its status and the score is unchanged. The user can <span class="btn-label">Withdraw</span> a pending request.</li>
+        <li>Approvers (Administrator and Cyber TPRM) see <strong>Waiver requests awaiting your approval</strong> on the Posture Management page and a count next to Posture Management in the sidebar. They open the check and click <span class="btn-label">Approve</span>, or <span class="btn-label">Reject</span> with an optional reason.</li>
+        <li>On approval the platform first confirms that Grip still reports the finding and that the expiry date is still valid, then creates the waiver. The waiver shows who requested it. If Grip no longer reports the finding, the request is closed instead.</li>
+    </ol>
+    <p>Users see the outcome of their requests, and any reason given, under <strong>Your waiver requests</strong> on the Posture Management page.</p>
+
+    <h3>Email notifications</h3>
+    <p>When email is enabled, each new request is emailed to every approver who can see all tenants, and each decision is emailed back to the person who asked. Withdrawing a request sends nothing. The emails name the check and the tenant and link to the check, but never name the finding itself, because findings can identify people. The wording is edited under <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email Settings</span> &rarr; <strong>Shadow SaaS</strong> (templates <em>Posture Waiver Requested</em> and <em>Posture Waiver Decided</em>).</p>
+
+    <h3>Permissions in ACL Group Management</h3>
+    <p><span class="menu-label">Admin</span> &rarr; <span class="menu-label">ACL Group Management</span> shows a <strong>Posture Management (Grip)</strong> section with three permissions:</p>
+    <table class="doc-table">
+        <tr><th>Permission</th><th>What it allows</th></tr>
+        <tr><td><code>posture.view</code></td><td>See Posture Management and ITDR for the tenants granted to the user</td></tr>
+        <tr><td><code>posture.waiver_request</code></td><td>Request waivers for findings of those tenants</td></tr>
+        <tr><td><code>posture.waiver_approve</code></td><td>Approve or reject waiver requests</td></tr>
+    </table>
+    <p>The Posture Management group has view and request; Administrator and Cyber TPRM have all three; Auditor has view. Built-in groups cannot be changed, but you can create a custom group and give it these permissions. A custom group with <code>posture.view</code> also gets the tenant list in the Groups dialog.</p>
+
+    <h3>Dashboard card</h3>
+    <p>With Grip connected, the dashboard can show a <strong>Posture Management</strong> card with the posture score, the number of failing checks, and the number of connected tenants. Approvers also see how many waiver requests are waiting; other users see how many high-severity checks are failing. Posture Management users see the figures for their own tenants only. Choose which cards appear under <span class="menu-label">Profile</span> &rarr; <strong>Dashboard Modules</strong> (up to 10).</p>
+</div>
+
 <div class="doc-section" id="shadow-saas-hero">
     <h2>Hero Shadow SaaS Integration <span class="new-badge">New in 2.6.2</span></h2>
     <p><strong>HERO Security</strong> is an alternative Shadow SaaS provider. Instead of Grip, you can connect a HERO account and the platform pulls the vendors HERO discovers &mdash; with their status, a risk score, the most-active contact, and a user count &mdash; into the same <a href="#tprm-shadow-saas">Shadow SaaS</a> list. Grip and Hero are <strong>mutually exclusive</strong>: enabling Hero automatically disables Grip (and vice-versa), so the list is always fed by exactly one provider.</p>
@@ -1634,6 +1685,7 @@
                     <a href="#ai-review">AI Review</a>
                     <a href="#procurement-cyber-status">Procurement Cyber Status</a>
                     <a href="#shadow-saas-grip">Grip Shadow SaaS Integration</a>
+                    <a href="#posture-management-role">Posture Management Role (Grip)</a>
                     <a href="#shadow-saas-hero">Hero Shadow SaaS Integration</a>
                     <a href="#zscaler">Zscaler Blocking</a>
                     <a href="#breach-alerts">Breach / Cyber Alerts</a>

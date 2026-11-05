@@ -394,9 +394,10 @@ include $docBody;
                 { label: '5.3 AI Review for Vendors', id: 'ai-review' },
                 { label: '5.4 Procurement Cyber Status', id: 'procurement-cyber-status' },
                 { label: '5.5 Grip Shadow SaaS Integration', id: 'shadow-saas-grip' },
-                { label: '5.6 Hero Shadow SaaS Integration', id: 'shadow-saas-hero' },
-                { label: '5.7 Zscaler Blocking Integration', id: 'zscaler' },
-                { label: '5.8 Breach / Cyber Alerts', id: 'breach-alerts' }
+                { label: '5.6 Posture Management Role (Grip)', id: 'posture-management-role' },
+                { label: '5.7 Hero Shadow SaaS Integration', id: 'shadow-saas-hero' },
+                { label: '5.8 Zscaler Blocking Integration', id: 'zscaler' },
+                { label: '5.9 Breach / Cyber Alerts', id: 'breach-alerts' }
             ]},
             { heading: '6. Admin Portal', entries: [
                 { label: '6.1 General Settings', id: 'admin-general' },

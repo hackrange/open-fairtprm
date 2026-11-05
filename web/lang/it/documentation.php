@@ -113,6 +113,7 @@
         <tr><td><strong>Auditor</strong></td><td><strong>Accesso in sola lettura</strong> a entrambi i moduli TPRM e GRC &mdash; può visualizzare tutto, scaricare prove e generare report, ma non può creare, modificare o eliminare</td></tr>
         <tr><td><strong>Procurement</strong></td><td>Creare e gestire le richieste di onboarding dei fornitori, caricare documenti dei fornitori</td></tr>
         <tr><td><strong>Stakeholder</strong></td><td>Visualizzare le proprie richieste di fornitori e rispondere alle attività assegnate</td></tr>
+        <tr><td><strong>Posture Management</strong> <span class="new-badge">Novità in 2.6.2</span></td><td>Solo mentre Grip è connesso: vedere <strong>Gestione della postura</strong> e <strong>ITDR</strong> di Shadow SaaS per i tenant SaaS connessi concessi da un amministratore, e <strong>richiedere</strong> esenzioni per i relativi risultati. Vedi <a href="#posture-management-role">Ruolo Posture Management</a>.</td></tr>
     </table>
 
     <div class="callout callout-info">
@@ -149,6 +150,7 @@
         <tr><td><strong><a href="#ai-review">Revisione AI per i fornitori</a></strong></td><td>Uno stato di revisione dedicato per i fornitori i cui servizi utilizzano AI, oltre a un'azione "Forza Revisione AI".</td><td>Cyber TPRM, Admin</td></tr>
         <tr><td><strong><a href="#procurement-cyber-status">Stato Cyber Procurement</a></strong></td><td>Una pagina live che mostra i fornitori in revisione, con uno storico degli aggiornamenti che il team cyber condivide con il procurement, più un digest email settimanale.</td><td>Procurement, Cyber TPRM</td></tr>
         <tr><td><strong><a href="#shadow-saas-grip">Integrazione Grip Shadow SaaS</a></strong></td><td>Scopri automaticamente le app SaaS utilizzate in tutta l'organizzazione e aggiungile all'elenco Shadow SaaS.</td><td>Admin</td></tr>
+        <tr><td><strong><a href="#posture-management-role">Ruolo Posture Management (Grip)</a></strong></td><td>Concedi a un utente Gestione della postura e ITDR di Shadow SaaS solo per i tenant SaaS connessi scelti, con richieste di esenzione approvate da un amministratore.</td></tr>
         <tr><td><strong><a href="#shadow-saas-hero">Integrazione Hero Shadow SaaS</a></strong></td><td>Un provider Shadow SaaS alternativo: scopri fornitori e problemi di sicurezza da HERO Security e inseriscili nello stesso elenco Shadow SaaS. Grip e Hero si escludono a vicenda &mdash; usa uno o l'altro.</td><td>Admin</td></tr>
         <tr><td><strong><a href="#zscaler">Blocco Zscaler</a></strong></td><td>Blocca il dominio web di un'app non autorizzata direttamente in Zscaler con un solo clic.</td><td>Admin</td></tr>
         <tr><td><strong><a href="#admin-updates">Aggiornamenti in-app</a></strong></td><td>Controlla il tuo registry per una versione più recente e aggiorna dall'interno del Portale Admin.</td><td>Admin</td></tr>
@@ -1191,6 +1193,55 @@
     </div>
 </div>
 
+<div class="doc-section" id="posture-management-role">
+    <h2>Ruolo Posture Management (Grip) <span class="new-badge">Novità in 2.6.2</span></h2>
+    <p>Grip verifica le impostazioni di sicurezza dei tuoi tenant SaaS connessi, ad esempio un tenant Okta o un tenant Microsoft 365, e i risultati compaiono in <span class="menu-label">Shadow SaaS</span> &rarr; <span class="menu-label">Gestione della postura</span>. Il gruppo <strong>Posture Management</strong> ti consente di dare a qualcuno l'accesso alla postura dei soli tenant <em>scelti</em>. Un amministratore Okta, ad esempio, può vedere la postura del tenant Okta senza vedere nient'altro nella piattaforma. Il gruppo è disponibile solo mentre l'<a href="#shadow-saas-grip">integrazione Grip</a> è abilitata.</p>
+
+    <h3>Cosa vede un utente Posture Management</h3>
+    <ul>
+        <li><strong>Gestione della postura</strong> solo per i propri tenant: il punteggio di postura, le schede dei tenant e dei domini di sicurezza, l'elenco dei controlli e i risultati di ciascun controllo. Un controllo di qualsiasi altro tenant non può essere aperto.</li>
+        <li><strong>ITDR</strong> (minacce all'identità) solo per i propri tenant. Grip non indica da quale tenant provenga una minaccia, quindi una minaccia viene mostrata solo quando esattamente un tenant connesso proviene dallo stesso prodotto (ad esempio una minaccia Azure AD e l'unico tenant Microsoft 365). Una minaccia che potrebbe appartenere a più di un tenant viene loro nascosta.</li>
+        <li>Nessun'altra pagina Shadow SaaS. Un utente il cui unico gruppo è Posture Management viene portato direttamente a Gestione della postura dopo l'accesso.</li>
+        <li>Non possono aggiornare i dati da Grip né esentare personalmente i risultati; possono <strong>richiedere</strong> un'esenzione (vedi sotto).</li>
+    </ul>
+    <p>Gli utenti Administrator, Cyber TPRM e Auditor continuano a vedere tutti i tenant, esattamente come prima.</p>
+
+    <h3>Concedere l'accesso ai tenant (passo dopo passo)</h3>
+    <ol class="steps">
+        <li>Vai su <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Utenti</span> e fai clic sul pulsante <span class="btn-label">Gruppi</span> nella riga dell'utente.</li>
+        <li>Seleziona <span class="field-label">Posture Management</span>. Sotto i gruppi compare un elenco dei <strong>tenant SaaS connessi</strong>. Sono i tenant per i quali Grip riporta controlli di postura, con il prodotto e il numero di controlli di ciascun tenant.</li>
+        <li>Seleziona i tenant che questo utente può vedere, ad esempio <em>Okta SSPM</em> e <em>O365</em>.</li>
+        <li>Fai clic su <span class="btn-label">Salva assegnazioni</span>. La modifica viene registrata nel registro attività.</li>
+    </ol>
+    <p>Per modificare i tenant in seguito, apri la stessa finestra di dialogo e selezionali o deselezionali. Rimuovere l'utente dal gruppo rimuove anche il suo accesso ai tenant. Se non compare alcun tenant, esegui prima una sincronizzazione Grip: i tenant vengono elencati quando Grip ha restituito i controlli di postura.</p>
+
+    <h3>Richiedere e approvare le esenzioni</h3>
+    <p>Un'esenzione indica che un risultato è un rischio accettato, quindi non viene più conteggiato nel punteggio di postura. Gli utenti Posture Management possono richiederne una; solo un approvatore può concederla.</p>
+    <ol class="steps">
+        <li>L'utente apre un controllo, seleziona i risultati, scrive una <span class="field-label">Giustificazione</span>, imposta facoltativamente una data di scadenza e fa clic su <span class="btn-label">Richiedi esenzione per i selezionati</span>.</li>
+        <li>I risultati mostrano <strong>In attesa di approvazione</strong>. Una richiesta non cambia ancora nulla: il controllo mantiene il suo stato e il punteggio resta invariato. L'utente può fare clic su <span class="btn-label">Ritira</span> per una richiesta in sospeso.</li>
+        <li>Gli approvatori (Administrator e Cyber TPRM) vedono <strong>Richieste di esenzione in attesa della tua approvazione</strong> nella pagina Gestione della postura e un conteggio accanto a Gestione della postura nella barra laterale. Aprono il controllo e fanno clic su <span class="btn-label">Approva</span>, oppure su <span class="btn-label">Respingi</span> con un motivo facoltativo.</li>
+        <li>All'approvazione la piattaforma verifica prima che Grip riporti ancora il risultato e che la data di scadenza sia ancora valida, quindi crea l'esenzione. L'esenzione mostra chi l'ha richiesta. Se Grip non riporta più il risultato, la richiesta viene invece chiusa.</li>
+    </ol>
+    <p>Gli utenti vedono l'esito delle proprie richieste, e l'eventuale motivo indicato, in <strong>Le tue richieste di esenzione</strong> nella pagina Gestione della postura.</p>
+
+    <h3>Notifiche email</h3>
+    <p>Quando l'email è abilitata, ogni nuova richiesta viene inviata via email a ogni approvatore che può vedere tutti i tenant, e ogni decisione viene inviata via email alla persona che l'ha richiesta. Il ritiro di una richiesta non invia nulla. Le email indicano il controllo e il tenant e contengono un collegamento al controllo, ma non nominano mai il risultato stesso, perché i risultati possono identificare delle persone. Il testo si modifica in <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Impostazioni email</span> &rarr; <strong>Shadow SaaS</strong> (template <em>Posture Waiver Requested</em> e <em>Posture Waiver Decided</em>).</p>
+
+    <h3>Permessi in Gestione dei gruppi ACL</h3>
+    <p><span class="menu-label">Admin</span> &rarr; <span class="menu-label">Gestione dei gruppi ACL</span> mostra una sezione <strong>Gestione della postura (Grip)</strong> con tre permessi:</p>
+    <table class="doc-table">
+        <tr><th>Permesso</th><th>Cosa consente</th></tr>
+        <tr><td><code>posture.view</code></td><td>Vedere Gestione della postura e ITDR per i tenant concessi all'utente</td></tr>
+        <tr><td><code>posture.waiver_request</code></td><td>Richiedere esenzioni per i risultati di quei tenant</td></tr>
+        <tr><td><code>posture.waiver_approve</code></td><td>Approvare o respingere le richieste di esenzione</td></tr>
+    </table>
+    <p>Il gruppo Posture Management ha visualizzazione e richiesta; Administrator e Cyber TPRM hanno tutti e tre; Auditor ha la visualizzazione. I gruppi predefiniti non possono essere modificati, ma puoi creare un gruppo personalizzato e assegnargli questi permessi. Un gruppo personalizzato con <code>posture.view</code> ottiene anche l'elenco dei tenant nella finestra di dialogo Gruppi.</p>
+
+    <h3>Scheda della dashboard</h3>
+    <p>Con Grip connesso, la dashboard può mostrare una scheda <strong>Gestione della postura</strong> con il punteggio di postura, il numero di controlli non superati e il numero di tenant connessi. Gli approvatori vedono anche quante richieste di esenzione sono in attesa; gli altri utenti vedono quanti controlli ad alta gravità non sono superati. Gli utenti Posture Management vedono solo i dati dei propri tenant. Scegli quali schede compaiono in <span class="menu-label">Profilo</span> &rarr; <strong>Moduli dashboard</strong> (fino a 10).</p>
+</div>
+
 <div class="doc-section" id="shadow-saas-hero">
     <h2>Integrazione Hero Shadow SaaS <span class="new-badge">Novità in 2.6.2</span></h2>
     <p><strong>HERO Security</strong> è un provider alternativo di Shadow SaaS. Invece di Grip, puoi connettere un account HERO e la piattaforma importa i fornitori scoperti da HERO &mdash; con il loro stato, un punteggio di rischio, il contatto più attivo e un conteggio degli utenti &mdash; nello stesso elenco <a href="#tprm-shadow-saas">Shadow SaaS</a>. Grip e Hero si <strong>escludono a vicenda</strong>: abilitare Hero disabilita automaticamente Grip (e viceversa), quindi l'elenco è sempre alimentato esattamente da un provider.</p>
@@ -1634,6 +1685,7 @@
                     <a href="#ai-review">Revisione AI</a>
                     <a href="#procurement-cyber-status">Stato Cyber Procurement</a>
                     <a href="#shadow-saas-grip">Integrazione Grip Shadow SaaS</a>
+                    <a href="#posture-management-role">Ruolo Posture Management (Grip)</a>
                     <a href="#shadow-saas-hero">Integrazione Hero Shadow SaaS</a>
                     <a href="#zscaler">Blocco Zscaler</a>
                     <a href="#breach-alerts">Avvisi di Violazione / Cyber</a>

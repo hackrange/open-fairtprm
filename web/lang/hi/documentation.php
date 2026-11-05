@@ -113,6 +113,7 @@
         <tr><td><strong>Auditor</strong></td><td>TPRM और GRC दोनों मॉड्यूल तक <strong>केवल-पढ़ने योग्य पहुंच</strong> &mdash; सब कुछ देख सकते हैं, साक्ष्य डाउनलोड कर सकते हैं और रिपोर्ट बना सकते हैं, लेकिन बना, संपादित या हटा नहीं सकते</td></tr>
         <tr><td><strong>Procurement</strong></td><td>विक्रेता ऑनबोर्डिंग अनुरोध बनाएं और प्रबंधित करें, विक्रेता दस्तावेज़ अपलोड करें</td></tr>
         <tr><td><strong>Stakeholder</strong></td><td>अपने स्वयं के विक्रेता अनुरोध देखें और उन्हें असाइन किए गए कार्यों पर प्रतिक्रिया दें</td></tr>
+        <tr><td><strong>Posture Management</strong> <span class="new-badge">2.6.2 में नया</span></td><td>केवल तब जब Grip कनेक्टेड हो: Shadow SaaS में उन कनेक्टेड SaaS टेनेंट के लिए <strong>पोस्चर प्रबंधन</strong> और <strong>ITDR</strong> देखें जो एक प्रशासक प्रदान करता है, और उनके निष्कर्षों के लिए छूट का <strong>अनुरोध</strong> करें। देखें <a href="#posture-management-role">Posture Management भूमिका</a>।</td></tr>
     </table>
 
     <div class="callout callout-info">
@@ -149,6 +150,7 @@
         <tr><td><strong><a href="#ai-review">विक्रेताओं के लिए AI Review</a></strong></td><td>उन विक्रेताओं के लिए एक समर्पित समीक्षा स्थिति जिनकी सेवाएं AI का उपयोग करती हैं, साथ ही "Force AI Review" क्रिया।</td><td>Cyber TPRM, Admins</td></tr>
         <tr><td><strong><a href="#procurement-cyber-status">Procurement Cyber Status</a></strong></td><td>समीक्षाधीन विक्रेताओं को दिखाने वाला एक लाइव पृष्ठ, साइबर टीम द्वारा खरीद के साथ साझा किए गए अपडेट का चल रहा इतिहास, और एक साप्ताहिक ईमेल डाइजेस्ट।</td><td>Procurement, Cyber TPRM</td></tr>
         <tr><td><strong><a href="#shadow-saas-grip">Grip Shadow SaaS एकीकरण</a></strong></td><td>आपके संगठन में उपयोग किए जाने वाले SaaS ऐप्स स्वचालित रूप से खोजें और उन्हें Shadow SaaS सूची में लाएं।</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#posture-management-role">Posture Management भूमिका (Grip)</a></strong></td><td>किसी उपयोगकर्ता को केवल चुने गए कनेक्टेड SaaS टेनेंट के लिए Shadow SaaS पोस्चर प्रबंधन और ITDR दें, छूट अनुरोधों को व्यवस्थापक स्वीकृत करता है।</td></tr>
         <tr><td><strong><a href="#shadow-saas-hero">Hero Shadow SaaS एकीकरण</a></strong></td><td>एक वैकल्पिक Shadow SaaS प्रदाता: HERO Security से विक्रेता और सुरक्षा समस्याएं खोजें और उन्हें उसी Shadow SaaS सूची में फीड करें। Grip और Hero परस्पर अनन्य हैं &mdash; एक या दूसरे का उपयोग करें।</td><td>Admins</td></tr>
         <tr><td><strong><a href="#zscaler">Zscaler ब्लॉकिंग</a></strong></td><td>एक क्लिक से Zscaler में किसी अनुमोदित ऐप के वेब डोमेन को सीधे ब्लॉक करें।</td><td>Admins</td></tr>
         <tr><td><strong><a href="#admin-updates">इन-ऐप अपग्रेड</a></strong></td><td>अपनी रजिस्ट्री में नए संस्करण की जांच करें और Admin Portal के अंदर से अपग्रेड करें।</td><td>Admins</td></tr>
@@ -1191,6 +1193,55 @@
     </div>
 </div>
 
+<div class="doc-section" id="posture-management-role">
+    <h2>Posture Management भूमिका (Grip) <span class="new-badge">2.6.2 में नया</span></h2>
+    <p>Grip आपके कनेक्टेड SaaS टेनेंट की सुरक्षा सेटिंग्स की जांच करता है, उदाहरण के लिए एक Okta टेनेंट या एक Microsoft 365 टेनेंट, और परिणाम <span class="menu-label">Shadow SaaS</span> &rarr; <span class="menu-label">पोस्चर प्रबंधन</span> के अंतर्गत दिखाई देते हैं। <strong>Posture Management</strong> समूह आपको किसी को केवल <em>चुने हुए</em> टेनेंट के पोस्चर तक पहुंच देने की सुविधा देता है। उदाहरण के लिए, एक Okta प्रशासक प्लेटफ़ॉर्म में और कुछ भी देखे बिना Okta टेनेंट का पोस्चर देख सकता है। यह समूह केवल तभी उपलब्ध होता है जब <a href="#shadow-saas-grip">Grip इंटीग्रेशन</a> सक्षम हो।</p>
+
+    <h3>एक Posture Management उपयोगकर्ता क्या देखता है</h3>
+    <ul>
+        <li>केवल अपने टेनेंट के लिए <strong>पोस्चर प्रबंधन</strong>: पोस्चर स्कोर, टेनेंट और सुरक्षा-डोमेन कार्ड, जांचों की सूची, और प्रत्येक जांच के निष्कर्ष। किसी अन्य टेनेंट की जांच नहीं खोली जा सकती।</li>
+        <li>केवल अपने टेनेंट के लिए <strong>ITDR</strong> (पहचान खतरे)। Grip यह नहीं बताता कि कोई खतरा किस टेनेंट से आया, इसलिए कोई खतरा केवल तभी दिखाया जाता है जब उसी उत्पाद से ठीक एक कनेक्टेड टेनेंट हो (उदाहरण के लिए एक Azure AD खतरा और एकमात्र Microsoft 365 टेनेंट)। जो खतरा एक से अधिक टेनेंट का हो सकता है, वह उनसे छिपा रहता है।</li>
+        <li>कोई अन्य Shadow SaaS पेज नहीं। जिस उपयोगकर्ता का एकमात्र समूह Posture Management है, वह साइन इन करने के बाद सीधे पोस्चर प्रबंधन पर जाता है।</li>
+        <li>वे Grip से डेटा रीफ़्रेश नहीं कर सकते या स्वयं निष्कर्षों को छूट नहीं दे सकते; वे छूट का <strong>अनुरोध</strong> कर सकते हैं (नीचे देखें)।</li>
+    </ul>
+    <p>Administrator, Cyber TPRM और Auditor उपयोगकर्ता पहले की तरह ही हर टेनेंट को देखते रहते हैं।</p>
+
+    <h3>टेनेंट पहुंच प्रदान करना (चरण दर चरण)</h3>
+    <ol class="steps">
+        <li><span class="menu-label">Admin</span> &rarr; <span class="menu-label">Users</span> पर जाएं और उपयोगकर्ता की पंक्ति पर <span class="btn-label">समूह</span> बटन पर क्लिक करें।</li>
+        <li><span class="field-label">Posture Management</span> टिक करें। समूहों के नीचे <strong>कनेक्टेड SaaS टेनेंट</strong> की एक सूची दिखाई देती है। ये वे टेनेंट हैं जिनके लिए Grip पोस्चर जांचें रिपोर्ट करता है, साथ में प्रत्येक टेनेंट का उत्पाद और जांचों की संख्या।</li>
+        <li>वे टेनेंट टिक करें जिन्हें यह उपयोगकर्ता देख सकता है, उदाहरण के लिए <em>Okta SSPM</em> और <em>O365</em>।</li>
+        <li><span class="btn-label">असाइनमेंट सहेजें</span> पर क्लिक करें। परिवर्तन गतिविधि लॉग में दर्ज किया जाता है।</li>
+    </ol>
+    <p>बाद में टेनेंट बदलने के लिए, वही डायलॉग खोलें और उन्हें टिक या अनटिक करें। उपयोगकर्ता को समूह से हटाने पर उनकी टेनेंट पहुंच भी हट जाती है। यदि कोई टेनेंट दिखाई नहीं देता, तो पहले एक Grip sync चलाएं: Grip द्वारा पोस्चर जांचें लौटाने के बाद टेनेंट सूचीबद्ध होते हैं।</p>
+
+    <h3>छूट का अनुरोध करना और स्वीकृत करना</h3>
+    <p>छूट का अर्थ है कि कोई निष्कर्ष एक स्वीकृत जोखिम है, इसलिए वह अब पोस्चर स्कोर के विरुद्ध नहीं गिना जाता। Posture Management उपयोगकर्ता इसका अनुरोध कर सकते हैं; केवल एक अनुमोदक ही इसे प्रदान कर सकता है।</p>
+    <ol class="steps">
+        <li>उपयोगकर्ता एक जांच खोलता है, निष्कर्ष टिक करता है, एक <span class="field-label">औचित्य</span> लिखता है, वैकल्पिक रूप से एक समाप्ति तिथि सेट करता है, और <span class="btn-label">चयनित के लिए छूट का अनुरोध करें</span> पर क्लिक करता है।</li>
+        <li>निष्कर्ष <strong>अनुमोदन की प्रतीक्षा में</strong> दिखाते हैं। एक अनुरोध अभी कुछ नहीं बदलता: जांच की स्थिति बनी रहती है और स्कोर अपरिवर्तित रहता है। उपयोगकर्ता किसी लंबित अनुरोध को <span class="btn-label">वापस लें</span> कर सकता है।</li>
+        <li>अनुमोदक (Administrator और Cyber TPRM) पोस्चर प्रबंधन पेज पर <strong>आपके अनुमोदन की प्रतीक्षा में छूट अनुरोध</strong> और साइडबार में पोस्चर प्रबंधन के बगल में एक संख्या देखते हैं। वे जांच खोलते हैं और <span class="btn-label">स्वीकृत करें</span> पर क्लिक करते हैं, या वैकल्पिक कारण के साथ <span class="btn-label">अस्वीकार करें</span> पर।</li>
+        <li>स्वीकृति पर प्लेटफ़ॉर्म पहले पुष्टि करता है कि Grip अभी भी निष्कर्ष की रिपोर्ट करता है और समाप्ति तिथि अभी भी मान्य है, फिर छूट बनाता है। छूट दिखाती है कि इसका अनुरोध किसने किया। यदि Grip अब निष्कर्ष की रिपोर्ट नहीं करता, तो अनुरोध इसके बजाय बंद कर दिया जाता है।</li>
+    </ol>
+    <p>उपयोगकर्ता अपने अनुरोधों का परिणाम, और दिया गया कोई भी कारण, पोस्चर प्रबंधन पेज पर <strong>आपके छूट अनुरोध</strong> के अंतर्गत देखते हैं।</p>
+
+    <h3>ईमेल सूचनाएं</h3>
+    <p>जब ईमेल सक्षम होता है, तो प्रत्येक नया अनुरोध हर उस अनुमोदक को ईमेल किया जाता है जो सभी टेनेंट देख सकता है, और प्रत्येक निर्णय अनुरोध करने वाले व्यक्ति को वापस ईमेल किया जाता है। अनुरोध वापस लेने पर कुछ नहीं भेजा जाता। ईमेल जांच और टेनेंट का नाम बताते हैं और जांच से लिंक करते हैं, लेकिन कभी भी निष्कर्ष का नाम नहीं बताते, क्योंकि निष्कर्ष लोगों की पहचान कर सकते हैं। शब्दावली <span class="menu-label">Admin</span> &rarr; <span class="menu-label">ईमेल सेटिंग्स</span> &rarr; <strong>Shadow SaaS</strong> के अंतर्गत संपादित की जाती है (टेम्पलेट <em>Posture Waiver Requested</em> और <em>Posture Waiver Decided</em>)।</p>
+
+    <h3>ACL समूह प्रबंधन में अनुमतियाँ</h3>
+    <p><span class="menu-label">Admin</span> &rarr; <span class="menu-label">ACL समूह प्रबंधन</span> तीन अनुमतियों के साथ एक <strong>पोस्चर प्रबंधन (Grip)</strong> अनुभाग दिखाता है:</p>
+    <table class="doc-table">
+        <tr><th>अनुमति</th><th>यह क्या अनुमति देती है</th></tr>
+        <tr><td><code>posture.view</code></td><td>उपयोगकर्ता को प्रदान किए गए टेनेंट के लिए पोस्चर प्रबंधन और ITDR देखें</td></tr>
+        <tr><td><code>posture.waiver_request</code></td><td>उन टेनेंट के निष्कर्षों के लिए छूट का अनुरोध करें</td></tr>
+        <tr><td><code>posture.waiver_approve</code></td><td>छूट अनुरोधों को स्वीकृत या अस्वीकार करें</td></tr>
+    </table>
+    <p>Posture Management समूह के पास देखने और अनुरोध करने की अनुमति है; Administrator और Cyber TPRM के पास तीनों हैं; Auditor के पास देखने की अनुमति है। अंतर्निहित समूहों को बदला नहीं जा सकता, लेकिन आप एक कस्टम समूह बनाकर उसे ये अनुमतियाँ दे सकते हैं। <code>posture.view</code> वाले कस्टम समूह को भी समूह डायलॉग में टेनेंट सूची मिलती है।</p>
+
+    <h3>डैशबोर्ड कार्ड</h3>
+    <p>Grip कनेक्टेड होने पर, डैशबोर्ड एक <strong>पोस्चर प्रबंधन</strong> कार्ड दिखा सकता है जिसमें पोस्चर स्कोर, विफल जांचों की संख्या और कनेक्टेड टेनेंट की संख्या होती है। अनुमोदक यह भी देखते हैं कि कितने छूट अनुरोध प्रतीक्षा में हैं; अन्य उपयोगकर्ता देखते हैं कि कितनी उच्च-गंभीरता वाली जांचें विफल हो रही हैं। Posture Management उपयोगकर्ता केवल अपने टेनेंट के आंकड़े देखते हैं। <span class="menu-label">Profile</span> &rarr; <strong>डैशबोर्ड मॉड्यूल</strong> के अंतर्गत चुनें कि कौन से कार्ड दिखाई दें (अधिकतम 10)।</p>
+</div>
+
 <div class="doc-section" id="shadow-saas-hero">
     <h2>Hero Shadow SaaS Integration <span class="new-badge">2.6.2 में नया</span></h2>
     <p><strong>HERO Security</strong> एक वैकल्पिक Shadow SaaS प्रदाता है। Grip के बजाय, आप एक HERO खाता कनेक्ट कर सकते हैं और प्लेटफ़ॉर्म HERO द्वारा खोजे गए विक्रेताओं को &mdash; उनकी स्थिति, एक जोखिम स्कोर, सबसे सक्रिय संपर्क और उपयोगकर्ता गणना के साथ &mdash; उसी <a href="#tprm-shadow-saas">Shadow SaaS</a> सूची में खींचता है। Grip और Hero <strong>परस्पर अनन्य</strong> हैं: Hero सक्षम करने से Grip स्वचालित रूप से अक्षम हो जाता है (और इसके विपरीत), इसलिए सूची हमेशा ठीक एक प्रदाता द्वारा फीड की जाती है।</p>
@@ -1634,6 +1685,7 @@
                     <a href="#ai-review">AI Review</a>
                     <a href="#procurement-cyber-status">Procurement Cyber Status</a>
                     <a href="#shadow-saas-grip">Grip Shadow SaaS Integration</a>
+                    <a href="#posture-management-role">Posture Management भूमिका (Grip)</a>
                     <a href="#shadow-saas-hero">Hero Shadow SaaS Integration</a>
                     <a href="#zscaler">Zscaler Blocking</a>
                     <a href="#breach-alerts">Breach / Cyber Alerts</a>

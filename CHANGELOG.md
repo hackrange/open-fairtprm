@@ -67,6 +67,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
   the figures for their own tenants only. The module can be picked in Profile
   > Dashboard Modules.
 
+- **Documentation: Posture Management Role.** The Documentation page has a
+  new Posture Management Role (Grip) section, in all eight languages, and the
+  role is listed under User Roles & Permissions, What's New, and both tables
+  of contents. It covers what members see, granting tenant access, waiver
+  requests and approvals, the emails, the permissions and the dashboard card.
+  The Portuguese and Ukrainian names for the Posture Management screens now
+  match the existing menu wording.
+
 - **Alternate stakeholders.** A vendor can now have any number of alternate
   stakeholders beside its one stakeholder, as backups (for example while the
   stakeholder is on vacation). They are managed from the vendor page

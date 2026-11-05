@@ -113,6 +113,7 @@
         <tr><td><strong>Auditor</strong></td><td>TPRM 和 GRC 模块的<strong>只读访问权限</strong> &mdash; 可查看所有内容、下载证据和生成报告，但无法创建、编辑或删除</td></tr>
         <tr><td><strong>Procurement</strong></td><td>创建和管理供应商入驻请求，上传供应商文件</td></tr>
         <tr><td><strong>Stakeholder</strong></td><td>查看自己的供应商请求并响应分配给他们的任务</td></tr>
+        <tr><td><strong>Posture Management</strong> <span class="new-badge">2.6.2 新功能</span></td><td>仅在已连接 Grip 时可用：查看管理员授予的已连接 SaaS 租户的影子 SaaS <strong>态势管理</strong>和 <strong>ITDR</strong>，并为其发现<strong>申请</strong>豁免。请参阅<a href="#posture-management-role">态势管理角色</a>。</td></tr>
     </table>
 
     <div class="callout callout-info">
@@ -149,6 +150,7 @@
         <tr><td><strong><a href="#ai-review">供应商 AI 审查</a></strong></td><td>为使用 AI 服务的供应商提供专属审查状态，以及"强制 AI 审查"操作。</td><td>Cyber TPRM、管理员</td></tr>
         <tr><td><strong><a href="#procurement-cyber-status">采购网络安全状态</a></strong></td><td>实时页面，显示正在审查中的供应商，以及网络安全团队与采购部门共享的持续更新历史记录，并提供每周电子邮件摘要。</td><td>Procurement、Cyber TPRM</td></tr>
         <tr><td><strong><a href="#shadow-saas-grip">Grip 影子 SaaS 集成</a></strong></td><td>自动发现整个组织使用的 SaaS 应用，并将其纳入影子 SaaS 列表。</td><td>管理员</td></tr>
+        <tr><td><strong><a href="#posture-management-role">态势管理角色（Grip）</a></strong></td><td>仅为所选的已连接 SaaS 租户向用户开放影子 SaaS 态势管理和 ITDR，豁免请求由管理员批准。</td></tr>
         <tr><td><strong><a href="#shadow-saas-hero">Hero 影子 SaaS 集成</a></strong></td><td>替代影子 SaaS 提供商：从 HERO Security 发现供应商和安全问题，并将其纳入同一影子 SaaS 列表。Grip 和 Hero 互斥 &mdash; 只能使用其中之一。</td><td>管理员</td></tr>
         <tr><td><strong><a href="#zscaler">Zscaler 封锁</a></strong></td><td>一键直接在 Zscaler 中封锁未授权应用的网络域名。</td><td>管理员</td></tr>
         <tr><td><strong><a href="#admin-updates">应用内升级</a></strong></td><td>在管理门户内检查注册表中的新版本并进行升级。</td><td>管理员</td></tr>
@@ -1191,6 +1193,55 @@
     </div>
 </div>
 
+<div class="doc-section" id="posture-management-role">
+    <h2>态势管理角色（Grip） <span class="new-badge">2.6.2 新功能</span></h2>
+    <p>Grip 会检查您已连接的 SaaS 租户（例如 Okta 租户或 Microsoft 365 租户）的安全设置，结果显示在 <span class="menu-label">Shadow SaaS</span> &rarr; <span class="menu-label">态势管理</span> 下。<strong>Posture Management</strong> 群组可让您仅向某人授予<em>所选</em>租户的态势访问权限。例如，Okta 管理员可以查看 Okta 租户的态势，而无法查看平台中的任何其他内容。仅在启用 <a href="#shadow-saas-grip">Grip 集成</a>时才提供此群组。</p>
+
+    <h3>态势管理用户可以看到的内容</h3>
+    <ul>
+        <li>仅限其租户的<strong>态势管理</strong>：态势评分、租户和安全域卡片、检查列表以及每项检查的发现。无法打开任何其他租户的检查。</li>
+        <li>仅限其租户的 <strong>ITDR</strong>（身份威胁）。Grip 不会说明威胁来自哪个租户，因此只有当恰好一个已连接租户来自同一产品时才会显示该威胁（例如 Azure AD 威胁与唯一的 Microsoft 365 租户）。可能属于多个租户的威胁将对其隐藏。</li>
+        <li>没有其他影子 SaaS 页面。仅属于 Posture Management 群组的用户在登录后会直接进入态势管理。</li>
+        <li>他们无法从 Grip 刷新数据，也无法自行豁免发现；但可以<strong>申请</strong>豁免（见下文）。</li>
+    </ul>
+    <p>Administrator、Cyber TPRM 和 Auditor 用户仍可查看所有租户，与之前完全相同。</p>
+
+    <h3>授予租户访问权限（分步说明）</h3>
+    <ol class="steps">
+        <li>前往 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Users</span>，然后点击该用户所在行的 <span class="btn-label">组</span> 按钮。</li>
+        <li>勾选 <span class="field-label">Posture Management</span>。群组下方会出现<strong>已连接 SaaS 租户</strong>列表。这些是 Grip 报告了态势检查的租户，并显示每个租户的产品和检查数量。</li>
+        <li>勾选此用户可以查看的租户，例如 <em>Okta SSPM</em> 和 <em>O365</em>。</li>
+        <li>点击 <span class="btn-label">保存分配</span>。此更改会记录在活动日志中。</li>
+    </ol>
+    <p>如需稍后更改租户，请打开同一对话框并勾选或取消勾选。将用户从该群组中移除也会移除其租户访问权限。如果未显示任何租户，请先运行 Grip 同步：Grip 返回态势检查后才会列出租户。</p>
+
+    <h3>申请和批准豁免</h3>
+    <p>豁免表示某项发现属于已接受的风险，因此不再计入态势评分。态势管理用户可以申请豁免；只有审批人才能授予豁免。</p>
+    <ol class="steps">
+        <li>用户打开一项检查，勾选发现，填写 <span class="field-label">理由</span>，可选择设置到期日期，然后点击 <span class="btn-label">为所选项申请豁免</span>。</li>
+        <li>这些发现会显示 <strong>等待审批</strong>。申请尚不会改变任何内容：检查保持其状态，评分也保持不变。用户可以 <span class="btn-label">撤回</span> 待处理的申请。</li>
+        <li>审批人（Administrator 和 Cyber TPRM）会在态势管理页面上看到 <strong>等待您审批的豁免请求</strong>，并在侧边栏中态势管理旁看到计数。他们打开该检查并点击 <span class="btn-label">批准</span>，或点击 <span class="btn-label">拒绝</span> 并可选填原因。</li>
+        <li>批准时，平台会先确认 Grip 仍在报告该发现且到期日期仍然有效，然后创建豁免。豁免会显示申请人。如果 Grip 不再报告该发现，则改为关闭该申请。</li>
+    </ol>
+    <p>用户可以在态势管理页面的 <strong>您的豁免请求</strong> 下查看其申请的结果以及给出的任何原因。</p>
+
+    <h3>电子邮件通知</h3>
+    <p>启用电子邮件后，每个新申请都会通过电子邮件发送给可查看所有租户的每位审批人，每项决定也会通过电子邮件发回给申请人。撤回申请不会发送任何邮件。邮件会注明检查和租户并链接到该检查，但绝不会注明发现本身，因为发现可能识别出具体人员。邮件措辞可在 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">邮件设置</span> &rarr; <strong>Shadow SaaS</strong> 下编辑（模板 <em>Posture Waiver Requested</em> 和 <em>Posture Waiver Decided</em>）。</p>
+
+    <h3>ACL 组管理中的权限</h3>
+    <p><span class="menu-label">Admin</span> &rarr; <span class="menu-label">ACL 组管理</span> 会显示 <strong>态势管理（Grip）</strong> 部分，其中包含三项权限：</p>
+    <table class="doc-table">
+        <tr><th>权限</th><th>允许的操作</th></tr>
+        <tr><td><code>posture.view</code></td><td>查看授予该用户的租户的态势管理和 ITDR</td></tr>
+        <tr><td><code>posture.waiver_request</code></td><td>为这些租户的发现申请豁免</td></tr>
+        <tr><td><code>posture.waiver_approve</code></td><td>批准或拒绝豁免申请</td></tr>
+    </table>
+    <p>Posture Management 群组拥有查看和申请权限；Administrator 和 Cyber TPRM 拥有全部三项权限；Auditor 拥有查看权限。内置群组无法更改，但您可以创建自定义群组并为其授予这些权限。拥有 <code>posture.view</code> 的自定义群组也会在组对话框中获得租户列表。</p>
+
+    <h3>仪表板卡片</h3>
+    <p>连接 Grip 后，仪表板可以显示 <strong>态势管理</strong> 卡片，其中包含态势评分、未通过的检查数量以及已连接租户的数量。审批人还会看到有多少豁免申请正在等待处理；其他用户会看到有多少高严重性检查未通过。态势管理用户只能看到其自身租户的数据。在 <span class="menu-label">Profile</span> &rarr; <strong>仪表板模块</strong> 下选择要显示的卡片（最多 10 个）。</p>
+</div>
+
 <div class="doc-section" id="shadow-saas-hero">
     <h2>Hero 影子 SaaS 集成 <span class="new-badge">2.6.2 新功能</span></h2>
     <p><strong>HERO Security</strong> 是另一种影子 SaaS 提供商。您可以连接 HERO 账户（而非 Grip），平台将把 HERO 发现的供应商——包括状态、风险评分、最活跃联系人和用户数量——拉取到同一个 <a href="#tprm-shadow-saas">影子 SaaS</a> 列表中。Grip 和 Hero <strong>互斥</strong>：启用 Hero 会自动禁用 Grip（反之亦然），因此列表始终只由一个提供商提供数据。</p>
@@ -1634,6 +1685,7 @@
                     <a href="#ai-review">AI 审查</a>
                     <a href="#procurement-cyber-status">采购网络安全状态</a>
                     <a href="#shadow-saas-grip">Grip 影子 SaaS 集成</a>
+                    <a href="#posture-management-role">态势管理角色（Grip）</a>
                     <a href="#shadow-saas-hero">Hero 影子 SaaS 集成</a>
                     <a href="#zscaler">Zscaler 封锁</a>
                     <a href="#breach-alerts">违规/网络安全警报</a>
