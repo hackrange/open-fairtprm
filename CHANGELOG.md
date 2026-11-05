@@ -791,6 +791,16 @@ project adheres to [Semantic Versioning](https://semver.org/).
   instead of the onboarding list. Up to 10 modules can be selected (was 9), so
   every module can be shown at once.
 
+- **Profile changes save on installs reached at a non-default port.** The
+  same-origin check behind every Profile form compared the browser's Origin
+  host with the server's host header. The host header includes the port on a
+  non-default port (for example `http://10.0.0.5:8080`), so the two never
+  matched and every Profile save (password, two-factor setup, theme,
+  dashboard modules) was refused with 403. The check now requires the host
+  and the port to both match, with 80 and 443 assumed when no port is given.
+  A different host or port is still refused. Installs served on 80 or 443,
+  including those behind a reverse proxy, were not affected.
+
 - **The vendor onboarding CSV import now promotes an alternate named in
   `stakeholder_username` to stakeholder.** Before, the existing link made the
   import skip the user, who stayed an alternate while the results said
