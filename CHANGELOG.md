@@ -30,6 +30,12 @@ project adheres to [Semantic Versioning](https://semver.org/).
   send time, whatever ids the form posts. Every send records the alternate
   deliveries in the audit log. Schema: `vendor_onboarding_stakeholders.role`
   gains `alternate`.
+  The vendor onboarding CSV export adds `Stakeholders` and `Alternate
+  Stakeholders` columns (usernames, separated by semicolons). The CSV import
+  accepts an `alternate_stakeholder_usernames` column in the same format. It
+  only adds: listed active users with no link to the vendor become alternates
+  (each add is audited), unknown or inactive usernames are reported, users
+  already linked are left as they are, and a blank cell changes nothing.
 
 - **AI cost estimator for every AI platform.** The AI Usage, Cost and Monthly
   Limit card on Admin > API Integration now has a rates row for each platform
@@ -718,6 +724,11 @@ project adheres to [Semantic Versioning](https://semver.org/).
   retired ones. Localized in all eight locales.
 
 ### Fixed
+
+- **The vendor onboarding CSV import now promotes an alternate named in
+  `stakeholder_username` to stakeholder.** Before, the existing link made the
+  import skip the user, who stayed an alternate while the results said
+  "Stakeholder".
 
 - **Changing a vendor's stakeholder on the SRS details page no longer fails
   when the new stakeholder is already linked to the vendor** (for example as

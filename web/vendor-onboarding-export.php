@@ -11,7 +11,8 @@
  * as the list page, so you can export just approved vendors or just
  * the ones matching a search. About 42 columns of vendor goodness,
  * covering everything from basic info to data security questions to
- * FAIR fields. Locked down to admins and cyber TPRM only, because
+ * FAIR fields, plus the stakeholder and alternate stakeholder usernames.
+ * Locked down to admins and cyber TPRM only, because
  * exporting all your vendor data is kind of a big deal.
  */
 
@@ -74,6 +75,32 @@ $query = "
 ";
 
 $requests = $db->fetchAll($query, $params);
+
+// ============================================================================
+// STAKEHOLDERS AND ALTERNATES
+// One query for every linked user, grouped per vendor. Usernames (not display
+// names) so the cells paste straight into the import's stakeholder_username
+// and alternate_stakeholder_usernames columns. Multiple values are ';'-joined.
+// ============================================================================
+$stakeByVendor = [];  // vendorId => [usernames]
+$altByVendor = [];    // vendorId => [usernames]
+$exportIds = array_map('intval', array_column($requests, 'id'));
+if (!empty($exportIds)) {
+    $ph = implode(',', array_fill(0, count($exportIds), '?'));
+    foreach ($db->fetchAll(
+        "SELECT s.request_id, s.role, u.username FROM vendor_onboarding_stakeholders s
+         JOIN users u ON u.id = s.user_id
+         WHERE s.request_id IN ($ph) AND s.role IN ('stakeholder', 'alternate')
+         ORDER BY u.username",
+        $exportIds
+    ) as $link) {
+        if ($link['role'] === 'alternate') {
+            $altByVendor[(int)$link['request_id']][] = $link['username'];
+        } else {
+            $stakeByVendor[(int)$link['request_id']][] = $link['username'];
+        }
+    }
+}
 
 // ============================================================================
 // CUSTOM ONBOARDING FIELDS
@@ -170,7 +197,10 @@ $headers = [
     'Created By Email',
     'Created At',
     'Submitted At',
-    'Updated At'
+    'Updated At',
+    // People
+    'Stakeholders',
+    'Alternate Stakeholders'
 ];
 
 // Append one column per discovered custom field, keyed by its stable field_name.
@@ -242,7 +272,10 @@ foreach ($requests as $req) {
         $req['created_by_email'] ?? '',
         $req['created_at'] ?? '',
         $req['submitted_at'] ?? '',
-        $req['updated_at'] ?? ''
+        $req['updated_at'] ?? '',
+        // People (usernames, ';'-joined)
+        implode(';', $stakeByVendor[(int)$req['id']] ?? []),
+        implode(';', $altByVendor[(int)$req['id']] ?? [])
     ];
 
     // Append this vendor's custom field values, aligned to the header union.

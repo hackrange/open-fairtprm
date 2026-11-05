@@ -8,7 +8,9 @@
  * Upload a CSV to bulk-create or mass-update vendor onboarding requests.
  * If a vendor_domain in the CSV matches an existing record, that record
  * is updated rather than duplicated. Stakeholders are assigned by username;
- * if no stakeholder is specified, the importing user is assigned. Features
+ * if no stakeholder is specified, the importing user is assigned. Alternate
+ * stakeholders are added from a ';'-separated username list (additive; a blank
+ * cell leaves the vendor's alternates alone). Features
  * a downloadable template with sample data, extensive field validation
  * (yes/no fields, impact levels, status values, vendor types), and audit
  * logging to the cyber_todo_activities table. Everything runs in a database
@@ -101,7 +103,8 @@ if (isset($_GET['download_template'])) {
         'vendor_tier_justification',
         'additional_information',
         'status',
-        'stakeholder_username'
+        'stakeholder_username',
+        'alternate_stakeholder_usernames'
     ];
 
     // Append a custom:<field_name> column for each custom field defined on any
@@ -159,7 +162,8 @@ if (isset($_GET['download_template'])) {
         'Critical vendor - handles customer PII', // vendor_tier_justification
         'Priority vendor for Q2 rollout', // additional_information
         'draft',                          // status
-        'jsmith'                          // stakeholder_username
+        'jsmith',                         // stakeholder_username
+        'mjones;akhan'                    // alternate_stakeholder_usernames
     ];
 
     // One (blank) sample cell per custom field column, keeping the row aligned
@@ -457,19 +461,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                                     'SELECT id FROM vendor_onboarding_stakeholders WHERE request_id = :rid AND user_id = :uid',
                                     [':rid' => $recordId, ':uid' => $stakeholderUserId]
                                 );
-                                if (!$existingStakeholder) {
-                                    $db->insert('vendor_onboarding_stakeholders', [
-                                        'request_id' => $recordId,
-                                        'user_id' => $stakeholderUserId,
-                                        'role' => 'stakeholder',
-                                        'assigned_by' => $user['id']
-                                    ]);
-                                }
+                                // Upsert: a user who is currently an alternate is promoted
+                                // (UNIQUE (request_id, user_id) would otherwise leave them
+                                // an alternate while the result said "Stakeholder").
+                                $db->query(
+                                    "INSERT INTO vendor_onboarding_stakeholders (request_id, user_id, role, assigned_by)
+                                     VALUES (:rid, :uid, 'stakeholder', :by)
+                                     ON DUPLICATE KEY UPDATE role = IF(role = 'alternate', 'stakeholder', role)",
+                                    [':rid' => $recordId, ':uid' => $stakeholderUserId, ':by' => $user['id']]
+                                );
                                 $assignedName = !empty($stakeholderUsername) ? $stakeholderUsername : $user['username'];
                                 $stakeholderMessage = ' (Stakeholder: ' . $assignedName . ')';
                             } catch (Exception $e) {
                                 $stakeholderMessage = ' (Stakeholder assignment error: ' . $e->getMessage() . ')';
                             }
+                        }
+
+                        // ====================================================
+                        // ALTERNATE STAKEHOLDERS
+                        // ';' (or ',') separated usernames. Additive only: listed
+                        // active users with no link to this vendor become
+                        // alternates; anyone already linked (stakeholder, owner,
+                        // reviewer, existing alternate) is left as they are, so an
+                        // import can never demote the stakeholder. A blank cell
+                        // changes nothing. Capped per row.
+                        // ====================================================
+                        $alternateMessage = '';
+                        $altCell = trim((string)($row['alternate_stakeholder_usernames'] ?? ''));
+                        if ($altCell !== '') {
+                            $altNames = array_values(array_unique(array_filter(array_map('trim', preg_split('/[;,]/', $altCell)), 'strlen')));
+                            $altAdded = []; $altSkipped = []; $altMissing = [];
+                            if (count($altNames) > 25) {
+                                $altSkipped[] = 'more than 25 listed, extra ignored';
+                                $altNames = array_slice($altNames, 0, 25);
+                            }
+                            foreach ($altNames as $altName) {
+                                $altUser = $db->fetchOne(
+                                    'SELECT id FROM users WHERE username = :username AND is_active = 1',
+                                    [':username' => $altName]
+                                );
+                                if (!$altUser) { $altMissing[] = $altName; continue; }
+                                $altLink = $db->fetchOne(
+                                    'SELECT role FROM vendor_onboarding_stakeholders WHERE request_id = :rid AND user_id = :uid',
+                                    [':rid' => $recordId, ':uid' => (int)$altUser['id']]
+                                );
+                                if ($altLink) {
+                                    if ($altLink['role'] !== 'alternate') $altSkipped[] = $altName . ' is already ' . $altLink['role'];
+                                    continue;
+                                }
+                                $db->insert('vendor_onboarding_stakeholders', [
+                                    'request_id' => $recordId,
+                                    'user_id' => (int)$altUser['id'],
+                                    'role' => 'alternate',
+                                    'assigned_by' => $user['id']
+                                ]);
+                                $altAdded[] = $altName;
+                                $auth->audit($user['id'], 'vendor_alternate_stakeholder_add', 'vendor_onboarding_requests', (int)$recordId, [
+                                    'new' => ['alternate_user_id' => (int)$altUser['id'], 'vendor_name' => $insertData['vendor_name'], 'source' => 'csv_import']
+                                ]);
+                            }
+                            if ($altAdded) $alternateMessage .= ' (Alternates added: ' . implode(', ', $altAdded) . ')';
+                            if ($altMissing) $alternateMessage .= ' (Alternate user not found: ' . implode(', ', $altMissing) . ')';
+                            if ($altSkipped) $alternateMessage .= ' (Alternates skipped: ' . implode('; ', $altSkipped) . ')';
                         }
 
                         // ====================================================
@@ -509,7 +562,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                             'vendor' => $row['vendor_name'],
                             'vendor_id' => $recordId,
                             'status' => 'success',
-                            'message' => $actionLabel . ' successfully' . $stakeholderMessage . $customMessage
+                            'message' => $actionLabel . ' successfully' . $stakeholderMessage . $alternateMessage . $customMessage
                         ];
 
                     } catch (Exception $e) {
@@ -862,6 +915,7 @@ render:
                             <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;"><?php echo e(t('vendor-onboarding-import.optional_fields')); ?></h5>
                             <ul style="color: #666; line-height: 1.8;">
                                 <li><strong>stakeholder_username</strong> - Username of user to assign as stakeholder. If left blank, you (the importer) will be assigned as stakeholder.</li>
+                                <li><strong>alternate_stakeholder_usernames</strong> - Usernames to add as alternate stakeholders, separated by semicolons (e.g., mjones;akhan). Adds only; existing alternates are kept and a blank cell changes nothing. Users already linked to the vendor are left as they are.</li>
                             </ul>
 
                             <h5 style="font-size: 16px; margin-bottom: 10px; margin-top: 25px;"><?php echo e(t('vendor-onboarding-import.mass_update_behavior')); ?></h5>
