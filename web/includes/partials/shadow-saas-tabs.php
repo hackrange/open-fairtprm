@@ -4,7 +4,9 @@
  * Top row: section groups; second row: the pages inside the active group (AI
  * Security, Posture). The Grip-backed groups show only while Grip is enabled;
  * Requests shows while the FairTPRM request method is in use or any request
- * exists, with a bubble for submitted requests awaiting review. The .ss-tabs CSS lives in each page's
+ * exists, with a bubble for submitted requests awaiting review. With
+ * $ssPostureOnly set (a tenant-scoped Posture Management member) only the
+ * Posture Management and ITDR tabs show. The .ss-tabs CSS lives in each page's
  * stylesheet; the sub-tab rules ride with this include.
  *
  * Author: Tim Rice
@@ -39,6 +41,15 @@ if (getAppConfig('grip_enabled', '0') !== '1') {
     $ssGroups = array_intersect_key($ssGroups, ['applications' => 1, 'requests' => 1]);
 }
 if (!$ssShowRequests) unset($ssGroups['requests']);
+// Posture Management members (tenant-scoped) see Posture Management and ITDR only.
+if (!empty($ssPostureOnly)) {
+    $ssGroups = [
+        'posture' => ['shadow-saas-posture.php', t('nav.ss_posture'), [
+            'posture' => ['shadow-saas-posture.php', t('nav.ss_posture_management')],
+        ]],
+        'itdr' => $ssGroups['itdr'],
+    ];
+}
 $ssActiveGroup = '';
 foreach ($ssGroups as $ssG => $ssDef) {
     if (isset($ssDef[2][$ssTab ?? ''])) { $ssActiveGroup = $ssG; break; }

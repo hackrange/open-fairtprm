@@ -702,7 +702,14 @@ $_isActive = function($page) use ($currentPage) {
     </details>
     <?php endif; ?>
 
-    <?php if ($showFairModule || $showSRSModule): ?>
+    <?php
+        // Posture Management members (tenant-scoped) get just the Posture
+        // Management and ITDR links, and only while Grip is enabled.
+        $_ssPostureNav = !($isAdmin || $isCyberTPRM || $isAuditor)
+            && function_exists('getAppConfig') && getAppConfig('grip_enabled', '0') === '1'
+            && hasGroup('posture_management');
+    ?>
+    <?php if ($showFairModule || $showSRSModule || $_ssPostureNav): ?>
     <details class="sidebar-section"<?php echo $_isActive(['fair', 'srs', 'vendor_domains', '4th_party', 'cve_search', 'shadow_saas', 'shadow_saas_new', 'shadow_saas_posture', 'shadow_saas_itdr', 'shadow_saas_ai_apps', 'shadow_saas_ai_agents', 'shadow_saas_ai_dashboard', 'shadow_saas_compliance', 'shadow_saas_requests']) ? ' open' : ''; ?>>
         <summary class="sidebar-section-title"><?php echo e(t('nav.section.modules')); ?></summary>
         <ul class="sidebar-nav">
@@ -761,6 +768,13 @@ $_isActive = function($page) use ($currentPage) {
                 $_ssAiPages = ['shadow_saas_ai_dashboard', 'shadow_saas_ai_apps', 'shadow_saas_ai_agents'];
                 $_ssPosturePages = ['shadow_saas_compliance', 'shadow_saas_posture'];
                 $_ssPages = array_merge(['shadow_saas', 'shadow_saas_new', 'shadow_saas_itdr', 'shadow_saas_requests'], $_ssAiPages, $_ssPosturePages);
+                // Posture waiver requests awaiting an approver (admin / cyber_tprm).
+                $_ssPostureReqCount = 0;
+                if ($_gripNav && ($isAdmin || $isCyberTPRM)) {
+                    try {
+                        $_ssPostureReqCount = (int)(Database::getInstance()->fetchOne("SELECT COUNT(*) AS n FROM shadow_saas_posture_waiver_requests WHERE status = 'pending'")['n'] ?? 0);
+                    } catch (Throwable $e) { $_ssPostureReqCount = 0; }
+                }
             ?>
             <?php if ($_gripNav): ?>
             <li class="sb-group">
@@ -790,7 +804,7 @@ $_isActive = function($page) use ($currentPage) {
                                 <summary class="sb-group-head"><span><?php echo e(t('nav.ss_posture')); ?></span></summary>
                                 <ul class="sidebar-nav sb-sub">
                                     <li><a href="shadow-saas-compliance.php"<?php echo $_isActive('shadow_saas_compliance') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_compliance_posture')); ?></span></a></li>
-                                    <li><a href="shadow-saas-posture.php"<?php echo $_isActive('shadow_saas_posture') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_posture_management')); ?></span></a></li>
+                                    <li><a href="shadow-saas-posture.php"<?php echo $_isActive('shadow_saas_posture') ? ' class="active"' : ''; ?>><span><?php echo e(t('nav.ss_posture_management')); ?></span><?php if ($_ssPostureReqCount > 0): ?><span class="badge" title="<?php echo e(t('shadow-saas-waiver.pending_approval')); ?>"><?php echo $_ssPostureReqCount; ?></span><?php endif; ?></a></li>
                                 </ul>
                             </details>
                         </li>
@@ -828,6 +842,19 @@ $_isActive = function($page) use ($currentPage) {
                 </a>
             </li>
             <?php endif; ?>
+            <?php elseif ($_ssPostureNav): ?>
+            <li>
+                <a href="shadow-saas-posture.php"<?php echo $_isActive('shadow_saas_posture') ? ' class="active"' : ''; ?>>
+                    <span class="icon"><img src="app/icons/alert-square.svg" alt="" width="18" height="18"></span>
+                    <span><?php echo e(t('nav.ss_posture_management')); ?></span>
+                </a>
+            </li>
+            <li>
+                <a href="shadow-saas-itdr.php"<?php echo $_isActive('shadow_saas_itdr') ? ' class="active"' : ''; ?>>
+                    <span class="icon"><img src="app/icons/alert-square.svg" alt="" width="18" height="18"></span>
+                    <span><?php echo e(t('nav.ss_itdr')); ?></span>
+                </a>
+            </li>
             <?php endif; ?>
         </ul>
     </details>

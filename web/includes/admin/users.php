@@ -163,6 +163,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $userId = intval($_POST['user_id'] ?? 0);
             $desiredGroupIds = array_map('intval', json_decode($_POST['group_ids'] ?? '[]', true) ?: []);
+            // Posture Management (Grip SSPM tenant access): the group and its
+            // tenant picker are offered only while Grip is enabled. With Grip off
+            // the group is hidden from the modal, so leave an existing membership
+            // exactly as it is rather than reading its absence as a removal.
+            require_once __DIR__ . '/../classes/GripService.php';
+            $__grip = new GripService();
+            $__gripOn = $__grip->isEnabled();
+            $__postureGroup = $acl->getGroupByName(GripService::POSTURE_GROUP);
+            $__postureGroupId = $__postureGroup ? (int)$__postureGroup['id'] : 0;
 
             // SECURITY: only super administrators may modify a super-admin's groups.
             $__targetSuper = $db->fetchOne('SELECT is_super_admin FROM users WHERE id = ?', [$userId]);
@@ -194,6 +203,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
+            if ($__postureGroupId && !$__gripOn) {
+                $toAdd = array_diff($toAdd, [$__postureGroupId]);
+                $toRemove = array_diff($toRemove, [$__postureGroupId]);
+            }
+
             foreach ($toRemove as $groupId) {
                 $acl->removeUserFromGroup($userId, $groupId);
                 $auth->audit($user['id'], 'user_group_remove', 'user_acl_groups', $userId, [
@@ -209,8 +223,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
 
+            // Tenant grants follow the group: set from the picker while the user is
+            // a member, cleared when they leave it. Keys are re-validated against
+            // the connected tenants in GripService::setPostureTenantGrants().
+            $__tenantChanges = 0;
+            if ($__postureGroupId && $__gripOn && $userId > 0) {
+                $__isMember = (bool)$db->fetchOne('SELECT 1 AS x FROM user_acl_groups WHERE user_id = ? AND group_id = ?', [$userId, $__postureGroupId]);
+                if ($__isMember) {
+                    $__keys = json_decode($_POST['posture_tenants'] ?? '[]', true);
+                    $__res = $__grip->setPostureTenantGrants($userId, is_array($__keys) ? array_map('strval', $__keys) : [], (int)$user['id']);
+                    $__tenantChanges = count($__res['added']) + count($__res['removed']);
+                    if ($__tenantChanges) {
+                        $auth->audit($user['id'], 'posture_tenant_access', 'shadow_saas_posture_tenant_access', $userId, [
+                            'new' => ['user_id' => $userId, 'granted' => $__res['added'], 'revoked' => $__res['removed']],
+                        ]);
+                    }
+                } elseif (($__cleared = $__grip->clearPostureTenantGrants($userId)) > 0) {
+                    $__tenantChanges = $__cleared;
+                    $auth->audit($user['id'], 'posture_tenant_access', 'shadow_saas_posture_tenant_access', $userId, [
+                        'old' => ['user_id' => $userId, 'revoked_all' => $__cleared],
+                    ]);
+                }
+            }
+
             if (empty($error)) {
-                $changes = count($toAdd) + count($toRemove);
+                $changes = count($toAdd) + count($toRemove) + $__tenantChanges;
                 $success = $changes > 0 ? t('admin_users.user_groups_updated') : t('admin_users.no_group_changes');
             }
         } catch (Exception $e) {
@@ -356,6 +393,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $allUsers = $db->fetchAll('SELECT id, username, email, full_name, is_active, is_admin, is_super_admin, totp_enabled, last_login FROM users ORDER BY id');
 $allGroups = $acl->getAllGroups();
 
+// Posture Management: offered only while Grip is enabled, with a picker of the
+// connected SaaS tenants (from the Grip posture mirror) and each user's grants.
+require_once __DIR__ . '/../classes/GripService.php';
+$_umGrip = new GripService();
+$_umGripOn = $_umGrip->isEnabled();
+$postureTenants = $_umGripOn ? $_umGrip->connectedPostureTenants() : [];
+$postureGrants  = $_umGripOn ? $_umGrip->allPostureTenantGrants() : [];
+if (!$_umGripOn) {
+    $allGroups = array_values(array_filter($allGroups, fn($g) => $g['group_name'] !== GripService::POSTURE_GROUP));
+}
+
 // Bulk fetch all user group assignments in a single query (avoids N+1 problem)
 $userGroupAssignments = $acl->getAllUserGroups();
 
@@ -465,7 +513,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
                 </td>
                 <td style="white-space: nowrap;">
                     <button class="btn btn-primary btn-sm" data-action="openEditModal" data-args="[<?php echo (int)$u['id']; ?>, <?php echo e(json_encode($u['full_name'])); ?>, <?php echo e(json_encode($u['email'])); ?>, <?php echo $u['is_admin'] ? 'true' : 'false'; ?>, <?php echo $u['is_super_admin'] ? 'true' : 'false'; ?>]"><?php echo e(t('admin_users.edit_btn')); ?></button>
-                    <button class="btn btn-sm" style="background: #3b82f6; color: white;" data-action="openAssignGroupsModal" data-args="[<?php echo $u['id']; ?>, <?php echo e(json_encode($u['full_name'])); ?>, <?php echo e(json_encode($userGroupAssignments[$u['id']] ?? [])); ?>]"><?php echo e(t('admin_users.groups')); ?></button>
+                    <button class="btn btn-sm" style="background: #3b82f6; color: white;" data-action="openAssignGroupsModal" data-args="[<?php echo $u['id']; ?>, <?php echo e(json_encode($u['full_name'])); ?>, <?php echo e(json_encode($userGroupAssignments[$u['id']] ?? [])); ?>, <?php echo e(json_encode(array_values($postureGrants[(int)$u['id']] ?? []))); ?>]"><?php echo e(t('admin_users.groups')); ?></button>
                     <?php
                     // Show impersonate button if:
                     // - Not impersonating currently
@@ -591,6 +639,22 @@ $userGroupAssignments = $acl->getAllUserGroups();
                             <div class="form-help"><?php echo e($group['description']); ?></div>
                         </div>
                     </label>
+                    <?php if ($group['group_name'] === GripService::POSTURE_GROUP): ?>
+                    <div id="postureTenantPicker" style="display: none; margin: 10px 0 0 26px; padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
+                        <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;"><?php echo e(t('admin_users.posture_tenants_label')); ?></div>
+                        <?php if (!$postureTenants): ?>
+                        <div class="form-help"><?php echo e(t('admin_users.posture_no_tenants')); ?></div>
+                        <?php else: ?>
+                        <?php foreach ($postureTenants as $pt): ?>
+                        <label class="checkbox-label" style="margin: 4px 0;">
+                            <input type="checkbox" class="posture-tenant-checkbox" value="<?php echo e($pt['key']); ?>">
+                            <span><?php echo e($pt['tenant_name'] !== '' ? $pt['tenant_name'] : $pt['tenant_id']); ?> <span style="color: #6b7280; font-size: 12px;">(<?php echo e($pt['integration_type']); ?>, <?php echo e(t('admin_users.posture_tenant_checks', $pt['checks'])); ?>)</span></span>
+                        </label>
+                        <?php endforeach; ?>
+                        <div class="form-help"><?php echo e(t('admin_users.posture_tenants_help')); ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -717,14 +781,29 @@ $userGroupAssignments = $acl->getAllUserGroups();
     }
     function closeEditModal() { document.getElementById('editUserModal').style.display = 'none'; }
 
-    function openAssignGroupsModal(userId, fullName, userGroups) {
+    // Posture Management tenant picker: visible while that group is ticked.
+    function syncPostureTenantPicker() {
+        const picker = document.getElementById('postureTenantPicker');
+        const box = document.querySelector('.group-checkbox[data-group-name="posture_management"]');
+        if (picker && box) picker.style.display = box.checked ? 'block' : 'none';
+    }
+    document.addEventListener('change', function (e) {
+        if (e.target && e.target.matches && e.target.matches('.group-checkbox[data-group-name="posture_management"]')) syncPostureTenantPicker();
+    });
+
+    function openAssignGroupsModal(userId, fullName, userGroups, postureTenantKeys) {
         currentUserId = userId;
         currentUserGroups = userGroups || [];
+        const grants = postureTenantKeys || [];
         document.getElementById('assign_user_id').value = userId;
         document.getElementById('assign_groups_username').textContent = <?php echo json_encode(t('admin_users.assigning_groups_for')); ?> + fullName;
         document.querySelectorAll('.group-checkbox').forEach(cb => {
             cb.checked = currentUserGroups.includes(cb.getAttribute('data-group-name'));
         });
+        document.querySelectorAll('.posture-tenant-checkbox').forEach(cb => {
+            cb.checked = grants.includes(cb.value);
+        });
+        syncPostureTenantPicker();
         document.getElementById('assignGroupsModal').style.display = 'block';
     }
     function closeAssignGroupsModal() { document.getElementById('assignGroupsModal').style.display = 'none'; }
@@ -750,6 +829,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
                 csrf_token: '<?php echo e($csrfToken); ?>',
                 user_id: currentUserId,
                 group_ids: JSON.stringify(selectedGroupIds),
+                posture_tenants: JSON.stringify(Array.from(document.querySelectorAll('.posture-tenant-checkbox:checked')).map(cb => cb.value)),
                 sync_user_groups: '1'
             })
         });

@@ -1158,6 +1158,146 @@ class GripService
         return $row;
     }
 
+    // ------------------------------------------------------------------
+    // Posture waiver requests (Posture Management members propose,
+    // administrator / cyber_tprm approve). A request is NOT a waiver: it
+    // lives in its own table and never touches shadow_saas_grip_waivers until
+    // approved, so a pending request cannot change a score or status.
+    // ------------------------------------------------------------------
+
+    public const WAIVER_REQUEST_STATUSES = ['pending', 'approved', 'rejected', 'withdrawn', 'obsolete'];
+
+    /**
+     * File waiver requests for findings of one posture check. $entities as for
+     * addWaivers(). A finding that already has an active waiver or a pending
+     * request is skipped. Returns the number filed.
+     */
+    public function addPostureWaiverRequests(string $checkUuid, array $entities, string $justification, ?string $expires, int $userId): int
+    {
+        $active  = $this->activeWaivers('posture', $checkUuid)[$checkUuid] ?? [];
+        $pending = $this->postureWaiverRequests(['check' => $checkUuid, 'status' => 'pending']);
+        $taken = [];
+        foreach ($pending as $p) $taken[(string)$p['entity_key']] = true;
+        $n = 0;
+        foreach ($entities as $en) {
+            $key = (string)($en['key'] ?? '');
+            if (!preg_match('/^[0-9a-f]{64}$/', $key) || isset($active[$key]) || isset($taken[$key])) continue;
+            $label = trim((string)($en['label'] ?? ''));
+            $this->db->insert('shadow_saas_posture_waiver_requests', [
+                'check_uuid'    => $this->clip($checkUuid, 64),
+                'entity_key'    => $key,
+                'entity_label'  => $label !== '' ? $this->enc()->encrypt($this->clip($label, 500)) : null,
+                'justification' => $justification,
+                'expires_at'    => $expires,
+                'requested_by'  => $userId ?: null,
+                'status'        => 'pending',
+            ]);
+            $taken[$key] = true;
+            $n++;
+        }
+        return $n;
+    }
+
+    /**
+     * Waiver requests with requester / decider names and decrypted labels,
+     * newest first. Filters: check (uuid), status, requested_by (user id), id.
+     */
+    public function postureWaiverRequests(array $f = [], int $limit = 500): array
+    {
+        $where = ['1=1'];
+        $params = [];
+        if (isset($f['id']))           { $where[] = 'r.id = :id';            $params[':id'] = (int)$f['id']; }
+        if (isset($f['check']))        { $where[] = 'r.check_uuid = :c';     $params[':c'] = (string)$f['check']; }
+        if (isset($f['status']))       { $where[] = 'r.status = :s';         $params[':s'] = (string)$f['status']; }
+        if (isset($f['requested_by'])) { $where[] = 'r.requested_by = :rb';  $params[':rb'] = (int)$f['requested_by']; }
+        if (isset($f['waiver_ids'])) {
+            $ids = array_values(array_filter(array_map('intval', (array)$f['waiver_ids'])));
+            if (!$ids) return [];
+            $ph = [];
+            foreach ($ids as $i => $wid) { $ph[] = ':w' . $i; $params[':w' . $i] = $wid; }
+            $where[] = 'r.waiver_id IN (' . implode(',', $ph) . ')';
+        }
+        $out = [];
+        try {
+            $rows = $this->db->fetchAll(
+                'SELECT r.*, ru.full_name AS requested_by_name, du.full_name AS decided_by_name
+                   FROM shadow_saas_posture_waiver_requests r
+                   LEFT JOIN users ru ON ru.id = r.requested_by
+                   LEFT JOIN users du ON du.id = r.decided_by
+                  WHERE ' . implode(' AND ', $where) . '
+                  ORDER BY r.id DESC LIMIT ' . max(1, min(5000, $limit)),
+                $params
+            );
+        } catch (Throwable $e) {
+            error_log('Posture waiver requests load failed: ' . $e->getMessage());
+            return [];
+        }
+        foreach ($rows as $r) {
+            if (!empty($r['entity_label'])) {
+                try { $r['entity_label'] = $this->enc()->decrypt((string)$r['entity_label']); } catch (Throwable $e) { $r['entity_label'] = ''; }
+            }
+            $out[] = $r;
+        }
+        return $out;
+    }
+
+    /** Number of requests awaiting approval (for the nav badge / overview card). */
+    public function pendingPostureWaiverRequestCount(): int
+    {
+        try {
+            return (int)($this->db->fetchOne("SELECT COUNT(*) AS n FROM shadow_saas_posture_waiver_requests WHERE status = 'pending'")['n'] ?? 0);
+        } catch (Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Decide one pending request. 'approve' re-validates the requested expiry
+     * and that Grip still reports the finding, then creates the waiver (waived_by
+     * = the approver) and links it; a finding Grip no longer reports closes the
+     * request as 'obsolete'. 'reject' and 'withdraw' just close it.
+     * Returns ['ok' => bool, 'status' => new status, 'request' => row, 'error' => key].
+     * Authorization (who may approve / withdraw) is the caller's job.
+     */
+    public function decidePostureWaiverRequest(int $id, string $decision, int $userId, string $note = ''): array
+    {
+        $req = $this->postureWaiverRequests(['id' => $id, 'status' => 'pending'], 1)[0] ?? null;
+        if (!$req) return ['ok' => false, 'error' => 'request_not_found'];
+        $note = trim($note) !== '' ? $this->clip(trim($note), 2000) : null;
+        $close = function (string $status, ?int $waiverId = null) use ($id, $userId, $note) {
+            // Guarded on status so two approvers cannot both act on one request.
+            return $this->db->query(
+                "UPDATE shadow_saas_posture_waiver_requests
+                    SET status = :s, decided_by = :u, decided_at = NOW(), decision_note = :n, waiver_id = :w
+                  WHERE id = :id AND status = 'pending'",
+                [':s' => $status, ':u' => $userId ?: null, ':n' => $note, ':w' => $waiverId, ':id' => $id]
+            )->rowCount() > 0;
+        };
+        if ($decision === 'reject' || $decision === 'withdraw') {
+            $st = $decision === 'reject' ? 'rejected' : 'withdrawn';
+            return $close($st) ? ['ok' => true, 'status' => $st, 'request' => $req] : ['ok' => false, 'error' => 'request_not_found'];
+        }
+        if ($decision !== 'approve') return ['ok' => false, 'error' => 'request_not_found'];
+
+        $in = self::validateWaiverInput((string)$req['justification'], (string)($req['expires_at'] ?? ''));
+        if (isset($in['error'])) return ['ok' => false, 'error' => 'request_' . $in['error'], 'request' => $req];
+        $live = $this->getAllPostureFindings((string)$req['check_uuid']);
+        if ($live === null) return ['ok' => false, 'error' => 'findings_failed', 'request' => $req];
+        $current = false;
+        foreach ($live as $f) {
+            if (self::findingKey($f) === $req['entity_key']) { $current = true; break; }
+        }
+        if (!$current) {
+            return $close('obsolete') ? ['ok' => true, 'status' => 'obsolete', 'request' => $req] : ['ok' => false, 'error' => 'request_not_found'];
+        }
+        $uuid = (string)$req['check_uuid'];
+        $this->addWaivers('posture', $uuid, [['key' => $req['entity_key'], 'label' => (string)$req['entity_label']]], $in['justification'], $in['expires'], $userId);
+        $w = $this->activeWaivers('posture', $uuid)[$uuid][$req['entity_key']] ?? null;
+        if (!$close('approved', $w ? (int)$w['id'] : null)) return ['ok' => false, 'error' => 'request_not_found'];
+        $this->refreshPostureWaiverCoverage($uuid);
+        return ['ok' => true, 'status' => 'approved', 'request' => $req];
+    }
+
     /** Every current finding of a posture check (paged, capped), or null when Grip could not be read. */
     public function getAllPostureFindings(string $uuid): ?array
     {
@@ -1220,6 +1360,208 @@ class GripService
             return 'Waived';
         }
         return $st;
+    }
+
+    // ---------------------------------------------------------------------
+    // Posture Management role: per-user access to connected SaaS tenants
+    // ---------------------------------------------------------------------
+
+    /** ACL group whose members see Posture Management for their granted tenants only. */
+    public const POSTURE_GROUP = 'posture_management';
+
+    /** Groups that already see every tenant's posture (unchanged by the role). */
+    public const POSTURE_FULL_GROUPS = ['administrator', 'cyber_tprm', 'auditor'];
+
+    /** Key that identifies one connected tenant: integration type + Grip tenant id. */
+    public static function postureTenantKey(?string $integrationType, ?string $tenantId): string
+    {
+        return (string)$integrationType . '|' . (string)$tenantId;
+    }
+
+    /**
+     * The connected SaaS tenants (Grip SSPM integrations) present in the
+     * posture mirror, keyed by postureTenantKey(), with a display name and
+     * check counts. These are the only tenants a Posture Management grant may name.
+     */
+    public function connectedPostureTenants(): array
+    {
+        $out = [];
+        try {
+            $rows = $this->db->fetchAll(
+                "SELECT COALESCE(integration_type, '') AS integration_type, tenant_id, MAX(tenant_name) AS tenant_name,
+                        COUNT(*) AS checks, SUM(status = 'Fail') AS failing
+                   FROM shadow_saas_grip_posture_checks
+                  WHERE tenant_id IS NOT NULL AND tenant_id <> ''
+                  GROUP BY COALESCE(integration_type, ''), tenant_id"
+            );
+        } catch (Throwable $e) {
+            error_log('connectedPostureTenants failed: ' . $e->getMessage());
+            return [];
+        }
+        foreach ($rows as $r) {
+            $k = self::postureTenantKey($r['integration_type'], $r['tenant_id']);
+            $out[$k] = [
+                'key'              => $k,
+                'integration_type' => (string)$r['integration_type'],
+                'tenant_id'        => (string)$r['tenant_id'],
+                'tenant_name'      => (string)($r['tenant_name'] ?? ''),
+                'checks'           => (int)$r['checks'],
+                'failing'          => (int)$r['failing'],
+            ];
+        }
+        uasort($out, fn($a, $b) => strnatcasecmp($a['tenant_name'] ?: $a['tenant_id'], $b['tenant_name'] ?: $b['tenant_id']));
+        return $out;
+    }
+
+    /** Tenant keys granted to one user (may include tenants no longer connected). */
+    public function postureTenantGrants(int $userId): array
+    {
+        try {
+            $rows = $this->db->fetchAll(
+                'SELECT integration_type, tenant_id FROM shadow_saas_posture_tenant_access WHERE user_id = :u',
+                [':u' => $userId]
+            );
+        } catch (Throwable $e) {
+            error_log('postureTenantGrants failed: ' . $e->getMessage());
+            return [];
+        }
+        return array_map(fn($r) => self::postureTenantKey($r['integration_type'], $r['tenant_id']), $rows);
+    }
+
+    /** Every user's granted tenant keys: [user_id => [key, ...]]. */
+    public function allPostureTenantGrants(): array
+    {
+        $out = [];
+        try {
+            foreach ($this->db->fetchAll('SELECT user_id, integration_type, tenant_id FROM shadow_saas_posture_tenant_access') as $r) {
+                $out[(int)$r['user_id']][] = self::postureTenantKey($r['integration_type'], $r['tenant_id']);
+            }
+        } catch (Throwable $e) {
+            error_log('allPostureTenantGrants failed: ' . $e->getMessage());
+        }
+        return $out;
+    }
+
+    /**
+     * Replace a user's tenant grants. Posted keys are only a UI hint: each must
+     * name a tenant currently present in the posture mirror, anything else is
+     * dropped. Returns ['added' => [...], 'removed' => [...]] as tenant labels
+     * for the audit log.
+     */
+    public function setPostureTenantGrants(int $userId, array $keys, ?int $grantedBy): array
+    {
+        $connected = $this->connectedPostureTenants();
+        $want = [];
+        foreach ($keys as $k) {
+            $k = (string)$k;
+            if (isset($connected[$k])) $want[$k] = $connected[$k];
+        }
+        $have = array_flip($this->postureTenantGrants($userId));
+        $added = $removed = [];
+        $this->db->beginTransaction();
+        try {
+            foreach (array_diff_key($have, $want) as $k => $_) {
+                [$type, $tid] = explode('|', $k, 2) + [1 => ''];
+                $this->db->query(
+                    'DELETE FROM shadow_saas_posture_tenant_access WHERE user_id = :u AND integration_type = :t AND tenant_id = :i',
+                    [':u' => $userId, ':t' => $type, ':i' => $tid]
+                );
+                $removed[] = $k;
+            }
+            foreach (array_diff_key($want, $have) as $k => $t) {
+                $this->db->query(
+                    'INSERT INTO shadow_saas_posture_tenant_access (user_id, integration_type, tenant_id, tenant_name, granted_by)
+                     VALUES (:u, :t, :i, :n, :b)',
+                    [':u' => $userId, ':t' => $t['integration_type'], ':i' => $t['tenant_id'], ':n' => $t['tenant_name'] ?: null, ':b' => $grantedBy ?: null]
+                );
+                $added[] = $t['tenant_name'] !== '' ? $t['tenant_name'] . ' (' . $t['integration_type'] . ')' : $k;
+            }
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+        return ['added' => $added, 'removed' => $removed];
+    }
+
+    /**
+     * Product family of an SSPM integration type or an ITDR threat source, so
+     * the two can be matched: "Microsoft 365" and "AzureAD API" are both
+     * 'microsoft'. Unknown names fall back to their first word.
+     */
+    public static function sspmFamily(?string $name): string
+    {
+        $n = strtolower(trim((string)$name));
+        if ($n === '') return '';
+        $map = [
+            'microsoft'   => '/microsoft|azure|entra|\bo365\b|office ?365|\baad\b|exchange|sharepoint|teams|defender|onedrive/',
+            'google'      => '/google|\bgw\b|g ?suite|workspace|gmail/',
+            'okta'        => '/okta/',
+            'salesforce'  => '/salesforce|sfdc/',
+            'github'      => '/github/',
+            'crowdstrike' => '/crowdstrike|falcon/',
+            'servicenow'  => '/servicenow|service ?now/',
+            'rubrik'      => '/rubrik/',
+            'slack'       => '/slack/',
+            'zoom'        => '/zoom/',
+            'box'         => '/\bbox\b/',
+            'dropbox'     => '/dropbox/',
+            'atlassian'   => '/atlassian|jira|confluence/',
+            'aws'         => '/\baws\b|amazon web services/',
+        ];
+        foreach ($map as $fam => $re) if (preg_match($re, $n)) return $fam;
+        return preg_split('/[^a-z0-9]+/', $n, -1, PREG_SPLIT_NO_EMPTY)[0] ?? '';
+    }
+
+    /**
+     * Attribute ITDR threats to connected tenants. Grip threats carry no tenant
+     * id, only a source (e.g. "AzureAD API"), so a threat belongs to a tenant
+     * only when EXACTLY ONE connected tenant shares the source's product family.
+     * With two tenants of one family the threat is unattributable and a scoped
+     * user does not see it (never over-grant).
+     * Returns the threats a scoped user may see, each with 'tenant_key' set.
+     */
+    public function scopeThreatsToTenants(array $threats, array $scopeKeys): array
+    {
+        $byFamily = [];
+        foreach ($this->connectedPostureTenants() as $k => $t) $byFamily[self::sspmFamily($t['integration_type'])][] = $k;
+        $out = [];
+        foreach ($threats as $t) {
+            $fam = self::sspmFamily((string)($t['source'] ?? ''));
+            $cands = $fam !== '' ? ($byFamily[$fam] ?? []) : [];
+            if (count($cands) !== 1 || !in_array($cands[0], $scopeKeys, true)) continue;
+            $t['tenant_key'] = $cands[0];
+            $out[] = $t;
+        }
+        return $out;
+    }
+
+    /** Drop every tenant grant of a user (they left the Posture Management group). */
+    public function clearPostureTenantGrants(int $userId): int
+    {
+        try {
+            return $this->db->query('DELETE FROM shadow_saas_posture_tenant_access WHERE user_id = :u', [':u' => $userId])->rowCount();
+        } catch (Throwable $e) {
+            error_log('clearPostureTenantGrants failed: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Posture visibility for the signed-in user: null = every tenant (admin,
+     * cyber_tprm, auditor); an array of tenant keys = a Posture Management member
+     * limited to those tenants (possibly none). false = no posture access at all.
+     * The role only counts while Grip is enabled.
+     *
+     * @return array|null|false
+     */
+    public function postureScopeForCurrentUser()
+    {
+        $acl = ACL::getInstance();
+        if (Session::getInstance()->get('is_super_admin') || $acl->hasGroup(self::POSTURE_FULL_GROUPS)) return null;
+        if (!$this->isEnabled() || !$acl->hasGroup(self::POSTURE_GROUP)) return false;
+        $uid = (int)(Auth::getInstance()->getUser()['id'] ?? 0);
+        return $uid > 0 ? $this->postureTenantGrants($uid) : [];
     }
 
     /**

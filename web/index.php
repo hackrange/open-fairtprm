@@ -42,6 +42,16 @@ $isStakeholderGroup = hasGroup('stakeholder');
 $isStakeholderOnly = $isStakeholderGroup && !$isAdmin && !$isProcurement && !$isCyberTPRM && !$isAuditor;
 $isProcurementOnly = $isProcurement && !$isAdmin && !$isCyberTPRM;
 
+// Posture Management only (no other group): the dashboard has nothing for them,
+// so land on their tenants' posture. The role counts only while Grip is enabled.
+if (!$isAdmin && getAppConfig('grip_enabled', '0') === '1') {
+    $_ugs = array_map('strtolower', (array)$acl->getUserGroups((int)$user['id']));
+    if ($_ugs === ['posture_management']) {
+        header('Location: shadow-saas-posture.php');
+        exit;
+    }
+}
+
 // Figure out which modules to show based on permissions. It's like a feature flag system
 // but built on ACL groups because we're fancy like that.
 $showOnboarding = hasPermission('onboarding.create') ||

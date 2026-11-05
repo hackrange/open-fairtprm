@@ -7003,6 +7003,62 @@ SET @sql = IF(
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
 
+-- Posture Management role: a system ACL group for people who should see Grip
+-- SSPM posture (Shadow SaaS > Posture Management) for chosen connected SaaS
+-- tenants only, e.g. an Okta owner who sees "Okta SSPM" and nothing else. The
+-- group is offered in Admin > Users only while Grip is enabled. Members are
+-- read-only and see no other Shadow SaaS page.
+INSERT IGNORE INTO `acl_groups` (`group_name`, `display_name`, `description`, `is_active`)
+VALUES ('posture_management', 'Posture Management',
+        'Read-only Grip SSPM posture for the connected SaaS tenants granted to the user (requires Grip)', 1);
+UPDATE `acl_groups` SET `is_system` = 1 WHERE `group_name` = 'posture_management';
+
+-- Which connected SaaS tenants (Grip SSPM integrations) a Posture Management
+-- member may see. A tenant is identified by Grip's integration type plus tenant
+-- id (the same tenant id can recur across integration types). Grants are
+-- validated against the tenants present in shadow_saas_grip_posture_checks when
+-- saved; a grant for a tenant that later disappears from Grip simply matches
+-- nothing. Rows go with the user (FK cascade) and are cleared when the user
+-- leaves the group.
+CREATE TABLE IF NOT EXISTS `shadow_saas_posture_tenant_access` (
+  `user_id`          int(10) unsigned NOT NULL,
+  `integration_type` varchar(100) NOT NULL DEFAULT '',
+  `tenant_id`        varchar(255) NOT NULL,
+  `tenant_name`      varchar(255) DEFAULT NULL COMMENT 'Display name when granted',
+  `granted_by`       int(10) unsigned DEFAULT NULL,
+  `granted_at`       timestamp NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`user_id`, `integration_type`, `tenant_id`),
+  CONSTRAINT `fk_sspta_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_sspta_by` FOREIGN KEY (`granted_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Posture waiver requests. A Posture Management member may ask for findings of
+-- their own tenants to be waived; only administrator / cyber_tprm approve. A
+-- request is kept apart from shadow_saas_grip_waivers so that a pending one can
+-- never count as a waiver. Approval re-checks the finding against Grip and the
+-- expiry, then creates the waiver row and stores its id here (waiver_id).
+-- status: pending | approved | rejected | withdrawn | obsolete (Grip no longer
+-- reports the finding at approval time).
+CREATE TABLE IF NOT EXISTS `shadow_saas_posture_waiver_requests` (
+  `id`             int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `check_uuid`     varchar(64)  NOT NULL,
+  `entity_key`     char(64)     NOT NULL COMMENT 'sha256(entityType|entityIdentifier), as shadow_saas_grip_waivers',
+  `entity_label`   text DEFAULT NULL COMMENT 'Finding display name; PII: AES-encrypted at rest',
+  `justification`  text NOT NULL,
+  `expires_at`     date DEFAULT NULL,
+  `requested_by`   int(10) unsigned DEFAULT NULL,
+  `requested_at`   timestamp NULL DEFAULT current_timestamp(),
+  `status`         varchar(16) NOT NULL DEFAULT 'pending',
+  `decided_by`     int(10) unsigned DEFAULT NULL,
+  `decided_at`     datetime DEFAULT NULL,
+  `decision_note`  text DEFAULT NULL,
+  `waiver_id`      int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_check_status` (`check_uuid`, `status`),
+  KEY `idx_status` (`status`),
+  KEY `idx_requested_by` (`requested_by`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

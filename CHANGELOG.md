@@ -12,6 +12,39 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Posture Management role (Grip).** While the Grip Shadow SaaS integration
+  is enabled, Admin > Users > Groups offers a new Posture Management group.
+  Ticking it opens a picker of the connected SaaS tenants (the SSPM
+  integrations Grip reports posture checks for, e.g. an Okta tenant or a
+  Microsoft 365 tenant), and the administrator ticks the ones the user may see.
+  A member sees Shadow SaaS > Posture Management and ITDR for those tenants
+  only: the score, the tenant and domain cards, the check list, a check's live
+  findings and the ITDR threats are all computed from their tenants, and a
+  check of any other tenant returns 404. Other Shadow SaaS pages stay closed,
+  and a user whose only group is Posture Management lands on the posture page
+  after login. Grip threats carry no tenant id, so a threat counts for a
+  tenant only when exactly one connected tenant comes from the same product
+  (an AzureAD threat for the one Microsoft 365 tenant). A threat that could
+  belong to more than one tenant is hidden from members. Tenant keys posted by
+  the form are checked against the connected tenants, grants are cleared when
+  the user leaves the group, and every change is audited. With Grip disabled
+  the group is hidden and existing memberships are left untouched. Schema: new
+  `posture_management` system group and
+  `shadow_saas_posture_tenant_access` table.
+
+- **Posture waiver requests.** A Posture Management member can select
+  findings of their own tenants' checks and request a waiver, with a
+  justification and an optional expiry. A request is not a waiver: it has no
+  effect on the score or the check's status until an administrator or Cyber
+  TPRM user approves it. Approvers see the requests on the Posture Management
+  overview and as a badge on the sidebar link, and approve or reject each one,
+  optionally with a note. Approval first checks that Grip still reports the
+  finding and that the expiry is still valid. It then creates the waiver as
+  the approver and records who requested it. A request for a finding Grip no
+  longer reports is closed. Members can withdraw their own pending requests
+  and see each request's outcome and note. Schema: new
+  `shadow_saas_posture_waiver_requests` table.
+
 - **Alternate stakeholders.** A vendor can now have any number of alternate
   stakeholders beside its one stakeholder, as backups (for example while the
   stakeholder is on vacation). They are managed from the vendor page

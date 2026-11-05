@@ -15,7 +15,12 @@
  * and an optional expiry (shadow_saas_grip_waivers), and revoke it. A waived
  * threat shows as "waived" and is left out of the exposed-identity counts.
  *
- * Access: administrator / cyber_tprm / auditor (auditors are read-only).
+ * Access: administrator / cyber_tprm / auditor (auditors are read-only) see
+ * every threat. While Grip is enabled, Posture Management members see, read-
+ * only, the threats attributable to the connected SaaS tenants granted to them
+ * (GripService::scopeThreatsToTenants: Grip threats carry only a source, so a
+ * threat counts for a tenant only when exactly one connected tenant shares the
+ * source's product family; anything ambiguous stays hidden from them).
  *
  * Author: Tim Rice
  * Disclaimer: Use this software at your own risk. No warranty provided.
@@ -36,14 +41,18 @@ $theme    = getUserTheme();
 $isAdmin     = $acl->hasGroup('administrator');
 $isCyberTPRM = $acl->hasGroup('cyber_tprm');
 $isAuditor   = $acl->hasGroup('auditor');
-if (!$isAdmin && !$isCyberTPRM && !$isAuditor) {
-    http_response_code(403);
-    die(e(t('shadow-saas.access_denied')));
-}
 $canManage = $isAdmin || $isCyberTPRM;
 
 $grip        = new GripService();
 $gripEnabled = $grip->isEnabled();
+
+// null = every threat; array = Posture Management member's granted tenant keys.
+$postureScope = $grip->postureScopeForCurrentUser();
+if ($postureScope === false) {
+    http_response_code(403);
+    die(e(t('shadow-saas.access_denied')));
+}
+$postureScoped = is_array($postureScope);
 $error   = '';
 $success = '';
 
@@ -125,6 +134,8 @@ if ($gripEnabled) {
             if ($r['waiver']) $r['status'] = 'waived';
             $tdThreats[] = $r;
         }
+        // Tenant scope is applied here, before anything is counted or shown.
+        if ($postureScoped) $tdThreats = $grip->scopeThreatsToTenants($tdThreats, $postureScope);
         $tdSynced = $db->fetchOne('SELECT MAX(last_synced_at) AS t FROM shadow_saas_grip_threats')['t'] ?? null;
     } catch (Throwable $e) {
         error_log('ITDR load failed: ' . $e->getMessage());
@@ -350,7 +361,7 @@ function tdQuery(array $over = []): string
             <?php $currentPage = 'shadow_saas_itdr'; include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
             <main class="main-content">
-                <?php $ssTab = 'itdr'; include __DIR__ . '/includes/partials/shadow-saas-tabs.php'; ?>
+                <?php $ssTab = 'itdr'; $ssPostureOnly = $postureScoped; include __DIR__ . '/includes/partials/shadow-saas-tabs.php'; ?>
                 <?php if ($error): ?><div class="alert alert-danger"><?php echo e($error); ?></div><?php endif; ?>
                 <?php if ($success): ?><div class="alert alert-success"><?php echo e($success); ?></div><?php endif; ?>
 

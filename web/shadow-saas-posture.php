@@ -19,7 +19,13 @@
  * against Grip's live findings after every change and on every sync, so a new
  * finding on a waived check makes it fail again.
  *
- * Access: administrator / cyber_tprm / auditor (auditors are read-only).
+ * Access: administrator / cyber_tprm / auditor (auditors are read-only) see
+ * every tenant. While Grip is enabled, members of the Posture Management group
+ * (posture_management) see only the connected SaaS tenants an administrator
+ * granted them in Admin > Users (shadow_saas_posture_tenant_access), read-only:
+ * the score, tenant and domain cards, the list and a check's live findings are
+ * all computed from their tenants' checks, and a check of any other tenant is
+ * a 404.
  *
  * Author: Tim Rice
  * Disclaimer: Use this software at your own risk. No warranty provided.
@@ -40,21 +46,88 @@ $theme    = getUserTheme();
 $isAdmin     = $acl->hasGroup('administrator');
 $isCyberTPRM = $acl->hasGroup('cyber_tprm');
 $isAuditor   = $acl->hasGroup('auditor');
-if (!$isAdmin && !$isCyberTPRM && !$isAuditor) {
-    http_response_code(403);
-    die(e(t('shadow-saas.access_denied')));
-}
-// Auditors read; only admin / cyber_tprm may trigger a refresh from Grip.
-$canManage = $isAdmin || $isCyberTPRM;
 
 $grip        = new GripService();
 $gripEnabled = $grip->isEnabled();
+
+// null = every tenant; array = Posture Management member's granted tenant keys.
+$postureScope = $grip->postureScopeForCurrentUser();
+if ($postureScope === false) {
+    http_response_code(403);
+    die(e(t('shadow-saas.access_denied')));
+}
+$postureScoped = is_array($postureScope);
+// Auditors read; only admin / cyber_tprm may refresh from Grip, waive findings
+// or approve waiver requests. Posture Management members may REQUEST waivers
+// for findings of their granted tenants.
+$canManage  = $isAdmin || $isCyberTPRM;
+$canRequest = $postureScoped && !$canManage;
+
+/** The posture check $uuid if it exists and is inside the user's tenant scope, else null. */
+$checkInScope = function (string $uuid) use ($db, $postureScoped, $postureScope): ?array {
+    if (!preg_match('/^[0-9a-f-]{36}$/i', $uuid)) return null;
+    $r = $db->fetchOne('SELECT uuid, posture_check_id, integration_type, tenant_id, tenant_name FROM shadow_saas_grip_posture_checks WHERE uuid = :u', [':u' => $uuid]);
+    if (!$r) return null;
+    if ($postureScoped && !in_array(GripService::postureTenantKey($r['integration_type'] ?? '', $r['tenant_id'] ?? ''), $postureScope, true)) return null;
+    return $r;
+};
+
+/** Posted finding keys narrowed to findings Grip currently reports for $uuid: [[key, label], ...] or null when Grip is unreachable. */
+$currentFindingEntities = function (GripService $grip, string $uuid, array $keys): ?array {
+    $live = $grip->getAllPostureFindings($uuid);
+    if ($live === null) return null;
+    $byKey = [];
+    foreach ($live as $f) $byKey[GripService::findingKey($f)] = $f;
+    $ents = [];
+    foreach ($keys as $k) {
+        if (!isset($byKey[$k])) continue;
+        $ents[] = ['key' => $k, 'label' => (string)($byKey[$k]['displayName'] ?? ($byKey[$k]['entityIdentifier'] ?? ''))];
+    }
+    return $ents;
+};
 $error   = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = t('shadow-saas-posture.invalid_request');
+    } elseif (($_POST['action'] ?? '') === 'request_waiver' && $gripEnabled && $canRequest) {
+        // A Posture Management member asks for findings of one of THEIR tenants'
+        // checks to be waived. Scope and keys are re-checked server-side.
+        $wUuid = (string)($_POST['check_uuid'] ?? '');
+        $in = GripService::validateWaiverInput((string)($_POST['justification'] ?? ''), (string)($_POST['expires_at'] ?? ''));
+        $keys = array_values(array_unique(array_filter(array_map('strval', (array)($_POST['finding_keys'] ?? [])), fn($k) => preg_match('/^[0-9a-f]{64}$/', $k))));
+        $chk = $checkInScope($wUuid);
+        if (!$chk) {
+            $error = t('shadow-saas-posture.check_not_found');
+        } elseif (isset($in['error'])) {
+            $error = t('shadow-saas-waiver.' . $in['error'], GripService::WAIVER_JUSTIFICATION_MIN);
+        } elseif (!$keys) {
+            $error = t('shadow-saas-waiver.none_selected');
+        } elseif (count($keys) > 200) {
+            $error = t('shadow-saas-waiver.too_many', 200);
+        } elseif (($ents = $currentFindingEntities($grip, $wUuid, $keys)) === null) {
+            $error = t('shadow-saas-posture.findings_failed');
+        } else {
+            $added = $ents ? $grip->addPostureWaiverRequests($wUuid, $ents, $in['justification'], $in['expires'], (int)$user['id']) : 0;
+            $auth->audit($user['id'], 'shadow_saas_posture_waiver_request', 'shadow_saas_posture_waiver_requests', null, ['new' => [
+                'check_uuid' => $wUuid, 'posture_check_id' => $chk['posture_check_id'], 'tenant' => $chk['tenant_name'], 'requested' => $added,
+                'not_current' => count($keys) - count($ents), 'expires_at' => $in['expires'], 'justification' => $in['justification'],
+            ]]);
+            $success = t('shadow-saas-waiver.requested', $added);
+            if (count($ents) < count($keys)) $error = t('shadow-saas-waiver.stale', count($keys) - count($ents));
+        }
+    } elseif (($_POST['action'] ?? '') === 'withdraw_waiver_request' && $gripEnabled && $canRequest) {
+        // Only the requester, only while pending.
+        $rid = (int)($_POST['request_id'] ?? 0);
+        $mine = $grip->postureWaiverRequests(['id' => $rid, 'status' => 'pending', 'requested_by' => (int)$user['id']], 1)[0] ?? null;
+        $res = $mine ? $grip->decidePostureWaiverRequest($rid, 'withdraw', (int)$user['id']) : ['ok' => false];
+        if (empty($res['ok'])) {
+            $error = t('shadow-saas-waiver.request_not_found');
+        } else {
+            $auth->audit($user['id'], 'shadow_saas_posture_waiver_request_withdraw', 'shadow_saas_posture_waiver_requests', $rid, ['new' => ['check_uuid' => $mine['check_uuid']]]);
+            $success = t('shadow-saas-waiver.request_withdrawn');
+        }
     } elseif (!$canManage) {
         http_response_code(403);
         $error = t('shadow-saas.access_denied');
@@ -102,6 +175,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]]);
             $success = t('shadow-saas-waiver.waived', $added);
             if (count($ents) < count($keys)) $error = t('shadow-saas-waiver.stale', count($keys) - count($ents));
+        }
+    } elseif (in_array(($_POST['action'] ?? ''), ['approve_waiver_request', 'reject_waiver_request'], true) && $gripEnabled) {
+        // administrator / cyber_tprm only (the !$canManage branch above refused everyone else).
+        $rid = (int)($_POST['request_id'] ?? 0);
+        $decision = $_POST['action'] === 'approve_waiver_request' ? 'approve' : 'reject';
+        $res = $grip->decidePostureWaiverRequest($rid, $decision, (int)$user['id'], (string)($_POST['decision_note'] ?? ''));
+        if (empty($res['ok'])) {
+            $ek = (string)($res['error'] ?? 'request_not_found');
+            $error = $ek === 'findings_failed' ? t('shadow-saas-posture.findings_failed') : t('shadow-saas-waiver.' . $ek, GripService::WAIVER_JUSTIFICATION_MIN);
+        } else {
+            $auth->audit($user['id'], 'shadow_saas_posture_waiver_request_' . ($decision === 'approve' ? 'approve' : 'reject'), 'shadow_saas_posture_waiver_requests', $rid, ['new' => [
+                'check_uuid' => $res['request']['check_uuid'], 'status' => $res['status'],
+                'requested_by' => (int)($res['request']['requested_by'] ?? 0), 'decision_note' => trim((string)($_POST['decision_note'] ?? '')),
+            ]]);
+            $success = t('shadow-saas-waiver.request_' . $res['status']);
         }
     } elseif (($_POST['action'] ?? '') === 'revoke_waiver' && $gripEnabled) {
         $row = $grip->revokeWaiver((int)($_POST['waiver_id'] ?? 0), (int)$user['id'], (string)($_POST['revoke_reason'] ?? ''), 'posture');
@@ -196,6 +284,9 @@ if ($gripEnabled) {
             // FairTPRM status: a failing check with every current finding waived is 'Waived'.
             $r['grip_status'] = $r['status'];
             $r['status'] = GripService::effectivePostureStatus($r);
+            $r['tenant_key'] = GripService::postureTenantKey($r['integration_type'] ?? '', $r['tenant_id'] ?? '');
+            // Tenant scope is applied here, before anything is counted or shown.
+            if ($postureScoped && !in_array($r['tenant_key'], $postureScope, true)) continue;
             $checks[$r['uuid']] = $r;
         }
         $lastSynced = $db->fetchOne('SELECT MAX(last_synced_at) AS t FROM shadow_saas_grip_posture_checks')['t'] ?? null;
@@ -220,6 +311,28 @@ if ($viewId !== '') {
 $findings = [];
 $findingsError = '';
 $checkWaivers = ($check && $gripEnabled) ? ($grip->activeWaivers('posture', $viewId)[$viewId] ?? []) : [];
+// Waiver requests: pending ones of this check (by finding key), and who asked for
+// the waivers that came from an approved request (by waiver id).
+$checkRequests = [];
+$waiverRequesters = [];
+if ($check && $gripEnabled) {
+    foreach ($grip->postureWaiverRequests(['check' => $viewId, 'status' => 'pending']) as $rq) $checkRequests[(string)$rq['entity_key']] = $rq;
+    if ($checkWaivers) {
+        foreach ($grip->postureWaiverRequests(['waiver_ids' => array_column($checkWaivers, 'id'), 'status' => 'approved']) as $rq) $waiverRequesters[(int)$rq['waiver_id']] = $rq;
+    }
+}
+// Overview: managers see every pending request (of checks still present);
+// members see their own recent requests (of checks still in their scope).
+$queueRequests = [];
+$myRequests = [];
+if (!$check && $gripEnabled) {
+    if ($canManage) {
+        foreach ($grip->postureWaiverRequests(['status' => 'pending'], 500) as $rq) if (isset($checks[$rq['check_uuid']])) $queueRequests[] = $rq;
+    } elseif ($canRequest) {
+        foreach ($grip->postureWaiverRequests(['requested_by' => (int)$user['id']], 50) as $rq) if (isset($checks[$rq['check_uuid']])) $myRequests[] = $rq;
+    }
+}
+$canSelectFindings = $canManage || $canRequest;
 $fPage = max(1, (int)($_GET['page'] ?? 1));
 $fPer  = 100;
 if ($check) {
@@ -241,7 +354,7 @@ $modules = [];
 foreach ($checks as $c) {
     $st = (string)($c['status'] ?? '');
     if (isset($ppCounts[$st])) $ppCounts[$st]++;
-    $tk = trim(($c['tenant_name'] ?? '') . '|' . ($c['integration_type'] ?? ''), '|');
+    $tk = $c['tenant_key'];
     if (!isset($tenants[$tk])) $tenants[$tk] = ['name' => $c['tenant_name'] ?? '', 'type' => $c['integration_type'] ?? '', 'pass' => 0, 'fail' => 0];
     $dm = (string)($c['security_domain'] ?? '');
     if ($dm !== '' && !isset($domains[$dm])) $domains[$dm] = ['pass' => 0, 'fail' => 0];
@@ -271,9 +384,14 @@ if (!in_array($fDomain, $domainNames, true)) $fDomain = '';
 $fModule = (string)($_GET['module'] ?? '');
 if (!in_array($fModule, $moduleNames, true)) $fModule = '';
 $fQ = trim((string)($_GET['q'] ?? ''));
+$fTenant = (string)($_GET['tenant'] ?? '');
+if (!isset($tenants[$fTenant])) $fTenant = '';
+$tenantNames = $tenants;
+uasort($tenantNames, fn($a, $b) => strnatcasecmp($a['name'] . ' ' . $a['type'], $b['name'] . ' ' . $b['type']));
 
-$list = array_filter($checks, function ($c) use ($fStatus, $fSeverity, $fDomain, $fModule, $fQ) {
+$list = array_filter($checks, function ($c) use ($fStatus, $fSeverity, $fDomain, $fModule, $fQ, $fTenant) {
     if ($fStatus !== 'all' && ($c['status'] ?? '') !== $fStatus) return false;
+    if ($fTenant !== '' && $c['tenant_key'] !== $fTenant) return false;
     if ($fSeverity !== '' && ($c['severity'] ?? '') !== $fSeverity) return false;
     if ($fDomain !== '' && ($c['security_domain'] ?? '') !== $fDomain) return false;
     if ($fModule !== '' && ($c['module'] ?? '') !== $fModule) return false;
@@ -292,8 +410,8 @@ usort($list, fn($a, $b) =>
 
 function ppQuery(array $over = []): string
 {
-    global $fStatus, $fSeverity, $fDomain, $fModule, $fQ;
-    $q = array_merge(['status' => $fStatus, 'severity' => $fSeverity, 'domain' => $fDomain, 'module' => $fModule, 'q' => $fQ], $over);
+    global $fStatus, $fSeverity, $fDomain, $fModule, $fQ, $fTenant;
+    $q = array_merge(['status' => $fStatus, 'tenant' => $fTenant, 'severity' => $fSeverity, 'domain' => $fDomain, 'module' => $fModule, 'q' => $fQ], $over);
     return '?' . http_build_query(array_filter($q, fn($v) => $v !== '' && $v !== null));
 }
 ?><!DOCTYPE html>
@@ -409,6 +527,7 @@ function ppQuery(array $over = []): string
         .st-Fail { background: #fee2e2; color: #991b1b; }
         .st-Pass { background: #dcfce7; color: #166534; }
         .st-Undetectable, .st-Excluded, .st-Pending { background: #f3f4f6; color: #4b5563; }
+        .st-Requested { background: #fef3c7; color: #92400e; }
         .st-Waived { background: #ede9fe; color: #5b21b6; margin-left: 4px; }
         .pp-waive { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
         .pp-waive textarea { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
@@ -437,6 +556,12 @@ function ppQuery(array $over = []): string
         .footer-modern { background: var(--theme-footer-color, #1f2937); color: rgba(255,255,255,0.7); padding: 20px 30px; font-size: 13px; }
         .footer-modern-body { max-width: 1400px; margin: 0 auto; }
 
+        .pp-requests { margin: 0 0 18px; }
+        .pp-req { border-top: 1px solid #f0f0f0; padding: 10px 0; }
+        .pp-req:first-of-type { border-top: 0; }
+        .pp-req-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
+        .pp-req-actions form { display: flex; gap: 6px; align-items: center; margin: 0; }
+        .pp-req-actions input[type=text] { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; min-width: 220px; }
         @media (max-width: 1100px) { .pp-cards { grid-template-columns: 1fr; } }
         @media (max-width: 860px) {
             .pp-listhead { display: none; }
@@ -466,7 +591,7 @@ function ppQuery(array $over = []): string
             <?php $currentPage = 'shadow_saas_posture'; include __DIR__ . '/includes/sidebar_nav.php'; ?>
 
             <main class="main-content">
-                <?php $ssTab = 'posture'; include __DIR__ . '/includes/partials/shadow-saas-tabs.php'; ?>
+                <?php $ssTab = 'posture'; $ssPostureOnly = $postureScoped; include __DIR__ . '/includes/partials/shadow-saas-tabs.php'; ?>
 
                 <?php if ($error): ?><div class="alert alert-danger"><?php echo e($error); ?></div><?php endif; ?>
                 <?php if ($success): ?><div class="alert alert-success"><?php echo e($success); ?></div><?php endif; ?>
@@ -501,10 +626,11 @@ function ppQuery(array $over = []): string
                     <?php elseif (!$findings): ?>
                         <div class="pp-empty"><?php echo e(t('shadow-saas-posture.no_findings')); ?></div>
                     <?php else: ?>
-                        <?php if ($canManage): ?>
+                        <?php if ($canRequest): ?><p class="pp-muted" style="font-size:13px;margin:0 0 8px;"><?php echo e(t('shadow-saas-waiver.request_note')); ?></p><?php endif; ?>
+                        <?php if ($canSelectFindings): ?>
                         <form method="POST" id="ppWaiveForm" class="pp-waive">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-                            <input type="hidden" name="action" value="waive_findings">
+                            <input type="hidden" name="action" value="<?php echo $canManage ? 'waive_findings' : 'request_waiver'; ?>">
                             <input type="hidden" name="check_uuid" value="<?php echo e($viewId); ?>">
                             <label for="ppJustification"><?php echo e(t('shadow-saas-waiver.justification_label')); ?></label>
                             <textarea id="ppJustification" name="justification" rows="2" minlength="<?php echo (int)GripService::WAIVER_JUSTIFICATION_MIN; ?>" maxlength="<?php echo (int)GripService::WAIVER_JUSTIFICATION_MAX; ?>" required placeholder="<?php echo e(t('shadow-saas-waiver.justification_placeholder')); ?>"></textarea>
@@ -512,13 +638,13 @@ function ppQuery(array $over = []): string
                                 <label for="ppExpires"><?php echo e(t('shadow-saas-waiver.expires_label')); ?></label>
                                 <input type="date" id="ppExpires" name="expires_at" value="<?php echo e(date('Y-m-d', strtotime('+1 year'))); ?>" min="<?php echo e(date('Y-m-d')); ?>" max="<?php echo e(date('Y-m-d', strtotime('+3 years'))); ?>">
                                 <span class="pp-muted"><?php echo e(t('shadow-saas-waiver.expires_help')); ?></span>
-                                <button type="submit" class="pp-btn" id="ppWaiveBtn" data-confirm="<?php echo e(t('shadow-saas-waiver.confirm')); ?>"><?php echo e(t('shadow-saas-waiver.waive_selected')); ?></button>
+                                <button type="submit" class="pp-btn" id="ppWaiveBtn" data-confirm="<?php echo e(t($canManage ? 'shadow-saas-waiver.confirm' : 'shadow-saas-waiver.request_confirm')); ?>"><?php echo e(t($canManage ? 'shadow-saas-waiver.waive_selected' : 'shadow-saas-waiver.request_selected')); ?></button>
                             </div>
                         <?php endif; ?>
                         <div style="overflow-x:auto;">
                         <table class="data-table">
                             <thead><tr>
-                                <?php if ($canManage): ?><th style="width:34px;"><input type="checkbox" id="ppWaiveAll" aria-label="<?php echo e(t('shadow-saas-waiver.select_all')); ?>"></th><?php endif; ?>
+                                <?php if ($canSelectFindings): ?><th style="width:34px;"><input type="checkbox" id="ppWaiveAll" aria-label="<?php echo e(t('shadow-saas-waiver.select_all')); ?>"></th><?php endif; ?>
                                 <th><?php echo e(t('shadow-saas-posture.col_entity')); ?></th>
                                 <th><?php echo e(t('shadow-saas-posture.col_entity_type')); ?></th>
                                 <th><?php echo e(t('shadow-saas-posture.col_status')); ?></th>
@@ -532,9 +658,10 @@ function ppQuery(array $over = []): string
                                 $extra = is_array($f['extraData'] ?? null) ? array_slice($f['extraData'], 0, 6, true) : [];
                                 $fKey = GripService::findingKey($f);
                                 $fW = $checkWaivers[$fKey] ?? null;
+                                $fR = $fW ? null : ($checkRequests[$fKey] ?? null);
                             ?>
                                 <tr<?php echo $fW ? ' class="pp-waived"' : ''; ?>>
-                                    <?php if ($canManage): ?><td><?php if (!$fW): ?><input type="checkbox" class="pp-waive-box" name="finding_keys[]" value="<?php echo e($fKey); ?>" form="ppWaiveForm" aria-label="<?php echo e(t('shadow-saas-waiver.select_one')); ?>"><?php endif; ?></td><?php endif; ?>
+                                    <?php if ($canSelectFindings): ?><td><?php if (!$fW && !$fR): ?><input type="checkbox" class="pp-waive-box" name="finding_keys[]" value="<?php echo e($fKey); ?>" form="ppWaiveForm" aria-label="<?php echo e(t('shadow-saas-waiver.select_one')); ?>"><?php endif; ?></td><?php endif; ?>
                                     <td><strong><?php echo e((string)($f['displayName'] ?? ($f['entityIdentifier'] ?? ''))); ?></strong>
                                         <?php if (!empty($f['entityIdentifier']) && ($f['entityIdentifier'] ?? '') !== ($f['displayName'] ?? '')): ?><div class="pp-tenant"><?php echo e((string)$f['entityIdentifier']); ?></div><?php endif; ?></td>
                                     <td><?php echo e(trim(($f['entityCategory'] ?? '') . ' / ' . ($f['entityType'] ?? ''), ' /')); ?></td>
@@ -546,14 +673,19 @@ function ppQuery(array $over = []): string
                                         <span class="pp-pill st-Waived"><?php echo e(t('shadow-saas-posture.status_waived')); ?></span>
                                         <div class="pp-waiver-note"><?php echo e($fW['justification']); ?></div>
                                         <div class="pp-tenant"><?php echo e(t('shadow-saas-waiver.by', (string)($fW['waived_by_name'] ?? '-'), date('M j, Y', strtotime((string)$fW['waived_at'])))); ?><?php if (!empty($fW['expires_at'])): ?> &middot; <?php echo e(t('shadow-saas-waiver.until', date('M j, Y', strtotime((string)$fW['expires_at'])))); ?><?php endif; ?></div>
+                                        <?php if (isset($waiverRequesters[(int)$fW['id']])): $wr = $waiverRequesters[(int)$fW['id']]; ?><div class="pp-tenant"><?php echo e(t('shadow-saas-waiver.requested_by', (string)($wr['requested_by_name'] ?? '-'), date('M j, Y', strtotime((string)$wr['requested_at'])))); ?></div><?php endif; ?>
                                         <?php if ($canManage): ?><button type="submit" form="ppRevoke<?php echo (int)$fW['id']; ?>" class="pp-chip pp-revoke" data-confirm="<?php echo e(t('shadow-saas-waiver.revoke_confirm')); ?>"><?php echo e(t('shadow-saas-waiver.revoke')); ?></button><?php endif; ?>
+                                    <?php elseif ($fR): ?>
+                                        <span class="pp-pill st-Requested"><?php echo e(t('shadow-saas-waiver.pending_approval')); ?></span>
+                                        <div class="pp-tenant"><a href="#ppReq<?php echo (int)$fR['id']; ?>"><?php echo e(t('shadow-saas-waiver.requested_by', (string)($fR['requested_by_name'] ?? '-'), date('M j, Y', strtotime((string)$fR['requested_at'])))); ?></a></div>
                                     <?php else: ?><span class="pp-muted">&mdash;</span><?php endif; ?></td>
                                 </tr>
                             <?php endforeach; ?>
                             </tbody>
                         </table>
                         </div>
-                        <?php if ($canManage): ?></form>
+                        <?php if ($canSelectFindings): ?></form><?php endif; ?>
+                        <?php if ($canManage): ?>
                         <?php foreach ($checkWaivers as $cw): ?>
                         <form method="POST" id="ppRevoke<?php echo (int)$cw['id']; ?>" class="pp-hidden-form">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
@@ -561,6 +693,45 @@ function ppQuery(array $over = []): string
                             <input type="hidden" name="waiver_id" value="<?php echo (int)$cw['id']; ?>">
                         </form>
                         <?php endforeach; ?>
+                        <?php endif; ?>
+                        <?php if ($checkRequests): ?>
+                        <div class="pp-card pp-requests" id="ppRequests">
+                            <h3><?php echo e(t('shadow-saas-waiver.pending_requests_heading', count($checkRequests))); ?></h3>
+                            <?php if ($canManage): ?><p class="pp-muted" style="font-size:13px;margin:0 0 8px;"><?php echo e(t('shadow-saas-waiver.approve_note')); ?></p><?php endif; ?>
+                            <?php foreach ($checkRequests as $rq): ?>
+                            <div class="pp-req" id="ppReq<?php echo (int)$rq['id']; ?>">
+                                <div><strong><?php echo e((string)($rq['entity_label'] ?: '-')); ?></strong></div>
+                                <div class="pp-waiver-note"><?php echo e((string)$rq['justification']); ?></div>
+                                <div class="pp-tenant"><?php echo e(t('shadow-saas-waiver.requested_by', (string)($rq['requested_by_name'] ?? '-'), date('M j, Y', strtotime((string)$rq['requested_at'])))); ?><?php if (!empty($rq['expires_at'])): ?> &middot; <?php echo e(t('shadow-saas-waiver.until', date('M j, Y', strtotime((string)$rq['expires_at'])))); ?><?php endif; ?></div>
+                                <?php if ($canManage): ?>
+                                <div class="pp-req-actions">
+                                    <form method="POST">
+                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                        <input type="hidden" name="action" value="approve_waiver_request">
+                                        <input type="hidden" name="request_id" value="<?php echo (int)$rq['id']; ?>">
+                                        <button type="submit" class="pp-btn" data-confirm="<?php echo e(t('shadow-saas-waiver.approve_confirm')); ?>"><?php echo e(t('shadow-saas-waiver.approve')); ?></button>
+                                    </form>
+                                    <form method="POST">
+                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                        <input type="hidden" name="action" value="reject_waiver_request">
+                                        <input type="hidden" name="request_id" value="<?php echo (int)$rq['id']; ?>">
+                                        <input type="text" name="decision_note" maxlength="2000" placeholder="<?php echo e(t('shadow-saas-waiver.reject_reason_placeholder')); ?>" aria-label="<?php echo e(t('shadow-saas-waiver.reject_reason_placeholder')); ?>">
+                                        <button type="submit" class="pp-btn secondary" data-confirm="<?php echo e(t('shadow-saas-waiver.reject_confirm')); ?>"><?php echo e(t('shadow-saas-waiver.reject')); ?></button>
+                                    </form>
+                                </div>
+                                <?php elseif ($canRequest && (int)$rq['requested_by'] === (int)$user['id']): ?>
+                                <div class="pp-req-actions">
+                                    <form method="POST">
+                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                        <input type="hidden" name="action" value="withdraw_waiver_request">
+                                        <input type="hidden" name="request_id" value="<?php echo (int)$rq['id']; ?>">
+                                        <button type="submit" class="pp-btn secondary" data-confirm="<?php echo e(t('shadow-saas-waiver.withdraw_confirm')); ?>"><?php echo e(t('shadow-saas-waiver.withdraw')); ?></button>
+                                    </form>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
                         <?php endif; ?>
                         <div class="pp-pager">
                             <?php if ($fPage > 1): ?><a class="pp-chip" href="?<?php echo e(http_build_query(['id' => $viewId, 'page' => $fPage - 1])); ?>">&larr; <?php echo e(t('shadow-saas-posture.prev')); ?></a><?php endif; ?>
@@ -587,7 +758,7 @@ function ppQuery(array $over = []): string
                     </div>
 
                     <?php if (!$checks): ?>
-                        <div class="pp-empty"><?php echo e(t('shadow-saas-posture.no_data')); ?></div>
+                        <div class="pp-empty"><?php echo e(t($postureScoped && !$postureScope ? 'shadow-saas-posture.no_tenants_granted' : 'shadow-saas-posture.no_data')); ?></div>
                     <?php else: ?>
                     <div class="pp-cards">
                         <div class="pp-card" id="pp-score">
@@ -605,9 +776,9 @@ function ppQuery(array $over = []): string
                         </div>
                         <div class="pp-card">
                             <h3><?php echo e(t('shadow-saas-posture.lowest_tenants')); ?></h3>
-                            <?php foreach (array_slice($tenants, 0, 5, true) as $tn): ?>
+                            <?php foreach (array_slice($tenants, 0, 5, true) as $tnKey => $tn): ?>
                             <div class="pp-rowstat">
-                                <span><?php echo e($tn['name'] !== '' ? $tn['name'] : t('shadow-saas-posture.unknown')); ?><span class="sub"><?php echo e($tn['type']); ?></span></span>
+                                <span><a href="<?php echo e(ppQuery(['tenant' => $tnKey])); ?>"><?php echo e($tn['name'] !== '' ? $tn['name'] : t('shadow-saas-posture.unknown')); ?></a><span class="sub"><?php echo e($tn['type']); ?></span></span>
                                 <span class="v"><?php echo ppPct($tn['pass'], $tn['fail']); ?>%</span>
                             </div>
                             <?php endforeach; ?>
@@ -624,6 +795,31 @@ function ppQuery(array $over = []): string
                         </div>
                     </div>
 
+                    <?php if ($queueRequests): ?>
+                    <div class="pp-card pp-requests" id="ppQueue">
+                        <h3><?php echo e(t('shadow-saas-waiver.queue_heading', count($queueRequests))); ?></h3>
+                        <?php foreach ($queueRequests as $rq): $qc = $checks[$rq['check_uuid']]; ?>
+                        <div class="pp-rowstat">
+                            <span><a href="?<?php echo e(http_build_query(['id' => $rq['check_uuid']])); ?>#ppReq<?php echo (int)$rq['id']; ?>"><?php echo e((string)($qc['posture_check_id'] ?? '')); ?></a>
+                                <span class="sub"><?php echo e(trim(($qc['tenant_name'] ?? '') . ' · ' . ($rq['entity_label'] ?: '-'), ' ·')); ?></span></span>
+                            <span class="pp-tenant"><?php echo e(t('shadow-saas-waiver.requested_by', (string)($rq['requested_by_name'] ?? '-'), date('M j, Y', strtotime((string)$rq['requested_at'])))); ?></span>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php elseif ($myRequests): ?>
+                    <div class="pp-card pp-requests" id="ppMyRequests">
+                        <h3><?php echo e(t('shadow-saas-waiver.my_requests_heading')); ?></h3>
+                        <?php foreach ($myRequests as $rq): $qc = $checks[$rq['check_uuid']]; ?>
+                        <div class="pp-rowstat">
+                            <span><a href="?<?php echo e(http_build_query(['id' => $rq['check_uuid']])); ?>"><?php echo e((string)($qc['posture_check_id'] ?? '')); ?></a>
+                                <span class="sub"><?php echo e(trim(($qc['tenant_name'] ?? '') . ' · ' . ($rq['entity_label'] ?: '-'), ' ·')); ?></span>
+                                <?php if (!empty($rq['decision_note'])): ?><span class="sub"><?php echo e(t('shadow-saas-waiver.decision_note', (string)$rq['decision_note'])); ?></span><?php endif; ?></span>
+                            <span class="pp-pill st-<?php echo e(['pending' => 'Requested', 'approved' => 'Waived', 'rejected' => 'Fail'][$rq['status']] ?? 'Excluded'); ?>" title="<?php echo e(trim((string)($rq['decided_by_name'] ?? ''))); ?>"><?php echo e(t('shadow-saas-waiver.req_status_' . $rq['status'])); ?></span>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+
                     <div class="pp-chips">
                         <?php foreach (['Fail', 'Pass', 'Waived', 'Undetectable', 'Excluded', 'Pending', 'all'] as $sk):
                             if ($sk !== 'all' && $ppCounts[$sk] === 0 && $fStatus !== $sk) continue; ?>
@@ -633,6 +829,12 @@ function ppQuery(array $over = []): string
 
                     <form method="GET" class="pp-filters">
                         <input type="hidden" name="status" value="<?php echo e($fStatus); ?>">
+                        <?php if (count($tenantNames) > 1): ?>
+                        <select name="tenant" aria-label="<?php echo e(t('shadow-saas-posture.col_tenant')); ?>">
+                            <option value=""><?php echo e(t('shadow-saas-posture.any_tenant')); ?></option>
+                            <?php foreach ($tenantNames as $tk => $tn): ?><option value="<?php echo e($tk); ?>" <?php echo $fTenant === $tk ? 'selected' : ''; ?>><?php echo e(($tn['name'] !== '' ? $tn['name'] : t('shadow-saas-posture.unknown')) . ($tn['type'] !== '' ? ' (' . $tn['type'] . ')' : '')); ?></option><?php endforeach; ?>
+                        </select>
+                        <?php endif; ?>
                         <select name="severity" aria-label="<?php echo e(t('shadow-saas-posture.col_severity')); ?>">
                             <option value=""><?php echo e(t('shadow-saas-posture.any_severity')); ?></option>
                             <?php foreach ($severityNames as $sv): ?><option value="<?php echo e($sv); ?>" <?php echo $fSeverity === $sv ? 'selected' : ''; ?>><?php echo e($sv); ?></option><?php endforeach; ?>
@@ -647,7 +849,7 @@ function ppQuery(array $over = []): string
                         </select>
                         <input type="search" name="q" value="<?php echo e($fQ); ?>" placeholder="<?php echo e(t('shadow-saas-posture.search_placeholder')); ?>">
                         <button type="submit" class="pp-btn"><?php echo e(t('shadow-saas-posture.filter')); ?></button>
-                        <?php if ($fSeverity !== '' || $fDomain !== '' || $fModule !== '' || $fQ !== ''): ?><a class="pp-chip" href="<?php echo e(ppQuery(['severity' => '', 'domain' => '', 'module' => '', 'q' => ''])); ?>"><?php echo e(t('shadow-saas-posture.clear')); ?></a><?php endif; ?>
+                        <?php if ($fTenant !== '' || $fSeverity !== '' || $fDomain !== '' || $fModule !== '' || $fQ !== ''): ?><a class="pp-chip" href="<?php echo e(ppQuery(['tenant' => '', 'severity' => '', 'domain' => '', 'module' => '', 'q' => ''])); ?>"><?php echo e(t('shadow-saas-posture.clear')); ?></a><?php endif; ?>
                     </form>
 
                     <?php if (!$list): ?>
