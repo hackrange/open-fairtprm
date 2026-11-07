@@ -44,13 +44,15 @@ project adheres to [Semantic Versioning](https://semver.org/).
   longer reports is closed. Members can withdraw their own pending requests
   and see each request's outcome and note. Schema: new
   `shadow_saas_posture_waiver_requests` table.
-  Waiver requests are emailed. Each new request goes to every approver who
-  sees all tenants (administrators, and Cyber TPRM or Auditor users holding the
-  approve permission), and each decision goes back to the requester. The
-  emails name the check and tenant and link to it, but never the finding
-  itself, since findings can identify people. Both templates (Posture Waiver
-  Requested, Posture Waiver Decided) can be edited in Admin > Email > Shadow
-  SaaS.
+  Waiver requests are emailed. Each new request goes to the addresses entered
+  in Admin > Email > Shadow SaaS > Waiver request recipients (for example a
+  shared mailbox), or, when that box is empty, to every approver who sees all
+  tenants (administrators, and Cyber TPRM or Auditor users holding the approve
+  permission). Each decision goes back to the requester. The emails name the
+  check and tenant and link to it, but never the finding itself, since
+  findings can identify people. A Send posture waiver emails switch on the
+  same tab turns them off (on by default), and both templates (Posture Waiver
+  Requested, Posture Waiver Decided) can be edited there.
 
 - **Posture Management permissions in ACL Group Management.** A new Posture
   Management (Grip) section lists three permissions: view Posture Management
@@ -1107,6 +1109,16 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- **Auditors are now read-only on Vendor Assessments on the server, not just
+  in the page.** The Vendor Assessments page hid the New Assessment, Delete
+  and Resend controls from auditors, but the server still accepted those
+  actions. An auditor who sent the request directly could delete or resend
+  any assessment, or create a new vendor plus an assessment (which emails
+  the vendor a questionnaire link). The page now refuses every create,
+  delete and resend from a user in the Auditor group with HTTP 403 and an
+  "Auditors have read-only access to assessments" message, in all eight
+  languages. Auditors can still view and download every assessment.
+  Administrators, Cyber TPRM, Procurement and stakeholders are unaffected.
 - **Assessment template builder casts numeric output to integers.** The admin
   template editor printed the template id (in the hidden form field and the
   builder's `templateId` script variable) and the linked-assessment count

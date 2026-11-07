@@ -1227,6 +1227,8 @@
 
     <h3>Email notifications</h3>
     <p>When email is enabled, each new request is emailed to every approver who can see all tenants, and each decision is emailed back to the person who asked. Withdrawing a request sends nothing. The emails name the check and the tenant and link to the check, but never name the finding itself, because findings can identify people. The wording is edited under <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email Settings</span> &rarr; <strong>Shadow SaaS</strong> (templates <em>Posture Waiver Requested</em> and <em>Posture Waiver Decided</em>).</p>
+    <p>To stop these emails, untick <span class="field-label">Send posture waiver emails</span> on the same tab. Requests and approvals keep working; only the emails stop.</p>
+    <p>To send new requests to specific addresses instead, for example a shared mailbox, enter them in <span class="field-label">Waiver request recipients</span> on the same tab, separated by commas. When that box is empty, every approver who sees all tenants is emailed. Decision emails always go to the requester.</p>
 
     <h3>Permissions in ACL Group Management</h3>
     <p><span class="menu-label">Admin</span> &rarr; <span class="menu-label">ACL Group Management</span> shows a <strong>Posture Management (Grip)</strong> section with three permissions:</p>

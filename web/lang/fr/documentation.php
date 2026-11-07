@@ -1227,6 +1227,8 @@
 
     <h3>Notifications par e-mail</h3>
     <p>Lorsque l'e-mail est activé, chaque nouvelle demande est envoyée par e-mail à tous les approbateurs qui peuvent voir tous les tenants, et chaque décision est renvoyée par e-mail à la personne qui l'a demandée. Le retrait d'une demande n'envoie rien. Les e-mails nomment le contrôle et le tenant et renvoient vers le contrôle, mais ne nomment jamais le constat lui-même, car les constats peuvent permettre d'identifier des personnes. Le texte se modifie dans <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Paramètres de messagerie</span> &rarr; <strong>Shadow SaaS</strong> (modèles <em>Posture Waiver Requested</em> et <em>Posture Waiver Decided</em>).</p>
+    <p>Pour ne plus envoyer ces e-mails, décochez <span class="field-label">Envoyer les e-mails de dérogation de posture</span> dans le même onglet. Les demandes et les approbations continuent de fonctionner ; seuls les e-mails cessent.</p>
+    <p>Pour envoyer les nouvelles demandes à des adresses précises, par exemple une boîte partagée, saisissez-les dans <span class="field-label">Destinataires des demandes de dérogation</span> dans le même onglet, séparées par des virgules. Si ce champ est vide, chaque approbateur qui voit tous les locataires reçoit un e-mail. Les e-mails de décision vont toujours au demandeur.</p>
 
     <h3>Permissions dans la gestion des groupes ACL</h3>
     <p><span class="menu-label">Admin</span> &rarr; <span class="menu-label">Gestion des groupes ACL</span> affiche une section <strong>Gestion de la posture (Grip)</strong> avec trois permissions :</p>

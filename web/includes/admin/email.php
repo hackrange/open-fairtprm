@@ -259,6 +259,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_shadow_saas_aler
 }
 
 // ============================================================================
+// POST Handler: save_posture_waiver_email_settings
+// On/off switch for the posture waiver emails (request -> approvers, decision
+// -> requester; GripService::waiverMailer checks it). Default on.
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_posture_waiver_email_settings'])) {
+    if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
+        $error = t('admin_email.invalid_request');
+    } else {
+        require_once __DIR__ . '/../classes/GripService.php';
+        $pwRecip = GripService::parseWaiverRecipients((string)($_POST['posture_waiver_email_recipients'] ?? ''));
+        if ($pwRecip['invalid']) {
+            $error = t('admin_email.pw_invalid_recipients', implode(', ', array_slice($pwRecip['invalid'], 0, 5)));
+        } else {
+            $pwVals = [
+                'posture_waiver_email_enabled'    => isset($_POST['posture_waiver_email_enabled']) ? '1' : '0',
+                'posture_waiver_email_recipients' => implode(', ', $pwRecip['valid']),
+            ];
+            foreach ($pwVals as $k => $v) {
+                if ($db->fetchOne('SELECT id FROM app_config WHERE config_key = :k', [':k' => $k])) {
+                    $db->update('app_config', ['config_value' => $v], 'config_key = :k', [':k' => $k]);
+                } else {
+                    $db->insert('app_config', ['config_key' => $k, 'config_value' => $v, 'is_encrypted' => 0]);
+                }
+            }
+            getAppConfig('posture_waiver_email_enabled', null, true);
+            $auth->audit($user['id'], 'config_update_posture_waiver_email', 'app_config', null, ['new' => $pwVals]);
+            $success = t('admin_email.pw_saved');
+        }
+    }
+}
+
+// ============================================================================
 // POST Handler: save_shadow_saas_request_settings
 // Shadow SaaS requests (FairTPRM method): who reviews submitted forms, which
 // buttons the request email offers and the form each one opens, link expiry,
@@ -688,7 +720,7 @@ if (isset($_POST['save_stakeholder_note_settings']) || isset($_POST['reset_stake
     $activeTab = 'breach_alert';
 } elseif (isset($_POST['update_procurement_settings']) || isset($_POST['save_procurement_digest_settings']) || isset($_POST['send_procurement_digest_now'])) {
     $activeTab = 'procurement';
-} elseif (isset($_POST['save_shadow_saas_alert_settings']) || isset($_POST['send_shadow_saas_alert_test']) || isset($_POST['save_shadow_saas_request_settings'])) {
+} elseif (isset($_POST['save_shadow_saas_alert_settings']) || isset($_POST['send_shadow_saas_alert_test']) || isset($_POST['save_shadow_saas_request_settings']) || isset($_POST['save_posture_waiver_email_settings'])) {
     $activeTab = 'shadow_saas';
 } elseif (isset($_POST['update_email_template']) || isset($_POST['reset_email_template'])) {
     // Figure out which tab the template belongs to
@@ -1412,6 +1444,33 @@ $ssTrigger  = getAppConfig('shadow_saas_alert_trigger', 'any') === 'high' ? 'hig
             <button type="submit" name="save_shadow_saas_alert_settings" class="btn btn-primary"><?php echo e(t('admin_email.btn_save_settings_generic')); ?></button>
             <button type="submit" name="send_shadow_saas_alert_test" class="btn btn-secondary"><?php echo e(t('admin_email.ss_send_test')); ?></button>
         </div>
+    </form>
+</div>
+
+<?php
+$pwEnabled = getAppConfig('posture_waiver_email_enabled', '1') !== '0';
+// After a refused save, show what was typed so the bad address can be fixed.
+$pwRecipView = isset($_POST['save_posture_waiver_email_settings']) && $error !== ''
+    ? (string)($_POST['posture_waiver_email_recipients'] ?? '')
+    : (string)getAppConfig('posture_waiver_email_recipients', '');
+?>
+<div class="card" style="margin-bottom: 20px;" id="pw-email-card">
+    <h3 style="color: var(--theme-header-color); margin: 0 0 10px; font-size: 16px;"><?php echo e(t('admin_email.pw_heading')); ?></h3>
+    <p style="color: #666; font-size: 13px; margin: 0 0 16px;"><?php echo e(t('admin_email.pw_desc')); ?></p>
+    <form method="POST" action="admin.php?section=email">
+        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="posture_waiver_email_enabled" id="posture_waiver_email_enabled" value="1" <?php echo $pwEnabled ? 'checked' : ''; ?>>
+                <span><?php echo e(t('admin_email.pw_enable')); ?></span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label for="posture_waiver_email_recipients"><?php echo e(t('admin_email.pw_recipients')); ?></label>
+            <textarea id="posture_waiver_email_recipients" name="posture_waiver_email_recipients" class="form-control" rows="2" placeholder="grc@example.com, security@example.com" style="font-family: monospace; font-size: 13px;"><?php echo e($pwRecipView); ?></textarea>
+            <div class="form-help"><?php echo e(t('admin_email.pw_recipients_help')); ?></div>
+        </div>
+        <button type="submit" name="save_posture_waiver_email_settings" class="btn btn-primary"><?php echo e(t('admin_email.btn_save_settings_generic')); ?></button>
     </form>
 </div>
 

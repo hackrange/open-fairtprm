@@ -1227,6 +1227,8 @@
 
     <h3>Notificações por e-mail</h3>
     <p>Quando o e-mail está habilitado, cada nova solicitação é enviada por e-mail a todos os aprovadores que podem ver todos os tenants, e cada decisão é enviada por e-mail de volta à pessoa que solicitou. Retirar uma solicitação não envia nada. Os e-mails citam a verificação e o tenant e trazem um link para a verificação, mas nunca citam a ocorrência em si, porque ocorrências podem identificar pessoas. O texto é editado em <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Configurações de E-mail</span> &rarr; <strong>Shadow SaaS</strong> (modelos <em>Posture Waiver Requested</em> e <em>Posture Waiver Decided</em>).</p>
+    <p>Para deixar de enviar estes e-mails, desmarque <span class="field-label">Enviar e-mails de isenção de postura</span> na mesma aba. Os pedidos e as aprovações continuam funcionando; apenas os e-mails deixam de ser enviados.</p>
+    <p>Para enviar os novos pedidos a endereços específicos, por exemplo uma caixa compartilhada, insira-os em <span class="field-label">Destinatários dos pedidos de isenção</span> na mesma aba, separados por vírgulas. Se esse campo estiver vazio, cada aprovador que vê todos os tenants recebe o e-mail. Os e-mails de decisão vão sempre para o requerente.</p>
 
     <h3>Permissões na Gestão de Grupos de ACL</h3>
     <p><span class="menu-label">Admin</span> &rarr; <span class="menu-label">Gestão de Grupos de ACL</span> mostra uma seção <strong>Gerenciamento de postura (Grip)</strong> com três permissões:</p>

@@ -1227,6 +1227,8 @@
 
     <h3>Notifiche email</h3>
     <p>Quando l'email è abilitata, ogni nuova richiesta viene inviata via email a ogni approvatore che può vedere tutti i tenant, e ogni decisione viene inviata via email alla persona che l'ha richiesta. Il ritiro di una richiesta non invia nulla. Le email indicano il controllo e il tenant e contengono un collegamento al controllo, ma non nominano mai il risultato stesso, perché i risultati possono identificare delle persone. Il testo si modifica in <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Impostazioni email</span> &rarr; <strong>Shadow SaaS</strong> (template <em>Posture Waiver Requested</em> e <em>Posture Waiver Decided</em>).</p>
+    <p>Per interrompere queste email, deseleziona <span class="field-label">Invia email di esenzione della postura</span> nella stessa scheda. Richieste e approvazioni continuano a funzionare; si interrompono solo le email.</p>
+    <p>Per inviare le nuove richieste a indirizzi specifici, ad esempio una casella condivisa, inseriscili in <span class="field-label">Destinatari delle richieste di esenzione</span> nella stessa scheda, separati da virgole. Se il campo è vuoto, riceve l'email ogni approvatore che vede tutti i tenant. Le email di decisione vanno sempre al richiedente.</p>
 
     <h3>Permessi in Gestione dei gruppi ACL</h3>
     <p><span class="menu-label">Admin</span> &rarr; <span class="menu-label">Gestione dei gruppi ACL</span> mostra una sezione <strong>Gestione della postura (Grip)</strong> con tre permessi:</p>

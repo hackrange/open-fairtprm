@@ -51,12 +51,13 @@ require_once __DIR__ . '/includes/classes/VendorAssessmentService.php';
 $assessmentService = new VendorAssessmentService();
 $assessmentService->initializeTables();
 
-// BOLA fix: reviewers (admin/cyber_tprm/procurement/auditor) manage all assessments;
+// BOLA fix: reviewers (admin/cyber_tprm/procurement) manage all assessments;
 // a scoped stakeholder may only delete/resend assessments for vendors they created or
-// are linked to via vendor_onboarding_stakeholders.
+// are linked to via vendor_onboarding_stakeholders. Auditors read every assessment
+// but manage none: the POST handler below refuses them before this is reached.
 if (!function_exists('assessmentManageable')) {
-    function assessmentManageable($assessmentId, $isAdmin, $isCyberTPRM, $isProcurement, $isAuditor, $assessmentService, $user) {
-        if ($isAdmin || $isCyberTPRM || $isProcurement || $isAuditor) return true;
+    function assessmentManageable($assessmentId, $isAdmin, $isCyberTPRM, $isProcurement, $assessmentService, $user) {
+        if ($isAdmin || $isCyberTPRM || $isProcurement) return true;
         $a = $assessmentService->getAssessmentById((int)$assessmentId);
         if (!$a) return false;
         if ((int)($a['created_by'] ?? 0) === (int)$user['id']) return true;
@@ -72,7 +73,7 @@ if (!function_exists('assessmentManageable')) {
 // BOLA fix (OPE-036): a non-reviewer (e.g. stakeholder) may create an assessment
 // ONLY against a vendor onboarding request they created or are linked to as a
 // stakeholder. Reviewers (admin/cyber_tprm) are gated separately and skip this.
-// Auditors own no vendors, so this also keeps them from creating cross-vendor.
+// Auditors never reach it: the POST handler refuses them first.
 if (!function_exists('vendorRequestOwnedBy')) {
     function vendorRequestOwnedBy($db, $vendorRequestId, $userId) {
         $vrid = (int)$vendorRequestId;
@@ -98,6 +99,15 @@ $successHtml = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = t('vendor-assessments.invalid_request');
+    } elseif ($isAuditor) {
+        // SECURITY (authz): auditors are read-only on assessments. Hiding the
+        // New Assessment / Delete / Resend controls is not enough -- a forged POST
+        // could delete or resend any assessment, or create a vendor plus an
+        // assessment (emailing the vendor) via the new-vendor path. Any auditor
+        // membership makes this page read-only, matching the UI here and the
+        // assessment import APIs.
+        http_response_code(403);
+        $error = t('vendor-assessments.auditor_read_only');
     } elseif (isset($_POST['create_assessment'])) {
         // The "Download Fillable PDF" button reuses this handler but asks us
         // to redirect to the PDF endpoint instead of emailing and rendering a
@@ -313,7 +323,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (isset($_POST['delete_assessment'])) {
         // Nuke an assessment from orbit. It's the only way to be sure.
         $assessmentId = intval($_POST['assessment_id'] ?? 0);
-        if ($assessmentId && assessmentManageable($assessmentId, $isAdmin, $isCyberTPRM, $isProcurement, $isAuditor, $assessmentService, $user)) {
+        if ($assessmentId && assessmentManageable($assessmentId, $isAdmin, $isCyberTPRM, $isProcurement, $assessmentService, $user)) {
             try {
                 $auth->audit($user['id'], 'assessment_delete', 'vendor_assessments', $assessmentId);
                 $assessmentService->deleteAssessment($assessmentId);
@@ -330,7 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Vendor ghosted us? Hit 'em with a fresh link and reset the clock.
         // Extends the expiration by another 30 days because we're generous like that.
         $assessmentId = intval($_POST['assessment_id'] ?? 0);
-        if ($assessmentId && assessmentManageable($assessmentId, $isAdmin, $isCyberTPRM, $isProcurement, $isAuditor, $assessmentService, $user)) {
+        if ($assessmentId && assessmentManageable($assessmentId, $isAdmin, $isCyberTPRM, $isProcurement, $assessmentService, $user)) {
             try {
                 $assessmentService->resendAssessment($assessmentId, 30);
                 VendorAssessmentService::auditEvent($db, 'assessment_resend', $assessmentId, ['link_extended_days' => 30], (int)$user['id']);

@@ -1227,6 +1227,8 @@
 
     <h3>Notificaciones por correo electrónico</h3>
     <p>Cuando el correo electrónico está habilitado, cada nueva solicitud se envía por correo a todos los aprobadores que pueden ver todos los tenants, y cada decisión se envía por correo a la persona que la solicitó. Retirar una solicitud no envía nada. Los correos nombran el control y el tenant y enlazan al control, pero nunca nombran el hallazgo en sí, porque los hallazgos pueden identificar a personas. El texto se edita en <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Configuración de correo</span> &rarr; <strong>Shadow SaaS</strong> (plantillas <em>Posture Waiver Requested</em> y <em>Posture Waiver Decided</em>).</p>
+    <p>Para dejar de enviar estos correos, desmarque <span class="field-label">Enviar correos de exoneración de postura</span> en la misma pestaña. Las solicitudes y aprobaciones siguen funcionando; solo se dejan de enviar los correos.</p>
+    <p>Para enviar las nuevas solicitudes a direcciones concretas, por ejemplo un buzón compartido, escríbalas en <span class="field-label">Destinatarios de solicitudes de exoneración</span> en la misma pestaña, separadas por comas. Si ese campo está vacío, se escribe a cada aprobador que ve todos los tenants. Los correos de decisión siempre van al solicitante.</p>
 
     <h3>Permisos en Gestión de grupos ACL</h3>
     <p><span class="menu-label">Admin</span> &rarr; <span class="menu-label">Gestión de grupos ACL</span> muestra una sección <strong>Gestión de postura (Grip)</strong> con tres permisos:</p>

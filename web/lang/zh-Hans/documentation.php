@@ -1227,6 +1227,8 @@
 
     <h3>电子邮件通知</h3>
     <p>启用电子邮件后，每个新申请都会通过电子邮件发送给可查看所有租户的每位审批人，每项决定也会通过电子邮件发回给申请人。撤回申请不会发送任何邮件。邮件会注明检查和租户并链接到该检查，但绝不会注明发现本身，因为发现可能识别出具体人员。邮件措辞可在 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">邮件设置</span> &rarr; <strong>Shadow SaaS</strong> 下编辑（模板 <em>Posture Waiver Requested</em> 和 <em>Posture Waiver Decided</em>）。</p>
+    <p>如需停止这些邮件，请在同一标签页取消勾选 <span class="field-label">发送态势豁免邮件</span>。请求和审批仍照常进行，只是不再发送邮件。</p>
+    <p>如需将新请求发送到指定地址（例如共享邮箱），请在同一标签页的 <span class="field-label">豁免请求收件人</span> 中填写，用逗号分隔。该栏为空时，向每位可查看所有租户的审批人发送。审批结果邮件始终发送给申请人。</p>
 
     <h3>ACL 组管理中的权限</h3>
     <p><span class="menu-label">Admin</span> &rarr; <span class="menu-label">ACL 组管理</span> 会显示 <strong>态势管理（Grip）</strong> 部分，其中包含三项权限：</p>

@@ -1298,9 +1298,14 @@ class GripService
         return ['ok' => true, 'status' => 'approved', 'request' => $req];
     }
 
-    /** EmailService for waiver notices, or null when email is off / unavailable. */
+    /**
+     * EmailService for waiver notices, or null when they should not go out:
+     * waiver emails switched off (Admin > Email > Shadow SaaS,
+     * posture_waiver_email_enabled; default on), email disabled, or unavailable.
+     */
     private function waiverMailer(): ?EmailService
     {
+        if (getAppConfig('posture_waiver_email_enabled', '1') === '0') return null;
         try {
             require_once __DIR__ . '/EmailService.php';
             $m = new EmailService($this->db, $this->enc());
@@ -1312,9 +1317,27 @@ class GripService
     }
 
     /**
-     * Email every approver (postureWaiverApprovers, minus the requester) that
-     * $count finding(s) of $check were sent for approval. One email per
-     * approver per submission. Never throws; returns the number sent.
+     * Split a recipient list (commas, semicolons, spaces or new lines) into
+     * lowercase, de-duplicated addresses. Returns ['valid' => [...],
+     * 'invalid' => [...]] so the settings form can refuse a bad one by name.
+     */
+    public static function parseWaiverRecipients(string $raw): array
+    {
+        $valid = $invalid = [];
+        foreach (preg_split('/[\s,;]+/', $raw, -1, PREG_SPLIT_NO_EMPTY) as $a) {
+            $a = strtolower(trim($a));
+            if (filter_var($a, FILTER_VALIDATE_EMAIL)) $valid[$a] = true; else $invalid[] = $a;
+        }
+        return ['valid' => array_keys($valid), 'invalid' => array_values(array_unique($invalid))];
+    }
+
+    /**
+     * Email who should act on a new waiver request: the addresses configured
+     * in Admin > Email > Shadow SaaS (posture_waiver_email_recipients) when
+     * there are any, otherwise every approver who sees all tenants
+     * (postureWaiverApprovers). The requester is never emailed about their own
+     * request. One email per recipient per submission. Never throws; returns
+     * the number sent.
      */
     public function notifyPostureWaiverRequested(array $check, int $count, string $justification, ?string $expires, array $requester): int
     {
@@ -1329,10 +1352,16 @@ class GripService
             'justification'   => $justification,
             'review_url'      => baseUrl('shadow-saas-posture.php?id=' . rawurlencode((string)($check['uuid'] ?? ''))),
         ];
+        $configured = self::parseWaiverRecipients((string)getAppConfig('posture_waiver_email_recipients', ''))['valid'];
+        $to = $configured ?: array_values(array_map(
+            fn($a) => strtolower((string)$a['email']),
+            array_filter($this->postureWaiverApprovers(), fn($a) => (int)$a['id'] !== (int)($requester['id'] ?? 0))
+        ));
+        $self = strtolower((string)($requester['email'] ?? ''));
         $sent = 0;
-        foreach ($this->postureWaiverApprovers() as $a) {
-            if ((int)$a['id'] === (int)($requester['id'] ?? 0)) continue;
-            if (!empty($mail->sendPostureWaiverEmail('posture_waiver_requested', $plain, (string)$a['email'])['success'])) $sent++;
+        foreach (array_unique($to) as $addr) {
+            if ($addr === '' || $addr === $self) continue;
+            if (!empty($mail->sendPostureWaiverEmail('posture_waiver_requested', $plain, $addr)['success'])) $sent++;
         }
         return $sent;
     }

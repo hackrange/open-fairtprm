@@ -7034,6 +7034,12 @@ SELECT g.id, p.id FROM `acl_groups` g JOIN `acl_permissions` p
     OR (g.group_name = 'auditor' AND p.permission_code = 'posture.view')
     OR (g.group_name = 'posture_management' AND p.permission_code IN ('posture.view', 'posture.waiver_request'));
 
+-- On/off switch for the posture waiver emails (new request -> approvers,
+-- decision -> requester), on Admin > Email > Shadow SaaS. Default on.
+INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `description`) VALUES
+('posture_waiver_email_enabled', '1', 'Email approvers about new posture waiver requests and requesters about decisions (1 = on, 0 = off)'),
+('posture_waiver_email_recipients', '', 'Comma-separated addresses that receive new posture waiver requests; empty = every approver who sees all tenants');
+
 -- Which connected SaaS tenants (Grip SSPM integrations) a Posture Management
 -- member may see. A tenant is identified by Grip's integration type plus tenant
 -- id (the same tenant id can recur across integration types). Grants are
