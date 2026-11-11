@@ -790,6 +790,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Assigning groups right after creating a user no longer ends in a 403.**
+  On Admin > Users, the page shown after Create or Edit User is the result of
+  that form post. Saving group assignments then reloaded the page, which made
+  the browser re-send the create or edit form with its already-used security
+  token, and the server answered 403. The groups had been saved, but the admin
+  landed on an error page. Saving now returns to the Users page with a normal
+  page load, and a failed save shows "Failed to update user groups" instead of
+  failing silently.
 - **The dashboard now follows Profile > Dashboard Modules.** The selection was
   saved but never applied: the dashboard showed a fixed set of cards based on
   role (four for an administrator), and Annual Reviews and GRC Compliance had

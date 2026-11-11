@@ -835,7 +835,15 @@ $userGroupAssignments = $acl->getAllUserGroups();
             })
         });
 
-        window.location.reload();
+        if (!resp.ok) {
+            _savingGroups = false;
+            alert(<?php echo json_encode(t('admin_users.err_update_groups_failed')); ?>);
+            return;
+        }
+        // Navigate with a GET, never location.reload(): right after Create/Edit
+        // User this page is a POST result, and reloading it re-submits that form
+        // with its already-consumed CSRF token (HTTP 403).
+        window.location.replace('admin.php?section=users');
     }
 
     function confirmImpersonate(userId, fullName) {
