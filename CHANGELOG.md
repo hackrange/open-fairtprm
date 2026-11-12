@@ -790,6 +790,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Editing a user no longer removes roles they were given separately.**
+  Saving the Edit User form re-applied group memberships from its two admin
+  checkboxes every time, not only when a checkbox changed. Editing the name or
+  email of an administrator who held the role through the Administrator group
+  removed that group, and editing any Cyber TPRM member who was not an
+  administrator removed their Cyber TPRM role. Groups now change only when one
+  of the admin checkboxes actually changes.
+
 - **Assigning groups right after creating a user no longer ends in a 403.**
   On Admin > Users, the page shown after Create or Edit User is the result of
   that form post. Saving group assignments then reloaded the page, which made
@@ -1116,6 +1124,24 @@ project adheres to [Semantic Versioning](https://semver.org/).
   (verified by a byte-for-byte content hash across a down/up cycle).
 
 ### Security
+
+- **Only a Super Administrator can now manage administrator accounts.** An
+  administrator account is any user with the Administrator or Super
+  Administrator setting, or in the Administrator group. Before, any
+  administrator could act on another administrator who was not a super
+  administrator: edit their details or reset their password, change their
+  groups (including removing the Administrator group), deactivate, delete or
+  impersonate them. An administrator could also create new administrators by
+  importing users with `administrator` in the groups column, or by mapping an
+  identity provider group to the Administrator role under SAML. All of these
+  now require a Super Administrator, and the server enforces it. Ordinary
+  administrators still manage every other user and can still edit their own
+  name, email and password. A user import that asks for the Administrator
+  group still creates the user, but skips that group and says so in the
+  results. On the Users page, administrator rows no longer show Edit, Groups,
+  Impersonate, Deactivate or Delete to an administrator who is not a super
+  administrator, and the Administrator checkbox in the Groups dialog is
+  disabled for them.
 
 - **Auditors are now read-only on Vendor Assessments on the server, not just
   in the page.** The Vendor Assessments page hid the New Assessment, Delete

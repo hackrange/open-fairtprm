@@ -544,9 +544,10 @@ class Auth {
                 return ['success' => false, 'message' => 'User not found or inactive'];
             }
 
-            // Hierarchy check: regular admins can't impersonate super admins
-            if (!$isSuperAdmin && $targetUser['is_super_admin']) {
-                return ['success' => false, 'message' => 'Only super administrators can impersonate other super administrators'];
+            // Hierarchy check: only super admins may impersonate ANY admin account
+            // (Administrator flag, Super Administrator flag, or administrator group).
+            if (!$isSuperAdmin && ACL::getInstance()->isAdminAccount($targetUserId)) {
+                return ['success' => false, 'message' => 'Only super administrators can impersonate administrators'];
             }
 
             // Stash the current admin's session data so we can put Humpty Dumpty

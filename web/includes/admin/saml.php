@@ -121,6 +121,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_group_mapping']))
             $error = t('admin_saml.group_name_required');
         } elseif ($aclGroupId <= 0) {
             $error = t('admin_saml.select_acl_group');
+        } elseif (!Session::getInstance()->get('is_super_admin')
+                  && ($__g = $acl->getGroupById($aclGroupId)) && $__g['group_name'] === 'administrator') {
+            // SECURITY: a mapping to the administrator group makes every member of
+            // that IdP group an administrator at login; only super admins grant that.
+            $error = t('admin_saml.err_only_super_admin_mapping');
         } else {
             try {
                 // Check for duplicate
@@ -159,12 +164,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_group_mapping'
         $mappingId = intval($_POST['mapping_id'] ?? 0);
         if ($mappingId > 0) {
             try {
-                $mapping = $db->fetchOne('SELECT saml_group_name FROM saml_group_mappings WHERE id = :id', [':id' => $mappingId]);
+                $mapping = $db->fetchOne(
+                    'SELECT sgm.saml_group_name, ag.group_name FROM saml_group_mappings sgm
+                       LEFT JOIN acl_groups ag ON ag.id = sgm.acl_group_id WHERE sgm.id = :id',
+                    [':id' => $mappingId]
+                );
+                if ($mapping && ($mapping['group_name'] ?? '') === 'administrator' && !Session::getInstance()->get('is_super_admin')) {
+                    // SECURITY: only super admins change who becomes an administrator.
+                    throw new RuntimeException('admin_mapping_super_only');
+                }
+                unset($mapping['group_name']);
                 $db->delete('saml_group_mappings', 'id = :id', [':id' => $mappingId]);
                 $auth->audit($user['id'], 'saml_group_mapping_delete', 'saml_group_mappings', $mappingId, [
                     'old' => $mapping
                 ]);
                 $success = t('admin_saml.mapping_deleted');
+            } catch (RuntimeException $e) {
+                if ($e->getMessage() === 'admin_mapping_super_only') {
+                    $error = t('admin_saml.err_only_super_admin_mapping');
+                } else {
+                    error_log('Error deleting SAML group mapping: ' . $e->getMessage());
+                    $error = t('admin_saml.mapping_delete_failed');
+                }
             } catch (Exception $e) {
                 error_log('Error deleting SAML group mapping: ' . $e->getMessage());
                 $error = t('admin_saml.mapping_delete_failed');
@@ -592,11 +613,13 @@ document.querySelectorAll('[data-confirm]').forEach(function(form) {
                         <?php echo date('M j, Y', strtotime($mapping['created_at'])); ?>
                     </td>
                     <td style="text-align: center;">
+                        <?php if ($mapping['group_name'] !== 'administrator' || Session::getInstance()->get('is_super_admin')): ?>
                         <form method="POST" action="admin.php?section=saml" style="display: inline;" data-confirm="<?php echo e(t('admin_saml.remove_confirm')); ?>">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="mapping_id" value="<?php echo (int)$mapping['id']; ?>">
                             <button type="submit" name="delete_group_mapping" class="btn btn-sm" style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer;"><?php echo e(t('admin_saml.remove_button')); ?></button>
                         </form>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -618,6 +641,7 @@ document.querySelectorAll('[data-confirm]').forEach(function(form) {
                 <select id="acl_group_id" name="acl_group_id" class="form-control" required style="width: 100%;">
                     <option value=""><?php echo e(t('admin_saml.select_role_option')); ?></option>
                     <?php foreach ($allGroups as $group): ?>
+                        <?php if ($group['group_name'] === 'administrator' && !Session::getInstance()->get('is_super_admin')) continue; ?>
                         <option value="<?php echo (int)$group['id']; ?>"><?php echo e($group['display_name']); ?></option>
                     <?php endforeach; ?>
                 </select>

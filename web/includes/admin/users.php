@@ -108,6 +108,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif (!$callerIsSuperAdmin && ($__t = $db->fetchOne('SELECT is_super_admin FROM users WHERE id = ?', [$userId])) && !empty($__t['is_super_admin'])) {
                 // SECURITY: only super administrators may modify a super-admin account.
                 $error = t('admin_users.err_only_super_modify');
+            } elseif (!$callerIsSuperAdmin && $userId !== (int)$auth->getUserId() && $acl->isAdminAccount($userId)) {
+                // SECURITY: only super administrators manage administrator accounts
+                // (name, email, password included -- a password reset is a takeover).
+                $error = t('admin_users.err_only_super_manage_admins');
             } else {
                 $oldUser = $db->fetchOne('SELECT full_name, email, is_admin, is_super_admin FROM users WHERE id = ?', [$userId]);
                 // SECURITY: non-super-admins cannot grant or revoke admin / super-admin
@@ -135,20 +139,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'new' => $auditNew
                 ]);
 
-                // Sync ACL groups based on admin flags
+                // Sync ACL groups with the admin flags, but ONLY when a flag actually
+                // changed. Re-syncing on every save stripped roles granted another way:
+                // editing a group-only admin's email removed the administrator group,
+                // and editing any Cyber TPRM member's name removed cyber_tprm.
                 $adminGroup = $acl->getGroupByName('administrator');
                 $cyberGroup = $acl->getGroupByName('cyber_tprm');
+                $wasSuperAdmin = !empty($oldUser['is_super_admin']);
+                $wasAdmin = !empty($oldUser['is_admin']);
 
-                if ($isSuperAdmin && $adminGroup) {
-                    $acl->assignUserToGroup($userId, $adminGroup['id']);
-                } elseif (!$isSuperAdmin && $adminGroup) {
-                    $acl->removeUserFromGroup($userId, $adminGroup['id']);
+                if ($adminGroup && (bool)$isSuperAdmin !== $wasSuperAdmin) {
+                    if ($isSuperAdmin) {
+                        $acl->assignUserToGroup($userId, $adminGroup['id']);
+                    } else {
+                        $acl->removeUserFromGroup($userId, $adminGroup['id']);
+                    }
                 }
 
-                if ($isAdmin && $cyberGroup) {
-                    $acl->assignUserToGroup($userId, $cyberGroup['id']);
-                } elseif (!$isAdmin && $cyberGroup) {
-                    $acl->removeUserFromGroup($userId, $cyberGroup['id']);
+                if ($cyberGroup && (bool)$isAdmin !== $wasAdmin) {
+                    if ($isAdmin) {
+                        $acl->assignUserToGroup($userId, $cyberGroup['id']);
+                    } else {
+                        $acl->removeUserFromGroup($userId, $cyberGroup['id']);
+                    }
                 }
 
                 $success = t('admin_users.user_updated') . (!empty($newPassword) ? t('admin_users.password_reset_suffix') : '');
@@ -194,11 +207,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $toAdd = [];
                     $toRemove = [];
                     $error = t('admin_users.err_only_super_modify_groups');
+                } elseif ($userId !== (int)$auth->getUserId() && $acl->isAdminAccount($userId)) {
+                    // Cannot regroup another administrator account at all.
+                    $toAdd = [];
+                    $toRemove = [];
+                    $error = t('admin_users.err_only_super_manage_admins');
                 } else {
-                    // Cannot grant the administrator group (privilege escalation).
+                    // Cannot grant OR revoke the administrator group (privilege
+                    // escalation / demotion), not even on their own account.
                     $adminGroup = $acl->getGroupByName('administrator');
                     if ($adminGroup) {
                         $toAdd = array_diff($toAdd, [$adminGroup['id']]);
+                        $toRemove = array_diff($toRemove, [$adminGroup['id']]);
                     }
                 }
             }
@@ -296,6 +316,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } elseif (!$callerIsSuperAdmin && !empty($targetUser['is_super_admin'])) {
                     // SECURITY: only super administrators may activate/deactivate a super-admin.
                     $error = t('admin_users.err_only_super_change');
+                } elseif (!$callerIsSuperAdmin && $acl->isAdminAccount($toggleUserId)) {
+                    // SECURITY: only super administrators manage administrator accounts.
+                    $error = t('admin_users.err_only_super_manage_admins');
                 } else {
                     $newActive = $targetUser['is_active'] ? 0 : 1;
                     $db->update('users', ['is_active' => $newActive], 'id = :id', [':id' => $toggleUserId]);
@@ -329,6 +352,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } elseif (!$callerIsSuperAdmin && !empty($userToDelete['is_super_admin'])) {
                     // SECURITY: only super administrators may delete a super-admin.
                     $error = t('admin_users.err_only_super_delete');
+                } elseif (!$callerIsSuperAdmin && $acl->isAdminAccount($deleteUserId)) {
+                    // SECURITY: only super administrators manage administrator accounts.
+                    $error = t('admin_users.err_only_super_manage_admins');
                 } else {
                     $db->beginTransaction();
 
@@ -513,8 +539,18 @@ $userGroupAssignments = $acl->getAllUserGroups();
                     <?php endif; ?>
                 </td>
                 <td style="white-space: nowrap;">
+                    <?php
+                    // Only a super administrator manages admin accounts (flag or group).
+                    // UI mirror of the server-side checks above; the server enforces it.
+                    $__rowIsAdmin = !empty($u['is_admin']) || !empty($u['is_super_admin'])
+                        || in_array('administrator', $userGroupAssignments[$u['id']] ?? [], true);
+                    $__canManageRow = $session->get('is_super_admin') || !$__rowIsAdmin;
+                    $__isSelfRow = ((int)$u['id'] === (int)$user['id']);
+                    if ($__canManageRow || $__isSelfRow):
+                    ?>
                     <button class="btn btn-primary btn-sm" data-action="openEditModal" data-args="[<?php echo (int)$u['id']; ?>, <?php echo e(json_encode($u['full_name'])); ?>, <?php echo e(json_encode($u['email'])); ?>, <?php echo $u['is_admin'] ? 'true' : 'false'; ?>, <?php echo $u['is_super_admin'] ? 'true' : 'false'; ?>]"><?php echo e(t('admin_users.edit_btn')); ?></button>
                     <button class="btn btn-sm" style="background: #3b82f6; color: white;" data-action="openAssignGroupsModal" data-args="[<?php echo $u['id']; ?>, <?php echo e(json_encode($u['full_name'])); ?>, <?php echo e(json_encode($userGroupAssignments[$u['id']] ?? [])); ?>, <?php echo e(json_encode(array_values($postureGrants[(int)$u['id']] ?? []))); ?>]"><?php echo e(t('admin_users.groups')); ?></button>
+                    <?php endif; ?>
                     <?php
                     // Show impersonate button if:
                     // - Not impersonating currently
@@ -524,12 +560,12 @@ $userGroupAssignments = $acl->getAllUserGroups();
                     $canImpersonate = !$auth->isImpersonating()
                         && $u['is_active']
                         && $u['id'] != $auth->getUserId()
-                        && ($session->get('is_super_admin') || !$u['is_super_admin']);
+                        && $__canManageRow;
                     if ($canImpersonate):
                     ?>
                     <button class="btn btn-sm" style="background: #f59e0b; color: white;" data-action="confirmImpersonate" data-args="[<?php echo (int)$u['id']; ?>, <?php echo htmlspecialchars(json_encode($u['full_name']), ENT_QUOTES, 'UTF-8'); ?>]"><?php echo e(t('admin_users.impersonate_btn')); ?></button>
                     <?php endif; ?>
-                    <?php if ($u['id'] != $user['id']): ?>
+                    <?php if ($u['id'] != $user['id'] && $__canManageRow): ?>
                     <form method="POST" action="admin.php?section=users" style="display: inline;" data-confirm="<?php echo e(($u['is_active'] ? 'Deactivate' : 'Activate') . ' user ' . $u['full_name'] . '?'); ?>">
                         <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                         <input type="hidden" name="toggle_user_id" value="<?php echo (int)$u['id']; ?>">
@@ -634,7 +670,7 @@ $userGroupAssignments = $acl->getAllUserGroups();
                 <?php foreach ($allGroups as $group): ?>
                 <div class="form-group" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f0f0f0;">
                     <label class="checkbox-label" style="align-items: flex-start;">
-                        <input type="checkbox" class="group-checkbox" data-group-id="<?php echo $group['id']; ?>" data-group-name="<?php echo e($group['group_name']); ?>"<?php echo in_array((int)$group['id'], $postureViewGroupIds, true) ? ' data-posture="1"' : ''; ?> style="margin-top: 3px;">
+                        <input type="checkbox" class="group-checkbox" data-group-id="<?php echo $group['id']; ?>" data-group-name="<?php echo e($group['group_name']); ?>"<?php echo in_array((int)$group['id'], $postureViewGroupIds, true) ? ' data-posture="1"' : ''; ?><?php echo ($group['group_name'] === 'administrator' && !$session->get('is_super_admin')) ? ' disabled title="' . e(t('admin_users.err_only_super_manage_admins')) . '"' : ''; ?> style="margin-top: 3px;">
                         <div>
                             <strong><?php echo e($group['display_name']); ?></strong>
                             <div class="form-help"><?php echo e($group['description']); ?></div>

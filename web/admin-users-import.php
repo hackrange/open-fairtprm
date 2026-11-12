@@ -298,10 +298,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                         $validGroups = [];
                         $invalidGroups = [];
 
+                        $deniedGroups = [];
                         foreach ($groupNames as $gn) {
                             $gnLower = strtolower($gn);
                             if (isset($groupsByName[$gnLower])) {
-                                $validGroups[] = $groupsByName[$gnLower];
+                                // SECURITY: only super administrators may create
+                                // administrators, including through an import.
+                                if ($gnLower === 'administrator' && !Session::getInstance()->get('is_super_admin')) {
+                                    $deniedGroups[] = $gn;
+                                } else {
+                                    $validGroups[] = $groupsByName[$gnLower];
+                                }
                             } else {
                                 $invalidGroups[] = $gn;
                             }
@@ -346,6 +353,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                         }
                         if (!empty($invalidGroups)) {
                             $message .= ' [Invalid groups ignored: ' . implode(', ', $invalidGroups) . ']';
+                        }
+                        if (!empty($deniedGroups)) {
+                            $message .= ' [Not assigned, only a super administrator can grant: ' . implode(', ', $deniedGroups) . ']';
                         }
 
                         $successCount++;

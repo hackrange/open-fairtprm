@@ -310,6 +310,36 @@ class ACL {
      * @param string $groupName The group name to look up
      * @return array|null Group record or null
      */
+    /**
+     * Is this user an administrator account of any kind?
+     *
+     * Admin power comes from three places: the Super Administrator flag, the
+     * Administrator flag, or membership of the `administrator` group. Only a
+     * super administrator may create, edit, regroup, deactivate, delete or
+     * impersonate an account for which this returns true. Read from the DB
+     * every time (never the session), so it reflects the target user's
+     * current state, not the caller's.
+     *
+     * @param int $userId Target user ID
+     * @return bool True if the user holds admin power by flag or by group
+     */
+    public function isAdminAccount($userId) {
+        $userId = (int)$userId;
+        if ($userId <= 0) {
+            return false;
+        }
+        $row = $this->db->fetchOne(
+            "SELECT 1 AS a FROM users u
+              WHERE u.id = :id
+                AND (u.is_admin = 1 OR u.is_super_admin = 1 OR EXISTS (
+                     SELECT 1 FROM user_acl_groups ug
+                       JOIN acl_groups g ON g.id = ug.group_id
+                      WHERE ug.user_id = u.id AND g.group_name = 'administrator'))",
+            [':id' => $userId]
+        );
+        return !empty($row);
+    }
+
     public function getGroupByName($groupName) {
         return $this->db->fetchOne(
             'SELECT * FROM acl_groups WHERE group_name = :group_name',
