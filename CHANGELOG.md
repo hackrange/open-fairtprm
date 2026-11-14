@@ -12,6 +12,25 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Workflow rules: automatic assessments after onboarding, "Always" rules,
+  several targets, assessment chains.** Admin > Workflow Rules gains a
+  Trigger: "When an assessment template is completed" (as before) or "When a
+  vendor is approved". An approval rule fires once per vendor when its
+  onboarding is approved (from the vendor page or the procurement status
+  update) and assigns every assessment it lists, e.g. two audits by default.
+  A completion rule's Condition can now be "Always" (every completion) as well
+  as "Only when a question equals a value". A rule can create several
+  assessments at once (tick one or more targets). Assessments a rule creates
+  run their own rules when they are completed, so rules chain one assessment
+  to the next; a rule never re-creates a template already in that chain, so
+  two rules pointing at each other cannot loop, and a rule never fires twice
+  for the same assessment and target. The server re-checks every value: the
+  trigger and condition are allowlisted, templates must be active, the
+  question must belong to the source template, and a template can never be
+  its own target. Existing rules keep working unchanged. Schema:
+  `assessment_workflow_rules` gains `trigger_event` and `target_template_ids`;
+  `source_template_id`, `question_id` and `condition_value` become nullable.
+
 - **Posture Management role (Grip).** While the Grip Shadow SaaS integration
   is enabled, Admin > Users > Groups offers a new Posture Management group.
   Ticking it opens a picker of the connected SaaS tenants (the SSPM
@@ -790,6 +809,12 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Create / Edit Workflow Rule buttons off screen.** On common laptop and
+  desktop screens at 100% zoom (seen in Edge) the modal ran past the bottom of
+  the window with no scrollbar, so Create Rule / Update Rule could not be
+  clicked without zooming out. The modal now fits the window: the form scrolls
+  inside it and the Create/Update and Cancel buttons stay pinned in view.
+
 - **Editing a user no longer removes roles they were given separately.**
   Saving the Edit User form re-applied group memberships from its two admin
   checkboxes every time, not only when a checkbox changed. Editing the name or
@@ -1170,7 +1195,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
   the v2.6.1 base, so the image now runs PHP 8.5.12 (was 8.5.6), which fixes
   the two unauthenticated remote code execution flaws CVE-2026-109618 and
   CVE-2026-109619 ("PHP2Shell", released 2026-10-21), Apache
-  2.4.68 (was 2.4.67), OpenSSL 3.0.22 (was 3.0.19) and MariaDB 10.11.19 (was
+  2.4.71 (was 2.4.67; 2.4.68 until the 2026-11-14 rebuild picked up Debian's
+  2.4.71-1~deb12u1), OpenSSL 3.0.22 (was 3.0.19) and MariaDB 10.11.19 (was
   10.11.14), along with current Debian security revisions of glibc, curl,
   libxml2, Perl, sudo and the other base packages. These updates were picked
   up by rebuilds and were not recorded here before. Containers upgraded in

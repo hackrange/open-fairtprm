@@ -101,6 +101,15 @@ try {
                 'old' => ['status' => $req['status']],
                 'new' => ['status' => $newStatus, 'vendor_name' => $req['vendor_name'] ?? ''],
             ]);
+            if ($newStatus === 'approved') {
+                // Workflow rules "When a vendor is approved": create and send their assessments.
+                try {
+                    require_once __DIR__ . '/../includes/classes/VendorAssessmentService.php';
+                    (new VendorAssessmentService())->processVendorApprovedTriggers($rid, (int)$user['id']);
+                } catch (Throwable $e) {
+                    error_log('Vendor-approved workflow rules failed for vendor ' . $rid . ': ' . $e->getMessage());
+                }
+            }
         }
 
         $updated++;

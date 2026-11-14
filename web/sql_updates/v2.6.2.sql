@@ -198,11 +198,13 @@ CREATE TABLE IF NOT EXISTS `assessment_workflow_rules` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
-  `source_template_id` int(11) NOT NULL,
-  `question_id` int(11) NOT NULL,
+  `trigger_event` varchar(30) NOT NULL DEFAULT 'assessment_completed',
+  `source_template_id` int(11) DEFAULT NULL,
+  `question_id` int(11) DEFAULT NULL,
   `condition_operator` varchar(20) DEFAULT 'equals',
-  `condition_value` varchar(255) NOT NULL,
+  `condition_value` varchar(255) DEFAULT NULL,
   `target_template_id` int(11) NOT NULL,
+  `target_template_ids` text DEFAULT NULL,
   `assign_to` varchar(20) DEFAULT 'vendor',
   `is_active` tinyint(1) DEFAULT 1,
   `created_by` int(11) DEFAULT NULL,
@@ -5357,6 +5359,48 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.columns
    WHERE table_schema = DATABASE() AND table_name = 'assessment_sections' AND column_name = 'visible_roles') = 0,
   'ALTER TABLE `assessment_sections` ADD COLUMN `visible_roles` TEXT DEFAULT NULL AFTER `sort_order`',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+
+-- assessment_workflow_rules: trigger events, unconditional rules, several targets.
+-- trigger_event: 'assessment_completed' (source template completed) or
+-- 'vendor_approved' (vendor onboarding approved; no source template).
+-- condition_operator 'always' has no question/value, so those become NULLable.
+-- target_template_ids: JSON array of every target; target_template_id stays the
+-- first target so older code and rules keep working.
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'assessment_workflow_rules' AND column_name = 'trigger_event') = 0,
+  'ALTER TABLE `assessment_workflow_rules` ADD COLUMN `trigger_event` VARCHAR(30) NOT NULL DEFAULT ''assessment_completed''',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'assessment_workflow_rules' AND column_name = 'target_template_ids') = 0,
+  'ALTER TABLE `assessment_workflow_rules` ADD COLUMN `target_template_ids` TEXT DEFAULT NULL',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'assessment_workflow_rules' AND column_name = 'source_template_id' AND is_nullable = 'NO') = 1,
+  'ALTER TABLE `assessment_workflow_rules` MODIFY COLUMN `source_template_id` INT(11) DEFAULT NULL',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'assessment_workflow_rules' AND column_name = 'question_id' AND is_nullable = 'NO') = 1,
+  'ALTER TABLE `assessment_workflow_rules` MODIFY COLUMN `question_id` INT(11) DEFAULT NULL',
+  'DO 0'
+);
+PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'assessment_workflow_rules' AND column_name = 'condition_value' AND is_nullable = 'NO') = 1,
+  'ALTER TABLE `assessment_workflow_rules` MODIFY COLUMN `condition_value` VARCHAR(255) DEFAULT NULL',
   'DO 0'
 );
 PREPARE _stmt FROM @sql; EXECUTE _stmt; DEALLOCATE PREPARE _stmt;

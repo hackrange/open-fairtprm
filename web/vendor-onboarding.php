@@ -2260,6 +2260,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canProcessForm && !isset($_POST['u
                         'old' => ['status' => $request['status']],
                         'new' => ['status' => 'approved', 'vendor_name' => $request['vendor_name'] ?? '', 'review_due' => $reviewDueDate]
                     ]);
+                    // Workflow rules "When a vendor is approved": create and send their assessments.
+                    try {
+                        require_once __DIR__ . '/includes/classes/VendorAssessmentService.php';
+                        (new VendorAssessmentService())->processVendorApprovedTriggers($requestId, (int)$user['id']);
+                    } catch (Throwable $e) {
+                        error_log('Vendor-approved workflow rules failed for vendor ' . $requestId . ': ' . $e->getMessage());
+                    }
                     redirect('vendor-onboarding-list.php?success=approved');
                 } catch (Exception $e) {
                     error_log('Approve error: ' . $e->getMessage());

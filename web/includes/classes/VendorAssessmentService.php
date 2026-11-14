@@ -1114,222 +1114,369 @@ class VendorAssessmentService {
         return $result;
     }
 
+    /** Workflow rule trigger events. */
+    const RULE_EVENT_ASSESSMENT_COMPLETED = 'assessment_completed';
+    const RULE_EVENT_VENDOR_APPROVED      = 'vendor_approved';
+
+    /** How far up a chain of rule-created assessments the loop guard looks. */
+    const RULE_CHAIN_MAX_DEPTH = 50;
+
+    /**
+     * The target templates of a workflow rule, in order, without duplicates.
+     * target_template_ids (JSON array) holds the full list; target_template_id is
+     * the first target and is all that rules saved before multi-target support
+     * carry, so it is always included.
+     */
+    public static function ruleTargetTemplateIds(array $rule): array
+    {
+        $ids = [];
+        $primary = (int)($rule['target_template_id'] ?? 0);
+        if ($primary > 0) $ids[$primary] = $primary;
+        if (!empty($rule['target_template_ids'])) {
+            $decoded = json_decode((string)$rule['target_template_ids'], true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $v) {
+                    $v = (int)$v;
+                    if ($v > 0) $ids[$v] = $v;
+                }
+            }
+        }
+        return array_values($ids);
+    }
+
+    /**
+     * Whether a completed assessment's responses satisfy a rule's condition.
+     * 'always' rules have no question and match every completion; 'equals'
+     * rules compare the answer to the question (multi-select: contains).
+     */
+    private function ruleConditionMatches(array $rule, array $responses): bool
+    {
+        if (($rule['condition_operator'] ?? 'equals') === 'always') return true;
+
+        $qid = (int)($rule['question_id'] ?? 0);
+        if ($qid <= 0 || !isset($responses[$qid]) || empty($responses[$qid]['response_value'])) {
+            return false;
+        }
+        $responseValue  = $responses[$qid]['response_value'];
+        $conditionValue = (string)($rule['condition_value'] ?? '');
+
+        if (in_array($rule['question_type'] ?? '', ['checkbox', 'button_group_multi'], true)) {
+            $decoded = json_decode($responseValue, true);
+            return is_array($decoded) && in_array($conditionValue, $decoded);
+        }
+        return $responseValue === $conditionValue;
+    }
+
+    /**
+     * Template ids of an assessment and every assessment above it in its rule
+     * chain (triggered_by_assessment_id). A rule never creates a template that
+     * is already in the chain, so rules A -> B and B -> A cannot ping-pong a
+     * vendor with an endless series of assessments.
+     */
+    private function assessmentChainTemplateIds(array $assessment): array
+    {
+        $ids = [(int)$assessment['template_id'] => true];
+        $seen = [(int)$assessment['id'] => true];
+        $parentId = (int)($assessment['triggered_by_assessment_id'] ?? 0);
+        for ($depth = 0; $parentId > 0 && $depth < self::RULE_CHAIN_MAX_DEPTH; $depth++) {
+            if (isset($seen[$parentId])) break;
+            $seen[$parentId] = true;
+            $row = $this->db->fetchOne(
+                "SELECT id, template_id, triggered_by_assessment_id FROM vendor_assessments WHERE id = :id",
+                [':id' => $parentId]
+            );
+            if (!$row) break;
+            $ids[(int)$row['template_id']] = true;
+            $parentId = (int)($row['triggered_by_assessment_id'] ?? 0);
+        }
+        return $ids;
+    }
+
     /**
      * Process workflow rules when an assessment is completed.
      *
-     * Queries the assessment_workflow_rules table for active rules matching
-     * the completed assessment's template. For each rule, checks if the
-     * vendor's response to the specified question matches the condition value.
-     * If it matches, auto-creates a new assessment from the target template
-     * linked to the same vendor and emails them the link. Duplicate checks
-     * prevent the same rule from firing twice for the same assessment.
+     * Each active 'assessment_completed' rule on the completed assessment's
+     * template is checked: 'always' rules match every completion, 'equals'
+     * rules match when the vendor's answer to the rule's question equals the
+     * value. A matching rule creates one assessment per target template for the
+     * same vendor and emails it to the rule's recipient. A rule never fires
+     * twice for the same assessment and target, and never creates a template
+     * already in this assessment's chain (loop guard). Triggered assessments run
+     * this same check when they are completed, which is what chains them.
      */
     private function processAssessmentTriggers($assessmentId) {
         try {
             $assessment = $this->getAssessmentById($assessmentId);
             if (!$assessment) return;
 
-            // Find active workflow rules for this assessment's template
             $rules = $this->db->fetchAll(
-                "SELECT r.*, r.assign_to, q.question_type
+                "SELECT r.*, q.question_type
                  FROM assessment_workflow_rules r
-                 JOIN assessment_questions q ON r.question_id = q.id
+                 LEFT JOIN assessment_questions q ON r.question_id = q.id
                  WHERE r.source_template_id = :tid
-                   AND r.is_active = 1",
+                   AND r.is_active = 1
+                   AND COALESCE(r.trigger_event, 'assessment_completed') = 'assessment_completed'
+                 ORDER BY r.id",
                 [':tid' => $assessment['template_id']]
             );
-
             if (empty($rules)) return;
 
             $responses = $this->getResponses($assessmentId);
+            $chain = $this->assessmentChainTemplateIds($assessment);
+
+            // Resolve the vendor contact. The source assessment's vendor_email can be
+            // the internal requester (e.g. the stakeholder who initiated onboarding,
+            // since it defaults to the logged-in user's email at creation time). The
+            // vendor's actual contact is captured in the onboarding form and synced to
+            // vendor_onboarding_requests.primary_contact_email, so prefer that when the
+            // assessment is linked to an onboarding request.
+            $vendorContactEmail = $assessment['vendor_contact_email'] ?? null;
+            $vendorContactName  = $assessment['vendor_contact_name'] ?? null;
+            if (!empty($assessment['vendor_request_id'])) {
+                $onboardingContact = $this->db->fetchOne(
+                    "SELECT id, primary_contact_email, primary_contact_details
+                     FROM vendor_onboarding_requests WHERE id = ?",
+                    [$assessment['vendor_request_id']]
+                );
+                // The questionnaire respondent, when set as the default, wins.
+                $rcpt = $onboardingContact ? self::assessmentRecipientFor($this->db, $onboardingContact) : ['email' => ''];
+                if (!empty($rcpt['email'])) {
+                    $vendorContactEmail = $rcpt['email'];
+                    if (!empty($rcpt['name'])) {
+                        $vendorContactName = $rcpt['name'];
+                    } elseif ($rcpt['source'] === 'respondent') {
+                        $vendorContactName = null;
+                    }
+                }
+            }
+
+            $context = [
+                'vendor_request_id'          => $assessment['vendor_request_id'],
+                'vendor_name'                => $assessment['vendor_name'],
+                'vendor_email'               => $assessment['vendor_email'],
+                'vendor_contact_name'        => $vendorContactName,
+                'vendor_contact_email'       => $vendorContactEmail,
+                'prefill_contact_email'      => $assessment['vendor_contact_email'] ?? null,
+                'created_by'                 => $assessment['created_by'],
+                'triggered_by_assessment_id' => (int)$assessmentId,
+            ];
 
             foreach ($rules as $rule) {
-                $qid = (int)$rule['question_id'];
-                $targetTemplateId = (int)$rule['target_template_id'];
-                $conditionValue = $rule['condition_value'];
                 $ruleId = (int)$rule['id'];
+                if (!$this->ruleConditionMatches($rule, $responses)) continue;
 
-                // Check if this question was answered
-                if (!isset($responses[$qid]) || empty($responses[$qid]['response_value'])) {
-                    continue;
-                }
-
-                $responseValue = $responses[$qid]['response_value'];
-                $matched = false;
-
-                // For multi-select types, check if condition value is in the JSON array
-                if (in_array($rule['question_type'], ['checkbox', 'button_group_multi'])) {
-                    $decoded = json_decode($responseValue, true);
-                    if (is_array($decoded) && in_array($conditionValue, $decoded)) {
-                        $matched = true;
+                foreach (self::ruleTargetTemplateIds($rule) as $targetTemplateId) {
+                    if (isset($chain[$targetTemplateId])) {
+                        error_log("Workflow rule #{$ruleId} skipped template {$targetTemplateId} for assessment {$assessmentId}: already in this assessment chain");
+                        continue;
                     }
-                } else {
-                    // String match for radio/select/button_group/text
-                    if ($responseValue === $conditionValue) {
-                        $matched = true;
-                    }
-                }
-
-                if (!$matched) continue;
-
-                // Duplicate check: don't fire the same rule twice for the same assessment
-                $existing = $this->db->fetchOne(
-                    "SELECT id FROM vendor_assessments
-                     WHERE triggered_by_assessment_id = :aid
-                       AND triggered_by_rule_id = :rid",
-                    [':aid' => $assessmentId, ':rid' => $ruleId]
-                );
-                if ($existing) continue;
-
-                // Verify target template exists and is active
-                $targetTemplate = $this->db->fetchOne(
-                    "SELECT id FROM assessment_templates WHERE id = :id AND is_active = 1",
-                    [':id' => $targetTemplateId]
-                );
-                if (!$targetTemplate) continue;
-
-                // Create the triggered assessment
-                $uuid = $this->generateUUID();
-                $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
-                $assignTo = $rule['assign_to'] ?? 'vendor';
-
-                // Resolve the vendor contact. The source assessment's vendor_email can be
-                // the internal requester (e.g. the stakeholder who initiated onboarding,
-                // since it defaults to the logged-in user's email at creation time). The
-                // vendor's actual contact is captured in the onboarding form and synced to
-                // vendor_onboarding_requests.primary_contact_email, so prefer that when the
-                // assessment is linked to an onboarding request.
-                $vendorContactEmail = $assessment['vendor_contact_email'] ?? null;
-                $vendorContactName  = $assessment['vendor_contact_name'] ?? null;
-                if (!empty($assessment['vendor_request_id'])) {
-                    $onboardingContact = $this->db->fetchOne(
-                        "SELECT id, primary_contact_email, primary_contact_details
-                         FROM vendor_onboarding_requests WHERE id = ?",
-                        [$assessment['vendor_request_id']]
+                    // Don't fire the same rule twice for the same assessment and target.
+                    $existing = $this->db->fetchOne(
+                        "SELECT id FROM vendor_assessments
+                         WHERE triggered_by_assessment_id = :aid
+                           AND triggered_by_rule_id = :rid
+                           AND template_id = :tid",
+                        [':aid' => $assessmentId, ':rid' => $ruleId, ':tid' => $targetTemplateId]
                     );
-                    // The questionnaire respondent, when set as the default, wins.
-                    $rcpt = $onboardingContact ? self::assessmentRecipientFor($this->db, $onboardingContact) : ['email' => ''];
-                    if (!empty($rcpt['email'])) {
-                        $vendorContactEmail = $rcpt['email'];
-                        if (!empty($rcpt['name'])) {
-                            $vendorContactName = $rcpt['name'];
-                        } elseif ($rcpt['source'] === 'respondent') {
-                            $vendorContactName = null;
-                        }
-                    }
-                }
+                    if ($existing) continue;
 
-                $triggeredId = $this->db->insert('vendor_assessments', [
-                    'uuid' => $uuid,
-                    'template_id' => $targetTemplateId,
-                    'vendor_request_id' => $assessment['vendor_request_id'],
-                    'vendor_name' => $assessment['vendor_name'],
-                    'vendor_email' => $assessment['vendor_email'],
-                    'vendor_contact_name' => $vendorContactName,
-                    'vendor_contact_email' => $vendorContactEmail,
-                    'status' => 'pending',
-                    'expires_at' => $expiresAt,
-                    'triggered_by_assessment_id' => $assessmentId,
-                    'triggered_by_question_id' => $qid,
-                    'triggered_by_rule_id' => $ruleId,
-                    'created_by' => $assessment['created_by'],
-                ]);
-
-                // Carry forward answers from a prior completed assessment of the
-                // same (target) template for this vendor, just like manual creation.
-                try {
-                    $this->prefillFromPriorAssessment(
-                        $triggeredId,
-                        $targetTemplateId,
-                        $assessment['vendor_request_id'],
-                        $assessment['vendor_email'],
-                        $assessment['vendor_contact_email'] ?? null
-                    );
-                } catch (Exception $e) {
-                    error_log('Triggered assessment pre-fill failed: ' . $e->getMessage());
-                }
-
-                error_log("Workflow rule #{$ruleId} triggered assessment (template {$targetTemplateId}) from assessment {$assessmentId}, question {$qid}, value '{$conditionValue}', assign_to '{$assignTo}'");
-
-                // Send email notification based on the rule's assign_to setting
-                try {
-                    $assessmentUrl = baseUrl('vendor-assessment.php?token=' . $uuid);
-                    $recipientEmail = null;
-                    $recipientName = null;
-
-                    if ($assignTo === 'stakeholder' && $assessment['vendor_request_id']) {
-                        // Look up the assigned stakeholder for this vendor
-                        $stakeholder = $this->db->fetchOne(
-                            "SELECT u.email, u.full_name FROM vendor_onboarding_stakeholders vos
-                             JOIN users u ON vos.user_id = u.id
-                             WHERE vos.request_id = :rid AND vos.role = 'stakeholder'
-                             LIMIT 1",
-                            [':rid' => $assessment['vendor_request_id']]
-                        );
-                        if ($stakeholder) {
-                            $recipientEmail = $stakeholder['email'];
-                            $recipientName = $stakeholder['full_name'];
-                        }
-                    } elseif ($assignTo === 'creator' && $assessment['created_by']) {
-                        // Look up the admin who created the original assessment
-                        $creator = $this->db->fetchOne(
-                            "SELECT email, full_name FROM users WHERE id = :id",
-                            [':id' => $assessment['created_by']]
-                        );
-                        if ($creator) {
-                            $recipientEmail = $creator['email'];
-                            $recipientName = $creator['full_name'];
-                        }
-                    }
-
-                    // Default: send to vendor contact (resolved above, preferring the
-                    // onboarding request's primary contact over the source assessment's
-                    // vendor_email, which may be the internal requester's address).
-                    if (empty($recipientEmail)) {
-                        $recipientEmail = $vendorContactEmail ?: $assessment['vendor_email'];
-                        $recipientName = $vendorContactName;
-                    }
-
-                    if (!empty($recipientEmail) && filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
-                        require_once __DIR__ . '/EmailService.php';
-                        $encryption = new Encryption();
-                        $emailService = new EmailService($this->db, $encryption);
-
-                        if ($emailService->isEnabled()) {
-                            $fullName = $recipientName;
-                            if (!$fullName && $assessment['vendor_request_id']) {
-                                $onboardingRecord = $this->db->fetchOne(
-                                    "SELECT primary_contact_details FROM vendor_onboarding_requests WHERE id = ?",
-                                    [$assessment['vendor_request_id']]
-                                );
-                                $fullName = !empty($onboardingRecord['primary_contact_details']) ? $onboardingRecord['primary_contact_details'] : null;
-                            }
-
-                            $sent = $emailService->sendAssessmentEmail(
-                                $recipientEmail,
-                                $assessment['vendor_name'],
-                                $assessmentUrl,
-                                $recipientName,
-                                $targetTemplateId,
-                                $fullName,
-                                $expiresAt
-                            );
-                            self::auditEvent($this->db, !empty($sent['success']) ? 'assessment_sent' : 'assessment_send_failed', (int)$triggeredId, [
-                                'recipient_email' => $recipientEmail,
-                                'recipient_name'  => $recipientName,
-                                'trigger'         => 'workflow_rule',
-                                'workflow_rule_id' => (int)$ruleId,
-                                'error'           => !empty($sent['success']) ? null : ($sent['message'] ?? null),
-                            ]);
-                        }
-                    }
-                } catch (Exception $emailEx) {
-                    error_log('Workflow rule email failed: ' . $emailEx->getMessage());
+                    $ctx = $context;
+                    $ctx['triggered_by_question_id'] = (($rule['condition_operator'] ?? 'equals') === 'always')
+                        ? null : ((int)$rule['question_id'] ?: null);
+                    $this->createTriggeredAssessment($rule, $targetTemplateId, $ctx);
                 }
             }
         } catch (Exception $e) {
             error_log('Failed to process workflow rules: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Process 'vendor_approved' workflow rules for a vendor that has just been
+     * approved: each active rule creates its target assessments for the vendor
+     * and sends them. Each rule creates each target at most once per vendor, so
+     * re-approving a vendor (inactive -> approved) does not send them again.
+     * $approvedBy is the approving user; the new assessments are created as
+     * them and the 'creator' recipient is them. Returns the number created.
+     */
+    public function processVendorApprovedTriggers($vendorRequestId, $approvedBy = null) {
+        $created = 0;
+        $vendorRequestId = (int)$vendorRequestId;
+        if ($vendorRequestId <= 0) return 0;
+        try {
+            $rules = $this->db->fetchAll(
+                "SELECT r.* FROM assessment_workflow_rules r
+                 WHERE r.trigger_event = 'vendor_approved' AND r.is_active = 1
+                 ORDER BY r.id"
+            );
+            if (empty($rules)) return 0;
+
+            $vendor = $this->db->fetchOne(
+                "SELECT id, vendor_name, primary_contact_email, primary_contact_details, status
+                 FROM vendor_onboarding_requests WHERE id = :id",
+                [':id' => $vendorRequestId]
+            );
+            if (!$vendor || ($vendor['status'] ?? '') !== 'approved') return 0;
+
+            $rcpt = self::assessmentRecipientFor($this->db, $vendor);
+            $contactEmail = filter_var($rcpt['email'] ?? '', FILTER_VALIDATE_EMAIL) ? $rcpt['email'] : '';
+            $vendorName = trim((string)($vendor['vendor_name'] ?? '')) ?: ('Vendor #' . $vendorRequestId);
+
+            $context = [
+                'vendor_request_id'          => $vendorRequestId,
+                'vendor_name'                => $vendorName,
+                'vendor_email'               => $contactEmail,
+                'vendor_contact_name'        => $rcpt['name'] ?? null,
+                'vendor_contact_email'       => $contactEmail !== '' ? $contactEmail : null,
+                'prefill_contact_email'      => $contactEmail !== '' ? $contactEmail : null,
+                'created_by'                 => $approvedBy ? (int)$approvedBy : null,
+                'triggered_by_assessment_id' => null,
+                'triggered_by_question_id'   => null,
+            ];
+
+            foreach ($rules as $rule) {
+                $ruleId = (int)$rule['id'];
+                foreach (self::ruleTargetTemplateIds($rule) as $targetTemplateId) {
+                    $existing = $this->db->fetchOne(
+                        "SELECT id FROM vendor_assessments
+                         WHERE vendor_request_id = :vid
+                           AND triggered_by_rule_id = :rid
+                           AND template_id = :tid
+                           AND triggered_by_assessment_id IS NULL",
+                        [':vid' => $vendorRequestId, ':rid' => $ruleId, ':tid' => $targetTemplateId]
+                    );
+                    if ($existing) continue;
+                    if ($this->createTriggeredAssessment($rule, $targetTemplateId, $context)) $created++;
+                }
+            }
+        } catch (Exception $e) {
+            error_log('Failed to process vendor-approved workflow rules: ' . $e->getMessage());
+        }
+        return $created;
+    }
+
+    /**
+     * Create one rule-triggered assessment and email it to the rule's recipient
+     * (vendor contact, the vendor's stakeholder, or the creator). Returns the
+     * new assessment id, or 0 when the target template is missing or inactive.
+     */
+    private function createTriggeredAssessment(array $rule, $targetTemplateId, array $ctx) {
+        $ruleId = (int)$rule['id'];
+        $targetTemplateId = (int)$targetTemplateId;
+
+        $targetTemplate = $this->db->fetchOne(
+            "SELECT id FROM assessment_templates WHERE id = :id AND is_active = 1",
+            [':id' => $targetTemplateId]
+        );
+        if (!$targetTemplate) return 0;
+
+        $uuid = $this->generateUUID();
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
+        $assignTo = $rule['assign_to'] ?? 'vendor';
+        $vendorRequestId = $ctx['vendor_request_id'] ?: null;
+
+        $triggeredId = $this->db->insert('vendor_assessments', [
+            'uuid' => $uuid,
+            'template_id' => $targetTemplateId,
+            'vendor_request_id' => $vendorRequestId,
+            'vendor_name' => $ctx['vendor_name'],
+            'vendor_email' => (string)($ctx['vendor_email'] ?? ''),
+            'vendor_contact_name' => $ctx['vendor_contact_name'],
+            'vendor_contact_email' => $ctx['vendor_contact_email'],
+            'status' => 'pending',
+            'expires_at' => $expiresAt,
+            'triggered_by_assessment_id' => $ctx['triggered_by_assessment_id'],
+            'triggered_by_question_id' => $ctx['triggered_by_question_id'] ?? null,
+            'triggered_by_rule_id' => $ruleId,
+            'created_by' => $ctx['created_by'],
+        ]);
+
+        // Carry forward answers from a prior completed assessment of the
+        // same (target) template for this vendor, just like manual creation.
+        try {
+            $this->prefillFromPriorAssessment(
+                $triggeredId,
+                $targetTemplateId,
+                $vendorRequestId,
+                $ctx['vendor_email'],
+                $ctx['prefill_contact_email'] ?? null
+            );
+        } catch (Exception $e) {
+            error_log('Triggered assessment pre-fill failed: ' . $e->getMessage());
+        }
+
+        $source = $ctx['triggered_by_assessment_id'] ? ('assessment ' . (int)$ctx['triggered_by_assessment_id']) : ('approval of vendor ' . (int)$vendorRequestId);
+        error_log("Workflow rule #{$ruleId} created assessment {$triggeredId} (template {$targetTemplateId}) from {$source}, assign_to '{$assignTo}'");
+
+        // Send email notification based on the rule's assign_to setting
+        try {
+            $assessmentUrl = baseUrl('vendor-assessment.php?token=' . $uuid);
+            $recipientEmail = null;
+            $recipientName = null;
+
+            if ($assignTo === 'stakeholder' && $vendorRequestId) {
+                $stakeholder = self::stakeholderFor($this->db, (int)$vendorRequestId);
+                if ($stakeholder) {
+                    $recipientEmail = $stakeholder['email'];
+                    $recipientName = $stakeholder['name'];
+                }
+            } elseif ($assignTo === 'creator' && $ctx['created_by']) {
+                $creator = $this->db->fetchOne(
+                    "SELECT email, full_name FROM users WHERE id = :id",
+                    [':id' => $ctx['created_by']]
+                );
+                if ($creator) {
+                    $recipientEmail = $creator['email'];
+                    $recipientName = $creator['full_name'];
+                }
+            }
+
+            // Default: the vendor contact (resolved by the caller, preferring the
+            // onboarding request's respondent / primary contact).
+            if (empty($recipientEmail)) {
+                $recipientEmail = $ctx['vendor_contact_email'] ?: $ctx['vendor_email'];
+                $recipientName = $ctx['vendor_contact_name'];
+            }
+
+            if (!empty($recipientEmail) && filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+                require_once __DIR__ . '/EmailService.php';
+                $encryption = new Encryption();
+                $emailService = new EmailService($this->db, $encryption);
+
+                if ($emailService->isEnabled()) {
+                    $fullName = $recipientName;
+                    if (!$fullName && $vendorRequestId) {
+                        $onboardingRecord = $this->db->fetchOne(
+                            "SELECT primary_contact_details FROM vendor_onboarding_requests WHERE id = ?",
+                            [$vendorRequestId]
+                        );
+                        $fullName = !empty($onboardingRecord['primary_contact_details']) ? $onboardingRecord['primary_contact_details'] : null;
+                    }
+
+                    $sent = $emailService->sendAssessmentEmail(
+                        $recipientEmail,
+                        $ctx['vendor_name'],
+                        $assessmentUrl,
+                        $recipientName,
+                        $targetTemplateId,
+                        $fullName,
+                        $expiresAt
+                    );
+                    self::auditEvent($this->db, !empty($sent['success']) ? 'assessment_sent' : 'assessment_send_failed', (int)$triggeredId, [
+                        'recipient_email' => $recipientEmail,
+                        'recipient_name'  => $recipientName,
+                        'trigger'         => 'workflow_rule',
+                        'workflow_rule_id' => (int)$ruleId,
+                        'workflow_event'  => $rule['trigger_event'] ?? self::RULE_EVENT_ASSESSMENT_COMPLETED,
+                        'error'           => !empty($sent['success']) ? null : ($sent['message'] ?? null),
+                    ]);
+                }
+            }
+        } catch (Exception $emailEx) {
+            error_log('Workflow rule email failed: ' . $emailEx->getMessage());
+        }
+
+        return (int)$triggeredId;
     }
 
     /**
