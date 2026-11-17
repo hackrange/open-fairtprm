@@ -12,6 +12,15 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Customizable risk scoring.** Admin > Risk Scoring (new section under
+  Configuration) lets administrators set the thresholds, display labels, and
+  colors for each risk band (Critical / High / Medium / Low), rename all five
+  likelihood levels and five consequence/impact levels, and relabel the seven
+  risk categories. Changes take effect immediately across the Risk Register,
+  FairScore heatmap, and risk creation forms — no restart required. All values
+  are validated server-side and stored in `app_config`; a Reset to Defaults
+  button reverts everything in one click.
+
 - **Workflow rules: automatic assessments after onboarding, "Always" rules,
   several targets, assessment chains.** Admin > Workflow Rules gains a
   Trigger: "When an assessment template is completed" (as before) or "When a

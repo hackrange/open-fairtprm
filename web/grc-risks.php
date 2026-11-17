@@ -37,25 +37,16 @@ $grc = GRCService::getInstance();
 $msg = '';
 $msgType = '';
 
-// Enum mappings
-$likelihoodOptions = [
-    'rare' => t('grc-risks.opt_likelihood_rare'),
-    'unlikely' => t('grc-risks.opt_likelihood_unlikely'),
-    'possible' => t('grc-risks.opt_likelihood_possible'),
-    'likely' => t('grc-risks.opt_likelihood_likely'),
-    'almost_certain' => t('grc-risks.opt_likelihood_almost_certain'),
-];
-$impactOptions = [
-    'insignificant' => t('grc-risks.opt_impact_insignificant'),
-    'minor' => t('grc-risks.opt_impact_minor'),
-    'moderate' => t('grc-risks.opt_impact_moderate'),
-    'major' => t('grc-risks.opt_impact_major'),
-    'catastrophic' => t('grc-risks.opt_impact_catastrophic'),
-];
+// Risk scoring config (thresholds, labels, colors, axis display names)
+$rc = getRiskConfig();
+
+// Enum mappings — display labels from config, internal keys unchanged
+$likelihoodOptions = $rc['likelihood_labels'];
+$impactOptions     = $rc['impact_labels'];
 $likelihoodNumeric = ['rare' => 1, 'unlikely' => 2, 'possible' => 3, 'likely' => 4, 'almost_certain' => 5];
 $impactNumeric = ['insignificant' => 1, 'minor' => 2, 'moderate' => 3, 'major' => 4, 'catastrophic' => 5];
 
-$categoryOptions = ['strategic', 'operational', 'financial', 'compliance', 'reputational', 'technology', 'third_party'];
+$categoryOptions = array_keys($rc['category_labels']);
 $statusOptions = ['identified', 'assessing', 'treating', 'monitoring', 'closed'];
 $treatmentOptions = ['accept', 'mitigate', 'transfer', 'avoid'];
 
@@ -338,10 +329,10 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
         .detail-item .value { color: #333; }
 
         .risk-score { display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 14px; }
-        .risk-score.critical { background: #991b1b; color: #fff; }
-        .risk-score.high { background: #dc3545; color: #fff; }
-        .risk-score.medium { background: #f59e0b; color: #fff; }
-        .risk-score.low { background: #28a745; color: #fff; }
+        .risk-score.critical { background: <?php echo e($rc['colors']['critical']); ?>; color: #fff; }
+        .risk-score.high     { background: <?php echo e($rc['colors']['high']);     ?>; color: #fff; }
+        .risk-score.medium   { background: <?php echo e($rc['colors']['medium']);   ?>; color: #fff; }
+        .risk-score.low      { background: <?php echo e($rc['colors']['low']);      ?>; color: #fff; }
 
         .autosave-status { font-size: 12px; color: #28a745; margin-left: 12px; }
 
@@ -351,11 +342,10 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
         .heatmap { display: grid; grid-template-columns: 30px repeat(5, 1fr); grid-template-rows: repeat(5, 1fr) 30px; gap: 2px; max-width: 350px; }
         .heatmap-cell { display: flex; align-items: center; justify-content: center; min-height: 50px; border-radius: 4px; font-size: 14px; font-weight: 600; color: #fff; }
         .heatmap-label { display: flex; align-items: center; justify-content: center; font-size: 10px; color: #6b7280; font-weight: 600; }
-        .hc-green { background: #28a745; }
-        .hc-yellow { background: #f59e0b; }
-        .hc-orange { background: #f97316; }
-        .hc-red { background: #dc3545; }
-        .hc-darkred { background: #991b1b; }
+        .hc-critical { background: <?php echo e($rc['colors']['critical']); ?>; }
+        .hc-high     { background: <?php echo e($rc['colors']['high']);     ?>; }
+        .hc-medium   { background: <?php echo e($rc['colors']['medium']);   ?>; }
+        .hc-low      { background: <?php echo e($rc['colors']['low']);      ?>; }
 
         .footer-modern, .bg-gray-13 {
             background-color: var(--theme-footer-color) !important;
@@ -439,26 +429,26 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
             <div class="detail-card">
                 <h3><?php echo e($riskDetail['risk_ref']); ?> - <?php echo e($riskDetail['title']); ?></h3>
                 <div class="detail-grid">
-                    <div class="detail-item"><div class="label"><?php echo e(t('grc-risks.category')); ?></div><div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $riskDetail['risk_category'] ?? '-'))); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-risks.category')); ?></div><div class="value"><?php echo e($rc['category_labels'][$riskDetail['risk_category'] ?? ''] ?? ucfirst(str_replace('_', ' ', $riskDetail['risk_category'] ?? '-'))); ?></div></div>
                     <div class="detail-item"><div class="label"><?php echo e(t('grc-risks.status')); ?></div><div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $riskDetail['status'] ?? '-'))); ?></div></div>
                     <div class="detail-item"><div class="label"><?php echo e(t('grc-risks.owner')); ?></div><div class="value"><?php echo e($riskDetail['owner_name'] ?? '-'); ?></div></div>
                     <div class="detail-item"><div class="label"><?php echo e(t('grc-risks.treatment')); ?></div><div class="value"><?php echo e(ucfirst($riskDetail['risk_treatment'] ?? '-')); ?></div></div>
                     <div class="detail-item">
                         <div class="label"><?php echo e(t('grc-risks.likelihood')); ?></div>
-                        <div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $riskDetail['likelihood'] ?? '-'))); ?></div>
+                        <div class="value"><?php echo e($rc['likelihood_labels'][$riskDetail['likelihood'] ?? ''] ?? ucfirst(str_replace('_', ' ', $riskDetail['likelihood'] ?? '-'))); ?></div>
                     </div>
                     <div class="detail-item">
                         <div class="label"><?php echo e(t('grc-risks.impact')); ?></div>
-                        <div class="value"><?php echo e(ucfirst(str_replace('_', ' ', $riskDetail['impact'] ?? '-'))); ?></div>
+                        <div class="value"><?php echo e($rc['impact_labels'][$riskDetail['impact'] ?? ''] ?? ucfirst(str_replace('_', ' ', $riskDetail['impact'] ?? '-'))); ?></div>
                     </div>
                     <div class="detail-item">
                         <div class="label"><?php echo e(t('grc-risks.inherent_risk_score')); ?></div>
                         <div class="value">
                             <?php
                             $iScore = (float)($riskDetail['inherent_risk_score'] ?? 0);
-                            $iClass = $iScore >= 20 ? 'critical' : ($iScore >= 12 ? 'high' : ($iScore >= 6 ? 'medium' : 'low'));
+                            $iClass = riskScoreClass($iScore, $rc);
                             ?>
-                            <span class="risk-score <?php echo $iClass; ?>"><?php echo number_format($iScore, 0); ?></span>
+                            <span class="risk-score <?php echo $iClass; ?>" title="<?php echo e($rc['labels'][$iClass]); ?>"><?php echo number_format($iScore, 0); ?></span>
                         </div>
                     </div>
                     <div class="detail-item">
@@ -466,9 +456,9 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                         <div class="value">
                             <?php
                             $rScore = (float)($riskDetail['residual_risk_score'] ?? 0);
-                            $rClass = $rScore >= 20 ? 'critical' : ($rScore >= 12 ? 'high' : ($rScore >= 6 ? 'medium' : 'low'));
+                            $rClass = riskScoreClass($rScore, $rc);
                             ?>
-                            <span class="risk-score <?php echo $rClass; ?>"><?php echo number_format($rScore, 0); ?></span>
+                            <span class="risk-score <?php echo $rClass; ?>" title="<?php echo e($rc['labels'][$rClass]); ?>"><?php echo number_format($rScore, 0); ?></span>
                         </div>
                     </div>
                     <?php if (!empty($riskDetail['review_date'])): ?>
@@ -536,7 +526,7 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                             <label for="risk_category"><?php echo e(t('grc-risks.category')); ?></label>
                             <select id="risk_category" name="risk_category">
                                 <?php foreach ($categoryOptions as $cat): ?>
-                                <option value="<?php echo e($cat); ?>" <?php echo ($riskDetail['risk_category'] ?? 'compliance') === $cat ? 'selected' : ''; ?>><?php echo e(ucfirst(str_replace('_', ' ', $cat))); ?></option>
+                                <option value="<?php echo e($cat); ?>" <?php echo ($riskDetail['risk_category'] ?? 'compliance') === $cat ? 'selected' : ''; ?>><?php echo e($rc['category_labels'][$cat] ?? ucfirst(str_replace('_', ' ', $cat))); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -638,19 +628,11 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                 <div style="text-align:center;font-size:11px;color:#6b7280;margin-bottom:4px;"><?php echo e(t('grc-risks.impact')); ?> &rarr;</div>
                 <div class="heatmap">
                     <?php
-                    function getHeatColor($l, $i) {
-                        $s = $l * $i;
-                        if ($s >= 20) return 'hc-darkred';
-                        if ($s >= 12) return 'hc-red';
-                        if ($s >= 6) return 'hc-orange';
-                        if ($s >= 3) return 'hc-yellow';
-                        return 'hc-green';
-                    }
                     for ($l = 5; $l >= 1; $l--):
                     ?>
                     <div class="heatmap-label"><?php echo $l; ?></div>
                     <?php for ($i = 1; $i <= 5; $i++): ?>
-                    <div class="heatmap-cell <?php echo getHeatColor($l, $i); ?>" data-likelihood="<?php echo $l; ?>" data-impact="<?php echo $i; ?>" title="<?php echo e(t('grc-risks.likelihood')); ?> <?php echo $l; ?>, <?php echo e(t('grc-risks.impact')); ?> <?php echo $i; ?>"><?php echo $heatmapData[$l][$i] > 0 ? $heatmapData[$l][$i] : ''; ?></div>
+                    <div class="heatmap-cell <?php echo riskHeatColor($l, $i, $rc); ?>" data-likelihood="<?php echo $l; ?>" data-impact="<?php echo $i; ?>" title="<?php echo e(t('grc-risks.likelihood')); ?> <?php echo $l; ?>, <?php echo e(t('grc-risks.impact')); ?> <?php echo $i; ?>"><?php echo $heatmapData[$l][$i] > 0 ? $heatmapData[$l][$i] : ''; ?></div>
                     <?php endfor; ?>
                     <?php endfor; ?>
                     <div class="heatmap-label"></div>
@@ -679,7 +661,7 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                 <select id="filterCategory">
                     <option value=""><?php echo e(t('grc-risks.all_categories')); ?></option>
                     <?php foreach ($categoryOptions as $cat): ?>
-                    <option value="<?php echo e($cat); ?>"><?php echo e(ucfirst(str_replace('_', ' ', $cat))); ?></option>
+                    <option value="<?php echo e($cat); ?>"><?php echo e($rc['category_labels'][$cat] ?? ucfirst(str_replace('_', ' ', $cat))); ?></option>
                     <?php endforeach; ?>
                 </select>
                 <select id="filterLikelihood">
@@ -726,8 +708,8 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                     <?php foreach ($risks as $r):
                         $iScore = (float)($r['inherent_risk_score'] ?? 0);
                         $rScore = (float)($r['residual_risk_score'] ?? 0);
-                        $iClass = $iScore >= 20 ? 'critical' : ($iScore >= 12 ? 'high' : ($iScore >= 6 ? 'medium' : 'low'));
-                        $rClass = $rScore >= 20 ? 'critical' : ($rScore >= 12 ? 'high' : ($rScore >= 6 ? 'medium' : 'low'));
+                        $iClass = riskScoreClass($iScore, $rc);
+                        $rClass = riskScoreClass($rScore, $rc);
                         // Build control names for this risk
                         $rowControlNames = '';
                         if (!empty($r['control_ids'])) {
@@ -744,12 +726,12 @@ if ($riskDetail && !empty($riskDetail['control_ids'])) {
                     <tr class="risk-row" data-title="<?php echo e(strtolower($r['title'])); ?>" data-controls="<?php echo e(strtolower($rowControlNames)); ?>" data-likelihood="<?php echo $rowLikelihood; ?>" data-impact="<?php echo $rowImpact; ?>" data-ref="<?php echo e($r['risk_ref']); ?>" data-category="<?php echo e($r['risk_category'] ?? ''); ?>" data-owner="<?php echo e(strtolower($r['owner_name'] ?? '')); ?>" data-inherent="<?php echo $iScore; ?>" data-residual="<?php echo $rScore; ?>" data-treatment="<?php echo e($r['risk_treatment'] ?? ''); ?>" data-status="<?php echo e($r['status'] ?? ''); ?>">
                         <td><a href="grc-risks.php?view=<?php echo (int)$r['id']; ?>" style="color:#3b82f6;text-decoration:none;font-weight:500;"><?php echo e($r['risk_ref']); ?></a></td>
                         <td><?php echo e($r['title']); ?></td>
-                        <td><?php echo e(ucfirst(str_replace('_', ' ', $r['risk_category'] ?? '-'))); ?></td>
+                        <td><?php echo e($rc['category_labels'][$r['risk_category'] ?? ''] ?? ucfirst(str_replace('_', ' ', $r['risk_category'] ?? '-'))); ?></td>
                         <td><?php echo e($r['owner_name'] ?? '-'); ?></td>
-                        <td><?php echo e(ucfirst(str_replace('_', ' ', $r['likelihood'] ?? '-'))); ?></td>
-                        <td><?php echo e(ucfirst(str_replace('_', ' ', $r['impact'] ?? '-'))); ?></td>
-                        <td><span class="risk-score <?php echo $iClass; ?>"><?php echo number_format($iScore, 0); ?></span></td>
-                        <td><span class="risk-score <?php echo $rClass; ?>"><?php echo number_format($rScore, 0); ?></span></td>
+                        <td><?php echo e($rc['likelihood_labels'][$r['likelihood'] ?? ''] ?? ucfirst(str_replace('_', ' ', $r['likelihood'] ?? '-'))); ?></td>
+                        <td><?php echo e($rc['impact_labels'][$r['impact'] ?? ''] ?? ucfirst(str_replace('_', ' ', $r['impact'] ?? '-'))); ?></td>
+                        <td><span class="risk-score <?php echo $iClass; ?>" title="<?php echo e($rc['labels'][$iClass]); ?>"><?php echo number_format($iScore, 0); ?></span></td>
+                        <td><span class="risk-score <?php echo $rClass; ?>" title="<?php echo e($rc['labels'][$rClass]); ?>"><?php echo number_format($rScore, 0); ?></span></td>
                         <td><?php echo e(ucfirst($r['risk_treatment'] ?? '-')); ?></td>
                         <td><?php echo e(ucfirst(str_replace('_', ' ', $r['status'] ?? '-'))); ?></td>
                         <?php if (!$readOnly): ?>

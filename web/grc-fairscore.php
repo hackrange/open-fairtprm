@@ -58,7 +58,8 @@ if ($selectedId > 0) {
     }
 }
 
-// Risk heatmap data
+// Risk scoring config and heatmap data
+$rc = getRiskConfig();
 $likelihoodNumeric = ['rare' => 1, 'unlikely' => 2, 'possible' => 3, 'likely' => 4, 'almost_certain' => 5];
 $impactNumeric = ['insignificant' => 1, 'minor' => 2, 'moderate' => 3, 'major' => 4, 'catastrophic' => 5];
 $heatmapData = [];
@@ -254,11 +255,10 @@ $csrfToken = $security->generateCSRFToken();
         .heatmap { display: grid; grid-template-columns: 30px repeat(5, 1fr); grid-template-rows: repeat(5, 1fr) 30px; gap: 2px; max-width: 400px; }
         .heatmap-cell { display: flex; align-items: center; justify-content: center; min-height: 55px; border-radius: 4px; font-size: 14px; font-weight: 600; color: #fff; }
         .heatmap-label { display: flex; align-items: center; justify-content: center; font-size: 10px; color: #6b7280; font-weight: 600; }
-        .hc-green { background: #28a745; }
-        .hc-yellow { background: #f59e0b; }
-        .hc-orange { background: #f97316; }
-        .hc-red { background: #dc3545; }
-        .hc-darkred { background: #991b1b; }
+        .hc-critical { background: <?php echo e($rc['colors']['critical']); ?>; }
+        .hc-high     { background: <?php echo e($rc['colors']['high']);     ?>; }
+        .hc-medium   { background: <?php echo e($rc['colors']['medium']);   ?>; }
+        .hc-low      { background: <?php echo e($rc['colors']['low']);      ?>; }
 
         /* Gap analysis table */
         .gap-table { width: 100%; border-collapse: collapse; }
@@ -531,19 +531,11 @@ $csrfToken = $security->generateCSRFToken();
                 <div style="text-align:left;font-size:11px;color:#6b7280;margin-bottom:4px;"><?php echo e(t('grc-fairscore.impact')); ?> &rarr;</div>
                 <div class="heatmap">
                     <?php
-                    function getHeatColor($l, $i) {
-                        $s = $l * $i;
-                        if ($s >= 20) return 'hc-darkred';
-                        if ($s >= 12) return 'hc-red';
-                        if ($s >= 6) return 'hc-orange';
-                        if ($s >= 3) return 'hc-yellow';
-                        return 'hc-green';
-                    }
                     for ($l = 5; $l >= 1; $l--):
                     ?>
                     <div class="heatmap-label"><?php echo $l; ?></div>
                     <?php for ($i = 1; $i <= 5; $i++): ?>
-                    <div class="heatmap-cell <?php echo getHeatColor($l, $i); ?>"><?php echo $heatmapData[$l][$i] > 0 ? $heatmapData[$l][$i] : ''; ?></div>
+                    <div class="heatmap-cell <?php echo riskHeatColor($l, $i, $rc); ?>"><?php echo $heatmapData[$l][$i] > 0 ? $heatmapData[$l][$i] : ''; ?></div>
                     <?php endfor; ?>
                     <?php endfor; ?>
                     <div class="heatmap-label"></div>

@@ -94,6 +94,7 @@ $sectionFiles = [
     'assessment-templates' => 'assessment-templates.php',
     'field-reference' => 'field-reference.php',
     'workflows' => 'workflows.php',
+    'risk-scoring' => 'risk-scoring.php',
     'scheduler' => 'scheduler.php',
     'lockdown'  => 'lockdown.php',
 ];
@@ -450,12 +451,13 @@ if ($originalMethod !== 'POST' || !empty($success)) {
                 </div>
 
                 <div class="sidebar-content">
-                    <details class="sidebar-section"<?php echo in_array($section, ['general', 'fair', 'email']) ? ' open' : ''; ?>>
+                    <details class="sidebar-section"<?php echo in_array($section, ['general', 'fair', 'email', 'risk-scoring']) ? ' open' : ''; ?>>
                         <summary class="sidebar-section-title"><?php echo e(t('admin.section_configuration')); ?></summary>
                         <ul class="sidebar-nav">
                             <li><a href="?section=general" class="<?php echo $section === 'general' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/settings-02.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_general')); ?></span></a></li>
                             <li><a href="?section=fair" class="<?php echo $section === 'fair' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/bar-chart-11.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_fair_defaults')); ?></span></a></li>
                             <li><a href="?section=email" class="<?php echo $section === 'email' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/mail-04.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_email_settings')); ?></span></a></li>
+                            <li><a href="?section=risk-scoring" class="<?php echo $section === 'risk-scoring' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/bar-chart-11.svg" alt="" width="18" height="18"></span><span>Risk Scoring</span></a></li>
                         </ul>
                     </details>
 

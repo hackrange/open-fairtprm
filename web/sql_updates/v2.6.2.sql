@@ -7131,5 +7131,39 @@ CREATE TABLE IF NOT EXISTS `shadow_saas_posture_waiver_requests` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
+-- Risk scoring configuration defaults (configurable via Admin → Risk Scoring)
+-- INSERT IGNORE: safe to run on existing installs; does not overwrite custom values.
+-- =============================================================================
+INSERT IGNORE INTO app_config (config_key, config_value, is_encrypted, description) VALUES
+('risk_threshold_critical', '20', 0, 'Risk score threshold for Critical band'),
+('risk_threshold_high',     '12', 0, 'Risk score threshold for High band'),
+('risk_threshold_medium',    '6', 0, 'Risk score threshold for Medium band'),
+('risk_label_critical',  'Critical',  0, 'Display label for Critical risk band'),
+('risk_label_high',      'High',      0, 'Display label for High risk band'),
+('risk_label_medium',    'Medium',    0, 'Display label for Medium risk band'),
+('risk_label_low',       'Low',       0, 'Display label for Low risk band'),
+('risk_color_critical',  '#991b1b',   0, 'Hex color for Critical band'),
+('risk_color_high',      '#dc3545',   0, 'Hex color for High band'),
+('risk_color_medium',    '#f59e0b',   0, 'Hex color for Medium band'),
+('risk_color_low',       '#28a745',   0, 'Hex color for Low band'),
+('risk_likelihood_rare',           'Rare',           0, ''),
+('risk_likelihood_unlikely',       'Unlikely',       0, ''),
+('risk_likelihood_possible',       'Possible',       0, ''),
+('risk_likelihood_likely',         'Likely',         0, ''),
+('risk_likelihood_almost_certain', 'Almost Certain', 0, ''),
+('risk_impact_insignificant', 'Insignificant', 0, ''),
+('risk_impact_minor',         'Minor',         0, ''),
+('risk_impact_moderate',      'Moderate',      0, ''),
+('risk_impact_major',         'Major',         0, ''),
+('risk_impact_catastrophic',  'Catastrophic',  0, ''),
+('risk_category_strategic',    'Strategic',    0, ''),
+('risk_category_operational',  'Operational',  0, ''),
+('risk_category_financial',    'Financial',    0, ''),
+('risk_category_compliance',   'Compliance',   0, ''),
+('risk_category_reputational', 'Reputational', 0, ''),
+('risk_category_technology',   'Technology',   0, ''),
+('risk_category_third_party',  'Third Party',  0, '');
+
+-- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

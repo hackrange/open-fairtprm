@@ -493,9 +493,9 @@ Description: <2-3 sentence factual description>'],
                 }
             }
 
-            // Calculate inherent risk score
-            $lNum = ['rare' => 1, 'unlikely' => 2, 'possible' => 3, 'likely' => 4, 'almost_certain' => 5];
-            $iNum = ['insignificant' => 1, 'minor' => 2, 'moderate' => 3, 'major' => 4, 'catastrophic' => 5];
+            // Calculate inherent risk score using the same numeric scale as the UI
+            static $lNum = ['rare' => 1, 'unlikely' => 2, 'possible' => 3, 'likely' => 4, 'almost_certain' => 5];
+            static $iNum = ['insignificant' => 1, 'minor' => 2, 'moderate' => 3, 'major' => 4, 'catastrophic' => 5];
             $inherentScore = ($lNum[$likelihood] ?? 3) * ($iNum[$impact] ?? 3);
 
             // Insert into grc_risk_register

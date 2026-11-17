@@ -672,6 +672,134 @@ function safeColor($color, $default) {
 }
 
 /**
+ * Returns the full risk-scoring configuration, merging app_config overrides onto
+ * built-in defaults. Cached for the life of the request via a static variable.
+ * All keys are validated on the way out (colors via safeColor, thresholds as int).
+ */
+function getRiskConfig(): array {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+
+    $defaults = [
+        'risk_threshold_critical'        => '20',
+        'risk_threshold_high'            => '12',
+        'risk_threshold_medium'          => '6',
+        'risk_label_critical'            => 'Critical',
+        'risk_label_high'                => 'High',
+        'risk_label_medium'              => 'Medium',
+        'risk_label_low'                 => 'Low',
+        'risk_color_critical'            => '#991b1b',
+        'risk_color_high'                => '#dc3545',
+        'risk_color_medium'              => '#f59e0b',
+        'risk_color_low'                 => '#28a745',
+        'risk_likelihood_rare'           => 'Rare',
+        'risk_likelihood_unlikely'       => 'Unlikely',
+        'risk_likelihood_possible'       => 'Possible',
+        'risk_likelihood_likely'         => 'Likely',
+        'risk_likelihood_almost_certain' => 'Almost Certain',
+        'risk_impact_insignificant'      => 'Insignificant',
+        'risk_impact_minor'              => 'Minor',
+        'risk_impact_moderate'           => 'Moderate',
+        'risk_impact_major'              => 'Major',
+        'risk_impact_catastrophic'       => 'Catastrophic',
+        'risk_category_strategic'        => 'Strategic',
+        'risk_category_operational'      => 'Operational',
+        'risk_category_financial'        => 'Financial',
+        'risk_category_compliance'       => 'Compliance',
+        'risk_category_reputational'     => 'Reputational',
+        'risk_category_technology'       => 'Technology',
+        'risk_category_third_party'      => 'Third Party',
+    ];
+
+    $merged = $defaults;
+    try {
+        $db = Database::getInstance();
+        $rows = $db->fetchAll("SELECT config_key, config_value FROM app_config WHERE config_key LIKE 'risk_%'");
+        foreach ($rows as $row) {
+            // Only accept keys we know about — prevents injecting unexpected keys.
+            if (array_key_exists($row['config_key'], $defaults)) {
+                $merged[$row['config_key']] = $row['config_value'];
+            }
+        }
+    } catch (Exception $e) {
+        error_log('getRiskConfig: DB read failed, using defaults. ' . $e->getMessage());
+    }
+
+    $t = [
+        'critical' => max(1, (int)$merged['risk_threshold_critical']),
+        'high'     => max(1, (int)$merged['risk_threshold_high']),
+        'medium'   => max(1, (int)$merged['risk_threshold_medium']),
+    ];
+    // Enforce ordering: critical > high > medium to prevent nonsensical configs.
+    $t['high']   = min($t['high'],   $t['critical'] - 1);
+    $t['medium'] = min($t['medium'], $t['high'] - 1);
+    foreach ($t as &$v) { $v = max(1, $v); }
+    unset($v);
+
+    $cache = [
+        'thresholds' => $t,
+        'labels' => [
+            'critical' => $merged['risk_label_critical'],
+            'high'     => $merged['risk_label_high'],
+            'medium'   => $merged['risk_label_medium'],
+            'low'      => $merged['risk_label_low'],
+        ],
+        'colors' => [
+            'critical' => safeColor($merged['risk_color_critical'], '#991b1b'),
+            'high'     => safeColor($merged['risk_color_high'],     '#dc3545'),
+            'medium'   => safeColor($merged['risk_color_medium'],   '#f59e0b'),
+            'low'      => safeColor($merged['risk_color_low'],      '#28a745'),
+        ],
+        'likelihood_labels' => [
+            'rare'           => $merged['risk_likelihood_rare'],
+            'unlikely'       => $merged['risk_likelihood_unlikely'],
+            'possible'       => $merged['risk_likelihood_possible'],
+            'likely'         => $merged['risk_likelihood_likely'],
+            'almost_certain' => $merged['risk_likelihood_almost_certain'],
+        ],
+        'impact_labels' => [
+            'insignificant' => $merged['risk_impact_insignificant'],
+            'minor'         => $merged['risk_impact_minor'],
+            'moderate'      => $merged['risk_impact_moderate'],
+            'major'         => $merged['risk_impact_major'],
+            'catastrophic'  => $merged['risk_impact_catastrophic'],
+        ],
+        'category_labels' => [
+            'strategic'    => $merged['risk_category_strategic'],
+            'operational'  => $merged['risk_category_operational'],
+            'financial'    => $merged['risk_category_financial'],
+            'compliance'   => $merged['risk_category_compliance'],
+            'reputational' => $merged['risk_category_reputational'],
+            'technology'   => $merged['risk_category_technology'],
+            'third_party'  => $merged['risk_category_third_party'],
+        ],
+    ];
+    return $cache;
+}
+
+/** Returns the CSS class name (critical|high|medium|low) for a numeric risk score. */
+function riskScoreClass(float $score, array $rc): string {
+    $t = $rc['thresholds'];
+    if ($score >= $t['critical']) return 'critical';
+    if ($score >= $t['high'])     return 'high';
+    if ($score >= $t['medium'])   return 'medium';
+    return 'low';
+}
+
+/**
+ * Returns the heatmap CSS class (hc-critical|hc-high|hc-medium|hc-low) for a
+ * likelihood × impact cell. Uses configurable thresholds from getRiskConfig().
+ */
+function riskHeatColor(int $l, int $i, array $rc): string {
+    $s = $l * $i;
+    $t = $rc['thresholds'];
+    if ($s >= $t['critical']) return 'hc-critical';
+    if ($s >= $t['high'])     return 'hc-high';
+    if ($s >= $t['medium'])   return 'hc-medium';
+    return 'hc-low';
+}
+
+/**
  * Loads the user's theme settings with a layered fallback system.
  *
  * Priority order:
