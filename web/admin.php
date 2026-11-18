@@ -470,7 +470,7 @@ if ($originalMethod !== 'POST' || !empty($success)) {
                             <li><a href="?section=api-management" class="<?php echo in_array($section, ['api-management', 'api-tokens']) ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/key-01.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_restful_api')); ?></span></a></li>
                             <li><a href="?section=srs" class="<?php echo $section === 'srs' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_srs')); ?></span></a></li>
                             <li><a href="?section=shadow-saas" class="<?php echo $section === 'shadow-saas' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_shadow_saas')); ?></span></a></li>
-                            <li><a href="?section=embed-tokens" class="<?php echo $section === 'embed-tokens' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/link-external-02.svg" alt="" width="18" height="18"></span><span>Embed Tokens</span></a></li>
+                            <li><a href="?section=embed-tokens" class="<?php echo $section === 'embed-tokens' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/globe-01.svg" alt="" width="18" height="18"></span><span>Embed Tokens</span></a></li>
                         </ul>
                     </details>
 

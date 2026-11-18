@@ -467,22 +467,21 @@ $currentVersion = getAppVersion();
 // ============================================================================
 if ($isDocker):
 
+// Registry host is hard-locked to the official registry — never user-supplied.
+// Accepting docker_registry_host from POST (even with CSRF protection) would
+// let a threat actor trick an admin into upgrading from a malicious registry.
+// If the host needs to change for a deployment, it is set here in code, not
+// through the UI.
 $registryHost = $defaultRegistryHost;
+unset($_SESSION['docker_registry_host']); // clear any poisoned value from old sessions
+
 $registryUser = '';
 $registryPass = '';
 
-// Pick up values from POST (form submit) or fall back to session
-if (isset($_POST['docker_registry_host']) && trim($_POST['docker_registry_host']) !== '') {
-    $registryHost = trim($_POST['docker_registry_host']);
-    $registryUser = trim($_POST['docker_registry_user'] ?? '');
-    $registryPass = $_POST['docker_registry_pass'] ?? '';
-
-    // Store in session — credentials are encrypted at rest
-    $_SESSION['docker_registry_host'] = $registryHost;
-    $_SESSION['docker_registry_user'] = $registryUser !== '' ? encryptForSession($registryUser) : '';
-    $_SESSION['docker_registry_pass'] = $registryPass !== '' ? encryptForSession($registryPass) : '';
-} elseif (isset($_SESSION['docker_registry_host'])) {
-    $registryHost = $_SESSION['docker_registry_host'];
+// Credentials (optional, for authenticated registries) are picked up from
+// session only — they are written there by the CSRF-protected POST handler
+// below, never from raw POST outside that block.
+if (isset($_SESSION['docker_registry_user'])) {
     $registryUser = !empty($_SESSION['docker_registry_user']) ? decryptFromSession($_SESSION['docker_registry_user']) : '';
     $registryPass = !empty($_SESSION['docker_registry_pass']) ? decryptFromSession($_SESSION['docker_registry_pass']) : '';
 }
@@ -531,6 +530,14 @@ $upgradeLog = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$security->validateCSRFToken($_POST['csrf_token'])) {
         $error = t('admin_version.err_invalid_request');
+    } elseif (isset($_POST['save_registry_credentials'])) {
+        // Credentials are saved inside the CSRF block so a forged cross-site
+        // POST cannot inject registry credentials into the admin's session.
+        $registryUser = trim($_POST['docker_registry_user'] ?? '');
+        $registryPass = $_POST['docker_registry_pass'] ?? '';
+        $_SESSION['docker_registry_user'] = $registryUser !== '' ? encryptForSession($registryUser) : '';
+        $_SESSION['docker_registry_pass'] = $registryPass !== '' ? encryptForSession($registryPass) : '';
+        $success = t('admin_version.registry_creds_saved');
     } elseif (isset($_POST['perform_docker_upgrade']) || isset($_POST['perform_docker_redeploy'])) {
         // Redeploy re-pulls and re-applies the CURRENTLY installed version. It exists
         // for the case where a fix was published under the same tag (a rolling re-push):
@@ -1041,31 +1048,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!-- Update Server -->
 <div class="card">
     <h3><?php echo e(t('admin_version.update_server_heading')); ?></h3>
-    <form method="POST" action="admin.php?section=version">
-        <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
-        <div class="form-group">
-            <label for="docker_registry_host"><?php echo e(t('admin_version.registry_hostname_label')); ?></label>
-            <input type="text" id="docker_registry_host" name="docker_registry_host" class="form-control" style="max-width: 500px;"
-                   value="<?php echo e($registryHost); ?>"
-                   placeholder="dockerregistry.fairtprm.com">
-            <div class="form-help"><?php echo e(t('admin_version.registry_hostname_help')); ?></div>
-        </div>
-        <div style="display: flex; gap: 15px; max-width: 500px;">
-            <div class="form-group" style="flex: 1;">
-                <label for="docker_registry_user"><?php echo e(t('admin_version.username_label')); ?> <span style="color: #999; font-weight: 400;"><?php echo e(t('admin_version.optional_note')); ?></span></label>
-                <input type="text" id="docker_registry_user" name="docker_registry_user" class="form-control"
-                       value="<?php echo e($registryUser); ?>"
-                       placeholder="<?php echo e(t('admin_version.username_placeholder')); ?>" autocomplete="off">
+    <p style="color: #555; font-size: 13px; margin: 0 0 14px;">
+        Registry: <strong><?php echo e($registryHost); ?></strong>
+    </p>
+    <?php if ($registryUser !== ''): ?>
+        <p style="color: #555; font-size: 13px; margin: 0 0 14px;">Authenticated as: <strong><?php echo e($registryUser); ?></strong></p>
+    <?php endif; ?>
+    <!-- Credentials form (host is locked — only user/pass are editable) -->
+    <details style="margin-bottom: 16px;">
+        <summary style="cursor: pointer; font-size: 13px; color: #6b7280;">Registry credentials (optional)</summary>
+        <form method="POST" action="admin.php?section=version" style="margin-top: 12px;">
+            <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+            <input type="hidden" name="save_registry_credentials" value="1">
+            <div style="display: flex; gap: 15px; max-width: 500px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="docker_registry_user"><?php echo e(t('admin_version.username_label')); ?></label>
+                    <input type="text" id="docker_registry_user" name="docker_registry_user" class="form-control"
+                           value="<?php echo e($registryUser); ?>"
+                           placeholder="<?php echo e(t('admin_version.username_placeholder')); ?>" autocomplete="off">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="docker_registry_pass"><?php echo e(t('admin_version.password_label')); ?></label>
+                    <input type="password" id="docker_registry_pass" name="docker_registry_pass" class="form-control"
+                           value=""
+                           placeholder="<?php echo e(t('admin_version.password_placeholder')); ?>" autocomplete="off">
+                </div>
             </div>
-            <div class="form-group" style="flex: 1;">
-                <label for="docker_registry_pass"><?php echo e(t('admin_version.password_label')); ?> <span style="color: #999; font-weight: 400;"><?php echo e(t('admin_version.optional_note')); ?></span></label>
-                <input type="password" id="docker_registry_pass" name="docker_registry_pass" class="form-control"
-                       value="<?php echo e($registryPass); ?>"
-                       placeholder="<?php echo e(t('admin_version.password_placeholder')); ?>" autocomplete="off">
-            </div>
-        </div>
-        <button type="submit" class="btn btn-primary"><?php echo e(t('admin_version.check_for_updates_button')); ?></button>
-    </form>
+            <button type="submit" class="btn btn-secondary" style="font-size: 13px; padding: 6px 14px;">Save credentials</button>
+        </form>
+    </details>
     <?php if ($registryError && $registryErrMsg): ?>
         <div class="alert alert-danger" style="margin-top: 10px;"><?php echo e($registryErrMsg); ?></div>
     <?php endif; ?>

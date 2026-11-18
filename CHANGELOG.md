@@ -10,6 +10,10 @@ project adheres to [Semantic Versioning](https://semver.org/).
 > **Stable.** `2.6.2` is the current stable release, superseding `2.6.1`. It
 > ships to the `v2.6.2` image tag and to both the `master` and `2.6.2` branches.
 
+### Security
+
+- **Upgrader registry host locked.** The in-app upgrader previously accepted a `docker_registry_host` POST parameter outside the CSRF-protected block, letting a threat actor inject an attacker-controlled registry into an admin's session. The registry host is now hard-locked to `dockerregistry.fairtprm.com` in code and cannot be changed through the UI. Any value previously stored in the session is cleared on page load. Registry credentials are now saved only inside the CSRF-protected form action.
+
 ### Added
 
 - **Iframe embed tokens.** Super admins can create signed embed tokens under Admin &rarr; Integrations &rarr; Embed Tokens. Each token generates a bootstrap URL (`/embed-auth.php?token=...&return=/`) that intranet portals such as Assembly can use as an iframe src. The embed session uses a separate cookie (`tprm_embed`) with `SameSite=None; Secure` so browsers accept it in cross-site iframes. The main app's `SameSite=Strict` session cookie is unchanged. The embed URL is shown exactly once at creation; tokens can be revoked at any time from the same admin page.
