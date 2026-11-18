@@ -167,6 +167,13 @@
         <tr><td><strong><a href="#admin-risk-scoring">Modelos de maturidade configuráveis (SSE-CMM / CMMI)</a></strong></td><td>Escolha uma escala de maturidade de 4 ou 5 níveis, renomeie cada nível e aplique um preset SSE-CMM com um clique. A escala padrão de 4 níveis permanece completamente inalterada quando o recurso está desativado.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#workflow-rules">Regras de fluxo de trabalho</a></strong></td><td>Acione automaticamente avaliações e outras ações quando um fornecedor é aprovado. Defina condições (sempre, por nível), adicione múltiplos alvos e crie cadeias de múltiplas etapas.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#alternate-stakeholders">Partes interessadas alternativas</a></strong></td><td>Atribua uma parte interessada reserva a um fornecedor. A alternativa tem o mesmo acesso de visualização e tarefas que a principal, mas não pode reatribuir partes interessadas, transferir o fornecedor ou gerenciar outras alternativas.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#dashboard-modules">Seleção de módulos do painel</a></strong></td><td>Personalize quais blocos aparecem no seu painel (até 10). As alterações são por usuário.</td><td>Todos os Usuários</td></tr>
+        <tr><td><strong><a href="#shadow-saas-requests">Método de solicitação Shadow SaaS</a></strong></td><td>Envie e gerencie solicitações de dispensa de SaaS diretamente no FairTPRM sem sair da plataforma.</td><td>Admins, Usuários TPRM</td></tr>
+        <tr><td><strong><a href="#assessment-respondent">Respondente da avaliação</a></strong></td><td>Defina um destinatário padrão do questionário por fornecedor na aba Custom Data.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#assessment-stakeholder-copy">Enviar avaliação às partes interessadas</a></strong></td><td>Opcionalmente inclua a parte interessada em cópia ao enviar uma avaliação de fornecedor.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#admin-ai-costs">Estimador de custos de IA</a></strong></td><td>Taxas de custo por plataforma e um limite de gasto mensal que pausa os recursos de IA quando atingido.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#shadow-saas-privacy-alerts">Alertas de privacidade Shadow SaaS</a></strong></td><td>Alertas por e-mail quando a classificação de risco de privacidade avaliada por IA de um aplicativo aumentar.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-super-admin">Nível de conta super-administrador</a></strong></td><td>Somente Super Admins podem criar, editar ou excluir outras contas de administrador.</td><td>Super Admins</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>Como saber qual versão estou usando?</strong> Os administradores podem ir a <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> para ver a versão instalada. Este guia descreve a <strong>v2.6.2</strong>. Consulte <a href="#admin-updates">Atualizando a Plataforma</a>.
@@ -868,6 +875,23 @@
     <p>Cada etapa aciona fluxos de trabalho, notificações e ações necessárias apropriadas.</p>
 </div>
 
+<div class="doc-section" id="assessment-respondent">
+    <h2>Respondente da Avaliação <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Cada fornecedor pode ter um <strong>Respondente do Questionário</strong> designado -- um contato específico que recebe avaliações de segurança em vez (ou além) do contato principal do fornecedor.</p>
+    <h3>Definindo o respondente</h3>
+    <p>Abra a aba <span class="menu-label">Custom Data</span> de um fornecedor e role até a seção <span class="field-label">Questionnaire Respondent</span>. Insira um nome e endereço de e-mail, marque <span class="field-label">Use as the default recipient for this vendor's assessments</span> e salve.</p>
+    <p>Quando a caixa de seleção estiver marcada, todas as avaliações futuras enviadas a este fornecedor irão para o e-mail do respondente. O respondente pode ser alterado a qualquer momento; as avaliações em andamento existentes não são afetadas.</p>
+    <div class="callout callout-info">
+        <strong>Dica:</strong> Use isso quando o questionário de segurança deve ser enviado a um contato técnico específico (ex.: um CISO ou gerente de TI) em vez do endereço de e-mail principal do fornecedor cadastrado.
+    </div>
+</div>
+
+<div class="doc-section" id="assessment-stakeholder-copy">
+    <h2>Enviar Avaliação às Partes Interessadas <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Ao criar ou enviar uma avaliação, uma opção <span class="field-label">Also send to stakeholder</span> aparece no formulário de Criar Avaliação e no botão Enviar Avaliação. Quando marcada, o e-mail de notificação da avaliação também é enviado à parte interessada atribuída ao fornecedor e a quaisquer partes interessadas alternativas.</p>
+    <p>Isso é útil quando a avaliação vai para um respondente do fornecedor, mas você deseja que sua equipe interna tenha visibilidade de que ela foi enviada -- sem precisar verificar a plataforma manualmente.</p>
+</div>
+
 <div class="doc-section" id="tprm-assessments">
     <h2>Avaliações de Fornecedores</h2>
     <p>As avaliações de fornecedores são questionários de segurança enviados aos fornecedores para avaliar sua postura de segurança. Navegue até <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Assessments</span> para gerenciá-las.</p>
@@ -977,6 +1001,36 @@
         <li>Escolha um <span class="field-label">Assessment Template</span> e uma janela de <span class="field-label">Expires In</span> (14, 30, 60 ou 90 dias), depois clique em <span class="btn-label">Assign Assessment</span>.</li>
     </ol>
     <p>Cada fornecedor selecionado recebe o questionário por e-mail (uma solicitação de informações), e um lembrete é rastreado para que os acompanhamentos saiam automaticamente. Fornecedores sem e-mail em arquivo são ignorados, e qualquer envio que falhe é tentado novamente pelo trabalho de lembrete. O mesmo fluxo <strong>Assign Assessment</strong> está disponível nas visualizações de concentração de tecnologia e de CVE.</p>
+</div>
+
+<div class="doc-section" id="shadow-saas-requests">
+    <h2>Método de Solicitação Shadow SaaS <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Por padrão, quando um aplicativo Shadow SaaS é descartado, a justificativa é tratada dentro do Grip. Com o método de solicitação FairTPRM habilitado, os usuários enviam justificativas de dispensa diretamente no FairTPRM -- sem necessidade de sair da plataforma.</p>
+    <h3>Habilitando solicitações FairTPRM</h3>
+    <p>Navegue até <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> e defina <span class="field-label">Request Method</span> como <strong>FairTPRM</strong>. Salve.</p>
+    <h3>Como funciona</h3>
+    <ul>
+        <li>Um botão <strong>Request Dismissal</strong> aparece nas linhas de aplicativos Shadow SaaS.</li>
+        <li>Os usuários preenchem uma justificativa e uma data de expiração opcional, depois enviam.</li>
+        <li>Os administradores revisam as solicitações pendentes em <span class="menu-label">Shadow SaaS</span> &rarr; <span class="menu-label">Requests</span>.</li>
+        <li><strong>Aprovar</strong> -- descarta o aplicativo no FairTPRM e sincroniza a decisão de volta ao Grip.</li>
+        <li><strong>Rejeitar</strong> -- mantém o aplicativo visível (sem sincronização com o Grip).</li>
+        <li><strong>Negar</strong> -- marca o aplicativo como negado e sincroniza de volta ao Grip.</li>
+    </ul>
+    <div class="callout callout-info">
+        As decisões aprovadas e negadas são sincronizadas de volta ao Grip automaticamente. O cron de lembretes usa um campo de destinatário separado -- não defina o e-mail de contato do fornecedor no fluxo de solicitação.
+    </div>
+</div>
+
+<div class="doc-section" id="shadow-saas-privacy-alerts">
+    <h2>Alertas de Privacidade Shadow SaaS <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Navegue até <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email</span> &rarr; aba <span class="menu-label">Shadow SaaS</span> para configurar alertas de aumento de risco de privacidade.</p>
+    <p>Quando habilitado, uma notificação por e-mail é enviada a uma lista de destinatários sempre que a classificação de risco de privacidade avaliada por IA de um aplicativo aumentar. Você pode escolher:</p>
+    <ul>
+        <li><strong>Qualquer aumento</strong> -- alertar sempre que a classificação aumentar (ex.: Baixo para Médio, ou Médio para Alto).</li>
+        <li><strong>Somente para Alto</strong> -- alertar apenas quando a classificação atingir Alto.</li>
+    </ul>
+    <p>Os destinatários são inseridos como uma lista separada por vírgulas de endereços de e-mail. Isso é útil para equipes de segurança que desejam notificação proativa quando o risco de privacidade de um aplicativo Shadow SaaS piorar.</p>
 </div>
 
 <div class="doc-section" id="tprm-shadow-saas">
@@ -1323,6 +1377,25 @@
 <!-- ================================================================
      ADMIN PORTAL
      ================================================================ -->
+<div class="doc-section" id="dashboard-modules">
+    <h2>Seleção de Módulos do Painel <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Cada usuário pode escolher quais blocos aparecem em seu painel. Navegue até <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Profile</span> &rarr; <span class="menu-label">Dashboard Modules</span> (ou sua página de perfil) e selecione até 10 módulos.</p>
+    <h3>Módulos disponíveis</h3>
+    <ul>
+        <li><strong>Risk Overview</strong> -- riscos abertos por faixa e tendência.</li>
+        <li><strong>Vendor Summary</strong> -- contagens de fornecedores por nível e status.</li>
+        <li><strong>Assessment Status</strong> -- avaliações pendentes, em andamento e concluídas.</li>
+        <li><strong>Compliance Score</strong> -- maturidade GRC atual e percentual de conformidade.</li>
+        <li><strong>Shadow SaaS Activity</strong> -- aplicativos descobertos ou alterados recentemente.</li>
+        <li><strong>Posture Management</strong> -- pontuação de postura Grip SSPM e verificações com falha (exibido apenas quando o Grip está habilitado).</li>
+        <li><strong>Upcoming Tasks</strong> -- itens do plano de ação com vencimento próximo.</li>
+        <li><strong>Recent Activity</strong> -- eventos mais recentes do log de auditoria.</li>
+        <li><strong>FAIR Analysis Summary</strong> -- exposição a perdas anualizadas entre fornecedores.</li>
+        <li><strong>Breach Alerts</strong> -- contagens recentes de alertas de violação e cibernéticos.</li>
+    </ul>
+    <p>Arraste os módulos para reordená-los. As alterações são por usuário -- os painéis de outros usuários não são afetados. Clique em <span class="btn-label">Save</span> para aplicar.</p>
+</div>
+
 <div class="doc-section" id="admin-general">
     <h2>Portal Admin: Configurações Gerais</h2>
     <p>O Portal Admin é acessível via <span class="menu-label">Administration</span> na barra lateral (somente usuários admin) ou pelo link <span class="btn-label">Admin</span> na barra superior.</p>
@@ -1332,6 +1405,22 @@
 <div class="doc-section" id="admin-branding">
     <h2>Identidade Visual &amp; Tema</h2>
     <p>Personalize a aparência da plataforma: faça upload do logotipo da sua empresa, defina cores da barra lateral, cores do cabeçalho, cores dos botões e largura da navegação. Navegue até <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Branding</span>.</p>
+</div>
+
+<div class="doc-section" id="admin-super-admin">
+    <h2>Nível de Conta Super-Administrador <span class="new-badge">New in 2.6.2</span></h2>
+    <p>O FairTPRM possui dois níveis de contas de nível admin: <strong>Super Administradores</strong> e <strong>Administradores</strong> padrão. Somente um Super Administrador pode criar, editar, desativar ou excluir outras contas de administrador.</p>
+    <h3>Identificando Super Admins</h3>
+    <p>Um usuário é Super Administrador se qualquer uma das condições a seguir for verdadeira:</p>
+    <ul>
+        <li>O sinalizador <span class="field-label">Super Admin</span> está definido em sua conta (visível em <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Users</span> ao editar um usuário).</li>
+        <li>Ele é membro do grupo integrado <strong>Administrator</strong>.</li>
+    </ul>
+    <h3>Por que isso importa</h3>
+    <p>Administradores padrão têm acesso completo à plataforma, mas não podem gerenciar outras contas de administrador. Isso evita um cenário de escalada em que um administrador regular poderia criar contas de administrador não autorizadas. Se você precisar conceder acesso de administrador a um usuário, faça login como Super Admin e defina o sinalizador ou adicione o usuário ao grupo Administrator.</p>
+    <div class="callout callout-warning">
+        <strong>Recuperação:</strong> A primeira conta de administrador criada durante a instalação é um Super Admin. Se você perder o acesso a todas as contas Super Admin, use o <a href="#admin-saml">login local de recuperação de emergência</a> para restaurar o acesso.
+    </div>
 </div>
 
 <div class="doc-section" id="admin-users">
@@ -1502,6 +1591,19 @@
 
     <h3>Cópias de avaliação para alternativas</h3>
     <p>Ao enviar uma avaliação de fornecedor, um administrador pode marcar <span class="field-label">Also send a copy to alternates</span>. Se marcado, cada parte interessada alternativa naquele fornecedor recebe sua própria cópia da avaliação para completar de forma independente.</p>
+</div>
+
+<div class="doc-section" id="admin-ai-costs">
+    <h2>Uso e Limites de Custo de IA <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Navegue até <span class="menu-label">Admin</span> &rarr; <span class="menu-label">API Integration</span> para gerenciar as configurações da plataforma de IA e monitorar os gastos.</p>
+    <h3>Rastreamento de uso</h3>
+    <p>O cartão <strong>AI Usage, Cost and Monthly Limit</strong> mostra os totais de uso de tokens do mês atual divididos por plataforma (OpenWebUI, LibreChat, Custom, Anthropic, OpenAI). Para cada plataforma, você pode inserir taxas de custo por 1.000 tokens (entrada e saída separadamente) para que o sistema possa estimar o gasto mensal em USD.</p>
+    <h3>Limite de orçamento mensal</h3>
+    <p>Defina um limite de orçamento mensal em USD. Quando o gasto estimado atingir o limite, os recursos com IA (preenchimento automático, revisão de privacidade, avaliação de regras de IA) são pausados pelo restante do mês. O limite é redefinido automaticamente no primeiro dia de cada mês. Defina como <strong>0</strong> para desabilitar o limite completamente.</p>
+    <p>As taxas e o limite são salvos juntos quando você clica em <span class="btn-label">Save</span>.</p>
+    <div class="callout callout-info">
+        <strong>Nota de privacidade:</strong> O conteúdo de avaliação e os dados do fornecedor enviados ao provedor de IA são regidos pelas configurações de privacidade de IA da sua plataforma e pelo seu contrato com o provedor de IA. Revise essas configurações em <span class="menu-label">Admin</span> &rarr; <span class="menu-label">API Integration</span>.
+    </div>
 </div>
 
 <div class="doc-section" id="admin-email">
@@ -1790,6 +1892,8 @@
                     <a href="#tprm-overview">O Que é TPRM?</a>
                     <a href="#tprm-add-vendor">Adicionando um Fornecedor</a>
                     <a href="#tprm-lifecycle">Ciclo de Vida do Fornecedor</a>
+                    <a href="#assessment-respondent">Respondente da avaliação</a>
+                    <a href="#assessment-stakeholder-copy">Enviar avaliação às partes interessadas</a>
                     <a href="#tprm-assessments">Avaliações de Fornecedores</a>
                     <a href="#assessment-forms">Formulários de Avaliação &amp; IA</a>
                     <a href="#tprm-action-plan">Plano de Ação do Fornecedor</a>
@@ -1797,6 +1901,8 @@
                     <a href="#tprm-srs">Scorecard de Risco de Segurança</a>
                     <a href="#tprm-fair">Análise FAIR</a>
                     <a href="#tprm-fourth-party">Risco de 4ª Parte</a>
+                    <a href="#shadow-saas-requests">Solicitações Shadow SaaS</a>
+                    <a href="#shadow-saas-privacy-alerts">Alertas de privacidade Shadow SaaS</a>
                     <a href="#tprm-shadow-saas">Shadow SaaS</a>
 
                     <h4>Integração &amp; Compras</h4>
@@ -1811,13 +1917,16 @@
                     <a href="#breach-alerts">Alertas de Violação / Cibernéticos</a>
 
                     <h4>Portal Admin</h4>
+                    <a href="#dashboard-modules">Módulos do painel</a>
                     <a href="#admin-general">Configurações Gerais</a>
                     <a href="#admin-branding">Identidade Visual &amp; Tema</a>
+                    <a href="#admin-super-admin">Nível de super-administrador</a>
                     <a href="#admin-users">Gestão de Usuários</a>
                     <a href="#admin-acl-groups">Grupos ACL</a>
                     <a href="#admin-templates">Modelos de Avaliação</a>
                     <a href="#admin-risk-scoring">Pontuação de riscos e maturidade</a>
                     <a href="#workflow-rules">Regras de fluxo de trabalho</a>
+                    <a href="#admin-ai-costs">Uso e custos de IA</a>
                     <a href="#admin-email">Configuração de E-mail</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">Integração de IA</a>

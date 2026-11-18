@@ -167,6 +167,13 @@
         <tr><td><strong><a href="#admin-risk-scoring">कॉन्फ़िगर करने योग्य परिपक्वता मॉडल (SSE-CMM / CMMI)</a></strong></td><td>4-स्तर या 5-स्तर की परिपक्वता स्केल चुनें, प्रत्येक स्तर का नाम बदलें, और एक-क्लिक SSE-CMM प्रीसेट लागू करें। जब सुविधा बंद हो तो डिफ़ॉल्ट 4-स्तर स्केल पूरी तरह अपरिवर्तित रहती है।</td><td>Admins</td></tr>
         <tr><td><strong><a href="#workflow-rules">Workflow Rules</a></strong></td><td>विक्रेता के अनुमोदित होने पर मूल्यांकन और अन्य क्रियाएं स्वचालित रूप से ट्रिगर करें। शर्तें निर्धारित करें (हमेशा, टियर के अनुसार), एकाधिक लक्ष्य जोड़ें और बहु-चरण श्रृंखलाएं बनाएं।</td><td>Admins</td></tr>
         <tr><td><strong><a href="#alternate-stakeholders">वैकल्पिक हितधारक</a></strong></td><td>किसी विक्रेता को प्राथमिक हितधारक के साथ एक बैकअप हितधारक असाइन करें। वैकल्पिक के पास प्राथमिक जैसी ही दृश्य और कार्य पहुँच होती है, लेकिन वह हितधारक पुनः असाइन नहीं कर सकता, विक्रेता को हैंड ऑफ नहीं कर सकता, या अन्य वैकल्पिकों का प्रबंधन नहीं कर सकता।</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#assessment-respondent">मूल्यांकन प्रत्युत्तरदाता</a></strong></td><td>प्रति-विक्रेता एक निर्दिष्ट प्रश्नावली प्रत्युत्तरदाता सेट करें जो मुख्य विक्रेता संपर्क के बजाय मूल्यांकन प्राप्त करता है। Custom Data टैब से कॉन्फ़िगर किया जाता है।</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#assessment-stakeholder-copy">हितधारक को मूल्यांकन भेजें</a></strong></td><td>मूल्यांकन भेजते समय असाइन किए गए हितधारक और वैकल्पिकों को भी CC करें, ताकि आंतरिक टीम को दृश्यता मिले।</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#shadow-saas-requests">शैडो SaaS अनुरोध</a></strong></td><td>Shadow SaaS बर्खास्तगी औचित्य सीधे FairTPRM के भीतर सबमिट और समीक्षा करें। स्वीकृत/अस्वीकृत निर्णय Grip पर वापस सिंक होते हैं।</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#shadow-saas-privacy-alerts">शैडो SaaS गोपनीयता अलर्ट</a></strong></td><td>जब किसी Shadow SaaS ऐप की AI-मूल्यांकित गोपनीयता जोखिम रेटिंग बढ़ती है तो ईमेल अधिसूचनाएं प्राप्त करें। किसी भी वृद्धि या केवल High तक बढ़ने पर अलर्ट करें।</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#dashboard-modules">डैशबोर्ड मॉड्यूल</a></strong></td><td>प्रत्येक उपयोगकर्ता 10 उपलब्ध टाइल में से चुन सकता है (जोखिम अवलोकन, विक्रेता सारांश, मूल्यांकन स्थिति, अनुपालन, Shadow SaaS, Posture, कार्य, गतिविधि, FAIR, उल्लंघन)।</td><td>सभी</td></tr>
+        <tr><td><strong><a href="#admin-super-admin">सुपर-एडमिन स्तर</a></strong></td><td>केवल Super Admins अन्य एडमिन खाते बना, संपादित या हटा सकते हैं। Super Admin की पहचान: Super Admin फ्लैग या Administrator समूह सदस्यता।</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-ai-costs">AI उपयोग और लागत</a></strong></td><td>प्लेटफ़ॉर्म द्वारा टोकन उपयोग ट्रैक करें, प्रति-प्लेटफ़ॉर्म लागत दरें दर्ज करें, और मासिक बजट सीमा सेट करें। सीमा पहुंचने पर AI सुविधाएं स्वचालित रूप से रुकती हैं।</td><td>Admins</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>मैं कैसे जानूं कि मैं किस संस्करण पर हूं?</strong> प्रशासक इंस्टॉल किए गए संस्करण को देखने के लिए <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> पर जा सकते हैं। यह गाइड <strong>v2.6.2</strong> का वर्णन करती है। देखें <a href="#admin-updates">प्लेटफ़ॉर्म अपडेट करना</a>।
@@ -868,6 +875,23 @@
     <p>प्रत्येक चरण उचित वर्कफ़्लो, अधिसूचनाएं और आवश्यक क्रियाएं ट्रिगर करता है।</p>
 </div>
 
+<div class="doc-section" id="assessment-respondent">
+    <h2>मूल्यांकन प्रत्युत्तरदाता <span class="new-badge">New in 2.6.2</span></h2>
+    <p>प्रत्येक विक्रेता का एक निर्दिष्ट <strong>Questionnaire Respondent</strong> हो सकता है -- एक विशिष्ट संपर्क जो मुख्य विक्रेता संपर्क के बजाय (या उसके अतिरिक्त) सुरक्षा मूल्यांकन प्राप्त करता है।</p>
+    <h3>प्रत्युत्तरदाता सेट करना</h3>
+    <p>किसी विक्रेता का <span class="menu-label">Custom Data</span> टैब खोलें और <span class="field-label">Questionnaire Respondent</span> अनुभाग तक स्क्रॉल करें। एक नाम और ईमेल पता दर्ज करें, फिर <span class="field-label">Use as the default recipient for this vendor's assessments</span> टिक करें और सहेजें।</p>
+    <p>जब चेकबॉक्स टिक किया जाता है, तो इस विक्रेता को भेजे जाने वाले सभी भविष्य के मूल्यांकन प्रत्युत्तरदाता ईमेल पर जाते हैं। प्रत्युत्तरदाता किसी भी समय बदला जा सकता है; मौजूदा प्रगति में मूल्यांकन प्रभावित नहीं होते।</p>
+    <div class="callout callout-info">
+        <strong>सुझाव:</strong> इसका उपयोग तब करें जब सुरक्षा प्रश्नावली एक विशिष्ट तकनीकी संपर्क (जैसे CISO या IT प्रबंधक) को जानी चाहिए, न कि फ़ाइल पर मुख्य विक्रेता ईमेल पते पर।
+    </div>
+</div>
+
+<div class="doc-section" id="assessment-stakeholder-copy">
+    <h2>हितधारक को मूल्यांकन भेजें <span class="new-badge">New in 2.6.2</span></h2>
+    <p>मूल्यांकन बनाते या भेजते समय, Create Assessment फ़ॉर्म और Send Assessment बटन पर <span class="field-label">Also send to stakeholder</span> विकल्प दिखाई देता है। टिक करने पर, मूल्यांकन अधिसूचना ईमेल विक्रेता के असाइन किए गए हितधारक और किसी भी वैकल्पिक हितधारक को भी भेजी जाती है।</p>
+    <p>यह तब उपयोगी है जब मूल्यांकन किसी विक्रेता प्रत्युत्तरदाता को जाता है लेकिन आप चाहते हैं कि आपकी आंतरिक टीम को दृश्यता हो कि यह भेजा गया था -- बिना उन्हें प्लेटफ़ॉर्म को मैन्युअल रूप से जांचने की आवश्यकता के।</p>
+</div>
+
 <div class="doc-section" id="tprm-assessments">
     <h2>विक्रेता मूल्यांकन</h2>
     <p>विक्रेता मूल्यांकन सुरक्षा प्रश्नावलियाँ हैं जो विक्रेताओं को उनकी सुरक्षा स्थिति का मूल्यांकन करने के लिए भेजी जाती हैं। उन्हें प्रबंधित करने के लिए <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Assessments</span> पर जाएं।</p>
@@ -977,6 +1001,36 @@
         <li>एक <span class="field-label">Assessment Template</span> और एक <span class="field-label">Expires In</span> विंडो (14, 30, 60, या 90 दिन) चुनें, फिर <span class="btn-label">Assign Assessment</span> पर क्लिक करें।</li>
     </ol>
     <p>प्रत्येक चयनित विक्रेता को प्रश्नावली (एक request-for-information) ईमेल की जाती है, और एक अनुस्मारक ट्रैक किया जाता है ताकि अनुवर्ती स्वचालित रूप से जाएं। फ़ाइल पर कोई ईमेल न रखने वाले विक्रेता छोड़ दिए जाते हैं, और कोई भी विफल होने वाला send अनुस्मारक जॉब द्वारा पुनः प्रयास किया जाता है। वही <strong>Assign Assessment</strong> प्रवाह technology-concentration और CVE दृश्यों से भी उपलब्ध है।</p>
+</div>
+
+<div class="doc-section" id="shadow-saas-requests">
+    <h2>शैडो SaaS अनुरोध विधि <span class="new-badge">New in 2.6.2</span></h2>
+    <p>डिफ़ॉल्ट रूप से, जब कोई Shadow SaaS अनुप्रयोग खारिज किया जाता है, तो औचित्य Grip के अंदर संभाला जाता है। FairTPRM अनुरोध विधि सक्षम होने पर, उपयोगकर्ता सीधे FairTPRM के भीतर बर्खास्तगी औचित्य सबमिट करते हैं -- प्लेटफ़ॉर्म छोड़ने की कोई आवश्यकता नहीं।</p>
+    <h3>FairTPRM अनुरोध सक्षम करना</h3>
+    <p><span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> पर जाएं और <span class="field-label">Request Method</span> को <strong>FairTPRM</strong> पर सेट करें। Save करें।</p>
+    <h3>यह कैसे काम करता है</h3>
+    <ul>
+        <li>Shadow SaaS अनुप्रयोग पंक्तियों पर <strong>Request Dismissal</strong> बटन दिखाई देता है।</li>
+        <li>उपयोगकर्ता एक औचित्य और वैकल्पिक समाप्ति तिथि भरते हैं, फिर सबमिट करते हैं।</li>
+        <li>व्यवस्थापक <span class="menu-label">Shadow SaaS</span> &rarr; <span class="menu-label">Requests</span> के अंतर्गत लंबित अनुरोधों की समीक्षा करते हैं।</li>
+        <li><strong>Approve</strong> -- FairTPRM में ऐप खारिज करता है और निर्णय Grip पर वापस सिंक करता है।</li>
+        <li><strong>Reject</strong> -- ऐप दृश्यमान रखता है (कोई Grip सिंक नहीं)।</li>
+        <li><strong>Deny</strong> -- ऐप को अस्वीकृत के रूप में चिह्नित करता है और Grip पर वापस सिंक करता है।</li>
+    </ul>
+    <div class="callout callout-info">
+        स्वीकृत और अस्वीकृत निर्णय स्वचालित रूप से Grip पर वापस सिंक होते हैं। रिमाइंडर क्रॉन एक अलग प्राप्तकर्ता फ़ील्ड का उपयोग करता है -- अनुरोध प्रवाह से विक्रेता संपर्क ईमेल सेट न करें।
+    </div>
+</div>
+
+<div class="doc-section" id="shadow-saas-privacy-alerts">
+    <h2>शैडो SaaS गोपनीयता अलर्ट <span class="new-badge">New in 2.6.2</span></h2>
+    <p>गोपनीयता जोखिम वृद्धि अलर्ट कॉन्फ़िगर करने के लिए <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email</span> &rarr; <span class="menu-label">Shadow SaaS</span> टैब पर जाएं।</p>
+    <p>सक्षम होने पर, जब किसी अनुप्रयोग की AI-मूल्यांकित गोपनीयता जोखिम रेटिंग बढ़ती है तो प्राप्तकर्ताओं की सूची को एक ईमेल अधिसूचना भेजी जाती है। आप चुन सकते हैं:</p>
+    <ul>
+        <li><strong>Any rise</strong> -- जब भी रेटिंग बढ़े अलर्ट करें (जैसे, Low से Medium, या Medium से High)।</li>
+        <li><strong>To High only</strong> -- केवल तब अलर्ट करें जब रेटिंग High पर पहुंचे।</li>
+    </ul>
+    <p>प्राप्तकर्ता ईमेल पतों की अल्पविराम-विभाजित सूची के रूप में दर्ज किए जाते हैं। यह उन सुरक्षा टीमों के लिए उपयोगी है जो किसी Shadow SaaS ऐप की गोपनीयता जोखिम के बिगड़ने पर सक्रिय अधिसूचना चाहती हैं।</p>
 </div>
 
 <div class="doc-section" id="tprm-shadow-saas">
@@ -1323,6 +1377,25 @@
 <!-- ================================================================
      ADMIN PORTAL
      ================================================================ -->
+<div class="doc-section" id="dashboard-modules">
+    <h2>डैशबोर्ड मॉड्यूल चयन <span class="new-badge">New in 2.6.2</span></h2>
+    <p>प्रत्येक उपयोगकर्ता चुन सकता है कि उनके डैशबोर्ड पर कौन से टाइल दिखाई दें। <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Profile</span> &rarr; <span class="menu-label">Dashboard Modules</span> (या आपका प्रोफ़ाइल पृष्ठ) पर जाएं और 10 तक मॉड्यूल चुनें।</p>
+    <h3>उपलब्ध मॉड्यूल</h3>
+    <ul>
+        <li><strong>Risk Overview</strong> -- बैंड और प्रवृत्ति के अनुसार खुले जोखिम।</li>
+        <li><strong>Vendor Summary</strong> -- टियर और स्थिति के अनुसार विक्रेता गिनती।</li>
+        <li><strong>Assessment Status</strong> -- लंबित, प्रगति में और पूर्ण मूल्यांकन।</li>
+        <li><strong>Compliance Score</strong> -- वर्तमान GRC परिपक्वता और अनुपालन प्रतिशत।</li>
+        <li><strong>Shadow SaaS Activity</strong> -- हाल ही में खोजे गए या बदले गए अनुप्रयोग।</li>
+        <li><strong>Posture Management</strong> -- Grip SSPM पोस्चर स्कोर और विफल जांच (केवल तब दिखाई जब Grip सक्षम हो)।</li>
+        <li><strong>Upcoming Tasks</strong> -- जल्द देय एक्शन प्लान आइटम।</li>
+        <li><strong>Recent Activity</strong> -- नवीनतम ऑडिट लॉग इवेंट।</li>
+        <li><strong>FAIR Analysis Summary</strong> -- विक्रेताओं में वार्षिकीकृत हानि जोखिम।</li>
+        <li><strong>Breach Alerts</strong> -- हालिया उल्लंघन और साइबर अलर्ट गिनती।</li>
+    </ul>
+    <p>क्रमबद्ध करने के लिए मॉड्यूल खींचें। परिवर्तन प्रति-उपयोगकर्ता हैं -- अन्य उपयोगकर्ताओं के डैशबोर्ड प्रभावित नहीं होते। लागू करने के लिए <span class="btn-label">Save</span> क्लिक करें।</p>
+</div>
+
 <div class="doc-section" id="admin-general">
     <h2>Admin Portal: सामान्य सेटिंग</h2>
     <p>Admin Portal साइडबार में <span class="menu-label">Administration</span> के माध्यम से (केवल एडमिन उपयोगकर्ता) या शीर्ष बार में <span class="btn-label">Admin</span> लिंक के माध्यम से सुलभ है।</p>
@@ -1332,6 +1405,22 @@
 <div class="doc-section" id="admin-branding">
     <h2>Branding &amp; Theme</h2>
     <p>प्लेटफ़ॉर्म की उपस्थिति अनुकूलित करें: अपनी कंपनी का लोगो अपलोड करें, साइडबार रंग, हेडर रंग, बटन रंग और नेविगेशन चौड़ाई सेट करें। <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Branding</span> पर जाएं।</p>
+</div>
+
+<div class="doc-section" id="admin-super-admin">
+    <h2>सुपर-एडमिन खाता स्तर <span class="new-badge">New in 2.6.2</span></h2>
+    <p>FairTPRM में एडमिन-स्तर के खातों के दो स्तर हैं: <strong>Super Administrators</strong> और मानक <strong>Administrators</strong>। केवल एक Super Administrator अन्य व्यवस्थापक खाते बना, संपादित, निष्क्रिय या हटा सकता है।</p>
+    <h3>Super Admins की पहचान</h3>
+    <p>उपयोगकर्ता Super Administrator है यदि निम्न में से कोई एक सत्य है:</p>
+    <ul>
+        <li>उनके खाते पर <span class="field-label">Super Admin</span> फ्लैग सेट है (किसी उपयोगकर्ता को संपादित करते समय <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Users</span> में दिखाई देता है)।</li>
+        <li>वे अंतर्निहित <strong>Administrator</strong> समूह के सदस्य हैं।</li>
+    </ul>
+    <h3>यह क्यों महत्वपूर्ण है</h3>
+    <p>मानक व्यवस्थापकों के पास पूर्ण प्लेटफ़ॉर्म पहुंच है लेकिन वे अन्य एडमिन खातों का प्रबंधन नहीं कर सकते। यह एस्केलेशन परिदृश्य को रोकता है जहां एक नियमित एडमिन अनधिकृत व्यवस्थापक खाते बना सकता था। यदि आपको किसी उपयोगकर्ता को एडमिन पहुंच देनी है, तो Super Admin के रूप में लॉग इन करें और या तो फ्लैग सेट करें या उपयोगकर्ता को Administrator समूह में जोड़ें।</p>
+    <div class="callout callout-warning">
+        <strong>पुनर्प्राप्ति:</strong> इंस्टॉलेशन के दौरान बनाया गया पहला एडमिन खाता Super Admin है। यदि आप सभी Super Admin खातों से लॉक हो जाते हैं, तो पहुंच पुनः प्राप्त करने के लिए <a href="#admin-saml">break-glass local login</a> का उपयोग करें।
+    </div>
 </div>
 
 <div class="doc-section" id="admin-users">
@@ -1502,6 +1591,19 @@
 
     <h3>वैकल्पिकों के लिए मूल्यांकन प्रतियाँ</h3>
     <p>विक्रेता मूल्यांकन भेजते समय, एक प्रशासक <span class="field-label">Also send a copy to alternates</span> टिक कर सकता है। यदि टिक किया जाता है, तो उस विक्रेता के प्रत्येक वैकल्पिक हितधारक को स्वतंत्र रूप से पूरा करने के लिए मूल्यांकन की अपनी प्रति मिलती है।</p>
+</div>
+
+<div class="doc-section" id="admin-ai-costs">
+    <h2>AI उपयोग &amp; लागत सीमाएं <span class="new-badge">New in 2.6.2</span></h2>
+    <p>AI प्लेटफ़ॉर्म सेटिंग प्रबंधित करने और खर्च पर नज़र रखने के लिए <span class="menu-label">Admin</span> &rarr; <span class="menu-label">API Integration</span> पर जाएं।</p>
+    <h3>उपयोग ट्रैकिंग</h3>
+    <p><strong>AI Usage, Cost and Monthly Limit</strong> कार्ड वर्तमान माह के लिए प्लेटफ़ॉर्म (OpenWebUI, LibreChat, Custom, Anthropic, OpenAI) के अनुसार टोकन उपयोग कुल दिखाता है। प्रत्येक प्लेटफ़ॉर्म के लिए आप प्रति 1,000 टोकन (इनपुट और आउटपुट अलग-अलग) लागत दरें दर्ज कर सकते हैं ताकि सिस्टम USD में मासिक खर्च का अनुमान लगा सके।</p>
+    <h3>मासिक बजट सीमा</h3>
+    <p>USD में मासिक बजट सीमा निर्धारित करें। जब अनुमानित खर्च सीमा तक पहुंच जाता है, तो AI-संचालित सुविधाएं (ऑटो-फ़िल, गोपनीयता समीक्षा, AI नियम मूल्यांकन) महीने के बाकी समय के लिए रोक दी जाती हैं। सीमा प्रत्येक माह की पहली तारीख को स्वचालित रूप से रीसेट होती है। सीमा पूरी तरह अक्षम करने के लिए <strong>0</strong> पर सेट करें।</p>
+    <p>दरें और सीमा एक साथ सहेजे जाते हैं जब आप <span class="btn-label">Save</span> क्लिक करते हैं।</p>
+    <div class="callout callout-info">
+        <strong>गोपनीयता नोट:</strong> AI प्रदाता को भेजी गई मूल्यांकन सामग्री और विक्रेता डेटा आपके प्लेटफ़ॉर्म की AI गोपनीयता सेटिंग और AI प्रदाता के साथ आपके समझौते द्वारा नियंत्रित है। उन सेटिंग की समीक्षा <span class="menu-label">Admin</span> &rarr; <span class="menu-label">API Integration</span> के अंतर्गत करें।
+    </div>
 </div>
 
 <div class="doc-section" id="admin-email">
@@ -1790,6 +1892,8 @@
                     <a href="#tprm-overview">TPRM क्या है?</a>
                     <a href="#tprm-add-vendor">विक्रेता जोड़ना</a>
                     <a href="#tprm-lifecycle">विक्रेता जीवनचक्र</a>
+                    <a href="#assessment-respondent">मूल्यांकन प्रत्युत्तरदाता</a>
+                    <a href="#assessment-stakeholder-copy">हितधारक को मूल्यांकन भेजें</a>
                     <a href="#tprm-assessments">विक्रेता मूल्यांकन</a>
                     <a href="#assessment-forms">मूल्यांकन फ़ॉर्म &amp; AI फ़िल</a>
                     <a href="#tprm-action-plan">Vendor Action Plan</a>
@@ -1797,6 +1901,8 @@
                     <a href="#tprm-srs">Security Risk Scorecard</a>
                     <a href="#tprm-fair">FAIR Analysis</a>
                     <a href="#tprm-fourth-party">4th Party Risk</a>
+                    <a href="#shadow-saas-requests">शैडो SaaS अनुरोध</a>
+                    <a href="#shadow-saas-privacy-alerts">शैडो SaaS गोपनीयता अलर्ट</a>
                     <a href="#tprm-shadow-saas">Shadow SaaS</a>
 
                     <h4>ऑनबोर्डिंग &amp; Procurement</h4>
@@ -1811,13 +1917,16 @@
                     <a href="#breach-alerts">Breach / Cyber Alerts</a>
 
                     <h4>Admin Portal</h4>
+                    <a href="#dashboard-modules">डैशबोर्ड मॉड्यूल</a>
                     <a href="#admin-general">सामान्य सेटिंग</a>
                     <a href="#admin-branding">Branding &amp; Theme</a>
+                    <a href="#admin-super-admin">सुपर-एडमिन स्तर</a>
                     <a href="#admin-users">User Management</a>
                     <a href="#admin-acl-groups">ACL Groups</a>
                     <a href="#admin-templates">Assessment Templates</a>
                     <a href="#admin-risk-scoring">जोखिम स्कोरिंग &amp; परिपक्वता</a>
                     <a href="#workflow-rules">Workflow Rules</a>
+                    <a href="#admin-ai-costs">AI उपयोग और लागत</a>
                     <a href="#admin-email">Email Configuration</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">AI Integration</a>

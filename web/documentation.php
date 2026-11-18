@@ -215,7 +215,8 @@ $csrfToken = $security->getCSRFToken();
             body { font-size: 11px; color: #1e293b; }
             figure.doc-figure { break-inside: avoid; box-shadow: none; max-width: 100%; }
             figure.doc-figure img { max-width: 100%; }
-            .faq-search-wrap, .faq-count, .faq-no-results { display: none !important; }
+            .faq-search-wrap, .faq-count, .faq-no-results,
+            .doc-search-wrap, .doc-search-status, .doc-no-results { display: none !important; }
             details.faq-item, details.faq-item .faq-body { display: block !important; }
             details.faq-item > summary::before, details.faq-item[open] > summary::before { content: "" !important; }
 
@@ -348,9 +349,15 @@ include $docBody;
     buildPrintTOC();
 
     document.getElementById('printBtn').addEventListener('click', function() {
+        // Clear any active search so hidden sections appear in the PDF
+        var ds = document.getElementById('docSearch');
+        if (ds && ds.value) {
+            ds.value = '';
+            ds.dispatchEvent(new Event('input'));
+        }
         // Recalculate page numbers right before printing
         buildPrintTOC();
-        setTimeout(function() { window.print(); }, 100);
+        setTimeout(function() { window.print(); }, 150);
     });
 
     function buildPrintTOC() {
@@ -400,14 +407,18 @@ include $docBody;
                 { label: '4.1 What is TPRM?', id: 'tprm-overview' },
                 { label: '4.2 Adding a New Vendor', id: 'tprm-add-vendor' },
                 { label: '4.3 Vendor Lifecycle', id: 'tprm-lifecycle' },
-                { label: '4.4 Vendor Assessments', id: 'tprm-assessments' },
-                { label: '4.5 Assessment Forms & AI Auto-Fill', id: 'assessment-forms' },
-                { label: '4.6 Vendor Action Plan', id: 'tprm-action-plan' },
-                { label: '4.7 Alternate Stakeholders', id: 'alternate-stakeholders' },
-                { label: '4.8 Security Risk Scorecard', id: 'tprm-srs' },
-                { label: '4.9 FAIR Analysis', id: 'tprm-fair' },
-                { label: '4.10 4th Party Risk', id: 'tprm-fourth-party' },
-                { label: '4.11 Shadow SaaS Discovery', id: 'tprm-shadow-saas' }
+                { label: '4.4 Assessment Respondent', id: 'assessment-respondent' },
+                { label: '4.5 Send Assessment to Stakeholder', id: 'assessment-stakeholder-copy' },
+                { label: '4.6 Vendor Assessments', id: 'tprm-assessments' },
+                { label: '4.7 Assessment Forms & AI Auto-Fill', id: 'assessment-forms' },
+                { label: '4.8 Vendor Action Plan', id: 'tprm-action-plan' },
+                { label: '4.9 Alternate Stakeholders', id: 'alternate-stakeholders' },
+                { label: '4.10 Security Risk Scorecard', id: 'tprm-srs' },
+                { label: '4.11 FAIR Analysis', id: 'tprm-fair' },
+                { label: '4.12 4th Party Risk', id: 'tprm-fourth-party' },
+                { label: '4.13 Shadow SaaS Requests', id: 'shadow-saas-requests' },
+                { label: '4.14 Shadow SaaS Privacy Alerts', id: 'shadow-saas-privacy-alerts' },
+                { label: '4.15 Shadow SaaS Discovery', id: 'tprm-shadow-saas' }
             ]},
             { heading: '5. Onboarding & Procurement (New in 2.6.2)', entries: [
                 { label: '5.1 Vendor Onboarding & Procurement Onboarding', id: 'onboarding-workflow' },
@@ -421,18 +432,21 @@ include $docBody;
                 { label: '5.9 Breach / Cyber Alerts', id: 'breach-alerts' }
             ]},
             { heading: '6. Admin Portal', entries: [
-                { label: '6.1 General Settings', id: 'admin-general' },
-                { label: '6.2 Branding & Theme', id: 'admin-branding' },
-                { label: '6.3 User Management', id: 'admin-users' },
-                { label: '6.4 ACL Groups & Access Control', id: 'admin-acl-groups' },
-                { label: '6.5 Assessment Template Builder', id: 'admin-templates' },
-                { label: '6.6 Risk Scoring & Maturity', id: 'admin-risk-scoring' },
-                { label: '6.7 Workflow Rules', id: 'workflow-rules' },
-                { label: '6.8 Email Configuration', id: 'admin-email' },
-                { label: '6.9 SAML / SSO', id: 'admin-saml' },
-                { label: '6.10 AI Integration', id: 'admin-ai' },
-                { label: '6.11 Large Database Backups', id: 'admin-backup' },
-                { label: '6.12 Updating the Platform', id: 'admin-updates' }
+                { label: '6.1 Dashboard Modules', id: 'dashboard-modules' },
+                { label: '6.2 General Settings', id: 'admin-general' },
+                { label: '6.3 Branding & Theme', id: 'admin-branding' },
+                { label: '6.4 Super-Admin Tier', id: 'admin-super-admin' },
+                { label: '6.5 User Management', id: 'admin-users' },
+                { label: '6.6 ACL Groups & Access Control', id: 'admin-acl-groups' },
+                { label: '6.7 Assessment Template Builder', id: 'admin-templates' },
+                { label: '6.8 Risk Scoring & Maturity', id: 'admin-risk-scoring' },
+                { label: '6.9 Workflow Rules', id: 'workflow-rules' },
+                { label: '6.10 AI Usage & Costs', id: 'admin-ai-costs' },
+                { label: '6.11 Email Configuration', id: 'admin-email' },
+                { label: '6.12 SAML / SSO', id: 'admin-saml' },
+                { label: '6.13 AI Integration', id: 'admin-ai' },
+                { label: '6.14 Large Database Backups', id: 'admin-backup' },
+                { label: '6.15 Updating the Platform', id: 'admin-updates' }
             ]},
             { heading: '7. Help & Reference', entries: [
                 { label: '7.1 Frequently Asked Questions', id: 'faq' },
@@ -584,20 +598,17 @@ include $docBody;
     var docNoResults = document.getElementById('docNoResults');
 
     if (docSearch) {
-        var allSections = Array.prototype.slice.call(document.querySelectorAll('.doc-body .doc-section'));
-        var originalHtml = {};
-        allSections.forEach(function(s) { originalHtml[s.id] = s.innerHTML; });
+        var allSections = Array.prototype.slice.call(document.querySelectorAll('.doc-section'));
+        var origHtml = allSections.map(function(s) { return s.innerHTML; });
 
         function escapeRe(str) {
             return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
 
         function highlightText(html, term) {
-            // Only highlight in text nodes — split on tag boundaries
             return html.replace(/(<[^>]+>)|([^<]+)/g, function(m, tag, text) {
                 if (tag) return tag;
-                return text.replace(new RegExp('(' + escapeRe(term) + ')', 'gi'),
-                    '<mark>$1</mark>');
+                return text.replace(new RegExp('(' + escapeRe(term) + ')', 'gi'), '<mark>$1</mark>');
             });
         }
 
@@ -606,16 +617,11 @@ include $docBody;
             var ql = q.toLowerCase();
             var shown = 0;
 
-            allSections.forEach(function(s) {
-                // Restore original HTML first (remove stale highlights)
-                s.innerHTML = originalHtml[s.id];
-                if (q === '') {
-                    s.style.display = '';
-                    return;
-                }
-                var text = s.textContent.toLowerCase();
-                if (text.indexOf(ql) !== -1) {
-                    s.innerHTML = highlightText(originalHtml[s.id], q);
+            allSections.forEach(function(s, i) {
+                s.innerHTML = origHtml[i];
+                if (q === '') { s.style.display = ''; return; }
+                if (s.textContent.toLowerCase().indexOf(ql) !== -1) {
+                    s.innerHTML = highlightText(origHtml[i], q);
                     s.style.display = '';
                     shown++;
                 } else {
@@ -623,8 +629,7 @@ include $docBody;
                 }
             });
 
-            var clearBtn = docSearchClear;
-            clearBtn.style.display = q ? 'block' : 'none';
+            if (docSearchClear) docSearchClear.style.display = q ? 'block' : 'none';
 
             if (!docSearchStatus || !docNoResults) return;
             if (q === '') {
@@ -640,13 +645,14 @@ include $docBody;
             }
         }
 
+        // Live filter as you type, plus Enter to trigger explicitly
         docSearch.addEventListener('input', runDocSearch);
-        docSearch.addEventListener('search', function() {
-            if (!docSearch.value) {
-                docSearch.value = '';
-                runDocSearch();
-            }
+        docSearch.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); runDocSearch(); }
+            if (e.key === 'Escape') { docSearch.value = ''; runDocSearch(); }
         });
+        // Handle native search-field clear (browser X button on type=search)
+        docSearch.addEventListener('search', runDocSearch);
 
         if (docSearchClear) {
             docSearchClear.addEventListener('click', function() {
@@ -655,11 +661,6 @@ include $docBody;
                 docSearch.focus();
             });
         }
-
-        // Keyboard: Escape clears search
-        docSearch.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') { docSearch.value = ''; runDocSearch(); }
-        });
     }
 
     // === FAQ live search ===

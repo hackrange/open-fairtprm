@@ -167,6 +167,13 @@
         <tr><td><strong><a href="#admin-risk-scoring">Configurable maturity models (SSE-CMM / CMMI)</a></strong></td><td>Choose a 4-level or 5-level maturity scale, rename each level, and apply a one-click SSE-CMM preset. The default 4-level scale is completely unchanged when the feature is off.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#workflow-rules">Workflow Rules</a></strong></td><td>Automatically trigger assessments and other actions when a vendor is approved. Set conditions (always, by tier), add multiple targets, and build multi-step chains.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#alternate-stakeholders">Alternate Stakeholders</a></strong></td><td>Assign a backup stakeholder to a vendor. The alternate has the same view and task access as the primary, but cannot reassign stakeholders, hand off the vendor, or manage other alternates.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#dashboard-modules">Dashboard module selection</a></strong></td><td>Customize which tiles appear on your dashboard (up to 10). Changes are per-user.</td><td>All Users</td></tr>
+        <tr><td><strong><a href="#shadow-saas-requests">Shadow SaaS request method</a></strong></td><td>Submit and manage SaaS dismissal requests directly in FairTPRM without leaving the platform.</td><td>Admins, TPRM Users</td></tr>
+        <tr><td><strong><a href="#assessment-respondent">Assessment respondent</a></strong></td><td>Set a default questionnaire recipient per vendor on the Custom Data tab.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#assessment-stakeholder-copy">Send assessment to stakeholder</a></strong></td><td>Optionally CC the stakeholder when sending a vendor assessment.</td><td>Cyber TPRM, Admins</td></tr>
+        <tr><td><strong><a href="#admin-ai-costs">AI cost estimator</a></strong></td><td>Per-platform cost rates and a monthly spend limit that pauses AI features when reached.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#shadow-saas-privacy-alerts">Shadow SaaS privacy alerts</a></strong></td><td>Email alerts when an app's AI-assessed privacy risk rating rises.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-super-admin">Super-Admin account tier</a></strong></td><td>Only Super Admins can create, edit, or delete other administrator accounts.</td><td>Super Admins</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>How do I know which version I'm on?</strong> Administrators can go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> to see the installed version. This guide describes <strong>v2.6.2</strong>. See <a href="#admin-updates">Updating the Platform</a>.
@@ -868,6 +875,23 @@
     <p>Each stage triggers appropriate workflows, notifications, and required actions.</p>
 </div>
 
+<div class="doc-section" id="assessment-respondent">
+    <h2>Assessment Respondent <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Each vendor can have a designated <strong>Questionnaire Respondent</strong> -- a specific contact who receives security assessments instead of (or in addition to) the main vendor contact.</p>
+    <h3>Setting the respondent</h3>
+    <p>Open a vendor's <span class="menu-label">Custom Data</span> tab and scroll to the <span class="field-label">Questionnaire Respondent</span> section. Enter a name and email address, then tick <span class="field-label">Use as the default recipient for this vendor's assessments</span> and save.</p>
+    <p>When the checkbox is ticked, all future assessments sent to this vendor go to the respondent email. The respondent can be changed at any time; existing in-progress assessments are not affected.</p>
+    <div class="callout callout-info">
+        <strong>Tip:</strong> Use this when the security questionnaire should go to a specific technical contact (e.g., a CISO or IT manager) rather than the main vendor email address on file.
+    </div>
+</div>
+
+<div class="doc-section" id="assessment-stakeholder-copy">
+    <h2>Send Assessment to Stakeholder <span class="new-badge">New in 2.6.2</span></h2>
+    <p>When creating or sending an assessment, an <span class="field-label">Also send to stakeholder</span> option appears on the Create Assessment form and the Send Assessment button. When ticked, the assessment notification email is also sent to the vendor's assigned stakeholder and any alternate stakeholders.</p>
+    <p>This is useful when the assessment goes to a vendor respondent but you want your internal team to have visibility that it was sent -- without requiring them to check the platform manually.</p>
+</div>
+
 <div class="doc-section" id="tprm-assessments">
     <h2>Vendor Assessments</h2>
     <p>Vendor assessments are security questionnaires sent to vendors to evaluate their security posture. Navigate to <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Assessments</span> to manage them.</p>
@@ -977,6 +1001,36 @@
         <li>Pick an <span class="field-label">Assessment Template</span> and an <span class="field-label">Expires In</span> window (14, 30, 60, or 90 days), then click <span class="btn-label">Assign Assessment</span>.</li>
     </ol>
     <p>Each selected vendor is emailed the questionnaire (a request-for-information), and a reminder is tracked so follow-ups go out automatically. Vendors with no email on file are skipped, and any send that fails is retried by the reminder job. The same <strong>Assign Assessment</strong> flow is available from the technology-concentration and CVE views.</p>
+</div>
+
+<div class="doc-section" id="shadow-saas-requests">
+    <h2>Shadow SaaS Request Method <span class="new-badge">New in 2.6.2</span></h2>
+    <p>By default, when a Shadow SaaS application is dismissed, the justification is handled inside Grip. With the FairTPRM request method enabled, users submit dismissal justifications directly within FairTPRM -- no need to leave the platform.</p>
+    <h3>Enabling FairTPRM requests</h3>
+    <p>Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span> and set <span class="field-label">Request Method</span> to <strong>FairTPRM</strong>. Save.</p>
+    <h3>How it works</h3>
+    <ul>
+        <li>A <strong>Request Dismissal</strong> button appears on Shadow SaaS application rows.</li>
+        <li>Users fill in a justification and an optional expiry date, then submit.</li>
+        <li>Admins review pending requests under <span class="menu-label">Shadow SaaS</span> &rarr; <span class="menu-label">Requests</span>.</li>
+        <li><strong>Approve</strong> -- dismisses the app in FairTPRM and syncs the decision back to Grip.</li>
+        <li><strong>Reject</strong> -- keeps the app visible (no Grip sync).</li>
+        <li><strong>Deny</strong> -- marks the app as denied and syncs back to Grip.</li>
+    </ul>
+    <div class="callout callout-info">
+        Approved and denied decisions sync back to Grip automatically. The reminder cron uses a separate recipient field -- do not set the vendor contact email from the request flow.
+    </div>
+</div>
+
+<div class="doc-section" id="shadow-saas-privacy-alerts">
+    <h2>Shadow SaaS Privacy Alerts <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email</span> &rarr; <span class="menu-label">Shadow SaaS</span> tab to configure privacy risk increase alerts.</p>
+    <p>When enabled, an email notification is sent to a list of recipients whenever an application's AI-assessed privacy risk rating rises. You can choose:</p>
+    <ul>
+        <li><strong>Any rise</strong> -- alert whenever the rating increases (e.g., Low to Medium, or Medium to High).</li>
+        <li><strong>To High only</strong> -- alert only when the rating reaches High.</li>
+    </ul>
+    <p>Recipients are entered as a comma-separated list of email addresses. This is useful for security teams who want proactive notification when a Shadow SaaS app's privacy risk worsens.</p>
 </div>
 
 <div class="doc-section" id="tprm-shadow-saas">
@@ -1323,6 +1377,25 @@
 <!-- ================================================================
      ADMIN PORTAL
      ================================================================ -->
+<div class="doc-section" id="dashboard-modules">
+    <h2>Dashboard Module Selection <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Each user can choose which tiles appear on their dashboard. Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Profile</span> &rarr; <span class="menu-label">Dashboard Modules</span> (or your profile page) and select up to 10 modules.</p>
+    <h3>Available modules</h3>
+    <ul>
+        <li><strong>Risk Overview</strong> -- open risks by band and trend.</li>
+        <li><strong>Vendor Summary</strong> -- vendor counts by tier and status.</li>
+        <li><strong>Assessment Status</strong> -- pending, in-progress, and completed assessments.</li>
+        <li><strong>Compliance Score</strong> -- current GRC maturity and compliance percentage.</li>
+        <li><strong>Shadow SaaS Activity</strong> -- recently discovered or changed applications.</li>
+        <li><strong>Posture Management</strong> -- Grip SSPM posture score and failing checks (shown only when Grip is enabled).</li>
+        <li><strong>Upcoming Tasks</strong> -- action plan items due soon.</li>
+        <li><strong>Recent Activity</strong> -- latest audit log events.</li>
+        <li><strong>FAIR Analysis Summary</strong> -- annualized loss exposure across vendors.</li>
+        <li><strong>Breach Alerts</strong> -- recent breach and cyber alert counts.</li>
+    </ul>
+    <p>Drag modules to reorder them. Changes are per-user -- other users' dashboards are not affected. Click <span class="btn-label">Save</span> to apply.</p>
+</div>
+
 <div class="doc-section" id="admin-general">
     <h2>Admin Portal: General Settings</h2>
     <p>The Admin Portal is accessible via <span class="menu-label">Administration</span> in the sidebar (admin users only) or the <span class="btn-label">Admin</span> link in the top bar.</p>
@@ -1332,6 +1405,22 @@
 <div class="doc-section" id="admin-branding">
     <h2>Branding &amp; Theme</h2>
     <p>Customize the platform appearance: upload your company logo, set sidebar colors, header colors, button colors, and navigation width. Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Branding</span>.</p>
+</div>
+
+<div class="doc-section" id="admin-super-admin">
+    <h2>Super-Admin Account Tier <span class="new-badge">New in 2.6.2</span></h2>
+    <p>FairTPRM has two tiers of admin-level accounts: <strong>Super Administrators</strong> and standard <strong>Administrators</strong>. Only a Super Administrator can create, edit, deactivate, or delete other administrator accounts.</p>
+    <h3>Identifying Super Admins</h3>
+    <p>A user is a Super Administrator if either of the following is true:</p>
+    <ul>
+        <li>The <span class="field-label">Super Admin</span> flag is set on their account (visible in <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Users</span> when editing a user).</li>
+        <li>They are a member of the built-in <strong>Administrator</strong> group.</li>
+    </ul>
+    <h3>Why this matters</h3>
+    <p>Standard administrators have full platform access but cannot manage other admin accounts. This prevents an escalation scenario where a regular admin could create unauthorized administrator accounts. If you need to grant admin access to a user, log in as a Super Admin and either set the flag or add the user to the Administrator group.</p>
+    <div class="callout callout-warning">
+        <strong>Recovery:</strong> The first admin account created during installation is a Super Admin. If you lock yourself out of all Super Admin accounts, use the <a href="#admin-saml">break-glass local login</a> to recover access.
+    </div>
 </div>
 
 <div class="doc-section" id="admin-users">
@@ -1502,6 +1591,19 @@
 
     <h3>Assessment copies for alternates</h3>
     <p>When sending a vendor assessment, an administrator can tick <span class="field-label">Also send a copy to alternates</span>. If ticked, each alternate stakeholder on that vendor receives their own copy of the assessment to complete independently.</p>
+</div>
+
+<div class="doc-section" id="admin-ai-costs">
+    <h2>AI Usage &amp; Cost Limits <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">API Integration</span> to manage AI platform settings and monitor spending.</p>
+    <h3>Usage tracking</h3>
+    <p>The <strong>AI Usage, Cost and Monthly Limit</strong> card shows token usage totals for the current month broken down by platform (OpenWebUI, LibreChat, Custom, Anthropic, OpenAI). For each platform you can enter cost rates per 1,000 tokens (input and output separately) so the system can estimate monthly spend in USD.</p>
+    <h3>Monthly budget limit</h3>
+    <p>Set a monthly budget limit in USD. When the estimated spend reaches the limit, AI-powered features (auto-fill, privacy review, AI rule evaluation) are paused for the rest of the month. The limit resets automatically on the first of each month. Set to <strong>0</strong> to disable the limit entirely.</p>
+    <p>Rates and the limit are saved together when you click <span class="btn-label">Save</span>.</p>
+    <div class="callout callout-info">
+        <strong>Privacy note:</strong> Assessment content and vendor data sent to the AI provider is governed by your platform's AI privacy settings and your agreement with the AI provider. Review those settings under <span class="menu-label">Admin</span> &rarr; <span class="menu-label">API Integration</span>.
+    </div>
 </div>
 
 <div class="doc-section" id="admin-email">
@@ -1790,6 +1892,8 @@
                     <a href="#tprm-overview">What is TPRM?</a>
                     <a href="#tprm-add-vendor">Adding a Vendor</a>
                     <a href="#tprm-lifecycle">Vendor Lifecycle</a>
+                    <a href="#assessment-respondent">Assessment Respondent</a>
+                    <a href="#assessment-stakeholder-copy">Send Assessment to Stakeholder</a>
                     <a href="#tprm-assessments">Vendor Assessments</a>
                     <a href="#assessment-forms">Assessment Forms &amp; AI Fill</a>
                     <a href="#tprm-action-plan">Vendor Action Plan</a>
@@ -1797,6 +1901,8 @@
                     <a href="#tprm-srs">Security Risk Scorecard</a>
                     <a href="#tprm-fair">FAIR Analysis</a>
                     <a href="#tprm-fourth-party">4th Party Risk</a>
+                    <a href="#shadow-saas-requests">Shadow SaaS Requests</a>
+                    <a href="#shadow-saas-privacy-alerts">Shadow SaaS Privacy Alerts</a>
                     <a href="#tprm-shadow-saas">Shadow SaaS</a>
 
                     <h4>Onboarding &amp; Procurement</h4>
@@ -1811,13 +1917,16 @@
                     <a href="#breach-alerts">Breach / Cyber Alerts</a>
 
                     <h4>Admin Portal</h4>
+                    <a href="#dashboard-modules">Dashboard Modules</a>
                     <a href="#admin-general">General Settings</a>
                     <a href="#admin-branding">Branding &amp; Theme</a>
+                    <a href="#admin-super-admin">Super-Admin Tier</a>
                     <a href="#admin-users">User Management</a>
                     <a href="#admin-acl-groups">ACL Groups</a>
                     <a href="#admin-templates">Assessment Templates</a>
                     <a href="#admin-risk-scoring">Risk Scoring &amp; Maturity</a>
                     <a href="#workflow-rules">Workflow Rules</a>
+                    <a href="#admin-ai-costs">AI Usage &amp; Costs</a>
                     <a href="#admin-email">Email Configuration</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">AI Integration</a>

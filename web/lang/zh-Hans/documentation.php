@@ -158,9 +158,16 @@
         <tr><td><strong><a href="#question-types">供应商数据与搜索改进</a></strong></td><td>在每个供应商记录上存储 VAT 号码（在供应商页面显示，并附有"添加 VAT"快捷方式），支持在快速搜索中按 VAT 号码查找供应商，以及更清晰的采购入驻评分横幅。</td><td>Procurement、Cyber TPRM</td></tr>
         <tr><td><strong><a href="#admin-backup">大型数据库备份</a></strong></td><td>备份和恢复功能现在支持数 GB 大小的数据库和超大记录，不会超时。</td><td>管理员</td></tr>
         <tr><td><strong><a href="#assessment-forms">评估表单与 AI 自动填充</a></strong></td><td>将评估下载为可填写的 PDF 或 Excel 工作簿，将填写完成的文件导入回系统，并且——在配置了 AI 提供商的情况下——根据供应商当前的证书自动填充答案。</td><td>Cyber TPRM、管理员</td></tr>
+        <tr><td><strong><a href="#assessment-respondent">评估受访者</a></strong></td><td>为供应商指定专用的问卷受访者；后续所有评估将发送至该联系人，而不是主要供应商电子邮件。</td><td>Cyber TPRM、管理员</td></tr>
+        <tr><td><strong><a href="#assessment-stakeholder-copy">将评估发送给利益相关者</a></strong></td><td>在发送评估时同时向供应商的利益相关者（主要及备用）发送副本，使内部团队无需手动登录即可了解评估状态。</td><td>Cyber TPRM、管理员</td></tr>
         <tr><td><strong><a href="#tprm-action-plan">供应商行动计划</a></strong></td><td>针对供应商安排后续行动（联系、发送评估、强制年度审查），并附带截止日期、负责人、电子邮件提醒和状态备注。</td><td>Cyber TPRM、管理员</td></tr>
         <tr><td><strong><a href="#custom-onboarding">自定义入驻字段与自定义数据</a></strong></td><td>在供应商上采集额外的、组织特定的字段，可按角色控制可见性，在自定义数据标签页中编辑，并在 CSV 导出和 API 中读取。</td><td>管理员、Cyber TPRM</td></tr>
         <tr><td><strong><a href="#breach-alerts">违规/网络安全警报</a></strong></td><td>供应链违规信息源（包括 Grip 事件），带受影响用户的下钻查看，以及批量确认/误报/删除。</td><td>Cyber TPRM、管理员</td></tr>
+        <tr><td><strong><a href="#shadow-saas-requests">Shadow SaaS 请求</a></strong></td><td>在 FairTPRM 内直接提交忽略理由；管理员批准/拒绝/否决，决定自动同步回 Grip。</td><td>管理员、所有用户</td></tr>
+        <tr><td><strong><a href="#shadow-saas-privacy-alerts">Shadow SaaS 隐私警报</a></strong></td><td>当应用的 AI 评估隐私风险等级上升时，向指定收件人发送电子邮件通知——可配置为任何上升或仅升至高风险时触发。</td><td>管理员</td></tr>
+        <tr><td><strong><a href="#dashboard-modules">仪表板模块</a></strong></td><td>每位用户最多可选择 10 个仪表板模块并自定义排序——风险概览、供应商摘要、评估状态等。更改按用户生效。</td><td>所有用户</td></tr>
+        <tr><td><strong><a href="#admin-super-admin">超级管理员层级</a></strong></td><td>独立的超级管理员层级；只有超级管理员可以创建、编辑或删除其他管理员账户，从而防止权限提升。</td><td>管理员</td></tr>
+        <tr><td><strong><a href="#admin-ai-costs">AI 使用与成本</a></strong></td><td>按平台追踪令牌使用量，输入每千令牌费率，设置月度 USD 预算限额——达到限额时自动暂停 AI 功能。</td><td>管理员</td></tr>
         <tr><td><strong><a href="#admin-acl-groups">自定义访问控制群组</a></strong></td><td>创建您自己的 ACL 群组，从现有群组克隆权限，并按模块设置只读或读/写权限。随附的群组受到保护。</td><td>管理员</td></tr>
         <tr><td><strong><a href="#admin-templates">评估模板构建器</a></strong></td><td>新的问题类型（多选、电话、VAT）、模板驱动的证书说明、按角色控制的字段访问，以及默认隐藏的已停用模板。</td><td>管理员、Cyber TPRM</td></tr>
         <tr><td><strong><a href="#admin-risk-scoring">可自定义的风险评分</a></strong></td><td>重命名风险级别、调整评分阈值、选择自定义颜色，并重新标记所有五个可能性级别、五个影响级别和七个风险类别，以匹配您已批准的风险矩阵。</td><td>管理员</td></tr>
@@ -868,6 +875,23 @@
     <p>每个阶段都会触发相应的工作流、通知和必要操作。</p>
 </div>
 
+<div class="doc-section" id="assessment-respondent">
+    <h2>评估受访者 <span class="new-badge">New in 2.6.2</span></h2>
+    <p>每个供应商可以指定一位<strong>问卷受访者</strong>——一位接收安全评估的特定联系人，可代替（或补充）主要供应商联系人。</p>
+    <h3>设置受访者</h3>
+    <p>打开供应商的 <span class="menu-label">Custom Data</span> 标签页，滚动至 <span class="field-label">Questionnaire Respondent</span> 部分。输入姓名和电子邮件地址，然后勾选 <span class="field-label">Use as the default recipient for this vendor's assessments</span>，并保存。</p>
+    <p>勾选该复选框后，所有未来发送给该供应商的评估都会发送至受访者的电子邮件。受访者可随时更改；正在进行中的现有评估不受影响。</p>
+    <div class="callout callout-info">
+        <strong>提示：</strong>当安全问卷应发送给特定技术联系人（例如 CISO 或 IT 经理）而非档案中的主要供应商电子邮件地址时，请使用此功能。
+    </div>
+</div>
+
+<div class="doc-section" id="assessment-stakeholder-copy">
+    <h2>将评估发送给利益相关者 <span class="new-badge">New in 2.6.2</span></h2>
+    <p>在创建或发送评估时，创建评估表单和发送评估按钮上会出现一个 <span class="field-label">Also send to stakeholder</span> 选项。勾选后，评估通知电子邮件也会发送给供应商的指定利益相关者及所有备用利益相关者。</p>
+    <p>当评估发送给供应商受访者，但您希望内部团队了解评估已发送情况时，此功能非常有用——无需他们手动登录平台检查。</p>
+</div>
+
 <div class="doc-section" id="tprm-assessments">
     <h2>供应商评估</h2>
     <p>供应商评估是发送给供应商以评估其安全态势的安全问卷。导航至 <span class="menu-label">TPRM Module</span> &rarr; <span class="menu-label">Vendor Assessments</span> 进行管理。</p>
@@ -977,6 +1001,36 @@
         <li>选择一个 <span class="field-label">Assessment Template</span> 和一个 <span class="field-label">Expires In</span> 时限（14、30、60 或 90 天），然后点击 <span class="btn-label">Assign Assessment</span>。</li>
     </ol>
     <p>每个选定的供应商都会收到问卷的电子邮件（信息请求），并会跟踪提醒，以便后续跟进自动发出。存档中没有电子邮件的供应商会被跳过，任何发送失败都会由提醒任务重试。相同的 <strong>Assign Assessment</strong> 流程也可从技术集中度和 CVE 视图中使用。</p>
+</div>
+
+<div class="doc-section" id="shadow-saas-requests">
+    <h2>Shadow SaaS 请求方式 <span class="new-badge">New in 2.6.2</span></h2>
+    <p>默认情况下，当 Shadow SaaS 应用被忽略时，其理由在 Grip 内处理。启用 FairTPRM 请求方式后，用户可直接在 FairTPRM 内提交忽略理由——无需离开平台。</p>
+    <h3>启用 FairTPRM 请求</h3>
+    <p>导航至 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Shadow SaaS</span>，将 <span class="field-label">Request Method</span> 设置为 <strong>FairTPRM</strong>。保存。</p>
+    <h3>工作原理</h3>
+    <ul>
+        <li>Shadow SaaS 应用行上会出现一个<strong>请求忽略</strong>按钮。</li>
+        <li>用户填写理由和可选的到期日期，然后提交。</li>
+        <li>管理员在 <span class="menu-label">Shadow SaaS</span> &rarr; <span class="menu-label">Requests</span> 下审查待处理请求。</li>
+        <li><strong>批准</strong>——在 FairTPRM 中忽略该应用，并将决定同步回 Grip。</li>
+        <li><strong>拒绝</strong>——保持应用可见（不同步至 Grip）。</li>
+        <li><strong>否决</strong>——将应用标记为已否决，并同步回 Grip。</li>
+    </ul>
+    <div class="callout callout-info">
+        批准和否决决定会自动同步回 Grip。提醒定时任务使用单独的收件人字段——请勿从请求流程中设置供应商联系邮件。
+    </div>
+</div>
+
+<div class="doc-section" id="shadow-saas-privacy-alerts">
+    <h2>Shadow SaaS 隐私警报 <span class="new-badge">New in 2.6.2</span></h2>
+    <p>导航至 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email</span> &rarr; <span class="menu-label">Shadow SaaS</span> 标签页，配置隐私风险上升警报。</p>
+    <p>启用后，每当应用程序的 AI 评估隐私风险等级上升时，系统会向收件人列表发送电子邮件通知。您可以选择：</p>
+    <ul>
+        <li><strong>任何上升</strong>——只要等级上升就发出警报（例如，从低到中，或从中到高）。</li>
+        <li><strong>仅升至高风险</strong>——仅在等级达到高时发出警报。</li>
+    </ul>
+    <p>收件人以逗号分隔的电子邮件地址列表形式输入。此功能适用于希望在 Shadow SaaS 应用隐私风险恶化时获得主动通知的安全团队。</p>
 </div>
 
 <div class="doc-section" id="tprm-shadow-saas">
@@ -1323,6 +1377,25 @@
 <!-- ================================================================
      ADMIN PORTAL
      ================================================================ -->
+<div class="doc-section" id="dashboard-modules">
+    <h2>仪表板模块选择 <span class="new-badge">New in 2.6.2</span></h2>
+    <p>每位用户可以选择在其仪表板上显示哪些模块。导航至 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Profile</span> &rarr; <span class="menu-label">Dashboard Modules</span>（或您的个人主页），最多选择 10 个模块。</p>
+    <h3>可用模块</h3>
+    <ul>
+        <li><strong>风险概览</strong>——按区间和趋势显示的开放风险。</li>
+        <li><strong>供应商摘要</strong>——按层级和状态显示的供应商数量。</li>
+        <li><strong>评估状态</strong>——待处理、进行中和已完成的评估。</li>
+        <li><strong>合规评分</strong>——当前 GRC 成熟度和合规百分比。</li>
+        <li><strong>Shadow SaaS 活动</strong>——最近发现或发生变化的应用程序。</li>
+        <li><strong>态势管理</strong>——Grip SSPM 态势评分和失败检查项（仅在启用 Grip 时显示）。</li>
+        <li><strong>即将到来的任务</strong>——即将到期的行动计划项目。</li>
+        <li><strong>近期活动</strong>——最新的审计日志事件。</li>
+        <li><strong>FAIR 分析摘要</strong>——各供应商的年化损失敞口。</li>
+        <li><strong>违规警报</strong>——近期违规和网络安全警报数量。</li>
+    </ul>
+    <p>拖动模块以重新排序。更改按用户生效——不影响其他用户的仪表板。点击 <span class="btn-label">Save</span> 应用更改。</p>
+</div>
+
 <div class="doc-section" id="admin-general">
     <h2>管理门户：常规设置</h2>
     <p>管理门户可通过侧边栏的 <span class="menu-label">Administration</span>（仅管理员用户）或顶部栏的 <span class="btn-label">Admin</span> 链接访问。</p>
@@ -1332,6 +1405,22 @@
 <div class="doc-section" id="admin-branding">
     <h2>品牌与主题</h2>
     <p>自定义平台外观：上传公司徽标，设置侧边栏颜色、标题颜色、按钮颜色和导航宽度。导航至 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Branding</span>。</p>
+</div>
+
+<div class="doc-section" id="admin-super-admin">
+    <h2>超级管理员层级 <span class="new-badge">New in 2.6.2</span></h2>
+    <p>FairTPRM 有两个管理员级别账户：<strong>超级管理员</strong>和标准<strong>管理员</strong>。只有超级管理员可以创建、编辑、停用或删除其他管理员账户。</p>
+    <h3>识别超级管理员</h3>
+    <p>满足以下任一条件的用户即为超级管理员：</p>
+    <ul>
+        <li>其账户上设置了 <span class="field-label">Super Admin</span> 标志（在 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Users</span> 编辑用户时可见）。</li>
+        <li>其为内置<strong>Administrator</strong>群组的成员。</li>
+    </ul>
+    <h3>重要性</h3>
+    <p>标准管理员拥有完整的平台访问权限，但无法管理其他管理员账户。这可防止普通管理员创建未授权管理员账户的权限提升场景。如需向用户授予管理员访问权限，请以超级管理员身份登录，并设置该标志或将用户添加至 Administrator 群组。</p>
+    <div class="callout callout-warning">
+        <strong>恢复：</strong>安装过程中创建的第一个管理员账户即为超级管理员。如果您的所有超级管理员账户都被锁定，请使用 <a href="#admin-saml">紧急本地登录</a>恢复访问权限。
+    </div>
 </div>
 
 <div class="doc-section" id="admin-users">
@@ -1502,6 +1591,19 @@
 
     <h3>备用人员的评估副本</h3>
     <p>发送供应商评估时，管理员可以勾选 <span class="field-label">Also send a copy to alternates</span>。勾选后，该供应商的每位备用利益相关者都会收到评估的独立副本，可单独完成。</p>
+</div>
+
+<div class="doc-section" id="admin-ai-costs">
+    <h2>AI 使用与成本限制 <span class="new-badge">New in 2.6.2</span></h2>
+    <p>导航至 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">API Integration</span>，管理 AI 平台设置并监控支出。</p>
+    <h3>使用情况追踪</h3>
+    <p><strong>AI 使用、成本与月度限额</strong>卡片显示当月按平台（OpenWebUI、LibreChat、Custom、Anthropic、OpenAI）细分的令牌使用总量。对于每个平台，您可以输入每 1,000 个令牌的成本费率（输入和输出分别计算），以便系统估算月度 USD 支出。</p>
+    <h3>月度预算限额</h3>
+    <p>设置以 USD 为单位的月度预算限额。当估算支出达到限额时，AI 功能（自动填充、隐私审查、AI 规则评估）将在本月剩余时间内暂停。限额在每月一日自动重置。设置为 <strong>0</strong> 可完全禁用限额。</p>
+    <p>点击 <span class="btn-label">Save</span> 时，费率和限额会一起保存。</p>
+    <div class="callout callout-info">
+        <strong>隐私说明：</strong>发送给 AI 提供商的评估内容和供应商数据受您平台的 AI 隐私设置及您与 AI 提供商协议的约束。请在 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">API Integration</span> 下查看这些设置。
+    </div>
 </div>
 
 <div class="doc-section" id="admin-email">
@@ -1790,6 +1892,8 @@
                     <a href="#tprm-overview">什么是 TPRM？</a>
                     <a href="#tprm-add-vendor">添加供应商</a>
                     <a href="#tprm-lifecycle">供应商生命周期</a>
+                    <a href="#assessment-respondent">评估受访者</a>
+                    <a href="#assessment-stakeholder-copy">将评估发送给利益相关者</a>
                     <a href="#tprm-assessments">供应商评估</a>
                     <a href="#assessment-forms">评估表单与 AI 填充</a>
                     <a href="#tprm-action-plan">供应商行动计划</a>
@@ -1797,6 +1901,8 @@
                     <a href="#tprm-srs">安全风险评分卡</a>
                     <a href="#tprm-fair">FAIR 分析</a>
                     <a href="#tprm-fourth-party">第四方风险</a>
+                    <a href="#shadow-saas-requests">Shadow SaaS 请求</a>
+                    <a href="#shadow-saas-privacy-alerts">Shadow SaaS 隐私警报</a>
                     <a href="#tprm-shadow-saas">影子 SaaS</a>
 
                     <h4>入驻与采购</h4>
@@ -1811,13 +1917,16 @@
                     <a href="#breach-alerts">违规/网络安全警报</a>
 
                     <h4>管理门户</h4>
+                    <a href="#dashboard-modules">仪表板模块</a>
                     <a href="#admin-general">常规设置</a>
                     <a href="#admin-branding">品牌与主题</a>
+                    <a href="#admin-super-admin">超级管理员层级</a>
                     <a href="#admin-users">用户管理</a>
                     <a href="#admin-acl-groups">ACL 群组</a>
                     <a href="#admin-templates">评估模板</a>
                     <a href="#admin-risk-scoring">风险评分与成熟度</a>
                     <a href="#workflow-rules">工作流规则</a>
+                    <a href="#admin-ai-costs">AI 使用与成本</a>
                     <a href="#admin-email">邮件配置</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">AI 集成</a>

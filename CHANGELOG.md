@@ -12,6 +12,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **In-app documentation expanded.** All 8 language versions now cover 7
+  additional features: dashboard module selection, Shadow SaaS request method,
+  assessment respondent, send assessment to stakeholder, AI usage and cost limits,
+  Shadow SaaS privacy alerts, and the super-admin account tier. The print/PDF
+  download now clears any active search filter before printing so all sections
+  are included. The search bar's Enter key now correctly triggers filtering.
+
 - **In-app documentation updated.** All 8 language versions of the documentation
   now cover the configurable maturity models, customizable risk scoring, workflow
   rules, and alternate stakeholders features. A full-page keyword search bar was
