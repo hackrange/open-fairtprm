@@ -169,6 +169,17 @@ $csrfToken = $security->getCSRFToken();
         /* "New in 2.6.2" badge */
         .new-badge { display: inline-block; vertical-align: middle; background: var(--theme-button-color, #ff6543); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 7px; border-radius: 10px; margin-left: 8px; }
 
+        /* Doc-wide search bar */
+        .doc-search-wrap { position: relative; margin: 0 0 20px; }
+        .doc-search-input { width: 100%; padding: 11px 40px 11px 42px; font-size: 14px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-family: inherit; background: #fff; }
+        .doc-search-input:focus { outline: none; border-color: var(--theme-button-color, #ff6543); box-shadow: 0 0 0 3px rgba(255,101,67,0.12); }
+        .doc-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 15px; opacity: 0.45; pointer-events: none; }
+        .doc-search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: #e5e7eb; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 13px; line-height: 22px; text-align: center; cursor: pointer; color: #6b7280; display: none; }
+        .doc-search-clear:hover { background: #d1d5db; }
+        .doc-search-status { font-size: 12px; color: #9ca3af; margin: -12px 0 14px; }
+        .doc-search-status mark { background: #fef08a; border-radius: 2px; padding: 0 2px; color: #111; font-weight: 600; }
+        .doc-no-results { display: none; padding: 24px; text-align: center; color: #9ca3af; font-size: 14px; font-style: italic; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; margin-bottom: 24px; }
+
         /* FAQ search + accordion */
         .faq-search-wrap { position: relative; margin: 6px 0 18px; }
         .faq-search { width: 100%; padding: 12px 16px 12px 40px; font-size: 14px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-family: inherit; }
@@ -307,6 +318,15 @@ $csrfToken = $security->getCSRFToken();
 
         <main class="main-content">
             <div class="doc-wrapper">
+                <div class="doc-search-wrap">
+                    <span class="doc-search-icon">&#128269;</span>
+                    <input type="search" class="doc-search-input" id="docSearch"
+                           placeholder="Search documentation..."
+                           autocomplete="off" spellcheck="false">
+                    <button class="doc-search-clear" id="docSearchClear" type="button" aria-label="Clear search">&times;</button>
+                </div>
+                <div class="doc-search-status" id="docSearchStatus"></div>
+                <div class="doc-no-results" id="docNoResults">No sections match your search. Try different keywords.</div>
 <?php
 // Documentation body is factored per-language under lang/<code>/documentation.php
 // so it can be pre-translated ONCE (offline) and served statically — no runtime
@@ -383,10 +403,11 @@ include $docBody;
                 { label: '4.4 Vendor Assessments', id: 'tprm-assessments' },
                 { label: '4.5 Assessment Forms & AI Auto-Fill', id: 'assessment-forms' },
                 { label: '4.6 Vendor Action Plan', id: 'tprm-action-plan' },
-                { label: '4.7 Security Risk Scorecard', id: 'tprm-srs' },
-                { label: '4.8 FAIR Analysis', id: 'tprm-fair' },
-                { label: '4.9 4th Party Risk', id: 'tprm-fourth-party' },
-                { label: '4.10 Shadow SaaS Discovery', id: 'tprm-shadow-saas' }
+                { label: '4.7 Alternate Stakeholders', id: 'alternate-stakeholders' },
+                { label: '4.8 Security Risk Scorecard', id: 'tprm-srs' },
+                { label: '4.9 FAIR Analysis', id: 'tprm-fair' },
+                { label: '4.10 4th Party Risk', id: 'tprm-fourth-party' },
+                { label: '4.11 Shadow SaaS Discovery', id: 'tprm-shadow-saas' }
             ]},
             { heading: '5. Onboarding & Procurement (New in 2.6.2)', entries: [
                 { label: '5.1 Vendor Onboarding & Procurement Onboarding', id: 'onboarding-workflow' },
@@ -405,11 +426,13 @@ include $docBody;
                 { label: '6.3 User Management', id: 'admin-users' },
                 { label: '6.4 ACL Groups & Access Control', id: 'admin-acl-groups' },
                 { label: '6.5 Assessment Template Builder', id: 'admin-templates' },
-                { label: '6.6 Email Configuration', id: 'admin-email' },
-                { label: '6.7 SAML / SSO', id: 'admin-saml' },
-                { label: '6.8 AI Integration', id: 'admin-ai' },
-                { label: '6.9 Large Database Backups', id: 'admin-backup' },
-                { label: '6.10 Updating the Platform', id: 'admin-updates' }
+                { label: '6.6 Risk Scoring & Maturity', id: 'admin-risk-scoring' },
+                { label: '6.7 Workflow Rules', id: 'workflow-rules' },
+                { label: '6.8 Email Configuration', id: 'admin-email' },
+                { label: '6.9 SAML / SSO', id: 'admin-saml' },
+                { label: '6.10 AI Integration', id: 'admin-ai' },
+                { label: '6.11 Large Database Backups', id: 'admin-backup' },
+                { label: '6.12 Updating the Platform', id: 'admin-updates' }
             ]},
             { heading: '7. Help & Reference', entries: [
                 { label: '7.1 Frequently Asked Questions', id: 'faq' },
@@ -552,6 +575,91 @@ include $docBody;
             mainContent.addEventListener('scroll', updateActiveToc, { passive: true });
         }
         updateActiveToc();
+    }
+
+    // === Full-doc search ===
+    var docSearch = document.getElementById('docSearch');
+    var docSearchClear = document.getElementById('docSearchClear');
+    var docSearchStatus = document.getElementById('docSearchStatus');
+    var docNoResults = document.getElementById('docNoResults');
+
+    if (docSearch) {
+        var allSections = Array.prototype.slice.call(document.querySelectorAll('.doc-body .doc-section'));
+        var originalHtml = {};
+        allSections.forEach(function(s) { originalHtml[s.id] = s.innerHTML; });
+
+        function escapeRe(str) {
+            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function highlightText(html, term) {
+            // Only highlight in text nodes — split on tag boundaries
+            return html.replace(/(<[^>]+>)|([^<]+)/g, function(m, tag, text) {
+                if (tag) return tag;
+                return text.replace(new RegExp('(' + escapeRe(term) + ')', 'gi'),
+                    '<mark>$1</mark>');
+            });
+        }
+
+        function runDocSearch() {
+            var q = docSearch.value.trim();
+            var ql = q.toLowerCase();
+            var shown = 0;
+
+            allSections.forEach(function(s) {
+                // Restore original HTML first (remove stale highlights)
+                s.innerHTML = originalHtml[s.id];
+                if (q === '') {
+                    s.style.display = '';
+                    return;
+                }
+                var text = s.textContent.toLowerCase();
+                if (text.indexOf(ql) !== -1) {
+                    s.innerHTML = highlightText(originalHtml[s.id], q);
+                    s.style.display = '';
+                    shown++;
+                } else {
+                    s.style.display = 'none';
+                }
+            });
+
+            var clearBtn = docSearchClear;
+            clearBtn.style.display = q ? 'block' : 'none';
+
+            if (!docSearchStatus || !docNoResults) return;
+            if (q === '') {
+                docSearchStatus.textContent = '';
+                docNoResults.style.display = 'none';
+            } else if (shown === 0) {
+                docSearchStatus.textContent = '';
+                docNoResults.style.display = 'block';
+            } else {
+                docNoResults.style.display = 'none';
+                docSearchStatus.innerHTML = shown + ' section' + (shown === 1 ? '' : 's') +
+                    ' match <mark>' + q.replace(/</g, '&lt;') + '</mark>';
+            }
+        }
+
+        docSearch.addEventListener('input', runDocSearch);
+        docSearch.addEventListener('search', function() {
+            if (!docSearch.value) {
+                docSearch.value = '';
+                runDocSearch();
+            }
+        });
+
+        if (docSearchClear) {
+            docSearchClear.addEventListener('click', function() {
+                docSearch.value = '';
+                runDocSearch();
+                docSearch.focus();
+            });
+        }
+
+        // Keyboard: Escape clears search
+        docSearch.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') { docSearch.value = ''; runDocSearch(); }
+        });
     }
 
     // === FAQ live search ===

@@ -142,7 +142,7 @@
      ================================================================ -->
 <div class="doc-section" id="whats-new">
     <h2>2.6.2 版本新功能</h2>
-    <p>版本 2.6.2 新增了多项功能，重点关注<strong>供应商入驻、采购协作、多语言支持和影子 SaaS 发现</strong>。如果您使用过早期版本，以下是新增内容。每一项均链接至本指南后续的完整演练说明。</p>
+    <p>版本 2.6.2 新增了多项功能，重点关注<strong>供应商入驻、采购协作、多语言支持、影子 SaaS 发现、风险评分配置、成熟度模型自定义和工作流自动化</strong>。如果您使用过早期版本，以下是新增内容。每一项均链接至本指南后续的完整演练说明。</p>
     <table class="doc-table">
         <tr><th>新功能</th><th>功能说明</th><th>适用对象</th></tr>
         <tr><td><strong><a href="#language">语言设置</a></strong></td><td>支持 8 种语言使用平台。每位用户自行选择语言；管理员决定哪些语言可用。</td><td>全体用户</td></tr>
@@ -163,6 +163,10 @@
         <tr><td><strong><a href="#breach-alerts">违规/网络安全警报</a></strong></td><td>供应链违规信息源（包括 Grip 事件），带受影响用户的下钻查看，以及批量确认/误报/删除。</td><td>Cyber TPRM、管理员</td></tr>
         <tr><td><strong><a href="#admin-acl-groups">自定义访问控制群组</a></strong></td><td>创建您自己的 ACL 群组，从现有群组克隆权限，并按模块设置只读或读/写权限。随附的群组受到保护。</td><td>管理员</td></tr>
         <tr><td><strong><a href="#admin-templates">评估模板构建器</a></strong></td><td>新的问题类型（多选、电话、VAT）、模板驱动的证书说明、按角色控制的字段访问，以及默认隐藏的已停用模板。</td><td>管理员、Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">可自定义的风险评分</a></strong></td><td>重命名风险级别、调整评分阈值、选择自定义颜色，并重新标记所有五个可能性级别、五个影响级别和七个风险类别，以匹配您已批准的风险矩阵。</td><td>管理员</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">可配置的成熟度模型（SSE-CMM / CMMI）</a></strong></td><td>选择 4 级或 5 级成熟度量表，重命名每个级别，并应用一键 SSE-CMM 预设。当功能关闭时，默认的 4 级量表完全不变。</td><td>管理员</td></tr>
+        <tr><td><strong><a href="#workflow-rules">工作流规则</a></strong></td><td>当供应商获得批准时自动触发评估和其他操作。设置条件（始终、按层级），添加多个目标，并构建多步骤链。</td><td>管理员</td></tr>
+        <tr><td><strong><a href="#alternate-stakeholders">备用利益相关者</a></strong></td><td>为供应商分配一个备用利益相关者。备用人员拥有与主要人员相同的查看和任务访问权限，但不能重新分配利益相关者、移交供应商或管理其他备用人员。</td><td>Cyber TPRM、管理员</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>如何确认我当前的版本？</strong>管理员可前往 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> 查看已安装的版本。本指南描述的是 <strong>v2.6.2</strong>。请参阅 <a href="#admin-updates">平台更新</a>。
@@ -400,7 +404,7 @@
         <li>您将看到列出的 14 个安全领域。点击领域名称（例如 <strong>GOV - Governance &amp; Leadership</strong>）可展开并查看其问题。</li>
         <li>对于每个问题，您需要提供两项信息：
             <ul>
-                <li><span class="field-label">Maturity Rating</span>（1-4）&mdash; 您的组织对此控制措施的实施成熟度如何？
+                <li><span class="field-label">Maturity Rating</span>（默认 1-4；配置自定义成熟度模型后为 1-5，请参阅 <a href="#admin-risk-scoring">可配置成熟度模型</a>）&mdash; 您的组织对此控制措施的实施成熟度如何？
                     <ul>
                         <li><strong>1 &mdash; Initial/Ad Hoc：</strong>没有正式流程，执行不一致或完全未执行。</li>
                         <li><strong>2 &mdash; Developing：</strong>存在一些流程但未能持续遵循，部分有文档记录。</li>
@@ -432,7 +436,7 @@
     </div>
     <figure class="doc-figure">
         <img src="app/docs/grc-assessment-questions.png" alt="Answering questions in the assessment questionnaire" loading="lazy">
-        <figcaption><strong>填写问卷。</strong>页眉实时跟踪<em>进度</em>、<em>CSF 成熟度</em>和<em>合规性</em>。领域选项卡（GOV、IAM、DSP、&hellip;）各显示该领域的当前评分；点击可跳转到其问题。对于每个问题，您需设置<strong>成熟度</strong>评级（1&ndash;4 或 N/A）和<strong>合规</strong>状态 &mdash; 答案自动保存。使用 <span class="btn-label">Show Unanswered Questions</span> 查找剩余未回答的问题。</figcaption>
+        <figcaption><strong>填写问卷。</strong>页眉实时跟踪<em>进度</em>、<em>CSF 成熟度</em>和<em>合规性</em>。领域选项卡（GOV、IAM、DSP、&hellip;）各显示该领域的当前评分；点击可跳转到其问题。对于每个问题，您需设置<strong>成熟度</strong>评级（默认 1&ndash;4，配置自定义量表后最多为 1&ndash;5）和<strong>合规</strong>状态 &mdash; 答案自动保存。使用 <span class="btn-label">Show Unanswered Questions</span> 查找剩余未回答的问题。</figcaption>
     </figure>
 </div>
 
@@ -567,7 +571,7 @@
     </ol>
     <figure class="doc-figure">
         <img src="app/docs/grc-fairscore.png" alt="CSF Maturity Score dashboard with radar chart" loading="lazy">
-        <figcaption><strong>GRC Module &rarr; CSF Maturity Score。</strong>四个标题数据块——<em>CSF Maturity Score</em>（1&ndash;4 分制）、<em>Compliance Rate</em>、<em>Questions Answered</em> 和 <em>Gaps Found</em>——一目了然地总结您的安全态势。<strong>安全领域成熟度雷达图</strong>展示所有 14 个领域，右侧列表给出每个领域的精确平均分。可从顶部下拉菜单选择所需评估。</figcaption>
+        <figcaption><strong>GRC Module &rarr; CSF Maturity Score。</strong>四个标题数据块——<em>CSF Maturity Score</em>（量表反映已配置的成熟度模型；默认为 1&ndash;4）、<em>Compliance Rate</em>、<em>Questions Answered</em> 和 <em>Gaps Found</em>——一目了然地总结您的安全态势。<strong>安全领域成熟度雷达图</strong>展示所有 14 个领域，右侧列表给出每个领域的精确平均分。可从顶部下拉菜单选择所需评估。</figcaption>
     </figure>
 </div>
 
@@ -1387,6 +1391,119 @@
     <p>模板列表仅显示<strong>活跃</strong>模板。如果有任何模板被停用，<span class="btn-label">Show Deactivated (N)</span> 按钮会显示它们（并切换回 <span class="btn-label">Hide Deactivated (N)</span>），使长期运行的租户列表专注于实际使用中的模板，同时又不失去对已停用模板的访问权限。</p>
 </div>
 
+<div class="doc-section" id="admin-risk-scoring">
+    <h2>风险评分与成熟度配置 <span class="new-badge">2.6.2 新功能</span></h2>
+    <p>导航至 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Risk Scoring</span>，自定义风险在风险登记册、FairScore 热图和所有风险表单中的显示与评分方式。更改立即生效，无需重启。</p>
+
+    <h3>风险级别</h3>
+    <p>平台使用四个风险级别：<strong>Critical</strong>（严重）、<strong>High</strong>（高）、<strong>Medium</strong>（中）和 <strong>Low</strong>（低）。每个级别可更改三项内容：</p>
+    <ul>
+        <li><strong>显示标签</strong> -- 在徽章、报告和风险登记册中显示的名称（例如，将"Critical"改为"Very High"以匹配您的 ISMS）。</li>
+        <li><strong>评分阈值</strong> -- 风险归入该级别所需的最低评分（1&ndash;25）。阈值必须保持顺序：严重 &gt; 高 &gt; 中。平台会自动强制执行此规则。</li>
+        <li><strong>颜色</strong> -- 使用拾色器或直接输入十六进制代码。实时预览徽章会随您的输入更新，让您在保存前看到效果。</li>
+    </ul>
+    <p>点击 <span class="btn-label">Save Risk Configuration</span> 应用更改。点击 <span class="btn-label">Reset to Defaults</span> 恢复所有原始值。</p>
+
+    <div class="callout callout-info">
+        <strong>默认阈值：</strong>严重 &ge;20，高 &ge;12，中 &ge;6，低 &lt;6。底层评分公式（可能性 &times; 影响，1&ndash;25）不变。
+    </div>
+
+    <h3>可能性与后果级别名称</h3>
+    <p>风险登记册使用 5&times;5 矩阵。您可以重命名所有五个可能性级别（默认：Rare / Unlikely / Possible / Likely / Almost Certain）和所有五个后果级别（默认：Insignificant / Minor / Moderate / Major / Catastrophic），以匹配您组织认可的术语。这些仅是显示标签，底层数值和评分公式不变。</p>
+
+    <h3>风险类别名称</h3>
+    <p>七个风险类别标签（Strategic、Operational、Financial、Compliance、Reputational、Technology、Third Party）也可以重命名，以匹配您的内部语言。</p>
+
+    <h3>可配置的成熟度模型（SSE-CMM / CMMI）<span class="new-badge">2.6.2 新功能</span></h3>
+    <p>在风险评分页面向下滚动，到达<strong>成熟度模型设置</strong>部分。默认情况下，平台使用内置的 4 级成熟度量表（Initial / Developing / Defined / Managed）。此功能允许您切换到 5 级量表，或重命名各级别以匹配 CMMI 或 SSE-CMM，而无需更改其他任何设置。</p>
+
+    <h4>启用自定义模型</h4>
+    <ol class="steps">
+        <li>勾选 <span class="field-label">Enable custom maturity model</span>。配置字段将显示在切换开关下方。</li>
+        <li>在 <span class="field-label">Number of Maturity Levels</span> 下，选择 <strong>4 级</strong>（默认）或 <strong>5 级</strong>（CMMI / SSE-CMM）。</li>
+        <li>在每个级别字段中输入您自己的标签。您也可以点击以下预设按钮之一：
+            <ul>
+                <li><span class="btn-label">Apply SSE-CMM (5 levels)</span> -- 填入 Performed Informally / Planned and Tracked / Well Defined / Quantitatively Controlled / Continuously Improving。</li>
+                <li><span class="btn-label">Reset to Default (4 levels)</span> -- 填入原始的 Initial / Developing / Defined / Managed 标签。</li>
+            </ul>
+        </li>
+        <li>点击 <span class="btn-label">Save Maturity Settings</span>。</li>
+    </ol>
+
+    <h4>配置量表的显示位置</h4>
+    <p>保存后，配置的量表将在所有显示成熟度的地方生效：</p>
+    <ul>
+        <li><strong>评估问卷</strong> -- 成熟度选择器在按钮和工具提示中显示您的标签名称。</li>
+        <li><strong>CSF 成熟度评分仪表盘</strong> -- 总体评分和领域评分按照您配置的最高值（4.0 或 5.0）报告。</li>
+        <li><strong>框架页面</strong> -- 每个框架的平均成熟度显示为"X.XX / 4.00"或"X.XX / 5.00"。</li>
+        <li><strong>评估 PDF 报告</strong> -- 层级框、层级标签和条形宽度均使用您配置的级别和标签。</li>
+    </ul>
+
+    <div class="callout callout-warning">
+        <strong>关闭该功能</strong>将在所有地方恢复默认的 4 级行为。已存储的历史评估数据（成熟度评级 1&ndash;4）不会更改——现有答案将简单地映射回默认标签。
+    </div>
+</div>
+
+<div class="doc-section" id="workflow-rules">
+    <h2>工作流规则 <span class="new-badge">2.6.2 新功能</span></h2>
+    <p>工作流规则允许您在供应商经历生命周期时触发自动操作。导航至 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Workflow Rules</span>。</p>
+
+    <h3>规则的工作原理</h3>
+    <p>每条规则由三个部分组成：</p>
+    <ul>
+        <li><strong>触发器</strong> -- 启动规则的事件。目前支持：<em>供应商获批</em>（当供应商的审查状态更改为"已批准"时触发）。</li>
+        <li><strong>条件</strong> -- 可选的规则运行过滤器。<em>始终</em>表示对每个获批供应商都执行。您也可以按供应商层级过滤（例如，仅针对第 1 层供应商）。</li>
+        <li><strong>操作</strong> -- 要执行的内容（例如，发送评估、发送年度审查通知）。</li>
+    </ul>
+
+    <h3>多目标与链式规则</h3>
+    <p>单条规则可以同时针对<strong>多个接收者或评估</strong>。您还可以创建链式规则：当规则 A 的操作触发时，它本身可以触发规则 B。内置循环保护机制可防止无限循环。</p>
+
+    <h3>创建规则</h3>
+    <ol class="steps">
+        <li>点击 <span class="btn-label">+ New Rule</span>。</li>
+        <li>选择 <span class="field-label">Trigger</span>（例如，供应商获批）。</li>
+        <li>设置 <span class="field-label">Condition</span>。选择<strong>始终</strong>以对所有供应商运行，或添加过滤条件。</li>
+        <li>添加一个或多个 <span class="field-label">Actions</span>。每个操作指定要执行的内容和目标对象。</li>
+        <li>点击 <span class="btn-label">Save Rule</span>。</li>
+    </ol>
+
+    <div class="callout callout-info">
+        <strong>两种审批路径均会触发规则。</strong>供应商可以从供应商页面批准，也可以从供应商列表的批量批准操作中批准。两种路径都会触发工作流规则。
+    </div>
+</div>
+
+<div class="doc-section" id="alternate-stakeholders">
+    <h2>备用利益相关者 <span class="new-badge">2.6.2 新功能</span></h2>
+    <p><strong>备用利益相关者</strong>是在主要利益相关者之外分配给供应商的备用联系人。当一个供应商在您的组织中有两个联系人，或者您希望经理在直接管理关系的人员之外也能了解情况时，这非常有用。</p>
+
+    <h3>备用人员的权限</h3>
+    <p>备用人员拥有与该供应商主要利益相关者几乎相同的访问权限：</p>
+    <ul>
+        <li>查看供应商的入驻页面、文档和状态</li>
+        <li>完成分配给该供应商的任务</li>
+        <li>在选择加入时接收评估副本（见下文）</li>
+    </ul>
+    <p>备用人员<strong>不能</strong>：</p>
+    <ul>
+        <li>将供应商重新分配给其他主要利益相关者</li>
+        <li>将供应商移交给其他用户</li>
+        <li>管理（添加、删除或更改）其他备用人员</li>
+    </ul>
+
+    <h3>分配备用人员</h3>
+    <ol class="steps">
+        <li>打开供应商页面。</li>
+        <li>在<strong>利益相关者</strong>部分，点击 <span class="btn-label">Add Alternate</span>。</li>
+        <li>搜索并选择您要设为备用人员的用户。</li>
+        <li>点击 <span class="btn-label">Save</span>。</li>
+    </ol>
+    <p>备用人员将以"Alternate"标签显示在利益相关者部分。一个供应商可以有多个备用人员。</p>
+
+    <h3>备用人员的评估副本</h3>
+    <p>发送供应商评估时，管理员可以勾选 <span class="field-label">Also send a copy to alternates</span>。勾选后，该供应商的每位备用利益相关者都会收到评估的独立副本，可单独完成。</p>
+</div>
+
 <div class="doc-section" id="admin-email">
     <h2>邮件配置</h2>
     <p>配置发送电子邮件通知的 SMTP 设置。导航至 <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email</span>。设置包括 SMTP 主机、端口、用户名、密码、加密方式（TLS/SSL）和发件人地址。</p>
@@ -1676,6 +1793,7 @@
                     <a href="#tprm-assessments">供应商评估</a>
                     <a href="#assessment-forms">评估表单与 AI 填充</a>
                     <a href="#tprm-action-plan">供应商行动计划</a>
+                    <a href="#alternate-stakeholders">备用利益相关者</a>
                     <a href="#tprm-srs">安全风险评分卡</a>
                     <a href="#tprm-fair">FAIR 分析</a>
                     <a href="#tprm-fourth-party">第四方风险</a>
@@ -1698,6 +1816,8 @@
                     <a href="#admin-users">用户管理</a>
                     <a href="#admin-acl-groups">ACL 群组</a>
                     <a href="#admin-templates">评估模板</a>
+                    <a href="#admin-risk-scoring">风险评分与成熟度</a>
+                    <a href="#workflow-rules">工作流规则</a>
                     <a href="#admin-email">邮件配置</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">AI 集成</a>

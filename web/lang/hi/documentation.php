@@ -142,7 +142,7 @@
      ================================================================ -->
 <div class="doc-section" id="whats-new">
     <h2>संस्करण 2.6.2 में क्या नया है</h2>
-    <p>Version 2.6.2 <strong>विक्रेता ऑनबोर्डिंग, खरीद सहयोग, बहु-भाषा समर्थन और शैडो-SaaS खोज</strong> पर केंद्रित कई सुविधाएं जोड़ता है। यदि आपने पहले के संस्करण का उपयोग किया है, तो यहाँ बताया गया है कि क्या नया है। प्रत्येक आइटम इस गाइड में बाद में उसके पूर्ण विवरण से लिंक करता है।</p>
+    <p>Version 2.6.2 <strong>विक्रेता ऑनबोर्डिंग, खरीद सहयोग, बहु-भाषा समर्थन, शैडो-SaaS खोज, जोखिम स्कोरिंग कॉन्फ़िगरेशन, परिपक्वता मॉडल अनुकूलन और वर्कफ़्लो स्वचालन</strong> पर केंद्रित कई सुविधाएं जोड़ता है। यदि आपने पहले के संस्करण का उपयोग किया है, तो यहाँ बताया गया है कि क्या नया है। प्रत्येक आइटम इस गाइड में बाद में उसके पूर्ण विवरण से लिंक करता है।</p>
     <table class="doc-table">
         <tr><th>नई सुविधा</th><th>यह क्या करती है</th><th>किसके लिए है</th></tr>
         <tr><td><strong><a href="#language">भाषा सेटिंग</a></strong></td><td>प्लेटफ़ॉर्म को 8 भाषाओं में उपयोग करें। प्रत्येक व्यक्ति अपनी भाषा चुनता है; एडमिन तय करते हैं कि कौन सी भाषाएं उपलब्ध हैं।</td><td>सभी</td></tr>
@@ -163,6 +163,10 @@
         <tr><td><strong><a href="#breach-alerts">Breach / Cyber Alerts</a></strong></td><td>एक आपूर्ति-श्रृंखला उल्लंघन फ़ीड (Grip घटनाओं सहित) जिसमें प्रभावित-उपयोगकर्ता ड्रिल-डाउन और बल्क acknowledge / false-positive / delete है।</td><td>Cyber TPRM, Admins</td></tr>
         <tr><td><strong><a href="#admin-acl-groups">कस्टम एक्सेस-कंट्रोल समूह</a></strong></td><td>अपने स्वयं के ACL समूह बनाएं, किसी मौजूदा समूह से अनुमतियाँ क्लोन करें, और प्रति मॉड्यूल Read बनाम Read/Write सेट करें। शिप किए गए समूह सुरक्षित हैं।</td><td>Admins</td></tr>
         <tr><td><strong><a href="#admin-templates">Assessment Template Builder</a></strong></td><td>नए प्रश्न प्रकार (multi-select, phone, VAT), टेम्पलेट-संचालित प्रमाणपत्र निर्देश, प्रति-भूमिका फ़ील्ड गेटिंग, और निष्क्रिय टेम्पलेट डिफ़ॉल्ट रूप से छुपाए गए।</td><td>Admins, Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">अनुकूलनीय जोखिम स्कोरिंग</a></strong></td><td>जोखिम बैंड का नाम बदलें, स्कोर थ्रेशोल्ड समायोजित करें, कस्टम रंग चुनें, और अपने अनुमोदित जोखिम मैट्रिक्स के अनुसार सभी पाँच संभावना स्तरों, पाँच प्रभाव स्तरों और सात जोखिम श्रेणियों का नाम बदलें।</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">कॉन्फ़िगर करने योग्य परिपक्वता मॉडल (SSE-CMM / CMMI)</a></strong></td><td>4-स्तर या 5-स्तर की परिपक्वता स्केल चुनें, प्रत्येक स्तर का नाम बदलें, और एक-क्लिक SSE-CMM प्रीसेट लागू करें। जब सुविधा बंद हो तो डिफ़ॉल्ट 4-स्तर स्केल पूरी तरह अपरिवर्तित रहती है।</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#workflow-rules">Workflow Rules</a></strong></td><td>विक्रेता के अनुमोदित होने पर मूल्यांकन और अन्य क्रियाएं स्वचालित रूप से ट्रिगर करें। शर्तें निर्धारित करें (हमेशा, टियर के अनुसार), एकाधिक लक्ष्य जोड़ें और बहु-चरण श्रृंखलाएं बनाएं।</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#alternate-stakeholders">वैकल्पिक हितधारक</a></strong></td><td>किसी विक्रेता को प्राथमिक हितधारक के साथ एक बैकअप हितधारक असाइन करें। वैकल्पिक के पास प्राथमिक जैसी ही दृश्य और कार्य पहुँच होती है, लेकिन वह हितधारक पुनः असाइन नहीं कर सकता, विक्रेता को हैंड ऑफ नहीं कर सकता, या अन्य वैकल्पिकों का प्रबंधन नहीं कर सकता।</td><td>Cyber TPRM, Admins</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>मैं कैसे जानूं कि मैं किस संस्करण पर हूं?</strong> प्रशासक इंस्टॉल किए गए संस्करण को देखने के लिए <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> पर जा सकते हैं। यह गाइड <strong>v2.6.2</strong> का वर्णन करती है। देखें <a href="#admin-updates">प्लेटफ़ॉर्म अपडेट करना</a>।
@@ -400,7 +404,7 @@
         <li>आपको 14 सुरक्षा डोमेन सूचीबद्ध दिखाई देंगे। किसी डोमेन नाम पर क्लिक करें (जैसे, <strong>GOV - Governance &amp; Leadership</strong>) उसे विस्तारित करने और उसके प्रश्न देखने के लिए।</li>
         <li>प्रत्येक प्रश्न के लिए, आपको दो जानकारी प्रदान करनी होगी:
             <ul>
-                <li><span class="field-label">Maturity Rating</span> (1-4) &mdash; इस नियंत्रण का आपके संगठन का कार्यान्वयन कितना परिपक्व है?
+                <li><span class="field-label">Maturity Rating</span> &mdash; इस नियंत्रण का आपके संगठन का कार्यान्वयन कितना परिपक्व है? स्केल डिफ़ॉल्ट रूप से 1&ndash;4 है, या 1&ndash;5 जब कस्टम परिपक्वता मॉडल कॉन्फ़िगर किया गया हो (देखें <a href="#admin-risk-scoring">कॉन्फ़िगर करने योग्य परिपक्वता मॉडल</a>)। डिफ़ॉल्ट स्तर लेबल:
                     <ul>
                         <li><strong>1 &mdash; Initial/Ad Hoc:</strong> कोई औपचारिक प्रक्रिया नहीं। असंगत रूप से या बिल्कुल नहीं किया गया।</li>
                         <li><strong>2 &mdash; Developing:</strong> कुछ प्रक्रियाएं मौजूद हैं लेकिन लगातार पालन नहीं किया जाता। आंशिक रूप से दस्तावेज़ीकृत।</li>
@@ -432,7 +436,7 @@
     </div>
     <figure class="doc-figure">
         <img src="app/docs/grc-assessment-questions.png" alt="Answering questions in the assessment questionnaire" loading="lazy">
-        <figcaption><strong>प्रश्नावली का उत्तर देना।</strong> हेडर काम करते समय <em>Progress</em>, लाइव <em>CSF Maturity</em>, और <em>Compliance</em> ट्रैक करता है। डोमेन टैब (GOV, IAM, DSP, &hellip;) प्रत्येक उस डोमेन का वर्तमान स्कोर दिखाता है; उसके प्रश्नों पर जाने के लिए एक पर क्लिक करें। प्रत्येक प्रश्न के लिए आप एक <strong>Maturity</strong> रेटिंग (1&ndash;4 या N/A) और एक <strong>Conformity</strong> स्थिति सेट करते हैं &mdash; उत्तर स्वतः-सहेजे जाते हैं। जो बचा है उसे खोजने के लिए <span class="btn-label">Show Unanswered Questions</span> उपयोग करें।</figcaption>
+        <figcaption><strong>प्रश्नावली का उत्तर देना।</strong> हेडर काम करते समय <em>Progress</em>, लाइव <em>CSF Maturity</em>, और <em>Compliance</em> ट्रैक करता है। डोमेन टैब (GOV, IAM, DSP, &hellip;) प्रत्येक उस डोमेन का वर्तमान स्कोर दिखाता है; उसके प्रश्नों पर जाने के लिए एक पर क्लिक करें। प्रत्येक प्रश्न के लिए आप एक <strong>Maturity</strong> रेटिंग (डिफ़ॉल्ट रूप से 1&ndash;4, या कॉन्फ़िगर की गई कस्टम स्केल के साथ 1&ndash;5) और एक <strong>Conformity</strong> स्थिति सेट करते हैं &mdash; उत्तर स्वतः-सहेजे जाते हैं। जो बचा है उसे खोजने के लिए <span class="btn-label">Show Unanswered Questions</span> उपयोग करें।</figcaption>
     </figure>
 </div>
 
@@ -567,7 +571,7 @@
     </ol>
     <figure class="doc-figure">
         <img src="app/docs/grc-fairscore.png" alt="CSF Maturity Score dashboard with radar chart" loading="lazy">
-        <figcaption><strong>GRC Module &rarr; CSF Maturity Score.</strong> चार हेडलाइन टाइलें &mdash; <em>CSF Maturity Score</em> (1&ndash;4 पैमाना), <em>Compliance Rate</em>, <em>Questions Answered</em>, और <em>Gaps Found</em> &mdash; एक नज़र में आपकी स्थिति का सारांश देती हैं। <strong>Security Domain Maturity Radar</strong> सभी 14 डोमेन प्लॉट करता है, और दाईं ओर की सूची प्रत्येक डोमेन का सटीक औसत स्कोर देती है। शीर्ष पर ड्रॉपडाउन से वह मूल्यांकन चुनें जो आप चाहते हैं।</figcaption>
+        <figcaption><strong>GRC Module &rarr; CSF Maturity Score.</strong> चार हेडलाइन टाइलें &mdash; <em>CSF Maturity Score</em> (स्केल आपके कॉन्फ़िगर किए गए परिपक्वता मॉडल को दर्शाती है; डिफ़ॉल्ट 1&ndash;4), <em>Compliance Rate</em>, <em>Questions Answered</em>, और <em>Gaps Found</em> &mdash; एक नज़र में आपकी स्थिति का सारांश देती हैं। <strong>Security Domain Maturity Radar</strong> सभी 14 डोमेन प्लॉट करता है, और दाईं ओर की सूची प्रत्येक डोमेन का सटीक औसत स्कोर देती है। शीर्ष पर ड्रॉपडाउन से वह मूल्यांकन चुनें जो आप चाहते हैं।</figcaption>
     </figure>
 </div>
 
@@ -1387,6 +1391,119 @@
     <p>टेम्पलेट सूची केवल <strong>सक्रिय</strong> टेम्पलेट दिखाती है। यदि किसी को निष्क्रिय किया गया है, तो एक <span class="btn-label">Show Deactivated (N)</span> बटन उन्हें प्रकट करता है (और <span class="btn-label">Hide Deactivated (N)</span> पर वापस टॉगल करता है), जो एक लंबे समय तक चलने वाले tenant की सूची को वास्तव में उपयोग में आने वाले टेम्पलेट पर केंद्रित रखता है बिना सेवानिवृत्त टेम्पलेट तक पहुंच खोए।</p>
 </div>
 
+<div class="doc-section" id="admin-risk-scoring">
+    <h2>जोखिम स्कोरिंग &amp; परिपक्वता कॉन्फ़िगरेशन <span class="new-badge">2.6.2 में नया</span></h2>
+    <p>जोखिम रजिस्टर, FairScore हीटमैप और सभी जोखिम फ़ॉर्म में जोखिमों को कैसे प्रदर्शित और स्कोर किया जाए, यह अनुकूलित करने के लिए <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Risk Scoring</span> पर जाएं। परिवर्तन तुरंत प्रभावी होते हैं &mdash; कोई पुनरारंभ की आवश्यकता नहीं।</p>
+
+    <h3>जोखिम बैंड</h3>
+    <p>प्लेटफ़ॉर्म चार जोखिम बैंड का उपयोग करता है: <strong>Critical</strong>, <strong>High</strong>, <strong>Medium</strong>, और <strong>Low</strong>। प्रत्येक बैंड के लिए आप तीन चीजें बदल सकते हैं:</p>
+    <ul>
+        <li><strong>डिस्प्ले लेबल</strong> &mdash; बैज, रिपोर्ट और जोखिम रजिस्टर पर दिखाया जाने वाला नाम (उदा., अपने ISMS से मिलान के लिए "Critical" को "Very High" में बदलें)।</li>
+        <li><strong>स्कोर थ्रेशोल्ड</strong> &mdash; न्यूनतम स्कोर (1&ndash;25) जो एक जोखिम को इस बैंड में आने के लिए पहुंचना होगा। थ्रेशोल्ड क्रमबद्ध रहने चाहिए: Critical &gt; High &gt; Medium। प्लेटफ़ॉर्म इसे स्वचालित रूप से लागू करता है।</li>
+        <li><strong>रंग</strong> &mdash; रंग पिकर का उपयोग करें या सीधे एक हेक्स कोड टाइप करें। एक लाइव पूर्वावलोकन बैज टाइप करते समय अपडेट होता है।</li>
+    </ul>
+    <p>लागू करने के लिए <span class="btn-label">Save Risk Configuration</span> पर क्लिक करें। सभी मूल मान पुनर्स्थापित करने के लिए <span class="btn-label">Reset to Defaults</span> पर क्लिक करें।</p>
+
+    <div class="callout callout-info">
+        <strong>डिफ़ॉल्ट थ्रेशोल्ड:</strong> Critical &ge;20, High &ge;12, Medium &ge;6, Low &lt;6। अंतर्निहित स्कोर सूत्र (Likelihood &times; Impact, 1&ndash;25) नहीं बदलता।
+    </div>
+
+    <h3>संभावना और परिणाम स्तर के नाम</h3>
+    <p>जोखिम रजिस्टर 5&times;5 मैट्रिक्स का उपयोग करता है। आप सभी पाँच संभावना स्तरों (डिफ़ॉल्ट: Rare / Unlikely / Possible / Likely / Almost Certain) और सभी पाँच परिणाम स्तरों (डिफ़ॉल्ट: Insignificant / Minor / Moderate / Major / Catastrophic) का नाम बदल सकते हैं। ये केवल डिस्प्ले लेबल हैं &mdash; अंतर्निहित संख्यात्मक मान और स्कोरिंग सूत्र अपरिवर्तित रहते हैं।</p>
+
+    <h3>जोखिम श्रेणी नाम</h3>
+    <p>सात जोखिम श्रेणी लेबल (Strategic, Operational, Financial, Compliance, Reputational, Technology, Third Party) का नाम भी बदला जा सकता है।</p>
+
+    <h3>कॉन्फ़िगर करने योग्य परिपक्वता मॉडल (SSE-CMM / CMMI) <span class="new-badge">2.6.2 में नया</span></h3>
+    <p>Risk Scoring पृष्ठ पर नीचे स्क्रॉल करें <strong>Maturity Model Settings</strong> अनुभाग तक पहुंचने के लिए। डिफ़ॉल्ट रूप से प्लेटफ़ॉर्म एक बिल्ट-इन 4-स्तर परिपक्वता स्केल (Initial / Developing / Defined / Managed) का उपयोग करता है। यह सुविधा आपको 5-स्तर की स्केल पर स्विच करने या CMMI या SSE-CMM से मिलान के लिए स्तरों का नाम बदलने देती है &mdash; बिना कुछ और बदले।</p>
+
+    <h4>कस्टम मॉडल सक्षम करना</h4>
+    <ol class="steps">
+        <li><span class="field-label">Enable custom maturity model</span> टिक करें। कॉन्फ़िगरेशन फ़ील्ड टॉगल के नीचे दिखाई देते हैं।</li>
+        <li><span class="field-label">Number of Maturity Levels</span> के अंतर्गत, <strong>4 levels</strong> (डिफ़ॉल्ट) या <strong>5 levels</strong> (CMMI / SSE-CMM) चुनें।</li>
+        <li>प्रत्येक स्तर फ़ील्ड में अपना लेबल टाइप करें। आप प्रीसेट बटन पर भी क्लिक कर सकते हैं:
+            <ul>
+                <li><span class="btn-label">Apply SSE-CMM (5 levels)</span> &mdash; Performed Informally / Planned and Tracked / Well Defined / Quantitatively Controlled / Continuously Improving भरता है।</li>
+                <li><span class="btn-label">Reset to Default (4 levels)</span> &mdash; मूल Initial / Developing / Defined / Managed लेबल भरता है।</li>
+            </ul>
+        </li>
+        <li><span class="btn-label">Save Maturity Settings</span> पर क्लिक करें।</li>
+    </ol>
+
+    <h4>कॉन्फ़िगर की गई स्केल कहाँ दिखती है</h4>
+    <p>सहेजने के बाद, कॉन्फ़िगर की गई स्केल हर जगह परिलक्षित होती है जहाँ परिपक्वता दिखाई देती है:</p>
+    <ul>
+        <li><strong>Assessment Questionnaire</strong> &mdash; परिपक्वता पिकर बटन और टूलटिप में आपके लेबल नाम दिखाता है।</li>
+        <li><strong>CSF Maturity Score डैशबोर्ड</strong> &mdash; समग्र स्कोर और डोमेन स्कोर आपके कॉन्फ़िगर किए गए अधिकतम (4.0 या 5.0) के बाहर रिपोर्ट किए जाते हैं।</li>
+        <li><strong>Frameworks पृष्ठ</strong> &mdash; प्रति-फ्रेमवर्क औसत परिपक्वता "X.XX / 4.00" या "X.XX / 5.00" दिखाती है।</li>
+        <li><strong>Assessment PDF रिपोर्ट</strong> &mdash; टियर बॉक्स, टियर लेबल और बार चौड़ाई सभी आपके कॉन्फ़िगर किए गए स्तरों और लेबल का उपयोग करते हैं।</li>
+    </ul>
+
+    <div class="callout callout-warning">
+        <strong>सुविधा बंद करने पर</strong> हर जगह डिफ़ॉल्ट 4-स्तर व्यवहार पुनर्स्थापित होता है। पहले से संग्रहीत ऐतिहासिक मूल्यांकन डेटा (परिपक्वता रेटिंग 1&ndash;4) नहीं बदलता &mdash; मौजूदा उत्तर केवल डिफ़ॉल्ट लेबल पर वापस मैप होते हैं।
+    </div>
+</div>
+
+<div class="doc-section" id="workflow-rules">
+    <h2>Workflow Rules <span class="new-badge">2.6.2 में नया</span></h2>
+    <p>Workflow rules आपको विक्रेता के जीवनचक्र से गुज़रने पर स्वचालित क्रियाएं ट्रिगर करने देते हैं। <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Workflow Rules</span> पर जाएं।</p>
+
+    <h3>नियम कैसे काम करते हैं</h3>
+    <p>प्रत्येक नियम के तीन भाग होते हैं:</p>
+    <ul>
+        <li><strong>Trigger</strong> &mdash; वह घटना जो नियम शुरू करती है। वर्तमान में समर्थित: <em>Vendor Approved</em> (जब किसी विक्रेता की समीक्षा स्थिति Approved में बदलती है)।</li>
+        <li><strong>Condition</strong> &mdash; नियम कब चले, इस पर वैकल्पिक फ़िल्टर। <em>Always</em> का अर्थ है हर अनुमोदित विक्रेता। आप विक्रेता टियर के आधार पर भी फ़िल्टर कर सकते हैं (उदा., केवल Tier 1 विक्रेता)।</li>
+        <li><strong>Action</strong> &mdash; क्या करना है (उदा., मूल्यांकन भेजें, वार्षिक समीक्षा अधिसूचना भेजें)।</li>
+    </ul>
+
+    <h3>एकाधिक लक्ष्य और चेनिंग</h3>
+    <p>एक नियम एक साथ <strong>एकाधिक प्राप्तकर्ता या मूल्यांकन</strong> को लक्षित कर सकता है। आप एक श्रृंखला भी बना सकते हैं: जब नियम A की क्रिया चलती है, तो वह स्वयं नियम B ट्रिगर कर सकती है। एक लूप गार्ड अनंत श्रृंखलाओं को रोकता है।</p>
+
+    <h3>नियम बनाना</h3>
+    <ol class="steps">
+        <li><span class="btn-label">+ New Rule</span> पर क्लिक करें।</li>
+        <li><span class="field-label">Trigger</span> चुनें (उदा., Vendor Approved)।</li>
+        <li><span class="field-label">Condition</span> सेट करें। हर विक्रेता के लिए चलाने के लिए <strong>Always</strong> चुनें, या एक फ़िल्टर जोड़ें।</li>
+        <li>एक या अधिक <span class="field-label">Actions</span> जोड़ें। प्रत्येक क्रिया निर्दिष्ट करती है क्या करना है और लक्ष्य कौन है।</li>
+        <li><span class="btn-label">Save Rule</span> पर क्लिक करें।</li>
+    </ol>
+
+    <div class="callout callout-info">
+        <strong>दोनों अनुमोदन पथ नियम चलाते हैं।</strong> किसी विक्रेता को विक्रेता पृष्ठ और विक्रेता सूची पर bulk-approve क्रिया दोनों से अनुमोदित किया जा सकता है। Workflow rules दोनों पथों से चलते हैं।
+    </div>
+</div>
+
+<div class="doc-section" id="alternate-stakeholders">
+    <h2>वैकल्पिक हितधारक <span class="new-badge">2.6.2 में नया</span></h2>
+    <p>एक <strong>वैकल्पिक हितधारक</strong> प्राथमिक हितधारक के साथ किसी विक्रेता को असाइन किया गया एक बैकअप संपर्क है। यह तब उपयोगी होता है जब किसी विक्रेता के आपके संगठन में दो संपर्क हों, या जब आप चाहते हों कि संबंध को सीधे प्रबंधित करने वाले व्यक्ति के साथ-साथ एक प्रबंधक को भी दृश्यता हो।</p>
+
+    <h3>एक वैकल्पिक क्या कर सकता है</h3>
+    <p>उस विक्रेता पर एक वैकल्पिक के पास प्राथमिक हितधारक जैसी लगभग समान पहुँच होती है:</p>
+    <ul>
+        <li>विक्रेता का ऑनबोर्डिंग पृष्ठ, दस्तावेज़ और स्थिति देखें</li>
+        <li>विक्रेता को असाइन किए गए कार्य पूरे करें</li>
+        <li>ऑप्ट-इन करने पर मूल्यांकन प्रतियाँ प्राप्त करें (नीचे देखें)</li>
+    </ul>
+    <p>एक वैकल्पिक <strong>नहीं कर सकता</strong>:</p>
+    <ul>
+        <li>विक्रेता को किसी अलग प्राथमिक हितधारक को पुनः असाइन करें</li>
+        <li>विक्रेता को किसी अन्य उपयोगकर्ता को हैंड ऑफ करें</li>
+        <li>अन्य वैकल्पिकों का प्रबंधन करें (जोड़ें, हटाएं, या बदलें)</li>
+    </ul>
+
+    <h3>वैकल्पिक असाइन करना</h3>
+    <ol class="steps">
+        <li>विक्रेता का पृष्ठ खोलें।</li>
+        <li><strong>Stakeholder</strong> अनुभाग में, <span class="btn-label">Add Alternate</span> पर क्लिक करें।</li>
+        <li>वह उपयोगकर्ता खोजें और चुनें जिसे आप वैकल्पिक के रूप में चाहते हैं।</li>
+        <li><span class="btn-label">Save</span> पर क्लिक करें।</li>
+    </ol>
+    <p>वैकल्पिक Stakeholder अनुभाग में "Alternate" लेबल के साथ दिखाई देता है। एक विक्रेता के एक से अधिक वैकल्पिक हो सकते हैं।</p>
+
+    <h3>वैकल्पिकों के लिए मूल्यांकन प्रतियाँ</h3>
+    <p>विक्रेता मूल्यांकन भेजते समय, एक प्रशासक <span class="field-label">Also send a copy to alternates</span> टिक कर सकता है। यदि टिक किया जाता है, तो उस विक्रेता के प्रत्येक वैकल्पिक हितधारक को स्वतंत्र रूप से पूरा करने के लिए मूल्यांकन की अपनी प्रति मिलती है।</p>
+</div>
+
 <div class="doc-section" id="admin-email">
     <h2>Email Configuration</h2>
     <p>ईमेल अधिसूचनाएं भेजने के लिए SMTP सेटिंग कॉन्फ़िगर करें। <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email</span> पर जाएं। सेटिंग में SMTP होस्ट, पोर्ट, उपयोगकर्ता नाम, पासवर्ड, एन्क्रिप्शन विधि (TLS/SSL), और प्रेषक पता शामिल हैं।</p>
@@ -1676,6 +1793,7 @@
                     <a href="#tprm-assessments">विक्रेता मूल्यांकन</a>
                     <a href="#assessment-forms">मूल्यांकन फ़ॉर्म &amp; AI फ़िल</a>
                     <a href="#tprm-action-plan">Vendor Action Plan</a>
+                    <a href="#alternate-stakeholders">वैकल्पिक हितधारक</a>
                     <a href="#tprm-srs">Security Risk Scorecard</a>
                     <a href="#tprm-fair">FAIR Analysis</a>
                     <a href="#tprm-fourth-party">4th Party Risk</a>
@@ -1698,6 +1816,8 @@
                     <a href="#admin-users">User Management</a>
                     <a href="#admin-acl-groups">ACL Groups</a>
                     <a href="#admin-templates">Assessment Templates</a>
+                    <a href="#admin-risk-scoring">जोखिम स्कोरिंग &amp; परिपक्वता</a>
+                    <a href="#workflow-rules">Workflow Rules</a>
                     <a href="#admin-email">Email Configuration</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">AI Integration</a>

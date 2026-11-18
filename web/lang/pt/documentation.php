@@ -142,7 +142,7 @@
      ================================================================ -->
 <div class="doc-section" id="whats-new">
     <h2>O Que Há de Novo na Versão 2.6.2</h2>
-    <p>A versão 2.6.2 adiciona vários recursos com foco em <strong>integração de fornecedores, colaboração em compras, suporte a vários idiomas e descoberta de shadow SaaS</strong>. Se você usou uma versão anterior, veja o que é novo. Cada item tem um link para seu guia completo mais adiante neste documento.</p>
+    <p>A versão 2.6.2 adiciona recursos com foco em <strong>integração de fornecedores, colaboração em compras, suporte a vários idiomas, descoberta de shadow SaaS, configuração de pontuação de riscos, personalização do modelo de maturidade e automação de fluxos de trabalho</strong>. Se você usou uma versão anterior, veja o que é novo. Cada item tem um link para seu guia completo mais adiante neste documento.</p>
     <table class="doc-table">
         <tr><th>Novo Recurso</th><th>O Que Faz</th><th>Para Quem É</th></tr>
         <tr><td><strong><a href="#language">Configurações de idioma</a></strong></td><td>Use a plataforma em 8 idiomas. Cada pessoa escolhe seu próprio idioma; os admins escolhem quais idiomas estão disponíveis.</td><td>Todos</td></tr>
@@ -163,6 +163,10 @@
         <tr><td><strong><a href="#breach-alerts">Alertas de Violação / Cibernéticos</a></strong></td><td>Um feed de violações da cadeia de suprimentos (incluindo incidentes do Grip) com um detalhamento de usuários afetados e ações em massa de reconhecer / falso positivo / excluir.</td><td>Cyber TPRM, Admins</td></tr>
         <tr><td><strong><a href="#admin-acl-groups">Grupos de controle de acesso personalizados</a></strong></td><td>Crie seus próprios grupos ACL, clone permissões de um grupo existente e defina Leitura vs Leitura/Escrita por módulo. Os grupos fornecidos são protegidos.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#admin-templates">Construtor de Modelos de Avaliação</a></strong></td><td>Novos tipos de pergunta (seleção múltipla, telefone, VAT), instruções de certificado orientadas por modelo, controle de campos por função e modelos desativados ocultos por padrão.</td><td>Admins, Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">Pontuação de riscos personalizável</a></strong></td><td>Renomeie bandas de risco, ajuste limiares de pontuação, escolha cores personalizadas e redefina todos os cinco níveis de probabilidade, cinco níveis de impacto e sete categorias de risco para corresponder à sua matriz de risco aprovada.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">Modelos de maturidade configuráveis (SSE-CMM / CMMI)</a></strong></td><td>Escolha uma escala de maturidade de 4 ou 5 níveis, renomeie cada nível e aplique um preset SSE-CMM com um clique. A escala padrão de 4 níveis permanece completamente inalterada quando o recurso está desativado.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#workflow-rules">Regras de fluxo de trabalho</a></strong></td><td>Acione automaticamente avaliações e outras ações quando um fornecedor é aprovado. Defina condições (sempre, por nível), adicione múltiplos alvos e crie cadeias de múltiplas etapas.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#alternate-stakeholders">Partes interessadas alternativas</a></strong></td><td>Atribua uma parte interessada reserva a um fornecedor. A alternativa tem o mesmo acesso de visualização e tarefas que a principal, mas não pode reatribuir partes interessadas, transferir o fornecedor ou gerenciar outras alternativas.</td><td>Cyber TPRM, Admins</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>Como saber qual versão estou usando?</strong> Os administradores podem ir a <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> para ver a versão instalada. Este guia descreve a <strong>v2.6.2</strong>. Consulte <a href="#admin-updates">Atualizando a Plataforma</a>.
@@ -400,12 +404,12 @@
         <li>Você verá os 14 domínios de segurança listados. Clique no nome de um domínio (ex.: <strong>GOV - Governance &amp; Leadership</strong>) para expandi-lo e ver suas perguntas.</li>
         <li>Para cada pergunta, você precisa fornecer duas informações:
             <ul>
-                <li><span class="field-label">Maturity Rating</span> (1-4) &mdash; Quão madura é a implementação deste controle pela sua organização?
+                <li><span class="field-label">Maturity Rating</span> &mdash; Quão madura é a implementação deste controle pela sua organização? A escala é 1&ndash;4 por padrão, ou 1&ndash;5 quando um modelo de maturidade personalizado está configurado (veja <a href="#admin-risk-scoring">Modelos de Maturidade Configuráveis</a>). Rótulos padrão dos níveis:
                     <ul>
-                        <li><strong>1 &mdash; Inicial/Ad Hoc:</strong> Sem processo formal. Feito de forma inconsistente ou inexistente.</li>
+                        <li><strong>1 &mdash; Inicial:</strong> Sem processo formal. Feito de forma inconsistente ou inexistente.</li>
                         <li><strong>2 &mdash; Em Desenvolvimento:</strong> Alguns processos existem, mas não são seguidos de forma consistente. Parcialmente documentado.</li>
                         <li><strong>3 &mdash; Definido:</strong> Processos formais e documentados estão em vigor e são seguidos de forma consistente.</li>
-                        <li><strong>4 &mdash; Gerenciado/Otimizado:</strong> Os processos são medidos, monitorados e continuamente melhorados.</li>
+                        <li><strong>4 &mdash; Gerenciado:</strong> Os processos são medidos, monitorados e continuamente melhorados.</li>
                     </ul>
                 </li>
                 <li><span class="field-label">Conformity Status</span> &mdash; Seu status de conformidade para esta pergunta:
@@ -432,7 +436,7 @@
     </div>
     <figure class="doc-figure">
         <img src="app/docs/grc-assessment-questions.png" alt="Answering questions in the assessment questionnaire" loading="lazy">
-        <figcaption><strong>Respondendo ao questionário.</strong> O cabeçalho rastreia o <em>Progresso</em>, a <em>Maturidade CSF</em> ao vivo e a <em>Conformidade</em> enquanto você trabalha. As abas de domínio (GOV, IAM, DSP, &hellip;) mostram a pontuação atual daquele domínio; clique em uma para ir às suas perguntas. Para cada pergunta você define uma classificação de <strong>Maturidade</strong> (1&ndash;4 ou N/A) e um status de <strong>Conformidade</strong> &mdash; as respostas são salvas automaticamente. Use <span class="btn-label">Show Unanswered Questions</span> para encontrar o que falta.</figcaption>
+        <figcaption><strong>Respondendo ao questionário.</strong> O cabeçalho rastreia o <em>Progresso</em>, a <em>Maturidade CSF</em> ao vivo e a <em>Conformidade</em> enquanto você trabalha. As abas de domínio (GOV, IAM, DSP, &hellip;) mostram a pontuação atual daquele domínio; clique em uma para ir às suas perguntas. Para cada pergunta você define uma classificação de <strong>Maturidade</strong> (1&ndash;5 ou N/A, conforme a escala configurada) e um status de <strong>Conformidade</strong> &mdash; as respostas são salvas automaticamente. Use <span class="btn-label">Show Unanswered Questions</span> para encontrar o que falta.</figcaption>
     </figure>
 </div>
 
@@ -567,7 +571,7 @@
     </ol>
     <figure class="doc-figure">
         <img src="app/docs/grc-fairscore.png" alt="CSF Maturity Score dashboard with radar chart" loading="lazy">
-        <figcaption><strong>GRC Module &rarr; CSF Maturity Score.</strong> Os quatro blocos principais &mdash; <em>CSF Maturity Score</em> (escala 1&ndash;4), <em>Compliance Rate</em>, <em>Questions Answered</em> e <em>Gaps Found</em> &mdash; resumem sua postura de relance. O <strong>Security Domain Maturity Radar</strong> plota todos os 14 domínios, e a lista à direita fornece a pontuação média exata de cada domínio. Selecione a avaliação desejada no menu suspenso no topo.</figcaption>
+        <figcaption><strong>GRC Module &rarr; CSF Maturity Score.</strong> Os quatro blocos principais &mdash; <em>CSF Maturity Score</em> (escala reflete o modelo de maturidade configurado; padrão 1&ndash;4), <em>Compliance Rate</em>, <em>Questions Answered</em> e <em>Gaps Found</em> &mdash; resumem sua postura de relance. O <strong>Security Domain Maturity Radar</strong> plota todos os 14 domínios, e a lista à direita fornece a pontuação média exata de cada domínio. Selecione a avaliação desejada no menu suspenso no topo.</figcaption>
     </figure>
 </div>
 
@@ -1387,6 +1391,119 @@
     <p>A lista de modelos mostra apenas modelos <strong>ativos</strong>. Se algum tiver sido desativado, um botão <span class="btn-label">Show Deactivated (N)</span> os revela (e alterna de volta para <span class="btn-label">Hide Deactivated (N)</span>), mantendo a lista de um locatário de longa duração focada nos modelos realmente em uso sem perder o acesso aos aposentados.</p>
 </div>
 
+<div class="doc-section" id="admin-risk-scoring">
+    <h2>Configuração de Pontuação de Risco e Maturidade <span class="new-badge">Novo em 2.6.2</span></h2>
+    <p>Navegue até <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Risk Scoring</span> para personalizar como os riscos são exibidos e pontuados no Registro de Riscos, no heatmap FairScore e em todos os formulários de risco. As alterações entram em vigor imediatamente -- sem necessidade de reinicialização.</p>
+
+    <h3>Bandas de risco</h3>
+    <p>A plataforma usa quatro bandas de risco: <strong>Critical</strong>, <strong>High</strong>, <strong>Medium</strong> e <strong>Low</strong>. Para cada banda você pode alterar três coisas:</p>
+    <ul>
+        <li><strong>Rótulo de exibição</strong> -- O nome exibido nos selos, relatórios e no registro de riscos (ex.: mude "Critical" para "Very High" para corresponder ao seu ISMS).</li>
+        <li><strong>Limiar de pontuação</strong> -- A pontuação mínima (1&ndash;25) que um risco deve atingir para cair nesta banda. Os limiares devem permanecer em ordem: Critical &gt; High &gt; Medium. A plataforma aplica isso automaticamente.</li>
+        <li><strong>Cor</strong> -- Use o seletor de cor ou digite um código hex diretamente. Um selo de prévia ao vivo é atualizado enquanto você digita para que você possa ver o resultado antes de salvar.</li>
+    </ul>
+    <p>Clique em <span class="btn-label">Save Risk Configuration</span> para aplicar. Clique em <span class="btn-label">Reset to Defaults</span> para restaurar todos os valores originais.</p>
+
+    <div class="callout callout-info">
+        <strong>Limiares padrão:</strong> Critical &ge;20, High &ge;12, Medium &ge;6, Low &lt;6. A fórmula de pontuação subjacente (Probabilidade &times; Impacto, 1&ndash;25) não muda.
+    </div>
+
+    <h3>Nomes dos níveis de probabilidade e consequência</h3>
+    <p>O registro de riscos usa uma matriz 5&times;5. Você pode renomear todos os cinco níveis de probabilidade (padrão: Rare / Unlikely / Possible / Likely / Almost Certain) e todos os cinco níveis de consequência (padrão: Insignificant / Minor / Moderate / Major / Catastrophic) para corresponder à terminologia aprovada pela sua organização. Estes são apenas rótulos de exibição -- os valores numéricos subjacentes e a fórmula de pontuação permanecem inalterados.</p>
+
+    <h3>Nomes das categorias de risco</h3>
+    <p>Os sete rótulos de categoria de risco (Strategic, Operational, Financial, Compliance, Reputational, Technology, Third Party) também podem ser renomeados para corresponder ao idioma interno da sua organização.</p>
+
+    <h3>Modelos de maturidade configuráveis (SSE-CMM / CMMI) <span class="new-badge">Novo em 2.6.2</span></h3>
+    <p>Role para baixo na página Risk Scoring para chegar à seção <strong>Maturity Model Settings</strong>. Por padrão, a plataforma usa uma escala de maturidade integrada de 4 níveis (Initial / Developing / Defined / Managed). Este recurso permite que você mude para uma escala de 5 níveis ou renomeie os níveis para corresponder ao CMMI ou SSE-CMM -- sem mudar nada mais.</p>
+
+    <h4>Habilitando o modelo personalizado</h4>
+    <ol class="steps">
+        <li>Marque <span class="field-label">Enable custom maturity model</span>. Os campos de configuração aparecem abaixo do botão de alternância.</li>
+        <li>Em <span class="field-label">Number of Maturity Levels</span>, escolha <strong>4 níveis</strong> (padrão) ou <strong>5 níveis</strong> (CMMI / SSE-CMM).</li>
+        <li>Digite seu próprio rótulo em cada campo de nível. Você também pode clicar em um dos botões de preset:
+            <ul>
+                <li><span class="btn-label">Apply SSE-CMM (5 levels)</span> -- preenche Performed Informally / Planned and Tracked / Well Defined / Quantitatively Controlled / Continuously Improving.</li>
+                <li><span class="btn-label">Reset to Default (4 levels)</span> -- preenche os rótulos originais Initial / Developing / Defined / Managed.</li>
+            </ul>
+        </li>
+        <li>Clique em <span class="btn-label">Save Maturity Settings</span>.</li>
+    </ol>
+
+    <h4>Onde a escala configurada aparece</h4>
+    <p>Uma vez salva, a escala configurada é refletida em todos os lugares onde a maturidade é exibida:</p>
+    <ul>
+        <li><strong>Assessment Questionnaire</strong> -- o seletor de maturidade mostra seus nomes de rótulo nos botões e nas dicas.</li>
+        <li><strong>Painel CSF Maturity Score</strong> -- a pontuação geral e as pontuações de domínio são relatadas com base no seu máximo configurado (4,0 ou 5,0).</li>
+        <li><strong>Página Frameworks</strong> -- a maturidade média por framework mostra "X.XX / 4.00" ou "X.XX / 5.00".</li>
+        <li><strong>Relatório PDF de avaliação</strong> -- as caixas de nível, rótulos de nível e larguras de barra usam seus níveis e rótulos configurados.</li>
+    </ul>
+
+    <div class="callout callout-warning">
+        <strong>Desativar o recurso</strong> restaura o comportamento padrão de 4 níveis em todos os lugares. Os dados históricos de avaliação já armazenados (classificações de maturidade 1&ndash;4) não são alterados -- as respostas existentes simplesmente mapeiam para os rótulos padrão novamente.
+    </div>
+</div>
+
+<div class="doc-section" id="workflow-rules">
+    <h2>Regras de Fluxo de Trabalho <span class="new-badge">Novo em 2.6.2</span></h2>
+    <p>As regras de fluxo de trabalho permitem acionar ações automáticas quando um fornecedor avança pelo ciclo de vida. Navegue até <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Workflow Rules</span>.</p>
+
+    <h3>Como as regras funcionam</h3>
+    <p>Cada regra tem três partes:</p>
+    <ul>
+        <li><strong>Gatilho</strong> -- qual evento inicia a regra. Atualmente suportado: <em>Vendor Approved</em> (dispara quando o status de revisão de um fornecedor muda para Approved).</li>
+        <li><strong>Condição</strong> -- filtro opcional sobre quando a regra é executada. <em>Always</em> significa todo fornecedor aprovado. Você também pode filtrar por nível do fornecedor (ex.: somente fornecedores Tier 1).</li>
+        <li><strong>Ação</strong> -- o que fazer (ex.: enviar uma avaliação, enviar uma notificação de revisão anual).</li>
+    </ul>
+
+    <h3>Múltiplos alvos e encadeamento</h3>
+    <p>Uma única regra pode ter como alvo <strong>múltiplos destinatários ou avaliações</strong> ao mesmo tempo. Você também pode criar uma cadeia: quando a ação da regra A é disparada, ela mesma pode acionar a regra B. Um guardião de loop previne cadeias infinitas.</p>
+
+    <h3>Criando uma regra</h3>
+    <ol class="steps">
+        <li>Clique em <span class="btn-label">+ New Rule</span>.</li>
+        <li>Escolha o <span class="field-label">Trigger</span> (ex.: Vendor Approved).</li>
+        <li>Defina a <span class="field-label">Condition</span>. Escolha <strong>Always</strong> para executar para todos os fornecedores, ou adicione um filtro.</li>
+        <li>Adicione uma ou mais <span class="field-label">Actions</span>. Cada ação especifica o que fazer e quem é o alvo.</li>
+        <li>Clique em <span class="btn-label">Save Rule</span>.</li>
+    </ol>
+
+    <div class="callout callout-info">
+        <strong>Ambos os caminhos de aprovação disparam regras.</strong> Um fornecedor pode ser aprovado na página do fornecedor e pela ação de aprovação em massa na lista de fornecedores. As regras de fluxo de trabalho disparam de ambos os caminhos.
+    </div>
+</div>
+
+<div class="doc-section" id="alternate-stakeholders">
+    <h2>Partes Interessadas Alternativas <span class="new-badge">Novo em 2.6.2</span></h2>
+    <p>Uma <strong>parte interessada alternativa</strong> é um contato reserva atribuído a um fornecedor junto com a parte interessada principal. Isso é útil quando um fornecedor tem dois contatos na sua organização, ou quando você quer que um gerente tenha visibilidade junto com a pessoa que gerencia diretamente o relacionamento.</p>
+
+    <h3>O que uma alternativa pode fazer</h3>
+    <p>Uma alternativa tem quase o mesmo acesso que a parte interessada principal naquele fornecedor:</p>
+    <ul>
+        <li>Visualizar a página de integração, documentos e status do fornecedor</li>
+        <li>Concluir tarefas atribuídas ao fornecedor</li>
+        <li>Receber cópias de avaliação quando optado (veja abaixo)</li>
+    </ul>
+    <p>Uma alternativa <strong>não pode</strong>:</p>
+    <ul>
+        <li>Reatribuir o fornecedor a uma parte interessada principal diferente</li>
+        <li>Transferir o fornecedor para outro usuário</li>
+        <li>Gerenciar (adicionar, remover ou alterar) outras alternativas</li>
+    </ul>
+
+    <h3>Atribuindo uma alternativa</h3>
+    <ol class="steps">
+        <li>Abra a página do fornecedor.</li>
+        <li>Na seção <strong>Stakeholder</strong>, clique em <span class="btn-label">Add Alternate</span>.</li>
+        <li>Pesquise e selecione o usuário que você deseja como alternativa.</li>
+        <li>Clique em <span class="btn-label">Save</span>.</li>
+    </ol>
+    <p>A alternativa aparece na seção Stakeholder com um rótulo "Alternate". Um fornecedor pode ter mais de uma alternativa.</p>
+
+    <h3>Cópias de avaliação para alternativas</h3>
+    <p>Ao enviar uma avaliação de fornecedor, um administrador pode marcar <span class="field-label">Also send a copy to alternates</span>. Se marcado, cada parte interessada alternativa naquele fornecedor recebe sua própria cópia da avaliação para completar de forma independente.</p>
+</div>
+
 <div class="doc-section" id="admin-email">
     <h2>Configuração de E-mail</h2>
     <p>Configure as configurações SMTP para enviar notificações por e-mail. Navegue até <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email</span>. As configurações incluem host SMTP, porta, nome de usuário, senha, método de criptografia (TLS/SSL) e endereço do remetente.</p>
@@ -1676,6 +1793,7 @@
                     <a href="#tprm-assessments">Avaliações de Fornecedores</a>
                     <a href="#assessment-forms">Formulários de Avaliação &amp; IA</a>
                     <a href="#tprm-action-plan">Plano de Ação do Fornecedor</a>
+                    <a href="#alternate-stakeholders">Partes interessadas alternativas</a>
                     <a href="#tprm-srs">Scorecard de Risco de Segurança</a>
                     <a href="#tprm-fair">Análise FAIR</a>
                     <a href="#tprm-fourth-party">Risco de 4ª Parte</a>
@@ -1698,6 +1816,8 @@
                     <a href="#admin-users">Gestão de Usuários</a>
                     <a href="#admin-acl-groups">Grupos ACL</a>
                     <a href="#admin-templates">Modelos de Avaliação</a>
+                    <a href="#admin-risk-scoring">Pontuação de riscos e maturidade</a>
+                    <a href="#workflow-rules">Regras de fluxo de trabalho</a>
                     <a href="#admin-email">Configuração de E-mail</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">Integração de IA</a>

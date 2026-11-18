@@ -142,7 +142,7 @@
      ================================================================ -->
 <div class="doc-section" id="whats-new">
     <h2>What's New in Version 2.6.2</h2>
-    <p>Version 2.6.2 adds several features focused on <strong>vendor onboarding, procurement collaboration, multi-language support, and shadow-SaaS discovery</strong>. If you have used an earlier version, here is what is new. Each item links to its full walkthrough later in this guide.</p>
+    <p>Version 2.6.2 adds features focused on <strong>vendor onboarding, procurement collaboration, multi-language support, shadow-SaaS discovery, risk scoring configuration, maturity model customization, and workflow automation</strong>. If you have used an earlier version, here is what is new. Each item links to its full walkthrough later in this guide.</p>
     <table class="doc-table">
         <tr><th>New Feature</th><th>What It Does</th><th>Who It's For</th></tr>
         <tr><td><strong><a href="#language">Language settings</a></strong></td><td>Use the platform in 8 languages. Each person picks their own language; admins choose which languages are available.</td><td>Everyone</td></tr>
@@ -163,6 +163,10 @@
         <tr><td><strong><a href="#breach-alerts">Breach / Cyber Alerts</a></strong></td><td>A supply-chain breach feed (including Grip incidents) with an affected-users drill-down and bulk acknowledge / false-positive / delete.</td><td>Cyber TPRM, Admins</td></tr>
         <tr><td><strong><a href="#admin-acl-groups">Custom access-control groups</a></strong></td><td>Create your own ACL groups, clone permissions from an existing group, and set Read vs Read/Write per module. The shipped groups are protected.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#admin-templates">Assessment Template Builder</a></strong></td><td>New question types (multi-select, phone, VAT), template-driven certificate instructions, per-role field gating, and deactivated templates hidden by default.</td><td>Admins, Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">Customizable risk scoring</a></strong></td><td>Rename risk bands, adjust score thresholds, pick custom colors, and relabel all five likelihood levels, five impact levels, and seven risk categories to match your approved risk matrix.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">Configurable maturity models (SSE-CMM / CMMI)</a></strong></td><td>Choose a 4-level or 5-level maturity scale, rename each level, and apply a one-click SSE-CMM preset. The default 4-level scale is completely unchanged when the feature is off.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#workflow-rules">Workflow Rules</a></strong></td><td>Automatically trigger assessments and other actions when a vendor is approved. Set conditions (always, by tier), add multiple targets, and build multi-step chains.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#alternate-stakeholders">Alternate Stakeholders</a></strong></td><td>Assign a backup stakeholder to a vendor. The alternate has the same view and task access as the primary, but cannot reassign stakeholders, hand off the vendor, or manage other alternates.</td><td>Cyber TPRM, Admins</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>How do I know which version I'm on?</strong> Administrators can go to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> to see the installed version. This guide describes <strong>v2.6.2</strong>. See <a href="#admin-updates">Updating the Platform</a>.
@@ -400,12 +404,12 @@
         <li>You will see the 14 security domains listed. Click on a domain name (e.g., <strong>GOV - Governance &amp; Leadership</strong>) to expand it and see its questions.</li>
         <li>For each question, you need to provide two pieces of information:
             <ul>
-                <li><span class="field-label">Maturity Rating</span> (1-4) &mdash; How mature is your organization's implementation of this control?
+                <li><span class="field-label">Maturity Rating</span> &mdash; How mature is your organization's implementation of this control? The scale is 1&ndash;4 by default, or 1&ndash;5 when a custom maturity model is configured (see <a href="#admin-risk-scoring">Configurable Maturity Models</a>). Default level labels:
                     <ul>
-                        <li><strong>1 &mdash; Initial/Ad Hoc:</strong> No formal process. Done inconsistently or not at all.</li>
+                        <li><strong>1 &mdash; Initial:</strong> No formal process. Done inconsistently or not at all.</li>
                         <li><strong>2 &mdash; Developing:</strong> Some processes exist but are not consistently followed. Partially documented.</li>
                         <li><strong>3 &mdash; Defined:</strong> Formal, documented processes are in place and consistently followed.</li>
-                        <li><strong>4 &mdash; Managed/Optimized:</strong> Processes are measured, monitored, and continuously improved.</li>
+                        <li><strong>4 &mdash; Managed:</strong> Processes are measured, monitored, and continuously improved.</li>
                     </ul>
                 </li>
                 <li><span class="field-label">Conformity Status</span> &mdash; Your compliance status for this question:
@@ -432,7 +436,7 @@
     </div>
     <figure class="doc-figure">
         <img src="app/docs/grc-assessment-questions.png" alt="Answering questions in the assessment questionnaire" loading="lazy">
-        <figcaption><strong>Answering the questionnaire.</strong> The header tracks <em>Progress</em>, live <em>CSF Maturity</em>, and <em>Compliance</em> as you work. The domain tabs (GOV, IAM, DSP, &hellip;) each show that domain's current score; click one to jump to its questions. For each question you set a <strong>Maturity</strong> rating (1&ndash;4 or N/A) and a <strong>Conformity</strong> status &mdash; answers auto-save. Use <span class="btn-label">Show Unanswered Questions</span> to find what is left.</figcaption>
+        <figcaption><strong>Answering the questionnaire.</strong> The header tracks <em>Progress</em>, live <em>CSF Maturity</em>, and <em>Compliance</em> as you work. The domain tabs (GOV, IAM, DSP, &hellip;) each show that domain's current score; click one to jump to its questions. For each question you set a <strong>Maturity</strong> rating (1&ndash;4 by default, or 1&ndash;5 with a configured custom scale) and a <strong>Conformity</strong> status -- answers auto-save. Use <span class="btn-label">Show Unanswered Questions</span> to find what is left.</figcaption>
     </figure>
 </div>
 
@@ -567,7 +571,7 @@
     </ol>
     <figure class="doc-figure">
         <img src="app/docs/grc-fairscore.png" alt="CSF Maturity Score dashboard with radar chart" loading="lazy">
-        <figcaption><strong>GRC Module &rarr; CSF Maturity Score.</strong> The four headline tiles &mdash; <em>CSF Maturity Score</em> (1&ndash;4 scale), <em>Compliance Rate</em>, <em>Questions Answered</em>, and <em>Gaps Found</em> &mdash; summarise your posture at a glance. The <strong>Security Domain Maturity Radar</strong> plots all 14 domains, and the list on the right gives each domain's exact average score. Pick the assessment you want from the dropdown at the top.</figcaption>
+        <figcaption><strong>GRC Module &rarr; CSF Maturity Score.</strong> The four headline tiles -- <em>CSF Maturity Score</em> (scale reflects your configured maturity model; default 1&ndash;4), <em>Compliance Rate</em>, <em>Questions Answered</em>, and <em>Gaps Found</em> -- summarize your posture at a glance. The <strong>Security Domain Maturity Radar</strong> plots all 14 domains, and the list on the right gives each domain's exact average score. Pick the assessment you want from the dropdown at the top.</figcaption>
     </figure>
 </div>
 
@@ -1387,6 +1391,119 @@
     <p>The template list shows only <strong>active</strong> templates. If any have been deactivated, a <span class="btn-label">Show Deactivated (N)</span> button reveals them (and toggles back to <span class="btn-label">Hide Deactivated (N)</span>), keeping a long-lived tenant's list focused on the templates actually in use without losing access to retired ones.</p>
 </div>
 
+<div class="doc-section" id="admin-risk-scoring">
+    <h2>Risk Scoring &amp; Maturity Configuration <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Risk Scoring</span> to customize how risks are displayed and scored across the Risk Register, the FairScore heatmap, and all risk forms. Changes take effect immediately -- no restart required.</p>
+
+    <h3>Risk bands</h3>
+    <p>The platform uses four risk bands: <strong>Critical</strong>, <strong>High</strong>, <strong>Medium</strong>, and <strong>Low</strong>. For each band you can change three things:</p>
+    <ul>
+        <li><strong>Display label</strong> -- The name shown on badges, reports, and the risk register (e.g., change "Critical" to "Very High" to match your ISMS).</li>
+        <li><strong>Score threshold</strong> -- The minimum score (1&ndash;25) a risk must reach to fall into this band. The thresholds must stay in order: Critical &gt; High &gt; Medium. The platform enforces this automatically.</li>
+        <li><strong>Color</strong> -- Use the color picker or type a hex code directly. A live preview badge updates as you type so you can see the result before saving.</li>
+    </ul>
+    <p>Click <span class="btn-label">Save Risk Configuration</span> to apply. Click <span class="btn-label">Reset to Defaults</span> to restore all original values.</p>
+
+    <div class="callout callout-info">
+        <strong>Default thresholds:</strong> Critical &ge;20, High &ge;12, Medium &ge;6, Low &lt;6. The underlying score formula (Likelihood &times; Impact, 1&ndash;25) does not change.
+    </div>
+
+    <h3>Likelihood and consequence level names</h3>
+    <p>The risk register uses a 5&times;5 matrix. You can rename all five likelihood levels (default: Rare / Unlikely / Possible / Likely / Almost Certain) and all five consequence levels (default: Insignificant / Minor / Moderate / Major / Catastrophic) to match your organization's approved terminology. These are display labels only -- the underlying numeric values and scoring formula are unchanged.</p>
+
+    <h3>Risk category names</h3>
+    <p>The seven risk category labels (Strategic, Operational, Financial, Compliance, Reputational, Technology, Third Party) can also be renamed to match your internal language.</p>
+
+    <h3>Configurable maturity models (SSE-CMM / CMMI) <span class="new-badge">New in 2.6.2</span></h3>
+    <p>Scroll down on the Risk Scoring page to reach the <strong>Maturity Model Settings</strong> section. By default the platform uses a built-in 4-level maturity scale (Initial / Developing / Defined / Managed). This feature lets you switch to a 5-level scale or rename the levels to match CMMI or SSE-CMM -- without changing anything else.</p>
+
+    <h4>Enabling the custom model</h4>
+    <ol class="steps">
+        <li>Tick <span class="field-label">Enable custom maturity model</span>. The configuration fields appear below the toggle.</li>
+        <li>Under <span class="field-label">Number of Maturity Levels</span>, choose <strong>4 levels</strong> (default) or <strong>5 levels</strong> (CMMI / SSE-CMM).</li>
+        <li>Type your own label into each level field. You can also click one of the preset buttons:
+            <ul>
+                <li><span class="btn-label">Apply SSE-CMM (5 levels)</span> -- fills in Performed Informally / Planned and Tracked / Well Defined / Quantitatively Controlled / Continuously Improving.</li>
+                <li><span class="btn-label">Reset to Default (4 levels)</span> -- fills in the original Initial / Developing / Defined / Managed labels.</li>
+            </ul>
+        </li>
+        <li>Click <span class="btn-label">Save Maturity Settings</span>.</li>
+    </ol>
+
+    <h4>Where the configured scale appears</h4>
+    <p>Once saved, the configured scale is reflected everywhere maturity is shown:</p>
+    <ul>
+        <li><strong>Assessment Questionnaire</strong> -- the maturity picker shows your label names on the buttons and in the tooltips.</li>
+        <li><strong>CSF Maturity Score dashboard</strong> -- the overall score and domain scores are reported out of your configured maximum (4.0 or 5.0).</li>
+        <li><strong>Frameworks page</strong> -- the per-framework average maturity shows "X.XX / 4.00" or "X.XX / 5.00".</li>
+        <li><strong>Assessment PDF report</strong> -- the tier boxes, tier labels, and bar widths all use your configured levels and labels.</li>
+    </ul>
+
+    <div class="callout callout-warning">
+        <strong>Turning the feature off</strong> restores the default 4-level behavior everywhere. Historical assessment data already stored (maturity ratings 1&ndash;4) is not changed -- existing answers simply map to the default labels again.
+    </div>
+</div>
+
+<div class="doc-section" id="workflow-rules">
+    <h2>Workflow Rules <span class="new-badge">New in 2.6.2</span></h2>
+    <p>Workflow rules let you trigger automatic actions when a vendor moves through the lifecycle. Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Workflow Rules</span>.</p>
+
+    <h3>How rules work</h3>
+    <p>Each rule has three parts:</p>
+    <ul>
+        <li><strong>Trigger</strong> -- what event starts the rule. Currently supported: <em>Vendor Approved</em> (fires when a vendor's review status changes to Approved).</li>
+        <li><strong>Condition</strong> -- optional filter on when the rule runs. <em>Always</em> means every approved vendor. You can also filter by vendor tier (e.g., only Tier 1 vendors).</li>
+        <li><strong>Action</strong> -- what to do (e.g., send an assessment, send an annual review notification).</li>
+    </ul>
+
+    <h3>Multiple targets and chaining</h3>
+    <p>A single rule can target <strong>multiple recipients or assessments</strong> at once. You can also create a chain: when the action from rule A fires, it can itself trigger rule B. A loop guard prevents infinite chains.</p>
+
+    <h3>Creating a rule</h3>
+    <ol class="steps">
+        <li>Click <span class="btn-label">+ New Rule</span>.</li>
+        <li>Choose the <span class="field-label">Trigger</span> (e.g., Vendor Approved).</li>
+        <li>Set the <span class="field-label">Condition</span>. Choose <strong>Always</strong> to run for every vendor, or add a filter.</li>
+        <li>Add one or more <span class="field-label">Actions</span>. Each action specifies what to do and who the target is.</li>
+        <li>Click <span class="btn-label">Save Rule</span>.</li>
+    </ol>
+
+    <div class="callout callout-info">
+        <strong>Both approval paths fire rules.</strong> A vendor can be approved from the vendor page and from the bulk-approve action on the vendor list. Workflow rules fire from both paths.
+    </div>
+</div>
+
+<div class="doc-section" id="alternate-stakeholders">
+    <h2>Alternate Stakeholders <span class="new-badge">New in 2.6.2</span></h2>
+    <p>An <strong>alternate stakeholder</strong> is a backup contact assigned to a vendor alongside the primary stakeholder. This is useful when a vendor has two contacts in your organization, or when you want a manager to have visibility alongside the person directly managing the relationship.</p>
+
+    <h3>What an alternate can do</h3>
+    <p>An alternate has nearly the same access as the primary stakeholder on that vendor:</p>
+    <ul>
+        <li>View the vendor's onboarding page, documents, and status</li>
+        <li>Complete tasks assigned to the vendor</li>
+        <li>Receive assessment copies when opted in (see below)</li>
+    </ul>
+    <p>An alternate <strong>cannot</strong>:</p>
+    <ul>
+        <li>Reassign the vendor to a different primary stakeholder</li>
+        <li>Hand off the vendor to another user</li>
+        <li>Manage (add, remove, or change) other alternates</li>
+    </ul>
+
+    <h3>Assigning an alternate</h3>
+    <ol class="steps">
+        <li>Open the vendor's page.</li>
+        <li>In the <strong>Stakeholder</strong> section, click <span class="btn-label">Add Alternate</span>.</li>
+        <li>Search for and select the user you want as the alternate.</li>
+        <li>Click <span class="btn-label">Save</span>.</li>
+    </ol>
+    <p>The alternate appears in the Stakeholder section with an "Alternate" label. A vendor can have more than one alternate.</p>
+
+    <h3>Assessment copies for alternates</h3>
+    <p>When sending a vendor assessment, an administrator can tick <span class="field-label">Also send a copy to alternates</span>. If ticked, each alternate stakeholder on that vendor receives their own copy of the assessment to complete independently.</p>
+</div>
+
 <div class="doc-section" id="admin-email">
     <h2>Email Configuration</h2>
     <p>Configure SMTP settings for sending email notifications. Navigate to <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email</span>. Settings include SMTP host, port, username, password, encryption method (TLS/SSL), and sender address.</p>
@@ -1676,6 +1793,7 @@
                     <a href="#tprm-assessments">Vendor Assessments</a>
                     <a href="#assessment-forms">Assessment Forms &amp; AI Fill</a>
                     <a href="#tprm-action-plan">Vendor Action Plan</a>
+                    <a href="#alternate-stakeholders">Alternate Stakeholders</a>
                     <a href="#tprm-srs">Security Risk Scorecard</a>
                     <a href="#tprm-fair">FAIR Analysis</a>
                     <a href="#tprm-fourth-party">4th Party Risk</a>
@@ -1698,6 +1816,8 @@
                     <a href="#admin-users">User Management</a>
                     <a href="#admin-acl-groups">ACL Groups</a>
                     <a href="#admin-templates">Assessment Templates</a>
+                    <a href="#admin-risk-scoring">Risk Scoring &amp; Maturity</a>
+                    <a href="#workflow-rules">Workflow Rules</a>
                     <a href="#admin-email">Email Configuration</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">AI Integration</a>

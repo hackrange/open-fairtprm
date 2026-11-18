@@ -142,7 +142,7 @@
      ================================================================ -->
 <div class="doc-section" id="whats-new">
     <h2>Nouveautés de la version 2.6.2</h2>
-    <p>La version 2.6.2 ajoute plusieurs fonctionnalités axées sur <strong>l'intégration des fournisseurs, la collaboration avec l'approvisionnement, le support multilingue et la découverte du Shadow SaaS</strong>. Si vous avez utilisé une version antérieure, voici ce qui est nouveau. Chaque élément renvoie à sa présentation complète plus loin dans ce guide.</p>
+    <p>La version 2.6.2 ajoute plusieurs fonctionnalités axées sur <strong>l'intégration des fournisseurs, la collaboration avec l'approvisionnement, le support multilingue, la découverte du Shadow SaaS, la configuration de la notation des risques, la personnalisation des modèles de maturité et l'automatisation des workflows</strong>. Si vous avez utilisé une version antérieure, voici ce qui est nouveau. Chaque élément renvoie à sa présentation complète plus loin dans ce guide.</p>
     <table class="doc-table">
         <tr><th>Nouvelle fonctionnalité</th><th>Ce qu'elle fait</th><th>Pour qui</th></tr>
         <tr><td><strong><a href="#language">Paramètres de langue</a></strong></td><td>Utilisez la plateforme dans 8 langues. Chaque personne choisit sa propre langue ; les administrateurs choisissent quelles langues sont disponibles.</td><td>Tout le monde</td></tr>
@@ -163,6 +163,10 @@
         <tr><td><strong><a href="#breach-alerts">Alertes de violation / cyber</a></strong></td><td>Un flux de violations de la chaîne d'approvisionnement (y compris les incidents Grip) avec une analyse détaillée des utilisateurs affectés et des actions groupées d'accusé de réception / faux positif / suppression.</td><td>Cyber TPRM, Admins</td></tr>
         <tr><td><strong><a href="#admin-acl-groups">Groupes de contrôle d'accès personnalisés</a></strong></td><td>Créez vos propres groupes ACL, clonez les permissions d'un groupe existant et définissez Lecture ou Lecture/Écriture par module. Les groupes fournis sont protégés.</td><td>Admins</td></tr>
         <tr><td><strong><a href="#admin-templates">Générateur de modèles d'évaluation</a></strong></td><td>Nouveaux types de questions (choix multiple, téléphone, TVA), instructions de certificat pilotées par modèle, restriction des champs par rôle, et modèles désactivés masqués par défaut.</td><td>Admins, Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">Notation des risques personnalisable</a></strong></td><td>Renommez les bandes de risque, ajustez les seuils de score, choisissez des couleurs personnalisées, et réétiquetez les cinq niveaux de vraisemblance, les cinq niveaux d'impact et les sept catégories de risque pour correspondre à votre matrice de risques approuvée.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">Modèles de maturité configurables (SSE-CMM / CMMI)</a></strong></td><td>Choisissez une échelle de maturité à 4 ou 5 niveaux, renommez chaque niveau et appliquez un preset SSE-CMM en un clic. L'échelle par défaut à 4 niveaux reste totalement inchangée lorsque la fonctionnalité est désactivée.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#workflow-rules">Règles de workflow</a></strong></td><td>Déclenchez automatiquement des évaluations et d'autres actions lorsqu'un fournisseur est approuvé. Définissez des conditions (toujours, par niveau), ajoutez plusieurs cibles et construisez des chaînes multi-étapes.</td><td>Admins</td></tr>
+        <tr><td><strong><a href="#alternate-stakeholders">Parties prenantes alternatives</a></strong></td><td>Assignez une partie prenante de secours à un fournisseur. L'alternative dispose du même accès en visualisation et aux tâches que la principale, mais ne peut pas réassigner les parties prenantes, transférer le fournisseur ou gérer d'autres alternatives.</td><td>Cyber TPRM, Admins</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>Comment savoir quelle version j'utilise ?</strong> Les administrateurs peuvent aller dans <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Version</span> pour voir la version installée. Ce guide décrit la version <strong>v2.6.2</strong>. Voir <a href="#admin-updates">Mise à jour de la plateforme</a>.
@@ -400,12 +404,12 @@
         <li>Vous verrez les 14 domaines de sécurité listés. Cliquez sur un nom de domaine (par ex., <strong>GOV - Gouvernance &amp; Leadership</strong>) pour le développer et voir ses questions.</li>
         <li>Pour chaque question, vous devez fournir deux informations :
             <ul>
-                <li><span class="field-label">Niveau de maturité</span> (1-4) &mdash; Quel est le niveau de maturité de la mise en œuvre de ce contrôle par votre organisation ?
+                <li><span class="field-label">Niveau de maturité</span> &mdash; Quel est le niveau de maturité de la mise en œuvre de ce contrôle par votre organisation ? L'échelle est de 1&ndash;4 par défaut, ou de 1&ndash;5 lorsqu'un modèle de maturité personnalisé est configuré (voir <a href="#admin-risk-scoring">Modèles de maturité configurables</a>). Niveaux par défaut :
                     <ul>
-                        <li><strong>1 &mdash; Initial/Ad hoc :</strong> Aucun processus formel. Réalisé de manière incohérente ou pas du tout.</li>
+                        <li><strong>1 &mdash; Initial :</strong> Aucun processus formel. Réalisé de manière incohérente ou pas du tout.</li>
                         <li><strong>2 &mdash; En développement :</strong> Certains processus existent mais ne sont pas suivis de manière cohérente. Partiellement documenté.</li>
                         <li><strong>3 &mdash; Défini :</strong> Des processus formels et documentés sont en place et suivis de manière cohérente.</li>
-                        <li><strong>4 &mdash; Géré/Optimisé :</strong> Les processus sont mesurés, surveillés et continuellement améliorés.</li>
+                        <li><strong>4 &mdash; Géré :</strong> Les processus sont mesurés, surveillés et continuellement améliorés.</li>
                     </ul>
                 </li>
                 <li><span class="field-label">Statut de conformité</span> &mdash; Votre statut de conformité pour cette question :
@@ -432,7 +436,7 @@
     </div>
     <figure class="doc-figure">
         <img src="app/docs/grc-assessment-questions.png" alt="Answering questions in the assessment questionnaire" loading="lazy">
-        <figcaption><strong>Répondre au questionnaire.</strong> L'en-tête suit la <em>Progression</em>, la <em>Maturité CSF</em> en direct et la <em>Conformité</em> au fur et à mesure. Les onglets de domaine (GOV, IAM, DSP, &hellip;) affichent chacun le score actuel de ce domaine ; cliquez sur l'un d'eux pour accéder à ses questions. Pour chaque question, vous définissez un niveau de <strong>Maturité</strong> (1&ndash;4 ou N/A) et un statut de <strong>Conformité</strong> &mdash; les réponses sont sauvegardées automatiquement. Utilisez <span class="btn-label">Afficher les questions sans réponse</span> pour trouver ce qui reste.</figcaption>
+        <figcaption><strong>Répondre au questionnaire.</strong> L'en-tête suit la <em>Progression</em>, la <em>Maturité CSF</em> en direct et la <em>Conformité</em> au fur et à mesure. Les onglets de domaine (GOV, IAM, DSP, &hellip;) affichent chacun le score actuel de ce domaine ; cliquez sur l'un d'eux pour accéder à ses questions. Pour chaque question, vous définissez un niveau de <strong>Maturité</strong> (1&ndash;4 par défaut, ou 1&ndash;5 avec une échelle personnalisée configurée) et un statut de <strong>Conformité</strong> &mdash; les réponses sont sauvegardées automatiquement. Utilisez <span class="btn-label">Afficher les questions sans réponse</span> pour trouver ce qui reste.</figcaption>
     </figure>
 </div>
 
@@ -1387,6 +1391,119 @@
     <p>La liste des modèles n'affiche que les modèles <strong>actifs</strong>. Si certains ont été désactivés, un bouton <span class="btn-label">Afficher les désactivés (N)</span> les révèle (et bascule sur <span class="btn-label">Masquer les désactivés (N)</span>), gardant la liste d'un tenant de longue date centrée sur les modèles réellement utilisés sans perdre l'accès à ceux qui ont été retirés.</p>
 </div>
 
+<div class="doc-section" id="admin-risk-scoring">
+    <h2>Configuration de la notation des risques &amp; de la maturité <span class="new-badge">Nouveau dans 2.6.2</span></h2>
+    <p>Accédez à <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Notation des risques</span> pour personnaliser l'affichage et le calcul des risques dans le Registre des risques, la carte de chaleur FairScore et tous les formulaires de risque. Les modifications prennent effet immédiatement &mdash; aucun redémarrage n'est nécessaire.</p>
+
+    <h3>Bandes de risque</h3>
+    <p>La plateforme utilise quatre bandes de risque : <strong>Critique</strong>, <strong>Élevé</strong>, <strong>Moyen</strong> et <strong>Faible</strong>. Pour chaque bande, vous pouvez modifier trois éléments :</p>
+    <ul>
+        <li><strong>Libellé d'affichage</strong> &mdash; Le nom affiché sur les badges, rapports et le registre des risques (ex. : remplacer « Critique » par « Très élevé » pour correspondre à votre SMSI).</li>
+        <li><strong>Seuil de score</strong> &mdash; Le score minimum (1&ndash;25) qu'un risque doit atteindre pour entrer dans cette bande. Les seuils doivent rester ordonnés : Critique &gt; Élevé &gt; Moyen. La plateforme l'applique automatiquement.</li>
+        <li><strong>Couleur</strong> &mdash; Utilisez le sélecteur de couleur ou saisissez directement un code hexadécimal. Un badge de prévisualisation se met à jour au fur et à mesure que vous tapez.</li>
+    </ul>
+    <p>Cliquez sur <span class="btn-label">Enregistrer la configuration des risques</span> pour appliquer. Cliquez sur <span class="btn-label">Réinitialiser aux valeurs par défaut</span> pour restaurer toutes les valeurs d'origine.</p>
+
+    <div class="callout callout-info">
+        <strong>Seuils par défaut :</strong> Critique &ge;20, Élevé &ge;12, Moyen &ge;6, Faible &lt;6. La formule de score sous-jacente (Vraisemblance &times; Impact, 1&ndash;25) ne change pas.
+    </div>
+
+    <h3>Noms des niveaux de vraisemblance et de conséquence</h3>
+    <p>Le registre des risques utilise une matrice 5&times;5. Vous pouvez renommer les cinq niveaux de vraisemblance (par défaut : Rare / Improbable / Possible / Probable / Presque certain) et les cinq niveaux de conséquence (par défaut : Insignifiant / Mineur / Modéré / Majeur / Catastrophique) pour correspondre à la terminologie approuvée de votre organisation. Il s'agit uniquement de libellés d'affichage &mdash; les valeurs numériques sous-jacentes et la formule de calcul restent inchangées.</p>
+
+    <h3>Noms des catégories de risque</h3>
+    <p>Les sept libellés de catégories de risque (Stratégique, Opérationnel, Financier, Conformité, Réputation, Technologie, Tiers) peuvent également être renommés pour correspondre à votre langage interne.</p>
+
+    <h3>Modèles de maturité configurables (SSE-CMM / CMMI) <span class="new-badge">Nouveau dans 2.6.2</span></h3>
+    <p>Faites défiler la page Notation des risques pour accéder à la section <strong>Paramètres du modèle de maturité</strong>. Par défaut, la plateforme utilise une échelle de maturité intégrée à 4 niveaux (Initial / En développement / Défini / Géré). Cette fonctionnalité vous permet de passer à une échelle à 5 niveaux ou de renommer les niveaux pour correspondre à CMMI ou SSE-CMM &mdash; sans rien changer d'autre.</p>
+
+    <h4>Activation du modèle personnalisé</h4>
+    <ol class="steps">
+        <li>Cochez <span class="field-label">Activer le modèle de maturité personnalisé</span>. Les champs de configuration apparaissent sous le bouton.</li>
+        <li>Sous <span class="field-label">Nombre de niveaux de maturité</span>, choisissez <strong>4 niveaux</strong> (par défaut) ou <strong>5 niveaux</strong> (CMMI / SSE-CMM).</li>
+        <li>Saisissez votre propre libellé dans chaque champ de niveau. Vous pouvez également cliquer sur l'un des boutons de preset :
+            <ul>
+                <li><span class="btn-label">Appliquer SSE-CMM (5 niveaux)</span> &mdash; remplit Réalisé de manière informelle / Planifié et suivi / Bien défini / Contrôlé quantitativement / Amélioration continue.</li>
+                <li><span class="btn-label">Réinitialiser aux valeurs par défaut (4 niveaux)</span> &mdash; remplit les libellés d'origine Initial / En développement / Défini / Géré.</li>
+            </ul>
+        </li>
+        <li>Cliquez sur <span class="btn-label">Enregistrer les paramètres de maturité</span>.</li>
+    </ol>
+
+    <h4>Où l'échelle configurée apparaît</h4>
+    <p>Une fois enregistrée, l'échelle configurée est reflétée partout où la maturité est affichée :</p>
+    <ul>
+        <li><strong>Questionnaire d'évaluation</strong> &mdash; le sélecteur de maturité affiche vos noms de niveaux sur les boutons et dans les info-bulles.</li>
+        <li><strong>Tableau de bord Score de maturité CSF</strong> &mdash; le score global et les scores par domaine sont reportés sur votre maximum configuré (4,0 ou 5,0).</li>
+        <li><strong>Page Référentiels</strong> &mdash; la maturité moyenne par référentiel affiche « X,XX / 4,00 » ou « X,XX / 5,00 ».</li>
+        <li><strong>Rapport PDF d'évaluation</strong> &mdash; les cases de niveau, les libellés de niveau et les largeurs de barre utilisent tous vos niveaux et libellés configurés.</li>
+    </ul>
+
+    <div class="callout callout-warning">
+        <strong>Désactiver la fonctionnalité</strong> rétablit le comportement à 4 niveaux par défaut partout. Les données d'évaluation historiques déjà stockées (niveaux de maturité 1&ndash;4) ne sont pas modifiées &mdash; les réponses existantes se mappent simplement à nouveau sur les libellés par défaut.
+    </div>
+</div>
+
+<div class="doc-section" id="workflow-rules">
+    <h2>Règles de workflow <span class="new-badge">Nouveau dans 2.6.2</span></h2>
+    <p>Les règles de workflow vous permettent de déclencher des actions automatiques lorsqu'un fournisseur avance dans son cycle de vie. Accédez à <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Règles de workflow</span>.</p>
+
+    <h3>Fonctionnement des règles</h3>
+    <p>Chaque règle comporte trois parties :</p>
+    <ul>
+        <li><strong>Déclencheur</strong> &mdash; l'événement qui démarre la règle. Actuellement pris en charge : <em>Fournisseur approuvé</em> (se déclenche lorsque le statut de révision d'un fournisseur passe à Approuvé).</li>
+        <li><strong>Condition</strong> &mdash; filtre optionnel sur quand la règle s'exécute. <em>Toujours</em> signifie tous les fournisseurs approuvés. Vous pouvez également filtrer par niveau de fournisseur (ex. : seulement les fournisseurs de niveau 1).</li>
+        <li><strong>Action</strong> &mdash; ce qu'il faut faire (ex. : envoyer une évaluation, envoyer une notification de révision annuelle).</li>
+    </ul>
+
+    <h3>Cibles multiples et enchaînement</h3>
+    <p>Une seule règle peut cibler <strong>plusieurs destinataires ou évaluations</strong> à la fois. Vous pouvez également créer une chaîne : lorsque l'action de la règle A se déclenche, elle peut elle-même déclencher la règle B. Un garde-fou anti-boucle empêche les chaînes infinies.</p>
+
+    <h3>Création d'une règle</h3>
+    <ol class="steps">
+        <li>Cliquez sur <span class="btn-label">+ Nouvelle règle</span>.</li>
+        <li>Choisissez le <span class="field-label">Déclencheur</span> (ex. : Fournisseur approuvé).</li>
+        <li>Définissez la <span class="field-label">Condition</span>. Choisissez <strong>Toujours</strong> pour s'exécuter pour tous les fournisseurs, ou ajoutez un filtre.</li>
+        <li>Ajoutez une ou plusieurs <span class="field-label">Actions</span>. Chaque action spécifie ce qu'il faut faire et qui est la cible.</li>
+        <li>Cliquez sur <span class="btn-label">Enregistrer la règle</span>.</li>
+    </ol>
+
+    <div class="callout callout-info">
+        <strong>Les deux chemins d'approbation déclenchent les règles.</strong> Un fournisseur peut être approuvé depuis la page du fournisseur et depuis l'action d'approbation en masse dans la liste des fournisseurs. Les règles de workflow se déclenchent dans les deux cas.
+    </div>
+</div>
+
+<div class="doc-section" id="alternate-stakeholders">
+    <h2>Parties prenantes alternatives <span class="new-badge">Nouveau dans 2.6.2</span></h2>
+    <p>Une <strong>partie prenante alternative</strong> est un contact de secours assigné à un fournisseur aux côtés de la partie prenante principale. Ceci est utile lorsqu'un fournisseur a deux contacts dans votre organisation, ou lorsque vous souhaitez qu'un responsable ait une visibilité aux côtés de la personne qui gère directement la relation.</p>
+
+    <h3>Ce qu'une partie prenante alternative peut faire</h3>
+    <p>Une partie prenante alternative dispose presque du même accès que la partie prenante principale sur ce fournisseur :</p>
+    <ul>
+        <li>Consulter la page d'intégration, les documents et le statut du fournisseur</li>
+        <li>Effectuer les tâches assignées au fournisseur</li>
+        <li>Recevoir des copies d'évaluation lorsque l'option est activée (voir ci-dessous)</li>
+    </ul>
+    <p>Une partie prenante alternative <strong>ne peut pas</strong> :</p>
+    <ul>
+        <li>Réassigner le fournisseur à une autre partie prenante principale</li>
+        <li>Transférer le fournisseur à un autre utilisateur</li>
+        <li>Gérer (ajouter, supprimer ou modifier) d'autres parties prenantes alternatives</li>
+    </ul>
+
+    <h3>Assigner une partie prenante alternative</h3>
+    <ol class="steps">
+        <li>Ouvrez la page du fournisseur.</li>
+        <li>Dans la section <strong>Partie prenante</strong>, cliquez sur <span class="btn-label">Ajouter une alternative</span>.</li>
+        <li>Recherchez et sélectionnez l'utilisateur que vous souhaitez comme partie prenante alternative.</li>
+        <li>Cliquez sur <span class="btn-label">Enregistrer</span>.</li>
+    </ol>
+    <p>La partie prenante alternative apparaît dans la section Partie prenante avec un libellé « Alternative ». Un fournisseur peut avoir plusieurs parties prenantes alternatives.</p>
+
+    <h3>Copies d'évaluation pour les parties prenantes alternatives</h3>
+    <p>Lors de l'envoi d'une évaluation fournisseur, un administrateur peut cocher <span class="field-label">Envoyer également une copie aux parties prenantes alternatives</span>. Si coché, chaque partie prenante alternative de ce fournisseur reçoit sa propre copie de l'évaluation à compléter indépendamment.</p>
+</div>
+
 <div class="doc-section" id="admin-email">
     <h2>Configuration des e-mails</h2>
     <p>Configurez les paramètres SMTP pour l'envoi de notifications par e-mail. Accédez à <span class="menu-label">Admin</span> &rarr; <span class="menu-label">E-mail</span>. Les paramètres comprennent l'hôte SMTP, le port, le nom d'utilisateur, le mot de passe, la méthode de chiffrement (TLS/SSL) et l'adresse de l'expéditeur.</p>
@@ -1676,6 +1793,7 @@
                     <a href="#tprm-assessments">Évaluations des fournisseurs</a>
                     <a href="#assessment-forms">Formulaires d'évaluation &amp; Remplissage IA</a>
                     <a href="#tprm-action-plan">Plan d'action fournisseur</a>
+                    <a href="#alternate-stakeholders">Parties prenantes alternatives</a>
                     <a href="#tprm-srs">Carte de score des risques de sécurité</a>
                     <a href="#tprm-fair">Analyse FAIR</a>
                     <a href="#tprm-fourth-party">Risque de quatrième partie</a>
@@ -1698,6 +1816,8 @@
                     <a href="#admin-users">Gestion des utilisateurs</a>
                     <a href="#admin-acl-groups">Groupes ACL</a>
                     <a href="#admin-templates">Modèles d'évaluation</a>
+                    <a href="#admin-risk-scoring">Notation des risques &amp; Maturité</a>
+                    <a href="#workflow-rules">Règles de workflow</a>
                     <a href="#admin-email">Configuration des e-mails</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">Intégration IA</a>

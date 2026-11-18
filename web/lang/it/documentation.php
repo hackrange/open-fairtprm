@@ -142,7 +142,7 @@
      ================================================================ -->
 <div class="doc-section" id="whats-new">
     <h2>Novità della Versione 2.6.2</h2>
-    <p>La versione 2.6.2 aggiunge diverse funzionalità incentrate su <strong>onboarding dei fornitori, collaborazione negli acquisti, supporto multilingue e scoperta di shadow-SaaS</strong>. Se hai utilizzato una versione precedente, ecco le novità. Ogni voce rimanda alla relativa guida completa più avanti in questa guida.</p>
+    <p>La versione 2.6.2 aggiunge funzionalità incentrate su <strong>onboarding dei fornitori, collaborazione negli acquisti, supporto multilingue, scoperta di shadow-SaaS, configurazione del punteggio di rischio, personalizzazione del modello di maturità e automazione dei workflow</strong>. Se hai utilizzato una versione precedente, ecco le novità. Ogni voce rimanda alla relativa guida completa più avanti in questa guida.</p>
     <table class="doc-table">
         <tr><th>Nuova Funzionalità</th><th>Cosa Fa</th><th>Per Chi È</th></tr>
         <tr><td><strong><a href="#language">Impostazioni lingua</a></strong></td><td>Usa la piattaforma in 8 lingue. Ogni persona sceglie la propria lingua; gli admin scelgono quali lingue sono disponibili.</td><td>Tutti</td></tr>
@@ -163,6 +163,10 @@
         <tr><td><strong><a href="#breach-alerts">Avvisi di Violazione / Cyber</a></strong></td><td>Un feed di violazioni della catena di approvvigionamento (inclusi gli incidenti Grip) con un drill-down degli utenti interessati e conferma / falso positivo / eliminazione in blocco.</td><td>Cyber TPRM, Admin</td></tr>
         <tr><td><strong><a href="#admin-acl-groups">Gruppi di controllo accessi personalizzati</a></strong></td><td>Crea i tuoi gruppi ACL, clona i permessi da un gruppo esistente e imposta Lettura o Lettura/Scrittura per modulo. I gruppi predefiniti sono protetti.</td><td>Admin</td></tr>
         <tr><td><strong><a href="#admin-templates">Generatore di Template di Valutazione</a></strong></td><td>Nuovi tipi di domanda (selezione multipla, telefono, VAT), istruzioni sui certificati definite dal template, gating dei campi per ruolo e template disattivati nascosti per impostazione predefinita.</td><td>Admin, Cyber TPRM</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">Punteggio rischio personalizzabile</a></strong></td><td>Rinomina le fasce di rischio, regola le soglie di punteggio, scegli colori personalizzati e rinomina tutti i cinque livelli di probabilità, cinque livelli di impatto e sette categorie di rischio per corrispondere alla tua matrice di rischio approvata.</td><td>Admin</td></tr>
+        <tr><td><strong><a href="#admin-risk-scoring">Modelli di maturità configurabili (SSE-CMM / CMMI)</a></strong></td><td>Scegli una scala di maturità a 4 o 5 livelli, rinomina ogni livello e applica un preset SSE-CMM con un clic. La scala predefinita a 4 livelli rimane completamente invariata quando la funzionalità è disattivata.</td><td>Admin</td></tr>
+        <tr><td><strong><a href="#workflow-rules">Regole Workflow</a></strong></td><td>Attiva automaticamente valutazioni e altre azioni quando un fornitore viene approvato. Imposta condizioni (sempre, per livello), aggiungi target multipli e crea catene di passaggi multipli.</td><td>Admin</td></tr>
+        <tr><td><strong><a href="#alternate-stakeholders">Stakeholder Alternativo</a></strong></td><td>Assegna uno stakeholder di backup a un fornitore. L'alternativo ha lo stesso accesso di visualizzazione e attività del primario, ma non può riassegnare stakeholder, trasferire il fornitore o gestire altri alternativi.</td><td>Cyber TPRM, Admin</td></tr>
     </table>
     <div class="callout callout-info">
         <strong>Come faccio a sapere quale versione sto usando?</strong> Gli amministratori possono andare su <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Versione</span> per vedere la versione installata. Questa guida descrive la <strong>v2.6.2</strong>. Vedi <a href="#admin-updates">Aggiornamento della Piattaforma</a>.
@@ -400,7 +404,7 @@
         <li>Vedrai elencati i 14 domini di sicurezza. Fai clic sul nome di un dominio (es. <strong>GOV - Governance &amp; Leadership</strong>) per espanderlo e vedere le sue domande.</li>
         <li>Per ogni domanda, devi fornire due informazioni:
             <ul>
-                <li><span class="field-label">Livello di Maturità</span> (1-4) &mdash; Quanto è matura l'implementazione di questo controllo nella tua organizzazione?
+                <li><span class="field-label">Livello di Maturità</span> (1&ndash;4 per impostazione predefinita; 1&ndash;5 con modello di maturità personalizzato) &mdash; Quanto è matura l'implementazione di questo controllo nella tua organizzazione?
                     <ul>
                         <li><strong>1 &mdash; Iniziale/Ad Hoc:</strong> Nessun processo formale. Eseguito in modo inconsistente o per niente.</li>
                         <li><strong>2 &mdash; In Sviluppo:</strong> Esistono alcuni processi ma non vengono seguiti in modo coerente. Parzialmente documentato.</li>
@@ -432,7 +436,7 @@
     </div>
     <figure class="doc-figure">
         <img src="app/docs/grc-assessment-questions.png" alt="Answering questions in the assessment questionnaire" loading="lazy">
-        <figcaption><strong>Rispondere al questionario.</strong> L'intestazione tiene traccia del <em>Progresso</em>, della <em>Maturità CSF</em> in tempo reale e della <em>Conformità</em> mentre lavori. Le schede del dominio (GOV, IAM, DSP, &hellip;) mostrano ciascuna il punteggio corrente di quel dominio; fai clic su una per passare alle sue domande. Per ogni domanda imposti un livello di <strong>Maturità</strong> (1&ndash;4 o N/A) e uno stato di <strong>Conformità</strong> &mdash; le risposte si salvano automaticamente. Usa <span class="btn-label">Mostra Domande Senza Risposta</span> per trovare quelle rimanenti.</figcaption>
+        <figcaption><strong>Rispondere al questionario.</strong> L'intestazione tiene traccia del <em>Progresso</em>, della <em>Maturità CSF</em> in tempo reale e della <em>Conformità</em> mentre lavori. Le schede del dominio (GOV, IAM, DSP, &hellip;) mostrano ciascuna il punteggio corrente di quel dominio; fai clic su una per passare alle sue domande. Per ogni domanda imposti un livello di <strong>Maturità</strong> (1&ndash;4 per impostazione predefinita, 1&ndash;5 con modello personalizzato, o N/A) e uno stato di <strong>Conformità</strong> &mdash; le risposte si salvano automaticamente. Usa <span class="btn-label">Mostra Domande Senza Risposta</span> per trovare quelle rimanenti.</figcaption>
     </figure>
 </div>
 
@@ -567,7 +571,7 @@
     </ol>
     <figure class="doc-figure">
         <img src="app/docs/grc-fairscore.png" alt="CSF Maturity Score dashboard with radar chart" loading="lazy">
-        <figcaption><strong>Modulo GRC &rarr; Punteggio di Maturità CSF.</strong> Le quattro tessere principali &mdash; <em>Punteggio di Maturità CSF</em> (scala 1&ndash;4), <em>Tasso di Conformità</em>, <em>Domande Risposte</em> e <em>Lacune Trovate</em> &mdash; riassumono la tua postura a colpo d'occhio. Il <strong>Radar di Maturità dei Domini di Sicurezza</strong> traccia tutti i 14 domini, e l'elenco a destra fornisce il punteggio medio esatto di ogni dominio. Scegli la valutazione che vuoi dal menu a discesa in cima.</figcaption>
+        <figcaption><strong>Modulo GRC &rarr; Punteggio di Maturità CSF.</strong> Le quattro tessere principali &mdash; <em>Punteggio di Maturità CSF</em> (scala 1&ndash;4 per impostazione predefinita, o 1&ndash;5 con modello personalizzato), <em>Tasso di Conformità</em>, <em>Domande Risposte</em> e <em>Lacune Trovate</em> &mdash; riassumono la tua postura a colpo d'occhio. Il <strong>Radar di Maturità dei Domini di Sicurezza</strong> traccia tutti i 14 domini, e l'elenco a destra fornisce il punteggio medio esatto di ogni dominio. Scegli la valutazione che vuoi dal menu a discesa in cima.</figcaption>
     </figure>
 </div>
 
@@ -1387,6 +1391,119 @@
     <p>L'elenco dei template mostra solo i template <strong>attivi</strong>. Se alcuni sono stati disattivati, un pulsante <span class="btn-label">Mostra Disattivati (N)</span> li rivela (e commuta su <span class="btn-label">Nascondi Disattivati (N)</span>), mantenendo l'elenco di un tenant di lunga durata focalizzato sui template effettivamente in uso senza perdere l'accesso a quelli ritirati.</p>
 </div>
 
+<div class="doc-section" id="admin-risk-scoring">
+    <h2>Configurazione Punteggio Rischio &amp; Maturità <span class="new-badge">Nuovo in 2.6.2</span></h2>
+    <p>Vai su <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Punteggio Rischio</span> per personalizzare come i rischi vengono visualizzati e ponderati nel Registro Rischi, nella heatmap FairScore e in tutti i moduli di rischio. Le modifiche hanno effetto immediato -- non è necessario riavviare.</p>
+
+    <h3>Fasce di rischio</h3>
+    <p>La piattaforma utilizza quattro fasce di rischio: <strong>Critico</strong>, <strong>Alto</strong>, <strong>Medio</strong> e <strong>Basso</strong>. Per ogni fascia puoi modificare tre cose:</p>
+    <ul>
+        <li><strong>Etichetta di visualizzazione</strong> -- Il nome mostrato nei badge, nei report e nel registro rischi (es., cambia "Critico" in "Molto Alto" per corrispondere al tuo ISMS).</li>
+        <li><strong>Soglia punteggio</strong> -- Il punteggio minimo (1&ndash;25) che un rischio deve raggiungere per rientrare in questa fascia. Le soglie devono rimanere in ordine: Critico &gt; Alto &gt; Medio. La piattaforma lo applica automaticamente.</li>
+        <li><strong>Colore</strong> -- Usa il selettore colore o digita direttamente un codice esadecimale. Un badge di anteprima live si aggiorna mentre digiti così puoi vedere il risultato prima di salvare.</li>
+    </ul>
+    <p>Fai clic su <span class="btn-label">Salva Configurazione Rischio</span> per applicare. Fai clic su <span class="btn-label">Ripristina Predefiniti</span> per ripristinare tutti i valori originali.</p>
+
+    <div class="callout callout-info">
+        <strong>Soglie predefinite:</strong> Critico &ge;20, Alto &ge;12, Medio &ge;6, Basso &lt;6. La formula del punteggio sottostante (Probabilità &times; Impatto, 1&ndash;25) non cambia.
+    </div>
+
+    <h3>Nomi dei livelli di probabilità e conseguenza</h3>
+    <p>Il registro rischi usa una matrice 5&times;5. Puoi rinominare tutti i cinque livelli di probabilità (predefinito: Raro / Improbabile / Possibile / Probabile / Quasi Certo) e tutti i cinque livelli di conseguenza (predefinito: Insignificante / Minore / Moderato / Maggiore / Catastrofico) per corrispondere alla terminologia approvata dalla tua organizzazione. Queste sono solo etichette di visualizzazione -- i valori numerici sottostanti e la formula di punteggio sono invariati.</p>
+
+    <h3>Nomi delle categorie di rischio</h3>
+    <p>Le sette etichette delle categorie di rischio (Strategico, Operativo, Finanziario, Conformità, Reputazionale, Tecnologia, Terze Parti) possono anche essere rinominate per corrispondere al linguaggio interno della tua organizzazione.</p>
+
+    <h3>Modelli di maturità configurabili (SSE-CMM / CMMI) <span class="new-badge">Nuovo in 2.6.2</span></h3>
+    <p>Scorri verso il basso nella pagina Punteggio Rischio per raggiungere la sezione <strong>Impostazioni Modello di Maturità</strong>. Per impostazione predefinita la piattaforma usa una scala di maturità integrata a 4 livelli (Iniziale / In Sviluppo / Definito / Gestito). Questa funzionalità ti permette di passare a una scala a 5 livelli o di rinominare i livelli per corrispondere a CMMI o SSE-CMM -- senza cambiare nient'altro.</p>
+
+    <h4>Abilitare il modello personalizzato</h4>
+    <ol class="steps">
+        <li>Spunta <span class="field-label">Abilita modello di maturità personalizzato</span>. I campi di configurazione appaiono sotto l'interruttore.</li>
+        <li>Sotto <span class="field-label">Numero di Livelli di Maturità</span>, scegli <strong>4 livelli</strong> (predefinito) o <strong>5 livelli</strong> (CMMI / SSE-CMM).</li>
+        <li>Digita la tua etichetta in ogni campo di livello. Puoi anche fare clic su uno dei pulsanti preimpostati:
+            <ul>
+                <li><span class="btn-label">Applica SSE-CMM (5 livelli)</span> -- compila Eseguito Informalmente / Pianificato e Monitorato / Ben Definito / Controllato Quantitativamente / Miglioramento Continuo.</li>
+                <li><span class="btn-label">Ripristina Predefinito (4 livelli)</span> -- compila le etichette originali Iniziale / In Sviluppo / Definito / Gestito.</li>
+            </ul>
+        </li>
+        <li>Fai clic su <span class="btn-label">Salva Impostazioni Maturità</span>.</li>
+    </ol>
+
+    <h4>Dove appare la scala configurata</h4>
+    <p>Una volta salvata, la scala configurata si riflette ovunque venga mostrata la maturità:</p>
+    <ul>
+        <li><strong>Questionario di Valutazione</strong> -- il selettore di maturità mostra i nomi delle tue etichette sui pulsanti e nei tooltip.</li>
+        <li><strong>Dashboard Punteggio di Maturità CSF</strong> -- il punteggio complessivo e i punteggi di dominio vengono riportati rispetto al tuo massimo configurato (4,0 o 5,0).</li>
+        <li><strong>Pagina Framework</strong> -- la maturità media per framework mostra "X,XX / 4,00" o "X,XX / 5,00".</li>
+        <li><strong>Report PDF valutazione</strong> -- le caselle dei livelli, le etichette dei livelli e le larghezze delle barre usano tutti i tuoi livelli e etichette configurati.</li>
+    </ul>
+
+    <div class="callout callout-warning">
+        <strong>Disattivare la funzionalità</strong> ripristina il comportamento predefinito a 4 livelli ovunque. I dati di valutazione storici già memorizzati (valutazioni di maturità 1&ndash;4) non vengono modificati -- le risposte esistenti si mappano semplicemente di nuovo alle etichette predefinite.
+    </div>
+</div>
+
+<div class="doc-section" id="workflow-rules">
+    <h2>Regole Workflow <span class="new-badge">Nuovo in 2.6.2</span></h2>
+    <p>Le regole workflow ti permettono di attivare azioni automatiche quando un fornitore attraversa il ciclo di vita. Vai su <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Regole Workflow</span>.</p>
+
+    <h3>Come funzionano le regole</h3>
+    <p>Ogni regola ha tre parti:</p>
+    <ul>
+        <li><strong>Trigger</strong> -- quale evento avvia la regola. Attualmente supportato: <em>Fornitore Approvato</em> (si attiva quando lo stato di revisione di un fornitore cambia in Approvato).</li>
+        <li><strong>Condizione</strong> -- filtro opzionale su quando viene eseguita la regola. <em>Sempre</em> significa ogni fornitore approvato. Puoi anche filtrare per livello fornitore (es., solo fornitori di Livello 1).</li>
+        <li><strong>Azione</strong> -- cosa fare (es., inviare una valutazione, inviare una notifica di revisione annuale).</li>
+    </ul>
+
+    <h3>Target multipli e concatenamento</h3>
+    <p>Una singola regola può avere come target <strong>più destinatari o valutazioni</strong> contemporaneamente. Puoi anche creare una catena: quando l'azione della regola A si attiva, può essa stessa attivare la regola B. Un guard di loop previene catene infinite.</p>
+
+    <h3>Creare una regola</h3>
+    <ol class="steps">
+        <li>Fai clic su <span class="btn-label">+ Nuova Regola</span>.</li>
+        <li>Scegli il <span class="field-label">Trigger</span> (es., Fornitore Approvato).</li>
+        <li>Imposta la <span class="field-label">Condizione</span>. Scegli <strong>Sempre</strong> per eseguire per ogni fornitore, o aggiungi un filtro.</li>
+        <li>Aggiungi una o più <span class="field-label">Azioni</span>. Ogni azione specifica cosa fare e chi è il target.</li>
+        <li>Fai clic su <span class="btn-label">Salva Regola</span>.</li>
+    </ol>
+
+    <div class="callout callout-info">
+        <strong>Entrambi i percorsi di approvazione attivano le regole.</strong> Un fornitore può essere approvato dalla pagina del fornitore e dall'azione di approvazione in blocco nell'elenco dei fornitori. Le regole workflow si attivano da entrambi i percorsi.
+    </div>
+</div>
+
+<div class="doc-section" id="alternate-stakeholders">
+    <h2>Stakeholder Alternativo <span class="new-badge">Nuovo in 2.6.2</span></h2>
+    <p>Uno <strong>stakeholder alternativo</strong> è un contatto di backup assegnato a un fornitore insieme allo stakeholder primario. Questo è utile quando un fornitore ha due contatti nella tua organizzazione, o quando vuoi che un manager abbia visibilità insieme alla persona che gestisce direttamente la relazione.</p>
+
+    <h3>Cosa può fare un alternativo</h3>
+    <p>Un alternativo ha quasi lo stesso accesso dello stakeholder primario su quel fornitore:</p>
+    <ul>
+        <li>Visualizzare la pagina di onboarding, i documenti e lo stato del fornitore</li>
+        <li>Completare le attività assegnate al fornitore</li>
+        <li>Ricevere copie delle valutazioni quando ha optato (vedi sotto)</li>
+    </ul>
+    <p>Un alternativo <strong>non può</strong>:</p>
+    <ul>
+        <li>Riassegnare il fornitore a un diverso stakeholder primario</li>
+        <li>Trasferire il fornitore a un altro utente</li>
+        <li>Gestire (aggiungere, rimuovere o modificare) altri alternativi</li>
+    </ul>
+
+    <h3>Assegnare un alternativo</h3>
+    <ol class="steps">
+        <li>Apri la pagina del fornitore.</li>
+        <li>Nella sezione <strong>Stakeholder</strong>, fai clic su <span class="btn-label">Aggiungi Alternativo</span>.</li>
+        <li>Cerca e seleziona l'utente che vuoi come alternativo.</li>
+        <li>Fai clic su <span class="btn-label">Salva</span>.</li>
+    </ol>
+    <p>L'alternativo appare nella sezione Stakeholder con un'etichetta "Alternativo". Un fornitore può avere più di un alternativo.</p>
+
+    <h3>Copie delle valutazioni per gli alternativi</h3>
+    <p>Quando si invia una valutazione a un fornitore, un amministratore può spuntare <span class="field-label">Invia anche una copia agli alternativi</span>. Se spuntato, ogni stakeholder alternativo di quel fornitore riceve la propria copia della valutazione da completare indipendentemente.</p>
+</div>
+
 <div class="doc-section" id="admin-email">
     <h2>Configurazione Email</h2>
     <p>Configura le impostazioni SMTP per l'invio di notifiche email. Vai su <span class="menu-label">Admin</span> &rarr; <span class="menu-label">Email</span>. Le impostazioni includono host SMTP, porta, nome utente, password, metodo di crittografia (TLS/SSL) e indirizzo mittente.</p>
@@ -1676,6 +1793,7 @@
                     <a href="#tprm-assessments">Valutazioni dei Fornitori</a>
                     <a href="#assessment-forms">Moduli di Valutazione &amp; Compilazione AI</a>
                     <a href="#tprm-action-plan">Piano d'Azione Fornitore</a>
+                    <a href="#alternate-stakeholders">Stakeholder Alternativo</a>
                     <a href="#tprm-srs">Security Risk Scorecard</a>
                     <a href="#tprm-fair">Analisi FAIR</a>
                     <a href="#tprm-fourth-party">Rischio di Quarte Parti</a>
@@ -1698,6 +1816,8 @@
                     <a href="#admin-users">Gestione Utenti</a>
                     <a href="#admin-acl-groups">Gruppi ACL</a>
                     <a href="#admin-templates">Template di Valutazione</a>
+                    <a href="#admin-risk-scoring">Punteggio Rischio &amp; Maturità</a>
+                    <a href="#workflow-rules">Regole Workflow</a>
                     <a href="#admin-email">Configurazione Email</a>
                     <a href="#admin-saml">SAML / SSO</a>
                     <a href="#admin-ai">Integrazione AI</a>

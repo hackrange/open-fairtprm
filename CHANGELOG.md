@@ -12,6 +12,12 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **In-app documentation updated.** All 8 language versions of the documentation
+  now cover the configurable maturity models, customizable risk scoring, workflow
+  rules, and alternate stakeholders features. A full-page keyword search bar was
+  added to the documentation page, allowing instant filtering of all sections with
+  match highlighting and a one-click clear.
+
 - **Configurable maturity models (SSE-CMM / CMMI).** Admin > Risk Scoring now
   includes a Maturity Model Settings section. When enabled, administrators can
   choose between a 4-level and 5-level scale, rename each level label, and apply
