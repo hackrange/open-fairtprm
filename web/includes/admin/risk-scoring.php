@@ -14,7 +14,14 @@ if (!defined('ADMIN_DISPATCH')) { http_response_code(403); exit('Forbidden'); }
  *   $section, $isAdmin, $error, $success, $csrfToken
  */
 
-// Valid config keys — strict whitelist, nothing outside this list is ever written.
+// Valid config keys — strict whitelists, nothing outside these lists is ever written.
+const MATURITY_CONFIG_KEYS = [
+    'maturity_model_enabled',
+    'maturity_level_count',
+    'maturity_label_1', 'maturity_label_2', 'maturity_label_3',
+    'maturity_label_4', 'maturity_label_5',
+];
+
 const RISK_CONFIG_KEYS = [
     'risk_threshold_critical', 'risk_threshold_high', 'risk_threshold_medium',
     'risk_label_critical', 'risk_label_high', 'risk_label_medium', 'risk_label_low',
@@ -27,6 +34,90 @@ const RISK_CONFIG_KEYS = [
     'risk_category_compliance', 'risk_category_reputational', 'risk_category_technology',
     'risk_category_third_party',
 ];
+
+// ============================================================================
+// POST Handler: reset_maturity_config — delete all maturity_* rows
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_maturity_config'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid request token.';
+    } else {
+        try {
+            $db->beginTransaction();
+            foreach (MATURITY_CONFIG_KEYS as $k) {
+                $db->query("DELETE FROM app_config WHERE config_key = :k", [':k' => $k]);
+            }
+            $db->commit();
+            getAppConfig('', null, true);
+            header('Location: admin.php?section=risk-scoring&maturity_reset=1');
+            exit;
+        } catch (Exception $e) {
+            $db->rollback();
+            error_log('Maturity config reset failed: ' . $e->getMessage());
+            $error = 'Reset failed. Please try again.';
+        }
+    }
+}
+
+// ============================================================================
+// POST Handler: save_maturity_config
+// ============================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_maturity_config'])) {
+    if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid request token.';
+    } else {
+        $rawML = function(string $key): string {
+            return strip_tags(mb_substr(trim($_POST[$key] ?? ''), 0, 60));
+        };
+
+        // Level count: only 4 or 5 accepted.
+        $mCount = intval($_POST['maturity_level_count'] ?? 4);
+        if (!in_array($mCount, [4, 5], true)) { $mCount = 4; }
+
+        $mConfigs = [
+            'maturity_model_enabled' => isset($_POST['maturity_model_enabled']) ? '1' : '0',
+            'maturity_level_count'   => (string)$mCount,
+            'maturity_label_1'       => $rawML('maturity_label_1') ?: 'Initial',
+            'maturity_label_2'       => $rawML('maturity_label_2') ?: 'Developing',
+            'maturity_label_3'       => $rawML('maturity_label_3') ?: 'Defined',
+            'maturity_label_4'       => $rawML('maturity_label_4') ?: 'Managed',
+            'maturity_label_5'       => $rawML('maturity_label_5') ?: 'Optimizing',
+        ];
+
+        // Whitelist check (defense in depth).
+        foreach (array_keys($mConfigs) as $k) {
+            if (!in_array($k, MATURITY_CONFIG_KEYS, true)) {
+                $error = 'Unexpected maturity config key.';
+                break;
+            }
+        }
+
+        if (!isset($error)) {
+            try {
+                $db->beginTransaction();
+                foreach ($mConfigs as $key => $value) {
+                    $existing = $db->fetchOne(
+                        'SELECT id FROM app_config WHERE config_key = :key',
+                        [':key' => $key]
+                    );
+                    if ($existing) {
+                        $db->update('app_config', ['config_value' => $value], 'config_key = :key', [':key' => $key]);
+                    } else {
+                        $db->insert('app_config', ['config_key' => $key, 'config_value' => $value, 'is_encrypted' => 0]);
+                    }
+                }
+                $db->commit();
+                $auth->audit($user['id'], 'config_update', 'maturity_model', null, ['new' => $mConfigs]);
+                getAppConfig('', null, true);
+                $success = 'Maturity model settings saved.';
+            } catch (Exception $e) {
+                $db->rollback();
+                error_log('Maturity config save failed: ' . $e->getMessage());
+                $error = 'Save failed. Please try again.';
+            }
+        }
+    }
+}
 
 // ============================================================================
 // POST Handler: reset_risk_config — delete all risk_* rows, revert to defaults
@@ -151,6 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_risk_config'])) 
 // Load current config for rendering
 // ============================================================================
 $rc = getRiskConfig();
+$mc = getMaturityConfig();
 
 $bandKeys = ['critical', 'high', 'medium', 'low'];
 $thresholdDefaults = ['critical' => 20, 'high' => 12, 'medium' => 6];
@@ -163,6 +255,9 @@ $categoryKeys   = ['strategic', 'operational', 'financial', 'compliance', 'reput
 
 <?php if (isset($_GET['reset'])): ?>
 <div class="alert alert-success" style="margin-bottom:20px;">Risk scoring settings reset to defaults.</div>
+<?php endif; ?>
+<?php if (isset($_GET['maturity_reset'])): ?>
+<div class="alert alert-success" style="margin-bottom:20px;">Maturity model settings reset to defaults.</div>
 <?php endif; ?>
 
 <div class="page-header" style="margin-bottom:24px;">
@@ -322,6 +417,109 @@ $categoryKeys   = ['strategic', 'operational', 'financial', 'compliance', 'reput
     <input type="hidden" name="reset_risk_config" value="1">
 </form>
 
+<!-- ===================================================================== -->
+<!-- Maturity Model Configuration                                           -->
+<!-- ===================================================================== -->
+<h2 style="font-size:18px;font-weight:700;color:#111;margin:40px 0 4px;">Maturity Model</h2>
+<p style="font-size:13px;color:#6b7280;margin:0 0 20px;">
+    Configure the maturity scale used throughout FairScore assessments. The default
+    4-level scale (Initial, Developing, Defined, Managed) requires no changes. Enable
+    this section only when your organization uses a different framework vocabulary, such
+    as SSE-CMM (5 levels).
+</p>
+
+<form method="POST" action="admin.php?section=risk-scoring" id="maturityForm">
+    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+
+<div class="card" style="margin-bottom:24px;">
+    <h2 style="font-size:15px;font-weight:600;color:#111;margin:0 0 16px;">Maturity Model Settings</h2>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:14px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" name="maturity_model_enabled" id="maturityEnabled" value="1"
+                   <?php echo $mc['enabled'] ? 'checked' : ''; ?>
+                   style="width:18px;height:18px;cursor:pointer;"
+                   id="maturityEnabled">
+            <span style="font-size:14px;font-weight:600;color:#111;">Enable custom maturity model</span>
+        </label>
+        <span style="font-size:12px;color:#6b7280;">When off, the platform uses the built-in 4-level scale with no changes.</span>
+    </div>
+
+    <div id="maturityFields" style="display:<?php echo $mc['enabled'] ? 'block' : 'none'; ?>;">
+
+        <div style="margin-bottom:20px;">
+            <span style="font-size:13px;font-weight:600;color:#374151;margin-right:10px;">Presets:</span>
+            <button type="button" id="ssecmmPresetBtn"
+                    style="padding:6px 14px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;margin-right:8px;">
+                Apply SSE-CMM (5 levels)
+            </button>
+            <button type="button" id="defaultPresetBtn"
+                    style="padding:6px 14px;background:#6b7280;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">
+                Reset to Default (4 levels)
+            </button>
+        </div>
+
+        <div style="margin-bottom:20px;">
+            <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:8px;">Number of Maturity Levels</label>
+            <div style="display:flex;gap:16px;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+                    <input type="radio" name="maturity_level_count" value="4" id="ml4"
+                           <?php echo $mc['level_count'] === 4 ? 'checked' : ''; ?>>
+                    4 levels (default)
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+                    <input type="radio" name="maturity_level_count" value="5" id="ml5"
+                           <?php echo $mc['level_count'] === 5 ? 'checked' : ''; ?>>
+                    5 levels (CMMI / SSE-CMM)
+                </label>
+            </div>
+        </div>
+
+        <table style="width:100%;max-width:560px;border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align:left;font-size:12px;color:#6b7280;padding:4px 8px;width:70px;">Level</th>
+                    <th style="text-align:left;font-size:12px;color:#6b7280;padding:4px 8px;">Display Label</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php $mlColors = [1=>'#dc3545',2=>'#f59e0b',3=>'#3b82f6',4=>'#28a745',5=>'#7c3aed']; ?>
+            <?php for ($li = 1; $li <= 5; $li++): ?>
+            <tr id="mlRow<?php echo $li; ?>"
+                style="<?php echo $li <= $mc['level_count'] ? '' : 'display:none;'; ?>">
+                <td style="padding:4px 8px;">
+                    <span style="display:inline-flex;align-items:center;justify-content:center;
+                                 width:28px;height:28px;border-radius:50%;
+                                 background:<?php echo $mlColors[$li]; ?>;
+                                 color:#fff;font-weight:700;font-size:13px;"><?php echo $li; ?></span>
+                </td>
+                <td style="padding:4px 8px;">
+                    <input type="text" name="maturity_label_<?php echo $li; ?>"
+                           id="mlLabel<?php echo $li; ?>"
+                           value="<?php echo e($mc['labels'][$li] ?? ''); ?>"
+                           maxlength="60"
+                           placeholder="<?php echo e(['','Initial','Developing','Defined','Managed','Optimizing'][$li]); ?>"
+                           style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+                </td>
+            </tr>
+            <?php endfor; ?>
+            </tbody>
+        </table>
+
+    </div><!-- /maturityFields -->
+</div>
+
+<div style="display:flex;gap:12px;align-items:center;margin-bottom:40px;">
+    <button type="submit" name="save_maturity_config" class="btn btn-primary">Save Maturity Settings</button>
+    <button type="button" id="resetMaturityBtn" class="btn btn-outline" style="color:#991b1b;border-color:#fca5a5;">Reset to Defaults</button>
+</div>
+</form>
+
+<form method="POST" action="admin.php?section=risk-scoring" id="resetMaturityForm" style="display:none;">
+    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+    <input type="hidden" name="reset_maturity_config" value="1">
+</form>
+
 <script nonce="<?php echo cspNonce(); ?>">
 (function() {
     // Sync color pickers with readonly text fields and live-preview badge
@@ -369,5 +567,57 @@ $categoryKeys   = ['strategic', 'operational', 'financial', 'compliance', 'reput
             document.getElementById('resetForm').submit();
         }
     });
+
+    // Maturity model reset confirmation
+    document.getElementById('resetMaturityBtn').addEventListener('click', function() {
+        if (confirm('Reset maturity model to 4-level defaults? This cannot be undone.')) {
+            document.getElementById('resetMaturityForm').submit();
+        }
+    });
+
+    // Wire maturity enable toggle
+    var matEnable = document.getElementById('maturityEnabled');
+    if (matEnable) {
+        matEnable.addEventListener('change', function() {
+            document.getElementById('maturityFields').style.display = this.checked ? 'block' : 'none';
+        });
+    }
+
+    // Wire level-count radios
+    ['ml4','ml5'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('change', function() { updateLevelRows(parseInt(this.value)); });
+    });
+
+    // Wire preset buttons
+    var ssecmmPreset = {
+        count: 5,
+        labels: ['', 'Performed Informally', 'Planned and Tracked', 'Well Defined',
+                 'Quantitatively Controlled', 'Continuously Improving']
+    };
+    var defaultPreset = {
+        count: 4,
+        labels: ['', 'Initial', 'Developing', 'Defined', 'Managed', 'Optimizing']
+    };
+    function applyPreset(p) {
+        var radio = document.querySelector('[name="maturity_level_count"][value="' + p.count + '"]');
+        if (radio) radio.checked = true;
+        updateLevelRows(p.count);
+        for (var i = 1; i <= 5; i++) {
+            var inp = document.getElementById('mlLabel' + i);
+            if (inp) inp.value = p.labels[i] || '';
+        }
+    }
+    var ssecmmBtn = document.getElementById('ssecmmPresetBtn');
+    if (ssecmmBtn) ssecmmBtn.addEventListener('click', function() { applyPreset(ssecmmPreset); });
+    var defaultBtn = document.getElementById('defaultPresetBtn');
+    if (defaultBtn) defaultBtn.addEventListener('click', function() { applyPreset(defaultPreset); });
 })();
+
+function updateLevelRows(count) {
+    for (var i = 1; i <= 5; i++) {
+        var row = document.getElementById('mlRow' + i);
+        if (row) row.style.display = (i <= count) ? '' : 'none';
+    }
+}
 </script>

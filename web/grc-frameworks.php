@@ -846,7 +846,8 @@ $currentPage = 'grc_frameworks';
                     <?php if ($avgMaturity !== null): ?>
                     <div class="fw-card-maturity">
                         <span class="maturity-label"><?php echo e(t('grc_frameworks.avg_maturity')); ?></span>
-                        <span class="maturity-value"><?php echo number_format($avgMaturity, 2); ?> / 4.00</span>
+                        <?php $mc_fw = getMaturityConfig(); ?>
+                        <span class="maturity-value"><?php echo number_format($avgMaturity, 2); ?> / <?php echo number_format($mc_fw['level_count'], 2); ?></span>
                     </div>
                     <?php endif; ?>
                     <?php if ($totalMapped > 0): ?>

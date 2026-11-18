@@ -12,6 +12,16 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Configurable maturity models (SSE-CMM / CMMI).** Admin > Risk Scoring now
+  includes a Maturity Model Settings section. When enabled, administrators can
+  choose between a 4-level and 5-level scale, rename each level label, and apply
+  a one-click SSE-CMM preset (Performed Informally / Planned and Tracked /
+  Well Defined / Quantitatively Controlled / Continuously Improving). The default
+  4-level behavior (Initial / Developing / Defined / Managed) is completely
+  unchanged when the feature is off. All GRC pages - the assessment maturity
+  picker, FairScore summaries, framework maturity bars, and assessment PDF
+  reports - reflect the configured scale automatically.
+
 - **Customizable risk scoring.** Admin > Risk Scoring (new section under
   Configuration) lets administrators set the thresholds, display labels, and
   colors for each risk band (Critical / High / Medium / Low), rename all five

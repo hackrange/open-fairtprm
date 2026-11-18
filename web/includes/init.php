@@ -800,6 +800,55 @@ function riskHeatColor(int $l, int $i, array $rc): string {
 }
 
 /**
+ * Returns the active maturity model configuration.
+ * When maturity_model_enabled is 0 (default) the 4-level defaults are returned
+ * unchanged, preserving all existing behaviour.
+ */
+function getMaturityConfig(): array {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+
+    $defaults = [
+        'maturity_model_enabled' => '0',
+        'maturity_level_count'   => '4',
+        'maturity_label_1'       => 'Initial',
+        'maturity_label_2'       => 'Developing',
+        'maturity_label_3'       => 'Defined',
+        'maturity_label_4'       => 'Managed',
+        'maturity_label_5'       => 'Optimizing',
+    ];
+    $merged = $defaults;
+    try {
+        $db   = Database::getInstance();
+        $rows = $db->fetchAll(
+            "SELECT config_key, config_value FROM app_config WHERE config_key LIKE 'maturity_%'"
+        );
+        foreach ($rows as $row) {
+            if (array_key_exists($row['config_key'], $defaults)) {
+                $merged[$row['config_key']] = $row['config_value'];
+            }
+        }
+    } catch (Exception $e) {
+        error_log('getMaturityConfig: DB read failed, using defaults. ' . $e->getMessage());
+    }
+
+    $count = (int)$merged['maturity_level_count'];
+    $count = ($count === 5) ? 5 : 4; // only 4 or 5 accepted
+    $labels = [];
+    for ($i = 1; $i <= $count; $i++) {
+        $raw      = $merged['maturity_label_' . $i] ?? '';
+        $labels[$i] = $raw !== '' ? $raw : 'Level ' . $i;
+    }
+
+    $cache = [
+        'enabled'     => (bool)(int)$merged['maturity_model_enabled'],
+        'level_count' => $count,
+        'labels'      => $labels,
+    ];
+    return $cache;
+}
+
+/**
  * Loads the user's theme settings with a layered fallback system.
  *
  * Priority order:

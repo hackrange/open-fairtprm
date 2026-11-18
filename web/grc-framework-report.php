@@ -595,10 +595,11 @@ $csrfToken = $security->getCSRFToken();
                             <div class="q-detail">
                                 <div class="label"><?php echo e(t('grc-framework-report.maturity_rating')); ?></div>
                                 <div class="value">
-                                    <?php if ($q['maturity_rating']): ?>
-                                        <strong><?php echo (int)$q['maturity_rating']; ?> / 4</strong>
+                                    <?php if ($q['maturity_rating']):
+                                          $mc_fr = getMaturityConfig(); ?>
+                                        <strong><?php echo (int)$q['maturity_rating']; ?> / <?php echo $mc_fr['level_count']; ?></strong>
                                         <div class="maturity-bar">
-                                            <?php for ($i = 1; $i <= 4; $i++): ?>
+                                            <?php for ($i = 1; $i <= $mc_fr['level_count']; $i++): ?>
                                             <span class="<?php echo $i <= $q['maturity_rating'] ? 'filled' . ($q['maturity_rating'] <= 1 ? ' low' : ($q['maturity_rating'] <= 2 ? ' mid' : '')) : ''; ?>"></span>
                                             <?php endfor; ?>
                                         </div>

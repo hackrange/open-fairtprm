@@ -391,6 +391,7 @@ $_page = 'grc_assessment';
         .maturity-btn.active.m-2 { background: #f59e0b; color: #fff; border-color: #f59e0b; }
         .maturity-btn.active.m-3 { background: #3b82f6; color: #fff; border-color: #3b82f6; }
         .maturity-btn.active.m-4 { background: #28a745; color: #fff; border-color: #28a745; }
+        .maturity-btn.active.m-5 { background: #7c3aed; color: #fff; border-color: #7c3aed; }
         .maturity-btn.active.m-na { background: #6b7280; color: #fff; border-color: #6b7280; }
         .maturity-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -673,7 +674,9 @@ $_page = 'grc_assessment';
                     <div style="margin-bottom:8px;">
                         <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:4px;"><?php echo e(t('grc-assessment.maturity')); ?></div>
                         <div class="maturity-btn-group">
-                            <?php for ($i = 1; $i <= 4; $i++):
+                            <?php
+                            $mc = getMaturityConfig();
+                            for ($i = 1; $i <= $mc['level_count']; $i++):
                                 $mField = 'maturity_' . $i . '_desc';
                                 $active = ((int)$r['maturity_rating'] === $i) ? 'active m-' . $i : '';
                             ?>
@@ -1328,6 +1331,9 @@ $_page = 'grc_assessment';
         }
         echo json_encode($qMeta);
     ?>;
+    var maturityLabels     = <?php $mc = getMaturityConfig(); echo json_encode($mc['labels']); ?>;
+    var maturityLevelCount = <?php echo $mc['level_count']; ?>;
+    var maturityColors     = {1:'#dc3545',2:'#f59e0b',3:'#3b82f6',4:'#28a745',5:'#7c3aed'};
 
     // Modal helpers
     function openModal(id) { document.getElementById(id).classList.add('active'); }
@@ -2036,10 +2042,10 @@ $_page = 'grc_assessment';
 
         // Maturity levels explained
         html += '<h2>Maturity Levels</h2><ul>';
-        html += '<li><strong>Level 1 (Initial):</strong> ' + escHtml(q.maturity_1 || 'Ad-hoc or undocumented processes.') + '</li>';
-        html += '<li><strong>Level 2 (Developing):</strong> ' + escHtml(q.maturity_2 || 'Partially documented, inconsistently applied.') + '</li>';
-        html += '<li><strong>Level 3 (Defined):</strong> ' + escHtml(q.maturity_3 || 'Documented policies, consistently implemented.') + '</li>';
-        html += '<li><strong>Level 4 (Managed):</strong> ' + escHtml(q.maturity_4 || 'Continuously monitored and optimized.') + '</li>';
+        for (var _i = 1; _i <= maturityLevelCount; _i++) {
+            var _lbl = maturityLabels[_i] || ('Level ' + _i);
+            html += '<li><strong>Level ' + _i + ' (' + escHtml(_lbl) + '):</strong> ' + escHtml(q['maturity_' + _i] || '') + '</li>';
+        }
         html += '</ul>';
 
         // Control examples
@@ -2089,10 +2095,13 @@ $_page = 'grc_assessment';
             }
             html += '<h2>What Each Maturity Level Looks Like</h2>';
             html += '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px;margin-bottom:8px;">';
-            html += '<p style="margin:0 0 6px;"><strong style="color:#dc3545;">Level 1 &mdash; Initial:</strong> ' + escHtml(q.maturity_1 || 'Processes are ad-hoc, undocumented, and reactive. No formal controls exist.') + '</p>';
-            html += '<p style="margin:0 0 6px;"><strong style="color:#f59e0b;">Level 2 &mdash; Developing:</strong> ' + escHtml(q.maturity_2 || 'Some documented procedures exist but are inconsistently applied across the organization.') + '</p>';
-            html += '<p style="margin:0 0 6px;"><strong style="color:#3b82f6;">Level 3 &mdash; Defined:</strong> ' + escHtml(q.maturity_3 || 'Policies are formally documented, approved, and consistently implemented organization-wide.') + '</p>';
-            html += '<p style="margin:0;"><strong style="color:#28a745;">Level 4 &mdash; Managed:</strong> ' + escHtml(q.maturity_4 || 'Controls are continuously monitored, measured with metrics, and regularly improved.') + '</p>';
+            for (var _j = 1; _j <= maturityLevelCount; _j++) {
+                var _c   = maturityColors[_j] || '#6b7280';
+                var _l   = maturityLabels[_j] || ('Level ' + _j);
+                var _d   = q['maturity_' + _j] || '';
+                var _sep = (_j < maturityLevelCount) ? 'margin:0 0 6px;' : 'margin:0;';
+                html += '<p style="' + _sep + '"><strong style="color:' + _c + ';">Level ' + _j + ' &mdash; ' + escHtml(_l) + ':</strong> ' + escHtml(_d) + '</p>';
+            }
             html += '</div>';
             if (q.control_examples) {
                 html += '<h2>Examples of Evidence to Look For</h2>';

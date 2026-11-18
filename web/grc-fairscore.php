@@ -115,21 +115,35 @@ foreach ($targets as $t) {
     $targetLookup[$t['domain_code']] = $t;
 }
 
-// Helper: FairScore color
+// Helper: FairScore color — thresholds scale proportionally with the level count.
 function fairScoreColor($score): string {
     if ($score === null || $score === 0) return '#6b7280';
-    if ($score >= 3.0) return '#28a745';
-    if ($score >= 2.0) return '#f59e0b';
+    $mc  = getMaturityConfig();
+    $max = $mc['level_count'];
+    if ($score >= $max * 0.75) return '#28a745';
+    if ($score >= $max * 0.50) return '#f59e0b';
     return '#dc3545';
 }
 
-// Helper: FairScore label
+// Helper: FairScore label — uses original i18n strings in default mode; uses
+// configured level names when a custom model is enabled.
 function fairScoreLabel($score): string {
     if ($score === null || $score === 0) return t('grc-fairscore.no_data');
-    if ($score >= 3.5) return t('grc-fairscore.level_optimized');
-    if ($score >= 3.0) return t('grc-fairscore.level_managed');
-    if ($score >= 2.0) return t('grc-fairscore.level_developing');
-    if ($score >= 1.0) return t('grc-fairscore.level_initial');
+    $mc = getMaturityConfig();
+    if (!$mc['enabled']) {
+        // Preserve exact original behavior
+        if ($score >= 3.5) return t('grc-fairscore.level_optimized');
+        if ($score >= 3.0) return t('grc-fairscore.level_managed');
+        if ($score >= 2.0) return t('grc-fairscore.level_developing');
+        if ($score >= 1.0) return t('grc-fairscore.level_initial');
+        return t('grc-fairscore.no_data');
+    }
+    $max    = $mc['level_count'];
+    $labels = $mc['labels'];
+    if ($score >= $max - 0.5)  return $labels[$max]      ?? t('grc-fairscore.level_optimized');
+    if ($score >= $max * 0.75) return $labels[$max - 1]  ?? t('grc-fairscore.level_managed');
+    if ($score >= $max * 0.50) return $labels[2]         ?? t('grc-fairscore.level_developing');
+    if ($score >= 1.0)         return $labels[1]         ?? t('grc-fairscore.level_initial');
     return t('grc-fairscore.no_data');
 }
 

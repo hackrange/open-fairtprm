@@ -7164,6 +7164,16 @@ INSERT IGNORE INTO app_config (config_key, config_value, is_encrypted, descripti
 ('risk_category_technology',   'Technology',   0, ''),
 ('risk_category_third_party',  'Third Party',  0, '');
 
+-- Maturity model configuration defaults
+INSERT IGNORE INTO app_config (config_key, config_value, is_encrypted, description) VALUES
+('maturity_model_enabled', '0',           0, 'Enable custom maturity model (0=default 4-level, 1=custom)'),
+('maturity_level_count',   '4',           0, 'Number of maturity levels (4 or 5)'),
+('maturity_label_1',       'Initial',     0, 'Display label for maturity level 1'),
+('maturity_label_2',       'Developing',  0, 'Display label for maturity level 2'),
+('maturity_label_3',       'Defined',     0, 'Display label for maturity level 3'),
+('maturity_label_4',       'Managed',     0, 'Display label for maturity level 4'),
+('maturity_label_5',       'Optimizing',  0, 'Display label for maturity level 5 (used when level_count=5)');
+
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

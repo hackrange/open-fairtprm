@@ -202,10 +202,12 @@ foreach ($responses as $r) {
 }
 
 // Group responses by maturity tier
-$byTier = [1 => [], 2 => [], 3 => [], 4 => []];
+$_mc_tier = getMaturityConfig();
+$byTier   = [];
+for ($_bi = 1; $_bi <= $_mc_tier['level_count']; $_bi++) { $byTier[$_bi] = []; }
 foreach ($responses as $r) {
     $rating = (int)($r['maturity_rating'] ?? 0);
-    if ($rating >= 1 && $rating <= 4) {
+    if ($rating >= 1 && $rating <= $_mc_tier['level_count']) {
         $byTier[$rating][] = $r;
     }
 }
@@ -250,17 +252,35 @@ $h = function($s) { return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8'); };
 
 // Score color helper
 function scoreColor(float $score): string {
-    if ($score >= 3.5) return '#059669';
-    if ($score >= 2.5) return '#3b82f6';
-    if ($score >= 1.5) return '#f59e0b';
+    $mc = getMaturityConfig();
+    if (!$mc['enabled']) {
+        if ($score >= 3.5) return '#059669';
+        if ($score >= 2.5) return '#3b82f6';
+        if ($score >= 1.5) return '#f59e0b';
+        return '#dc3545';
+    }
+    $max = $mc['level_count'];
+    if ($score >= $max * 0.875) return '#059669';
+    if ($score >= $max * 0.625) return '#3b82f6';
+    if ($score >= $max * 0.375) return '#f59e0b';
     return '#dc3545';
 }
 
 function scoreTier(float $score): string {
-    if ($score >= 3.5) return 'Adaptive (Tier 4)';
-    if ($score >= 2.5) return 'Repeatable (Tier 3)';
-    if ($score >= 1.5) return 'Risk-Informed (Tier 2)';
-    if ($score >= 0.5) return 'Partial (Tier 1)';
+    $mc = getMaturityConfig();
+    if (!$mc['enabled']) {
+        if ($score >= 3.5) return 'Adaptive (Tier 4)';
+        if ($score >= 2.5) return 'Repeatable (Tier 3)';
+        if ($score >= 1.5) return 'Risk-Informed (Tier 2)';
+        if ($score >= 0.5) return 'Partial (Tier 1)';
+        return 'Not Assessed';
+    }
+    $max    = $mc['level_count'];
+    $labels = $mc['labels'];
+    if ($score >= $max * 0.875) return ($labels[$max]      ?? 'Adaptive')      . ' (Tier ' . $max . ')';
+    if ($score >= $max * 0.625) return ($labels[$max - 1]  ?? 'Repeatable')    . ' (Tier ' . ($max - 1) . ')';
+    if ($score >= $max * 0.375) return ($labels[2]         ?? 'Risk-Informed') . ' (Tier 2)';
+    if ($score >= 0.5)          return ($labels[1]         ?? 'Partial')       . ' (Tier 1)';
     return 'Not Assessed';
 }
 
@@ -322,41 +342,36 @@ $pdfHtml .= '<p style="font-size:9pt;color:#374151;margin-bottom:10pt;">CSF Matu
 
 $pdfHtml .= '<table style="width:100%;"><tbody><tr>';
 
-// Tier 1 - Initial
-$pdfHtml .= '<td style="width:25%;vertical-align:top;padding:0 4pt;border:none;">';
-$pdfHtml .= '<div class="tier-box" style="border-top-color:#dc3545;background:#fee2e2;">';
-$pdfHtml .= '<div style="font-size:11pt;font-weight:bold;color:#dc3545;">Tier 1</div>';
-$pdfHtml .= '<div style="font-size:9pt;font-weight:bold;color:#1a1a2e;margin:4pt 0;">Initial</div>';
-$pdfHtml .= '<div style="font-size:7pt;color:#374151;text-align:left;">Ad-hoc and undocumented practices. Security controls are reactive and inconsistently applied. No formal policies or procedures govern cybersecurity activities.</div>';
-$pdfHtml .= '</div></td>';
-
-// Tier 2 - Risk-Informed
-$pdfHtml .= '<td style="width:25%;vertical-align:top;padding:0 4pt;border:none;">';
-$pdfHtml .= '<div class="tier-box" style="border-top-color:#f59e0b;background:#fef3c7;">';
-$pdfHtml .= '<div style="font-size:11pt;font-weight:bold;color:#f59e0b;">Tier 2</div>';
-$pdfHtml .= '<div style="font-size:9pt;font-weight:bold;color:#1a1a2e;margin:4pt 0;">Risk-Informed</div>';
-$pdfHtml .= '<div style="font-size:7pt;color:#374151;text-align:left;">Partially documented practices with some risk awareness. Policies exist but are not consistently followed. Security activities are partially integrated into organizational processes.</div>';
-$pdfHtml .= '</div></td>';
-
-// Tier 3 - Repeatable
-$pdfHtml .= '<td style="width:25%;vertical-align:top;padding:0 4pt;border:none;">';
-$pdfHtml .= '<div class="tier-box" style="border-top-color:#3b82f6;background:#dbeafe;">';
-$pdfHtml .= '<div style="font-size:11pt;font-weight:bold;color:#3b82f6;">Tier 3</div>';
-$pdfHtml .= '<div style="font-size:9pt;font-weight:bold;color:#1a1a2e;margin:4pt 0;">Repeatable</div>';
-$pdfHtml .= '<div style="font-size:7pt;color:#374151;text-align:left;">Documented and consistently implemented controls. Formal policies and procedures are established and followed. Security practices are integrated into business operations.</div>';
-$pdfHtml .= '</div></td>';
-
-// Tier 4 - Adaptive
-$pdfHtml .= '<td style="width:25%;vertical-align:top;padding:0 4pt;border:none;">';
-$pdfHtml .= '<div class="tier-box" style="border-top-color:#059669;background:#dcfce7;">';
-$pdfHtml .= '<div style="font-size:11pt;font-weight:bold;color:#059669;">Tier 4</div>';
-$pdfHtml .= '<div style="font-size:9pt;font-weight:bold;color:#1a1a2e;margin:4pt 0;">Adaptive</div>';
-$pdfHtml .= '<div style="font-size:7pt;color:#374151;text-align:left;">Continuously monitored and optimized controls. Organization adapts cybersecurity practices based on threat intelligence, lessons learned, and predictive analytics.</div>';
-$pdfHtml .= '</div></td>';
+$_mc_rep   = getMaturityConfig();
+$_mlabels  = $_mc_rep['labels'];
+$_mcount   = $_mc_rep['level_count'];
+$_tierData = [
+    1 => ['color' => '#dc3545', 'bg' => '#fee2e2',
+          'desc'  => 'Ad-hoc and undocumented practices. Security controls are reactive and inconsistently applied. No formal policies or procedures govern cybersecurity activities.'],
+    2 => ['color' => '#f59e0b', 'bg' => '#fef3c7',
+          'desc'  => 'Partially documented practices with some risk awareness. Policies exist but are not consistently followed. Security activities are partially integrated into organizational processes.'],
+    3 => ['color' => '#3b82f6', 'bg' => '#dbeafe',
+          'desc'  => 'Documented and consistently implemented controls. Formal policies and procedures are established and followed. Security practices are integrated into business operations.'],
+    4 => ['color' => '#059669', 'bg' => '#dcfce7',
+          'desc'  => 'Continuously monitored and optimized controls. Organization adapts cybersecurity practices based on threat intelligence, lessons learned, and predictive analytics.'],
+    5 => ['color' => '#7c3aed', 'bg' => '#ede9fe',
+          'desc'  => 'Continuously improving and institutionalized. Security processes are quantitatively managed, measured against goals, and systematically optimized organization-wide.'],
+];
+$_colWidth = round(100 / $_mcount) . '%';
+for ($__t = 1; $__t <= $_mcount; $__t++) {
+    $_td   = $_tierData[$__t];
+    $_name = htmlspecialchars($_mlabels[$__t] ?? ('Level ' . $__t), ENT_QUOTES, 'UTF-8');
+    $pdfHtml .= '<td style="width:' . $_colWidth . ';vertical-align:top;padding:0 4pt;border:none;">';
+    $pdfHtml .= '<div class="tier-box" style="border-top-color:' . $_td['color'] . ';background:' . $_td['bg'] . ';">';
+    $pdfHtml .= '<div style="font-size:11pt;font-weight:bold;color:' . $_td['color'] . ';">Tier ' . $__t . '</div>';
+    $pdfHtml .= '<div style="font-size:9pt;font-weight:bold;color:#1a1a2e;margin:4pt 0;">' . $_name . '</div>';
+    $pdfHtml .= '<div style="font-size:7pt;color:#374151;text-align:left;">' . htmlspecialchars($_td['desc'], ENT_QUOTES, 'UTF-8') . '</div>';
+    $pdfHtml .= '</div></td>';
+}
 
 $pdfHtml .= '</tr></tbody></table>';
 
-$pdfHtml .= '<p style="font-size:8pt;color:#6b7280;margin-top:14pt;">Each of the 146 unified security questions is scored on a 1&ndash;4 maturity scale aligned with NIST Cybersecurity Framework 2.0 Implementation Tiers. Domain scores represent the average maturity rating across all assessed questions within the domain. The overall CSF Maturity Score is the weighted average across all 14 security domains. Framework compliance percentages reflect the proportion of mapped requirements that are conforming (with partial conformity weighted at 50%).</p>';
+$pdfHtml .= '<p style="font-size:8pt;color:#6b7280;margin-top:14pt;">Each of the 146 unified security questions is scored on a 1&ndash;' . $_mcount . ' maturity scale. Domain scores represent the average maturity rating across all assessed questions within the domain. The overall CSF Maturity Score is the weighted average across all 14 security domains. Framework compliance percentages reflect the proportion of mapped requirements that are conforming (with partial conformity weighted at 50%).</p>';
 
 // ─── PAGE 3: CSF MATURITY SCORE — GD Radial Chart ───────────────────────────
 
@@ -419,9 +434,11 @@ if (!empty($domainData) && extension_loaded('gd')) {
     imagefilledellipse($img, $cx, $cy, $maxR * 2 + 4, $maxR * 2 + 4, $gdWhite);
 
     // ── Tier reference rings (subtle dashed appearance) ──
-    $tierLabels = ['', 'Initial', 'Risk-Informed', 'Repeatable', 'Adaptive'];
-    for ($tier = 1; $tier <= 4; $tier++) {
-        $sr = (int)(($tier / 4) * $maxR);
+    $_mc_rings  = getMaturityConfig();
+    $_ringCount = $_mc_rings['level_count'];
+    $_ringLabels = array_merge([''], array_values($_mc_rings['labels']));
+    for ($tier = 1; $tier <= $_ringCount; $tier++) {
+        $sr = (int)(($tier / $_ringCount) * $maxR);
         // Draw dotted ring: small arcs with gaps
         $dotColor = imagecolorallocate($img, 225, 228, 235);
         for ($a = 0; $a < 360; $a += 4) {
@@ -544,7 +561,8 @@ if (!empty($domainData) && extension_loaded('gd')) {
     imagettftext($img, 24, 0, $cx - (int)($titleW / 2), 42, $titleColor, $fontBold, $titleStr);
 
     // Subtitle
-    $subTitle = 'Overall cyber security maturity: ' . number_format($sc, 1) . ' / 4.0';
+    $_mc_chart = getMaturityConfig();
+    $subTitle = 'Overall cyber security maturity: ' . number_format($sc, 1) . ' / ' . $_mc_chart['level_count'] . '.0';
     $stBbox = imagettfbbox(12, 0, $fontNorm, $subTitle);
     $stW = $stBbox[2] - $stBbox[0];
     imagettftext($img, 12, 0, $cx - (int)($stW / 2), 68, $subGrey, $fontNorm, $subTitle);
@@ -600,13 +618,15 @@ if (!empty($domainData) && extension_loaded('gd')) {
     $ly += 12;
     imagettftext($img, 9, 0, $panelX, $ly, $subGrey, $fontBold, 'Maturity Tiers');
     $ly += 18;
-    $tierColors = [1 => '#dc3545', 2 => '#f59e0b', 3 => '#3b82f6', 4 => '#059669'];
-    $tierNames = [1 => 'Initial', 2 => 'Risk-Informed', 3 => 'Repeatable', 4 => 'Adaptive'];
-    foreach ($tierColors as $tn => $tc) {
-        $tRgb = hexToRgbInt($tc);
-        $tGdColor = imagecolorallocate($img, $tRgb[0], $tRgb[1], $tRgb[2]);
-        imagefilledrectangle($img, $panelX, $ly - 8, $panelX + 18, $ly - 1, $tGdColor);
-        imagettftext($img, 9, 0, $panelX + 24, $ly, $subGrey, $fontNorm, $tn . ' — ' . $tierNames[$tn]);
+    $_mc_legend  = getMaturityConfig();
+    $_legendClrs = [1 => '#dc3545', 2 => '#f59e0b', 3 => '#3b82f6', 4 => '#059669', 5 => '#7c3aed'];
+    for ($_lt = 1; $_lt <= $_mc_legend['level_count']; $_lt++) {
+        $_lc      = $_legendClrs[$_lt] ?? '#6b7280';
+        $_lRgb    = hexToRgbInt($_lc);
+        $_lGdClr  = imagecolorallocate($img, $_lRgb[0], $_lRgb[1], $_lRgb[2]);
+        imagefilledrectangle($img, $panelX, $ly - 8, $panelX + 18, $ly - 1, $_lGdClr);
+        imagettftext($img, 9, 0, $panelX + 24, $ly, $subGrey, $fontNorm,
+            $_lt . ' — ' . ($_mc_legend['labels'][$_lt] ?? 'Level ' . $_lt));
         $ly += 18;
     }
 
@@ -641,7 +661,8 @@ $pdfHtml .= '<div class="stat-box"><div class="stat-label">Gaps Found</div><div 
 $pdfHtml .= '</div>';
 
 $pdfHtml .= '<h2>Security Domain Scores</h2>';
-$pdfHtml .= '<p style="font-size:8pt;color:#374151;">The following table shows the maturity score for each of the 14 unified security domains, scored on a 1&ndash;4 scale aligned with NIST CSF 2.0 Implementation Tiers.</p>';
+$_mc_dom = getMaturityConfig();
+$pdfHtml .= '<p style="font-size:8pt;color:#374151;">The following table shows the maturity score for each of the 14 unified security domains, scored on a 1&ndash;' . $_mc_dom['level_count'] . ' maturity scale.</p>';
 
 $pdfHtml .= '<table><thead><tr><th style="width:50pt;">Code</th><th>Domain Name</th><th style="width:45pt;">Score</th><th style="width:100pt;">Tier</th><th style="width:130pt;">Bar</th></tr></thead><tbody>';
 
@@ -652,7 +673,7 @@ if (!empty($domainData)) {
         $ds = $d['score'];
         $dCode = $d['code'];
         $rowColor = $domainColors[$dCode] ?? scoreColor($ds);
-        $barWidth = max(1, ($ds / 4) * 100);
+        $barWidth = max(1, ($ds / $_mc_dom['level_count']) * 100);
         $pdfHtml .= '<tr>';
         $pdfHtml .= '<td><span style="display:inline-block;width:6pt;height:6pt;background:' . $rowColor . ';margin-right:3pt;"></span><strong>' . $h($dCode) . '</strong></td>';
         $pdfHtml .= '<td>' . $h($d['name']) . '</td>';
@@ -771,12 +792,18 @@ $pdfHtml .= '<div class="page-break"></div>';
 $pdfHtml .= '<h2>Control Performance Overview</h2>';
 $pdfHtml .= '<p style="font-size:8pt;color:#374151;">Questions grouped by their assigned maturity tier rating, providing a quick view of control maturity distribution.</p>';
 
-$tierLabels = [
-    1 => ['name' => 'Initial (Tier 1)', 'color' => '#dc3545', 'bg' => '#fee2e2'],
-    2 => ['name' => 'Risk-Informed (Tier 2)', 'color' => '#f59e0b', 'bg' => '#fef3c7'],
-    3 => ['name' => 'Repeatable (Tier 3)', 'color' => '#3b82f6', 'bg' => '#dbeafe'],
-    4 => ['name' => 'Adaptive (Tier 4)', 'color' => '#059669', 'bg' => '#dcfce7'],
-];
+$_mc_perf    = getMaturityConfig();
+$_perfColors = [1 => '#dc3545', 2 => '#f59e0b', 3 => '#3b82f6', 4 => '#059669', 5 => '#7c3aed'];
+$_perfBgs    = [1 => '#fee2e2', 2 => '#fef3c7', 3 => '#dbeafe', 4 => '#dcfce7', 5 => '#ede9fe'];
+$tierLabels  = [];
+for ($_pi = 1; $_pi <= $_mc_perf['level_count']; $_pi++) {
+    $_plabel        = $_mc_perf['labels'][$_pi] ?? ('Level ' . $_pi);
+    $tierLabels[$_pi] = [
+        'name'  => $_plabel . ' (Tier ' . $_pi . ')',
+        'color' => $_perfColors[$_pi] ?? '#6b7280',
+        'bg'    => $_perfBgs[$_pi]    ?? '#f3f4f6',
+    ];
+}
 
 $pdfHtml .= '<table style="width:100%;"><tbody><tr>';
 foreach ($tierLabels as $tier => $meta) {
