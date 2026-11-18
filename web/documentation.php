@@ -169,16 +169,23 @@ $csrfToken = $security->getCSRFToken();
         /* "New in 2.6.2" badge */
         .new-badge { display: inline-block; vertical-align: middle; background: var(--theme-button-color, #ff6543); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 7px; border-radius: 10px; margin-left: 8px; }
 
-        /* Doc-wide search bar */
-        .doc-search-wrap { position: relative; margin: 0 0 20px; }
-        .doc-search-input { width: 100%; padding: 11px 40px 11px 42px; font-size: 14px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-family: inherit; background: #fff; }
+        /* Doc-wide search bar — sticky so it stays visible while scrolling */
+        .doc-search-wrap { position: sticky; top: 0; z-index: 40; background: #f9fafb; padding: 10px 0 6px; margin: 0 0 14px; }
+        .doc-search-inner { position: relative; }
+        .doc-search-input { width: 100%; padding: 11px 40px 11px 42px; font-size: 14px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-family: inherit; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
         .doc-search-input:focus { outline: none; border-color: var(--theme-button-color, #ff6543); box-shadow: 0 0 0 3px rgba(255,101,67,0.12); }
         .doc-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 15px; opacity: 0.45; pointer-events: none; }
         .doc-search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: #e5e7eb; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 13px; line-height: 22px; text-align: center; cursor: pointer; color: #6b7280; display: none; }
         .doc-search-clear:hover { background: #d1d5db; }
-        .doc-search-status { font-size: 12px; color: #9ca3af; margin: -12px 0 14px; }
+        .doc-search-status { font-size: 12px; color: #9ca3af; margin: 2px 0 10px 2px; }
         .doc-search-status mark { background: #fef08a; border-radius: 2px; padding: 0 2px; color: #111; font-weight: 600; }
         .doc-no-results { display: none; padding: 24px; text-align: center; color: #9ca3af; font-size: 14px; font-style: italic; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; margin-bottom: 24px; }
+        /* Sidebar search mirror */
+        .doc-sidebar-search { padding: 10px 12px 12px; border-bottom: 1px solid #e5e7eb; margin-bottom: 8px; }
+        .doc-sidebar-search input { width: 100%; padding: 7px 10px 7px 30px; font-size: 12px; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; font-family: inherit; background: #fff; }
+        .doc-sidebar-search input:focus { outline: none; border-color: var(--theme-button-color, #ff6543); }
+        .doc-sidebar-search-wrap { position: relative; }
+        .doc-sidebar-search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); font-size: 12px; opacity: 0.4; pointer-events: none; }
 
         /* FAQ search + accordion */
         .faq-search-wrap { position: relative; margin: 6px 0 18px; }
@@ -320,11 +327,13 @@ $csrfToken = $security->getCSRFToken();
         <main class="main-content">
             <div class="doc-wrapper">
                 <div class="doc-search-wrap">
-                    <span class="doc-search-icon">&#128269;</span>
-                    <input type="search" class="doc-search-input" id="docSearch"
-                           placeholder="Search documentation..."
-                           autocomplete="off" spellcheck="false">
-                    <button class="doc-search-clear" id="docSearchClear" type="button" aria-label="Clear search">&times;</button>
+                    <div class="doc-search-inner">
+                        <span class="doc-search-icon">&#128269;</span>
+                        <input type="search" class="doc-search-input" id="docSearch"
+                               placeholder="Search documentation..."
+                               autocomplete="off" spellcheck="false">
+                        <button class="doc-search-clear" id="docSearchClear" type="button" aria-label="Clear search">&times;</button>
+                    </div>
                 </div>
                 <div class="doc-search-status" id="docSearchStatus"></div>
                 <div class="doc-no-results" id="docNoResults">No sections match your search. Try different keywords.</div>
@@ -600,28 +609,75 @@ include $docBody;
     if (docSearch) {
         var allSections = Array.prototype.slice.call(document.querySelectorAll('.doc-section'));
         var origHtml = allSections.map(function(s) { return s.innerHTML; });
+        var sidebarInput = null;
+
+        // Inject a compact search mirror into the floating sidebar TOC
+        var sidebarToc = document.querySelector('.doc-sidebar-toc');
+        if (sidebarToc) {
+            var sidebarSearchDiv = document.createElement('div');
+            sidebarSearchDiv.className = 'doc-sidebar-search';
+            sidebarSearchDiv.innerHTML =
+                '<div class="doc-sidebar-search-wrap">' +
+                '<span class="doc-sidebar-search-icon">&#128269;</span>' +
+                '<input type="search" placeholder="Search docs..." autocomplete="off" spellcheck="false">' +
+                '</div>';
+            sidebarToc.insertBefore(sidebarSearchDiv, sidebarToc.firstChild);
+            sidebarInput = sidebarSearchDiv.querySelector('input');
+        }
 
         function escapeRe(str) {
             return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
 
-        function highlightText(html, term) {
-            return html.replace(/(<[^>]+>)|([^<]+)/g, function(m, tag, text) {
-                if (tag) return tag;
-                return text.replace(new RegExp('(' + escapeRe(term) + ')', 'gi'), '<mark>$1</mark>');
-            });
+        // Strip common English suffixes to get a matching root (simple stemmer)
+        function stem(word) {
+            if (word.length <= 3) return word;
+            var w = word;
+            var sfx = ['ation','ition','ings','ment','ness','able','ible','ity',
+                       'ing','tion','ers','ies','ous','al','ed','es','er','s'];
+            for (var i = 0; i < sfx.length; i++) {
+                var s = sfx[i];
+                if (w.length - s.length >= 3 && w.slice(-s.length) === s) {
+                    w = w.slice(0, -s.length); break;
+                }
+            }
+            if (w.length > 4 && w.slice(-1) === 'e') w = w.slice(0, -1);
+            return w;
+        }
+
+        // Highlight by stemmed root (matches morphological variants)
+        function highlightText(html, words) {
+            return words.reduce(function(h, word) {
+                var root = escapeRe(stem(word));
+                var pat = new RegExp('(' + root + '[a-zA-Z]*)', 'gi');
+                return h.replace(/(<[^>]+>)|([^<]+)/g, function(m, tag, text) {
+                    if (tag) return tag;
+                    return text.replace(pat, '<mark>$1</mark>');
+                });
+            }, html);
+        }
+
+        // All words must match (using stem for each word)
+        function matchesAllWords(text, words) {
+            var lower = text.toLowerCase();
+            return words.every(function(w) { return lower.indexOf(stem(w)) !== -1; });
+        }
+
+        function setSearchValue(val) {
+            docSearch.value = val;
+            if (sidebarInput) sidebarInput.value = val;
         }
 
         function runDocSearch() {
             var q = docSearch.value.trim();
-            var ql = q.toLowerCase();
+            var words = q.toLowerCase().split(/\s+/).filter(Boolean);
             var shown = 0;
 
             allSections.forEach(function(s, i) {
                 s.innerHTML = origHtml[i];
-                if (q === '') { s.style.display = ''; return; }
-                if (s.textContent.toLowerCase().indexOf(ql) !== -1) {
-                    s.innerHTML = highlightText(origHtml[i], q);
+                if (!words.length) { s.style.display = ''; return; }
+                if (matchesAllWords(s.textContent, words)) {
+                    s.innerHTML = highlightText(origHtml[i], words);
                     s.style.display = '';
                     shown++;
                 } else {
@@ -632,7 +688,7 @@ include $docBody;
             if (docSearchClear) docSearchClear.style.display = q ? 'block' : 'none';
 
             if (!docSearchStatus || !docNoResults) return;
-            if (q === '') {
+            if (!words.length) {
                 docSearchStatus.textContent = '';
                 docNoResults.style.display = 'none';
             } else if (shown === 0) {
@@ -649,16 +705,32 @@ include $docBody;
         docSearch.addEventListener('input', runDocSearch);
         docSearch.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') { e.preventDefault(); runDocSearch(); }
-            if (e.key === 'Escape') { docSearch.value = ''; runDocSearch(); }
+            if (e.key === 'Escape') { setSearchValue(''); runDocSearch(); }
         });
         // Handle native search-field clear (browser X button on type=search)
         docSearch.addEventListener('search', runDocSearch);
 
         if (docSearchClear) {
             docSearchClear.addEventListener('click', function() {
-                docSearch.value = '';
+                setSearchValue('');
                 runDocSearch();
                 docSearch.focus();
+            });
+        }
+
+        // Mirror input from sidebar search → main search
+        if (sidebarInput) {
+            sidebarInput.addEventListener('input', function() {
+                docSearch.value = this.value;
+                runDocSearch();
+            });
+            sidebarInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); runDocSearch(); }
+                if (e.key === 'Escape') { setSearchValue(''); runDocSearch(); }
+            });
+            sidebarInput.addEventListener('search', function() {
+                docSearch.value = this.value;
+                runDocSearch();
             });
         }
     }
