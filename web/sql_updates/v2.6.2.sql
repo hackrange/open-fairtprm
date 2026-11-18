@@ -7174,6 +7174,23 @@ INSERT IGNORE INTO app_config (config_key, config_value, is_encrypted, descripti
 ('maturity_label_4',       'Managed',     0, 'Display label for maturity level 4'),
 ('maturity_label_5',       'Optimizing',  0, 'Display label for maturity level 5 (used when level_count=5)');
 
+-- Embed tokens (iframe portal integration)
+CREATE TABLE IF NOT EXISTS embed_tokens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    token_hash VARCHAR(64) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    user_id INT NOT NULL,
+    allowed_origins TEXT NOT NULL DEFAULT '',
+    created_by INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NULL,
+    last_used_at DATETIME NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    UNIQUE KEY uk_embed_token_hash (token_hash),
+    KEY idx_embed_token_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

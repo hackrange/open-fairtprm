@@ -119,8 +119,11 @@ try {
 
     // Boot up the session manager and clean up any expired sessions
     // (because leaving stale sessions around is just sloppy)
-    $session = Session::getInstance();
-    $session->cleanupOldSessions();
+    // embed-auth.php defines SKIP_SESSION_INIT and starts its own session.
+    if (!defined('SKIP_SESSION_INIT')) {
+        $session = Session::getInstance();
+        $session->cleanupOldSessions();
+    }
 
 } catch (Throwable $e) {
     // If we can't even initialize, something is fundamentally broken.

@@ -364,8 +364,24 @@ class Security {
 
         // Defense-in-depth: set security headers in PHP as fallback
         // even if they are also configured at the reverse proxy layer.
+        // Determine frame-ancestors from embed session, if active
+        $frameAncestors = "'none'";
+        $xFrameOptions  = 'DENY';
+        if (!empty($_SESSION['is_embed_session']) && !empty($_SESSION['embed_allowed_origins'])) {
+            $safeOrigins = [];
+            foreach (array_filter(array_map('trim', explode(',', $_SESSION['embed_allowed_origins']))) as $origin) {
+                if (preg_match('#^https://[a-zA-Z0-9._-]+(:\d+)?$#', $origin)) {
+                    $safeOrigins[] = $origin;
+                }
+            }
+            if (!empty($safeOrigins)) {
+                $frameAncestors = "'self' " . implode(' ', $safeOrigins);
+                $xFrameOptions  = 'SAMEORIGIN';
+            }
+        }
+
         header('X-Content-Type-Options: nosniff');
-        header('X-Frame-Options: DENY');
+        header('X-Frame-Options: ' . $xFrameOptions);
         header('X-XSS-Protection: 0');
         header('Referrer-Policy: strict-origin-when-cross-origin');
         header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
@@ -399,7 +415,7 @@ class Security {
              . "img-src 'self' data: https:; "
              . "connect-src 'self'; "
              . "frame-src https://www.google.com/recaptcha/ blob:; "
-             . "frame-ancestors 'none'; "
+             . "frame-ancestors {$frameAncestors}; "
              . "base-uri 'self'; "
              . "form-action 'self'; "
              . "object-src 'none';";

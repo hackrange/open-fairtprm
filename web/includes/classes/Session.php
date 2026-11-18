@@ -104,6 +104,17 @@ class Session {
             $sessionName = preg_replace('/^__(Host|Secure)-/', '', $sessionName);
         }
 
+        // Detect if the browser is carrying an embed session cookie.
+        // embed-auth.php creates these with SameSite=None so they persist in
+        // cross-site iframes. We must use the same name and SameSite here so
+        // the cookie is refreshed consistently on every request.
+        $embedName      = $secure ? '__Host-tprm_embed' : 'tprm_embed';
+        $isEmbedRequest = !empty($_COOKIE[$embedName]);
+        if ($isEmbedRequest) {
+            $sessionName = $embedName;
+            $samesite    = 'None';
+        }
+
         // Harden the PHP session settings via ini_set
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_cookies', '1');
@@ -123,12 +134,12 @@ class Session {
         if (!isset($_SESSION)) {
             session_start([
                 'cookie_lifetime' => $lifetime,
-                'cookie_secure' => $secure,
+                'cookie_secure'   => $secure,
                 'cookie_httponly' => $httponly,
-                'cookie_samesite' => $samesite,
-                'cookie_domain' => '',
-                'cookie_path' => '/',
-                'use_strict_mode' => true
+                'cookie_samesite' => $isEmbedRequest ? 'None' : $samesite,
+                'cookie_domain'   => '',
+                'cookie_path'     => '/',
+                'use_strict_mode' => true,
             ]);
         }
 

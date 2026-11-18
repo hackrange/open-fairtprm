@@ -12,6 +12,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Iframe embed tokens.** Super admins can create signed embed tokens under Admin &rarr; Integrations &rarr; Embed Tokens. Each token generates a bootstrap URL (`/embed-auth.php?token=...&return=/`) that intranet portals such as Assembly can use as an iframe src. The embed session uses a separate cookie (`tprm_embed`) with `SameSite=None; Secure` so browsers accept it in cross-site iframes. The main app's `SameSite=Strict` session cookie is unchanged. The embed URL is shown exactly once at creation; tokens can be revoked at any time from the same admin page.
+
 - **In-app documentation expanded and search improved.** All 8 language versions
   now cover 7 additional features: dashboard module selection, Shadow SaaS request
   method, assessment respondent, send assessment to stakeholder, AI usage and cost
