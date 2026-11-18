@@ -404,7 +404,7 @@
         <li>Vedrai elencati i 14 domini di sicurezza. Fai clic sul nome di un dominio (es. <strong>GOV - Governance &amp; Leadership</strong>) per espanderlo e vedere le sue domande.</li>
         <li>Per ogni domanda, devi fornire due informazioni:
             <ul>
-                <li><span class="field-label">Livello di Maturità</span> (1&ndash;4 per impostazione predefinita; 1&ndash;5 con modello di maturità personalizzato) &mdash; Quanto è matura l'implementazione di questo controllo nella tua organizzazione?
+                <li><span class="field-label">Livello di Maturità</span> &mdash; Quanto è matura l'implementazione di questo controllo nella tua organizzazione? La scala è 1&ndash;4 per impostazione predefinita, o 1&ndash;5 con un modello di maturità personalizzato (vedi <a href="#admin-risk-scoring">Modelli di Maturità Configurabili</a>).
                     <ul>
                         <li><strong>1 &mdash; Iniziale/Ad Hoc:</strong> Nessun processo formale. Eseguito in modo inconsistente o per niente.</li>
                         <li><strong>2 &mdash; In Sviluppo:</strong> Esistono alcuni processi ma non vengono seguiti in modo coerente. Parzialmente documentato.</li>
