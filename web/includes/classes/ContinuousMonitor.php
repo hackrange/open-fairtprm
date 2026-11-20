@@ -15,6 +15,17 @@
  */
 
 class ContinuousMonitor {
+    /**
+     * SECURITY: the only collector classes a monitor may instantiate. Both
+     * getAvailableCollectors() and runMonitor() use this list, so a stored
+     * collector_class outside it never runs (object-injection guard).
+     */
+    public const ALLOWED_COLLECTORS = [
+        'AwsEvidenceCollector',
+        'AzureEvidenceCollector',
+        'OpenCtemEvidenceCollector',
+    ];
+
     private static $instance = null;
     private $db;
     private $encryption;
@@ -37,12 +48,7 @@ class ContinuousMonitor {
      */
     public function getAvailableCollectors(): array {
         $collectors = [];
-        $classes = [
-            'AwsEvidenceCollector',
-            'AzureEvidenceCollector',
-        ];
-
-        foreach ($classes as $className) {
+        foreach (self::ALLOWED_COLLECTORS as $className) {
             if (class_exists($className)) {
                 $instance = new $className();
                 if ($instance instanceof EvidenceCollectorInterface) {
@@ -51,6 +57,19 @@ class ContinuousMonitor {
             }
         }
         return $collectors;
+    }
+
+    /**
+     * Next free monitor_ref (MON-001, MON-002...). monitor_ref is NOT NULL and
+     * UNIQUE, so every insert must set it; strict SQL mode rejects one without.
+     */
+    public static function nextMonitorRef(): string {
+        $db = Database::getInstance();
+        $max = (int)($db->fetchOne(
+            "SELECT MAX(CAST(SUBSTRING(monitor_ref, 5) AS UNSIGNED)) AS n
+               FROM grc_continuous_monitors WHERE monitor_ref REGEXP '^MON-[0-9]+$'"
+        )['n'] ?? 0);
+        return 'MON-' . str_pad((string)($max + 1), 3, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -108,13 +127,13 @@ class ContinuousMonitor {
         if (!empty($monitor['region'])) {
             $credentials['region'] = $monitor['region'];
         }
+        $credentials['endpoint_url'] = (string)($monitor['endpoint_url'] ?? '');
 
         // Instantiate the collector
         $collectorClass = $monitor['collector_class'];
         // SECURITY: only instantiate known, vetted collector classes — never an
         // arbitrary class name from the stored collector_class (object-injection guard).
-        $allowedCollectors = ['AwsEvidenceCollector', 'AzureEvidenceCollector'];
-        if (!in_array($collectorClass, $allowedCollectors, true)) {
+        if (!in_array($collectorClass, self::ALLOWED_COLLECTORS, true)) {
             return ['result' => 'error', 'summary' => "Collector class not allowed: {$collectorClass}"];
         }
         if (!class_exists($collectorClass)) {
@@ -135,21 +154,35 @@ class ContinuousMonitor {
         $result = $collector->collect();
         $durationMs = (int)((microtime(true) - $startTime) * 1000);
 
+        // Auto-create evidence record for pass/fail results
+        $evidenceId = null;
+        if (in_array($result['result'], ['pass', 'fail', 'warning']) && !empty($result['evidence_data'])) {
+            $evidenceId = $this->createEvidenceFromResult($monitor, $result);
+        }
+
+        // open-ctem "attach report": also store the signed detail report as
+        // encrypted evidence. A refused or failed report never changes the
+        // check's result; the reason is kept on the run.
+        if ($collectorClass === 'OpenCtemEvidenceCollector' && !empty($monitor['attach_report'])
+            && $result['result'] !== 'error') {
+            try {
+                $result['details']['report_evidence_id'] = (new OpenCtemEvidenceService())->attachReport($monitor);
+            } catch (Throwable $e) {
+                $result['details']['report_error'] = $e instanceof OpenCtemException ? $e->getMessage() : 'report could not be stored';
+                if (!($e instanceof OpenCtemException)) error_log('open-ctem attach report: ' . $e->getMessage());
+            }
+        }
+
         // Store the result
         $this->db->insert('grc_monitor_results', [
             'monitor_id' => $monitorId,
             'run_at' => date('Y-m-d H:i:s'),
             'result' => $result['result'],
             'result_detail' => json_encode($result['details'] ?? []),
+            'evidence_id' => $evidenceId,
             'duration_ms' => $durationMs,
             'error_message' => ($result['result'] === 'error') ? ($result['summary'] ?? null) : null,
         ]);
-
-        // Auto-create evidence record for pass/fail results
-        $evidenceId = null;
-        if (in_array($result['result'], ['pass', 'fail', 'warning']) && !empty($result['evidence_data'])) {
-            $evidenceId = $this->createEvidenceFromResult($monitor, $result);
-        }
 
         // Update monitor status
         $nextRun = $this->calculateNextRun($monitor['frequency']);

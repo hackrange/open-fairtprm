@@ -7191,6 +7191,54 @@ CREATE TABLE IF NOT EXISTS embed_tokens (
     KEY idx_embed_token_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+
+-- =============================================================================
+-- open-ctem integration (2026-11-20)
+-- CTEM checks feed continuous monitors; signed CTEM reports become encrypted
+-- evidence; CTEM may write back to the risk register through the v2 API.
+-- Every block is idempotent and runs after the CREATE TABLE statements above.
+-- =============================================================================
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_integrations' AND column_name = 'integration_type'
+     AND column_type LIKE '%''open_ctem''%') = 0,
+  'ALTER TABLE `grc_integrations` MODIFY COLUMN `integration_type` ENUM(''aws'',''azure'',''gcp'',''oci'',''ibm_cloud'',''github'',''gitlab'',''okta'',''crowdstrike'',''custom'',''open_ctem'') NOT NULL',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_continuous_monitors' AND column_name = 'attach_report') = 0,
+  'ALTER TABLE `grc_continuous_monitors` ADD COLUMN `attach_report` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''open-ctem: also store the signed detail report as encrypted evidence''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_evidence' AND column_name = 'content_sha256') = 0,
+  'ALTER TABLE `grc_evidence` ADD COLUMN `content_sha256` CHAR(64) DEFAULT NULL COMMENT ''SHA-256 of the file as received (before encryption)''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_evidence' AND column_name = 'signature') = 0,
+  'ALTER TABLE `grc_evidence` ADD COLUMN `signature` VARCHAR(255) DEFAULT NULL COMMENT ''Base64 Ed25519 signature of the file, as published by the source''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_evidence' AND column_name = 'signature_key_id') = 0,
+  'ALTER TABLE `grc_evidence` ADD COLUMN `signature_key_id` VARCHAR(100) DEFAULT NULL COMMENT ''Key id that signed the file''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_risk_register' AND column_name = 'source') = 0,
+  'ALTER TABLE `grc_risk_register` ADD COLUMN `source` VARCHAR(50) DEFAULT NULL COMMENT ''Integration that created the risk via the API (e.g. open_ctem); NULL = created in FairTPRM''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_risk_register' AND column_name = 'external_ref') = 0,
+  'ALTER TABLE `grc_risk_register` ADD COLUMN `external_ref` VARCHAR(191) DEFAULT NULL COMMENT ''Source system id; unique with source so repeated syncs update''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.statistics
+   WHERE table_schema = DATABASE() AND table_name = 'grc_risk_register' AND index_name = 'uk_risk_source_ref') = 0,
+  'ALTER TABLE `grc_risk_register` ADD UNIQUE KEY `uk_risk_source_ref` (`source`, `external_ref`)',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

@@ -37,6 +37,50 @@ $cm = ContinuousMonitor::getInstance();
 $msg = '';
 $msgType = '';
 
+/**
+ * Validate the monitor form. Returns [fields, error]. Re-checks on the server
+ * everything the form restricts: collector class (allow-list only), the
+ * integration it needs, the check type (open-ctem: catalog only), frequency,
+ * collector config (a small JSON object) and the linked control ids.
+ */
+$monitorFieldsFromPost = function () use ($db): array {
+    $name = trim($_POST['name'] ?? '');
+    if ($name === '') return [null, t('grc_monitors.monitor_name_required')];
+    $collector = trim($_POST['collector_class'] ?? '');
+    if (!in_array($collector, ContinuousMonitor::ALLOWED_COLLECTORS, true)) return [null, t('grc_monitors.invalid_collector')];
+    $integrationId = !empty($_POST['integration_id']) ? (int)$_POST['integration_id'] : null;
+    $integration = $integrationId ? $db->fetchOne('SELECT id, integration_type FROM grc_integrations WHERE id = :id', [':id' => $integrationId]) : null;
+    if ($integrationId && !$integration) return [null, t('grc_monitors.invalid_integration')];
+    $checkType = trim($_POST['check_type'] ?? '');
+    if (!preg_match('/^[a-z0-9_]{1,100}$/', $checkType)) return [null, t('grc_monitors.invalid_check_type')];
+    if ($collector === 'OpenCtemEvidenceCollector') {
+        if (!$integration || $integration['integration_type'] !== 'open_ctem') return [null, t('grc_monitors.ctem_needs_integration')];
+        if (!isset(OpenCtemEvidenceCollector::catalog()[$checkType])) return [null, t('grc_monitors.invalid_check_type')];
+    }
+    $frequency = $_POST['frequency'] ?? 'daily';
+    if (!in_array($frequency, ['hourly', 'daily', 'weekly', 'monthly'], true)) $frequency = 'daily';
+    $config = trim($_POST['collector_config'] ?? '') ?: '{}';
+    $decoded = json_decode($config, true);
+    if (strlen($config) > 4096 || !is_array($decoded) || ($decoded && array_is_list($decoded))) return [null, t('grc_monitors.invalid_config')];
+    $controlIds = [];
+    foreach ((array)($_POST['control_ids'] ?? []) as $cid) {
+        $cid = (int)$cid;
+        if ($cid > 0 && $db->fetchOne('SELECT id FROM grc_internal_controls WHERE id = :id', [':id' => $cid])) $controlIds[] = $cid;
+    }
+    return [[
+        'name' => $name,
+        'description' => trim($_POST['description'] ?? '') ?: null,
+        'integration_id' => $integrationId,
+        'check_type' => $checkType,
+        'collector_class' => $collector,
+        'collector_config' => json_encode($decoded ?: new stdClass()),
+        'frequency' => $frequency,
+        'control_ids' => json_encode(array_values(array_unique($controlIds))),
+        'is_enabled' => isset($_POST['is_enabled']) ? 1 : 0,
+        'attach_report' => ($collector === 'OpenCtemEvidenceCollector' && isset($_POST['attach_report'])) ? 1 : 0,
+    ], null];
+};
+
 // POST handlers
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
     if (!$security->validateCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -58,42 +102,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                 }
             }
         } elseif ($action === 'create_monitor') {
-            $name = trim($_POST['name'] ?? '');
-            if ($name !== '') {
-                $db->insert('grc_continuous_monitors', [
-                    'name' => $name,
-                    'description' => trim($_POST['description'] ?? '') ?: null,
-                    'integration_id' => !empty($_POST['integration_id']) ? (int)$_POST['integration_id'] : null,
-                    'check_type' => $_POST['check_type'] ?? 'custom',
-                    'collector_class' => trim($_POST['collector_class'] ?? ''),
-                    'collector_config' => !empty($_POST['collector_config']) ? $_POST['collector_config'] : '{}',
-                    'frequency' => $_POST['frequency'] ?? 'daily',
-                    'control_ids' => !empty($_POST['control_ids']) ? json_encode(array_map('intval', $_POST['control_ids'])) : '[]',
-                    'is_enabled' => isset($_POST['is_enabled']) ? 1 : 0,
+            [$fields, $err] = $monitorFieldsFromPost();
+            if ($err === null) {
+                // monitor_ref is NOT NULL UNIQUE: without it strict mode rejects the insert.
+                $db->insert('grc_continuous_monitors', $fields + [
+                    'monitor_ref' => ContinuousMonitor::nextMonitorRef(),
                     'created_by' => (int)$user['id'],
                 ]);
                 $msg = t('grc_monitors.monitor_created');
                 $msgType = 'success';
             } else {
-                $msg = t('grc_monitors.monitor_name_required');
+                $msg = $err;
                 $msgType = 'danger';
             }
         } elseif ($action === 'update_monitor') {
             $monitorId = (int)($_POST['monitor_id'] ?? 0);
-            if ($monitorId > 0) {
-                $db->update('grc_continuous_monitors', [
-                    'name' => trim($_POST['name'] ?? ''),
-                    'description' => trim($_POST['description'] ?? '') ?: null,
-                    'integration_id' => !empty($_POST['integration_id']) ? (int)$_POST['integration_id'] : null,
-                    'check_type' => $_POST['check_type'] ?? 'custom',
-                    'collector_class' => trim($_POST['collector_class'] ?? ''),
-                    'collector_config' => !empty($_POST['collector_config']) ? $_POST['collector_config'] : '{}',
-                    'frequency' => $_POST['frequency'] ?? 'daily',
-                    'control_ids' => !empty($_POST['control_ids']) ? json_encode(array_map('intval', $_POST['control_ids'])) : '[]',
-                    'is_enabled' => isset($_POST['is_enabled']) ? 1 : 0,
-                ], 'id = :id', [':id' => $monitorId]);
-                $msg = t('grc_monitors.monitor_updated');
-                $msgType = 'success';
+            if ($monitorId > 0 && $db->fetchOne('SELECT id FROM grc_continuous_monitors WHERE id = :id', [':id' => $monitorId])) {
+                [$fields, $err] = $monitorFieldsFromPost();
+                if ($err === null) {
+                    $db->update('grc_continuous_monitors', $fields, 'id = :id', [':id' => $monitorId]);
+                    $msg = t('grc_monitors.monitor_updated');
+                    $msgType = 'success';
+                } else {
+                    $msg = $err;
+                    $msgType = 'danger';
+                }
             }
         } elseif ($action === 'toggle_monitor') {
             $monitorId = (int)($_POST['monitor_id'] ?? 0);
@@ -143,6 +176,7 @@ if ($editId > 0 && !$readOnly) {
 // Get integrations and controls for forms
 $integrations = $db->fetchAll('SELECT id, name, integration_type FROM grc_integrations ORDER BY name');
 $allControls = $db->fetchAll('SELECT id, control_ref, title FROM grc_internal_controls WHERE is_active = 1 ORDER BY control_ref');
+$ctemCatalog = OpenCtemEvidenceCollector::catalog();
 
 $currentPage = 'grc_monitors';
 ?>
@@ -377,7 +411,10 @@ $currentPage = 'grc_monitors';
                         </div>
                         <div>
                             <label for="check_type"><?php echo e(t('grc_monitors.check_type')); ?></label>
-                            <input type="text" id="check_type" name="check_type" value="<?php echo e($editMonitor['check_type'] ?? 'custom'); ?>" placeholder="<?php echo e(t('grc_monitors.check_type_placeholder')); ?>">
+                            <input type="text" id="check_type" name="check_type" list="ctem_check_types" value="<?php echo e($editMonitor['check_type'] ?? ''); ?>" placeholder="<?php echo e(t('grc_monitors.check_type_placeholder')); ?>" required pattern="[a-z0-9_]{1,100}">
+                            <datalist id="ctem_check_types">
+                                <?php foreach ($ctemCatalog as $ct => $cc): ?><option value="<?php echo e($ct); ?>"><?php echo e($cc['name']); ?></option><?php endforeach; ?>
+                            </datalist>
                         </div>
                         <div>
                             <label for="frequency"><?php echo e(t('grc_monitors.frequency')); ?></label>
@@ -392,7 +429,11 @@ $currentPage = 'grc_monitors';
                     <div class="form-row">
                         <div>
                             <label for="collector_class"><?php echo e(t('grc_monitors.collector_class')); ?></label>
-                            <input type="text" id="collector_class" name="collector_class" value="<?php echo e($editMonitor['collector_class'] ?? ''); ?>" placeholder="<?php echo e(t('grc_monitors.collector_class_placeholder')); ?>">
+                            <select id="collector_class" name="collector_class" required>
+                                <?php foreach (ContinuousMonitor::ALLOWED_COLLECTORS as $cc): ?>
+                                <option value="<?php echo e($cc); ?>" <?php echo ($editMonitor['collector_class'] ?? '') === $cc ? 'selected' : ''; ?>><?php echo e($cc); ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         <div>
                             <label for="collector_config"><?php echo e(t('grc_monitors.collector_config')); ?></label>
@@ -412,6 +453,24 @@ $currentPage = 'grc_monitors';
                         <option value="<?php echo (int)$ac['id']; ?>" <?php echo in_array((int)$ac['id'], $selectedControlIds) ? 'selected' : ''; ?>><?php echo e($ac['control_ref']); ?> - <?php echo e($ac['title']); ?></option>
                         <?php endforeach; ?>
                     </select>
+
+                    <div style="margin:12px 0;">
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" name="attach_report" <?php echo !empty($editMonitor['attach_report']) ? 'checked' : ''; ?> style="width:auto;margin:0;">
+                            <?php echo e(t('grc_monitors.attach_report')); ?>
+                        </label>
+                        <div style="font-size:12px;color:#6b7280;margin:2px 0 0 24px;"><?php echo e(t('grc_monitors.attach_report_help')); ?></div>
+                    </div>
+
+                    <details style="margin:12px 0;">
+                        <summary style="cursor:pointer;font-size:13px;font-weight:500;"><?php echo e(t('grc_monitors.ctem_checks_reference')); ?></summary>
+                        <table class="grc-table" style="margin-top:8px;"><thead><tr><th><?php echo e(t('grc_monitors.col_check_type')); ?></th><th><?php echo e(t('grc_monitors.description')); ?></th><th><?php echo e(t('grc_monitors.ctem_suggested_controls')); ?></th></tr></thead><tbody>
+                        <?php foreach ($ctemCatalog as $ct => $cc): ?>
+                            <tr><td><code><?php echo e($ct); ?></code><br><?php echo e($cc['name']); ?></td><td style="font-size:12px;"><?php echo e($cc['description']); ?></td><td style="font-size:12px;"><?php echo e($cc['controls']); ?></td></tr>
+                        <?php endforeach; ?>
+                        </tbody></table>
+                        <div style="font-size:12px;color:#6b7280;margin-top:6px;"><?php echo e(t('grc_monitors.ctem_setup_hint')); ?></div>
+                    </details>
 
                     <div style="margin:12px 0;">
                         <label style="display:flex;align-items:center;gap:8px;">

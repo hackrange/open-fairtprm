@@ -16,6 +16,60 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **open-ctem integration (continuous exposure evidence).** A new Admin >
+  Integrations > open-ctem page connects FairTPRM to an open-ctem instance in
+  four steps: CTEM URL and API token (stored encrypted, never shown again;
+  optional on-prem mode for a private LAN address and an optional custom CA
+  certificate), Test connection (reads the CTEM check catalog), pin the
+  evidence-signing key after comparing its SHA-256 fingerprint, and Quick
+  setup, which creates one continuous monitor per CTEM check (EDR coverage, KEV
+  remediation, vulnerability SLA, exposed criticals, attack paths, asset
+  inventory, stale AD computers, dormant accounts, password policy, privileged
+  accounts, identity threat alerts, shadow AI/SaaS, host hardening, risk
+  exceptions, monitoring health). Each run stores the result, creates automated
+  evidence with the check version and thresholds, and updates every mapped
+  control across all frameworks. The page also lists what open-ctem needs to
+  read FairTPRM (API base URL and token scopes).
+  - A CTEM check never reports Pass on data it cannot vouch for: a transport
+    error, non-200, redirect, malformed body, result for a different check, a
+    measurement older than 26 hours (`max_age_hours` in the collector config)
+    or CTEM's own error all record Error, which never marks a control
+    effective.
+  - Outbound requests to the admin-supplied URL are https only, never follow
+    redirects or use a proxy, verify TLS, time out, cap the response size, and
+    refuse loopback, link-local/cloud-metadata, CGNAT, multicast and reserved
+    addresses (private LAN only in on-prem mode). The vetted address is pinned
+    for the connection so a second DNS answer cannot redirect it.
+  - **Signed report evidence.** A monitor can attach the full report behind
+    its check (CSV or JSON) as encrypted evidence linked to the same controls.
+    **Collect from CTEM** on an audit evidence request or a control evidence
+    request does the same and marks the request Provided for a person to accept
+    or reject. **Build open-ctem evidence package** on an audit stores the
+    signed daily history for the planned window as an evidence-package
+    artifact, downloadable from the audit. Every report and history must carry
+    a valid Ed25519 signature from a pinned key; unsigned or mismatched bodies
+    are refused, nothing is stored, and the reason is shown. The SHA-256,
+    signature and key id are kept with the evidence, the evidence page shows
+    them, and a download is refused if the stored file no longer matches its
+    SHA-256.
+
+- **REST API v2: GRC sync and risk write-back.** List endpoints for frameworks,
+  controls, evidence, risks, monitors, audits and policies accept
+  `updated_since` (ISO 8601) for incremental sync. Evidence adds `offset`,
+  `total` and linked `control_ids`; risks add `limit`/`offset`, `total`, the
+  owner's display name and `control_id_list`; controls include their mapped
+  requirement refs per framework; monitors list `check_type`,
+  `collector_class`, `control_ids` and last result without collector config or
+  credentials. New `POST /grc/risks` and `PUT /grc/risks/{id}` let an
+  integration (source `open_ctem`) record accepted vulnerability risk and
+  CTEM-identified risks: write token required, every enum and date validated,
+  idempotent by `external_ref` so repeated syncs update instead of
+  duplicating. After creation only title, description, treatment plan, status
+  and review date can change through the API; likelihood, impact, treatment,
+  category, owner and controls stay with people. An integration can only
+  update risks its own API user created; any other risk answers 404. Every
+  API write is audit-logged.
+
 - **Iframe embed tokens.** Super admins can create signed embed tokens under Admin &rarr; Integrations &rarr; Embed Tokens. Each token generates a bootstrap URL (`/embed-auth.php?token=...&return=/`) that intranet portals such as Assembly can use as an iframe src. The embed session uses a separate cookie (`tprm_embed`) with `SameSite=None; Secure` so browsers accept it in cross-site iframes. The main app's `SameSite=Strict` session cookie is unchanged. The embed URL is shown exactly once at creation; tokens can be revoked at any time from the same admin page.
 
 - **In-app documentation expanded and search improved.** All 8 language versions
@@ -849,6 +903,21 @@ project adheres to [Semantic Versioning](https://semver.org/).
   retired ones. Localized in all eight locales.
 
 ### Fixed
+
+- **REST API: vendor SRS scores and FAIR analyses returned HTTP 500.**
+  `GET /api/v2/vendors/{id}/srs` queried a column that does not exist and
+  `GET /api/v2/fair/analyses` selected columns the table never had. Both now
+  answer. SRS scores come back newest first with their category breakdown;
+  FAIR analyses return the decrypted risk level and annualized loss
+  expectancy, scoped like the FAIR results page (administrators and Cyber
+  TPRM see every analysis, everyone else their own).
+
+- **Create Monitor never created a monitor.** The GRC > Continuous Monitors
+  form did not set the monitor reference the database requires, so every
+  create failed. Monitors now get the next `MON-###` reference. The form now
+  offers only the supported collectors, checks that an open-ctem monitor uses
+  the open-ctem integration and a known check, requires the collector config
+  to be a small JSON object, and accepts only existing controls.
 
 - **Create / Edit Workflow Rule buttons off screen.** On common laptop and
   desktop screens at 100% zoom (seen in Edge) the modal ran past the bottom of

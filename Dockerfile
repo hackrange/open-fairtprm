@@ -89,6 +89,7 @@ RUN set -e; \
     \
     cp -p  $pp/email.php $pp/fair-defaults.php $pp/field-reference.php \
            $pp/assessment-templates.php $pp/api-integration.php \
+           $pp/embed-tokens.php \
            /var/www/html/includes/admin/; \
     \
     cp -p  $pp/ACL.php $pp/Auth.php \
@@ -103,7 +104,11 @@ RUN set -e; \
            $pp/FaviconService.php $pp/ContinuousMonitor.php $pp/VirusScanService.php \
            $pp/BackupService.php $pp/APIService.php $pp/PolicyService.php \
            $pp/ShadowSaasRequestService.php \
+           $pp/OpenCtemClient.php $pp/OpenCtemEvidenceCollector.php $pp/OpenCtemEvidenceService.php \
            /var/www/html/includes/classes/; \
+    \
+    mkdir -p /var/www/html/includes/api-v2; \
+    cp -rp $pp/includes/api-v2/. /var/www/html/includes/api-v2/; \
     \
     mkdir -p /var/www/html/includes/partials; \
     cp -rp $pp/includes/partials/. /var/www/html/includes/partials/; \
@@ -140,7 +145,7 @@ RUN set -e; \
            $pp/vendor-onboarding.php \
            $pp/vendor-srs-list.php $pp/vendor-srs-compliance-report.php \
            $pp/view-result.php \
-           $pp/admin-users-import.php $pp/api-rescore-status.php $pp/documentation.php $pp/reference-doc.php \
+           $pp/admin-users-import.php $pp/api-rescore-status.php $pp/embed-auth.php $pp/documentation.php $pp/reference-doc.php \
            $pp/download-pdf.php $pp/error.php $pp/fair_dashboard.php \
            $pp/fair_import-analysis.php $pp/fair_results.php $pp/logout.php \
            $pp/reports.php $pp/vendor-annual-review-history.php $pp/vendor-annual-review.php \
@@ -274,6 +279,13 @@ RUN set -e; \
         /var/www/html/includes/classes/ContinuousMonitor.php \
         /var/www/html/includes/classes/VirusScanService.php \
         /var/www/html/includes/classes/APIService.php \
+        /var/www/html/includes/classes/OpenCtemClient.php \
+        /var/www/html/includes/classes/OpenCtemEvidenceCollector.php \
+        /var/www/html/includes/classes/OpenCtemEvidenceService.php \
+        /var/www/html/includes/api-v2/grc.php \
+        /var/www/html/includes/api-v2/grc-risks.php \
+        /var/www/html/includes/admin/open-ctem.php \
+        /var/www/html/api/v2/router.php \
         /var/www/html/includes/partials/vendor-tasks-data.php \
         /var/www/html/includes/partials/shadow-saas-detail.php \
         /var/www/html/includes/partials/shadow-saas-helpers.php \
@@ -383,6 +395,8 @@ RUN set -e; \
         /var/www/html/view-result.php \
         /var/www/html/admin-users-import.php \
         /var/www/html/api-rescore-status.php \
+        /var/www/html/embed-auth.php \
+        /var/www/html/includes/admin/embed-tokens.php \
         /var/www/html/documentation.php \
         /var/www/html/lang/en/documentation.php \
         /var/www/html/lang/es/documentation.php \

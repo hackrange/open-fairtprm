@@ -132,6 +132,7 @@ if (!$token) {
 // ============================================================================
 $db = Database::getInstance();
 $grc = GRCService::getInstance();
+define('API_V2_ROUTER', true);
 
 try {
     // Parse path segments
@@ -222,7 +223,16 @@ try {
                 apiSuccess(['data' => $vendor]);
             } elseif ($method === 'GET' && $resourceId !== null && $subResource === 'srs') {
                 if (!$tokenCanAccessVendor($resourceId)) apiError(404, 'Vendor not found');
-                $scores = $db->fetchAll('SELECT * FROM vendor_srs_scores WHERE vendor_id = :id ORDER BY scored_at DESC LIMIT 10', [':id' => $resourceId]);
+                // vendor_srs_scores is keyed by vendor_onboarding_id (there is no vendor_id column).
+                $scores = $db->fetchAll(
+                    'SELECT id, vendor_onboarding_id AS vendor_id, vendor_domain, score, score_grade, category_scores,
+                            critical_risks, high_risks, medium_risks, low_risks, info_risks, scored_at, created_at
+                       FROM vendor_srs_scores WHERE vendor_onboarding_id = :id ORDER BY scored_at DESC, id DESC LIMIT 10',
+                    [':id' => $resourceId]);
+                foreach ($scores as &$sc) {
+                    $sc['category_scores'] = $sc['category_scores'] !== null ? json_decode($sc['category_scores'], true) : null;
+                }
+                unset($sc);
                 apiSuccess(['data' => $scores]);
             } elseif ($method === 'GET' && $resourceId !== null && $subResource === 'assessments') {
                 if (!$tokenCanAccessVendor($resourceId)) apiError(404, 'Vendor not found');
@@ -275,11 +285,50 @@ try {
             if ($method === 'GET' && ($segments[1] ?? '') === 'analyses') {
                 $limit = min(200, max(1, (int)($_GET['limit'] ?? 50)));
                 $offset = max(0, (int)($_GET['offset'] ?? 0));
-                $analyses = $db->fetchAll(
-                    "SELECT id, vendor_name, risk_level, annualized_loss_expectancy, created_at
-                     FROM tprm_results ORDER BY created_at DESC LIMIT {$limit} OFFSET {$offset}"
-                );
-                apiSuccess(['data' => $analyses]);
+                // FAIR analyses are per-user. Mirror view-result.php: admins, super
+                // admins and cyber_tprm read every analysis; everyone else their own.
+                $fairUid = (int)($token['user_id'] ?? 0);
+                $fairAll = !empty($db->fetchOne(
+                    "SELECT 1 AS x FROM users u WHERE u.id = :id AND (u.is_super_admin = 1 OR EXISTS (
+                        SELECT 1 FROM user_acl_groups ug JOIN acl_groups g ON g.id = ug.group_id
+                         WHERE ug.user_id = u.id AND g.is_active = 1 AND g.group_name IN ('administrator', 'cyber_tprm')))",
+                    [':id' => $fairUid]));
+                $fairWhere = $fairAll ? '' : 'WHERE user_id = :uid';
+                $fairParams = $fairAll ? [] : [':uid' => $fairUid];
+                // tprm_results has no risk_level / annualized_loss_expectancy columns:
+                // ALE and the risk output are encrypted at rest (ale, risk_output).
+                $rows = $db->fetchAll(
+                    "SELECT id, vendor_name, vendor_domain, status, risk_output, ale, completed_at, created_at, updated_at
+                       FROM tprm_results {$fairWhere} ORDER BY created_at DESC, id DESC LIMIT {$limit} OFFSET {$offset}",
+                    $fairParams);
+                $fairEnc = new Encryption();
+                $analyses = [];
+                foreach ($rows as $r) {
+                    $dec = function ($v) use ($fairEnc) {
+                        if ($v === null || $v === '') return null;
+                        try {
+                            $d = $fairEnc->decrypt($v);
+                        } catch (Throwable $e) {
+                            return null;   // one unreadable field must not fail the whole list
+                        }
+                        return ($d === false || $d === '' || $d === null) ? null : $d;
+                    };
+                    $ale = $dec($r['ale']);
+                    $aleNum = $ale !== null ? preg_replace('/[^0-9.\-]/', '', $ale) : '';
+                    $analyses[] = [
+                        'id'                         => (int)$r['id'],
+                        'vendor_name'                => $r['vendor_name'],
+                        'vendor_domain'              => $r['vendor_domain'],
+                        'status'                     => $r['status'],
+                        'risk_level'                 => $dec($r['risk_output']),
+                        'annualized_loss_expectancy' => is_numeric($aleNum) ? (float)$aleNum : null,
+                        'completed_at'               => $r['completed_at'],
+                        'created_at'                 => $r['created_at'],
+                        'updated_at'                 => $r['updated_at'],
+                    ];
+                }
+                $total = (int)($db->fetchOne("SELECT COUNT(*) AS c FROM tprm_results {$fairWhere}", $fairParams)['c'] ?? 0);
+                apiSuccess(['data' => $analyses, 'total' => $total, 'limit' => $limit, 'offset' => $offset]);
             } else {
                 apiError(405, 'Method not allowed');
             }
@@ -293,192 +342,7 @@ try {
                 apiError(403, 'No access to GRC module');
             }
 
-            $grcResource = $segments[1] ?? '';
-            $grcId = isset($segments[2]) && is_numeric($segments[2]) ? (int)$segments[2] : null;
-            $grcSub = $segments[3] ?? null;
-
-            switch ($grcResource) {
-                case 'dashboard':
-                    if ($method === 'GET') {
-                        apiSuccess(['data' => $grc->getDashboardStats()]);
-                    }
-                    break;
-
-                case 'frameworks':
-                    if ($method === 'GET' && $grcId === null) {
-                        apiSuccess(['data' => $grc->getFrameworks()]);
-                    } elseif ($method === 'GET' && $grcId !== null && $grcSub === 'requirements') {
-                        apiSuccess(['data' => $grc->getAllRequirements($grcId)]);
-                    } elseif ($method === 'GET' && $grcId !== null && $grcSub === 'status') {
-                        apiSuccess(['data' => $grc->getFrameworkComplianceStatus($grcId)]);
-                    } elseif ($method === 'GET' && $grcId !== null) {
-                        $fw = $grc->getFramework($grcId);
-                        if (!$fw) apiError(404, 'Framework not found');
-                        apiSuccess(['data' => $fw]);
-                    } elseif ($method === 'PUT' && $grcId !== null) {
-                        if (!$apiService->hasWriteAccess($token)) apiError(403, 'Write access required');
-                        $fw = $grc->getFramework($grcId);
-                        if (!$fw) apiError(404, 'Framework not found');
-                        $input = json_decode(file_get_contents('php://input'), true);
-                        if (!$input) apiError(400, 'Request body required');
-                        $allowed = ['name', 'description', 'is_active', 'compliance_year', 'scope_id'];
-                        $update = [];
-                        foreach ($allowed as $f) {
-                            if (array_key_exists($f, $input)) $update[$f] = $input[$f];
-                        }
-                        if (!empty($update)) {
-                            $db->update('grc_frameworks', $update, 'id = :id', [':id' => $grcId]);
-                        }
-                        apiSuccess(['data' => $grc->getFramework($grcId)]);
-                    }
-                    break;
-
-                case 'controls':
-                    if ($method === 'GET' && $grcId === null) {
-                        $filters = array_intersect_key($_GET, array_flip(['status', 'framework_id', 'search', 'type']));
-                        apiSuccess(['data' => $grc->getControls($filters)]);
-                    } elseif ($method === 'GET' && $grcId !== null) {
-                        $control = $grc->getControl($grcId);
-                        if (!$control) apiError(404, 'Control not found');
-                        apiSuccess(['data' => $control]);
-                    } elseif ($method === 'POST' && $grcId === null) {
-                        if (!$apiService->hasWriteAccess($token)) apiError(403, 'Write access required');
-                        $input = json_decode(file_get_contents('php://input'), true);
-                        if (!$input || empty($input['title'])) apiError(400, 'Title is required');
-                        $id = $grc->createControl($input, (int)$token['user_id']);
-                        apiSuccess(['data' => $grc->getControl($id)], 201);
-                    } elseif ($method === 'PUT' && $grcId !== null) {
-                        if (!$apiService->hasWriteAccess($token)) apiError(403, 'Write access required');
-                        $input = json_decode(file_get_contents('php://input'), true);
-                        if (!$input) apiError(400, 'Request body required');
-                        $grc->updateControl($grcId, $input);
-                        apiSuccess(['data' => $grc->getControl($grcId)]);
-                    }
-                    break;
-
-                case 'evidence':
-                    if ($method === 'GET') {
-                        $limit = min(200, max(1, (int)($_GET['limit'] ?? 50)));
-                        $evidence = $db->fetchAll(
-                            'SELECT id, evidence_ref, title, evidence_type, collection_method, status,
-                                    collected_at, valid_until,
-                                    (valid_until IS NOT NULL AND valid_until < NOW()) AS is_expired
-                             FROM grc_evidence ORDER BY collected_at DESC LIMIT ' . $limit
-                        );
-                        apiSuccess(['data' => $evidence]);
-                    }
-                    break;
-
-                case 'policies':
-                    $policyService = PolicyService::getInstance();
-                    if ($method === 'GET' && $grcId === null) {
-                        apiSuccess(['data' => $policyService->getPolicies()]);
-                    } elseif ($method === 'GET' && $grcId !== null) {
-                        $policy = $policyService->getPolicy($grcId);
-                        if (!$policy) apiError(404, 'Policy not found');
-                        apiSuccess(['data' => $policy]);
-                    }
-                    break;
-
-                case 'requirements':
-                    if ($method === 'PUT' && $grcId !== null) {
-                        if (!$apiService->hasWriteAccess($token)) apiError(403, 'Write access required');
-                        $req = $db->fetchOne('SELECT id FROM grc_framework_requirements WHERE id = :id', [':id' => $grcId]);
-                        if (!$req) apiError(404, 'Requirement not found');
-                        $input = json_decode(file_get_contents('php://input'), true);
-                        if (!$input) apiError(400, 'Request body required');
-                        $allowed = ['title', 'description', 'guidance', 'is_required', 'sort_order'];
-                        $update = [];
-                        foreach ($allowed as $f) {
-                            if (array_key_exists($f, $input)) $update[$f] = $input[$f];
-                        }
-                        if (!empty($update)) {
-                            $db->update('grc_framework_requirements', $update, 'id = :id', [':id' => $grcId]);
-                        }
-                        $updated = $db->fetchOne('SELECT * FROM grc_framework_requirements WHERE id = :id', [':id' => $grcId]);
-                        apiSuccess(['data' => $updated]);
-                    } elseif ($method === 'GET' && $grcId !== null) {
-                        $req = $db->fetchOne('SELECT * FROM grc_framework_requirements WHERE id = :id', [':id' => $grcId]);
-                        if (!$req) apiError(404, 'Requirement not found');
-                        apiSuccess(['data' => $req]);
-                    } else {
-                        apiError(405, 'Method not allowed');
-                    }
-                    break;
-
-                case 'audits':
-                    if ($method === 'GET' && $grcId === null) {
-                        $audits = $db->fetchAll(
-                            'SELECT a.*, f.code as framework_code
-                             FROM grc_audits a LEFT JOIN grc_frameworks f ON f.id = a.framework_id
-                             ORDER BY a.created_at DESC'
-                        );
-                        apiSuccess(['data' => $audits]);
-                    } elseif ($method === 'GET' && $grcId !== null) {
-                        $audit = $db->fetchOne('SELECT * FROM grc_audits WHERE id = :id', [':id' => $grcId]);
-                        if (!$audit) apiError(404, 'Audit not found');
-                        unset($audit['report_encrypted_data']);
-                        $audit['findings'] = $db->fetchAll(
-                            'SELECT * FROM grc_audit_findings WHERE audit_id = :aid ORDER BY severity DESC',
-                            [':aid' => $grcId]
-                        );
-                        apiSuccess(['data' => $audit]);
-                    } elseif ($method === 'PUT' && $grcId !== null) {
-                        if (!$apiService->hasWriteAccess($token)) apiError(403, 'Write access required');
-                        $audit = $db->fetchOne('SELECT id FROM grc_audits WHERE id = :id', [':id' => $grcId]);
-                        if (!$audit) apiError(404, 'Audit not found');
-                        $input = json_decode(file_get_contents('php://input'), true);
-                        if (!$input) apiError(400, 'Request body required');
-
-                        $validStatuses = ['planning', 'fieldwork', 'reporting', 'remediation', 'closed'];
-                        if (isset($input['status']) && !in_array($input['status'], $validStatuses, true)) {
-                            apiError(400, 'Invalid status. Allowed: ' . implode(', ', $validStatuses));
-                        }
-                        $validTypes = ['internal', 'external', 'certification', 'surveillance', 'readiness'];
-                        if (isset($input['audit_type']) && !in_array($input['audit_type'], $validTypes, true)) {
-                            apiError(400, 'Invalid audit_type. Allowed: ' . implode(', ', $validTypes));
-                        }
-
-                        $allowed = ['title', 'description', 'status', 'audit_type', 'planned_start', 'planned_end'];
-                        $update = [];
-                        foreach ($allowed as $f) {
-                            if (array_key_exists($f, $input)) $update[$f] = $input[$f];
-                        }
-                        if (!empty($update)) {
-                            $db->update('grc_audits', $update, 'id = :id', [':id' => $grcId]);
-                        }
-                        $updated = $db->fetchOne('SELECT * FROM grc_audits WHERE id = :id', [':id' => $grcId]);
-                        unset($updated['report_encrypted_data']);
-                        apiSuccess(['data' => $updated]);
-                    }
-                    break;
-
-                case 'crosswalk':
-                    if ($method === 'GET') {
-                        $srcId = (int)($_GET['source_framework_id'] ?? 0);
-                        $tgtId = (int)($_GET['target_framework_id'] ?? 0);
-                        if (!$srcId || !$tgtId) apiError(400, 'source_framework_id and target_framework_id required');
-                        apiSuccess(['data' => $grc->getCrosswalk($srcId, $tgtId)]);
-                    }
-                    break;
-
-                case 'monitors':
-                    $cm = ContinuousMonitor::getInstance();
-                    if ($method === 'GET') {
-                        apiSuccess(['data' => $cm->getMonitors()]);
-                    }
-                    break;
-
-                case 'risks':
-                    if ($method === 'GET') {
-                        $risks = $db->fetchAll('SELECT * FROM grc_risk_register ORDER BY created_at DESC');
-                        apiSuccess(['data' => $risks]);
-                    }
-                    break;
-
-                default:
-                    apiError(404, 'GRC resource not found: ' . $grcResource);
-            }
+            require dirname(dirname(__DIR__)) . '/includes/api-v2/grc.php';
             break;
 
         default:

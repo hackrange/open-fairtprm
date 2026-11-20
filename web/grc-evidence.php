@@ -45,6 +45,11 @@ if (isset($_GET['download']) && is_numeric($_GET['download'])) {
     if ($ev && !empty($ev['encrypted_data'])) {
         try {
             $decrypted = $encryption->decryptRaw($ev['encrypted_data']);
+            // Integrity: evidence recorded with a SHA-256 (signed open-ctem reports)
+            // is only served when the stored bytes still match it.
+            if (!empty($ev['content_sha256']) && !hash_equals($ev['content_sha256'], hash('sha256', $decrypted))) {
+                throw new Exception('evidence integrity check failed');
+            }
             // SECURITY: sanitize filename (no CR/LF/quote header injection) and only
             // serve a known-renderable MIME inline-safely; anything else is forced to
             // octet-stream. Always attachment + nosniff to prevent stored-XSS sniffing.
@@ -172,6 +177,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                 );
                 $msg = t('grc-evidence.control_unlinked');
                 $msgType = 'success';
+            }
+        } elseif ($action === 'ctem_collect_request') {
+            try {
+                $out = (new OpenCtemEvidenceService())->collectForEvidenceRequest((int)($_POST['request_id'] ?? 0), (int)$user['id']);
+                $msg = count($out['evidence_ids']) ? t('grc-evidence.ctem_collected', count($out['evidence_ids'])) : t('grc-evidence.ctem_nothing_collected');
+                foreach ($out['errors'] as $type => $why) $msg .= ' ' . $type . ': ' . $why . '.';
+                $msgType = ($out['errors'] || !$out['evidence_ids']) ? 'danger' : 'success';
+            } catch (OpenCtemException $ex) {
+                $msg = $ex->getMessage();
+                $msgType = 'danger';
             }
         } elseif ($action === 'delete') {
             $evId = (int)($_POST['evidence_id'] ?? 0);
@@ -448,6 +463,9 @@ $currentPage = 'grc_evidence';
                     <div>
                         <strong style="font-size:13px;"><?php echo e($evidenceDetail['file_name']); ?></strong>
                         <span style="font-size:12px;color:#6b7280;margin-left:8px;"><?php echo $evidenceDetail['file_size'] ? e(number_format($evidenceDetail['file_size'] / 1024, 1) . ' KB') : ''; ?></span>
+                        <?php if (!empty($evidenceDetail['signature_key_id'])): ?>
+                        <div style="font-size:11px;color:#065f46;margin-top:4px;"><?php echo e(t('grc-evidence.signed_by')); ?>: <?php echo e($evidenceDetail['signature_key_id']); ?> &middot; SHA-256 <code><?php echo e($evidenceDetail['content_sha256'] ?? ''); ?></code></div>
+                        <?php endif; ?>
                     </div>
                     <div style="display:flex;gap:8px;">
                         <a href="grc-evidence.php?download=<?php echo (int)$evidenceDetail['id']; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc-evidence.download')); ?></a>
@@ -580,6 +598,44 @@ $currentPage = 'grc_evidence';
             </div>
 
             <?php else: ?>
+            <?php
+            // Open control evidence requests that an open-ctem monitor can answer.
+            $ctemSvc = new OpenCtemEvidenceService();
+            $ctemRequests = [];
+            if ($ctemSvc->isConfigured() && ($ctemCtl = $ctemSvc->ctemBackedControlIds())) {
+                $ph = implode(',', array_map('intval', $ctemCtl));
+                $ctemRequests = $db->fetchAll(
+                    "SELECT er.id, er.title, er.status, er.due_date, ic.control_ref
+                       FROM grc_evidence_requests er JOIN grc_internal_controls ic ON ic.id = er.control_id
+                      WHERE er.status IN ('pending', 'in_progress', 'rejected') AND er.control_id IN ({$ph})
+                      ORDER BY er.due_date IS NULL, er.due_date, er.id LIMIT 50");
+            }
+            ?>
+            <?php if ($ctemRequests): ?>
+            <div class="detail-card">
+                <h3><?php echo e(t('grc-evidence.ctem_requests')); ?></h3>
+                <table class="grc-table">
+                    <thead><tr><th><?php echo e(t('grc-evidence.ctem_request')); ?></th><th><?php echo e(t('grc-evidence.ctem_control')); ?></th><th><?php echo e(t('grc-evidence.status')); ?></th><th></th></tr></thead>
+                    <tbody>
+                    <?php foreach ($ctemRequests as $cr): ?>
+                    <tr>
+                        <td><?php echo e($cr['title']); ?><?php if ($cr['due_date']): ?><br><span style="font-size:11px;color:#6b7280;"><?php echo e(date('M j, Y', strtotime($cr['due_date']))); ?></span><?php endif; ?></td>
+                        <td><?php echo e($cr['control_ref']); ?></td>
+                        <td><?php echo e(ucfirst(str_replace('_', ' ', $cr['status']))); ?></td>
+                        <td><?php if (!$readOnly): ?>
+                            <form method="post" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                <input type="hidden" name="action" value="ctem_collect_request">
+                                <input type="hidden" name="request_id" value="<?php echo (int)$cr['id']; ?>">
+                                <button type="submit" class="btn btn-sm btn-outline"><?php echo e(t('grc-evidence.ctem_collect')); ?></button>
+                            </form>
+                        <?php endif; ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
             <!-- Evidence List -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                 <form method="get" class="filter-bar">

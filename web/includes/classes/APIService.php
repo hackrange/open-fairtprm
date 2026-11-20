@@ -409,7 +409,7 @@ class APIService {
             '/fair/analyses' => [
                 'get' => [
                     'summary' => 'List FAIR analyses',
-                    'description' => 'Retrieve a paginated list of FAIR risk analyses with risk level and ALE.',
+                    'description' => 'Retrieve a paginated list of FAIR risk analyses with risk level and ALE (decrypted). Administrators and cyber_tprm see every analysis; other token owners only their own.',
                     'tags' => ['TPRM'],
                     'parameters' => [
                         ['name' => 'limit', 'in' => 'query', 'description' => 'Max results (1-200)', 'schema' => ['type' => 'integer', 'default' => 50]],
@@ -553,10 +553,12 @@ class APIService {
             '/grc/evidence' => [
                 'get' => [
                     'summary' => 'List evidence artifacts',
-                    'description' => 'Retrieve evidence records with expiration status.',
+                    'description' => 'Retrieve evidence metadata (never file content) with expiration status, linked control ids, and SHA-256 / signing key id for signed evidence.',
                     'tags' => ['GRC'],
                     'parameters' => [
                         ['name' => 'limit', 'in' => 'query', 'description' => 'Max results (1-200)', 'schema' => ['type' => 'integer', 'default' => 50]],
+                        ['name' => 'offset', 'in' => 'query', 'description' => 'Pagination offset', 'schema' => ['type' => 'integer', 'default' => 0]],
+                        ['name' => 'updated_since', 'in' => 'query', 'description' => 'ISO 8601; only rows updated at or after it', 'schema' => ['type' => 'string', 'format' => 'date-time']],
                     ],
                     'responses' => ['200' => ['description' => 'Evidence list']],
                 ],
@@ -616,9 +618,37 @@ class APIService {
             '/grc/risks' => [
                 'get' => [
                     'summary' => 'List risk register entries',
-                    'description' => 'Retrieve all entries from the GRC risk register.',
+                    'description' => 'Risk register entries with owner display name, vendor_id, source/external_ref and control_id_list.',
                     'tags' => ['GRC'],
+                    'parameters' => [
+                        ['name' => 'limit', 'in' => 'query', 'description' => 'Max results (1-1000)', 'schema' => ['type' => 'integer', 'default' => 500]],
+                        ['name' => 'offset', 'in' => 'query', 'description' => 'Pagination offset', 'schema' => ['type' => 'integer', 'default' => 0]],
+                        ['name' => 'updated_since', 'in' => 'query', 'description' => 'ISO 8601; only rows updated at or after it', 'schema' => ['type' => 'string', 'format' => 'date-time']],
+                        ['name' => 'status', 'in' => 'query', 'description' => 'identified, assessing, treating, monitoring, closed', 'schema' => ['type' => 'string']],
+                        ['name' => 'source', 'in' => 'query', 'description' => 'Integration that created the risk (open_ctem)', 'schema' => ['type' => 'string']],
+                    ],
                     'responses' => ['200' => ['description' => 'Risk register list']],
+                ],
+                'post' => [
+                    'summary' => 'Create or re-sync an integration risk',
+                    'description' => 'Requires a read/write token with GRC access. Idempotent by (source, external_ref): a repeat updates title, description, treatment_plan, status and review_date only. Fields: source (open_ctem), external_ref, title, description, risk_category, likelihood, impact, risk_treatment, treatment_plan, status, review_date (YYYY-MM-DD), vendor_id, control_ids. owner_user_id is never accepted.',
+                    'tags' => ['GRC'],
+                    'responses' => ['201' => ['description' => 'Created'], '200' => ['description' => 'Existing risk updated'], '400' => ['description' => 'Validation error'], '409' => ['description' => 'external_ref owned by another integration user']],
+                ],
+            ],
+            '/grc/risks/{id}' => [
+                'get' => [
+                    'summary' => 'Get a risk',
+                    'tags' => ['GRC'],
+                    'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']]],
+                    'responses' => ['200' => ['description' => 'Risk'], '404' => ['description' => 'Not found']],
+                ],
+                'put' => [
+                    'summary' => 'Update an integration risk',
+                    'description' => 'Only a risk created through the API by this token\'s user (same source). Updatable: title, description, treatment_plan, status, review_date. Any other field is refused with 400; any other risk answers 404.',
+                    'tags' => ['GRC'],
+                    'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']]],
+                    'responses' => ['200' => ['description' => 'Updated'], '400' => ['description' => 'Validation error'], '404' => ['description' => 'Not found']],
                 ],
             ],
             '/grc/crosswalk' => [
@@ -636,8 +666,11 @@ class APIService {
             '/grc/monitors' => [
                 'get' => [
                     'summary' => 'List continuous monitors',
-                    'description' => 'Retrieve all continuous monitoring checks with their current status.',
+                    'description' => 'Continuous monitors with check_type, collector_class, control_ids, last_result and last_run_at. Never returns collector config or integration credentials.',
                     'tags' => ['GRC'],
+                    'parameters' => [
+                        ['name' => 'updated_since', 'in' => 'query', 'description' => 'ISO 8601; only rows updated at or after it', 'schema' => ['type' => 'string', 'format' => 'date-time']],
+                    ],
                     'responses' => ['200' => ['description' => 'Monitor list with status']],
                 ],
             ],

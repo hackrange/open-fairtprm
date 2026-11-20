@@ -98,6 +98,7 @@ $sectionFiles = [
     'scheduler' => 'scheduler.php',
     'lockdown'     => 'lockdown.php',
     'embed-tokens' => 'embed-tokens.php',
+    'open-ctem'    => 'open-ctem.php',
 ];
 
 if (!array_key_exists($section, $sectionFiles)) {
@@ -462,7 +463,7 @@ if ($originalMethod !== 'POST' || !empty($success)) {
                         </ul>
                     </details>
 
-                    <details class="sidebar-section"<?php echo in_array($section, ['saml', 'openwebui', 'api', 'api-tokens', 'srs', 'shadow-saas', 'embed-tokens']) ? ' open' : ''; ?>>
+                    <details class="sidebar-section"<?php echo in_array($section, ['saml', 'openwebui', 'api', 'api-tokens', 'srs', 'shadow-saas', 'embed-tokens', 'open-ctem']) ? ' open' : ''; ?>>
                         <summary class="sidebar-section-title"><?php echo e(t('admin.section_integrations')); ?></summary>
                         <ul class="sidebar-nav">
                             <li><a href="?section=saml" class="<?php echo $section === 'saml' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/users-01.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_saml_sso')); ?></span></a></li>
@@ -471,6 +472,7 @@ if ($originalMethod !== 'POST' || !empty($success)) {
                             <li><a href="?section=srs" class="<?php echo $section === 'srs' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_srs')); ?></span></a></li>
                             <li><a href="?section=shadow-saas" class="<?php echo $section === 'shadow-saas' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/cube-outline.svg" alt="" width="18" height="18"></span><span><?php echo e(t('admin.nav_shadow_saas')); ?></span></a></li>
                             <li><a href="?section=embed-tokens" class="<?php echo $section === 'embed-tokens' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/globe-01.svg" alt="" width="18" height="18"></span><span>Embed Tokens</span></a></li>
+                            <li><a href="?section=open-ctem" class="<?php echo $section === 'open-ctem' ? 'active' : ''; ?>"><span class="icon"><img src="app/icons/dataflow-02.svg" alt="" width="18" height="18"></span><span>open-ctem</span></a></li>
                         </ul>
                     </details>
 

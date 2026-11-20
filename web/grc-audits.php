@@ -37,6 +37,27 @@ $grc = GRCService::getInstance();
 $msg = '';
 $msgType = '';
 
+// Audit artifact download (e.g. open-ctem evidence packages). Same audience as the page.
+if (isset($_GET['download_artifact']) && ctype_digit((string)$_GET['download_artifact'])) {
+    $art = $db->fetchOne('SELECT * FROM grc_audit_artifacts WHERE id = :id', [':id' => (int)$_GET['download_artifact']]);
+    if ($art) {
+        try {
+            $bytes = (new Encryption())->decryptRaw($art['encrypted_data']);
+            $mimes = ['json' => 'application/json', 'csv' => 'text/csv', 'pdf' => 'application/pdf', 'rtf' => 'application/rtf',
+                      'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+            header('Content-Type: ' . ($mimes[$art['file_format']] ?? 'application/octet-stream'));
+            header('X-Content-Type-Options: nosniff');
+            header('Content-Disposition: attachment; filename="' . str_replace(["\r", "\n", '"', "\0"], '', basename((string)$art['file_name'])) . '"');
+            header('Content-Length: ' . strlen($bytes));
+            echo $bytes;
+            exit;
+        } catch (Exception $ex) {
+            $msg = t('grc-audits.artifact_decrypt_failed');
+            $msgType = 'danger';
+        }
+    }
+}
+
 // Export handler (RTF or PDF)
 if (isset($_GET['export']) && (int)$_GET['export'] > 0) {
     $exportId = (int)$_GET['export'];
@@ -331,6 +352,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
                 $msg = t('grc-audits.evidence_request_created');
                 $msgType = 'success';
             }
+        } elseif ($action === 'ctem_collect_request' || $action === 'ctem_build_package') {
+            // open-ctem: pull signed evidence. The request's own audit decides where it lands.
+            $ctem = new OpenCtemEvidenceService();
+            try {
+                if ($action === 'ctem_collect_request') {
+                    $out = $ctem->collectForAuditRequest((int)($_POST['request_id'] ?? 0), (int)$user['id']);
+                    $n = count($out['evidence_ids']);
+                    $msg = $n ? t('grc-audits.ctem_collected', $n) : t('grc-audits.ctem_nothing_collected');
+                } else {
+                    $out = $ctem->buildAuditPackage((int)($_POST['audit_id'] ?? 0), (int)$user['id']);
+                    $msg = $out['artifact_id'] ? t('grc-audits.ctem_package_built') : t('grc-audits.ctem_nothing_collected');
+                }
+                foreach ($out['errors'] as $type => $why) $msg .= ' ' . $type . ': ' . $why . '.';
+                $msgType = ($out['errors'] || (empty($out['evidence_ids']) && empty($out['artifact_id']))) ? 'danger' : 'success';
+            } catch (OpenCtemException $ex) {
+                $msg = $ex->getMessage();
+                $msgType = 'danger';
+            }
         } elseif ($action === 'save_requirement_assessments') {
             $auditId = (int)($_POST['audit_id'] ?? 0);
             if ($auditId > 0 && !empty($_POST['assessments']) && is_array($_POST['assessments'])) {
@@ -439,6 +478,9 @@ $viewId = isset($_GET['view']) ? (int)$_GET['view'] : 0;
 $auditDetail = null;
 $findings = [];
 $evidenceRequests = [];
+$auditArtifacts = [];
+$ctemReady = false;
+$ctemControls = [];
 $remediationPlans = [];
 if ($viewId > 0) {
     $auditDetail = $db->fetchOne(
@@ -472,6 +514,13 @@ if ($viewId > 0) {
              ORDER BY er.created_at DESC',
             [':aid' => $viewId]
         );
+        $auditArtifacts = $db->fetchAll(
+            'SELECT a.id, a.artifact_type, a.title, a.file_format, a.file_size, a.generated_at, a.notes, u.full_name AS generated_by_name
+               FROM grc_audit_artifacts a LEFT JOIN users u ON u.id = a.generated_by
+              WHERE a.audit_id = :aid ORDER BY a.generated_at DESC', [':aid' => $viewId]);
+        $ctemSvc = new OpenCtemEvidenceService();
+        $ctemReady = $ctemSvc->isConfigured();
+        $ctemControls = $ctemReady ? array_flip($ctemSvc->ctemBackedControlIds()) : [];
         // Get remediation plans for findings in this audit
         $findingIds = array_column($findings, 'id');
         if (!empty($findingIds)) {
@@ -1040,20 +1089,61 @@ $currentPage = 'grc_audits';
             <?php endif; ?>
             <?php endif; ?>
 
+            <!-- Audit artifacts (open-ctem evidence packages) -->
+            <?php if (!empty($auditArtifacts) || ($ctemReady && !$readOnly)): ?>
+            <div class="detail-card">
+                <h3><?php echo e(t('grc-audits.artifacts')); ?></h3>
+                <?php if (!empty($auditArtifacts)): ?>
+                <table class="grc-table">
+                    <thead><tr><th><?php echo e(t('grc-audits.artifact_title')); ?></th><th><?php echo e(t('grc-audits.artifact_generated')); ?></th><th><?php echo e(t('grc-audits.artifact_notes')); ?></th><th></th></tr></thead>
+                    <tbody>
+                    <?php foreach ($auditArtifacts as $art): ?>
+                    <tr>
+                        <td><?php echo e($art['title']); ?></td>
+                        <td><?php echo e(date('M j, Y H:i', strtotime($art['generated_at']))); ?><br><span style="font-size:11px;color:#6b7280;"><?php echo e($art['generated_by_name'] ?? ''); ?></span></td>
+                        <td style="font-size:12px;"><?php echo e($art['notes'] ?? ''); ?></td>
+                        <td><a class="btn btn-sm btn-outline" href="grc-audits.php?download_artifact=<?php echo (int)$art['id']; ?>"><?php echo e(t('grc-audits.download')); ?></a></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <?php endif; ?>
+                <?php if ($ctemReady && !$readOnly): ?>
+                <form method="post" style="margin-top:10px;">
+                    <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                    <input type="hidden" name="action" value="ctem_build_package">
+                    <input type="hidden" name="audit_id" value="<?php echo (int)$auditDetail['id']; ?>">
+                    <button type="submit" class="btn btn-sm btn-primary"><?php echo e(t('grc-audits.ctem_build_package')); ?></button>
+                    <span style="font-size:12px;color:#6b7280;margin-left:8px;"><?php echo e(t('grc-audits.ctem_build_package_help')); ?></span>
+                </form>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
             <!-- Evidence Requests -->
             <div class="detail-card">
                 <h3><?php echo e(t('grc-audits.evidence_requests')); ?></h3>
                 <?php if (!empty($evidenceRequests)): ?>
                 <table class="grc-table">
-                    <thead><tr><th><?php echo e(t('grc-audits.description')); ?></th><th><?php echo e(t('grc-audits.assigned_to')); ?></th><th><?php echo e(t('grc-audits.due_date')); ?></th><th><?php echo e(t('grc-audits.status')); ?></th><th><?php echo e(t('grc-audits.requested_by')); ?></th></tr></thead>
+                    <thead><tr><th><?php echo e(t('grc-audits.description')); ?></th><th><?php echo e(t('grc-audits.assigned_to')); ?></th><th><?php echo e(t('grc-audits.due_date')); ?></th><th><?php echo e(t('grc-audits.status')); ?></th><th><?php echo e(t('grc-audits.requested_by')); ?></th><th></th></tr></thead>
                     <tbody>
                     <?php foreach ($evidenceRequests as $er): ?>
                     <tr>
-                        <td><?php echo e($er['description']); ?></td>
+                        <td><?php echo e($er['description']); ?><?php $erEv = json_decode($er['evidence_ids'] ?? '[]', true) ?: []; if ($erEv): ?><br><span style="font-size:11px;color:#6b7280;"><?php echo e(t('grc-audits.evidence_items', count($erEv))); ?></span><?php endif; ?></td>
                         <td><?php echo e($er['assigned_to_name'] ?? '-'); ?></td>
                         <td><?php echo $er['due_date'] ? e(date('M j, Y', strtotime($er['due_date']))) : '-'; ?></td>
                         <td><?php echo e(ucfirst($er['status'])); ?></td>
                         <td><?php echo e($er['requested_by_name'] ?? '-'); ?></td>
+                        <td>
+                            <?php if (!$readOnly && $ctemReady && !empty($er['control_id']) && isset($ctemControls[(int)$er['control_id']]) && $er['status'] !== 'accepted'): ?>
+                            <form method="post" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                                <input type="hidden" name="action" value="ctem_collect_request">
+                                <input type="hidden" name="request_id" value="<?php echo (int)$er['id']; ?>">
+                                <button type="submit" class="btn btn-sm btn-outline"><?php echo e(t('grc-audits.ctem_collect')); ?></button>
+                            </form>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                     </tbody>
