@@ -33,10 +33,14 @@ $proto   = !empty($_SERVER['HTTP_X_FORWARDED_PROTO'])
          : (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http');
 $baseUrl = $proto . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
 
-// One-time flash: raw token shown exactly once then cleared from session
-$newTokenRaw = $_SESSION['_flash_embed_token'] ?? null;
-$newTokenUrl = $_SESSION['_flash_embed_url']   ?? null;
-unset($_SESSION['_flash_embed_token'], $_SESSION['_flash_embed_url']);
+// One-time flash: raw token shown exactly once then cleared from session.
+// admin.php includes this file twice (POST pass, then render pass), so read
+// the flash only on the first pass and keep it for the render pass.
+if (!isset($embedFlash)) {
+    $embedFlash = [$_SESSION['_flash_embed_token'] ?? null, $_SESSION['_flash_embed_url'] ?? null];
+    unset($_SESSION['_flash_embed_token'], $_SESSION['_flash_embed_url']);
+}
+[$newTokenRaw, $newTokenUrl] = $embedFlash;
 
 // ============================================================================
 // POST Handlers
@@ -124,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'revoke_embed_token') {
             $tokenId = (int)($_POST['token_id'] ?? 0);
             if ($tokenId > 0) {
-                $db->update('embed_tokens', ['is_active' => 0], ['id' => $tokenId]);
+                $db->update('embed_tokens', ['is_active' => 0], 'id = :id', [':id' => $tokenId]);
                 $auth->audit((int)$user['id'], 'embed_token_revoked', 'embed_tokens', $tokenId, []);
                 $success = 'Embed token revoked.';
             }

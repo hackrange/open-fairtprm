@@ -19,6 +19,7 @@
 // Skip the standard session bootstrap -- we start our own embed session below.
 define('SKIP_SESSION_INIT', true);
 require_once __DIR__ . '/includes/init.php';
+$db = Database::getInstance();
 
 $rawToken = $_GET['token'] ?? '';
 $return   = $_GET['return'] ?? '/';
@@ -74,7 +75,7 @@ if (!$embedUser) {
 }
 
 // Record usage timestamp.
-$db->update('embed_tokens', ['last_used_at' => date('Y-m-d H:i:s')], ['id' => (int)$row['id']]);
+$db->update('embed_tokens', ['last_used_at' => date('Y-m-d H:i:s')], 'id = :id', [':id' => (int)$row['id']]);
 
 // Start the embed session with SameSite=None; Secure.
 // A separate session name keeps embed sessions completely isolated from the

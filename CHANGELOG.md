@@ -931,6 +931,16 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Iframe embed tokens did not work.** Every embed link answered HTTP 500,
+  the one-time raw token was never shown after Create (the admin page is
+  rendered in two passes and the first one consumed it), Revoke reported
+  success without revoking, and the `embed_tokens` table and the session
+  bootstrap change in `init.php` were never baked into the image. Links now
+  validate and redirect to their return path with the `tprm_embed` cookie,
+  the token is shown once, Revoke takes effect immediately, and the table is
+  created by the schema update (now valid on MySQL as well as MariaDB).
+  Known limitation: the embed session is not yet signed in, so the framed
+  page still asks for a login.
 - **REST API: vendor SRS scores and FAIR analyses returned HTTP 500.**
   `GET /api/v2/vendors/{id}/srs` queried a column that does not exist and
   `GET /api/v2/fair/analyses` selected columns the table never had. Both now

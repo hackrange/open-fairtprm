@@ -7181,7 +7181,7 @@ CREATE TABLE IF NOT EXISTS embed_tokens (
     name VARCHAR(100) NOT NULL,
     description VARCHAR(255) NOT NULL DEFAULT '',
     user_id INT NOT NULL,
-    allowed_origins TEXT NOT NULL DEFAULT '',
+    allowed_origins TEXT NOT NULL,
     created_by INT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at DATETIME NULL,
