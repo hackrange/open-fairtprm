@@ -191,6 +191,68 @@ switch ($grcResource) {
         }
         break;
 
+    case 'assessments':
+        // Read-only results of the unified (CSF maturity) assessments: scores and counts
+        // only. Never the encrypted report PDF, assessor notes, remediation text or who
+        // answered what. Same audience as grc-assessment.php.
+        if ($method !== 'GET') apiError(405, 'Method not allowed');
+        if ($grcSub !== null || (isset($segments[2]) && $grcId === null)) apiError(404, 'GRC resource not found');
+        if (!apiTokenUserAllowed($db, $token, ['administrator', 'cyber_grc', 'auditor', 'grc_contributors'], true)) {
+            apiError(403, 'The token user cannot view GRC assessments');
+        }
+        require_once dirname(__DIR__) . '/classes/UnifiedAssessmentService.php';
+        $uas = UnifiedAssessmentService::getInstance();
+        $cols = 'id, assessment_ref, title, assessment_type, status, planned_start, planned_end,
+                 actual_start, actual_end, overall_fairscore, overall_compliance_pct, created_at, updated_at';
+        // Answer progress plus the mean maturity rating over the rated questions.
+        $progress = function (int $aid) use ($uas, $db): array {
+            $p = $uas->getAssessmentProgress($aid);
+            $avg = $db->fetchOne('SELECT AVG(maturity_rating) AS m FROM grc_assessment_responses
+                                   WHERE assessment_id = :aid AND maturity_rating IS NOT NULL', [':aid' => $aid])['m'] ?? null;
+            $p['avg_maturity'] = $avg === null ? null : round((float)$avg, 2);
+            return $p;
+        };
+        if ($grcId === null) {
+            $params = [];
+            $sinceSql = '';
+            if ($since !== null) { $sinceSql = ' WHERE updated_at >= :since'; $params[':since'] = $since; }
+            $rows = $db->fetchAll("SELECT {$cols} FROM grc_assessments{$sinceSql} ORDER BY created_at DESC, id DESC LIMIT 500", $params);
+            foreach ($rows as &$row) $row['progress'] = $progress((int)$row['id']);
+            unset($row);
+            apiSuccess(['data' => $rows]);
+        }
+        $a = $db->fetchOne("SELECT {$cols} FROM grc_assessments WHERE id = :id", [':id' => $grcId]);
+        if (!$a) apiError(404, 'Assessment not found');
+        $a['progress'] = $progress($grcId);
+        $a['domain_scores'] = $db->fetchAll(
+            'SELECT d.domain_code, d.name AS domain_name, ds.average_score, ds.questions_total,
+                    ds.questions_answered, ds.conforming_count, ds.partial_count,
+                    ds.non_conforming_count, ds.not_applicable_count,
+                    (SELECT mt.target_score FROM grc_maturity_targets mt
+                      WHERE mt.domain_id = ds.domain_id ORDER BY mt.id DESC LIMIT 1) AS target_score
+               FROM grc_assessment_domain_scores ds
+               JOIN grc_security_domains d ON d.id = ds.domain_id
+              WHERE ds.assessment_id = :aid ORDER BY d.sort_order, d.id',
+            [':aid' => $grcId]
+        );
+        $a['framework_compliance'] = array_map(fn($f) => array_intersect_key($f, array_flip([
+            'framework_code', 'framework_name', 'total_mapped', 'conforming', 'partial', 'non_conforming',
+            'not_applicable', 'compliance_pct', 'avg_maturity', 'maturity_count',
+        ])), $uas->calculateFrameworkCompliance($grcId));
+        $a['gaps'] = $db->fetchAll(
+            "SELECT q.question_ref, q.question_text, d.domain_code, d.name AS domain_name,
+                    r.conformity_status, r.maturity_rating, r.validation_status, r.assessed_at
+               FROM grc_assessment_responses r
+               JOIN grc_unified_questions q ON q.id = r.question_id
+               JOIN grc_security_domains d ON d.id = q.domain_id
+              WHERE r.assessment_id = :aid AND r.conformity_status IN ('non_conforming', 'partial')
+              ORDER BY FIELD(r.conformity_status, 'non_conforming', 'partial'), d.sort_order, q.sort_order, q.id
+              LIMIT 500",
+            [':aid' => $grcId]
+        );
+        apiSuccess(['data' => $a]);
+        break;
+
     case 'audits':
         if ($method === 'GET' && $grcId === null) {
             $params = [];

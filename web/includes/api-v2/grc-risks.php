@@ -9,6 +9,7 @@
  *   GET  /grc/risks/{id}       one risk
  *   POST /grc/risks            create, idempotent by (source, external_ref)
  *   PUT  /grc/risks/{id}       update a risk this integration created
+ *   PUT  /grc/risks/{id}/review  status, review date, treatment plan on ANY risk
  *
  * Write-back rules (open-ctem risk exceptions, KEV-on-internet-facing,
  * validated attack paths):
@@ -22,6 +23,13 @@
  *     review_date may change; likelihood, impact, treatment, category, owner
  *     and controls are human-owned and refused with 400
  *   - every write is audit-logged
+ *
+ * Review updates (/review) are the one way an integration touches a risk a
+ * person created: only status, review_date and treatment_plan, only with a
+ * read_write token whose user may edit risks in FairTPRM (admin or cyber_grc,
+ * as on grc-risks.php), and only with acting_user naming the person in the
+ * other tool. The audit entry keeps the before and after values so a GRC owner
+ * can see and undo it.
  *
  * Included from grc.php in the router's scope.
  */
@@ -37,6 +45,7 @@ const API_RISK_ENUMS = [
     'status'         => ['identified', 'assessing', 'treating', 'monitoring', 'closed'],
 ];
 const API_RISK_UPDATABLE = ['title', 'description', 'treatment_plan', 'status', 'review_date'];
+const API_RISK_REVIEWABLE = ['treatment_plan', 'status', 'review_date'];
 const API_RISK_CREATABLE = ['source', 'external_ref', 'title', 'description', 'risk_category', 'likelihood', 'impact',
                             'risk_treatment', 'treatment_plan', 'status', 'review_date', 'vendor_id', 'control_ids'];
 
@@ -95,6 +104,35 @@ if ($method === 'GET' && $grcId === null) {
         "{$riskSelect} WHERE {$w} ORDER BY r.created_at DESC, r.id DESC LIMIT {$limit} OFFSET {$offset}", $params));
     $total = (int)($db->fetchOne("SELECT COUNT(*) AS c FROM grc_risk_register r WHERE {$w}", $params)['c'] ?? 0);
     apiSuccess(['data' => $risks, 'total' => $total, 'limit' => $limit, 'offset' => $offset]);
+}
+
+if ($grcSub !== null && ($grcSub !== 'review' || $grcId === null || isset($segments[4]))) apiError(404, 'GRC resource not found');
+if ($grcSub === 'review') {
+    if ($method !== 'PUT') apiError(405, 'Method not allowed');
+    if (!$apiService->hasWriteAccess($token)) apiError(403, 'Write access required');
+    if (!apiTokenUserAllowed($db, $token, ['administrator', 'cyber_grc'], true)) apiError(403, 'The token user cannot edit risks');
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input) || !$input || array_is_list($input)) apiError(400, 'JSON object request body required');
+    $actor = $input['acting_user'] ?? null;
+    $actor = is_string($actor) ? trim($actor) : '';
+    if (!preg_match('/^[\p{L}\p{N} ._@,()\'-]{1,128}$/u', $actor)) {
+        apiError(400, 'acting_user is required: who made this change in the other tool (1-128 letters, digits, spaces and . _ @ , ( ) \' -)');
+    }
+    unset($input['acting_user']);
+    $update = apiRiskValidate($input, API_RISK_REVIEWABLE);
+    if (!$update) apiError(400, 'No reviewable fields. Allowed: ' . implode(', ', API_RISK_REVIEWABLE));
+    $before = $db->fetchOne('SELECT id, risk_ref, status, review_date, treatment_plan FROM grc_risk_register WHERE id = :id', [':id' => $grcId]);
+    if (!$before) apiError(404, 'Risk not found');
+    // Only what actually changes is written and audited.
+    $changed = array_filter($update, fn($v, $k) => (string)($before[$k] ?? '') !== (string)($v ?? ''), ARRAY_FILTER_USE_BOTH);
+    if ($changed) {
+        $db->update('grc_risk_register', $changed, 'id = :id', [':id' => $grcId]);
+        Auth::recordEvent($tokenUserId, 'grc_risk_api_review', 'grc_risk_register', $grcId, [
+            'acting_user' => $actor, 'token_id' => (int)$token['id'], 'risk_ref' => $before['risk_ref'],
+            'before' => array_intersect_key($before, $changed), 'after' => $changed,
+        ]);
+    }
+    apiSuccess(['data' => apiRiskOut($db->fetchOne("{$riskSelect} WHERE r.id = :id", [':id' => $grcId]))]);
 }
 
 if ($method === 'GET' && $grcId !== null) {

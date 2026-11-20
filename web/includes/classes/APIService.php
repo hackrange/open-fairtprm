@@ -580,6 +580,40 @@ class APIService {
                     'responses' => ['200' => ['description' => 'Policy details'], '404' => ['description' => 'Policy not found']],
                 ],
             ],
+            '/shadow-saas/apps' => [
+                'get' => [
+                    'summary' => 'List Shadow SaaS and Shadow AI apps',
+                    'description' => 'Read-only app inventory: name, domain, category, user count, risk score, source, status, Grip sanction tag (lowercase) and AI depth. ai=1 returns AI apps only (AI depth present and not "No AI"). No owners, contacts or user rosters. Needs TPRM module access, and the token user must be a super admin or in the administrator, cyber_tprm or auditor group.',
+                    'tags' => ['Shadow SaaS'],
+                    'parameters' => [
+                        ['name' => 'ai', 'in' => 'query', 'required' => false, 'description' => '1 = AI apps only', 'schema' => ['type' => 'integer', 'enum' => [0, 1]]],
+                        ['name' => 'limit', 'in' => 'query', 'required' => false, 'description' => 'Max results (1-1000)', 'schema' => ['type' => 'integer', 'default' => 500, 'maximum' => 1000]],
+                        ['name' => 'offset', 'in' => 'query', 'required' => false, 'description' => 'Pagination offset', 'schema' => ['type' => 'integer', 'default' => 0]],
+                        ['name' => 'updated_since', 'in' => 'query', 'required' => false, 'description' => 'ISO 8601; only rows updated at or after it', 'schema' => ['type' => 'string', 'format' => 'date-time']],
+                    ],
+                    'responses' => ['200' => ['description' => 'App list with total, limit and offset'], '400' => ['description' => 'Invalid query parameter'], '403' => ['description' => 'No TPRM access, or the token user cannot view Shadow SaaS']],
+                ],
+            ],
+            '/grc/assessments' => [
+                'get' => [
+                    'summary' => 'List maturity assessments',
+                    'description' => 'Unified (CSF maturity) assessments, newest first (at most 500), with overall FairScore, compliance percentage and progress (progress_pct, validation_pct, avg_maturity). Read-only; never the report PDF or assessor notes. The token user must be an admin or in the administrator, cyber_grc, auditor or grc_contributors group.',
+                    'tags' => ['GRC'],
+                    'parameters' => [
+                        ['name' => 'updated_since', 'in' => 'query', 'required' => false, 'description' => 'ISO 8601; only rows updated at or after it', 'schema' => ['type' => 'string', 'format' => 'date-time']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Assessment list'], '403' => ['description' => 'The token user cannot view GRC assessments']],
+                ],
+            ],
+            '/grc/assessments/{id}' => [
+                'get' => [
+                    'summary' => 'Get assessment results',
+                    'description' => 'One assessment with per-domain scores against the newest maturity target, per-framework compliance, and up to 500 gaps (non-conforming, then partial questions). Scores and statuses only: no assessor notes, remediation text or names.',
+                    'tags' => ['GRC'],
+                    'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'description' => 'Assessment ID', 'schema' => ['type' => 'integer']]],
+                    'responses' => ['200' => ['description' => 'Assessment results'], '403' => ['description' => 'The token user cannot view GRC assessments'], '404' => ['description' => 'Assessment not found']],
+                ],
+            ],
             '/grc/audits' => [
                 'get' => [
                     'summary' => 'List audits',
@@ -649,6 +683,24 @@ class APIService {
                     'tags' => ['GRC'],
                     'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']]],
                     'responses' => ['200' => ['description' => 'Updated'], '400' => ['description' => 'Validation error'], '404' => ['description' => 'Not found']],
+                ],
+            ],
+            '/grc/risks/{id}/review' => [
+                'put' => [
+                    'summary' => 'Review update on any risk',
+                    'description' => 'Change status, review_date and/or treatment_plan on any risk, including ones people created. Requires read_write scope, a token user who may edit risks (admin or cyber_grc), and acting_user (who made the change in the calling tool, 1-128 characters). Every other field stays FairTPRM-only and is refused with 400. The audit log keeps the token, acting_user and the before and after values.',
+                    'tags' => ['GRC'],
+                    'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'description' => 'Risk ID', 'schema' => ['type' => 'integer']]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['type' => 'object', 'required' => ['acting_user'], 'properties' => [
+                            'acting_user' => ['type' => 'string', 'maxLength' => 128, 'description' => 'Person who made the change in the calling tool, e.g. jdoe (Doe, Jane)'],
+                            'status' => ['type' => 'string', 'enum' => ['identified', 'assessing', 'treating', 'monitoring', 'closed']],
+                            'review_date' => ['type' => 'string', 'format' => 'date', 'nullable' => true],
+                            'treatment_plan' => ['type' => 'string', 'maxLength' => 10000, 'nullable' => true],
+                        ]]]],
+                    ],
+                    'responses' => ['200' => ['description' => 'Updated risk (same shape as GET /grc/risks/{id})'], '400' => ['description' => 'Invalid field or missing acting_user'], '403' => ['description' => 'Write access required, or the token user cannot edit risks'], '404' => ['description' => 'Risk not found'], '405' => ['description' => 'Method not allowed']],
                 ],
             ],
             '/grc/crosswalk' => [

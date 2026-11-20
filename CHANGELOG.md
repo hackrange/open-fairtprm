@@ -16,6 +16,33 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **REST API v2: Shadow SaaS and Shadow AI app inventory.** `GET /api/v2/shadow-saas/apps`
+  returns each app's name, domain, category, user count, risk score, source
+  (Grip, HERO, CSV, manual), status, Grip sanction tag and AI depth. `ai=1`
+  limits it to AI apps, read the same way as the Shadow SaaS pages. Paged
+  (`limit` up to 1000, `offset`, `total`), with `updated_since`. No owners,
+  contacts or user rosters. Needs TPRM module access, and the token's user must
+  be a super admin or an administrator, cyber_tprm or auditor, the same people
+  who can open the Shadow SaaS pages. open-ctem uses it for its Shadow SaaS and
+  Shadow AI control checks.
+- **REST API v2: read-only GRC assessment results.** `GET /api/v2/grc/assessments`
+  lists the unified (CSF maturity) assessments with overall FairScore,
+  compliance percentage and progress (answered, validated and average maturity),
+  and accepts `updated_since`. `GET /api/v2/grc/assessments/{id}` adds
+  per-domain scores against maturity targets, per-framework compliance and the
+  gaps (non-conforming and partial questions). Scores and statuses only: the
+  encrypted report PDF, assessor notes, remediation text and who answered what
+  are never returned. Needs GRC module access and a token user who can open
+  the assessment pages (admin, cyber_grc, auditor or GRC contributor).
+  open-ctem's GRC page shows these results.
+- **REST API v2: review updates on any risk.** `PUT /api/v2/grc/risks/{id}/review`
+  changes only `status`, `review_date` and `treatment_plan`, on any risk,
+  including ones people created, so a connected tool (open-ctem's GRC page) can
+  record a review. It needs a read_write token whose user may edit risks in
+  FairTPRM (admin or cyber_grc) and `acting_user`, the person who made the
+  change in that tool. The audit log keeps who, the token, and the before and
+  after values of what changed. Likelihood, impact, treatment, category, owner
+  and controls remain editable only in FairTPRM.
 - **open-ctem integration (continuous exposure evidence).** A new Admin >
   Integrations > open-ctem page connects FairTPRM to an open-ctem instance in
   four steps: CTEM URL and API token (stored encrypted, never shown again;

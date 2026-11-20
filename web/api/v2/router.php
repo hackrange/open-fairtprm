@@ -335,6 +335,16 @@ try {
             break;
 
         // ====================================================================
+        // SHADOW SAAS / SHADOW AI (read-only app inventory)
+        // ====================================================================
+        case 'shadow-saas':
+            if (!$apiService->hasModuleAccess($token, 'tprm')) {
+                apiError(403, 'No access to TPRM module');
+            }
+            require dirname(dirname(__DIR__)) . '/includes/api-v2/shadow-saas.php';
+            break;
+
+        // ====================================================================
         // GRC ENDPOINTS
         // ====================================================================
         case 'grc':
@@ -379,6 +389,25 @@ function apiError(int $code, string $message): void {
     http_response_code($code);
     echo json_encode(['success' => false, 'error' => $message, 'code' => $code]);
     exit;
+}
+
+/**
+ * True when the token's user is active and is a super admin (or, with
+ * $allowIsAdmin, carries the is_admin flag) or belongs to one of $groups.
+ * Mirrors the group checks the web pages make for the same data.
+ */
+function apiTokenUserAllowed(Database $db, array $token, array $groups, bool $allowIsAdmin = false): bool {
+    $uid = (int)($token['user_id'] ?? 0);
+    if ($uid <= 0 || !$groups) return false;
+    $in = [];
+    $params = [':id' => $uid];
+    foreach (array_values($groups) as $i => $g) { $in[] = ":g{$i}"; $params[":g{$i}"] = (string)$g; }
+    $adminSql = $allowIsAdmin ? ' OR u.is_admin = 1' : '';
+    return !empty($db->fetchOne(
+        'SELECT 1 AS x FROM users u WHERE u.id = :id AND u.is_active = 1 AND (u.is_super_admin = 1' . $adminSql . ' OR EXISTS (
+            SELECT 1 FROM user_acl_groups ug JOIN acl_groups g ON g.id = ug.group_id
+             WHERE ug.user_id = u.id AND g.is_active = 1 AND g.group_name IN (' . implode(', ', $in) . ')))',
+        $params));
 }
 
 function generatePostmanCollection(array $swagger): array {
