@@ -25,16 +25,25 @@ project adheres to [Semantic Versioning](https://semver.org/).
   and an unknown or inactive control gets 404. Every field is validated
   (400 names the field). `failure_reason` is required on a fail and dropped
   on a pass. Unknown fields are ignored. A repeat from another integration
-  user, or naming another control, gets 409. The control's `last_tested_at`,
-  `next_test_due` and `effectiveness` (pass = effective, fail = ineffective)
-  follow its newest test only, and no other control field changes. Each test
-  is also stored as evidence (`control_test` / `attestation`, collected at the
-  test time) linked to the control, so audits and evidence packages include
-  it. Every write is audit-logged with the token user, the tester, the
+  user, or naming another control, gets 409. The control's `next_test_due`
+  follows its newest test. Its `last_tested_at` and `effectiveness` (pass =
+  effective, fail = ineffective) follow whichever is newer, that test or the
+  latest run of a monitor covering the control: newest event wins, and a
+  monitor run never overwrites a test recorded for a later time. No other
+  control field changes. Each test is also stored as evidence
+  (`control_test` / `attestation`, collected at the test time) linked to the
+  control, so audits and evidence packages include it. Only the newest
+  test's evidence stays current; older ones are marked superseded and stay
+  linked. Test evidence cannot be deleted, or unlinked from its control, in
+  FairTPRM (open-ctem owns it). This is checked on the server, not just by
+  hiding the buttons. Every write is audit-logged with the token user, the tester, the
   control, the result and the `external_ref`.
   `GET /api/v2/grc/controls/{id}/tests` lists a control's tests, newest
   first (`limit` up to 100, `offset`). `GET /grc/controls` and
-  `/grc/controls/{id}` now include `tests_count` and `last_test`. The control
+  `/grc/controls/{id}` now include `tests_count` and `last_test`, and return
+  `next_test_due` as `YYYY-MM-DD`. `tested_at` is stored in the application
+  time zone like every other time FairTPRM writes, and the API returns it as
+  ISO 8601 UTC (`...Z`). The control
   page in GRC has a Tests section: a table of tests with a Pass/Fail chip,
   labeled "From open-ctem" and read-only, plus the next test due date, shown
   in red as Overdue once it has passed. The controls list shows each
@@ -956,6 +965,18 @@ project adheres to [Semantic Versioning](https://semver.org/).
   retired ones. Localized in all eight locales.
 
 ### Fixed
+
+- **REST API v2: control writes are validated and limited.** `POST` and
+  `PUT /api/v2/grc/controls` now need a token user who may edit controls
+  (admin or cyber_grc), as on the controls page. `effectiveness`,
+  `last_tested_at` and `next_test_due` are refused with 400, because control
+  tests and monitor runs set them. Enum fields and empty titles answer 400
+  naming the field; a bad enum used to be a 500. `owner_user_id` must be an
+  active administrator or cyber_grc user, the same users the control form
+  offers; any user id used to be accepted. A JSON array body gets 400, and
+  `PUT` on a missing control gets 404 instead of 200 with no data. Changed
+  fields are audit-logged with their before and after values. The API
+  reference no longer lists a `status` field controls do not have.
 
 - **REST API v2: control sub-paths no longer act on the control.** Any path under
   `/api/v2/grc/controls/{id}/` was treated as the control itself, so for example

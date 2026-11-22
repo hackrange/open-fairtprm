@@ -177,7 +177,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
         } elseif ($action === 'unlink_evidence') {
             $controlId = (int)($_POST['control_id'] ?? 0);
             $evidenceId = (int)($_POST['evidence_id'] ?? 0);
-            if ($controlId > 0 && $evidenceId > 0) {
+            // A control test's evidence stays on its control: open-ctem owns it.
+            if ($controlId > 0 && $evidenceId > 0 && $db->fetchOne('SELECT id FROM grc_control_tests WHERE evidence_id = :e AND control_id = :c', [':e' => $evidenceId, ':c' => $controlId])) {
+                $msg = t('grc-controls.control_test_evidence_locked');
+                $msgType = 'danger';
+            } elseif ($controlId > 0 && $evidenceId > 0) {
                 $db->query(
                     'DELETE FROM grc_evidence_control_map WHERE evidence_id = :eid AND control_id = :cid',
                     [':eid' => $evidenceId, ':cid' => $controlId]
@@ -278,6 +282,7 @@ if ($viewId > 0) {
 // Newest first, capped at 100 like GET /api/v2/grc/controls/{id}/tests.
 $controlTests = [];
 $controlTestsTotal = 0;
+$ctestEvidenceIds = [];
 if ($viewId > 0 && $controlDetail) {
     $controlTests = $db->fetchAll(
         'SELECT id, source, external_ref, tested_at, tested_by, what_tested, expected_result,
@@ -287,6 +292,8 @@ if ($viewId > 0 && $controlDetail) {
         [':cid' => $viewId]
     );
     $controlTestsTotal = (int)($db->fetchOne('SELECT COUNT(*) AS c FROM grc_control_tests WHERE control_id = :cid', [':cid' => $viewId])['c'] ?? 0);
+    $ctestEvidenceIds = array_map('intval', array_column($db->fetchAll(
+        'SELECT evidence_id FROM grc_control_tests WHERE control_id = :cid AND evidence_id IS NOT NULL', [':cid' => $viewId]), 'evidence_id'));
 }
 
 // Newest test per listed control, for the list's Last test column.
@@ -553,7 +560,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                 <h3><?php echo e(t('grc-controls.tests')); ?> (<?php echo (int)$controlTestsTotal; ?>)</h3>
                 <div class="detail-grid">
                     <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.effectiveness')); ?></div><div class="value"><?php echo e(ucfirst(str_replace('_', ' ', (string)($controlDetail['effectiveness'] ?? 'not_tested')))); ?></div></div>
-                    <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.last_tested')); ?></div><div class="value"><?php echo !empty($controlDetail['last_tested_at']) ? e(date('M j, Y H:i', strtotime($controlDetail['last_tested_at'])) . ' UTC') : e(t('grc-controls.never_tested')); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.last_tested')); ?></div><div class="value"><?php echo !empty($controlDetail['last_tested_at']) ? e(date('M j, Y H:i', strtotime($controlDetail['last_tested_at']))) : e(t('grc-controls.never_tested')); ?></div></div>
                     <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.next_test_due')); ?></div><div class="value<?php echo $ctOverdue ? ' test-due-overdue' : ''; ?>" data-test-due="<?php echo $ctOverdue ? 'overdue' : 'ok'; ?>"><?php if (!empty($ctDue)): ?><?php echo e(date('M j, Y', strtotime($ctDue))); ?><?php if ($ctOverdue): ?><span class="test-overdue-tag"><?php echo e(t('grc-controls.overdue')); ?></span><?php endif; ?><?php else: ?>-<?php endif; ?></div></div>
                 </div>
                 <?php if (!empty($controlTests)): ?>
@@ -563,7 +570,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                     <tbody>
                     <?php foreach ($controlTests as $ct): ?>
                     <tr data-test-id="<?php echo (int)$ct['id']; ?>">
-                        <td style="white-space:nowrap;"><?php echo e(date('M j, Y H:i', strtotime($ct['tested_at'])) . ' UTC'); ?><br><span class="test-source"><?php echo e(grcControlTestSourceLabel((string)$ct['source'])); ?></span></td>
+                        <td style="white-space:nowrap;"><?php echo e(date('M j, Y H:i', strtotime($ct['tested_at']))); ?><br><span class="test-source"><?php echo e(grcControlTestSourceLabel((string)$ct['source'])); ?></span></td>
                         <td><?php echo e($ct['tested_by']); ?></td>
                         <td><div class="test-text"><?php echo e($ct['what_tested']); ?></div></td>
                         <td><div class="test-text"><?php echo e($ct['expected_result']); ?></div></td>
@@ -680,6 +687,9 @@ $showForm = isset($_GET['new']) || $editId > 0;
                         <td><?php echo $ev['valid_until'] ? e(date('M j, Y', strtotime($ev['valid_until']))) : '-'; ?></td>
                         <?php if (!$readOnly): ?>
                         <td>
+                            <?php if (in_array((int)$ev['id'], $ctestEvidenceIds, true)): ?>
+                            <span class="test-source" title="<?php echo e(t('grc-controls.control_test_evidence_locked')); ?>"><?php echo e(t('grc-controls.owned_by_test')); ?></span>
+                            <?php else: ?>
                             <form method="post" style="display:inline;">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                 <input type="hidden" name="action" value="unlink_evidence">
@@ -687,6 +697,7 @@ $showForm = isset($_GET['new']) || $editId > 0;
                                 <input type="hidden" name="evidence_id" value="<?php echo (int)$ev['id']; ?>">
                                 <button type="submit" class="btn btn-sm btn-danger" data-confirm="<?php echo e(t('grc-controls.confirm_unlink_evidence')); ?>"><?php echo e(t('grc-controls.unlink')); ?></button>
                             </form>
+                            <?php endif; ?>
                         </td>
                         <?php endif; ?>
                     </tr>

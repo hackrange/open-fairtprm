@@ -19,13 +19,18 @@
  *     it must come from the same token user and name the same control (409)
  *   - the control's last_tested_at, next_test_due and effectiveness follow
  *     only its newest test (by tested_at); no other control field is touched
+ *   - newest event wins between tests and monitor runs: when a monitor that
+ *     covers the control ran after the newest test, the monitor's result keeps
+ *     effectiveness and last_tested_at (next_test_due always follows the test)
+ *   - only the newest test's evidence stays current; older ones are superseded
  *   - every test is mirrored as grc_evidence (control_test / attestation)
  *     linked to the control, so audits and evidence packages carry it
  *   - every write is audit-logged
  *
- * Timestamps: PHP and the database run in UTC; tested_at is stored in UTC and
- * returned as ISO 8601 with a Z suffix. A tested_at without an offset is read
- * as UTC.
+ * Timestamps: tested_at is stored in the application time zone (app.timezone),
+ * like every other PHP-written time (monitor runs, last_tested_at, evidence),
+ * so tests and monitor runs compare correctly. The API always returns it as
+ * ISO 8601 UTC with a Z suffix. A tested_at sent without an offset is read as UTC.
  *
  * Included from grc.php in the router's scope.
  */
@@ -33,13 +38,6 @@
 if (!defined('API_V2_ROUTER')) { http_response_code(404); exit; }
 
 const API_CTEST_TEXT_MAX = 5000;
-
-/** 'Y-m-d H:i:s' (UTC, as stored) -> ISO 8601 'Y-m-d\TH:i:s\Z'. */
-function apiCtestIso(?string $dbTime): ?string {
-    if ($dbTime === null || $dbTime === '') return null;
-    $dt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $dbTime, new DateTimeZone('UTC'));
-    return $dt ? $dt->format('Y-m-d\TH:i:s\Z') : null;
-}
 
 /** Shape a grc_control_tests row for output. */
 function apiCtestOut(array $r): array {
@@ -102,10 +100,9 @@ function apiCtestValidate(array $in): array {
     } catch (Exception $e) {
         apiError(400, 'tested_at must be an ISO 8601 date-time, e.g. 2026-11-22T14:05:00Z');
     }
-    $dt = $dt->setTimezone(new DateTimeZone('UTC'));
     if ($dt->getTimestamp() > time() + 86400) apiError(400, 'tested_at must not be more than 1 day in the future');
-    if ((int)$dt->format('Y') < 1970) apiError(400, 'tested_at is out of range');
-    $out['tested_at'] = $dt->format('Y-m-d H:i:s');
+    if ($dt->getTimestamp() < 0) apiError(400, 'tested_at is out of range');
+    $out['tested_at'] = $dt->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s');
 
     $b = $in['tested_by'] ?? null;
     $b = is_string($b) ? trim($b) : null;
@@ -170,8 +167,21 @@ function apiCtestEvidenceFields(array $t, array $control): array {
 
 /** Newest test of a control (tested_at, then id), or null. */
 function apiCtestNewest(Database $db, int $controlId): ?array {
-    return $db->fetchOne('SELECT id, tested_at, result, next_test_due FROM grc_control_tests
+    return $db->fetchOne('SELECT id, tested_at, result, next_test_due, evidence_id FROM grc_control_tests
                            WHERE control_id = :c ORDER BY tested_at DESC, id DESC LIMIT 1', [':c' => $controlId]) ?: null;
+}
+
+/** Newest run of any monitor covering the control: ['run_at', 'result'] or null. */
+function apiCtestNewestMonitorRun(Database $db, int $controlId): ?array {
+    $ids = [];
+    foreach ($db->fetchAll('SELECT id, control_ids FROM grc_continuous_monitors') as $m) {
+        if (in_array($controlId, apiIdList($m['control_ids']), true)) $ids[] = (int)$m['id'];
+    }
+    if (!$ids) return null;
+    $in = []; $params = [];
+    foreach ($ids as $i => $id) { $in[] = ":m{$i}"; $params[":m{$i}"] = $id; }
+    return $db->fetchOne('SELECT run_at, result FROM grc_monitor_results WHERE monitor_id IN (' . implode(', ', $in) . ')
+                           ORDER BY run_at DESC, id DESC LIMIT 1', $params) ?: null;
 }
 
 if ($grcId === null || isset($segments[4])) apiError(404, 'GRC resource not found');
@@ -240,14 +250,28 @@ try {
 
     // The control follows its newest test only. An update that moves the
     // previously newest test back in time hands the control to the new newest.
+    // Newest event wins: a monitor run later than that test keeps its result.
     $newest = apiCtestNewest($db, $grcId);
     if ($newest && ((int)$newest['id'] === $testId || ($prevNewest && (int)$prevNewest['id'] === $testId))) {
-        $db->update('grc_internal_controls', [
-            'last_tested_at' => $newest['tested_at'],
-            'next_test_due'  => $newest['next_test_due'],
-            'effectiveness'  => $newest['result'] === 'pass' ? 'effective' : 'ineffective',
-        ], 'id = :id', [':id' => $grcId]);
+        $run = apiCtestNewestMonitorRun($db, $grcId);
+        if ($run && (string)$run['run_at'] > (string)$newest['tested_at']) {
+            // Same mapping as ContinuousMonitor::updateControlComplianceFromMonitor().
+            $state = ['last_tested_at' => $run['run_at'], 'effectiveness' => match ($run['result']) {
+                'pass' => 'effective', 'warning' => 'partially_effective', default => 'ineffective',
+            }];
+        } else {
+            $state = ['last_tested_at' => $newest['tested_at'], 'effectiveness' => $newest['result'] === 'pass' ? 'effective' : 'ineffective'];
+        }
+        $db->update('grc_internal_controls', $state + ['next_test_due' => $newest['next_test_due']], 'id = :id', [':id' => $grcId]);
         $controlUpdated = true;
+    }
+
+    // Only the newest test's evidence is current; older test evidence stays
+    // linked (audit history) but is superseded.
+    if ($newest && $newest['evidence_id'] !== null) {
+        $db->query("UPDATE grc_evidence SET status = CASE WHEN id = :cur THEN 'current' ELSE 'superseded' END
+                     WHERE id IN (SELECT evidence_id FROM grc_control_tests WHERE control_id = :c AND evidence_id IS NOT NULL)",
+            [':cur' => (int)$newest['evidence_id'], ':c' => $grcId]);
     }
     $db->commit();
 } catch (Exception $e) {

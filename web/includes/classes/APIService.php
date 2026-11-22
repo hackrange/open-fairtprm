@@ -500,7 +500,7 @@ class APIService {
             '/grc/controls' => [
                 'get' => [
                     'summary' => 'List internal controls',
-                    'description' => 'Retrieve all active internal controls. Supports filtering by status, framework, type, and keyword. Each control carries effectiveness, last_tested_at, next_test_due, tests_count and last_test ({result, tested_at, tested_by} of its newest test, or null).',
+                    'description' => 'Retrieve all active internal controls. Supports filtering by status, framework, type, and keyword. Each control carries effectiveness, last_tested_at, next_test_due (YYYY-MM-DD), tests_count and last_test ({result, tested_at, tested_by} of its newest test, or null).',
                     'tags' => ['GRC'],
                     'parameters' => [
                         ['name' => 'status', 'in' => 'query', 'description' => 'Filter by control status', 'schema' => ['type' => 'string']],
@@ -512,18 +512,23 @@ class APIService {
                 ],
                 'post' => [
                     'summary' => 'Create internal control',
-                    'description' => 'Create a new internal control. Requires read_write scope.',
+                    'description' => 'Create a new internal control. Requires read_write scope and a token user who may edit controls (admin or cyber_grc). effectiveness, last_tested_at and next_test_due are set only by control tests and monitor runs and are refused with 400. Other unknown fields are ignored. Audit-logged.',
                     'tags' => ['GRC'],
                     'requestBody' => [
                         'required' => true,
                         'content' => ['application/json' => ['schema' => ['type' => 'object', 'required' => ['title'], 'properties' => [
-                            'title' => ['type' => 'string', 'description' => 'Control title'],
-                            'description' => ['type' => 'string'],
-                            'control_type' => ['type' => 'string', 'enum' => ['preventive', 'detective', 'corrective']],
-                            'status' => ['type' => 'string', 'enum' => ['draft', 'active', 'inactive']],
+                            'title' => ['type' => 'string', 'maxLength' => 500],
+                            'description' => ['type' => 'string', 'maxLength' => 10000, 'nullable' => true],
+                            'notes' => ['type' => 'string', 'maxLength' => 10000, 'nullable' => true],
+                            'control_type' => ['type' => 'string', 'enum' => ['preventive', 'detective', 'corrective', 'directive']],
+                            'control_category' => ['type' => 'string', 'enum' => ['technical', 'administrative', 'physical']],
+                            'implementation_status' => ['type' => 'string', 'enum' => ['planned', 'in_progress', 'implemented', 'not_applicable']],
+                            'frequency' => ['type' => 'string', 'enum' => ['continuous', 'daily', 'weekly', 'monthly', 'quarterly', 'annually', 'ad_hoc']],
+                            'risk_level' => ['type' => 'string', 'enum' => ['low', 'medium', 'high', 'critical']],
+                            'owner_user_id' => ['type' => 'integer', 'nullable' => true, 'description' => 'An active administrator or cyber_grc user'],
                         ]]]],
                     ],
-                    'responses' => ['201' => ['description' => 'Control created'], '403' => ['description' => 'Write access required']],
+                    'responses' => ['201' => ['description' => 'Control created'], '400' => ['description' => 'Validation error naming the field'], '403' => ['description' => 'Write access required, or the token user cannot edit controls']],
                 ],
             ],
             '/grc/controls/{id}' => [
@@ -536,18 +541,24 @@ class APIService {
                 ],
                 'put' => [
                     'summary' => 'Update control',
-                    'description' => 'Update an existing control. Requires read_write scope.',
+                    'description' => 'Update an existing control. Requires read_write scope and a token user who may edit controls (admin or cyber_grc). effectiveness, last_tested_at and next_test_due are set only by control tests and monitor runs (newest event wins) and are refused with 400. Other unknown fields are ignored. Changed fields are audit-logged with before and after values.',
                     'tags' => ['GRC'],
                     'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'description' => 'Control ID', 'schema' => ['type' => 'integer']]],
                     'requestBody' => [
                         'required' => true,
                         'content' => ['application/json' => ['schema' => ['type' => 'object', 'properties' => [
-                            'title' => ['type' => 'string'],
-                            'description' => ['type' => 'string'],
-                            'status' => ['type' => 'string'],
+                            'title' => ['type' => 'string', 'maxLength' => 500],
+                            'description' => ['type' => 'string', 'maxLength' => 10000, 'nullable' => true],
+                            'notes' => ['type' => 'string', 'maxLength' => 10000, 'nullable' => true],
+                            'control_type' => ['type' => 'string', 'enum' => ['preventive', 'detective', 'corrective', 'directive']],
+                            'control_category' => ['type' => 'string', 'enum' => ['technical', 'administrative', 'physical']],
+                            'implementation_status' => ['type' => 'string', 'enum' => ['planned', 'in_progress', 'implemented', 'not_applicable']],
+                            'frequency' => ['type' => 'string', 'enum' => ['continuous', 'daily', 'weekly', 'monthly', 'quarterly', 'annually', 'ad_hoc']],
+                            'risk_level' => ['type' => 'string', 'enum' => ['low', 'medium', 'high', 'critical']],
+                            'owner_user_id' => ['type' => 'integer', 'nullable' => true, 'description' => 'An active administrator or cyber_grc user'],
                         ]]]],
                     ],
-                    'responses' => ['200' => ['description' => 'Control updated'], '403' => ['description' => 'Write access required']],
+                    'responses' => ['200' => ['description' => 'Control updated'], '400' => ['description' => 'Validation error naming the field'], '403' => ['description' => 'Write access required, or the token user cannot edit controls'], '404' => ['description' => 'Control not found']],
                 ],
             ],
             '/grc/controls/{id}/tests' => [
@@ -564,7 +575,7 @@ class APIService {
                 ],
                 'post' => [
                     'summary' => 'Record a control test attestation',
-                    'description' => 'Records a test of the control run in another tool (e.g. open-ctem). Requires read_write scope and GRC access. Idempotent by (source, external_ref): repeating an external_ref updates that test and its evidence (200) instead of adding a second one (201). A repeat must come from the same token user and name the same control (409 otherwise). When this is now the control\'s newest test (by tested_at), the control\'s last_tested_at, next_test_due and effectiveness (pass = effective, fail = ineffective) follow it; no other control field changes. Each test is also stored as evidence (evidence_type control_test, collection_method attestation, collected_at = tested_at) linked to the control, so audits and evidence packages include it. Every write is audit-logged. Unknown fields are ignored. A tested_at without an offset is read as UTC.',
+                    'description' => 'Records a test of the control run in another tool (e.g. open-ctem). Requires read_write scope and GRC access. Idempotent by (source, external_ref): repeating an external_ref updates that test and its evidence (200) instead of adding a second one (201). A repeat must come from the same token user and name the same control (409 otherwise). When this is now the control\'s newest test (by tested_at), the control\'s next_test_due follows it, and so do last_tested_at and effectiveness (pass = effective, fail = ineffective) unless a monitor covering the control ran later (newest event wins); no other control field changes. Only the newest test\'s evidence stays current; older test evidence is marked superseded and stays linked. Each test is also stored as evidence (evidence_type control_test, collection_method attestation, collected_at = tested_at) linked to the control, so audits and evidence packages include it. Every write is audit-logged. Unknown fields are ignored. A tested_at without an offset is read as UTC.',
                     'tags' => ['GRC'],
                     'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'description' => 'FairTPRM control ID', 'schema' => ['type' => 'integer']]],
                     'requestBody' => [

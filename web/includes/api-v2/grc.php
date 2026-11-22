@@ -50,6 +50,13 @@ function apiIdList($raw): array {
     return array_values(array_filter(array_map('intval', $list), fn($v) => $v > 0));
 }
 
+/** A stored app-time-zone 'Y-m-d H:i:s' -> ISO 8601 UTC 'Y-m-d\TH:i:s\Z'. */
+function apiCtestIso(?string $dbTime): ?string {
+    if ($dbTime === null || $dbTime === '') return null;
+    $dt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $dbTime, new DateTimeZone(date_default_timezone_get()));
+    return $dt ? $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z') : null;
+}
+
 /**
  * tests_count and last_test ({result, tested_at, tested_by} or null) per control
  * id, from grc_control_tests. tested_at is ISO 8601 UTC, as on /controls/{id}/tests.
@@ -74,11 +81,68 @@ function apiControlTestSummary(Database $db, array $controlIds): array {
                    AND (n.tested_at > t.tested_at OR (n.tested_at = t.tested_at AND n.id > t.id)))", $params) as $r) {
         $out[(int)$r['control_id']]['last_test'] = [
             'result'    => $r['result'],
-            'tested_at' => str_replace(' ', 'T', (string)$r['tested_at']) . 'Z',
+            'tested_at' => apiCtestIso($r['tested_at']),
             'tested_by' => $r['tested_by'],
         ];
     }
     return $out;
+}
+
+const API_CONTROL_ENUMS = [
+    'control_type'          => ['preventive', 'detective', 'corrective', 'directive'],
+    'control_category'      => ['technical', 'administrative', 'physical'],
+    'implementation_status' => ['planned', 'in_progress', 'implemented', 'not_applicable'],
+    'frequency'             => ['continuous', 'daily', 'weekly', 'monthly', 'quarterly', 'annually', 'ad_hoc'],
+    'risk_level'            => ['low', 'medium', 'high', 'critical'],
+];
+// Set by control tests and monitor runs (newest event wins), never written directly.
+const API_CONTROL_EVENT_OWNED = ['effectiveness', 'last_tested_at', 'next_test_due'];
+
+/**
+ * Validate a control write. Returns the fields to store; 400 names the field.
+ * Fields outside the writable set are ignored, as before, except the
+ * test/monitor-owned ones, which are refused so a caller knows they did nothing.
+ */
+function apiControlValidate(Database $db, array $in, bool $creating): array {
+    $owned = array_values(array_intersect(API_CONTROL_EVENT_OWNED, array_keys($in)));
+    if ($owned) apiError(400, implode(', ', $owned) . ' cannot be set through the API: control tests and monitor runs set them');
+    $out = [];
+    foreach (API_CONTROL_ENUMS as $f => $vals) {
+        if (!array_key_exists($f, $in)) continue;
+        if (!is_string($in[$f]) || !in_array($in[$f], $vals, true)) apiError(400, "Invalid {$f}. Allowed: " . implode(', ', $vals));
+        $out[$f] = $in[$f];
+    }
+    foreach (['title' => 500, 'description' => 10000, 'notes' => 10000] as $f => $max) {
+        if (!array_key_exists($f, $in)) continue;
+        if ($in[$f] !== null && !is_string($in[$f])) apiError(400, "{$f} must be a string");
+        $v = trim((string)$in[$f]);
+        if (mb_strlen($v) > $max) apiError(400, "{$f} is longer than {$max} characters");
+        if ($f === 'title' && $v === '') apiError(400, 'title must not be empty');
+        $out[$f] = $v === '' ? null : $v;
+    }
+    if ($creating && empty($out['title'])) apiError(400, 'title is required');
+    if (array_key_exists('owner_user_id', $in)) {
+        $o = $in['owner_user_id'];
+        if ($o === null || $o === '') {
+            $out['owner_user_id'] = null;
+        } else {
+            // Same set the control form offers: active administrator / cyber_grc members.
+            $oid = filter_var($o, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if (!$oid || !$db->fetchOne(
+                "SELECT 1 AS x FROM users u JOIN user_acl_groups uag ON uag.user_id = u.id JOIN acl_groups ag ON ag.id = uag.group_id
+                  WHERE u.id = :id AND u.is_active = 1 AND ag.group_name IN ('administrator', 'cyber_grc')", [':id' => $oid])) {
+                apiError(400, 'owner_user_id must be an active administrator or cyber_grc user');
+            }
+            $out['owner_user_id'] = $oid;
+        }
+    }
+    return $out;
+}
+
+/** next_test_due is a DATETIME column holding a date; the API returns YYYY-MM-DD, like /tests. */
+function apiControlDates(array $c): array {
+    if (isset($c['next_test_due']) && $c['next_test_due'] !== null) $c['next_test_due'] = substr((string)$c['next_test_due'], 0, 10);
+    return $c;
 }
 
 $grcResource = $segments[1] ?? '';
@@ -149,6 +213,7 @@ switch ($grcResource) {
             foreach ($controls as &$c) {
                 $c['requirements'] = $reqs[(int)$c['id']] ?? [];
                 $c += $testSummary[(int)$c['id']] ?? ['tests_count' => 0, 'last_test' => null];
+                $c = apiControlDates($c);
             }
             unset($c);
             apiSuccess(['data' => $controls]);
@@ -156,19 +221,32 @@ switch ($grcResource) {
             $control = $grc->getControl($grcId);
             if (!$control) apiError(404, 'Control not found');
             $control += apiControlTestSummary($db, [$grcId])[$grcId];
-            apiSuccess(['data' => $control]);
-        } elseif ($method === 'POST' && $grcId === null) {
+            apiSuccess(['data' => apiControlDates($control)]);
+        } elseif (($method === 'POST' && $grcId === null) || ($method === 'PUT' && $grcId !== null)) {
+            // Same people who may edit controls on grc-controls.php.
             if (!$apiService->hasWriteAccess($token)) apiError(403, 'Write access required');
+            if (!apiTokenUserAllowed($db, $token, ['administrator', 'cyber_grc'], true)) apiError(403, 'The token user cannot edit controls');
             $input = json_decode(file_get_contents('php://input'), true);
-            if (!$input || empty($input['title'])) apiError(400, 'Title is required');
-            $id = $grc->createControl($input, (int)$token['user_id']);
-            apiSuccess(['data' => $grc->getControl($id)], 201);
-        } elseif ($method === 'PUT' && $grcId !== null) {
-            if (!$apiService->hasWriteAccess($token)) apiError(403, 'Write access required');
-            $input = json_decode(file_get_contents('php://input'), true);
-            if (!$input) apiError(400, 'Request body required');
-            $grc->updateControl($grcId, $input);
-            apiSuccess(['data' => $grc->getControl($grcId)]);
+            if (!is_array($input) || !$input || array_is_list($input)) apiError(400, 'JSON object request body required');
+            if ($method === 'PUT') {
+                $before = $db->fetchOne('SELECT * FROM grc_internal_controls WHERE id = :id', [':id' => $grcId]);
+                if (!$before) apiError(404, 'Control not found');
+                $update = apiControlValidate($db, $input, false);
+                if (!$update) apiError(400, 'No updatable fields. Allowed: title, description, notes, owner_user_id, ' . implode(', ', array_keys(API_CONTROL_ENUMS)));
+                $changed = array_filter($update, fn($v, $k) => (string)($before[$k] ?? '') !== (string)($v ?? ''), ARRAY_FILTER_USE_BOTH);
+                if ($changed) {
+                    $grc->updateControl($grcId, $changed);
+                    Auth::recordEvent((int)$token['user_id'], 'grc_control_api_update', 'grc_internal_controls', $grcId, [
+                        'control_ref' => $before['control_ref'], 'token_id' => (int)$token['id'],
+                        'before' => array_intersect_key($before, $changed), 'after' => $changed,
+                    ]);
+                }
+                $control = $grc->getControl($grcId) + apiControlTestSummary($db, [$grcId])[$grcId];
+                apiSuccess(['data' => apiControlDates($control)]);
+            }
+            $id = $grc->createControl(apiControlValidate($db, $input, true), (int)$token['user_id']);
+            Auth::recordEvent((int)$token['user_id'], 'grc_control_api_create', 'grc_internal_controls', $id, ['token_id' => (int)$token['id']]);
+            apiSuccess(['data' => apiControlDates($grc->getControl($id) + apiControlTestSummary($db, [$id])[$id])], 201);
         }
         break;
 

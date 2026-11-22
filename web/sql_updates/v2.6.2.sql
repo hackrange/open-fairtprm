@@ -7260,7 +7260,7 @@ CREATE TABLE IF NOT EXISTS `grc_control_tests` (
   `control_id` int(10) unsigned NOT NULL,
   `source` varchar(32) NOT NULL COMMENT 'Integration that recorded the test, e.g. open-ctem',
   `external_ref` varchar(64) NOT NULL COMMENT 'Source system attestation id (UUID); unique with source',
-  `tested_at` datetime NOT NULL COMMENT 'UTC',
+  `tested_at` datetime NOT NULL COMMENT 'Application time zone, like other PHP-written times',
   `tested_by` varchar(128) NOT NULL,
   `what_tested` text NOT NULL,
   `expected_result` text NOT NULL,

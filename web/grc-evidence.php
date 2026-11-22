@@ -81,6 +81,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
         $msgType = 'danger';
     } else {
         $action = $_POST['action'] ?? '';
+        // Control test evidence belongs to the integration that recorded the
+        // test (open-ctem): it cannot be deleted, or unlinked from its test's
+        // control, here. Checked on the server; the buttons are only hidden.
+        $evPost = (int)($_POST['evidence_id'] ?? 0);
+        $ctrlPost = (int)($_POST['control_id'] ?? 0);
+        if (($action === 'delete' && $evPost > 0 && $db->fetchOne('SELECT id FROM grc_control_tests WHERE evidence_id = :e', [':e' => $evPost]))
+            || ($action === 'unlink_control' && $evPost > 0 && $db->fetchOne('SELECT id FROM grc_control_tests WHERE evidence_id = :e AND control_id = :c', [':e' => $evPost, ':c' => $ctrlPost]))) {
+            $action = 'refused_control_test';
+            $msg = t('grc-evidence.control_test_locked');
+            $msgType = 'danger';
+        }
 
         if ($action === 'upload') {
             $title = trim($_POST['title'] ?? '');
@@ -208,6 +219,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$readOnly) {
 // Generate CSRF token for GET requests (POST handler above generates its own after validation)
 if (!isset($csrfToken)) {
     $csrfToken = $security->generateCSRFToken();
+}
+
+// evidence_id => control ids of the tests it mirrors (see the POST guard above).
+$ctestLocked = [];
+foreach ($db->fetchAll('SELECT evidence_id, control_id FROM grc_control_tests WHERE evidence_id IS NOT NULL') as $lk) {
+    $ctestLocked[(int)$lk['evidence_id']][] = (int)$lk['control_id'];
 }
 
 // Filters
@@ -380,6 +397,7 @@ $currentPage = 'grc_evidence';
         }
         .footer-modern .footer-modern-body { padding: 20px 30px; width: 100%; }
         .footer-modern .rights { color: rgba(255,255,255,0.7); font-size: 13px; margin: 0; }
+        .ctest-locked { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #eef2ff; color: #3730a3; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -469,7 +487,9 @@ $currentPage = 'grc_evidence';
                     </div>
                     <div style="display:flex;gap:8px;">
                         <a href="grc-evidence.php?download=<?php echo (int)$evidenceDetail['id']; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc-evidence.download')); ?></a>
-                        <?php if (!$readOnly): ?>
+                        <?php if (!$readOnly && isset($ctestLocked[(int)$evidenceDetail['id']])): ?>
+                        <span class="ctest-locked" title="<?php echo e(t('grc-evidence.control_test_locked')); ?>"><?php echo e(t('grc-evidence.owned_by_test')); ?></span>
+                        <?php elseif (!$readOnly): ?>
                         <form method="post" style="display:inline;" data-confirm="Delete this evidence permanently? This removes all control and assessment links.">
                             <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                             <input type="hidden" name="action" value="delete">
@@ -496,6 +516,9 @@ $currentPage = 'grc_evidence';
                         <td><?php echo e(ucfirst(str_replace('_', ' ', $ctrl['implementation_status']))); ?></td>
                         <?php if (!$readOnly): ?>
                         <td>
+                            <?php if (in_array((int)$ctrl['id'], $ctestLocked[(int)$evidenceDetail['id']] ?? [], true)): ?>
+                            <span class="ctest-locked"><?php echo e(t('grc-evidence.owned_by_test')); ?></span>
+                            <?php else: ?>
                             <form method="post" style="display:inline;" data-confirm="Unlink this control?">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                 <input type="hidden" name="action" value="unlink_control">
@@ -503,6 +526,7 @@ $currentPage = 'grc_evidence';
                                 <input type="hidden" name="control_id" value="<?php echo (int)$ctrl['id']; ?>">
                                 <button type="submit" class="btn btn-sm btn-danger"><?php echo e(t('grc-evidence.unlink')); ?></button>
                             </form>
+                            <?php endif; ?>
                         </td>
                         <?php endif; ?>
                     </tr>
@@ -712,12 +736,16 @@ $currentPage = 'grc_evidence';
                         <td><?php echo $ev['collected_at'] ? e(date('M j, Y', strtotime($ev['collected_at']))) : '-'; ?></td>
                         <?php if (!$readOnly): ?>
                         <td>
+                            <?php if (isset($ctestLocked[(int)$ev['id']])): ?>
+                            <span class="ctest-locked"><?php echo e(t('grc-evidence.owned_by_test')); ?></span>
+                            <?php else: ?>
                             <form method="post" style="display:inline;" data-confirm="Delete evidence &quot;<?php echo e($ev['evidence_ref']); ?>&quot;? This removes all control and assessment links and cannot be undone.">
                                 <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="evidence_id" value="<?php echo (int)$ev['id']; ?>">
                                 <button type="submit" class="btn btn-sm btn-danger"><?php echo e(t('grc-evidence.delete')); ?></button>
                             </form>
+                            <?php endif; ?>
                         </td>
                         <?php endif; ?>
                     </tr>

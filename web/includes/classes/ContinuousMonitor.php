@@ -270,10 +270,14 @@ class ContinuousMonitor {
                 default => 'not_tested',
             };
 
+            // Newest event wins: last_tested_at is the time of the latest
+            // monitor run or control test attestation. A test may be recorded
+            // up to a day ahead, so a run never overwrites a newer event.
+            $now = date('Y-m-d H:i:s');
             $this->db->update('grc_internal_controls', [
                 'effectiveness' => $newEffectiveness,
-                'last_tested_at' => date('Y-m-d H:i:s'),
-            ], 'id = :id', [':id' => $controlId]);
+                'last_tested_at' => $now,
+            ], 'id = :id AND (last_tested_at IS NULL OR last_tested_at <= :run_at)', [':id' => (int)$controlId, ':run_at' => $now]);
         }
     }
 
