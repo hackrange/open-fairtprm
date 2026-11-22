@@ -16,6 +16,32 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Control test attestations from open-ctem.** People test a control in
+  open-ctem and record what was tested, who tested it, the expected result,
+  the outcome, pass or fail, and why it failed. open-ctem sends each one to
+  `POST /api/v2/grc/controls/{id}/tests` with its read/write token. The
+  endpoint is idempotent by (`source`, `external_ref`): a repeat updates the
+  same test (200) instead of adding another (201). A read-only token gets 403
+  and an unknown or inactive control gets 404. Every field is validated
+  (400 names the field). `failure_reason` is required on a fail and dropped
+  on a pass. Unknown fields are ignored. A repeat from another integration
+  user, or naming another control, gets 409. The control's `last_tested_at`,
+  `next_test_due` and `effectiveness` (pass = effective, fail = ineffective)
+  follow its newest test only, and no other control field changes. Each test
+  is also stored as evidence (`control_test` / `attestation`, collected at the
+  test time) linked to the control, so audits and evidence packages include
+  it. Every write is audit-logged with the token user, the tester, the
+  control, the result and the `external_ref`.
+  `GET /api/v2/grc/controls/{id}/tests` lists a control's tests, newest
+  first (`limit` up to 100, `offset`). `GET /grc/controls` and
+  `/grc/controls/{id}` now include `tests_count` and `last_test`. The control
+  page in GRC has a Tests section: a table of tests with a Pass/Fail chip,
+  labeled "From open-ctem" and read-only, plus the next test due date, shown
+  in red as Overdue once it has passed. The controls list shows each
+  control's last test result and next due date. New table
+  `grc_control_tests`. An older, unused table of the same name is renamed to
+  `grc_control_tests_legacy`, never dropped.
+
 - **REST API v2: Shadow SaaS and Shadow AI app inventory.** `GET /api/v2/shadow-saas/apps`
   returns each app's name, domain, category, user count, risk score, source
   (Grip, HERO, CSV, manual), status, Grip sanction tag and AI depth. `ai=1`
@@ -930,6 +956,11 @@ project adheres to [Semantic Versioning](https://semver.org/).
   retired ones. Localized in all eight locales.
 
 ### Fixed
+
+- **REST API v2: control sub-paths no longer act on the control.** Any path under
+  `/api/v2/grc/controls/{id}/` was treated as the control itself, so for example
+  `PUT /grc/controls/{id}/anything` updated the control. Unknown sub-resources now
+  answer 404.
 
 - **Iframe embed tokens did not work.** Every embed link answered HTTP 500,
   the one-time raw token was never shown after Create (the admin page is

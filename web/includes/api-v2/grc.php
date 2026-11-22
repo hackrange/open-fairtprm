@@ -50,6 +50,37 @@ function apiIdList($raw): array {
     return array_values(array_filter(array_map('intval', $list), fn($v) => $v > 0));
 }
 
+/**
+ * tests_count and last_test ({result, tested_at, tested_by} or null) per control
+ * id, from grc_control_tests. tested_at is ISO 8601 UTC, as on /controls/{id}/tests.
+ */
+function apiControlTestSummary(Database $db, array $controlIds): array {
+    $ids = array_values(array_unique(array_filter(array_map('intval', $controlIds), fn($v) => $v > 0)));
+    $out = [];
+    foreach ($ids as $id) $out[$id] = ['tests_count' => 0, 'last_test' => null];
+    if (!$ids) return $out;
+    $in = [];
+    $params = [];
+    foreach ($ids as $i => $id) { $in[] = ":c{$i}"; $params[":c{$i}"] = $id; }
+    $in = implode(', ', $in);
+    foreach ($db->fetchAll("SELECT control_id, COUNT(*) AS n FROM grc_control_tests WHERE control_id IN ({$in}) GROUP BY control_id", $params) as $r) {
+        $out[(int)$r['control_id']]['tests_count'] = (int)$r['n'];
+    }
+    // Newest per control: no other test of the control is later (ties broken by id).
+    foreach ($db->fetchAll(
+        "SELECT t.control_id, t.result, t.tested_at, t.tested_by FROM grc_control_tests t
+          WHERE t.control_id IN ({$in}) AND NOT EXISTS (
+                SELECT 1 FROM grc_control_tests n WHERE n.control_id = t.control_id
+                   AND (n.tested_at > t.tested_at OR (n.tested_at = t.tested_at AND n.id > t.id)))", $params) as $r) {
+        $out[(int)$r['control_id']]['last_test'] = [
+            'result'    => $r['result'],
+            'tested_at' => str_replace(' ', 'T', (string)$r['tested_at']) . 'Z',
+            'tested_by' => $r['tested_by'],
+        ];
+    }
+    return $out;
+}
+
 $grcResource = $segments[1] ?? '';
 $grcId = isset($segments[2]) && ctype_digit((string)$segments[2]) ? (int)$segments[2] : null;
 $grcSub = $segments[3] ?? null;
@@ -92,6 +123,12 @@ switch ($grcResource) {
         break;
 
     case 'controls':
+        // Sub-resources first: /controls/{id}/<anything> must never reach the
+        // control's own GET/PUT below (PUT /controls/{id}/x used to update the control).
+        if ($grcSub !== null) {
+            if ($grcSub === 'tests') require __DIR__ . '/grc-control-tests.php';
+            apiError(404, 'GRC resource not found');
+        }
         if ($method === 'GET' && $grcId === null) {
             $filters = array_intersect_key($_GET, array_flip(['status', 'framework_id', 'search', 'type']));
             $controls = apiFilterSince($grc->getControls($filters), $since);
@@ -108,12 +145,17 @@ switch ($grcResource) {
                 unset($r['control_id']);
                 $reqs[$cid][] = $r;
             }
-            foreach ($controls as &$c) $c['requirements'] = $reqs[(int)$c['id']] ?? [];
+            $testSummary = apiControlTestSummary($db, array_column($controls, 'id'));
+            foreach ($controls as &$c) {
+                $c['requirements'] = $reqs[(int)$c['id']] ?? [];
+                $c += $testSummary[(int)$c['id']] ?? ['tests_count' => 0, 'last_test' => null];
+            }
             unset($c);
             apiSuccess(['data' => $controls]);
         } elseif ($method === 'GET' && $grcId !== null) {
             $control = $grc->getControl($grcId);
             if (!$control) apiError(404, 'Control not found');
+            $control += apiControlTestSummary($db, [$grcId])[$grcId];
             apiSuccess(['data' => $control]);
         } elseif ($method === 'POST' && $grcId === null) {
             if (!$apiService->hasWriteAccess($token)) apiError(403, 'Write access required');

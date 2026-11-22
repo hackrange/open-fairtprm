@@ -729,25 +729,7 @@ CREATE TABLE IF NOT EXISTS `grc_control_requirement_map` (
   CONSTRAINT `fk_map_control` FOREIGN KEY (`control_id`) REFERENCES `grc_internal_controls` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_map_requirement` FOREIGN KEY (`requirement_id`) REFERENCES `grc_framework_requirements` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=40 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE TABLE IF NOT EXISTS `grc_control_tests` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `control_id` int(10) unsigned NOT NULL,
-  `test_date` datetime NOT NULL DEFAULT current_timestamp(),
-  `tester_user_id` int(10) unsigned DEFAULT NULL,
-  `test_type` enum('design','operating_effectiveness','walkthrough','inquiry','observation','inspection','reperformance') DEFAULT 'operating_effectiveness',
-  `result` enum('effective','partially_effective','ineffective','not_tested') NOT NULL,
-  `sample_size` int(10) unsigned DEFAULT NULL,
-  `exceptions_found` int(10) unsigned DEFAULT 0,
-  `description` text DEFAULT NULL,
-  `evidence_ids` text DEFAULT NULL COMMENT 'JSON array of evidence IDs',
-  `notes` text DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `idx_control` (`control_id`),
-  KEY `idx_date` (`test_date`),
-  KEY `idx_result` (`result`),
-  CONSTRAINT `fk_ctest_control` FOREIGN KEY (`control_id`) REFERENCES `grc_internal_controls` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- grc_control_tests is created near the end of this file (control test attestations).
 CREATE TABLE IF NOT EXISTS `grc_crosswalk_cache` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `source_framework_id` int(10) unsigned NOT NULL,
@@ -793,8 +775,8 @@ CREATE TABLE IF NOT EXISTS `grc_evidence` (
   `evidence_ref` varchar(50) NOT NULL COMMENT 'Reference code (e.g., EV-001)',
   `title` varchar(500) NOT NULL,
   `description` text DEFAULT NULL,
-  `evidence_type` enum('screenshot','api_log','document','configuration','report','certificate','policy','automated','manual_upload') DEFAULT 'manual_upload',
-  `collection_method` enum('manual','automated','hybrid') DEFAULT 'manual',
+  `evidence_type` enum('screenshot','api_log','document','configuration','report','certificate','policy','automated','manual_upload','control_test') DEFAULT 'manual_upload',
+  `collection_method` enum('manual','automated','hybrid','attestation') DEFAULT 'manual',
   `file_name` varchar(255) DEFAULT NULL,
   `file_mime` varchar(100) DEFAULT NULL,
   `file_size` bigint(20) unsigned DEFAULT NULL,
@@ -7239,6 +7221,65 @@ SET @sql = IF((SELECT COUNT(*) FROM information_schema.statistics
   'ALTER TABLE `grc_risk_register` ADD UNIQUE KEY `uk_risk_source_ref` (`source`, `external_ref`)',
   'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- =============================================================================
+-- Control test attestations (2026-11-22)
+-- open-ctem records control tests (what was tested, by whom, expected result,
+-- outcome, pass/fail, failure reason) and sends each one through
+-- POST /api/v2/grc/controls/{id}/tests. Idempotent by (source, external_ref).
+-- Each test is also stored as grc_evidence (control_test / attestation) linked
+-- to the control, so audits and evidence packages include it.
+-- =============================================================================
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_evidence' AND column_name = 'evidence_type'
+     AND column_type LIKE '%''control_test''%') = 0,
+  'ALTER TABLE `grc_evidence` MODIFY COLUMN `evidence_type` ENUM(''screenshot'',''api_log'',''document'',''configuration'',''report'',''certificate'',''policy'',''automated'',''manual_upload'',''control_test'') DEFAULT ''manual_upload''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_evidence' AND column_name = 'collection_method'
+     AND column_type LIKE '%''attestation''%') = 0,
+  'ALTER TABLE `grc_evidence` MODIFY COLUMN `collection_method` ENUM(''manual'',''automated'',''hybrid'',''attestation'') DEFAULT ''manual''',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- An unused grc_control_tests of an older shape (test_date, tester_user_id,
+-- effective/ineffective result; nothing read or wrote it) predates this table.
+-- It is renamed out of the way, never dropped, so any rows in it are kept.
+SET @sql = IF((SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_control_tests' AND column_name = 'test_date') = 1
+  AND (SELECT COUNT(*) FROM information_schema.columns
+   WHERE table_schema = DATABASE() AND table_name = 'grc_control_tests' AND column_name = 'external_ref') = 0
+  AND (SELECT COUNT(*) FROM information_schema.tables
+   WHERE table_schema = DATABASE() AND table_name = 'grc_control_tests_legacy') = 0,
+  'RENAME TABLE `grc_control_tests` TO `grc_control_tests_legacy`',
+  'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+CREATE TABLE IF NOT EXISTS `grc_control_tests` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `control_id` int(10) unsigned NOT NULL,
+  `source` varchar(32) NOT NULL COMMENT 'Integration that recorded the test, e.g. open-ctem',
+  `external_ref` varchar(64) NOT NULL COMMENT 'Source system attestation id (UUID); unique with source',
+  `tested_at` datetime NOT NULL COMMENT 'UTC',
+  `tested_by` varchar(128) NOT NULL,
+  `what_tested` text NOT NULL,
+  `expected_result` text NOT NULL,
+  `outcome` text NOT NULL,
+  `result` enum('pass','fail') NOT NULL,
+  `failure_reason` text DEFAULT NULL,
+  `next_test_due` date DEFAULT NULL,
+  `frequency_days` int(10) unsigned DEFAULT NULL,
+  `evidence_id` int(10) unsigned DEFAULT NULL COMMENT 'grc_evidence row mirroring this test',
+  `created_by` int(10) unsigned DEFAULT NULL COMMENT 'API token user that recorded it',
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_control_test_source_ref` (`source`, `external_ref`),
+  KEY `idx_control_test_control` (`control_id`, `tested_at`),
+  KEY `idx_control_test_evidence` (`evidence_id`),
+  CONSTRAINT `fk_control_test_control` FOREIGN KEY (`control_id`) REFERENCES `grc_internal_controls` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_control_test_evidence` FOREIGN KEY (`evidence_id`) REFERENCES `grc_evidence` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

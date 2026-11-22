@@ -274,6 +274,42 @@ if ($viewId > 0) {
     $controlDetail = $grc->getControl($editId);
 }
 
+// Control test attestations (written by integrations over the API; read-only here).
+// Newest first, capped at 100 like GET /api/v2/grc/controls/{id}/tests.
+$controlTests = [];
+$controlTestsTotal = 0;
+if ($viewId > 0 && $controlDetail) {
+    $controlTests = $db->fetchAll(
+        'SELECT id, source, external_ref, tested_at, tested_by, what_tested, expected_result,
+                outcome, result, failure_reason, next_test_due, evidence_id
+           FROM grc_control_tests WHERE control_id = :cid
+          ORDER BY tested_at DESC, id DESC LIMIT 100',
+        [':cid' => $viewId]
+    );
+    $controlTestsTotal = (int)($db->fetchOne('SELECT COUNT(*) AS c FROM grc_control_tests WHERE control_id = :cid', [':cid' => $viewId])['c'] ?? 0);
+}
+
+// Newest test per listed control, for the list's Last test column.
+$lastTests = [];
+if (!$viewId && $controls) {
+    foreach ($db->fetchAll(
+        'SELECT t.control_id, t.result, t.tested_at FROM grc_control_tests t
+          WHERE NOT EXISTS (SELECT 1 FROM grc_control_tests n WHERE n.control_id = t.control_id
+                AND (n.tested_at > t.tested_at OR (n.tested_at = t.tested_at AND n.id > t.id)))') as $lt) {
+        $lastTests[(int)$lt['control_id']] = $lt;
+    }
+}
+
+/** "From open-ctem" style label for a test's source system. */
+function grcControlTestSourceLabel(string $source): string {
+    return t('grc-controls.test_from_source', in_array($source, ['open-ctem', 'open_ctem'], true) ? 'open-ctem' : $source);
+}
+
+/** True when a next-test-due date (DATE or DATETIME) is before today. */
+function grcControlTestOverdue(?string $due): bool {
+    return $due !== null && $due !== '' && substr($due, 0, 10) < date('Y-m-d');
+}
+
 // Get available evidence for linking (not already linked to this control)
 $availableEvidence = [];
 if ($viewId > 0 && $controlDetail) {
@@ -438,6 +474,15 @@ $showForm = isset($_GET['new']) || $editId > 0;
 
         .autosave-status { font-size: 12px; color: #28a745; margin-left: 12px; }
 
+        .test-chip { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+        .test-chip-pass { background: #d1fae5; color: #065f46; }
+        .test-chip-fail { background: #fee2e2; color: #991b1b; }
+        .test-source { display: inline-block; margin-top: 4px; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; background: #eef2ff; color: #3730a3; white-space: nowrap; }
+        .test-due-overdue, .detail-item .value.test-due-overdue { color: #b91c1c; font-weight: 600; }
+        .test-overdue-tag { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; background: #fee2e2; color: #991b1b; }
+        .test-text { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 280px; }
+        .test-note { color: #6b7280; font-size: 12px; margin: 0 0 12px; }
+
         @media (max-width: 900px) {
             .grc-form .form-row, .grc-form .form-row-3 { grid-template-columns: 1fr; }
             .detail-grid { grid-template-columns: 1fr; }
@@ -496,6 +541,41 @@ $showForm = isset($_GET['new']) || $editId > 0;
                 <div style="margin-top:16px;">
                     <a href="grc-controls.php?edit=<?php echo (int)$controlDetail['id']; ?>" class="btn btn-sm btn-outline"><?php echo e(t('grc-controls.edit_control')); ?></a>
                 </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Control tests (attestations from the integration that owns them; read-only here) -->
+            <?php
+                $ctDue = $controlDetail['next_test_due'] ?? null;
+                $ctOverdue = grcControlTestOverdue($ctDue);
+            ?>
+            <div class="detail-card" id="control-tests">
+                <h3><?php echo e(t('grc-controls.tests')); ?> (<?php echo (int)$controlTestsTotal; ?>)</h3>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.effectiveness')); ?></div><div class="value"><?php echo e(ucfirst(str_replace('_', ' ', (string)($controlDetail['effectiveness'] ?? 'not_tested')))); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.last_tested')); ?></div><div class="value"><?php echo !empty($controlDetail['last_tested_at']) ? e(date('M j, Y H:i', strtotime($controlDetail['last_tested_at'])) . ' UTC') : e(t('grc-controls.never_tested')); ?></div></div>
+                    <div class="detail-item"><div class="label"><?php echo e(t('grc-controls.next_test_due')); ?></div><div class="value<?php echo $ctOverdue ? ' test-due-overdue' : ''; ?>" data-test-due="<?php echo $ctOverdue ? 'overdue' : 'ok'; ?>"><?php if (!empty($ctDue)): ?><?php echo e(date('M j, Y', strtotime($ctDue))); ?><?php if ($ctOverdue): ?><span class="test-overdue-tag"><?php echo e(t('grc-controls.overdue')); ?></span><?php endif; ?><?php else: ?>-<?php endif; ?></div></div>
+                </div>
+                <?php if (!empty($controlTests)): ?>
+                <p class="test-note"><?php echo e(t('grc-controls.tests_read_only')); ?><?php if ($controlTestsTotal > count($controlTests)): ?> <?php echo e(t('grc-controls.tests_showing_latest', count($controlTests), $controlTestsTotal)); ?><?php endif; ?></p>
+                <table class="grc-table" id="control-tests-table">
+                    <thead><tr><th><?php echo e(t('grc-controls.test_date')); ?></th><th><?php echo e(t('grc-controls.tested_by')); ?></th><th><?php echo e(t('grc-controls.what_tested')); ?></th><th><?php echo e(t('grc-controls.expected_result')); ?></th><th><?php echo e(t('grc-controls.outcome')); ?></th><th><?php echo e(t('grc-controls.test_result')); ?></th><th><?php echo e(t('grc-controls.failure_reason')); ?></th></tr></thead>
+                    <tbody>
+                    <?php foreach ($controlTests as $ct): ?>
+                    <tr data-test-id="<?php echo (int)$ct['id']; ?>">
+                        <td style="white-space:nowrap;"><?php echo e(date('M j, Y H:i', strtotime($ct['tested_at'])) . ' UTC'); ?><br><span class="test-source"><?php echo e(grcControlTestSourceLabel((string)$ct['source'])); ?></span></td>
+                        <td><?php echo e($ct['tested_by']); ?></td>
+                        <td><div class="test-text"><?php echo e($ct['what_tested']); ?></div></td>
+                        <td><div class="test-text"><?php echo e($ct['expected_result']); ?></div></td>
+                        <td><div class="test-text"><?php echo e($ct['outcome']); ?></div></td>
+                        <td><span class="test-chip test-chip-<?php echo $ct['result'] === 'pass' ? 'pass' : 'fail'; ?>"><?php echo e(t($ct['result'] === 'pass' ? 'grc-controls.test_pass' : 'grc-controls.test_fail')); ?></span></td>
+                        <td><div class="test-text"><?php echo $ct['failure_reason'] !== null && $ct['failure_reason'] !== '' ? e($ct['failure_reason']) : '-'; ?></div></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <?php else: ?>
+                <p style="color:#6b7280;font-size:13px;margin:0;"><?php echo e(t('grc-controls.no_tests')); ?></p>
                 <?php endif; ?>
             </div>
 
@@ -830,11 +910,13 @@ $showForm = isset($_GET['new']) || $editId > 0;
                         <th><?php echo e(t('grc-controls.requirements')); ?></th>
                         <th><?php echo e(t('grc-controls.evidence')); ?></th>
                         <th><?php echo e(t('grc-controls.frameworks')); ?></th>
+                        <th><?php echo e(t('grc-controls.last_test')); ?></th>
+                        <th><?php echo e(t('grc-controls.next_due')); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($controls)): ?>
-                    <tr><td colspan="8" style="text-align:center;color:#6b7280;padding:30px;"><?php echo e(t('grc-controls.no_controls_found')); ?></td></tr>
+                    <tr><td colspan="10" style="text-align:center;color:#6b7280;padding:30px;"><?php echo e(t('grc-controls.no_controls_found')); ?></td></tr>
                     <?php else: ?>
                     <?php foreach ($controls as $c): ?>
                     <tr>
@@ -846,6 +928,9 @@ $showForm = isset($_GET['new']) || $editId > 0;
                         <td style="text-align:center;"><?php echo (int)$c['mapped_requirements']; ?></td>
                         <td style="text-align:center;"><?php echo (int)$c['evidence_count']; ?></td>
                         <td style="font-size:12px;color:#6b7280;"><?php echo e($c['frameworks'] ?? '-'); ?></td>
+                        <?php $lt = $lastTests[(int)$c['id']] ?? null; $cDue = $c['next_test_due'] ?? null; $cOverdue = grcControlTestOverdue($cDue); ?>
+                        <td style="white-space:nowrap;" data-last-test="<?php echo $lt ? e($lt['result']) : 'none'; ?>"><?php if ($lt): ?><span class="test-chip test-chip-<?php echo $lt['result'] === 'pass' ? 'pass' : 'fail'; ?>"><?php echo e(t($lt['result'] === 'pass' ? 'grc-controls.test_pass' : 'grc-controls.test_fail')); ?></span> <span style="font-size:12px;color:#6b7280;"><?php echo e(date('M j, Y', strtotime($lt['tested_at']))); ?></span><?php else: ?><span style="font-size:12px;color:#9ca3af;"><?php echo e(t('grc-controls.never_tested')); ?></span><?php endif; ?></td>
+                        <td style="white-space:nowrap;font-size:12px;" class="<?php echo $cOverdue ? 'test-due-overdue' : ''; ?>" data-test-due="<?php echo $cOverdue ? 'overdue' : 'ok'; ?>"><?php echo !empty($cDue) ? e(date('M j, Y', strtotime($cDue))) : '-'; ?><?php if ($cOverdue): ?><span class="test-overdue-tag"><?php echo e(t('grc-controls.overdue')); ?></span><?php endif; ?></td>
                     </tr>
                     <?php endforeach; ?>
                     <?php endif; ?>

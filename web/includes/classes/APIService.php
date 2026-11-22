@@ -500,7 +500,7 @@ class APIService {
             '/grc/controls' => [
                 'get' => [
                     'summary' => 'List internal controls',
-                    'description' => 'Retrieve all internal controls. Supports filtering by status, framework, type, and keyword.',
+                    'description' => 'Retrieve all active internal controls. Supports filtering by status, framework, type, and keyword. Each control carries effectiveness, last_tested_at, next_test_due, tests_count and last_test ({result, tested_at, tested_by} of its newest test, or null).',
                     'tags' => ['GRC'],
                     'parameters' => [
                         ['name' => 'status', 'in' => 'query', 'description' => 'Filter by control status', 'schema' => ['type' => 'string']],
@@ -529,7 +529,7 @@ class APIService {
             '/grc/controls/{id}' => [
                 'get' => [
                     'summary' => 'Get control details',
-                    'description' => 'Retrieve a single control with its framework and requirement mappings.',
+                    'description' => 'Retrieve a single control with its framework and requirement mappings, effectiveness, last_tested_at, next_test_due, tests_count and last_test ({result, tested_at, tested_by} or null).',
                     'tags' => ['GRC'],
                     'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'description' => 'Control ID', 'schema' => ['type' => 'integer']]],
                     'responses' => ['200' => ['description' => 'Control details with mappings'], '404' => ['description' => 'Control not found']],
@@ -548,6 +548,51 @@ class APIService {
                         ]]]],
                     ],
                     'responses' => ['200' => ['description' => 'Control updated'], '403' => ['description' => 'Write access required']],
+                ],
+            ],
+            '/grc/controls/{id}/tests' => [
+                'get' => [
+                    'summary' => 'List control test attestations',
+                    'description' => 'The control\'s tests, newest first (by tested_at), with every stored field. Read access is enough. tested_at is ISO 8601 UTC. 404 when the control is unknown or inactive.',
+                    'tags' => ['GRC'],
+                    'parameters' => [
+                        ['name' => 'id', 'in' => 'path', 'required' => true, 'description' => 'Control ID', 'schema' => ['type' => 'integer']],
+                        ['name' => 'limit', 'in' => 'query', 'required' => false, 'description' => 'Max results (1-100)', 'schema' => ['type' => 'integer', 'default' => 100, 'maximum' => 100]],
+                        ['name' => 'offset', 'in' => 'query', 'required' => false, 'description' => 'Pagination offset', 'schema' => ['type' => 'integer', 'default' => 0]],
+                    ],
+                    'responses' => ['200' => ['description' => 'data: [{id, control_id, source, external_ref, tested_at, tested_by, what_tested, expected_result, outcome, result, failure_reason, next_test_due, frequency_days, evidence_id, created_at, updated_at}], total, limit, offset'], '404' => ['description' => 'Control not found']],
+                ],
+                'post' => [
+                    'summary' => 'Record a control test attestation',
+                    'description' => 'Records a test of the control run in another tool (e.g. open-ctem). Requires read_write scope and GRC access. Idempotent by (source, external_ref): repeating an external_ref updates that test and its evidence (200) instead of adding a second one (201). A repeat must come from the same token user and name the same control (409 otherwise). When this is now the control\'s newest test (by tested_at), the control\'s last_tested_at, next_test_due and effectiveness (pass = effective, fail = ineffective) follow it; no other control field changes. Each test is also stored as evidence (evidence_type control_test, collection_method attestation, collected_at = tested_at) linked to the control, so audits and evidence packages include it. Every write is audit-logged. Unknown fields are ignored. A tested_at without an offset is read as UTC.',
+                    'tags' => ['GRC'],
+                    'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'description' => 'FairTPRM control ID', 'schema' => ['type' => 'integer']]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['type' => 'object',
+                            'required' => ['source', 'external_ref', 'tested_at', 'tested_by', 'what_tested', 'expected_result', 'outcome', 'result'],
+                            'properties' => [
+                                'source' => ['type' => 'string', 'pattern' => '^[a-z0-9_-]{1,32}$', 'description' => 'Calling system, e.g. open-ctem'],
+                                'external_ref' => ['type' => 'string', 'format' => 'uuid', 'description' => 'The attestation\'s id in the calling system'],
+                                'tested_at' => ['type' => 'string', 'format' => 'date-time', 'description' => 'ISO 8601; not more than 1 day in the future'],
+                                'tested_by' => ['type' => 'string', 'maxLength' => 128, 'description' => 'Letters, digits, spaces and . @ , ( ) \' - only, e.g. jdoe (Doe, Jane)'],
+                                'what_tested' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 5000],
+                                'expected_result' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 5000],
+                                'outcome' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 5000],
+                                'result' => ['type' => 'string', 'enum' => ['pass', 'fail']],
+                                'failure_reason' => ['type' => 'string', 'maxLength' => 5000, 'nullable' => true, 'description' => 'Required (1-5000 characters) when result is fail; ignored and stored as null on a pass'],
+                                'next_test_due' => ['type' => 'string', 'format' => 'date', 'nullable' => true],
+                                'frequency_days' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 3650, 'nullable' => true],
+                            ]]]],
+                    ],
+                    'responses' => [
+                        '201' => ['description' => 'Created. data: {id, control_id, source, external_ref, tested_at, tested_by, result, failure_reason, next_test_due, evidence_id, created: true}'],
+                        '200' => ['description' => 'Existing test (same source and external_ref) updated; created: false'],
+                        '400' => ['description' => 'Validation error naming the field'],
+                        '403' => ['description' => 'Write access required'],
+                        '404' => ['description' => 'Control not found (unknown or inactive)'],
+                        '409' => ['description' => 'external_ref belongs to another integration user or another control, or a concurrent write; retry'],
+                    ],
                 ],
             ],
             '/grc/evidence' => [
