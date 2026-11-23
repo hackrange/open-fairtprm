@@ -286,6 +286,7 @@ RUN set -e; \
         /var/www/html/includes/api-v2/grc-risks.php \
         /var/www/html/includes/api-v2/grc-control-tests.php \
         /var/www/html/includes/api-v2/shadow-saas.php \
+        /var/www/html/includes/api-v2/vendor-score-history.php \
         /var/www/html/includes/admin/open-ctem.php \
         /var/www/html/api/v2/router.php \
         /var/www/html/includes/partials/vendor-tasks-data.php \

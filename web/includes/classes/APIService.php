@@ -397,6 +397,30 @@ class APIService {
                     'responses' => ['200' => ['description' => 'SRS score history']],
                 ],
             ],
+            '/vendors/score-history' => [
+                'get' => [
+                    'summary' => 'Vendor score history',
+                    'description' => 'Read-only score history for every vendor the token user may see (same scoping as GET /vendors), ordered by vendor id, so the combined security score percentage can be worked out as of any date. '
+                        . 'For each vendor: every UpGuard, Shodan and custom score from `since` on, plus the last one before `since`, oldest first. UpGuard and Shodan rows only where score > 0. '
+                        . 'Custom entries are changes: score null means the custom score was cleared at changed_at. '
+                        . 'The combined percentage (as shown on the vendor) is the average of upguard / upguard_max_score * 100, shodan (0-100) and custom (1-100), counting only those set and above 0, rounded to a whole number. '
+                        . '"current" holds the vendor\'s current scores with combined_pct and grade (null when unscored). '
+                        . 'Times are in the server time zone given by the top-level "timezone". Each list holds at most 1000 rows (newest kept); a vendor with a cut list carries "truncated": true. '
+                        . 'Response: {data: [{id, vendor_name, vendor_tier, status, current: {upguard, shodan, custom, combined_pct, grade}, upguard: [{score, scored_at}], shodan: [{score, scored_at}], custom: [{score, changed_at}], truncated?}], upguard_max_score, timezone, since, total, limit, offset}.',
+                    'tags' => ['TPRM'],
+                    'parameters' => [
+                        ['name' => 'since', 'in' => 'query', 'description' => 'YYYY-MM-DD (server time zone); default January 1 of last year', 'schema' => ['type' => 'string', 'format' => 'date']],
+                        ['name' => 'tier', 'in' => 'query', 'description' => 'Only vendors of this tier', 'schema' => ['type' => 'string', 'enum' => ['1', '2', '3']]],
+                        ['name' => 'limit', 'in' => 'query', 'description' => 'Vendors per page (1-200)', 'schema' => ['type' => 'integer', 'default' => 100, 'minimum' => 1, 'maximum' => 200]],
+                        ['name' => 'offset', 'in' => 'query', 'description' => 'Pagination offset', 'schema' => ['type' => 'integer', 'default' => 0, 'minimum' => 0]],
+                    ],
+                    'responses' => [
+                        '200' => ['description' => 'Score history per vendor with pagination metadata'],
+                        '400' => ['description' => 'Invalid since, tier, limit or offset ({"error": "<which parameter and why>"})'],
+                        '403' => ['description' => 'No access to TPRM module'],
+                    ],
+                ],
+            ],
             '/vendors/{id}/assessments' => [
                 'get' => [
                     'summary' => 'Get vendor assessments',

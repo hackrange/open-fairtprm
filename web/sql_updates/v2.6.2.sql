@@ -7280,6 +7280,70 @@ CREATE TABLE IF NOT EXISTS `grc_control_tests` (
   CONSTRAINT `fk_control_test_control` FOREIGN KEY (`control_id`) REFERENCES `grc_internal_controls` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_control_test_evidence` FOREIGN KEY (`evidence_id`) REFERENCES `grc_evidence` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- Vendor custom score history (GET /api/v2/vendors/score-history)
+-- UpGuard and Shodan already keep history (vendor_srs_scores, vendor_shodan_scores);
+-- the custom score was a single column whose changes only reached audit_log,
+-- which is purged after log_retention_days. One row per change; score NULL = cleared.
+-- changed_at is UTC (audit_log.created_at, which this is backfilled from, is UTC);
+-- the API converts it to the server time zone like the other score times.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `vendor_custom_score_history` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `vendor_onboarding_id` int(10) unsigned NOT NULL,
+  `score` int(11) DEFAULT NULL COMMENT 'Custom score 1-100 from changed_at on; NULL = cleared',
+  `changed_at` datetime NOT NULL COMMENT 'UTC',
+  `changed_by` int(10) unsigned DEFAULT NULL COMMENT 'users.id; NULL = system / backfill',
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_custom_score_hist_vendor_time` (`vendor_onboarding_id`, `changed_at`),
+  CONSTRAINT `fk_custom_score_hist_vendor` FOREIGN KEY (`vendor_onboarding_id`) REFERENCES `vendor_onboarding_requests` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- One-time backfill, guarded by the app_config marker so a re-applied file
+-- never duplicates rows. Read TIMESTAMPs as UTC regardless of the session zone.
+SET @fairtprm_saved_tz = @@session.time_zone;
+SET time_zone = '+00:00';
+
+-- 1. Every surviving audit_log entry for a custom score change, oldest first.
+INSERT INTO `vendor_custom_score_history` (`vendor_onboarding_id`, `score`, `changed_at`, `changed_by`)
+SELECT a.record_id,
+       CASE WHEN a.action = 'vendor_custom_score_cleared' THEN NULL
+            ELSE CAST(JSON_UNQUOTE(JSON_EXTRACT(a.new_values, '$.custom_score')) AS UNSIGNED) END,
+       a.created_at,
+       a.user_id
+  FROM audit_log a
+  JOIN vendor_onboarding_requests v ON v.id = a.record_id
+ WHERE NOT EXISTS (SELECT 1 FROM app_config c WHERE c.config_key = 'custom_score_history_backfilled')
+   AND a.created_at IS NOT NULL
+   AND (a.action = 'vendor_custom_score_cleared'
+        OR (a.action = 'vendor_custom_score_updated'
+            AND JSON_UNQUOTE(JSON_EXTRACT(a.new_values, '$.custom_score')) REGEXP '^[0-9]{1,3}$'
+            AND CAST(JSON_UNQUOTE(JSON_EXTRACT(a.new_values, '$.custom_score')) AS UNSIGNED) BETWEEN 1 AND 100))
+ ORDER BY a.created_at, a.id;
+
+-- 2. Where the history does not end at the vendor's current custom score (no
+-- history at all, or a change that never reached audit_log), add the current
+-- value as of now: we cannot know when it was set, so it counts from now on.
+INSERT INTO `vendor_custom_score_history` (`vendor_onboarding_id`, `score`, `changed_at`, `changed_by`)
+SELECT v.id, v.custom_score, UTC_TIMESTAMP(), NULL
+  FROM vendor_onboarding_requests v
+ WHERE NOT EXISTS (SELECT 1 FROM app_config c WHERE c.config_key = 'custom_score_history_backfilled')
+   AND (v.custom_score IS NOT NULL
+        OR EXISTS (SELECT 1 FROM vendor_custom_score_history hx WHERE hx.vendor_onboarding_id = v.id))
+   AND NOT EXISTS (
+        SELECT 1 FROM vendor_custom_score_history h1
+         WHERE h1.vendor_onboarding_id = v.id
+           AND h1.score <=> v.custom_score
+           AND NOT EXISTS (SELECT 1 FROM vendor_custom_score_history h2
+                            WHERE h2.vendor_onboarding_id = v.id
+                              AND (h2.changed_at > h1.changed_at OR (h2.changed_at = h1.changed_at AND h2.id > h1.id))));
+
+INSERT IGNORE INTO `app_config` (`config_key`, `config_value`, `description`) VALUES
+('custom_score_history_backfilled', '1', 'vendor_custom_score_history was backfilled from audit_log once (v2.6.2)');
+
+SET time_zone = @fairtprm_saved_tz;
 -- =============================================================================
 -- FairTPRM v2.6.2 schema and seed data complete
 -- =============================================================================

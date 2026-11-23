@@ -802,30 +802,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isStakeholderView && !$isAuditor)
         }
     } elseif (isset($_POST['update_custom_score'])) {
         $customScoreInput = trim($_POST['custom_score'] ?? '');
+        // setCustomScore() writes the column and its vendor_custom_score_history
+        // row in one transaction (the history feeds GET /api/v2/vendors/score-history).
         if ($customScoreInput === '' || $customScoreInput === 'null') {
             // Un-score: set to NULL
-            $db->query(
-                'UPDATE vendor_onboarding_requests SET custom_score = NULL WHERE id = ?',
-                [$vendorId]
-            );
-            $auth->audit($user['id'], 'vendor_custom_score_cleared', 'vendor_onboarding_requests', $vendorId, [
-                'old' => ['custom_score' => $vendor['custom_score'] ?? null]
-            ]);
-            $success = 'Custom score has been removed.';
+            try {
+                $srsService->setCustomScore((int)$vendorId, null, (int)$user['id']);
+                $auth->audit($user['id'], 'vendor_custom_score_cleared', 'vendor_onboarding_requests', $vendorId, [
+                    'old' => ['custom_score' => $vendor['custom_score'] ?? null]
+                ]);
+                $success = 'Custom score has been removed.';
+            } catch (Throwable $e) {
+                error_log('Custom score clear failed for vendor ' . (int)$vendorId . ': ' . $e->getMessage());
+                $error = 'Custom score could not be removed.';
+            }
+        } elseif (!preg_match('/^\d{1,3}$/', $customScoreInput) || (int)$customScoreInput < 1 || (int)$customScoreInput > 100) {
+            $error = 'Custom score must be between 1 and 100.';
         } else {
             $customScoreVal = (int)$customScoreInput;
-            if ($customScoreVal < 1 || $customScoreVal > 100) {
-                $error = 'Custom score must be between 1 and 100.';
-            } else {
-                $db->query(
-                    'UPDATE vendor_onboarding_requests SET custom_score = ? WHERE id = ?',
-                    [$customScoreVal, $vendorId]
-                );
+            try {
+                $srsService->setCustomScore((int)$vendorId, $customScoreVal, (int)$user['id']);
                 $auth->audit($user['id'], 'vendor_custom_score_updated', 'vendor_onboarding_requests', $vendorId, [
                     'old' => ['custom_score' => $vendor['custom_score'] ?? null],
                     'new' => ['custom_score' => $customScoreVal]
                 ]);
                 $success = 'Custom score updated to ' . $customScoreVal . '.';
+            } catch (Throwable $e) {
+                error_log('Custom score update failed for vendor ' . (int)$vendorId . ': ' . $e->getMessage());
+                $error = 'Custom score could not be saved.';
             }
         }
         // Re-fetch vendor data after custom score change

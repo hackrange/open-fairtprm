@@ -168,7 +168,12 @@ try {
                                    WHERE s.request_id = r.id AND s.user_id = :u2))',
                     [':id' => (int)$vid, ':u' => $tokenUserId, ':u2' => $tokenUserId]));
             };
-            if ($method === 'GET' && $resourceId === null) {
+            if (($segments[1] ?? '') === 'score-history') {
+                // Score history for every vendor in the token's scope (read-only).
+                require dirname(dirname(__DIR__)) . '/includes/api-v2/vendor-score-history.php';
+            } elseif (isset($segments[1]) && $resourceId === null) {
+                apiError(404, 'Vendor resource not found');
+            } elseif ($method === 'GET' && $resourceId === null) {
                 $status = $_GET['status'] ?? null;
                 $search = $_GET['search'] ?? null;
                 $limit = min(200, max(1, (int)($_GET['limit'] ?? 50)));

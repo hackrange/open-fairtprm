@@ -16,6 +16,30 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Vendor score history in the REST API.** New read-only
+  `GET /api/v2/vendors/score-history` lets open-ctem work out each vendor's
+  combined security score percentage as of any date (for example, the
+  average score of tier 1 vendors at each quarter end). For every vendor the
+  token may see (same scoping as `GET /vendors`, ordered by id), it returns
+  every UpGuard, Shodan and custom score from `since` on, plus the last one
+  before `since`, oldest first. UpGuard and Shodan rows count only when the
+  score is above 0. Each vendor also gets a `current` block (stored scores,
+  `combined_pct` and `grade`, the same numbers the vendor page shows).
+  Top-level fields are `upguard_max_score`, `timezone`, `total`, `limit` and
+  `offset`. Query: `since` (YYYY-MM-DD, default January 1 of last year),
+  `tier` (1-3), `limit` (1-200, default 100), `offset`. A bad value gets a
+  400 that names the parameter. Each list is capped at 1000 rows (newest
+  kept) and marked `"truncated": true` when cut. Documented in the API v2
+  (Swagger) reference.
+- **Custom score history.** The custom score used to keep only its current
+  value, and its changes reached only the audit log, which is purged after
+  `log_retention_days`. New table `vendor_custom_score_history` records every
+  set and clear from the SRS details page, in the same transaction as the
+  change, with who made it. A save that does not change the value adds no
+  row. On upgrade the table is backfilled once from the custom score entries
+  still in the audit log. A vendor whose current custom score is not covered
+  by that history gets its current value as of the upgrade.
+
 - **Control test attestations from open-ctem.** People test a control in
   open-ctem and record what was tested, who tested it, the expected result,
   the outcome, pass or fail, and why it failed. open-ctem sends each one to
@@ -881,6 +905,9 @@ project adheres to [Semantic Versioning](https://semver.org/).
   tested reset recipe instead of a password that will not work.
 
 ### Changed
+
+- **REST API v2: an unknown `/vendors/<name>` path now answers 404.**
+  Before, it quietly returned the vendor list.
 
 - The assessment audit entries no longer record the assessment link token
   (`assessment_submit` became `assessment_answered`, `assessment_email_sent`

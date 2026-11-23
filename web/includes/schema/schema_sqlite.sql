@@ -601,6 +601,18 @@ CREATE INDEX IF NOT EXISTS idx_vss_subdomain ON vendor_subdomain_scores(subdomai
 -- SECTION 7B: SHODAN SRS SCORING
 -- =============================================================================
 
+-- Vendor custom score history (one row per change; score NULL = cleared; changed_at UTC)
+CREATE TABLE IF NOT EXISTS vendor_custom_score_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    vendor_onboarding_id INTEGER NOT NULL,
+    score INTEGER DEFAULT NULL,
+    changed_at DATETIME NOT NULL,
+    changed_by INTEGER DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (vendor_onboarding_id) REFERENCES vendor_onboarding_requests(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_custom_score_hist_vendor_time ON vendor_custom_score_history(vendor_onboarding_id, changed_at);
+
 -- Shodan Score History table
 CREATE TABLE IF NOT EXISTS vendor_shodan_scores (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

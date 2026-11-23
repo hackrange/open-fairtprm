@@ -732,6 +732,60 @@ class SRSService
     }
 
     /**
+     * The UpGuard maximum getCombinedScore() divides by (configured max_score,
+     * 950 when unset or not positive).
+     */
+    public function getUpguardMaxScore(): int
+    {
+        $config = $this->loadScoringConfig();
+        return $config['max_score'] > 0 ? (int)$config['max_score'] : 950;
+    }
+
+    /**
+     * Set (1-100) or clear (null) a vendor's custom score and record the change
+     * in vendor_custom_score_history in the same transaction. A save that does
+     * not change the value writes no history row.
+     *
+     * changed_at is stored in UTC (like audit_log.created_at, which the history
+     * was backfilled from); the API converts it to the server time zone.
+     *
+     * @return bool true when the stored value changed
+     * @throws InvalidArgumentException for a score outside 1-100
+     */
+    public function setCustomScore(int $vendorOnboardingId, ?int $score, ?int $changedBy): bool
+    {
+        if ($score !== null && ($score < 1 || $score > 100)) {
+            throw new InvalidArgumentException('Custom score must be between 1 and 100.');
+        }
+        $ownTxn = !$this->db->inTransaction();
+        if ($ownTxn) $this->db->beginTransaction();
+        try {
+            $row = $this->db->fetchOne('SELECT custom_score FROM vendor_onboarding_requests WHERE id = :id', [':id' => $vendorOnboardingId]);
+            if (!$row) {
+                throw new RuntimeException('Vendor not found');
+            }
+            $old = $row['custom_score'] !== null ? (int)$row['custom_score'] : null;
+            if ($old === $score) {
+                if ($ownTxn) $this->db->commit();
+                return false;
+            }
+            $this->db->query('UPDATE vendor_onboarding_requests SET custom_score = :s WHERE id = :id',
+                [':s' => $score, ':id' => $vendorOnboardingId]);
+            $this->db->insert('vendor_custom_score_history', [
+                'vendor_onboarding_id' => $vendorOnboardingId,
+                'score'                => $score,
+                'changed_at'           => gmdate('Y-m-d H:i:s'),
+                'changed_by'           => $changedBy ?: null,
+            ]);
+            if ($ownTxn) $this->db->commit();
+            return true;
+        } catch (Throwable $e) {
+            if ($ownTxn && $this->db->inTransaction()) $this->db->rollback();
+            throw $e;
+        }
+    }
+
+    /**
      * Static grade calculation using hardcoded UpGuard defaults.
      * @deprecated Use calculateGrade() instead -- this one doesn't read the config.
      * Kept around for backward compatibility because ripping it out would
